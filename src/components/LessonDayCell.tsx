@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { Tooltip } from '@/ui'
 import type { Announcement, Assignment, LessonPlan } from '@/types'
@@ -142,9 +143,11 @@ export const LessonDayCell = memo(function LessonDayCell({
   onAnnouncementClick,
 }: LessonDayCellProps) {
   const markdown = useMemo(() => getLessonPlanMarkdown(lessonPlan).markdown, [lessonPlan])
+  const { showMarkdown } = useMarkdownPreference()
   const [isEditing, setIsEditing] = useState(false)
   const [localMarkdown, setLocalMarkdown] = useState(markdown)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const renderPlainText = plainTextOnly || !showMarkdown
 
   useEffect(() => {
     if (!isEditing) {
@@ -191,6 +194,14 @@ export const LessonDayCell = memo(function LessonDayCell({
   }, [handleMarkdownChange])
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!showMarkdown) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setIsEditing(false)
+      }
+      return
+    }
+
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') {
       event.preventDefault()
       applyShortcut('bold')
@@ -215,11 +226,11 @@ export const LessonDayCell = memo(function LessonDayCell({
       event.preventDefault()
       setIsEditing(false)
     }
-  }, [applyShortcut])
+  }, [applyShortcut, showMarkdown])
 
   const hasContent = markdown.trim().length > 0
   const plainText = useMemo(() => {
-    if (!plainTextOnly || !hasContent) return ''
+    if (!renderPlainText || !hasContent) return ''
     return markdown
       .replace(/^#{1,6}\s+/gm, '')
       .replace(/\*\*([^*]+)\*\*/g, '$1')
@@ -228,10 +239,13 @@ export const LessonDayCell = memo(function LessonDayCell({
       .replace(/^\s*[-*]\s+/gm, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim()
-  }, [plainTextOnly, hasContent, markdown])
+  }, [renderPlainText, hasContent, markdown])
   const previewClassName = compact || plainTextOnly
     ? 'space-y-1 text-[10px] leading-tight [&_p]:text-[10px] [&_p]:leading-tight [&_ul]:text-[10px] [&_ol]:text-[10px] [&_blockquote]:text-[10px] [&_h1]:text-xs [&_h2]:text-[11px] [&_h3]:text-[10px]'
     : 'space-y-2 text-sm leading-snug [&_p]:text-sm [&_ul]:text-sm [&_ol]:text-sm [&_blockquote]:text-sm [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm'
+  const plainTextClassName = compact || plainTextOnly
+    ? 'text-[10px] leading-tight text-text-muted line-clamp-3 whitespace-pre-wrap'
+    : 'text-sm leading-snug text-text-muted whitespace-pre-wrap'
 
   // Weekend cells are narrow and minimal
   if (isWeekend) {
@@ -392,7 +406,7 @@ export const LessonDayCell = memo(function LessonDayCell({
             onChange={(event) => handleMarkdownChange(event.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={() => setIsEditing(false)}
-            className={`w-full h-full resize-none border-none bg-transparent font-mono text-text-default focus:outline-none ${compact ? 'text-[10px] leading-tight' : 'text-sm leading-snug'}`}
+            className={`w-full h-full resize-none border-none bg-transparent text-text-default focus:outline-none ${showMarkdown ? 'font-mono' : ''} ${compact ? 'text-[10px] leading-tight' : 'text-sm leading-snug'}`}
           />
         ) : (
           <button
@@ -401,8 +415,8 @@ export const LessonDayCell = memo(function LessonDayCell({
             className={`w-full text-left ${editable ? 'cursor-text' : 'cursor-default'}`}
           >
             {hasContent ? (
-              plainTextOnly ? (
-                <div className="text-[10px] leading-tight text-text-muted line-clamp-3 whitespace-pre-wrap">
+              renderPlainText ? (
+                <div className={plainTextClassName}>
                   {plainText}
                 </div>
               ) : (

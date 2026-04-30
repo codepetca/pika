@@ -67,6 +67,24 @@ describe('getLayoutConfig', () => {
     expect(studentConfig.rightSidebar.defaultWidth).toBe('50%')
     expect(studentConfig.rightSidebar.desktopAlwaysOpen).toBe(true)
   })
+
+  it('should not reserve external sidebars for teacher gradebook, quizzes, and tests', () => {
+    const gradebookConfig = getLayoutConfig('gradebook')
+    const quizzesConfig = getLayoutConfig('quizzes-teacher')
+    const testsConfig = getLayoutConfig('tests-teacher')
+
+    expect(gradebookConfig.rightSidebar.enabled).toBe(false)
+    expect(gradebookConfig.rightSidebar.defaultOpen).toBe(false)
+    expect(gradebookConfig.mainContent.maxWidth).toBe('full')
+
+    expect(quizzesConfig.rightSidebar.enabled).toBe(false)
+    expect(quizzesConfig.rightSidebar.defaultOpen).toBe(false)
+    expect(quizzesConfig.mainContent.maxWidth).toBe('full')
+
+    expect(testsConfig.rightSidebar.enabled).toBe(false)
+    expect(testsConfig.rightSidebar.defaultOpen).toBe(false)
+    expect(testsConfig.mainContent.maxWidth).toBe('full')
+  })
 })
 
 describe('getRightSidebarCookieName', () => {

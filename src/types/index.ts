@@ -38,6 +38,30 @@ export interface Session {
 
 export type LessonPlanVisibility = 'current_week' | 'one_week_ahead' | 'all'
 
+export type PublishedCourseSiteLessonPlanScope = 'current_week' | 'one_week_ahead' | 'all'
+
+export interface PlannedCourseSiteConfig {
+  overview: boolean
+  outline: boolean
+  resources: boolean
+  assignments: boolean
+  quizzes: boolean
+  tests: boolean
+  lesson_plans: boolean
+}
+
+export interface ActualCourseSiteConfig extends PlannedCourseSiteConfig {
+  announcements: boolean
+  lesson_plan_scope: PublishedCourseSiteLessonPlanScope
+}
+
+export interface ClassroomBlueprintOrigin {
+  blueprint_id: string
+  blueprint_title: string
+  package_manifest_version: string
+  package_exported_at: string
+}
+
 export interface Classroom {
   id: string
   teacher_id: string
@@ -49,6 +73,13 @@ export interface Classroom {
   start_date: string | null // YYYY-MM-DD, inclusive
   end_date: string | null // YYYY-MM-DD, inclusive
   lesson_plan_visibility: LessonPlanVisibility
+  source_blueprint_id: string | null
+  source_blueprint_origin: ClassroomBlueprintOrigin | null
+  actual_site_slug: string | null
+  actual_site_published: boolean
+  actual_site_config: ActualCourseSiteConfig
+  course_overview_markdown: string
+  course_outline_markdown: string
   archived_at: string | null
   created_at: string
   updated_at: string
@@ -580,6 +611,93 @@ export interface ClassroomResources {
   updated_by: string | null
 }
 
+export interface CourseBlueprint {
+  id: string
+  teacher_id: string
+  title: string
+  subject: string
+  grade_level: string
+  course_code: string
+  term_template: string
+  overview_markdown: string
+  outline_markdown: string
+  resources_markdown: string
+  planned_site_slug: string | null
+  planned_site_published: boolean
+  planned_site_config: PlannedCourseSiteConfig
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CourseBlueprintAssignment {
+  id: string
+  course_blueprint_id: string
+  title: string
+  instructions_markdown: string
+  default_due_days: number
+  default_due_time: string
+  points_possible: number | null
+  include_in_final: boolean
+  is_draft: boolean
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CourseBlueprintAssessment {
+  id: string
+  course_blueprint_id: string
+  assessment_type: QuizAssessmentType
+  title: string
+  content: Record<string, unknown>
+  documents: TestDocument[]
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CourseBlueprintLessonTemplate {
+  id: string
+  course_blueprint_id: string
+  title: string
+  content_markdown: string
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CourseBlueprintDetail extends CourseBlueprint {
+  assignments: CourseBlueprintAssignment[]
+  assessments: CourseBlueprintAssessment[]
+  lesson_templates: CourseBlueprintLessonTemplate[]
+  linked_classrooms: LinkedBlueprintClassroom[]
+}
+
+export interface CoursePackageManifest {
+  version: string
+  exported_at: string
+  title: string
+  subject: string
+  grade_level: string
+  course_code: string
+  term_template: string
+  planned_site_slug?: string | null
+  planned_site_published?: boolean
+  planned_site_config?: PlannedCourseSiteConfig
+}
+
+export interface CreateClassroomFromBlueprintInput {
+  blueprintId: string
+  title: string
+  classCode?: string
+  termLabel?: string
+  semester?: 'semester1' | 'semester2'
+  year?: number
+  start_date?: string
+  end_date?: string
+}
+
 // Quiz types
 export type QuizStatus = 'draft' | 'active' | 'closed'
 export type QuizAssessmentType = 'quiz' | 'test'
@@ -799,11 +917,60 @@ export interface Announcement {
   updated_at: string
 }
 
+export interface LinkedBlueprintClassroom {
+  id: string
+  title: string
+  class_code: string
+  term_label: string | null
+  actual_site_slug: string | null
+  actual_site_published: boolean
+  archived_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type BlueprintMergeSuggestionArea =
+  | 'overview'
+  | 'outline'
+  | 'resources'
+  | 'assignments'
+  | 'quizzes'
+  | 'tests'
+  | 'lesson-plans'
+  | 'announcements'
+
+export type BlueprintMergeSuggestionOperation = 'add' | 'update' | 'remove'
+
+export interface BlueprintMergeSuggestionItem {
+  key: string
+  label: string
+  operation: BlueprintMergeSuggestionOperation
+  current_summary: string
+  proposed_summary: string
+}
+
+export interface BlueprintMergeSuggestion {
+  area: BlueprintMergeSuggestionArea
+  title: string
+  summary: string
+  items: BlueprintMergeSuggestionItem[]
+  preview_markdown?: string
+}
+
+export interface BlueprintMergeSuggestionSet {
+  classroom_id: string
+  classroom_title: string
+  blueprint_id: string
+  generated_at: string
+  suggestions: BlueprintMergeSuggestion[]
+}
+
 export interface GradebookSettings {
   classroom_id: string
   use_weights: boolean
   assignments_weight: number
   quizzes_weight: number
+  tests_weight: number
 }
 
 export interface GradebookStudentSummary {
@@ -817,6 +984,9 @@ export interface GradebookStudentSummary {
   quizzes_earned: number | null
   quizzes_possible: number | null
   quizzes_percent: number | null
+  tests_earned: number | null
+  tests_possible: number | null
+  tests_percent: number | null
   final_percent: number | null
 }
 
@@ -841,9 +1011,19 @@ export interface GradebookQuizDetail {
   is_manual_override: boolean
 }
 
+export interface GradebookTestDetail {
+  test_id: string
+  title: string
+  earned: number
+  possible: number
+  percent: number
+  status: 'draft' | 'active' | 'closed' | null
+}
+
 export interface GradebookStudentDetail extends GradebookStudentSummary {
   assignments: GradebookAssignmentDetail[]
   quizzes: GradebookQuizDetail[]
+  tests: GradebookTestDetail[]
 }
 
 export interface GradebookClassAssignmentSummary {
@@ -866,12 +1046,22 @@ export interface GradebookClassQuizSummary {
   average_percent: number | null
 }
 
+export interface GradebookClassTestSummary {
+  test_id: string
+  title: string
+  status: 'draft' | 'active' | 'closed' | null
+  possible: number
+  scored_count: number
+  average_percent: number | null
+}
+
 export interface GradebookClassSummary {
   total_students: number
   students_with_final: number
   average_final_percent: number | null
   assignments: GradebookClassAssignmentSummary[]
   quizzes: GradebookClassQuizSummary[]
+  tests: GradebookClassTestSummary[]
 }
 
 export type ReportCardTerm = 'midterm' | 'final'

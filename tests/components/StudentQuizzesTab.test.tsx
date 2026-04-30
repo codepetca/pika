@@ -363,14 +363,14 @@ describe('StudentQuizzesTab exam mode', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('This test is now closed.')).toBeInTheDocument()
+      expect(screen.getByText('This test is closed.')).toBeInTheDocument()
     })
     expect(screen.getByText('Your current work has been submitted.')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Return to tests' }))
 
     await waitFor(() => {
-      expect(screen.queryByText('This test is now closed.')).not.toBeInTheDocument()
+      expect(screen.queryByText('This test is closed.')).not.toBeInTheDocument()
       expect(screen.getByText('This test is closed')).toBeInTheDocument()
     })
   })
@@ -478,7 +478,7 @@ describe('StudentQuizzesTab exam mode', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('This test is now closed.')).toBeInTheDocument()
+      expect(screen.getByText('This test is closed.')).toBeInTheDocument()
     })
     expect(screen.getByText('Your current work has been submitted. Results are now available from the tests list.')).toBeInTheDocument()
   })
@@ -1284,7 +1284,7 @@ describe('StudentQuizzesTab exam mode', () => {
                 {
                   id: 'doc-1',
                   title: 'Formula Sheet',
-                  content: 'Solve using the quadratic formula.',
+                  content: 'Solve using `public static`.\n\n```java\npublic class Main {}\n```',
                   source: 'text',
                 },
               ],
@@ -1351,7 +1351,12 @@ describe('StudentQuizzesTab exam mode', () => {
       expect(screen.getByRole('button', { name: 'Back to documents list' })).toBeInTheDocument()
     })
 
-    fireEvent.mouseUp(screen.getByText('Solve using the quadratic formula.'))
+    expect(screen.getByText('public static')).toHaveClass('font-mono')
+    expect(screen.getByText('public class Main {}')).toBeInTheDocument()
+    expect(screen.queryByText(/```/)).not.toBeInTheDocument()
+    expect(screen.getByText(/Solve using/).parentElement).toHaveClass('break-words')
+
+    fireEvent.mouseUp(screen.getByText(/Solve using/))
     fireEvent(window, new Event('blur'))
     visibilityState = 'hidden'
     fireEvent(document, new Event('visibilitychange'))
@@ -3330,7 +3335,7 @@ describe('StudentQuizzesTab exam mode', () => {
 
     expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
     expect(screen.getByText('2 + 2 = ?')).toBeVisible()
-    expect(screen.getByText('3').closest('label')).toHaveClass('border-primary')
+    expect(screen.getByText('3').closest('[data-question-option]')).toHaveClass('border-primary')
     expect(
       focusBodies.some(
         (body) =>
@@ -3524,7 +3529,7 @@ describe('StudentQuizzesTab exam mode', () => {
       })
 
       expect(screen.getByText('Which HTTP method is usually used for partial updates?')).toBeInTheDocument()
-      expect(screen.getByText('PATCH').closest('label')).toHaveClass('border-primary')
+      expect(screen.getByText('PATCH').closest('[data-question-option]')).toHaveClass('border-primary')
 
       fireEvent.click(screen.getByText('GET'))
 
@@ -3535,7 +3540,7 @@ describe('StudentQuizzesTab exam mode', () => {
 
       expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
       expect(screen.getByText('Which HTTP method is usually used for partial updates?')).toBeVisible()
-      expect(screen.getByText('GET').closest('label')).toHaveClass('border-primary')
+      expect(screen.getByText('GET').closest('[data-question-option]')).toHaveClass('border-primary')
 
       await act(async () => {
         vi.advanceTimersByTime(5_000)

@@ -9483,3 +9483,462 @@
 - `E2E_BASE_URL=http://localhost:3000 pnpm e2e:auth`
 - Reproduced the provided long Unit 5-style test in Playwright and confirmed MC selection keeps `window.scrollY` at 0 with no blank area
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=tests"`
+
+## 2026-04-27 — Issue 505 Teacher Tests/Quizzes Work-Surface Shell
+
+- Migrated teacher tests to `TeacherWorkSurfaceShell`, with the authoring/grading mode bar and grading student inspector contained inside the tests workspace split.
+- Reworked teacher quizzes as a quiz-only work surface with URL-controlled selected quiz state and delete in the selected workspace.
+- Routed `testId`, `testMode`, `testStudentId`, and `quizId` through classroom search params, including active-tab re-click summary resets and stale param replacement.
+- Disabled external right sidebars for teacher tests/quizzes and updated coverage for the layout-provider expectation.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/TeacherWorkSurfaceModeBar.test.tsx tests/components/TeacherWorkspaceSplit.test.tsx`
+- `pnpm test tests/components/ThreePanelProvider.test.tsx tests/unit/layout-config.test.ts`
+- `pnpm lint` (existing `TestDocumentsEditor` hook dependency warning remains)
+- `pnpm exec tsc --noEmit`
+- `bash scripts/verify-env.sh` (218 files, 1885 tests)
+- `E2E_BASE_URL=http://localhost:3000 pnpm e2e:verify assessment-ux-parity`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=tests"`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=quizzes"`
+
+## 2026-04-27 — Issue 512 Teacher Assessment URL-State Hardening
+
+- Added Chromium Playwright coverage for teacher Tests and Quizzes URL-state flows: deep links, selected assessment params, grading mode, selected test student, browser Back unwinding, and active nav re-click summary resets.
+- Changed teacher Tests mode switches to replace the selected test history entry, so Back from a selected grading student clears `testStudentId` and then returns to the Tests summary.
+- Added component coverage for the replace-on-mode-switch behavior and reused existing async grading coverage in the standard verifier.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `E2E_BASE_URL=http://localhost:3100 pnpm exec playwright test e2e/teacher-assessment-url-state.spec.ts --project=chromium-desktop`
+- `pnpm lint` (existing `TestDocumentsEditor` hook dependency warning remains)
+- `pnpm exec tsc --noEmit`
+- `bash scripts/verify-env.sh` (218 files, 1886 tests)
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=tests"`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=quizzes"`
+
+## 2026-04-17 [AI - Codex]
+
+**Goal:** Add flat course blueprints as reusable teacher-owned course packages with in-app editing, classroom instantiation, and portable import/export.
+
+**Completed:**
+- Added `course_blueprints`, `course_blueprint_assignments`, `course_blueprint_assessments`, and `course_blueprint_lesson_templates` schema/RLS in `supabase/migrations/054_course_blueprints.sql`.
+- Added blueprint server helpers, teacher APIs, validations, and shared types for blueprint CRUD, bulk markdown editing, package export/import, classroom instantiation, and copilot preview/apply flows.
+- Added markdown serializers/parsers for blueprint assignments, quizzes/tests, and lesson templates, plus tar-based portable package encoding/decoding around `manifest.json` and the markdown files.
+- Added the teacher blueprint workspace at `src/app/teacher/blueprints/page.tsx`, a create-blueprint modal, classroom-from-blueprint entry points, and responsive teacher/student shell fixes using the shared `PikaLogo`.
+- Hardened assessment markdown serialization against incomplete stored blobs and fixed the instantiate route validation mismatch so blueprint id comes from the route as intended.
+- Added targeted tests for blueprint package round-trips, assessment serialization regression coverage, blueprint API routes, and classroom instantiation.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/lib/course-blueprint-assessments-markdown.test.ts tests/lib/course-blueprint-package.test.ts tests/api/teacher/course-blueprints-route.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts`
+- `pnpm build`
+- Playwright visual verification on the blueprint page, create-classroom modal, and mobile shell using mocked blueprint API responses because local migration application is out of scope for AI agents in this repo.
+
+**Notes:**
+- The new export format is a real `.tar` package containing `manifest.json`, `course-overview.md`, `course-outline.md`, `resources.md`, `assignments.md`, `quizzes.md`, `tests.md`, and `lesson-plans.md`.
+- Import remains backward-compatible with the older JSON bundle format.
+- Local runtime use of `/teacher/blueprints` still requires the new migration to be applied through the normal human-run Supabase workflow.
+
+**Status:** Flat course blueprint v1 is implemented, validated, and ready for draft PR review.
+
+## 2026-04-27 — Archive split and blueprint hardening follow-up
+
+**Context:** Rebased `codex/course-blueprints-v1` onto `origin/main`, fixed three blueprint review findings, then narrowed the branch by removing the portable classroom-archive export/restore feature after product direction changed.
+
+**Completed:**
+- Rebased the feature worktree onto `origin/main` and resequenced the branch migrations to `057_course_blueprints.sql` and `058_course_blueprint_publication_and_provenance.sql`.
+- Fixed assessment-sync data loss by making quiz-only and test-only replacement explicit in blueprint merge/apply, AI apply, and bulk assessment save flows.
+- Hardened classroom blueprint source loading so nested `assessment_drafts`, `quiz_questions`, and `test_questions` failures surface as errors instead of silently degrading promoted/exported content.
+- Enforced publish-without-slug rejection for both planned course sites and actual classroom course sites at the validation and server-helper layers.
+- Removed the portable classroom archive feature from the branch: deleted archive API routes, archive package/server helpers, archive types/tests, and the archive UI card from classroom settings.
+- Opened follow-up issue `#515` for blueprint workflow polish, naming/copy cleanup, external file-contract documentation, and a clean smoke pass without archive scope.
+
+**Validation:**
+- `pnpm test tests/api/teacher/course-blueprint-publication-routes.test.ts tests/components/TeacherSettingsTab.test.tsx tests/api/teacher/classrooms-id.test.ts tests/lib/server/course-blueprints.test.ts tests/lib/server/course-sites.test.ts tests/lib/server/classroom-blueprint-source.test.ts tests/lib/validations/teacher.test.ts --reporter=dot`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- Visual verification with direct Playwright login screenshots for:
+  - `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=settings` teacher desktop
+  - `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=settings` teacher mobile
+  - student mobile access sanity check on the same route
+
+**Notes:**
+- The direct `ui_verify.sh` storage-state flow hit a stale access mismatch for the classroom settings route, so final screenshot verification used a direct Playwright login instead.
+- Existing soft classroom archive behavior from `main` remains intact; only the new portable snapshot export/restore feature was removed from this branch.
+
+## 2026-04-27 — Final lint cleanup before merge
+
+**Completed:**
+- Removed the lingering `react-hooks/exhaustive-deps` warning in `src/components/TestDocumentsEditor.tsx` by inlining the one-shot external add-modal effect logic instead of closing over `openAddModal`.
+
+**Validation:**
+- `pnpm lint`
+
+## 2026-04-27 — Fix CI-only class-day coverage failure
+
+**Completed:**
+- Fixed a timezone-sensitive calendar bug that shifted `YYYY-MM-DD` ranges by a day on UTC runners by normalizing semester and holiday range inputs to UTC noon in `src/lib/calendar.ts`.
+- Hardened Ontario public holiday extraction to prefer the explicit `date-holidays` date string before falling back to `start`.
+- Added a regression test covering the Good Friday exclusion path for a custom April date range in `tests/unit/calendar.test.ts`.
+
+**Validation:**
+- `pnpm vitest run tests/unit/calendar.test.ts tests/unit/server-class-days.test.ts --reporter=dot`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test:coverage`
+
+## 2026-04-28 — Issue #515 course blueprint workflow polish
+
+**Completed:**
+- Kept `Course Blueprint` as the teacher-facing reusable plan name and made `Course Package` the portable file name across the blueprint workspace, classroom creation flow, and classroom settings promotion flow.
+- Tightened teacher workflow copy for importing/exporting packages, using a blueprint for a classroom, saving a classroom as a course blueprint, planned-site publishing, AI drafting, and classroom update review.
+- Added a compact package contract panel to the selected blueprint workspace and improved the workspace layout so the sidebar no longer stretches into an empty column and metadata fields have room for real course names.
+- Documented the official `.course-package.tar` contract in `docs/guidance/course-blueprint-packages.md`, including included/excluded data and the repo/Codex/Claude round trip.
+- Added tests covering the updated classroom creation copy, settings promotion copy, blueprint workspace actions, and package documentation contract.
+
+**Validation:**
+- `pnpm test tests/components/CreateClassroomModal.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/components/TeacherBlueprintsPage.test.tsx tests/unit/course-blueprint-package-docs.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test` (233 files, 1938 tests)
+- `pnpm test tests/components/TeacherBlueprintsPage.test.tsx`
+- Pika UI verification for `/teacher/blueprints` via `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "teacher/blueprints"`; local Supabase is missing course blueprint migrations, so selected-workspace verification used Playwright API mocks instead of applying migrations.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-teacher-blueprint-selected.png`
+  - `/tmp/pika-teacher-blueprint-selected-mobile.png`
+  - `/tmp/pika-teacher-blueprint-selected-dark.png`
+  - `/tmp/pika-teacher-settings-blueprint.png`
+  - `/tmp/pika-teacher-settings-blueprint-mobile.png`
+
+## 2026-04-28 — Clarify resubmitted assignment status
+
+**Completed:**
+- Made the teacher assignment student table show `resubmitted` rows as a compact warning `Resub` chip instead of an icon-only status, so teachers can distinguish a returned-then-resubmitted row even when the grade column still has a score.
+- Added component coverage for the resubmitted chip and the shared resubmission status icon.
+
+**Validation:**
+- `pnpm test tests/components/TeacherAssignmentStudentTable.test.tsx tests/components/AssessmentStatusIcon.test.tsx`
+- `pnpm lint`
+- `pnpm test` (233 files, 1940 tests)
+- Visual verification with Playwright route-mocked assignment data for:
+  - `/tmp/pika-teacher-resubmitted-status.png`
+  - `/tmp/pika-teacher-resubmitted-status-mobile.png`
+  - `/tmp/pika-student-assignments-mobile.png`
+## 2026-04-28 — Test AI batch grading omitted response fix
+
+**Context:** A teacher test AI grading run reported `Graded 15 • 4 failed` with repeated `AI batch grade suggestion omitted response ...` messages after grading practice tests where several students had not attempted.
+
+**Completed:**
+- Fixed test AI batch grading so a model omission for one response no longer fails the whole microbatch.
+- Kept available batch suggestions and lets the run processor retry only the omitted response.
+- Mapped exhausted omitted-response failures to the generic teacher-facing AI grading service error instead of exposing internal response IDs.
+- Added unit coverage for partial batch suggestions and run-state coverage for retry and exhausted-retry behavior.
+
+**Validation:**
+- `pnpm test tests/unit/ai-test-grading.test.ts`
+- `pnpm test tests/lib/test-ai-grading-runs.test.ts`
+- `pnpm lint`
+- `pnpm test` (233 files, 1941 tests)
+- `pnpm build`
+
+## 2026-04-28 — Gradebook tabs and tests category
+
+**Completed:**
+- Rebased the gradebook work onto current `origin/main` in the `codex/gradebook-tabs-refactor` worktree; prior gradebook branches had no commits ahead of `main`.
+- Refactored the teacher gradebook to use the shared teacher work-surface tab bar and summary/detail workspace shell used by assignments/tests.
+- Added `Grades` and `Settings` gradebook subtabs, with the Grades view using a 50/50 desktop split between the student table and summary/detail pane.
+- Added Tests as a first-class gradebook category across settings, class/student summaries, final-grade calculation, API payload types, and gradebook settings persistence.
+- Hardened settings loading so real `gradebook_settings` read failures return an error instead of silently falling back to defaults.
+- Added component coverage for the controlled gradebook tabs and the three Settings category weights.
+- Added migration `supabase/migrations/059_add_gradebook_tests_weight.sql` for `gradebook_settings.tests_weight`.
+
+**Validation:**
+- `pnpm test tests/unit/gradebook.test.ts tests/api/teacher/gradebook.test.ts tests/hooks/useGradebookData.test.ts tests/unit/layout-config.test.ts`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/api/teacher/gradebook.test.ts tests/unit/gradebook.test.ts tests/hooks/useGradebookData.test.ts tests/unit/layout-config.test.ts`
+- `pnpm lint`
+- `pnpm test` (234 files, 1947 tests)
+- `pnpm build`
+- Pika UI verification for teacher gradebook Grades and Settings:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+
+## 2026-04-29 — Top-center transient app messages
+
+**Completed:**
+- Added the shared `AppMessageProvider` overlay primitive in `/ui` and mounted it from the root layout.
+- Migrated transient success, copy, refreshing, auth resend, and grading progress/completion messages out of inline page flow.
+- Repositioned the message pill into the center of the 48px global title bar and added animated ellipsis dots for loading-tone messages.
+- Removed the attempted fade-in/fade-out animation after browser verification still did not produce a convincing visible effect in product use.
+- Opened follow-up issue https://github.com/codepetca/pika/issues/523 to revisit title-bar message animation separately.
+- Kept blocking errors, validation, empty states, confirmations, and editor save-state context inline.
+- Updated `/ui` docs and component tests for the overlay behavior.
+
+**Validation:**
+- `pnpm test tests/ui/AppMessage.test.tsx tests/ui/StatusPrimitives.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `bash "$PIKA_WORKTREE/scripts/verify-env.sh"` (235 files, 1951 tests)
+- Pika UI verification for classroom assignments and assignment grading workspace:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual auth resend overlay verification:
+  - `/tmp/pika-auth-resend-overlay.png`
+  - `/tmp/pika-auth-resend-overlay-mobile.png`
+- Manual title-bar overlay verification:
+  - `/tmp/pika-header-overlay-desktop.png`
+  - `/tmp/pika-header-overlay-mobile.png`
+  - `/tmp/pika-header-overlay-fade.png`
+  - `/tmp/pika-header-overlay-soft-fade.png`
+  - `/tmp/pika-header-overlay-extra-slow-fade.png`
+  - `/tmp/pika-header-overlay-slow-fade-working.png`
+- After removing the fade attempt:
+  - `pnpm test tests/ui/AppMessage.test.tsx tests/ui/StatusPrimitives.test.tsx tests/components/TeacherTestsTab.test.tsx`
+  - `pnpm lint`
+  - `pnpm exec tsc --noEmit --pretty false --project tsconfig.json --incremental false`
+
+## 2026-04-29 — Explicit source-visible license
+
+**Completed:**
+- Added a root `LICENSE` file reserving all rights to Stewart Chan and identifying Pika as a CodePet project.
+- Added a README license section that states the repository is publicly visible for review/evaluation only and links to `LICENSE`.
+
+**Validation:**
+- `bash "$PIKA_WORKTREE/scripts/verify-env.sh"` (235 files, 1951 tests)
+## 2026-04-29 — Classroom navigation pending feedback
+
+**Completed:**
+- Added immediate `Opening classroom...` feedback after teacher and student classroom cards are clicked, with the selected row disabled while the route advances.
+- Added matching pending feedback to the classroom switch dropdown and prevented duplicate classroom-switch clicks during navigation.
+- Confirmed the classroom picker already navigates directly to `/classrooms/:id`, so the local `Compiling /classrooms` delay remains a `next dev` route compilation artifact.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification for `/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-teacher-opening.png`
+  - `/tmp/pika-student-opening.png`
+## 2026-04-28 — Teacher assignments edit-mode pilot
+
+**Completed:**
+- Added the shared `TeacherEditModeControls` action-bar control for temporary teacher work-surface edit mode.
+- Updated teacher assignments so normal mode keeps `New`, navigation, grading, return, and status workflows visible while hiding reorder, delete, and bulk markdown code affordances.
+- Moved assignment bulk markdown entry behind edit-mode `Code`, gated parent markdown/sidebar opening on assignment edit mode, and reset edit mode on assignment workspace/tab changes.
+- Updated assignment summary cards so normal clicks open the workspace when possible, draft/scheduled cards still open the editor, and edit-mode clicks open the assignment editor with drag/delete visible.
+- Hid the selected-assignment title edit affordance until edit mode is active.
+- Added experimental guidance for the reusable teacher edit-mode pattern.
+- Fixed a small mobile header overflow exposed during assignment mobile verification by hiding the date/time on narrow screens.
+
+**Validation:**
+- `pnpm test tests/components/TeacherEditModeControls.test.tsx tests/components/SortableAssignmentCard.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm lint`
+- `bash scripts/verify-env.sh` (`pnpm test`: 237 files, 1958 tests)
+- `pnpm e2e:auth`
+- Applied pending local Supabase migrations 057-059 with `supabase db push --local` to unblock visual verification against the local dev DB.
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-teacher-assignments-summary-normal.png`
+  - `/tmp/pika-teacher-assignments-summary-edit.png`
+  - `/tmp/pika-teacher-assignments-code-sidebar.png`
+  - `/tmp/pika-teacher-assignments-code-sidebar-dark.png`
+  - `/tmp/pika-teacher-assignment-workspace-normal.png`
+  - `/tmp/pika-teacher-assignment-workspace-edit.png`
+  - `/tmp/pika-teacher-assignments-mobile-390-after-header-fix.png`
+  - `/tmp/pika-student-assignments-mobile-390-after-header-fix.png`
+
+## 2026-04-29 — Teacher assignment workspace edit refinements
+
+**Completed:**
+- Moved the selected-assignment Class-mode `Return` action into the centered `AI Grade` split-button menu and removed the standalone Return button.
+- Added edit-mode visibility checkboxes to the grading inspector cards so teachers can hide cards such as `Repo` from normal mode while keeping hidden card headers available in edit mode.
+- Persisted inspector card visibility per classroom in client cookies alongside the existing expanded-section state.
+- Updated the experimental teacher edit-mode guidance with the inspector card visibility rule.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherEditModeControls.test.tsx tests/components/SortableAssignmentCard.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm test tests/components/TeacherWorkSurfaceShell.test.tsx`
+- `pnpm lint`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-assignment-workspace-split-return.png`
+  - `/tmp/pika-assignment-workspace-edit-inspector.png`
+  - `/tmp/pika-assignment-workspace-hidden-repo.png`
+  - `/tmp/pika-assignment-workspace-repo-hidden-normal.png`
+  - `/tmp/pika-assignment-workspace-mobile.png`
+
+## 2026-04-29 — Center assignment summary New action
+
+**Completed:**
+- Centered the teacher assignment summary `+ New` button in the action bar while keeping edit controls anchored on the right.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx`
+- `pnpm lint`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-student.png`
+
+## 2026-04-29 — Inspector edit-mode collapse behavior
+
+**Completed:**
+- Collapsed all right-pane assignment inspector cards when entering assignment edit mode.
+- Expanded the inspector card header click target so clicking anywhere in the top card header area toggles collapse/expand, while visibility checkboxes and card actions keep their own behavior.
+
+**Validation:**
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-assignment-workspace-edit-collapsed.png`
+  - `/tmp/pika-assignment-workspace-header-click-expanded-after-wait.png`
+
+## 2026-04-29 — Assignment edit mode route and Escape reset
+
+**Completed:**
+- Reset assignment edit mode when the teacher leaves the assignments route/tab or the assignment workspace changes.
+- Added Escape handling so assignment edit mode exits from summary and selected-assignment workspace views, while preserving Escape behavior inside inputs and editors.
+- Kept assignment markdown/sidebar cleanup scoped to assignment markdown state so other tabs do not lose their own right-sidebar state after navigation.
+- Tightened the mobile assignment action bar by making the edit-mode Code action icon-only below the `sm` breakpoint.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/TeacherEditModeControls.test.tsx tests/components/SortableAssignmentCard.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Interactive Playwright checks for summary edit mode, Code sidebar, Escape reset, route-away reset, selected-assignment workspace edit mode, and mobile edit mode.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-teacher-edit-mode.png`
+  - `/tmp/pika-teacher-code-sidebar.png`
+  - `/tmp/pika-teacher-workspace-normal.png`
+  - `/tmp/pika-teacher-workspace-edit.png`
+  - `/tmp/pika-teacher-mobile-edit-mode.png`
+
+## 2026-04-29 — Assignment summary edit mode opens markdown by default
+
+**Completed:**
+- Removed the assignment-list edit-mode `Code` action.
+- Updated assignment summary edit mode so entering edit mode automatically opens the existing bulk markdown editor in the right split pane.
+- Kept Done, Escape, workspace changes, and route changes closing assignment markdown/edit state.
+- Updated experimental teacher edit-mode guidance to make the automatic markdown split the assignment pilot rule.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherEditModeControls.test.tsx`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/TeacherEditModeControls.test.tsx tests/components/SortableAssignmentCard.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Interactive Playwright checks for automatic desktop split, removed Code action, Escape reset, route-away reset, and mobile markdown drawer.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-teacher-edit-mode-auto-markdown.png`
+  - `/tmp/pika-teacher-mobile-edit-auto-markdown.png`
+
+## 2026-04-29 — Actionbar top spacing balance
+
+**Completed:**
+- Increased the shared compact header/actionbar top spacing token from 2px to 12px so the actionbar has symmetric visual breathing room above and below it.
+
+**Validation:**
+- `pnpm test tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-edit-spacing-auto-markdown.png`
+
+## 2026-04-29 — Global markdown visibility preference
+
+**Completed:**
+- Added a main user-menu `Show markdown` checkbox backed by local storage.
+- Gated markdown/source surfaces across assignment edit split view, assignment instruction modals, lesson calendar markdown sidebar, lesson calendar cell rendering/shortcuts, class-day markdown copy, quiz markdown tabs/splits, classroom website markdown fields, and teacher blueprint markdown editors/previews.
+- Kept assignment edit mode functional when markdown is hidden: edit affordances remain visible, but the markdown pane stays closed until the setting is re-enabled.
+
+**Validation:**
+- `pnpm test tests/components/UserMenu.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm test tests/components/QuizDetailPanel.test.tsx tests/components/LessonCalendar.test.tsx tests/components/TeacherBlueprintsPage.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm test tests/components/AssignmentModal.test.tsx tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test tests/components/UserMenu.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/QuizDetailPanel.test.tsx tests/components/LessonCalendar.test.tsx tests/components/TeacherBlueprintsPage.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/TeacherEditModeControls.test.tsx tests/components/SortableAssignmentCard.test.tsx tests/components/AssignmentModal.test.tsx tests/components/TeacherSettingsTab.test.tsx` (124 tests)
+- `pnpm lint`
+- `pnpm exec tsc --noEmit --pretty false`
+- `git diff --check`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=calendar`.
+- Interactive Playwright checks for assignment edit mode with markdown hidden and re-enabled.
+- Interactive Playwright checks for hidden markdown in assignment instructions, classroom website settings, and lesson calendar cells.
+- Visual screenshots reviewed:
+  - `/tmp/pika-markdown-hidden-assignment-edit-clean.png`
+  - `/tmp/pika-markdown-shown-assignment-edit-clean.png`
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-assignment-modal-markdown-hidden.png`
+  - `/tmp/pika-settings-markdown-hidden.png`
+  - `/tmp/pika-calendar-markdown-hidden.png`
+
+## 2026-04-29 — Move markdown display setting into classroom settings
+
+**Completed:**
+- Moved the `Show markdown` preference out of the top-right account menu and into the teacher classroom Settings → General tab.
+- Added a compact Display card above Actual Course Website so the markdown setting lives with the classroom settings gear flow.
+- Updated hidden-markdown copy to refer to the display setting instead of the user menu.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx tests/components/UserMenu.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit --pretty false`
+- `git diff --check`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=settings`.
+- Interactive Playwright check for toggling `Show markdown` off/on from Settings → General.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-settings-show-markdown-off.png`
+  - `/tmp/pika-settings-show-markdown-on.png`
+## 2026-04-29 — Exam markdown rendering fix
+
+**Completed:**
+- Made exam-mode text documents render through the shared limited markdown renderer instead of a raw `<pre>`, preserving document interaction suppression for focus telemetry.
+- Made multiple-choice options render markdown in the student test form and teacher preview, so inline code and fenced code blocks no longer show literal markdown backticks.
+- Added regression coverage for language-tagged fenced code, markdown MC options, and text-document markdown inside the student exam flow.
+
+**Validation:**
+- `pnpm test tests/components/QuestionMarkdown.test.tsx tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=tests` on this branch at `http://localhost:3010`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Focused markdown visual checks after seeding and then restoring the local active test with markdown document/option examples:
+  - `/tmp/pika-student-exam-markdown-3010.png`
+  - `/tmp/pika-teacher-preview-markdown-3010.png`
+- Follow-up: removed the `scripts/seed-tests.ts` smoke-data change to avoid seed failures in databases missing existing test document migrations; markdown smoke coverage remains in component tests and the local visual check.

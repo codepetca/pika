@@ -26,7 +26,7 @@ import {
   Plus,
   Send,
 } from 'lucide-react'
-import { Button, ConfirmDialog, SplitButton, Tooltip } from '@/ui'
+import { Button, ConfirmDialog, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
@@ -38,6 +38,7 @@ import {
 } from '@/components/assignment-workspace/TeacherAssignmentStudentTable'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
+import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
 import { TeacherWorkSurfaceModeBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import {
@@ -46,7 +47,6 @@ import {
   ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME,
   PageStack,
 } from '@/components/PageLayout'
-import { RightSidebarToggle } from '@/components/layout'
 import {
   calculateAssignmentStatus,
   getAssignmentRubricState,
@@ -98,6 +98,7 @@ interface Props {
   classroom: Classroom
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
   onViewModeChange?: (mode: AssignmentViewMode) => void
+  onEditModeChange?: (active: boolean) => void
   isActive?: boolean
   selectedAssignmentId?: string | null
   selectedAssignmentStudentId?: string | null
@@ -206,13 +207,11 @@ function formatAssignmentAiGradingRunMessage(run: AssignmentAiGradingRunSummary)
   }
 }
 
-const ASSIGNMENT_AI_GRADING_RUN_NOTE =
-  'Keep this assignment open while grading runs. Reopening it resumes the current progress.'
-
 export function TeacherClassroomView({
   classroom,
   onSelectAssignment,
   onViewModeChange,
+  onEditModeChange,
   isActive = true,
   selectedAssignmentId: selectedAssignmentIdProp,
   selectedAssignmentStudentId,
@@ -228,6 +227,7 @@ export function TeacherClassroomView({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
   const [isReordering, setIsReordering] = useState(false)
+  const [assignmentEditMode, setAssignmentEditMode] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -282,6 +282,7 @@ export function TeacherClassroomView({
   const wasActiveRef = useRef(isActive)
   const handledCompletedRunKeysRef = useRef<Set<string>>(new Set())
   const showSummarySpinner = useDelayedBusy(loading && assignments.length === 0)
+  const { showMessage } = useAppMessage()
   const {
     layout: assignmentGradingLayout,
     updateModeLayout,
@@ -355,7 +356,7 @@ export function TeacherClassroomView({
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
       const { active, over } = event
-      if (!over || active.id === over.id || isReordering || isReadOnly) return
+      if (!over || active.id === over.id || isReordering || isReadOnly || !assignmentEditMode) return
 
       const oldIndex = assignments.findIndex((a) => a.id === active.id)
       const newIndex = assignments.findIndex((a) => a.id === over.id)
@@ -391,7 +392,7 @@ export function TeacherClassroomView({
         setIsReordering(false)
       }
     },
-    [assignments, classroom.id, isReordering, isReadOnly, loadAssignments]
+    [assignmentEditMode, assignments, classroom.id, isReordering, isReadOnly, loadAssignments]
   )
 
   useEffect(() => {
@@ -567,6 +568,52 @@ export function TeacherClassroomView({
     onViewModeChange?.(selection.mode)
   }, [selection.mode, onViewModeChange])
 
+  useEffect(() => {
+    onEditModeChange?.(assignmentEditMode)
+  }, [assignmentEditMode, onEditModeChange])
+
+  useEffect(() => {
+    return () => {
+      onEditModeChange?.(false)
+    }
+  }, [onEditModeChange])
+
+  const assignmentEditModeResetKey =
+    selection.mode === 'assignment' ? selection.assignmentId : 'summary'
+
+  useEffect(() => {
+    setAssignmentEditMode(false)
+  }, [assignmentEditModeResetKey, classroom.id])
+
+  useEffect(() => {
+    if (isActive && !isReadOnly) return
+    setAssignmentEditMode(false)
+  }, [isActive, isReadOnly])
+
+  useEffect(() => {
+    if (!assignmentEditMode) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      const target = event.target
+      if (
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+
+      event.preventDefault()
+      setAssignmentEditMode(false)
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [assignmentEditMode])
+
   function handleCreateSuccess(created: Assignment) {
     // Optimistically add the new assignment to the list
     setAssignments((prev) => [...prev, { ...created, stats: { total_students: 0, submitted: 0, late: 0 } }])
@@ -724,9 +771,9 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (!info) return
-    const timer = setTimeout(() => setInfo(''), 4000)
-    return () => clearTimeout(timer)
-  }, [info])
+    showMessage({ text: info, tone: 'info' })
+    setInfo('')
+  }, [info, showMessage])
 
   useEffect(() => {
     if (!selectedAssignmentKey || !activeAssignmentAiRunId || !hasActiveAssignmentAiRun) return
@@ -1100,6 +1147,7 @@ export function TeacherClassroomView({
 
   // Escape key to deselect student
   useEffect(() => {
+    if (assignmentEditMode) return
     if (assignmentWorkspaceMode !== 'overview') return
     if (!selectedStudentId) return
 
@@ -1111,7 +1159,7 @@ export function TeacherClassroomView({
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [assignmentWorkspaceMode, selectedStudentId, setSelectedStudentAndNavigate])
+  }, [assignmentEditMode, assignmentWorkspaceMode, selectedStudentId, setSelectedStudentAndNavigate])
 
   useEffect(() => {
     if (selection.mode !== 'assignment') {
@@ -1214,35 +1262,21 @@ export function TeacherClassroomView({
     batchSelectedReturnSummary.returnableCount + batchSelectedReturnSummary.missingCount > 0
   const isReturnDisabled =
     isReturning || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0 || !hasReturnableSelection
-  const returnTooltipContent =
-    batchSelectedCount > 0 && !hasReturnableSelection
-      ? 'Nothing returnable selected'
-      : `Return${workspaceActionLabelSuffix}`
   const showAssignmentAiRunOverlay = isAutoGrading || hasActiveAssignmentAiRun
   const assignmentAiRunOverlayLabel = hasActiveAssignmentAiRun && activeAssignmentAiRun
     ? `Grading ${Math.min(activeAssignmentAiRun.processed_count, activeAssignmentAiRun.requested_count)} of ${activeAssignmentAiRun.requested_count} students…`
     : `Starting grading for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+  const activeWorkMessage = showAssignmentAiRunOverlay
+    ? assignmentAiRunOverlayLabel
+    : isArtifactRepoAnalyzing
+      ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+      : isReturning
+        ? `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+        : ''
+  useOverlayMessage(!!activeWorkMessage, activeWorkMessage, { tone: 'loading' })
 
-  const studentBusyOverlay = showAssignmentAiRunOverlay || isArtifactRepoAnalyzing || isReturning ? (
-    <div className="absolute inset-0 z-10 flex items-start justify-center rounded-md bg-surface/70 px-4 pt-4">
-      <div className="flex max-w-[24rem] flex-col gap-1 rounded-2xl border border-border bg-surface px-3 py-2 text-xs leading-tight text-text-muted shadow-sm sm:max-w-[28rem] sm:text-sm">
-        <div className="flex items-center gap-2">
-          <Spinner />
-          <span>
-            {showAssignmentAiRunOverlay
-              ? assignmentAiRunOverlayLabel
-              : isArtifactRepoAnalyzing
-                ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
-                : `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`}
-          </span>
-        </div>
-        {showAssignmentAiRunOverlay ? (
-          <p className="pl-6 text-[11px] leading-tight text-text-muted sm:text-xs">
-            {ASSIGNMENT_AI_GRADING_RUN_NOTE}
-          </p>
-        ) : null}
-      </div>
-    </div>
+  const studentBusyOverlay = activeWorkMessage ? (
+    <div className="absolute inset-0 z-10 rounded-md bg-surface/30" aria-hidden="true" />
   ) : null
 
   const studentTable = (
@@ -1274,60 +1308,52 @@ export function TeacherClassroomView({
 
   const workspaceModeCenter = assignmentWorkspaceMode === 'overview' ? (
     <>
-      <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
-        <SplitButton
-          label={
-            <span className="inline-flex items-center gap-2">
-              <Check className="h-4 w-4" aria-hidden="true" />
-              <span>AI Grade</span>
-            </span>
-          }
-          onPrimaryClick={() => {
-            void handleBatchAutoGrade()
-          }}
-          options={[
-            {
-              id: 'repo-analysis',
-              label: (
-                <span className="inline-flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                  <span>Repo analysis</span>
-                </span>
-              ),
-              onSelect: () => {
-                void handleBatchArtifactRepoAnalyze()
-              },
-              disabled: isArtifactRepoAnalyzing || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
+      <SplitButton
+        label={
+          <span className="inline-flex items-center gap-2">
+            <Check className="h-4 w-4" aria-hidden="true" />
+            <span>AI Grade</span>
+          </span>
+        }
+        onPrimaryClick={() => {
+          void handleBatchAutoGrade()
+        }}
+        options={[
+          {
+            id: 'repo-analysis',
+            label: (
+              <span className="inline-flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                <span>Repo analysis</span>
+              </span>
+            ),
+            onSelect: () => {
+              void handleBatchArtifactRepoAnalyze()
             },
-          ]}
-          disabled={isAutoGrading || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
-          className="inline-flex"
-          toggleAriaLabel={`More grading actions${workspaceActionLabelSuffix}`}
-          menuPlacement="down"
-          primaryButtonProps={{
-            'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
-          }}
-        />
-      </Tooltip>
-
-      <Tooltip content={returnTooltipContent}>
-        <span className="inline-flex">
-          <Button
-            type="button"
-            variant="subtle"
-            size="sm"
-            className="px-4"
-            onClick={() => {
+            disabled: isArtifactRepoAnalyzing || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
+          },
+          {
+            id: 'return',
+            label: (
+              <span className="inline-flex items-center gap-2">
+                <Send className="h-4 w-4" aria-hidden="true" />
+                <span>Return</span>
+              </span>
+            ),
+            onSelect: () => {
               setShowReturnConfirm(true)
-            }}
-            disabled={isReturnDisabled}
-            aria-label={`Return${workspaceActionLabelSuffix}`}
-          >
-            <Send className="h-4 w-4" aria-hidden="true" />
-            <span>Return</span>
-          </Button>
-        </span>
-      </Tooltip>
+            },
+            disabled: isReturnDisabled,
+          },
+        ]}
+        disabled={isAutoGrading || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
+        className="inline-flex"
+        toggleAriaLabel={`More grading actions${workspaceActionLabelSuffix}`}
+        menuPlacement="down"
+        primaryButtonProps={{
+          'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
+        }}
+      />
     </>
   ) : (
     <>
@@ -1372,7 +1398,7 @@ export function TeacherClassroomView({
     </div>
   ) : null
 
-  const workspaceModeTrailing = (
+  const workspaceModeTrailing = assignmentEditMode ? (
     <Tooltip content="Edit assignment">
       <button
         type="button"
@@ -1390,20 +1416,43 @@ export function TeacherClassroomView({
         <Pencil className="h-4 w-4 shrink-0" aria-hidden="true" />
       </button>
     </Tooltip>
+  ) : (
+    <div
+      className="inline-flex min-h-10 max-w-[22rem] items-center px-2 text-sm font-medium text-text-default"
+      title={selectedAssignmentTitle}
+    >
+      <span className="truncate">{selectedAssignmentTitle}</span>
+    </div>
+  )
+
+  const assignmentEditControls = (
+    <TeacherEditModeControls
+      active={assignmentEditMode}
+      onActiveChange={setAssignmentEditMode}
+      disabled={isReadOnly}
+    />
   )
 
   const primaryButtons =
     selection.mode === 'summary' ? (
-      <button
-        type="button"
-        className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
-        onClick={() => setIsCreateModalOpen(true)}
-        disabled={isReadOnly}
-        aria-label="New assignment"
+      <div
+        data-testid="assignment-summary-actionbar-center"
+        className="relative flex min-h-10 w-full items-center justify-center"
       >
-        <Plus className="h-5 w-5" aria-hidden="true" />
-        <span>New</span>
-      </button>
+        <button
+          type="button"
+          className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
+          onClick={() => setIsCreateModalOpen(true)}
+          disabled={isReadOnly}
+          aria-label="New assignment"
+        >
+          <Plus className="h-5 w-5" aria-hidden="true" />
+          <span>New</span>
+        </button>
+        <div className="absolute right-0 top-1/2 -translate-y-1/2">
+          {assignmentEditControls}
+        </div>
+      </div>
     ) : (
       <TeacherWorkSurfaceModeBar
         modes={[
@@ -1418,7 +1467,6 @@ export function TeacherClassroomView({
       />
     )
 
-  const showMobileToggle = selection.mode === 'summary'
   const selectedAssignmentId = selection.mode === 'assignment' ? selection.assignmentId : null
 
   const feedback = (
@@ -1426,11 +1474,6 @@ export function TeacherClassroomView({
       {error && (
         <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
           {error}
-        </div>
-      )}
-      {info && (
-        <div className="rounded-md border border-primary bg-info-bg px-3 py-2 text-sm text-info">
-          {info}
         </div>
       )}
     </>
@@ -1461,7 +1504,8 @@ export function TeacherClassroomView({
               assignment={assignment}
               isReadOnly={isReadOnly}
               isDragDisabled={isReordering}
-              onSelect={() => {
+              editMode={assignmentEditMode}
+              onOpen={() => {
                 if (assignment.is_draft || isScheduledAssignment(assignment)) {
                   setEditAssignment(assignment)
                 } else {
@@ -1493,6 +1537,7 @@ export function TeacherClassroomView({
         onGoNextStudent={handleGoNextStudent}
         canGoPrevStudent={canGoPrevStudent}
         canGoNextStudent={canGoNextStudent}
+        inspectorEditMode={assignmentEditMode}
         onDetailsMetaChange={setIndividualHeaderMeta}
       />
     ) : selectedAssignmentLoading || (!activeSelectedAssignmentData && !selectedAssignmentError) ? (
@@ -1541,6 +1586,7 @@ export function TeacherClassroomView({
           inspectorCollapsed={false}
           inspectorWidth={activeWorkspaceLayout.inspectorWidth}
           totalWidth={workspaceWidth}
+          inspectorEditMode={assignmentEditMode}
           onLoadingStateChange={setWorkspaceLoading}
         />
       }
@@ -1555,7 +1601,7 @@ export function TeacherClassroomView({
         state={selection.mode === 'summary' ? 'summary' : 'workspace'}
         primary={primaryButtons}
         actions={[]}
-        trailing={showMobileToggle ? <RightSidebarToggle /> : undefined}
+        trailing={selection.mode === 'summary' ? undefined : assignmentEditControls}
         feedback={feedback}
         summary={summaryContent}
         workspace={workspaceContent}

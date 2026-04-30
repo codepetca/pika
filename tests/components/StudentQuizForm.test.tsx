@@ -173,7 +173,7 @@ describe('StudentQuizForm preview mode', () => {
     expect(within(actionPanel).getByText('Answer all questions to submit')).toBeInTheDocument()
   })
 
-  it('keeps multiple-choice radios anchored inside their option labels', async () => {
+  it('keeps multiple-choice radios anchored inside their option rows', async () => {
     const onSubmitted = vi.fn()
 
     render(
@@ -194,13 +194,42 @@ describe('StudentQuizForm preview mode', () => {
       />
     )
 
-    const optionLabel = screen.getByText('A').closest('label')
-    const radio = within(optionLabel!).getByRole('radio')
+    const optionRow = screen.getByText('A').closest('[data-question-option]')
+    const radio = within(optionRow as HTMLElement).getByRole('radio')
 
-    expect(optionLabel).toHaveClass('relative')
+    expect(optionRow).toHaveClass('relative')
     expect(radio).not.toHaveClass('sr-only')
     expect(radio).toHaveClass('absolute')
     expect(radio).toHaveClass('left-3')
+  })
+
+  it('renders markdown inside multiple-choice options', async () => {
+    const onSubmitted = vi.fn()
+
+    render(
+      <StudentQuizForm
+        quizId="test-markdown-options-id"
+        questions={[
+          createMockQuizQuestion({
+            id: 'q1',
+            question_text: 'Which code compiles?',
+            options: [
+              '`public static void main`',
+              '```java\npublic class Main {}\n```',
+            ],
+            question_type: 'multiple_choice',
+            position: 0,
+          }),
+        ]}
+        assessmentType="test"
+        previewMode
+        onSubmitted={onSubmitted}
+      />
+    )
+
+    expect(screen.getByText('public static void main')).toHaveClass('font-mono')
+    expect(screen.getByText('public class Main {}')).toBeInTheDocument()
+    expect(screen.queryByText(/```/)).not.toBeInTheDocument()
   })
 
   it('keeps the sticky submit footer for quizzes', async () => {

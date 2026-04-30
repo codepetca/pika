@@ -303,6 +303,17 @@ describe('calendar utilities', () => {
       expect(classDays).not.toContain('2024-12-27')
     })
 
+    it('should exclude Good Friday from April custom ranges', () => {
+      const start = new Date('2026-04-01')
+      const end = new Date('2026-04-03')
+      const classDays = generateClassDaysFromRange(start, end)
+
+      expect(classDays).toEqual([
+        '2026-04-01',
+        '2026-04-02',
+      ])
+    })
+
     it('should include regular weekdays', () => {
       const { start, end } = getWeekdayRange(TEST_YEAR, 9) // Oct weekdays
       const classDays = generateClassDaysFromRange(start, end)

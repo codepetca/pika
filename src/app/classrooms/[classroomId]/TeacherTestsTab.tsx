@@ -6,9 +6,12 @@ import { Spinner } from '@/components/Spinner'
 import { QuizModal } from '@/components/QuizModal'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
-import { PageActionBar, PageContent, PageLayout, PageStack } from '@/components/PageLayout'
+import { PageStack } from '@/components/PageLayout'
 import { AssessmentStatusIcon, type AssessmentStatusIconState } from '@/components/AssessmentStatusIcon'
-import { useRightSidebar } from '@/components/layout'
+import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
+import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
+import { TeacherWorkSurfaceModeBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
+import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import {
   TEACHER_QUIZZES_UPDATED_EVENT,
   TEACHER_TEST_GRADING_ROW_UPDATED_EVENT,
@@ -18,7 +21,7 @@ import { getQuizExitCount } from '@/lib/quizzes'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { compareByNameFields } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
-import { Button, ConfirmDialog, DialogPanel, EmptyState, FormField, RefreshingIndicator, Select, Tooltip } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, EmptyState, FormField, RefreshingIndicator, Select, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
   AssessmentWorkspaceSummaryPatch,
@@ -32,6 +35,10 @@ import type {
 interface Props {
   classroom: Classroom
   testsTabClickToken?: number
+  selectedTestId?: string | null
+  selectedTestMode?: WorkspaceTab | null
+  selectedTestStudentId?: string | null
+  updateSearchParams?: UpdateSearchParamsFn
   onSelectTest?: (test: QuizWithStats | null) => void
   onTestGradingDataRefresh?: () => void
   onTestGradingContextChange?: (context: {
@@ -42,6 +49,15 @@ interface Props {
   }) => void
   onRequestDelete?: () => void
 }
+
+type UpdateSearchOptions = {
+  replace?: boolean
+}
+
+type UpdateSearchParamsFn = (
+  updater: (params: URLSearchParams) => void,
+  options?: UpdateSearchOptions,
+) => void
 
 interface TestGradingStudentRow {
   student_id: string
@@ -71,8 +87,6 @@ type WorkspaceTab = 'authoring' | 'grading'
 type TestGradingSortColumn = 'first_name' | 'last_name'
 
 const GRADING_POLL_INTERVAL_MS = 15_000
-const TEST_AI_GRADING_RUN_NOTE =
-  'Keep this test open while grading runs. Reopening it resumes the current progress.'
 
 const STATUS_META: Record<
   TestGradingStudentRow['status'],
@@ -194,6 +208,10 @@ function formatTestAiGradingRunMessage(run: TestAiGradingRunSummary): {
 export function TeacherTestsTab({
   classroom,
   testsTabClickToken = 0,
+  selectedTestId: selectedTestIdProp,
+  selectedTestMode,
+  selectedTestStudentId,
+  updateSearchParams,
   onSelectTest,
   onTestGradingDataRefresh,
   onTestGradingContextChange,
@@ -201,7 +219,6 @@ export function TeacherTestsTab({
 }: Props) {
   const apiBasePath = '/api/teacher/tests'
   const isReadOnly = !!classroom.archived_at
-  const { setOpen: setRightSidebarOpen } = useRightSidebar()
   const previousTestsTabClickTokenRef = useRef(testsTabClickToken)
   const gradingSelectionRef = useRef<{
     workspaceState: WorkspaceState
@@ -216,10 +233,10 @@ export function TeacherTestsTab({
   const handledCompletedRunKeysRef = useRef<Set<string>>(new Set())
 
   const [tests, setTests] = useState<QuizWithStats[]>([])
+  const { showMessage } = useAppMessage()
   const [loading, setLoading] = useState(true)
-  const [workspaceState, setWorkspaceState] = useState<WorkspaceState>('list')
-  const [selectedWorkspaceTab, setSelectedWorkspaceTab] = useState<WorkspaceTab>('authoring')
-  const [selectedTestId, setSelectedTestId] = useState<string | null>(null)
+  const [internalSelectedWorkspaceTab, setInternalSelectedWorkspaceTab] = useState<WorkspaceTab>('authoring')
+  const [internalSelectedTestId, setInternalSelectedTestId] = useState<string | null>(null)
   const [selectedTestDraftSummary, setSelectedTestDraftSummary] = useState<AssessmentEditorSummaryUpdate | null>(null)
   const [hasPendingMarkdownImport, setHasPendingMarkdownImport] = useState(false)
   const [showModal, setShowModal] = useState(false)
@@ -235,7 +252,28 @@ export function TeacherTestsTab({
   const [gradingRefreshing, setGradingRefreshing] = useState(false)
   const [gradingError, setGradingError] = useState('')
   const [gradingSortColumn, setGradingSortColumn] = useState<TestGradingSortColumn>('last_name')
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+  const [internalSelectedStudentId, setInternalSelectedStudentId] = useState<string | null>(null)
+  const [gradingInspectorWidth, setGradingInspectorWidth] = useState(50)
+  const [testGradingPanelRefreshToken, setTestGradingPanelRefreshToken] = useState(0)
+  const [testGradingSaveState, setTestGradingSaveState] = useState<{
+    canSave: boolean
+    isSaving: boolean
+    status: 'idle' | 'unsaved' | 'saving' | 'saved'
+  }>({
+    canSave: false,
+    isSaving: false,
+    status: 'idle',
+  })
+
+  const selectedTestId =
+    selectedTestIdProp !== undefined ? selectedTestIdProp : internalSelectedTestId
+  const selectedWorkspaceTab =
+    selectedTestMode === 'authoring' || selectedTestMode === 'grading'
+      ? selectedTestMode
+      : internalSelectedWorkspaceTab
+  const selectedStudentId =
+    selectedTestStudentId !== undefined ? selectedTestStudentId : internalSelectedStudentId
+  const workspaceState: WorkspaceState = selectedTestId ? 'selected' : 'list'
   const [gradingInfo, setGradingInfo] = useState('')
   const [gradingWarning, setGradingWarning] = useState('')
   const [isBatchAutoGrading, setIsBatchAutoGrading] = useState(false)
@@ -323,6 +361,62 @@ export function TeacherTestsTab({
     () => batchSelectedStudents.map((student) => student.student_id),
     [batchSelectedStudents]
   )
+
+  const setSelectedStudentId = useCallback((nextStudentId: string | null) => {
+    setInternalSelectedStudentId(nextStudentId)
+  }, [])
+
+  const navigateTestWorkspace = useCallback((
+    next: {
+      testId: string | null
+      mode?: WorkspaceTab | null
+      studentId?: string | null
+    },
+    options?: UpdateSearchOptions,
+  ) => {
+    setInternalSelectedTestId(next.testId)
+    setInternalSelectedWorkspaceTab(next.mode === 'grading' ? 'grading' : 'authoring')
+    setInternalSelectedStudentId(next.studentId ?? null)
+
+    updateSearchParams?.((params) => {
+      params.set('tab', 'tests')
+      if (next.testId) {
+        params.set('testId', next.testId)
+        params.set('testMode', next.mode === 'grading' ? 'grading' : 'authoring')
+        if (next.mode === 'grading' && next.studentId) {
+          params.set('testStudentId', next.studentId)
+        } else {
+          params.delete('testStudentId')
+        }
+      } else {
+        params.delete('testId')
+        params.delete('testMode')
+        params.delete('testStudentId')
+      }
+    }, options)
+  }, [updateSearchParams])
+
+  const clearTestWorkspace = useCallback((options?: UpdateSearchOptions) => {
+    navigateTestWorkspace({ testId: null, mode: null, studentId: null }, options)
+  }, [navigateTestWorkspace])
+
+  const switchTestWorkspaceMode = useCallback((nextMode: WorkspaceTab) => {
+    if (!selectedTestId) return
+    navigateTestWorkspace(
+      { testId: selectedTestId, mode: nextMode, studentId: null },
+      { replace: true },
+    )
+  }, [navigateTestWorkspace, selectedTestId])
+
+  const selectGradingStudent = useCallback((studentId: string | null) => {
+    setInternalSelectedStudentId(studentId)
+    if (!selectedTestId || selectedWorkspaceTab !== 'grading') return
+    navigateTestWorkspace({
+      testId: selectedTestId,
+      mode: 'grading',
+      studentId,
+    })
+  }, [navigateTestWorkspace, selectedTestId, selectedWorkspaceTab])
 
   const batchAutoGradePreflight = useMemo(() => {
     const selectedCount = batchSelectedStudents.length
@@ -503,15 +597,12 @@ export function TeacherTestsTab({
   }, [selectedTestId, selectedWorkspaceTab, workspaceState])
 
   useEffect(() => {
-    if (!selectedTestId) return
+    if (!selectedTestId || loading) return
     if (tests.some((test) => test.id === selectedTestId)) return
 
-    setWorkspaceState('list')
-    setSelectedWorkspaceTab('authoring')
-    setSelectedTestId(null)
-    setSelectedStudentId(null)
+    clearTestWorkspace({ replace: true })
     clearBatchSelection()
-  }, [clearBatchSelection, selectedTestId, tests])
+  }, [clearBatchSelection, clearTestWorkspace, loading, selectedTestId, tests])
 
   useEffect(() => {
     setSelectedTestDraftSummary(null)
@@ -521,13 +612,9 @@ export function TeacherTestsTab({
     if (!pendingCreatedTestId) return
     if (!tests.some((test) => test.id === pendingCreatedTestId)) return
 
-    setSelectedTestId(pendingCreatedTestId)
-    setWorkspaceState('selected')
-    setSelectedWorkspaceTab('authoring')
-    setSelectedStudentId(null)
+    navigateTestWorkspace({ testId: pendingCreatedTestId, mode: 'authoring', studentId: null })
     setPendingCreatedTestId(null)
-    setRightSidebarOpen(false)
-  }, [pendingCreatedTestId, setRightSidebarOpen, tests])
+  }, [navigateTestWorkspace, pendingCreatedTestId, tests])
 
   useEffect(() => {
     if (previousTestsTabClickTokenRef.current === testsTabClickToken) return
@@ -535,16 +622,12 @@ export function TeacherTestsTab({
 
     if (workspaceState !== 'selected') return
 
-    setWorkspaceState('list')
-    setSelectedWorkspaceTab('authoring')
-    setSelectedTestId(null)
-    setSelectedStudentId(null)
+    clearTestWorkspace()
     setGradingError('')
     setGradingWarning('')
     setGradingInfo('')
     clearBatchSelection()
-    setRightSidebarOpen(false)
-  }, [clearBatchSelection, setRightSidebarOpen, testsTabClickToken, workspaceState])
+  }, [clearBatchSelection, clearTestWorkspace, testsTabClickToken, workspaceState])
 
   useEffect(() => {
     if (workspaceState !== 'selected' || selectedWorkspaceTab !== 'grading') {
@@ -561,7 +644,46 @@ export function TeacherTestsTab({
     }
 
     void loadGradingRows()
-  }, [clearBatchSelection, loadGradingRows, selectedWorkspaceTab, workspaceState])
+  }, [clearBatchSelection, loadGradingRows, selectedWorkspaceTab, setSelectedStudentId, workspaceState])
+
+  useEffect(() => {
+    if (workspaceState !== 'selected' || !selectedTestId) return
+    if (selectedWorkspaceTab === 'grading' || !selectedStudentId) return
+
+    navigateTestWorkspace(
+      { testId: selectedTestId, mode: selectedWorkspaceTab, studentId: null },
+      { replace: true },
+    )
+  }, [navigateTestWorkspace, selectedStudentId, selectedTestId, selectedWorkspaceTab, workspaceState])
+
+  useEffect(() => {
+    if (
+      workspaceState !== 'selected' ||
+      selectedWorkspaceTab !== 'grading' ||
+      !selectedTestId ||
+      !selectedStudentId ||
+      gradingLoading ||
+      gradingServerTestId !== selectedTestId
+    ) {
+      return
+    }
+
+    if (gradingStudents.some((student) => student.student_id === selectedStudentId)) return
+
+    navigateTestWorkspace(
+      { testId: selectedTestId, mode: 'grading', studentId: null },
+      { replace: true },
+    )
+  }, [
+    gradingLoading,
+    gradingServerTestId,
+    gradingStudents,
+    navigateTestWorkspace,
+    selectedStudentId,
+    selectedTestId,
+    selectedWorkspaceTab,
+    workspaceState,
+  ])
 
   useEffect(() => {
     if (workspaceState !== 'selected' || selectedWorkspaceTab !== 'authoring') {
@@ -690,31 +812,6 @@ export function TeacherTestsTab({
   ])
 
   useEffect(() => {
-    if (workspaceState !== 'selected' || selectedWorkspaceTab !== 'grading' || !selectedStudentId) {
-      setRightSidebarOpen(false)
-      return
-    }
-
-    setRightSidebarOpen(true)
-  }, [selectedStudentId, selectedWorkspaceTab, setRightSidebarOpen, workspaceState])
-
-  useEffect(() => {
-    if (!gradingWarning) return
-    if (batchSelectedCount > 0) {
-      setGradingWarning('')
-      return
-    }
-    const timer = window.setTimeout(() => setGradingWarning(''), 3000)
-    return () => window.clearTimeout(timer)
-  }, [batchSelectedCount, gradingWarning])
-
-  useEffect(() => {
-    if (!gradingInfo) return
-    const timer = window.setTimeout(() => setGradingInfo(''), 4000)
-    return () => window.clearTimeout(timer)
-  }, [gradingInfo])
-
-  useEffect(() => {
     if (
       workspaceState !== 'selected' ||
       selectedWorkspaceTab !== 'grading' ||
@@ -806,22 +903,21 @@ export function TeacherTestsTab({
     const message = formatTestAiGradingRunMessage(activeTestAiRun)
     clearBatchSelection()
     void loadGradingRows()
+    setTestGradingPanelRefreshToken((prev) => prev + 1)
     onTestGradingDataRefresh?.()
 
     if (message.error) {
       setGradingError(message.error)
       setGradingInfo('')
     } else {
-      setGradingInfo(message.info)
+      showMessage({ text: message.info, tone: 'info' })
+      setGradingInfo('')
       setGradingError('')
     }
-  }, [activeTestAiRun, clearBatchSelection, hasActiveTestAiRun, loadGradingRows, onTestGradingDataRefresh])
+  }, [activeTestAiRun, clearBatchSelection, hasActiveTestAiRun, loadGradingRows, onTestGradingDataRefresh, showMessage])
 
   function handleOpenTest(test: QuizWithStats) {
-    setSelectedTestId(test.id)
-    setWorkspaceState('selected')
-    setSelectedWorkspaceTab('authoring')
-    setSelectedStudentId(null)
+    navigateTestWorkspace({ testId: test.id, mode: 'authoring', studentId: null })
     setGradingError('')
     setGradingWarning('')
     setGradingInfo('')
@@ -873,7 +969,7 @@ export function TeacherTestsTab({
         if (!options?.preserveSelection) {
           clearBatchSelection()
         }
-        setGradingInfo('AI grading started')
+        showMessage({ text: 'Grading started', tone: 'info' })
         return
       }
       if (response.status === 409 && data.run) {
@@ -897,11 +993,13 @@ export function TeacherTestsTab({
       if (Number(summary.skipped_already_graded_count ?? 0) > 0) {
         summaryParts.push(`${summary.skipped_already_graded_count} already graded`)
       }
-      setGradingInfo(summaryParts.join(' • ') || 'No AI grading was needed')
+      showMessage({ text: summaryParts.join(' • ') || 'No AI grading was needed', tone: 'info' })
+      setGradingInfo('')
       if (!options?.preserveSelection) {
         clearBatchSelection()
       }
       await loadGradingRows()
+      setTestGradingPanelRefreshToken((prev) => prev + 1)
       onTestGradingDataRefresh?.()
     } catch (error: any) {
       setGradingError(error.message || 'Auto-grade failed')
@@ -940,6 +1038,8 @@ export function TeacherTestsTab({
         await loadTests()
       }
       await loadGradingRows()
+      setTestGradingPanelRefreshToken((prev) => prev + 1)
+      onTestGradingDataRefresh?.()
     } catch (error: any) {
       setGradingError(error.message || 'Return failed')
     } finally {
@@ -972,6 +1072,7 @@ export function TeacherTestsTab({
       clearBatchSelection()
       setShowClearOpenGradesConfirm(false)
       await loadGradingRows()
+      setTestGradingPanelRefreshToken((prev) => prev + 1)
       onTestGradingDataRefresh?.()
     } catch (error: any) {
       setGradingError(error.message || 'Clear open grades failed')
@@ -1116,7 +1217,7 @@ export function TeacherTestsTab({
   const gradingTable = (
     <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
       {gradingRefreshing ? (
-        <RefreshingIndicator label="Refreshing grading rows..." className="px-3 py-2" />
+        <RefreshingIndicator label="Refreshing grades" className="px-3 py-2" />
       ) : null}
       {gradingLoading && gradingStudents.length === 0 ? (
         <div className="flex justify-center py-10">
@@ -1218,7 +1319,7 @@ export function TeacherTestsTab({
                       'cursor-pointer border-t border-border transition-colors hover:bg-surface-hover',
                       isSelected ? 'bg-surface-selected' : '',
                     ].join(' ')}
-                    onClick={() => setSelectedStudentId(student.student_id)}
+                    onClick={() => selectGradingStudent(student.student_id)}
                   >
                     <td className="px-3 py-2">
                       <input
@@ -1300,177 +1401,222 @@ export function TeacherTestsTab({
     </div>
   )
 
-  const selectedHeader = workspaceState === 'selected' ? (
-    <div className="flex w-full flex-wrap items-center gap-2 sm:min-h-[2.75rem]">
-      <div className="mb-[-1px] flex items-end gap-1 self-end">
-        <button
+  const workspaceModeCenter = selectedWorkspaceTab === 'authoring' ? (
+    <>
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={() => setTestPreviewRequestToken((value) => value + 1)}
+        disabled={hasPendingMarkdownImport}
+      >
+        Preview
+      </Button>
+      {selectedTestWorkspace?.status === 'draft' ? (
+        <Button
           type="button"
-          className={[
-            selectedWorkspaceTab === 'authoring'
-              ? 'relative z-10 rounded-t-lg border border-border border-b-surface bg-surface text-text-default'
-              : 'rounded-t-lg border border-transparent bg-surface-2 text-text-muted hover:bg-surface-hover hover:text-text-default',
-            'min-h-10 px-3 py-2 text-sm font-medium transition-colors',
-          ].join(' ')}
-          onClick={() => setSelectedWorkspaceTab('authoring')}
-          aria-pressed={selectedWorkspaceTab === 'authoring'}
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            void handleRequestSelectedTestActivate()
+          }}
+          disabled={
+            !selectedActivation.valid ||
+            isReadOnly ||
+            statusUpdating ||
+            checkingActivation ||
+            hasPendingMarkdownImport
+          }
         >
-          Authoring
-        </button>
-        <button
+          <Play className="h-4 w-4" />
+          Open
+        </Button>
+      ) : null}
+      {selectedTestWorkspace?.status === 'active' ? (
+        <Button
           type="button"
-          className={[
-            selectedWorkspaceTab === 'grading'
-              ? 'relative z-10 rounded-t-lg border border-border border-b-surface bg-surface text-text-default'
-              : 'rounded-t-lg border border-transparent bg-surface-2 text-text-muted hover:bg-surface-hover hover:text-text-default',
-            'min-h-10 px-3 py-2 text-sm font-medium transition-colors',
-          ].join(' ')}
-          onClick={() => setSelectedWorkspaceTab('grading')}
-          aria-pressed={selectedWorkspaceTab === 'grading'}
+          variant="secondary"
+          size="sm"
+          onClick={() => setShowCloseConfirm(true)}
+          disabled={isReadOnly || statusUpdating || hasPendingMarkdownImport}
         >
-          Grading
-        </button>
-      </div>
-
-      <div className="flex min-w-0 basis-full justify-center sm:basis-auto sm:flex-1">
-        <div className="flex min-w-0 flex-wrap items-center justify-center gap-2 sm:gap-3">
-          {selectedWorkspaceTab === 'authoring' ? (
-            <>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setTestPreviewRequestToken((value) => value + 1)}
-                disabled={hasPendingMarkdownImport}
-              >
-                Preview
-              </Button>
-              {selectedTestWorkspace?.status === 'draft' ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    void handleRequestSelectedTestActivate()
-                  }}
-                  disabled={
-                    !selectedActivation.valid ||
-                    isReadOnly ||
-                    statusUpdating ||
-                    checkingActivation ||
-                    hasPendingMarkdownImport
-                  }
-                >
-                  <Play className="h-4 w-4" />
-                  Open
-                </Button>
-              ) : null}
-              {selectedTestWorkspace?.status === 'active' ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setShowCloseConfirm(true)}
-                  disabled={isReadOnly || statusUpdating || hasPendingMarkdownImport}
-                >
-                  <Square className="h-4 w-4" />
-                  Close
-                </Button>
-              ) : null}
-              {selectedTestWorkspace?.status === 'closed' ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    void handleSelectedTestStatusChange('active')
-                  }}
-                  disabled={isReadOnly || statusUpdating || hasPendingMarkdownImport}
-                >
-                  <Play className="h-4 w-4" />
-                  Reopen
-                </Button>
-              ) : null}
-              {onRequestDelete ? (
-                <Button
-                  type="button"
-                  variant="danger"
-                  size="sm"
-                  onClick={onRequestDelete}
-                  disabled={isReadOnly}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </Button>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={openBatchPromptGuidelineModal}
-                disabled={isBatchAutoGrading || isBatchReturning || isBatchClearingOpenGrades}
-              >
-                AI Prompt
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  if (batchSelectedCount === 0) {
-                    setGradingWarning('Select students to grade')
-                    return
-                  }
-                  setShowBatchGradeModal(true)
-                }}
-                disabled={
-                  batchSelectedCount === 0 ||
-                  hasActiveTestAiRun ||
-                  isBatchAutoGrading ||
-                  isBatchReturning ||
-                  isBatchClearingOpenGrades
-                }
-              >
-                <Check className="h-4 w-4" />
-                AI Grade
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  if (batchSelectedCount === 0) {
-                    setGradingWarning('Select students to return')
-                    return
-                  }
-                  setShowReturnConfirm(true)
-                }}
-                disabled={
-                  batchSelectedCount === 0 ||
-                  isBatchAutoGrading ||
-                  isBatchReturning ||
-                  isBatchClearingOpenGrades
-                }
-              >
-                <Send className="h-4 w-4" />
-                Return
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="flex min-w-0 basis-full justify-end sm:basis-auto sm:ml-auto">
-        <div
-          className="min-w-0 max-w-[22rem] truncate text-right text-sm font-medium text-text-default"
-          title={selectedTestTitle}
+          <Square className="h-4 w-4" />
+          Close
+        </Button>
+      ) : null}
+      {selectedTestWorkspace?.status === 'closed' ? (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            void handleSelectedTestStatusChange('active')
+          }}
+          disabled={isReadOnly || statusUpdating || hasPendingMarkdownImport}
         >
-          {selectedTestTitle}
-        </div>
-      </div>
+          <Play className="h-4 w-4" />
+          Reopen
+        </Button>
+      ) : null}
+      {onRequestDelete ? (
+        <Button
+          type="button"
+          variant="danger"
+          size="sm"
+          onClick={onRequestDelete}
+          disabled={isReadOnly}
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete
+        </Button>
+      ) : null}
+    </>
+  ) : (
+    <>
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={openBatchPromptGuidelineModal}
+        disabled={isBatchAutoGrading || isBatchReturning || isBatchClearingOpenGrades}
+      >
+        AI Prompt
+      </Button>
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={() => {
+          if (batchSelectedCount === 0) {
+            setGradingWarning('Select students to grade')
+            return
+          }
+          setShowBatchGradeModal(true)
+        }}
+        disabled={
+          batchSelectedCount === 0 ||
+          hasActiveTestAiRun ||
+          isBatchAutoGrading ||
+          isBatchReturning ||
+          isBatchClearingOpenGrades
+        }
+      >
+        <Check className="h-4 w-4" />
+        AI Grade
+      </Button>
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={() => {
+          if (batchSelectedCount === 0) {
+            setGradingWarning('Select students to return')
+            return
+          }
+          setShowReturnConfirm(true)
+        }}
+        disabled={
+          batchSelectedCount === 0 ||
+          isBatchAutoGrading ||
+          isBatchReturning ||
+          isBatchClearingOpenGrades
+        }
+      >
+        <Send className="h-4 w-4" />
+        Return
+      </Button>
+    </>
+  )
+
+  const workspaceModeStatus =
+    selectedWorkspaceTab === 'grading' && selectedStudentId && testGradingSaveState.status !== 'idle' ? (
+      <span
+        className={[
+          'text-xs',
+          testGradingSaveState.status === 'saved'
+            ? 'font-medium text-success'
+            : testGradingSaveState.status === 'saving'
+              ? 'text-text-muted'
+              : 'text-warning',
+        ].join(' ')}
+      >
+        {testGradingSaveState.status === 'saved'
+          ? 'Saved'
+          : testGradingSaveState.status === 'saving'
+            ? 'Saving...'
+            : 'Unsaved'}
+      </span>
+    ) : null
+
+  const activeTestGradingMessage =
+    workspaceState === 'selected' && selectedWorkspaceTab === 'grading'
+      ? hasActiveTestAiRun && activeTestAiRun
+        ? `Grading ${Math.min(activeTestAiRun.processed_count, activeTestAiRun.requested_count)} of ${activeTestAiRun.requested_count} students…`
+        : isBatchAutoGrading
+          ? 'Starting grading…'
+          : isBatchReturning
+            ? 'Returning work…'
+            : isBatchClearingOpenGrades
+              ? 'Clearing grades…'
+              : ''
+      : ''
+  useOverlayMessage(!!activeTestGradingMessage, activeTestGradingMessage, { tone: 'loading' })
+
+  useEffect(() => {
+    if (!gradingWarning) return
+    if (batchSelectedCount > 0) {
+      setGradingWarning('')
+      return
+    }
+    if (workspaceState === 'selected' && selectedWorkspaceTab === 'grading' && !activeTestGradingMessage) {
+      showMessage({ text: gradingWarning, tone: 'warning' })
+    }
+    setGradingWarning('')
+  }, [
+    activeTestGradingMessage,
+    batchSelectedCount,
+    gradingWarning,
+    selectedWorkspaceTab,
+    showMessage,
+    workspaceState,
+  ])
+
+  useEffect(() => {
+    if (!gradingInfo) return
+    if (workspaceState === 'selected' && selectedWorkspaceTab === 'grading' && !activeTestGradingMessage) {
+      showMessage({ text: gradingInfo, tone: 'info' })
+    }
+    setGradingInfo('')
+  }, [
+    activeTestGradingMessage,
+    gradingInfo,
+    selectedWorkspaceTab,
+    showMessage,
+    workspaceState,
+  ])
+
+  const workspaceModeTrailing = (
+    <div
+      className="min-w-0 max-w-[22rem] truncate text-right text-sm font-medium text-text-default"
+      title={selectedTestTitle}
+    >
+      {selectedTestTitle}
     </div>
+  )
+
+  const primaryContent = workspaceState === 'selected' ? (
+    <TeacherWorkSurfaceModeBar
+      modes={[
+        { id: 'authoring', label: 'Authoring' },
+        { id: 'grading', label: 'Grading' },
+      ]}
+      activeMode={selectedWorkspaceTab}
+      onModeChange={(mode) => switchTestWorkspaceMode(mode as WorkspaceTab)}
+      center={workspaceModeCenter}
+      status={workspaceModeStatus}
+      trailing={workspaceModeTrailing}
+      ariaLabel="Test workspace modes"
+    />
   ) : (
     <Button onClick={handleNewTest} variant="primary" className="gap-1.5 shadow-sm" disabled={isReadOnly}>
       <Plus className="h-4 w-4" />
@@ -1478,102 +1624,110 @@ export function TeacherTestsTab({
     </Button>
   )
 
+  const feedback = (
+    <>
+      {statusActionError && workspaceState === 'selected' && selectedWorkspaceTab === 'authoring' ? (
+        <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+          {statusActionError}
+        </div>
+      ) : null}
+      {hasPendingMarkdownImport && workspaceState === 'selected' && selectedWorkspaceTab === 'authoring' ? (
+        <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+          Apply or undo markdown changes before previewing or changing the test status.
+        </div>
+      ) : null}
+      {gradingError && workspaceState === 'selected' && selectedWorkspaceTab === 'grading' ? (
+        <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+          {gradingError}
+        </div>
+      ) : null}
+    </>
+  )
+
+  const summaryContent = loading ? (
+    <div className="flex justify-center py-12">
+      <Spinner size="lg" />
+    </div>
+  ) : tests.length === 0 ? (
+    <EmptyState
+      title="No tests yet"
+      description="Create a test to get started."
+      tone="muted"
+      className="mx-auto w-full max-w-3xl"
+    />
+  ) : (
+    <PageStack className="mx-auto w-full max-w-6xl">
+      {tests.map((test) => (
+        <TeacherTestCard
+          key={test.id}
+          test={test}
+          isReadOnly={isReadOnly}
+          onSelect={() => handleOpenTest(test)}
+          onUpdate={(update) => applyTestSummaryPatch(test.id, update)}
+        />
+      ))}
+    </PageStack>
+  )
+
+  const gradingInspector = selectedTest && selectedStudentId ? (
+    <TestStudentGradingPanel
+      testId={selectedTest.id}
+      selectedStudentId={selectedStudentId}
+      apiBasePath={apiBasePath}
+      refreshToken={testGradingPanelRefreshToken}
+      onSaveStateChange={setTestGradingSaveState}
+    />
+  ) : null
+
+  const workspaceContent = !selectedTest ? (
+    <div className="flex flex-1 justify-center py-12">
+      <Spinner size="lg" />
+    </div>
+  ) : selectedWorkspaceTab === 'authoring' ? (
+    <QuizDetailPanel
+      quiz={selectedTest}
+      classroomId={classroom.id}
+      apiBasePath={apiBasePath}
+      onDraftSummaryChange={handleSelectedTestDraftSummaryChange}
+      onQuizUpdate={(update) => {
+        if (update) {
+          applySelectedTestDraftSummary(update)
+          return
+        }
+        void loadTests()
+      }}
+      onPendingMarkdownImportChange={setHasPendingMarkdownImport}
+      showInlineDeleteAction={false}
+      testQuestionLayout="summary-detail"
+      showPreviewButton={false}
+      showResultsTab={false}
+      previewRequestToken={testPreviewRequestToken}
+    />
+  ) : gradingInspector ? (
+    <TeacherWorkspaceSplit
+      primary={gradingTable}
+      inspector={gradingInspector}
+      inspectorWidth={gradingInspectorWidth}
+      inspectorCollapsed={false}
+      onInspectorWidthChange={setGradingInspectorWidth}
+      dividerLabel="Resize grading and student response panes"
+      minPrimaryPx={420}
+      minInspectorPx={360}
+    />
+  ) : (
+    gradingTable
+  )
+
   return (
-    <PageLayout className="flex h-full min-h-0 flex-col">
-      <PageActionBar primary={selectedHeader} className={isSelectedWorkspace ? 'pl-0 pr-2' : ''} />
-
-      <PageContent
-        className={[
-          'flex min-h-0 flex-1 flex-col',
-          isSelectedWorkspace ? 'gap-0 px-0 pt-0' : 'gap-3',
-        ].join(' ')}
-      >
-        {statusActionError && workspaceState === 'selected' && selectedWorkspaceTab === 'authoring' ? (
-          <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-            {statusActionError}
-          </div>
-        ) : null}
-        {hasPendingMarkdownImport && workspaceState === 'selected' && selectedWorkspaceTab === 'authoring' ? (
-          <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-            Apply or undo markdown changes before previewing or changing the test status.
-          </div>
-        ) : null}
-        {gradingError && workspaceState === 'selected' && selectedWorkspaceTab === 'grading' ? (
-          <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-            {gradingError}
-          </div>
-        ) : null}
-        {gradingWarning && workspaceState === 'selected' && selectedWorkspaceTab === 'grading' ? (
-          <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-            {gradingWarning}
-          </div>
-        ) : null}
-        {gradingInfo && workspaceState === 'selected' && selectedWorkspaceTab === 'grading' ? (
-          <div className="rounded-md border border-primary bg-info-bg px-3 py-2 text-sm text-info">
-            {gradingInfo}
-          </div>
-        ) : null}
-        {hasActiveTestAiRun && workspaceState === 'selected' && selectedWorkspaceTab === 'grading' ? (
-          <div className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-muted">
-            {TEST_AI_GRADING_RUN_NOTE}
-          </div>
-        ) : null}
-
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Spinner size="lg" />
-          </div>
-        ) : tests.length === 0 ? (
-          <EmptyState
-            title="No tests yet"
-            description="Create a test to get started."
-            tone="muted"
-            className="mx-auto w-full max-w-3xl"
-          />
-        ) : workspaceState === 'list' ? (
-          <PageStack className="mx-auto w-full max-w-6xl">
-            {tests.map((test) => (
-              <TeacherTestCard
-                key={test.id}
-                test={test}
-                isReadOnly={isReadOnly}
-                onSelect={() => handleOpenTest(test)}
-                onUpdate={(update) => applyTestSummaryPatch(test.id, update)}
-              />
-            ))}
-          </PageStack>
-        ) : !selectedTest ? (
-          <div className="flex justify-center py-12">
-            <Spinner size="lg" />
-          </div>
-        ) : (
-          <div className="flex min-h-0 w-full flex-1 overflow-hidden rounded-b-lg border border-border bg-surface">
-            {selectedWorkspaceTab === 'authoring' ? (
-              <QuizDetailPanel
-                quiz={selectedTest}
-                classroomId={classroom.id}
-                apiBasePath={apiBasePath}
-                onDraftSummaryChange={handleSelectedTestDraftSummaryChange}
-                onQuizUpdate={(update) => {
-                  if (update) {
-                    applySelectedTestDraftSummary(update)
-                    return
-                  }
-                  void loadTests()
-                }}
-                onPendingMarkdownImportChange={setHasPendingMarkdownImport}
-                showInlineDeleteAction={false}
-                testQuestionLayout="summary-detail"
-                showPreviewButton={false}
-                showResultsTab={false}
-                previewRequestToken={testPreviewRequestToken}
-              />
-            ) : (
-              gradingTable
-            )}
-          </div>
-        )}
-      </PageContent>
+    <>
+      <TeacherWorkSurfaceShell
+        state={workspaceState === 'selected' ? 'workspace' : 'summary'}
+        primary={primaryContent}
+        feedback={feedback}
+        summary={summaryContent}
+        workspace={workspaceContent}
+        workspaceFrame="attachedTabs"
+      />
 
       <QuizModal
         isOpen={showModal}
@@ -1770,6 +1924,6 @@ export function TeacherTestsTab({
           void handleBatchReturn({ closeTest: returnWillCloseActiveTest })
         }}
       />
-    </PageLayout>
+    </>
   )
 }

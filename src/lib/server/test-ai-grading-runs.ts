@@ -656,12 +656,24 @@ function toTeacherAutoGradeErrorMessage(error: unknown): string {
     message === 'OpenAI response incomplete: max_output_tokens' ||
     message === 'Failed to parse AI grade suggestion' ||
     message === 'Failed to parse AI batch grade suggestions' ||
-    message === 'Failed to parse AI reference answers'
+    message === 'Failed to parse AI reference answers' ||
+    message.startsWith('AI batch grade suggestion omitted response')
   ) {
     return 'AI grading service failed for this response. Try again.'
   }
 
   return message
+}
+
+function isBatchOmittedResponseError(error: unknown): boolean {
+  return error instanceof Error && error.message.startsWith('AI batch grade suggestion omitted response')
+}
+
+function getRunItemErrorCode(error: unknown): string {
+  if (isBatchOmittedResponseError(error)) return 'invalid_output'
+  return error instanceof Error && 'kind' in error && typeof error.kind === 'string'
+    ? error.kind
+    : 'internal'
 }
 
 async function failOrRetryItem(opts: {
@@ -671,15 +683,13 @@ async function failOrRetryItem(opts: {
   error: unknown
 }): Promise<void> {
   const teacherMessage = toTeacherAutoGradeErrorMessage(opts.error)
+  const retryable = isRetryableTestAiGradingError(opts.error) || isBatchOmittedResponseError(opts.error)
 
-  if (
-    isRetryableTestAiGradingError(opts.error) &&
-    opts.attemptCount < TEST_AI_GRADING_MAX_ATTEMPTS
-  ) {
+  if (retryable && opts.attemptCount < TEST_AI_GRADING_MAX_ATTEMPTS) {
     await updateRunItem(opts.supabase, opts.item.id, {
       status: 'queued',
       attempt_count: opts.attemptCount,
-      last_error_code: opts.error.kind,
+      last_error_code: getRunItemErrorCode(opts.error),
       last_error_message: teacherMessage,
       next_retry_at: getNextRetryAt(opts.attemptCount),
       completed_at: null,
@@ -690,10 +700,7 @@ async function failOrRetryItem(opts: {
   await updateRunItem(opts.supabase, opts.item.id, {
     status: 'failed',
     attempt_count: opts.attemptCount,
-    last_error_code:
-      opts.error instanceof Error && 'kind' in opts.error && typeof opts.error.kind === 'string'
-        ? opts.error.kind
-        : 'internal',
+    last_error_code: getRunItemErrorCode(opts.error),
     last_error_message: teacherMessage,
     completed_at: new Date().toISOString(),
   })

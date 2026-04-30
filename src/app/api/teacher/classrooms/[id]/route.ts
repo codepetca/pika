@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import { assertTeacherOwnsClassroom, hydrateClassroomRecord } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getNextTeacherClassroomPosition } from '@/lib/server/classroom-order'
+import { updateClassroomPublishingSchema } from '@/lib/validations/teacher'
+import { normalizeActualCourseSiteConfig } from '@/lib/course-site-publishing'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -35,7 +37,7 @@ export const GET = withErrorHandler('GetClassroomById', async (_request, context
     )
   }
 
-  return NextResponse.json({ classroom })
+  return NextResponse.json({ classroom: hydrateClassroomRecord(classroom as Record<string, any>) })
 })
 
 // PATCH /api/teacher/classrooms/[id] - Update classroom
@@ -43,8 +45,20 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
 
-  const body = await request.json()
-  const { title, classCode, termLabel, allowEnrollment, archived, lessonPlanVisibility } = body
+  const body = updateClassroomPublishingSchema.parse(await request.json())
+  const {
+    title,
+    classCode,
+    termLabel,
+    allowEnrollment,
+    archived,
+    lessonPlanVisibility,
+    actualSiteSlug,
+    actualSitePublished,
+    actualSiteConfig,
+    courseOverviewMarkdown,
+    courseOutlineMarkdown,
+  } = body
 
   if (
     title === undefined &&
@@ -52,7 +66,12 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     termLabel === undefined &&
     allowEnrollment === undefined &&
     archived === undefined &&
-    lessonPlanVisibility === undefined
+    lessonPlanVisibility === undefined &&
+    actualSiteSlug === undefined &&
+    actualSitePublished === undefined &&
+    actualSiteConfig === undefined &&
+    courseOverviewMarkdown === undefined &&
+    courseOutlineMarkdown === undefined
   ) {
     return NextResponse.json(
       { error: 'No fields to update' },
@@ -60,22 +79,7 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     )
   }
 
-  const validVisibilityValues = ['current_week', 'one_week_ahead', 'all']
-  if (lessonPlanVisibility !== undefined && !validVisibilityValues.includes(lessonPlanVisibility)) {
-    return NextResponse.json(
-      { error: 'Invalid lessonPlanVisibility value' },
-      { status: 400 }
-    )
-  }
-
   const supabase = getServiceRoleClient()
-
-  if (archived !== undefined && typeof archived !== 'boolean') {
-    return NextResponse.json(
-      { error: 'archived must be a boolean' },
-      { status: 400 }
-    )
-  }
 
   const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
   if (!ownership.ok) {
@@ -92,7 +96,12 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     classCode !== undefined ||
     termLabel !== undefined ||
     allowEnrollment !== undefined ||
-    lessonPlanVisibility !== undefined
+    lessonPlanVisibility !== undefined ||
+    actualSiteSlug !== undefined ||
+    actualSitePublished !== undefined ||
+    actualSiteConfig !== undefined ||
+    courseOverviewMarkdown !== undefined ||
+    courseOutlineMarkdown !== undefined
 
   if (hasArchiveToggle && hasOtherUpdates) {
     return NextResponse.json(
@@ -108,12 +117,29 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     )
   }
 
+  const effectiveActualSiteSlug =
+    actualSiteSlug !== undefined ? actualSiteSlug : ownership.classroom.actual_site_slug
+  const effectiveActualSitePublished =
+    actualSitePublished !== undefined ? actualSitePublished : ownership.classroom.actual_site_published
+
+  if (effectiveActualSitePublished && !effectiveActualSiteSlug) {
+    return NextResponse.json(
+      { error: 'A public slug is required before publishing the actual course website' },
+      { status: 400 }
+    )
+  }
+
   const updates: any = {}
   if (title !== undefined) updates.title = title
   if (classCode !== undefined) updates.class_code = classCode
   if (termLabel !== undefined) updates.term_label = termLabel
   if (allowEnrollment !== undefined) updates.allow_enrollment = !!allowEnrollment
   if (lessonPlanVisibility !== undefined) updates.lesson_plan_visibility = lessonPlanVisibility
+  if (actualSiteSlug !== undefined) updates.actual_site_slug = actualSiteSlug
+  if (actualSitePublished !== undefined) updates.actual_site_published = actualSitePublished
+  if (actualSiteConfig !== undefined) updates.actual_site_config = normalizeActualCourseSiteConfig(actualSiteConfig)
+  if (courseOverviewMarkdown !== undefined) updates.course_overview_markdown = courseOverviewMarkdown
+  if (courseOutlineMarkdown !== undefined) updates.course_outline_markdown = courseOutlineMarkdown
   if (hasArchiveToggle) {
     if (archived && isArchived) {
       return NextResponse.json(
@@ -136,6 +162,30 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     updates.archived_at = archived ? new Date().toISOString() : null
   }
 
+  if (actualSiteSlug !== undefined && actualSiteSlug) {
+    const { data: slugConflict, error: slugError } = await supabase
+      .from('classrooms')
+      .select('id')
+      .eq('actual_site_slug', actualSiteSlug)
+      .neq('id', classroomId)
+      .limit(1)
+
+    if (slugError) {
+      console.error('Error checking classroom site slug:', slugError)
+      return NextResponse.json(
+        { error: 'Failed to validate site slug' },
+        { status: 500 }
+      )
+    }
+
+    if ((slugConflict || []).length > 0) {
+      return NextResponse.json(
+        { error: 'That actual site slug is already in use' },
+        { status: 409 }
+      )
+    }
+  }
+
   const { data: updatedClassroom, error: updateError } = await supabase
     .from('classrooms')
     .update(updates)
@@ -151,7 +201,7 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     )
   }
 
-  return NextResponse.json({ classroom: updatedClassroom })
+  return NextResponse.json({ classroom: hydrateClassroomRecord(updatedClassroom as Record<string, any>) })
 })
 
 // DELETE /api/teacher/classrooms/[id] - Delete classroom
