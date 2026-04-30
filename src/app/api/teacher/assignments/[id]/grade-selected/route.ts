@@ -34,6 +34,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentGradeSelected', async
     score_workflow: body?.score_workflow,
     feedback: body?.feedback,
     save_mode: body?.save_mode,
+    apply_target: body?.apply_target,
   })
   const supabase = getServiceRoleClient()
   const assignment = await loadTeacherOwnedAssignmentForGrade({

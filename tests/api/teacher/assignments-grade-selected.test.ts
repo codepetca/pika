@@ -170,6 +170,69 @@ describe('POST /api/teacher/assignments/[id]/grade-selected', () => {
     expect(capturedRows[0][0]).not.toHaveProperty('returned_at')
   })
 
+  it('applies only scores when apply_target is grade', async () => {
+    const capturedRows: Array<Record<string, unknown>[]> = []
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') return buildAssignmentTable()
+      if (table === 'classroom_enrollments') return buildEnrollmentsTable(['student-1', 'student-2'])
+      if (table === 'assignment_docs') return buildAssignmentDocsTable(capturedRows)
+      throw new Error(`Unexpected table in test: ${table}`)
+    })
+
+    const response = await POST(makeRequest({
+      student_ids: ['student-1', 'student-2'],
+      apply_target: 'grade',
+      score_completion: 7,
+      score_thinking: 8,
+      score_workflow: 9,
+      save_mode: 'graded',
+    }), { params: Promise.resolve({ id: 'assignment-1' }) })
+
+    expect(response.status).toBe(200)
+    expect(capturedRows[0][0]).toEqual(expect.objectContaining({
+      assignment_id: 'assignment-1',
+      student_id: 'student-1',
+      score_completion: 7,
+      score_thinking: 8,
+      score_workflow: 9,
+      graded_at: expect.any(String),
+      graded_by: 'teacher',
+    }))
+    expect(capturedRows[0][0]).not.toHaveProperty('teacher_feedback_draft')
+    expect(capturedRows[0][0]).not.toHaveProperty('teacher_feedback_draft_updated_at')
+  })
+
+  it('applies only comments when apply_target is comments', async () => {
+    const capturedRows: Array<Record<string, unknown>[]> = []
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') return buildAssignmentTable()
+      if (table === 'classroom_enrollments') return buildEnrollmentsTable(['student-1', 'student-2'])
+      if (table === 'assignment_docs') return buildAssignmentDocsTable(capturedRows)
+      throw new Error(`Unexpected table in test: ${table}`)
+    })
+
+    const response = await POST(makeRequest({
+      student_ids: ['student-1', 'student-2'],
+      apply_target: 'comments',
+      feedback: 'Shared comments',
+    }), { params: Promise.resolve({ id: 'assignment-1' }) })
+
+    expect(response.status).toBe(200)
+    expect(capturedRows[0][0]).toEqual(expect.objectContaining({
+      assignment_id: 'assignment-1',
+      student_id: 'student-1',
+      teacher_feedback_draft: 'Shared comments',
+      teacher_feedback_draft_updated_at: expect.any(String),
+    }))
+    expect(capturedRows[0][0]).not.toHaveProperty('score_completion')
+    expect(capturedRows[0][0]).not.toHaveProperty('score_thinking')
+    expect(capturedRows[0][0]).not.toHaveProperty('score_workflow')
+    expect(capturedRows[0][0]).not.toHaveProperty('graded_at')
+    expect(capturedRows[0][0]).not.toHaveProperty('graded_by')
+  })
+
   it('allows draft batch grades with blank scores and does not mark graded', async () => {
     const capturedRows: Array<Record<string, unknown>[]> = []
 

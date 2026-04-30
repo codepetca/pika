@@ -2,6 +2,7 @@ import { ApiError, apiErrors } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 export type AssignmentGradeSaveMode = 'draft' | 'graded'
+export type AssignmentGradeApplyTarget = 'grade' | 'comments' | 'grade-and-comments'
 
 export interface ParsedAssignmentGradePayload {
   score_completion: number | null
@@ -10,6 +11,7 @@ export interface ParsedAssignmentGradePayload {
   feedback: string
   save_mode: AssignmentGradeSaveMode
   shouldMarkGraded: boolean
+  apply_target: AssignmentGradeApplyTarget
 }
 
 interface AssignmentGradeBody {
@@ -18,6 +20,7 @@ interface AssignmentGradeBody {
   score_workflow: unknown
   feedback: unknown
   save_mode?: unknown
+  apply_target?: unknown
 }
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
@@ -37,6 +40,12 @@ export function normalizeAssignmentGradeStudentIds(value: unknown): string[] {
   )
 }
 
+function parseAssignmentGradeApplyTarget(value: unknown): AssignmentGradeApplyTarget {
+  if (value === undefined) return 'grade-and-comments'
+  if (value === 'grade' || value === 'comments' || value === 'grade-and-comments') return value
+  throw apiErrors.badRequest('apply_target must be "grade", "comments", or "grade-and-comments"')
+}
+
 export function parseAssignmentGradePayload(body: AssignmentGradeBody): ParsedAssignmentGradePayload {
   const {
     score_completion,
@@ -44,10 +53,18 @@ export function parseAssignmentGradePayload(body: AssignmentGradeBody): ParsedAs
     score_workflow,
     feedback,
     save_mode,
+    apply_target,
   } = body
+  const selectedApplyTarget = parseAssignmentGradeApplyTarget(apply_target)
+  const shouldApplyGrade = selectedApplyTarget === 'grade' || selectedApplyTarget === 'grade-and-comments'
+  const shouldApplyComments = selectedApplyTarget === 'comments' || selectedApplyTarget === 'grade-and-comments'
 
-  if (typeof feedback !== 'string') {
-    throw apiErrors.badRequest('feedback must be a string')
+  let parsedFeedback = ''
+  if (shouldApplyComments) {
+    if (typeof feedback !== 'string') {
+      throw apiErrors.badRequest('feedback must be a string')
+    }
+    parsedFeedback = feedback
   }
 
   if (save_mode !== undefined && save_mode !== 'draft' && save_mode !== 'graded') {
@@ -56,30 +73,34 @@ export function parseAssignmentGradePayload(body: AssignmentGradeBody): ParsedAs
 
   const selectedSaveMode: AssignmentGradeSaveMode = save_mode === 'draft' ? 'draft' : 'graded'
   const shouldMarkGraded = selectedSaveMode === 'graded'
+  const parseScore = (value: unknown) => shouldMarkGraded ? Number(value) : parseDraftScore(value)
   const parsedScores = {
-    score_completion: shouldMarkGraded ? Number(score_completion) : parseDraftScore(score_completion),
-    score_thinking: shouldMarkGraded ? Number(score_thinking) : parseDraftScore(score_thinking),
-    score_workflow: shouldMarkGraded ? Number(score_workflow) : parseDraftScore(score_workflow),
+    score_completion: shouldApplyGrade ? parseScore(score_completion) : null,
+    score_thinking: shouldApplyGrade ? parseScore(score_thinking) : null,
+    score_workflow: shouldApplyGrade ? parseScore(score_workflow) : null,
   }
 
-  for (const [name, value] of Object.entries(parsedScores)) {
-    if (shouldMarkGraded) {
-      if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 10) {
-        throw apiErrors.badRequest(`${name} must be an integer 0–10`)
+  if (shouldApplyGrade) {
+    for (const [name, value] of Object.entries(parsedScores)) {
+      if (shouldMarkGraded) {
+        if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 10) {
+          throw apiErrors.badRequest(`${name} must be an integer 0–10`)
+        }
+        continue
       }
-      continue
-    }
 
-    if (Number.isNaN(value)) {
-      throw apiErrors.badRequest(`${name} must be blank or an integer 0–10`)
+      if (Number.isNaN(value)) {
+        throw apiErrors.badRequest(`${name} must be blank or an integer 0–10`)
+      }
     }
   }
 
   return {
     ...parsedScores,
-    feedback,
+    feedback: parsedFeedback,
     save_mode: selectedSaveMode,
     shouldMarkGraded,
+    apply_target: selectedApplyTarget,
   }
 }
 
@@ -158,17 +179,30 @@ export function buildAssignmentGradeRows(opts: {
 }) {
   const { assignmentId, studentIds, grade, now } = opts
 
-  return studentIds.map((studentId) => ({
-    assignment_id: assignmentId,
-    student_id: studentId,
-    score_completion: grade.score_completion,
-    score_thinking: grade.score_thinking,
-    score_workflow: grade.score_workflow,
-    teacher_feedback_draft: grade.feedback,
-    teacher_feedback_draft_updated_at: now,
-    graded_at: grade.shouldMarkGraded ? now : null,
-    graded_by: grade.shouldMarkGraded ? 'teacher' : null,
-  }))
+  const shouldApplyGrade = grade.apply_target === 'grade' || grade.apply_target === 'grade-and-comments'
+  const shouldApplyComments = grade.apply_target === 'comments' || grade.apply_target === 'grade-and-comments'
+
+  return studentIds.map((studentId) => {
+    const row: Record<string, string | number | null> = {
+      assignment_id: assignmentId,
+      student_id: studentId,
+    }
+
+    if (shouldApplyGrade) {
+      row.score_completion = grade.score_completion
+      row.score_thinking = grade.score_thinking
+      row.score_workflow = grade.score_workflow
+      row.graded_at = grade.shouldMarkGraded ? now : null
+      row.graded_by = grade.shouldMarkGraded ? 'teacher' : null
+    }
+
+    if (shouldApplyComments) {
+      row.teacher_feedback_draft = grade.feedback
+      row.teacher_feedback_draft_updated_at = now
+    }
+
+    return row
+  })
 }
 
 export async function upsertAssignmentGradeRows(opts: {

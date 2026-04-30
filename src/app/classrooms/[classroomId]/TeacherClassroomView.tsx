@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Copy,
   LoaderCircle,
+  MessageSquare,
   Pencil,
   Plus,
   Send,
@@ -95,6 +96,7 @@ type GradeSelectedUpdatedDoc = NonNullable<StudentSubmissionRow['doc']> & {
   student_id: string
   updated_at?: string | null
 }
+type GradeSelectedApplyTarget = 'grade' | 'comments'
 type UpdateSearchParamsFn = (
   updater: (params: URLSearchParams) => void,
   options?: { replace?: boolean },
@@ -304,8 +306,9 @@ export function TeacherClassroomView({
   const [isReturning, setIsReturning] = useState(false)
   const [batchProgressCount, setBatchProgressCount] = useState(0)
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
-  const [showGradeSelectedConfirm, setShowGradeSelectedConfirm] = useState(false)
-  const [isApplyGradeOptionHighlighted, setIsApplyGradeOptionHighlighted] = useState(false)
+  const [gradeSelectedConfirmTarget, setGradeSelectedConfirmTarget] =
+    useState<GradeSelectedApplyTarget | null>(null)
+  const [highlightedApplyTarget, setHighlightedApplyTarget] = useState<GradeSelectedApplyTarget | null>(null)
   const [gradeSelectedTemplate, setGradeSelectedTemplate] =
     useState<TeacherAssignmentGradeTemplate | null>(null)
   const [gradeSelectedRefreshCounter, setGradeSelectedRefreshCounter] = useState(0)
@@ -1036,10 +1039,10 @@ export function TeacherClassroomView({
     }
   }
 
-  async function handleGradeSelected() {
+  async function handleGradeSelected(applyTarget: GradeSelectedApplyTarget) {
     if (!selectedAssignmentData || !gradeSelectedTemplate || batchSelectedCount === 0) return
 
-    if (!isGradeSelectedTemplateValid(gradeSelectedTemplate)) {
+    if (applyTarget === 'grade' && !isGradeSelectedTemplateValid(gradeSelectedTemplate)) {
       setError('Scores must be blank or integers 0–10')
       return
     }
@@ -1055,15 +1058,21 @@ export function TeacherClassroomView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           student_ids: studentIds,
-          score_completion: gradeSelectedTemplate.scoreCompletion,
-          score_thinking: gradeSelectedTemplate.scoreThinking,
-          score_workflow: gradeSelectedTemplate.scoreWorkflow,
-          feedback: gradeSelectedTemplate.feedbackDraft,
-          save_mode: gradeSelectedTemplate.gradeMode,
+          apply_target: applyTarget,
+          ...(applyTarget === 'grade'
+            ? {
+                score_completion: gradeSelectedTemplate.scoreCompletion,
+                score_thinking: gradeSelectedTemplate.scoreThinking,
+                score_workflow: gradeSelectedTemplate.scoreWorkflow,
+                save_mode: gradeSelectedTemplate.gradeMode,
+              }
+            : {
+                feedback: gradeSelectedTemplate.feedbackDraft,
+              }),
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to apply grade')
+      if (!res.ok) throw new Error(data.error || `Failed to apply ${applyTarget}`)
 
       const updatedDocs: GradeSelectedUpdatedDoc[] = Array.isArray(data.docs)
         ? data.docs.filter((doc: unknown): doc is GradeSelectedUpdatedDoc =>
@@ -1098,15 +1107,15 @@ export function TeacherClassroomView({
       }
 
       const updatedCount = Number(data.updated_count ?? docsByStudentId.size)
-      setInfo(`Applied grade to ${updatedCount} selected student${updatedCount === 1 ? '' : 's'}`)
-      setShowGradeSelectedConfirm(false)
+      setInfo(`Applied ${applyTarget} to ${updatedCount} selected student${updatedCount === 1 ? '' : 's'}`)
+      setGradeSelectedConfirmTarget(null)
       batchClearSelection()
 
       if (activeSelectedStudentId && docsByStudentId.has(activeSelectedStudentId)) {
         setGradeSelectedRefreshCounter((count) => count + 1)
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to apply grade')
+      setError(err.message || `Failed to apply ${applyTarget}`)
     } finally {
       setIsGradeSelectedSaving(false)
     }
@@ -1364,9 +1373,12 @@ export function TeacherClassroomView({
   const showOverviewInspector =
     assignmentWorkspaceMode === 'overview' &&
     !!activeSelectedStudentId
-  const highlightedInspectorSections = isApplyGradeOptionHighlighted
-    ? (['grades', 'comments'] as const)
-    : undefined
+  const highlightedInspectorSections =
+    highlightedApplyTarget === 'grade'
+      ? (['grades'] as const)
+      : highlightedApplyTarget === 'comments'
+        ? (['comments'] as const)
+        : undefined
   const canOpenDetails =
     selection.mode === 'assignment' &&
     !selectedAssignmentLoading &&
@@ -1381,7 +1393,7 @@ export function TeacherClassroomView({
       ? 'Nothing returnable selected'
       : `Return${workspaceActionLabelSuffix}`
   const gradeSelectedTemplateIsValid = isGradeSelectedTemplateValid(gradeSelectedTemplate)
-  const isGradeSelectedDisabled =
+  const isApplyGradeSelectedDisabled =
     isGradeSelectedSaving ||
     isAutoGrading ||
     hasActiveAssignmentAiRun ||
@@ -1391,10 +1403,27 @@ export function TeacherClassroomView({
     batchSelectedCount === 0 ||
     !gradeSelectedTemplate ||
     !gradeSelectedTemplateIsValid
+  const isApplyCommentsSelectedDisabled =
+    isGradeSelectedSaving ||
+    isAutoGrading ||
+    hasActiveAssignmentAiRun ||
+    isArtifactRepoAnalyzing ||
+    isReturning ||
+    isReadOnly ||
+    batchSelectedCount === 0 ||
+    !gradeSelectedTemplate
+  const isGradeSelectedConfirmDisabled =
+    gradeSelectedConfirmTarget === 'grade'
+      ? isApplyGradeSelectedDisabled
+      : gradeSelectedConfirmTarget === 'comments'
+        ? isApplyCommentsSelectedDisabled
+        : true
   const showAssignmentAiRunOverlay = isAutoGrading || hasActiveAssignmentAiRun
   const assignmentAiRunOverlayLabel = hasActiveAssignmentAiRun && activeAssignmentAiRun
     ? `Grading ${Math.min(activeAssignmentAiRun.processed_count, activeAssignmentAiRun.requested_count)} of ${activeAssignmentAiRun.requested_count} students…`
     : `Starting grading for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+  const gradeSelectedSavingLabel =
+    gradeSelectedConfirmTarget === 'comments' ? 'Applying comments' : 'Applying grade'
   const activeWorkMessage = showAssignmentAiRunOverlay
     ? assignmentAiRunOverlayLabel
     : isArtifactRepoAnalyzing
@@ -1402,7 +1431,7 @@ export function TeacherClassroomView({
       : isReturning
         ? `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
         : isGradeSelectedSaving
-          ? `Applying grade to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+          ? `${gradeSelectedSavingLabel} to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
           : ''
   useOverlayMessage(!!activeWorkMessage, activeWorkMessage, { tone: 'loading' })
 
@@ -1459,12 +1488,27 @@ export function TeacherClassroomView({
                   <span>Apply Grade to Selected Students</span>
                 </span>
               ),
-              onHoverChange: setIsApplyGradeOptionHighlighted,
+              onHoverChange: (active) => setHighlightedApplyTarget(active ? 'grade' : null),
               onSelect: () => {
-                setIsApplyGradeOptionHighlighted(false)
-                setShowGradeSelectedConfirm(true)
+                setHighlightedApplyTarget(null)
+                setGradeSelectedConfirmTarget('grade')
               },
-              disabled: isGradeSelectedDisabled,
+              disabled: isApplyGradeSelectedDisabled,
+            },
+            {
+              id: 'comments-selected',
+              label: (
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                  <MessageSquare className="h-4 w-4" aria-hidden="true" />
+                  <span>Apply Comments to Selected Students</span>
+                </span>
+              ),
+              onHoverChange: (active) => setHighlightedApplyTarget(active ? 'comments' : null),
+              onSelect: () => {
+                setHighlightedApplyTarget(null)
+                setGradeSelectedConfirmTarget('comments')
+              },
+              disabled: isApplyCommentsSelectedDisabled,
             },
             {
               id: 'repo-analysis',
@@ -1781,15 +1825,32 @@ export function TeacherClassroomView({
 
 
       <ConfirmDialog
-        isOpen={showGradeSelectedConfirm}
-        title={`Apply grade to ${batchSelectedCount} selected student(s)?`}
-        description={`This applies the open student's scores and comment draft to the checked student(s), overwriting their saved scores and comment drafts. It will not return comments to students.`}
-        confirmLabel={isGradeSelectedSaving ? 'Applying...' : 'Apply Grade to Selected Students'}
+        isOpen={!!gradeSelectedConfirmTarget}
+        title={
+          gradeSelectedConfirmTarget === 'comments'
+            ? `Apply comments to ${batchSelectedCount} selected student(s)?`
+            : `Apply grade to ${batchSelectedCount} selected student(s)?`
+        }
+        description={
+          gradeSelectedConfirmTarget === 'comments'
+            ? `This applies the open student's comment draft to the checked student(s), overwriting their saved comment drafts. It will not return comments to students.`
+            : `This applies the open student's scores to the checked student(s), overwriting their saved scores. It will not change comment drafts or return comments to students.`
+        }
+        confirmLabel={
+          isGradeSelectedSaving
+            ? 'Applying...'
+            : gradeSelectedConfirmTarget === 'comments'
+              ? 'Apply Comments to Selected Students'
+              : 'Apply Grade to Selected Students'
+        }
         cancelLabel="Cancel"
-        isConfirmDisabled={isGradeSelectedSaving || isGradeSelectedDisabled}
+        isConfirmDisabled={isGradeSelectedSaving || isGradeSelectedConfirmDisabled}
         isCancelDisabled={isGradeSelectedSaving}
-        onCancel={() => (isGradeSelectedSaving ? null : setShowGradeSelectedConfirm(false))}
-        onConfirm={handleGradeSelected}
+        onCancel={() => (isGradeSelectedSaving ? null : setGradeSelectedConfirmTarget(null))}
+        onConfirm={() => {
+          if (!gradeSelectedConfirmTarget) return
+          void handleGradeSelected(gradeSelectedConfirmTarget)
+        }}
       />
 
       <ConfirmDialog
