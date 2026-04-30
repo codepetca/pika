@@ -9942,3 +9942,23 @@
   - `/tmp/pika-student-exam-markdown-3010.png`
   - `/tmp/pika-teacher-preview-markdown-3010.png`
 - Follow-up: removed the `scripts/seed-tests.ts` smoke-data change to avoid seed failures in databases missing existing test document migrations; markdown smoke coverage remains in component tests and the local visual check.
+
+## 2026-04-30 — Remove assignment lists from classroom sidebar
+
+**Completed:**
+- Removed the assignments sidebar dropdown/list behavior so Assignments is a plain classroom nav item for teachers and students.
+- Kept assignment-tab clicks returning to the main assignments summary by clearing selected assignment URL state.
+- Removed the now-unused sidebar assignment fetch/update state and props.
+- Added NavItems regression coverage for no assignment dropdown affordance or nested assignment buttons.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/remove-assignments-sidebar-dropdown bash scripts/verify-env.sh`
+- `pnpm exec vitest run tests/components/NavItems.test.tsx`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments` at `http://localhost:3002`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher-expanded.png`
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`

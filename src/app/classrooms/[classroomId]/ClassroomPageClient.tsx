@@ -1046,8 +1046,6 @@ function ClassroomPageContent({
               classroomId={classroom.id}
               role={user.role}
               activeTab={activeTab}
-              isReadOnly={isArchived}
-              assignmentId={assignmentIdParam}
               onTabChange={handleTabChange}
               onTabIntent={prefetchTabData}
               updateSearchParams={navigateInClassroom}
