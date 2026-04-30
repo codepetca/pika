@@ -27,8 +27,10 @@ import {
   Pencil,
   Plus,
   Send,
+  User,
+  Users,
 } from 'lucide-react'
-import { ConfirmDialog, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { ConfirmDialog, SegmentedControl, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
@@ -42,10 +44,9 @@ import {
   TeacherStudentWorkPanel,
   type TeacherAssignmentGradeTemplate,
 } from '@/components/TeacherStudentWorkPanel'
+import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
-import { TeacherWorkSurfaceModeBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
-import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import {
   ACTIONBAR_ICON_BUTTON_CLASSNAME,
   ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
@@ -62,7 +63,6 @@ import {
   ASSIGNMENT_GRADING_LAYOUT,
   getAssignmentWorkspaceStudentCookieName,
   parseAssignmentWorkspaceStudentId,
-  type AssignmentWorkspaceMode,
 } from '@/lib/assignment-grading-layout'
 import { isVisibleAtNow } from '@/lib/scheduling'
 import type {
@@ -97,6 +97,7 @@ type GradeSelectedUpdatedDoc = NonNullable<StudentSubmissionRow['doc']> & {
   updated_at?: string | null
 }
 type GradeSelectedApplyTarget = 'grade' | 'comments'
+type AssignmentLeftPaneView = 'class' | 'individual'
 type UpdateSearchParamsFn = (
   updater: (params: URLSearchParams) => void,
   options?: { replace?: boolean },
@@ -288,8 +289,7 @@ export function TeacherClassroomView({
     studentName: string
     characterCount: number
   } | null>(null)
-  const [assignmentWorkspaceMode, setAssignmentWorkspaceMode] =
-    useState<AssignmentWorkspaceMode>('overview')
+  const [leftPaneView, setLeftPaneView] = useState<AssignmentLeftPaneView>('class')
   const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
@@ -386,7 +386,7 @@ export function TeacherClassroomView({
 
     observer.observe(node)
     return () => observer.disconnect()
-  }, [selection.mode, assignmentWorkspaceMode, selectedStudentId])
+  }, [selection.mode, leftPaneView, selectedStudentId])
 
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
@@ -560,7 +560,7 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (selection.mode !== 'assignment') {
-      setAssignmentWorkspaceMode('overview')
+      setLeftPaneView('class')
       setSelectedStudentId(null)
       setWorkspaceLoading(false)
       return
@@ -774,7 +774,7 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (selection.mode !== 'assignment') return
-    setAssignmentWorkspaceMode('overview')
+    setLeftPaneView('class')
     setSelectedStudentId(null)
     setWorkspaceLoading(false)
     batchClearSelection()
@@ -1224,32 +1224,27 @@ export function TeacherClassroomView({
     return currentStudentRows[0]?.student_id ?? null
   }, [classroom.id, currentStudentRows, selectedStudentId, selection])
 
-  const handleSwitchWorkspaceMode = useCallback((nextMode: AssignmentWorkspaceMode) => {
-    if (nextMode === assignmentWorkspaceMode) return
+  const handleSwitchLeftPaneView = useCallback((nextView: AssignmentLeftPaneView) => {
+    if (nextView === leftPaneView) return
 
-    if (nextMode === 'details') {
+    if (nextView === 'individual') {
       const nextStudentId = resolveDetailsStudentId()
       if (!nextStudentId) return
       setIndividualHeaderMeta(null)
       setSelectedStudentAndNavigate(nextStudentId, { replace: true })
-    } else {
-      setIndividualHeaderMeta(null)
     }
 
-    updateModeLayout(nextMode, assignmentGradingLayout[assignmentWorkspaceMode])
-    setAssignmentWorkspaceMode(nextMode)
+    setLeftPaneView(nextView)
   }, [
-    assignmentGradingLayout,
-    assignmentWorkspaceMode,
+    leftPaneView,
     resolveDetailsStudentId,
     setSelectedStudentAndNavigate,
-    updateModeLayout,
   ])
 
   useEffect(() => {
     if (selection.mode !== 'assignment') return
     if (!activeSelectedAssignmentData || selectedAssignmentLoading) return
-    const workspaceKey = `${selection.assignmentId}:${assignmentWorkspaceMode}`
+    const workspaceKey = selection.assignmentId
     if (defaultedWorkspaceKeyRef.current === workspaceKey) return
 
     if (activeSelectedStudentId) {
@@ -1265,28 +1260,11 @@ export function TeacherClassroomView({
   }, [
     activeSelectedAssignmentData,
     activeSelectedStudentId,
-    assignmentWorkspaceMode,
     resolveDetailsStudentId,
     selectedAssignmentLoading,
     setSelectedStudentAndNavigate,
     selection,
   ])
-
-  // Escape key to deselect student
-  useEffect(() => {
-    if (assignmentEditMode) return
-    if (assignmentWorkspaceMode !== 'overview') return
-    if (!selectedStudentId) return
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setSelectedStudentAndNavigate(null)
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [assignmentEditMode, assignmentWorkspaceMode, selectedStudentId, setSelectedStudentAndNavigate])
 
   useEffect(() => {
     if (selection.mode !== 'assignment') {
@@ -1376,17 +1354,14 @@ export function TeacherClassroomView({
         ? `${individualHeaderMeta.characterCount} chars`
         : 'Loading…'
       : null
-  const activeWorkspaceLayout = assignmentGradingLayout[assignmentWorkspaceMode]
-  const showOverviewInspector =
-    assignmentWorkspaceMode === 'overview' &&
-    !!activeSelectedStudentId
+  const activeWorkspaceLayout = assignmentGradingLayout.overview
   const highlightedInspectorSections =
     highlightedApplyTarget === 'grade'
       ? (['grades'] as const)
       : highlightedApplyTarget === 'comments'
         ? (['comments'] as const)
         : undefined
-  const canOpenDetails =
+  const canOpenIndividual =
     selection.mode === 'assignment' &&
     !selectedAssignmentLoading &&
     currentStudentRows.length > 0
@@ -1452,12 +1427,10 @@ export function TeacherClassroomView({
       rows={currentStudentRows}
       selectedStudentId={activeSelectedStudentId}
       onSelectStudent={(studentId) => {
-        if (assignmentWorkspaceMode === 'details') {
-          setIndividualHeaderMeta(null)
-        }
+        setIndividualHeaderMeta(null)
         setSelectedStudentAndNavigate(studentId)
       }}
-      onDeselectStudent={() => setSelectedStudentAndNavigate(null)}
+      onDeselectStudent={() => {}}
       tableRef={tableContainerRef}
       selectedIds={batchSelectedIds}
       onToggleSelect={batchToggleSelect}
@@ -1467,98 +1440,104 @@ export function TeacherClassroomView({
       sortDirection={sortDirection}
       onToggleSort={toggleSort}
       dueAtMs={dueAtMs}
-      density={showOverviewInspector ? 'tight' : 'compact'}
+      density={activeSelectedStudentId ? 'tight' : 'compact'}
       loading={selectedAssignmentLoading || (selection.mode === 'assignment' && !activeSelectedAssignmentData && !selectedAssignmentError)}
       error={selectedAssignmentError}
       busyOverlay={studentBusyOverlay}
     />
   )
 
-  const workspaceModeCenter = assignmentWorkspaceMode === 'overview' ? (
-    <>
-      <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
-        <SplitButton
-          label={
-            <span className="inline-flex items-center gap-2">
-              <Check className="h-4 w-4" aria-hidden="true" />
-              <span>AI Grade</span>
-            </span>
-          }
-          onPrimaryClick={() => {
-            void handleBatchAutoGrade()
-          }}
-          options={[
-            {
-              id: 'grade-selected',
-              label: (
-                <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                  <Copy className="h-4 w-4" aria-hidden="true" />
-                  <span>Apply Grade to Selected Students</span>
-                </span>
-              ),
-              onHoverChange: (active) => setHighlightedApplyTarget(active ? 'grade' : null),
-              onSelect: () => {
-                setHighlightedApplyTarget(null)
-                setGradeSelectedConfirmTarget('grade')
-              },
-              disabled: isApplyGradeSelectedDisabled,
+  const classPane = (
+    <div className="h-full min-h-0">
+      {studentTable}
+    </div>
+  )
+
+  const classPaneActions = (
+    <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
+      <SplitButton
+        label={
+          <span className="inline-flex items-center gap-2">
+            <Check className="h-4 w-4" aria-hidden="true" />
+            <span>AI Grade</span>
+          </span>
+        }
+        onPrimaryClick={() => {
+          void handleBatchAutoGrade()
+        }}
+        options={[
+          {
+            id: 'grade-selected',
+            label: (
+              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                <Copy className="h-4 w-4" aria-hidden="true" />
+                <span>Apply Grade to Selected Students</span>
+              </span>
+            ),
+            onHoverChange: (active) => setHighlightedApplyTarget(active ? 'grade' : null),
+            onSelect: () => {
+              setHighlightedApplyTarget(null)
+              setGradeSelectedConfirmTarget('grade')
             },
-            {
-              id: 'comments-selected',
-              label: (
-                <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                  <MessageSquare className="h-4 w-4" aria-hidden="true" />
-                  <span>Apply Comments to Selected Students</span>
-                </span>
-              ),
-              onHoverChange: (active) => setHighlightedApplyTarget(active ? 'comments' : null),
-              onSelect: () => {
-                setHighlightedApplyTarget(null)
-                setGradeSelectedConfirmTarget('comments')
-              },
-              disabled: isApplyCommentsSelectedDisabled,
+            disabled: isApplyGradeSelectedDisabled,
+          },
+          {
+            id: 'comments-selected',
+            label: (
+              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                <MessageSquare className="h-4 w-4" aria-hidden="true" />
+                <span>Apply Comments to Selected Students</span>
+              </span>
+            ),
+            onHoverChange: (active) => setHighlightedApplyTarget(active ? 'comments' : null),
+            onSelect: () => {
+              setHighlightedApplyTarget(null)
+              setGradeSelectedConfirmTarget('comments')
             },
-            {
-              id: 'repo-analysis',
-              label: (
-                <span className="inline-flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                  <span>Repo analysis</span>
-                </span>
-              ),
-              onSelect: () => {
-                void handleBatchArtifactRepoAnalyze()
-              },
-              disabled: isArtifactRepoAnalyzing || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
+            disabled: isApplyCommentsSelectedDisabled,
+          },
+          {
+            id: 'repo-analysis',
+            label: (
+              <span className="inline-flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                <span>Repo analysis</span>
+              </span>
+            ),
+            onSelect: () => {
+              void handleBatchArtifactRepoAnalyze()
             },
-            {
-              id: 'return',
-              label: (
-                <span className="inline-flex items-center gap-2">
-                  <Send className="h-4 w-4" aria-hidden="true" />
-                  <span>Return</span>
-                </span>
-              ),
-              onSelect: () => {
-                setShowReturnConfirm(true)
-              },
-              disabled: isReturnDisabled,
+            disabled: isArtifactRepoAnalyzing || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
+          },
+          {
+            id: 'return',
+            label: (
+              <span className="inline-flex items-center gap-2">
+                <Send className="h-4 w-4" aria-hidden="true" />
+                <span>Return</span>
+              </span>
+            ),
+            onSelect: () => {
+              setShowReturnConfirm(true)
             },
-          ]}
-          disabled={isAutoGrading || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
-          className="inline-flex"
-          toggleAriaLabel={`More grading actions${workspaceActionLabelSuffix}`}
-          menuPlacement="down"
-          primaryButtonProps={{
-            'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
-          }}
-        />
-      </Tooltip>
-    </>
-  ) : (
-    <>
+            disabled: isReturnDisabled,
+          },
+        ]}
+        disabled={isAutoGrading || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
+        className="inline-flex"
+        toggleAriaLabel={`More grading actions${workspaceActionLabelSuffix}`}
+        menuPlacement="down"
+        primaryButtonProps={{
+          'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
+        }}
+      />
+    </Tooltip>
+  )
+
+  const selectedStudentControls = (
+    <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
       <div
-        className="min-w-0 max-w-[18rem] truncate text-center text-sm font-medium text-text-default"
+        className="min-w-0 max-w-[18rem] truncate text-sm font-medium text-text-default"
         title={selectedStudentDisplayName ?? undefined}
       >
         {selectedStudentDisplayName ?? 'No student selected'}
@@ -1588,21 +1567,24 @@ export function TeacherClassroomView({
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
-    </>
+    </div>
   )
 
-  const workspaceModeStatus = workspaceLoading ? (
-    <div aria-live="polite" className="inline-flex items-center gap-1 text-xs text-text-muted">
-      <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-      <span>Updating</span>
+  const workspaceStatus = workspaceLoading ? (
+    <div
+      aria-live="polite"
+      className="pointer-events-none absolute -right-7 top-1/2 inline-flex -translate-y-1/2 items-center text-text-muted"
+    >
+      <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+      <span className="sr-only">Updating assignment workspace</span>
     </div>
   ) : null
 
-  const workspaceModeTrailing = assignmentEditMode ? (
+  const workspaceTitleControl = assignmentEditMode ? (
     <Tooltip content="Edit assignment">
       <button
         type="button"
-        className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} inline-flex max-w-[22rem] items-center gap-2`}
+        className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} inline-flex w-full max-w-[22rem] items-center gap-2 overflow-hidden`}
         onClick={() => {
           if (activeSelectedAssignmentData) {
             setEditAssignment(activeSelectedAssignmentData.assignment)
@@ -1618,7 +1600,7 @@ export function TeacherClassroomView({
     </Tooltip>
   ) : (
     <div
-      className="inline-flex min-h-10 max-w-[22rem] items-center px-2 text-sm font-medium text-text-default"
+      className="inline-flex min-h-10 w-full max-w-[22rem] items-center overflow-hidden px-2 text-sm font-medium text-text-default"
       title={selectedAssignmentTitle}
     >
       <span className="truncate">{selectedAssignmentTitle}</span>
@@ -1633,37 +1615,59 @@ export function TeacherClassroomView({
     />
   )
 
+  const assignmentWorkspaceControls = selection.mode === 'assignment' ? (
+    <div
+      data-testid="assignment-workspace-actionbar-center"
+      className="relative flex min-w-0 items-center justify-center gap-2"
+    >
+      <SegmentedControl<AssignmentLeftPaneView>
+        ariaLabel="Assignment workspace view"
+        value={leftPaneView}
+        onChange={handleSwitchLeftPaneView}
+        iconOnly
+        options={[
+          { value: 'class', label: 'Class', icon: <Users className="h-4 w-4" /> },
+          {
+            value: 'individual',
+            label: 'Individual',
+            icon: <User className="h-4 w-4" />,
+            disabled: !canOpenIndividual,
+          },
+        ]}
+      />
+      {classPaneActions}
+      {workspaceStatus}
+    </div>
+  ) : null
+
   const primaryButtons =
     selection.mode === 'summary' ? (
-      <div
-        data-testid="assignment-summary-actionbar-center"
-        className="relative flex min-h-10 w-full items-center justify-center"
-      >
-        <button
-          type="button"
-          className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
-          onClick={() => setIsCreateModalOpen(true)}
-          disabled={isReadOnly}
-          aria-label="New assignment"
-        >
-          <Plus className="h-5 w-5" aria-hidden="true" />
-          <span>New</span>
-        </button>
-        <div className="absolute right-0 top-1/2 -translate-y-1/2">
-          {assignmentEditControls}
-        </div>
-      </div>
+      <TeacherWorkSurfaceActionBar
+        testId="assignment-summary-actionbar-center"
+        label={
+          <div className="truncate px-1 text-sm font-semibold text-text-default">
+            Assignments
+          </div>
+        }
+        center={
+          <button
+            type="button"
+            className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
+            onClick={() => setIsCreateModalOpen(true)}
+            disabled={isReadOnly}
+            aria-label="New assignment"
+          >
+            <Plus className="h-5 w-5" aria-hidden="true" />
+            <span>New</span>
+          </button>
+        }
+        trailing={assignmentEditControls}
+      />
     ) : (
-      <TeacherWorkSurfaceModeBar
-        modes={[
-          { id: 'overview', label: 'Class' },
-          { id: 'details', label: 'Individual', disabled: !canOpenDetails },
-        ]}
-        activeMode={assignmentWorkspaceMode}
-        onModeChange={(mode) => handleSwitchWorkspaceMode(mode as AssignmentWorkspaceMode)}
-        center={workspaceModeCenter}
-        status={workspaceModeStatus}
-        trailing={workspaceModeTrailing}
+      <TeacherWorkSurfaceActionBar
+        label={workspaceTitleControl}
+        center={assignmentWorkspaceControls}
+        trailing={assignmentEditControls}
       />
     )
 
@@ -1721,81 +1725,38 @@ export function TeacherClassroomView({
     </DndContext>
   )
 
-  const workspaceContent = selectedAssignmentId == null ? null : assignmentWorkspaceMode === 'details' ? (
-    activeSelectedStudentId ? (
-      <TeacherStudentWorkPanel
-        classroomId={classroom.id}
-        assignmentId={selectedAssignmentId}
-        studentId={activeSelectedStudentId}
-        mode="details"
-        inspectorCollapsed={false}
-        inspectorWidth={activeWorkspaceLayout.inspectorWidth}
-        totalWidth={workspaceWidth}
-        onLayoutChange={(next) => updateModeLayout('details', next)}
-        onLoadingStateChange={setWorkspaceLoading}
-        onGoPrevStudent={handleGoPrevStudent}
-        onGoNextStudent={handleGoNextStudent}
-        canGoPrevStudent={canGoPrevStudent}
-        canGoNextStudent={canGoNextStudent}
-        inspectorEditMode={assignmentEditMode}
-        onDetailsMetaChange={setIndividualHeaderMeta}
-      />
-    ) : selectedAssignmentLoading || (!activeSelectedAssignmentData && !selectedAssignmentError) ? (
-      <div className="flex flex-1 items-center justify-center py-12">
-        <Spinner />
-      </div>
-    ) : selectedAssignmentError ? (
-      <div className="flex flex-1 items-center justify-center p-4 text-sm text-danger">
-        {selectedAssignmentError}
-      </div>
-    ) : (
-      <div className="flex flex-1 items-center justify-center text-sm text-text-muted">
-        No student submissions yet.
-      </div>
-    )
-  ) : showOverviewInspector ? (
-    <TeacherWorkspaceSplit
-      className="flex-1"
-      primaryClassName="min-h-0"
-      inspectorClassName="min-h-0"
+  const leftPaneHeader = leftPaneView === 'individual' ? selectedStudentControls : null
+
+  const workspaceContent = selectedAssignmentId == null ? null : activeSelectedStudentId ? (
+    <TeacherStudentWorkPanel
+      classroomId={classroom.id}
+      assignmentId={selectedAssignmentId}
+      studentId={activeSelectedStudentId}
+      mode="workspace"
+      classPane={classPane}
+      leftPaneView={leftPaneView}
+      leftHeader={leftPaneHeader}
       inspectorCollapsed={false}
       inspectorWidth={activeWorkspaceLayout.inspectorWidth}
-      minInspectorPx={ASSIGNMENT_GRADING_LAYOUT.inspectorMinPx}
-      minPrimaryPx={ASSIGNMENT_GRADING_LAYOUT.overviewPrimaryMinPx}
-      onInspectorCollapsedChange={(collapsed) => {
-        updateModeLayout('overview', (current) => ({
-          ...current,
-          inspectorCollapsed: collapsed,
-        }))
-      }}
-      onInspectorWidthChange={(nextInspectorWidth) => {
-        updateModeLayout('overview', (current) => ({
-          ...current,
-          inspectorCollapsed: false,
-          inspectorWidth: nextInspectorWidth,
-        }))
-      }}
-      dividerLabel="Resize table and grading panes"
-      primary={studentTable}
-      inspector={
-        <TeacherStudentWorkPanel
-          classroomId={classroom.id}
-          assignmentId={selectedAssignmentId}
-          studentId={activeSelectedStudentId}
-          refreshKey={gradeSelectedRefreshCounter}
-          mode="overview"
-          highlightedInspectorSections={highlightedInspectorSections}
-          inspectorCollapsed={false}
-          inspectorWidth={activeWorkspaceLayout.inspectorWidth}
-          totalWidth={workspaceWidth}
-          inspectorEditMode={assignmentEditMode}
-          onLoadingStateChange={setWorkspaceLoading}
-          onGradeTemplateChange={handleGradeTemplateChange}
-        />
-      }
+      refreshKey={gradeSelectedRefreshCounter}
+      highlightedInspectorSections={highlightedInspectorSections}
+      totalWidth={workspaceWidth}
+      onLayoutChange={(next) => updateModeLayout('overview', next)}
+      onLoadingStateChange={setWorkspaceLoading}
+      inspectorEditMode={assignmentEditMode}
+      onDetailsMetaChange={setIndividualHeaderMeta}
+      onGradeTemplateChange={handleGradeTemplateChange}
     />
+  ) : selectedAssignmentLoading || (!activeSelectedAssignmentData && !selectedAssignmentError) ? (
+    <div className="flex flex-1 items-center justify-center py-12">
+      <Spinner />
+    </div>
+  ) : selectedAssignmentError ? (
+    <div className="flex flex-1 items-center justify-center p-4 text-sm text-danger">
+      {selectedAssignmentError}
+    </div>
   ) : (
-    studentTable
+    classPane
   )
 
   return (
@@ -1804,11 +1765,12 @@ export function TeacherClassroomView({
         state={selection.mode === 'summary' ? 'summary' : 'workspace'}
         primary={primaryButtons}
         actions={[]}
-        trailing={selection.mode === 'summary' ? undefined : assignmentEditControls}
+        trailing={undefined}
         feedback={feedback}
         summary={summaryContent}
         workspace={workspaceContent}
-        workspaceFrame="attachedTabs"
+        workspaceFrame="standalone"
+        workspaceFrameClassName={activeSelectedStudentId ? 'border-0 bg-page' : undefined}
         workspaceRef={workspaceContainerRef}
       />
 

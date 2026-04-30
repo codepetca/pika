@@ -203,6 +203,16 @@ Advances when:
 - They must represent real workflow changes.
 - They should not be the first visual emphasis in a browsing state.
 
+### Action-bar workspace toggles
+
+- Compact workspace toggles are allowed in the selected-workspace action bar
+  when they choose the primary workspace view.
+- They should replace, not duplicate, top workspace tabs.
+- Keep batch or grading actions in the same action cluster when they apply to
+  the selected workspace.
+- The assignment pane-toggle implementation is an experimental assignment-led
+  pattern until promoted after visual and workflow review.
+
 ### Hard failures
 
 Treat these as family-level hard failures:
@@ -379,6 +389,8 @@ Use this checklist when changing or reviewing teacher-family UX:
 - no passive inspector before selection
 - selected workspace earns complexity
 - workspace tabs only after selection
+- action-bar toggles replace workspace tabs when the selected workspace needs a
+  compact primary-view switch
 - inspector opens only for active comparative or review work
 - parent tab click returns to `summary`
 - page-shell primitives are reused

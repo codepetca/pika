@@ -10055,6 +10055,154 @@
 - `pnpm lint`
 - `pnpm build`
 - Pika UI verification script for `/classrooms`:
+## 2026-04-30 - Assignment pane-local workspace toggles
+
+**Completed:**
+- Reworked the selected assignment teacher workspace from global top tabs to pane-local controls.
+- Added left-pane Class/Individual switching and right-pane Grade/Work switching, with duplicate work panes prevented.
+- Kept batch assignment actions with the class table and moved selected-student navigation into the individual pane header.
+- Documented the assignment-only pilot as an experimental work-surface pattern for later Tests/Quizzes alignment.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm vitest run tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments&assignmentId=55cfe7c5-9f16-42ef-858a-364a2468e5b9`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-assignment-right-work.png`
+  - `/tmp/pika-assignment-left-individual.png`
+  - `/tmp/pika-assignment-mobile-right-work.png`
+  - `/tmp/pika-assignment-mobile-left-individual.png`
+
+## 2026-04-30 - Assignment action-bar view toggle revision
+
+**Completed:**
+- Moved the assignment `AI Grade` split button back into the selected-assignment action-bar center.
+- Replaced pane-local text toggles with an icon-only Class/Individual action-bar toggle immediately left of `AI Grade`.
+- Removed the Grade/Work right-pane toggle; the right pane now stays fixed on the grading panel.
+- Updated assignment work-surface docs to reflect the action-bar toggle pilot.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments&assignmentId=55cfe7c5-9f16-42ef-858a-364a2468e5b9` on `http://localhost:3001`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-assignment-actionbar-individual.png`
+  - `/tmp/pika-assignment-actionbar-individual-mobile.png`
+
+## 2026-04-30 - Assignment updating indicator overlay
+
+**Completed:**
+- Replaced the transient action-bar `Updating` text with an absolutely
+  positioned circular spinner.
+- Kept the status available to screen readers without allowing it to shift the
+  Class/Individual toggle or `AI Grade` split button.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments&assignmentId=55cfe7c5-9f16-42ef-858a-364a2468e5b9` on `http://localhost:3001`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-assignment-updating-overlay.png`
+  - `/tmp/pika-assignment-updating-overlay-mobile.png`
+
+## 2026-04-30 - Assignment class-pane deselect expansion
+
+**Completed:**
+- Added an explicit blank class-table click target that clears the active
+  student without interfering with row selection or batch checkboxes.
+- Suppressed the remembered-student default after an intentional class-mode
+  deselect, so the URL can drop `assignmentStudentId` and the class table stays
+  expanded.
+- Kept row clicks in class mode selecting the clicked student and preserving the
+  grading pane.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherAssignmentStudentTable.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments&assignmentId=55cfe7c5-9f16-42ef-858a-364a2468e5b9` on `http://localhost:3001`.
+- Targeted browser check confirmed class-pane width expanded from 695px to
+  1390px and selected rows dropped to 0 after clicking the blank area.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-assignment-class-selected.png`
+  - `/tmp/pika-assignment-class-deselected-expanded.png`
+
+## 2026-04-30 - Assignment selected-student persistence
+
+**Completed:**
+- Reverted the class-pane blank-area deselect behavior.
+- Removed the invisible class-table deselect target and the remembered-student
+  suppression logic.
+- Kept selected assignments anchored to an active student; Escape in class mode
+  no longer clears the grading pane.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherAssignmentStudentTable.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments&assignmentId=55cfe7c5-9f16-42ef-858a-364a2468e5b9` on `http://localhost:3002`.
+- Targeted browser check confirmed blank table space plus Escape kept the same
+  `assignmentStudentId` and preserved the grading panel.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-assignment-selection-persistent.png`
+
+## 2026-04-30 - Assignment action-bar toggle calendar styling
+
+**Completed:**
+- Restyled the icon-only Class/Individual assignment toggle to follow the
+  calendar view switcher treatment: soft segmented background, rounded-control
+  corners, and blue-tinted active segment.
+- Adjusted the icon segment dimensions so the toggle visually aligns with the
+  adjacent `AI Grade` split button.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments&assignmentId=55cfe7c5-9f16-42ef-858a-364a2468e5b9` on `http://localhost:3002`.
+- Targeted browser screenshot confirmed the assignment toggle and `AI Grade`
+  split button both use 8px corner radii with close height alignment.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-assignment-toggle-calendar-style.png`
+
+## 2026-04-30 - Shared segmented control
+
+**Completed:**
+- Added a shared `SegmentedControl` UI primitive for app-wide segmented toggles,
+  including icon-only and text-label modes.
+- Replaced the assignment Class/Individual toggle, calendar Week/Month/All
+  controls, and assignment Draft/Final grade mode selector with the shared
+  component.
+- Kept test mocks aligned with the new shared UI export.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx tests/components/calendar-view-persistence.test.tsx tests/components/LessonCalendar.test.tsx tests/components/StudentLessonCalendarTab.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments&assignmentId=55cfe7c5-9f16-42ef-858a-364a2468e5b9` on `http://localhost:3002`.
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=calendar` on `http://localhost:3002`.
+- Visual screenshots reviewed:
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
@@ -10124,3 +10272,91 @@
 **Validation:**
 - `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
 - `pnpm lint`
+## 2026-04-30 - Edit toggle pressed state
+
+**Completed:**
+- Updated the shared teacher work-surface edit control so it stays as
+  pencil-icon `Edit` in both states instead of changing to `Done`.
+- Gave the active state a pressed button treatment while preserving
+  `aria-pressed` for accessibility.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherEditModeControls.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments` on `http://localhost:3002`.
+- Targeted browser screenshot confirmed the active edit toggle keeps the
+  pencil-icon `Edit` label and appears pressed.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-assignment-edit-pressed.png`
+
+## 2026-04-30 - Assignment work-surface action bar shell
+
+**Completed:**
+- Added a reusable teacher work-surface action-bar content component with
+  left label/context, centered primary controls, and right trailing controls.
+- Updated the Assignments summary state to show the `Assignments` tab label on
+  the left, `New` centered, and the edit toggle on the right.
+- Updated the selected-assignment state to keep the assignment title/context on
+  the left, class/individual plus grading actions centered, and edit on the
+  right in a single action bar.
+- Constrained long assignment titles so the one-bar mobile layout truncates
+  instead of overlapping controls.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/TeacherEditModeControls.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments` on `http://localhost:3002`.
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments&assignmentId=55cfe7c5-9f16-42ef-858a-364a2468e5b9` on `http://localhost:3002`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+
+## 2026-04-30 - Assignment standalone workspace spacing
+
+**Completed:**
+- Updated standalone teacher work-surface frames so the lower workspace uses
+  the standard page gutters and top spacing below the action bar.
+- Kept attached-tab workspaces gutterless so existing tabbed surfaces are not
+  unintentionally changed.
+- Verified the selected-assignment workspace now aligns with the action bar
+  instead of starting flush at the page edge.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Cleared stale generated `.next` cache after a dev-server vendor chunk error,
+  then reran Pika UI verification.
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments&assignmentId=55cfe7c5-9f16-42ef-858a-364a2468e5b9` on `http://localhost:3002`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+
+## 2026-04-30 - Smaller shared page spacing primitive
+
+**Completed:**
+- Standardized the shared page spacing primitive to smaller gutters and gaps:
+  `PageContent`/`PageActionBar` now use `px-3`, content starts at `pt-2`, and
+  `PageStack` uses `space-y-3`.
+- Reduced the compact header/action-bar spacing token to `0.5rem`.
+- Kept the assignment action-bar shell and standalone workspace aligned to the
+  same shared primitive so assignment summary and selected views use one rhythm.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx tests/components/StudentLessonCalendarTab.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments` on `http://localhost:3002`.
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments&assignmentId=55cfe7c5-9f16-42ef-858a-364a2468e5b9` on `http://localhost:3002`.
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=calendar` on `http://localhost:3002`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`

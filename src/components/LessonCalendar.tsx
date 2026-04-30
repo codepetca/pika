@@ -8,7 +8,7 @@ import { LessonDayCell } from './LessonDayCell'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
-import { DialogPanel, Tooltip } from '@/ui'
+import { DialogPanel, SegmentedControl, Tooltip } from '@/ui'
 import type { Announcement, Assignment, ClassDay, Classroom, LessonPlan } from '@/types'
 
 const TIMEZONE = 'America/Toronto'
@@ -377,20 +377,18 @@ export function LessonCalendar({
           </div>
 
           {/* Center: View mode selector */}
-          <div className="flex items-center justify-center gap-1">
-            {(['week', 'month', 'all'] as CalendarViewMode[]).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => onViewModeChange(mode)}
-                className={`rounded-md border px-3 py-0.5 text-sm capitalize transition-colors ${
-                  viewMode === mode
-                    ? 'border-transparent bg-info-bg text-primary font-medium'
-                    : 'border-transparent text-text-muted hover:bg-surface-hover hover:text-text-default'
-                }`}
-              >
-                {mode}
-              </button>
-            ))}
+          <div className="flex items-center justify-center">
+            <SegmentedControl<CalendarViewMode>
+              ariaLabel="Calendar view"
+              value={viewMode}
+              onChange={onViewModeChange}
+              capitalizeLabels
+              options={[
+                { value: 'week', label: 'Week' },
+                { value: 'month', label: 'Month' },
+                { value: 'all', label: 'All' },
+              ]}
+            />
           </div>
 
           {/* Right: Actions */}

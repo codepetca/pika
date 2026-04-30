@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react'
 import { format } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { Button, cn } from '@/ui'
+import { Button, SegmentedControl } from '@/ui'
 import { PageActionBar } from '@/components/PageLayout'
 import type { CalendarViewMode } from '@/components/LessonCalendar'
 
@@ -88,42 +88,32 @@ export function CalendarActionBar({
             )}
           </div>
 
-          <div className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 sm:flex items-center gap-1 rounded-control bg-surface-2 p-0.5">
-            {(['week', 'month', 'all'] as CalendarViewMode[]).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => onViewModeChange(mode)}
-                className={cn(
-                  'rounded-control px-3 py-1 text-xs font-medium capitalize transition-colors sm:text-sm',
-                  viewMode === mode
-                    ? 'bg-info-bg text-primary'
-                    : 'text-text-muted hover:bg-surface-hover hover:text-text-default'
-                )}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl<CalendarViewMode>
+            ariaLabel="Calendar view"
+            value={viewMode}
+            onChange={onViewModeChange}
+            capitalizeLabels
+            className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 sm:flex"
+            options={[
+              { value: 'week', label: 'Week' },
+              { value: 'month', label: 'Month' },
+              { value: 'all', label: 'All' },
+            ]}
+          />
 
           <div className="ml-auto flex items-center gap-2 sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2">
-            <div className="flex items-center gap-1 rounded-control bg-surface-2 p-0.5 sm:hidden">
-              {(['week', 'month', 'all'] as CalendarViewMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => onViewModeChange(mode)}
-                  className={cn(
-                    'rounded-control px-3 py-1 text-xs font-medium capitalize transition-colors',
-                    viewMode === mode
-                      ? 'bg-info-bg text-primary'
-                      : 'text-text-muted hover:bg-surface-hover hover:text-text-default'
-                  )}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl<CalendarViewMode>
+              ariaLabel="Calendar view"
+              value={viewMode}
+              onChange={onViewModeChange}
+              capitalizeLabels
+              className="sm:hidden"
+              options={[
+                { value: 'week', label: 'Week' },
+                { value: 'month', label: 'Month' },
+                { value: 'all', label: 'All' },
+              ]}
+            />
             {trailing}
           </div>
         </div>

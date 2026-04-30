@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useEffect, useMemo, useRef, useState } from 'react'
 import { MoreVertical } from 'lucide-react'
 import { buttonVariants } from '@/ui/Button'
 import { cn } from '@/ui/utils'
@@ -9,6 +9,10 @@ import { cn } from '@/ui/utils'
 export type PageDensity = 'default' | 'teacher' | 'student'
 
 const PageDensityContext = createContext<PageDensity>('default')
+const PAGE_GUTTER_X_CLASS = 'px-3'
+const PAGE_GUTTER_X_BLEED_CLASS = '-mx-3'
+const PAGE_CONTENT_TOP_CLASS = 'pt-2'
+const PAGE_STACK_GAP_CLASS = 'space-y-3'
 
 export type ActionBarItem = {
   id: string
@@ -49,15 +53,7 @@ export function PageLayout({
   className?: string
   bleedX?: boolean
 }) {
-  const density = useContext(PageDensityContext)
-  const frameClass =
-    !bleedX
-      ? ''
-      : density === 'teacher'
-        ? '-mx-3'
-        : density === 'student'
-          ? '-mx-4'
-          : '-mx-4'
+  const frameClass = bleedX ? PAGE_GUTTER_X_BLEED_CLASS : ''
 
   return <div className={cn('w-auto flex flex-col', frameClass, className)}>{children}</div>
 }
@@ -83,15 +79,7 @@ export function PageContent({
   children: ReactNode
   className?: string
 }) {
-  const density = useContext(PageDensityContext)
-  const spacingClass =
-    density === 'teacher'
-      ? 'px-3 pt-3'
-      : density === 'student'
-        ? 'px-4 pt-4'
-        : 'px-4 pt-2'
-
-  return <div className={cn(spacingClass, className)}>{children}</div>
+  return <div className={cn(PAGE_GUTTER_X_CLASS, PAGE_CONTENT_TOP_CLASS, className)}>{children}</div>
 }
 
 export function PageStack({
@@ -101,11 +89,7 @@ export function PageStack({
   children: ReactNode
   className?: string
 }) {
-  const density = useContext(PageDensityContext)
-  const spacingClass =
-    density === 'teacher' ? 'space-y-3' : density === 'student' ? 'space-y-4' : 'space-y-4'
-
-  return <div className={cn(spacingClass, className)}>{children}</div>
+  return <div className={cn(PAGE_STACK_GAP_CLASS, className)}>{children}</div>
 }
 
 function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
@@ -215,16 +199,9 @@ export function PageActionBar({
   trailing?: ReactNode
   className?: string
 }) {
-  const density = useContext(PageDensityContext)
-  const frameClass =
-    density === 'teacher'
-      ? 'px-3'
-      : density === 'student'
-        ? 'px-4'
-        : 'px-4'
   const outerClass = cn(
     'mt-header-compact w-full bg-page',
-    frameClass,
+    PAGE_GUTTER_X_CLASS,
     className,
   )
 
@@ -232,11 +209,53 @@ export function PageActionBar({
     return (
       <div className={outerClass}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <div className="min-w-0">{primary}</div>
+          <div className="min-w-0">{primary}</div>
+
+          {actions.length > 0 && (
+            <>
+              <div className="hidden sm:flex flex-wrap items-center justify-start gap-2">
+                {actions.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={cn(
+                      item.primary
+                        ? ACTIONBAR_BUTTON_PRIMARY_CLASSNAME
+                        : ACTIONBAR_BUTTON_CLASSNAME,
+                      item.primary
+                        ? ''
+                        : item.destructive
+                          ? 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover'
+                          : ''
+                    )}
+                    onClick={item.onSelect}
+                    disabled={item.disabled}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              <div className="sm:hidden">
+                <ActionBarMenu items={actions} />
+              </div>
+            </>
+          )}
+
+          <div className="flex-1" />
+          {trailing}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={outerClass}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="min-w-0 flex-1">{primary}</div>
 
         {actions.length > 0 && (
           <>
-            <div className="hidden sm:flex flex-wrap items-center justify-start gap-2">
+            <div className="hidden sm:flex flex-wrap items-center justify-end gap-2">
               {actions.map((item) => (
                 <button
                   key={item.id}
@@ -245,11 +264,9 @@ export function PageActionBar({
                     item.primary
                       ? ACTIONBAR_BUTTON_PRIMARY_CLASSNAME
                       : ACTIONBAR_BUTTON_CLASSNAME,
-                    item.primary
-                      ? ''
-                      : item.destructive
-                        ? 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover'
-                        : ''
+                    item.destructive
+                      ? 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover'
+                      : '',
                   )}
                   onClick={item.onSelect}
                   disabled={item.disabled}
@@ -263,47 +280,7 @@ export function PageActionBar({
             </div>
           </>
         )}
-
-        <div className="flex-1" />
         {trailing}
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className={outerClass}>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-      <div className="min-w-0 flex-1">{primary}</div>
-
-      {actions.length > 0 && (
-        <>
-          <div className="hidden sm:flex flex-wrap items-center justify-end gap-2">
-            {actions.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={cn(
-                  item.primary
-                    ? ACTIONBAR_BUTTON_PRIMARY_CLASSNAME
-                    : ACTIONBAR_BUTTON_CLASSNAME,
-                  item.destructive
-                    ? 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover'
-                    : '',
-                )}
-                onClick={item.onSelect}
-                disabled={item.disabled}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <div className="sm:hidden">
-            <ActionBarMenu items={actions} />
-          </div>
-        </>
-      )}
-      {trailing}
       </div>
     </div>
   )

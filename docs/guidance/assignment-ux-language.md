@@ -139,6 +139,17 @@ Those modes:
 - do not appear before a selection exists
 - keep the same outer page-shell language
 
+The current assignments workspace pilots an action-bar view toggle instead of a
+single top tab strip. In that layout:
+
+- an icon-only class/individual toggle sits in the action-bar center beside
+  assignment batch actions
+- the left pane switches between the class student table and the selected
+  student's individual work
+- the right pane stays as the grading panel
+- the selected assignment action bar stays focused on assignment context rather
+  than workspace-mode tabs
+
 ### `inspector_active`
 
 The teacher workspace uses side-by-side review only when the current assignment mode and current student selection justify it.
