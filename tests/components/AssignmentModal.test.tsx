@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { AssignmentModal } from '@/components/AssignmentModal'
+import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { toTorontoEndOfDayIso } from '@/lib/timezone'
 import type { Assignment } from '@/types'
 
@@ -32,6 +33,7 @@ describe('AssignmentModal', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.unstubAllGlobals()
+    window.localStorage.clear()
   })
 
   describe('edit mode', () => {
@@ -105,6 +107,29 @@ describe('AssignmentModal', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Redo' }))
 
       expect(instructions).toHaveValue('**Original** instructions')
+    })
+
+    it('hides markdown instruction tools when the user preference is off', async () => {
+      window.localStorage.setItem('pika_show_markdown', 'false')
+
+      render(
+        <MarkdownPreferenceProvider>
+          <AssignmentModal
+            isOpen={true}
+            classroomId="classroom-1"
+            assignment={baseAssignment}
+            onClose={vi.fn()}
+            onSuccess={vi.fn()}
+          />
+        </MarkdownPreferenceProvider>
+      )
+
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: 'Heading' })).not.toBeInTheDocument()
+      })
+      expect(screen.queryByRole('button', { name: 'Bold' })).not.toBeInTheDocument()
+      expect(screen.queryByText('Preview')).not.toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Assignment instructions')).toHaveValue('Original instructions')
     })
 
     it('shows save status indicator', () => {

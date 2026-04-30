@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
@@ -33,6 +33,7 @@ interface TeacherStudentWorkPanelProps {
   onGoNextStudent?: () => void
   canGoPrevStudent?: boolean
   canGoNextStudent?: boolean
+  inspectorEditMode?: boolean
   onDetailsMetaChange?: (meta: { studentName: string; characterCount: number } | null) => void
 }
 
@@ -50,6 +51,7 @@ export function TeacherStudentWorkPanel({
   onGoNextStudent,
   canGoPrevStudent = false,
   canGoNextStudent = false,
+  inspectorEditMode = false,
   onDetailsMetaChange,
 }: TeacherStudentWorkPanelProps) {
   const {
@@ -78,6 +80,7 @@ export function TeacherStudentWorkPanel({
     totalScore,
     totalPercent,
     expandedSections,
+    visibleSections,
     setScoreCompletion,
     setScoreThinking,
     setScoreWorkflow,
@@ -88,6 +91,8 @@ export function TeacherStudentWorkPanel({
     handleHistoryMouseLeave,
     handleAIDraftAcknowledge,
     toggleSection,
+    collapseAllSections,
+    toggleSectionVisibility,
     handleReturnFeedback,
     handleSetGradeMode,
     handleAnalyzeRepo,
@@ -97,6 +102,7 @@ export function TeacherStudentWorkPanel({
     studentId,
     onLoadingStateChange,
   })
+  const previousInspectorEditModeRef = useRef(inspectorEditMode)
   const layout = useMemo(
     () =>
       clampAssignmentWorkspacePaneLayout(
@@ -120,6 +126,13 @@ export function TeacherStudentWorkPanel({
     },
     [onLayoutChange],
   )
+
+  useEffect(() => {
+    if (!previousInspectorEditModeRef.current && inspectorEditMode) {
+      collapseAllSections()
+    }
+    previousInspectorEditModeRef.current = inspectorEditMode
+  }, [collapseAllSections, inspectorEditMode])
 
   useEffect(() => {
     if (mode !== 'details' || showInitialSpinner || error || !data) {
@@ -190,7 +203,10 @@ export function TeacherStudentWorkPanel({
       showDraftAutosavedNotice={showDraftAutosavedNotice}
       repoAnalyzing={repoAnalyzing}
       expandedSections={expandedSections}
+      visibleSections={visibleSections}
+      editMode={inspectorEditMode}
       onToggleSection={toggleSection}
+      onToggleSectionVisibility={toggleSectionVisibility}
       handleReturnFeedback={handleReturnFeedback}
       handleSetGradeMode={handleSetGradeMode}
       handleAnalyzeRepo={handleAnalyzeRepo}

@@ -118,7 +118,21 @@ function StatusIcon({
       iconState = 'not_started'
   }
 
-  return <AssessmentStatusIcon state={iconState} late={showLate} />
+  const icon = <AssessmentStatusIcon state={iconState} late={showLate} />
+
+  if (status === 'resubmitted') {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-badge border border-warning bg-warning-bg px-1.5 py-0.5 text-[11px] font-semibold leading-none text-warning"
+        data-testid="assignment-status-resubmitted-chip"
+      >
+        {icon}
+        <span>Resub</span>
+      </span>
+    )
+  }
+
+  return icon
 }
 
 function getTeacherAssignmentStatusTooltipLabel(status: AssignmentStatus, wasLate: boolean): string {
@@ -205,7 +219,7 @@ export function TeacherAssignmentStudentTable({
                       isActive={sortColumn === 'status'}
                       direction={sortDirection}
                       onClick={() => onToggleSort('status')}
-                      className="w-[4.5rem]"
+                      className="w-[5.75rem]"
                     />
                     <DataTableHeaderCell className="w-[4.75rem]">Grade</DataTableHeaderCell>
                     <DataTableHeaderCell className="w-[11rem]">Artifacts</DataTableHeaderCell>
@@ -231,6 +245,7 @@ export function TeacherAssignmentStudentTable({
                       dueAtMs &&
                       new Date(student.doc.submitted_at).getTime() > dueAtMs
                     )
+                    const statusLabel = getTeacherAssignmentStatusTooltipLabel(student.status, wasLate)
 
                     return (
                       <DataTableRow
@@ -262,9 +277,9 @@ export function TeacherAssignmentStudentTable({
                             </Tooltip>
                           ) : '—'}
                         </DataTableCell>
-                        <DataTableCell className="w-[4.5rem]">
-                          <Tooltip content={getTeacherAssignmentStatusTooltipLabel(student.status, wasLate)}>
-                            <span className="inline-flex" role="img" aria-label={getTeacherAssignmentStatusTooltipLabel(student.status, wasLate)}>
+                        <DataTableCell className="w-[5.75rem]">
+                          <Tooltip content={statusLabel}>
+                            <span className="inline-flex" role="img" aria-label={statusLabel}>
                               <StatusIcon
                                 status={student.status}
                                 wasLate={wasLate}

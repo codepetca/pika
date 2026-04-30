@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
 import './globals.scss'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { ProgressBarProvider } from '@/components/ProgressBarProvider'
-import { TooltipProvider } from '@/ui'
+import { AppMessageProvider, TooltipProvider } from '@/ui'
 
 export const metadata: Metadata = {
   title: 'Pika',
@@ -36,11 +37,15 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-page">
         <ThemeProvider>
-          <TooltipProvider>
-            <ProgressBarProvider>
-              {children}
-            </ProgressBarProvider>
-          </TooltipProvider>
+          <MarkdownPreferenceProvider>
+            <TooltipProvider>
+              <AppMessageProvider>
+                <ProgressBarProvider>
+                  {children}
+                </ProgressBarProvider>
+              </AppMessageProvider>
+            </TooltipProvider>
+          </MarkdownPreferenceProvider>
         </ThemeProvider>
       </body>
     </html>

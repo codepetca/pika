@@ -9,12 +9,51 @@ export const revalidate = 0
 
 const DEFAULT_SETTINGS = {
   use_weights: false,
-  assignments_weight: 70,
-  quizzes_weight: 30,
+  assignments_weight: 50,
+  quizzes_weight: 20,
+  tests_weight: 30,
 }
 
 const ASSIGNMENT_POINTS_DEFAULT = 30
 const QUIZ_POINTS_DEFAULT = 100
+
+type GradebookSettingsRow = {
+  use_weights: boolean
+  assignments_weight: number
+  quizzes_weight: number
+  tests_weight?: number | null
+}
+
+function mentionsMissingField(
+  error: { code?: string; message?: string; details?: string; hint?: string } | null | undefined,
+  field: string
+): boolean {
+  if (!error) return false
+  const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
+  return combined.includes(field.toLowerCase()) && (
+    error.code === '42703' ||
+    error.code === 'PGRST204' ||
+    combined.includes('column')
+  )
+}
+
+function isMissingTableError(
+  error: { code?: string; message?: string; details?: string; hint?: string } | null | undefined
+): boolean {
+  if (!error) return false
+  const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
+  return error.code === 'PGRST205' || combined.includes('could not find the table') || combined.includes('does not exist')
+}
+
+function normalizeSettings(row: GradebookSettingsRow | null | undefined) {
+  if (!row) return DEFAULT_SETTINGS
+  return {
+    use_weights: row.use_weights,
+    assignments_weight: Number(row.assignments_weight ?? DEFAULT_SETTINGS.assignments_weight),
+    quizzes_weight: Number(row.quizzes_weight ?? DEFAULT_SETTINGS.quizzes_weight),
+    tests_weight: Number(row.tests_weight ?? 0),
+  }
+}
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100
@@ -59,13 +98,34 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
 
   const supabase = getServiceRoleClient()
 
-  const { data: settingsRow } = await supabase
+  const { data: settingsWithTests, error: settingsWithTestsError } = await supabase
     .from('gradebook_settings')
-    .select('use_weights, assignments_weight, quizzes_weight')
+    .select('use_weights, assignments_weight, quizzes_weight, tests_weight')
     .eq('classroom_id', classroomId)
     .maybeSingle()
 
-  const settings = settingsRow || DEFAULT_SETTINGS
+  let settingsRow = settingsWithTests as GradebookSettingsRow | null
+  if (settingsWithTestsError) {
+    if (!mentionsMissingField(settingsWithTestsError, 'tests_weight')) {
+      console.error('Error loading gradebook settings:', settingsWithTestsError)
+      return NextResponse.json({ error: 'Failed to load gradebook settings' }, { status: 500 })
+    }
+
+    const { data: legacySettingsRow, error: legacySettingsError } = await supabase
+      .from('gradebook_settings')
+      .select('use_weights, assignments_weight, quizzes_weight')
+      .eq('classroom_id', classroomId)
+      .maybeSingle()
+
+    if (legacySettingsError) {
+      console.error('Error loading legacy gradebook settings:', settingsWithTestsError, legacySettingsError)
+      return NextResponse.json({ error: 'Failed to load gradebook settings' }, { status: 500 })
+    }
+
+    settingsRow = legacySettingsRow as GradebookSettingsRow | null
+  }
+
+  const settings = normalizeSettings(settingsRow)
 
   const { data: enrollments, error: enrollmentError } = await supabase
     .from('classroom_enrollments')
@@ -356,17 +416,182 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
     }
   }
 
+  let tests: Array<{
+    id: string
+    title: string
+    status: 'draft' | 'active' | 'closed' | null
+    include_in_final: boolean
+  }> = []
+
+  const { data: testsWithMeta, error: testsWithMetaError } = await supabase
+    .from('tests')
+    .select('id, title, status, include_in_final')
+    .eq('classroom_id', classroomId)
+
+  if (!testsWithMetaError) {
+    tests = (testsWithMeta || []).map((test) => ({
+      id: test.id,
+      title: test.title,
+      status: test.status ?? null,
+      include_in_final: test.include_in_final !== false,
+    }))
+  } else if (mentionsMissingField(testsWithMetaError, 'include_in_final')) {
+    const { data: testsLegacy, error: testsLegacyError } = await supabase
+      .from('tests')
+      .select('id, title, status')
+      .eq('classroom_id', classroomId)
+
+    if (!testsLegacyError) {
+      tests = (testsLegacy || []).map((test) => ({
+        id: test.id,
+        title: test.title,
+        status: test.status ?? null,
+        include_in_final: true,
+      }))
+    } else if (!isMissingTableError(testsLegacyError)) {
+      console.error('Error loading tests for gradebook:', testsWithMetaError, testsLegacyError)
+      return NextResponse.json({ error: 'Failed to load tests for gradebook' }, { status: 500 })
+    }
+  } else if (!isMissingTableError(testsWithMetaError)) {
+    console.error('Error loading tests for gradebook:', testsWithMetaError)
+    return NextResponse.json({ error: 'Failed to load tests for gradebook' }, { status: 500 })
+  }
+
+  const testIds = tests.map((test) => test.id)
+  const { data: testQuestions, error: testQuestionsError } = testIds.length
+    ? await supabase
+        .from('test_questions')
+        .select('id, test_id, points')
+        .in('test_id', testIds)
+    : { data: [] as Array<any>, error: null }
+
+  if (testQuestionsError && !isMissingTableError(testQuestionsError)) {
+    console.error('Error loading test questions for gradebook:', testQuestionsError)
+    return NextResponse.json({ error: 'Failed to load test questions for gradebook' }, { status: 500 })
+  }
+
+  const { data: testResponses, error: testResponsesError } = testIds.length && studentIds.length
+    ? await supabase
+        .from('test_responses')
+        .select('test_id, question_id, student_id, score')
+        .in('test_id', testIds)
+        .in('student_id', studentIds)
+    : { data: [] as Array<any>, error: null }
+
+  if (testResponsesError && !isMissingTableError(testResponsesError)) {
+    console.error('Error loading test responses for gradebook:', testResponsesError)
+    return NextResponse.json({ error: 'Failed to load test responses for gradebook' }, { status: 500 })
+  }
+
+  const { data: testAttempts, error: testAttemptsError } = testIds.length && studentIds.length
+    ? await supabase
+        .from('test_attempts')
+        .select('test_id, student_id, is_submitted')
+        .in('test_id', testIds)
+        .in('student_id', studentIds)
+    : { data: [] as Array<any>, error: null }
+
+  if (testAttemptsError && !isMissingTableError(testAttemptsError)) {
+    console.error('Error loading test attempts for gradebook:', testAttemptsError)
+    return NextResponse.json({ error: 'Failed to load test attempts for gradebook' }, { status: 500 })
+  }
+
+  const testMap = new Map(tests.map((test) => [test.id, test]))
+  const testQuestionsByTest = new Map<string, Array<{ id: string; points: number }>>()
+  for (const question of testQuestions || []) {
+    const rows = testQuestionsByTest.get(question.test_id) || []
+    rows.push({ id: question.id, points: Number(question.points ?? 0) })
+    testQuestionsByTest.set(question.test_id, rows)
+  }
+
+  const submittedTestAttempts = new Set<string>()
+  for (const attempt of testAttempts || []) {
+    if (!attempt.is_submitted) continue
+    submittedTestAttempts.add(`${attempt.test_id}:${attempt.student_id}`)
+  }
+
+  const testResponsesByStudentTest = new Map<string, Map<string, { score: number | null }>>()
+  for (const response of testResponses || []) {
+    const key = `${response.test_id}:${response.student_id}`
+    const byQuestion = testResponsesByStudentTest.get(key) || new Map<string, { score: number | null }>()
+    byQuestion.set(response.question_id, {
+      score: response.score == null ? null : Number(response.score),
+    })
+    testResponsesByStudentTest.set(key, byQuestion)
+  }
+
+  const testRowsByStudent = new Map<string, Array<{ earned: number; possible: number }>>()
+  const testScoresByTest = new Map<string, Array<{ earned: number; possible: number }>>()
+  const testDetailsByStudent = new Map<string, Array<{
+    test_id: string
+    title: string
+    earned: number
+    possible: number
+    percent: number
+    status: 'active' | 'closed' | 'draft' | null
+  }>>()
+
+  for (const studentId of studentIds) {
+    for (const testId of testIds) {
+      const test = testMap.get(testId)
+      if (!test || test.include_in_final === false) continue
+      if (test.status === 'draft') continue
+
+      const questionsForTest = testQuestionsByTest.get(testId) || []
+      const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
+      if (possible <= 0) continue
+
+      const responseKey = `${testId}:${studentId}`
+      const responsesForStudent = testResponsesByStudentTest.get(responseKey)
+      if (!submittedTestAttempts.has(responseKey) && !responsesForStudent?.size) continue
+
+      let earned = 0
+      let isFullyScored = true
+      for (const question of questionsForTest) {
+        const response = responsesForStudent?.get(question.id)
+        if (!response || response.score == null) {
+          isFullyScored = false
+          break
+        }
+        earned += response.score
+      }
+      if (!isFullyScored) continue
+
+      const rows = testRowsByStudent.get(studentId) || []
+      rows.push({ earned, possible })
+      testRowsByStudent.set(studentId, rows)
+
+      const testScores = testScoresByTest.get(test.id) || []
+      testScores.push({ earned, possible })
+      testScoresByTest.set(test.id, testScores)
+
+      const details = testDetailsByStudent.get(studentId) || []
+      details.push({
+        test_id: test.id,
+        title: test.title,
+        earned: round2(earned),
+        possible: round2(possible),
+        percent: round2((earned / possible) * 100),
+        status: test.status,
+      })
+      testDetailsByStudent.set(studentId, details)
+    }
+  }
+
   const students = (enrollments || []).map((enrollment) => {
     const studentId = enrollment.student_id
     const profile = profileMap.get(studentId)
     const assignmentRows = assignmentRowsByStudent.get(studentId) || []
     const quizRows = quizRowsByStudent.get(studentId) || []
+    const testRows = testRowsByStudent.get(studentId) || []
     const calc = calculateFinalPercent({
       useWeights: settings.use_weights,
       assignmentsWeight: settings.assignments_weight,
       quizzesWeight: settings.quizzes_weight,
+      testsWeight: settings.tests_weight,
       assignments: assignmentRows,
       quizzes: quizRows,
+      tests: testRows,
     })
     const assignmentTotals = assignmentRows.reduce(
       (totals, row) => ({
@@ -376,6 +601,13 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
       { earned: 0, possible: 0 }
     )
     const quizTotals = quizRows.reduce(
+      (totals, row) => ({
+        earned: totals.earned + row.earned,
+        possible: totals.possible + row.possible,
+      }),
+      { earned: 0, possible: 0 }
+    )
+    const testTotals = testRows.reduce(
       (totals, row) => ({
         earned: totals.earned + row.earned,
         possible: totals.possible + row.possible,
@@ -394,6 +626,9 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
       quizzes_earned: quizTotals.possible > 0 ? round2(quizTotals.earned) : null,
       quizzes_possible: quizTotals.possible > 0 ? round2(quizTotals.possible) : null,
       quizzes_percent: calc.quizzesPercent,
+      tests_earned: testTotals.possible > 0 ? round2(testTotals.earned) : null,
+      tests_possible: testTotals.possible > 0 ? round2(testTotals.possible) : null,
+      tests_percent: calc.testsPercent,
       final_percent: calc.finalPercent,
     }
   })
@@ -461,6 +696,28 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
       }
     })
 
+  const classTestSummaries = tests
+    .filter((test) => test.status !== 'draft')
+    .map((test) => {
+      const questionsForTest = testQuestionsByTest.get(test.id) || []
+      const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
+      const scored = testScoresByTest.get(test.id) || []
+      const averagePercent = scored.length > 0
+        ? round2(
+            scored.reduce((sum, row) => sum + (row.earned / row.possible) * 100, 0) / scored.length
+          )
+        : null
+
+      return {
+        test_id: test.id,
+        title: test.title,
+        status: test.status,
+        possible: round2(possible),
+        scored_count: scored.length,
+        average_percent: averagePercent,
+      }
+    })
+
   const finalPercents = students
     .map((student) => student.final_percent)
     .filter((value): value is number => value != null)
@@ -508,6 +765,9 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
           quizzes: (quizDetailsByStudent.get(selectedStudent.student_id) || []).sort((a, b) =>
             a.title.localeCompare(b.title)
           ),
+          tests: (testDetailsByStudent.get(selectedStudent.student_id) || []).sort((a, b) =>
+            a.title.localeCompare(b.title)
+          ),
         }
       : null,
     class_summary: {
@@ -518,10 +778,12 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
         : null,
       assignments: classAssignmentSummaries,
       quizzes: classQuizSummaries,
+      tests: classTestSummaries,
     },
     totals: {
       assignments: assignments.length || 0,
       quizzes: quizzes.filter((quiz) => quiz.status !== 'draft').length || 0,
+      tests: tests.filter((test) => test.status !== 'draft').length || 0,
     },
   })
 })
@@ -547,6 +809,9 @@ export const PATCH = withErrorHandler('PatchGradebook', async (request: NextRequ
   const quizzesWeight = body.quizzes_weight == null
     ? DEFAULT_SETTINGS.quizzes_weight
     : Number(body.quizzes_weight)
+  const testsWeight = body.tests_weight == null
+    ? DEFAULT_SETTINGS.tests_weight
+    : Number(body.tests_weight)
 
   if (!Number.isInteger(assignmentsWeight) || assignmentsWeight < 0 || assignmentsWeight > 100) {
     return NextResponse.json({ error: 'assignments_weight must be an integer 0-100' }, { status: 400 })
@@ -556,26 +821,46 @@ export const PATCH = withErrorHandler('PatchGradebook', async (request: NextRequ
     return NextResponse.json({ error: 'quizzes_weight must be an integer 0-100' }, { status: 400 })
   }
 
-  if (useWeights && assignmentsWeight + quizzesWeight !== 100) {
-    return NextResponse.json({ error: 'assignments_weight + quizzes_weight must equal 100' }, { status: 400 })
+  if (!Number.isInteger(testsWeight) || testsWeight < 0 || testsWeight > 100) {
+    return NextResponse.json({ error: 'tests_weight must be an integer 0-100' }, { status: 400 })
+  }
+
+  if (useWeights && assignmentsWeight + quizzesWeight + testsWeight !== 100) {
+    return NextResponse.json({ error: 'assignments_weight + quizzes_weight + tests_weight must equal 100' }, { status: 400 })
   }
 
   const supabase = getServiceRoleClient()
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('gradebook_settings')
     .upsert({
       classroom_id: classroomId,
       use_weights: useWeights,
       assignments_weight: assignmentsWeight,
       quizzes_weight: quizzesWeight,
+      tests_weight: testsWeight,
     }, { onConflict: 'classroom_id' })
-    .select('use_weights, assignments_weight, quizzes_weight')
+    .select('use_weights, assignments_weight, quizzes_weight, tests_weight')
     .single()
+
+  if (error && mentionsMissingField(error, 'tests_weight')) {
+    const legacyResult = await supabase
+      .from('gradebook_settings')
+      .upsert({
+        classroom_id: classroomId,
+        use_weights: useWeights,
+        assignments_weight: assignmentsWeight,
+        quizzes_weight: quizzesWeight,
+      }, { onConflict: 'classroom_id' })
+      .select('use_weights, assignments_weight, quizzes_weight')
+      .single()
+    data = legacyResult.data ? { ...legacyResult.data, tests_weight: 0 } : legacyResult.data
+    error = legacyResult.error
+  }
 
   if (error || !data) {
     console.error('Error saving gradebook settings:', error)
     return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 })
   }
 
-  return NextResponse.json({ settings: data })
+  return NextResponse.json({ settings: normalizeSettings(data as GradebookSettingsRow) })
 })

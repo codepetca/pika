@@ -397,6 +397,54 @@ describe('suggestTestOpenResponseGrade', () => {
     expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body ?? '{}')).max_output_tokens).toBe(900)
   })
 
+  it('returns available batch suggestions when the model omits one requested response', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_parsed: {
+          results: [
+            {
+              response_id: 'response-1',
+              score: 4,
+              feedback: 'Good explanation. Add one key vocabulary word.',
+            },
+          ],
+        },
+      }),
+    })
+
+    const prepared = buildTestOpenResponsePreparedContext({
+      testTitle: 'Unit 1 Test',
+      questionText: 'Explain osmosis.',
+      maxPoints: 5,
+      answerKey: 'Water moves across a semipermeable membrane down its concentration gradient.',
+      promptProfile: 'bulk',
+    })
+
+    const suggestions = await suggestTestOpenResponseGradesBatchWithContext(
+      prepared,
+      [
+        { responseId: 'response-1', responseText: 'Water moves across the membrane.' },
+        { responseId: 'response-2', responseText: 'Water moves between cells.' },
+      ],
+      {
+        feature: 'test_auto_grade',
+        requestedStrategy: 'background_chunked',
+        resolvedStrategy: 'batch',
+        runId: 'run-1',
+      },
+    )
+
+    expect(suggestions).toEqual([
+      expect.objectContaining({
+        responseId: 'response-1',
+        score: 4,
+        feedback: 'Good explanation. Add one key vocabulary word.',
+      }),
+    ])
+  })
+
   it('keeps rounded integer scores within fractional max points', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({

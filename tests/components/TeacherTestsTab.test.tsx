@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
-import { TooltipProvider } from '@/ui'
+import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { createMockClassroom, createMockQuiz } from '../helpers/mocks'
 import type { QuizWithStats } from '@/types'
@@ -108,8 +108,38 @@ vi.mock('@/components/QuizDetailPanel', () => ({
   ),
 }))
 
+vi.mock('@/components/TestStudentGradingPanel', () => ({
+  TestStudentGradingPanel: ({
+    testId,
+    selectedStudentId,
+    onSaveStateChange,
+  }: {
+    testId: string
+    selectedStudentId: string | null
+    onSaveStateChange?: (state: {
+      canSave: boolean
+      isSaving: boolean
+      status: 'idle' | 'unsaved' | 'saving' | 'saved'
+    }) => void
+  }) => {
+    useEffect(() => {
+      onSaveStateChange?.({ canSave: false, isSaving: false, status: 'saved' })
+    }, [onSaveStateChange])
+
+    return (
+      <div data-testid="mock-test-grading-panel">
+        Grading panel for {testId}:{selectedStudentId || 'none'}
+      </div>
+    )
+  },
+}))
+
 function Wrapper({ children }: { children: ReactNode }) {
-  return <TooltipProvider>{children}</TooltipProvider>
+  return (
+    <AppMessageProvider>
+      <TooltipProvider>{children}</TooltipProvider>
+    </AppMessageProvider>
+  )
 }
 
 function makeTest(overrides: Partial<QuizWithStats> = {}): QuizWithStats {
@@ -219,6 +249,13 @@ describe('TeacherTestsTab', () => {
 
   function renderTab(options?: {
     testsTabClickToken?: number
+    selectedTestId?: string | null
+    selectedTestMode?: 'authoring' | 'grading' | null
+    selectedTestStudentId?: string | null
+    updateSearchParams?: (
+      updater: (params: URLSearchParams) => void,
+      options?: { replace?: boolean },
+    ) => void
     onSelectTest?: (test: QuizWithStats | null) => void
     onTestGradingContextChange?: (context: {
       mode: 'authoring' | 'grading'
@@ -231,6 +268,10 @@ describe('TeacherTestsTab', () => {
       <TeacherTestsTab
         classroom={classroom}
         testsTabClickToken={options?.testsTabClickToken}
+        selectedTestId={options?.selectedTestId}
+        selectedTestMode={options?.selectedTestMode}
+        selectedTestStudentId={options?.selectedTestStudentId}
+        updateSearchParams={options?.updateSearchParams}
         onSelectTest={options?.onSelectTest}
         onTestGradingContextChange={options?.onTestGradingContextChange}
       />,
@@ -244,7 +285,7 @@ describe('TeacherTestsTab', () => {
 
     expect(await screen.findByText('Unit Test')).toBeInTheDocument()
     expect(screen.getByText('New Test')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(screen.queryByText('Choose a test to review settings, questions, and grading details.')).not.toBeInTheDocument()
     expect(listFetchCalls(fetchMock)[0][0]).toContain('/api/teacher/tests?classroom_id=')
   })
@@ -261,8 +302,8 @@ describe('TeacherTestsTab', () => {
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'summary-detail')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-preview', 'false')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-results', 'false')
-    expect(screen.getByRole('button', { name: 'Authoring' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Grading' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Authoring' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Grading' })).toHaveAttribute('aria-selected', 'false')
     expect(screen.queryByRole('button', { name: 'Questions' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Documents' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Back to tests' })).not.toBeInTheDocument()
@@ -354,7 +395,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(screen.getByTestId('mock-test-save'))
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Created Test')
-    expect(screen.getByRole('button', { name: 'Authoring' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('tab', { name: 'Authoring' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('validates and activates a draft test from authoring', async () => {
@@ -510,12 +551,11 @@ describe('TeacherTestsTab', () => {
       expect(screen.queryByTestId('mock-test-detail')).not.toBeInTheDocument()
     })
     expect(screen.getByText('Unit Test')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
-    expect(setOpenMock).toHaveBeenCalledWith(false)
+    expect(screen.queryByRole('tab', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(onSelectTest).toHaveBeenLastCalledWith(null)
   })
 
-  it('shows grading in the main pane and only opens the inspector after row selection', async () => {
+  it('shows grading in the main pane and only renders the inspector after row selection', async () => {
     const onTestGradingContextChange = vi.fn()
 
     fetchMock
@@ -530,9 +570,10 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
     setOpenMock.mockClear()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(screen.queryByTestId('mock-test-grading-panel')).not.toBeInTheDocument()
     expect(setOpenMock).not.toHaveBeenCalledWith(true)
     expect(onTestGradingContextChange).toHaveBeenLastCalledWith({
       mode: 'grading',
@@ -544,14 +585,141 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(screen.getByText('Alice Zephyr'))
 
     await waitFor(() => {
-      expect(setOpenMock).toHaveBeenCalledWith(true)
+      expect(screen.getByTestId('mock-test-grading-panel')).toHaveTextContent('Grading panel for test-1:student-1')
     })
+    expect(setOpenMock).not.toHaveBeenCalledWith(true)
     expect(onTestGradingContextChange).toHaveBeenLastCalledWith({
       mode: 'grading',
       testId: 'test-1',
       studentId: 'student-1',
       studentName: 'Alice Zephyr',
     })
+  })
+
+  it('uses controlled test params and reports selection changes through search params', async () => {
+    const updateSearchParams = vi.fn((updater: (params: URLSearchParams) => void) => {
+      const params = new URLSearchParams('tab=tests')
+      updater(params)
+    })
+
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    renderTab({ selectedTestId: null, updateSearchParams })
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    expect(updateSearchParams).toHaveBeenCalledWith(expect.any(Function), undefined)
+    const params = new URLSearchParams('tab=tests')
+    updateSearchParams.mock.calls[0][0](params)
+    expect(params.get('testId')).toBe('test-1')
+    expect(params.get('testMode')).toBe('authoring')
+    expect(params.get('testStudentId')).toBeNull()
+  })
+
+  it('replaces the selected test history entry when switching workspace modes', async () => {
+    const updateSearchParams = vi.fn()
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+
+    renderTab({
+      selectedTestId: 'test-1',
+      selectedTestMode: 'authoring',
+      updateSearchParams,
+    })
+
+    await screen.findByTestId('mock-test-detail')
+    updateSearchParams.mockClear()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
+
+    await waitFor(() => {
+      expect(updateSearchParams).toHaveBeenCalledWith(expect.any(Function), { replace: true })
+    })
+
+    const params = new URLSearchParams('tab=tests&testId=test-1&testMode=authoring')
+    updateSearchParams.mock.calls[0][0](params)
+    expect(params.get('testId')).toBe('test-1')
+    expect(params.get('testMode')).toBe('grading')
+    expect(params.get('testStudentId')).toBeNull()
+  })
+
+  it('models Browser Back by following controlled test params back to summary', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    const view = renderTab({ selectedTestId: 'test-1', selectedTestMode: 'authoring' })
+
+    expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
+
+    view.rerender(
+      <TeacherTestsTab
+        classroom={classroom}
+        selectedTestId={null}
+        selectedTestMode={null}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('mock-test-detail')).not.toBeInTheDocument()
+    })
+    expect(screen.getByText('Unit Test')).toBeInTheDocument()
+  })
+
+  it('keeps valid controlled test params while the test list is still loading', async () => {
+    let resolveTests:
+      | ((value: { ok: boolean; json: () => Promise<any> }) => void)
+      | null = null
+    const updateSearchParams = vi.fn()
+
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveTests = resolve
+        }) as unknown as Promise<Response>,
+    )
+
+    renderTab({
+      selectedTestId: 'test-1',
+      selectedTestMode: 'authoring',
+      updateSearchParams,
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(updateSearchParams).not.toHaveBeenCalled()
+
+    await act(async () => {
+      resolveTests?.({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      await Promise.resolve()
+    })
+
+    expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
+    expect(updateSearchParams).not.toHaveBeenCalled()
+  })
+
+  it('replaces invalid controlled test params with summary params', async () => {
+    const updateSearchParams = vi.fn()
+
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    renderTab({ selectedTestId: 'missing-test', selectedTestMode: 'grading', updateSearchParams })
+
+    await waitFor(() => {
+      expect(updateSearchParams).toHaveBeenCalledWith(expect.any(Function), { replace: true })
+    })
+
+    const params = new URLSearchParams('tab=tests&testId=missing-test&testMode=grading&testStudentId=student-1')
+    updateSearchParams.mock.calls[0][0](params)
+    expect(params.get('tab')).toBe('tests')
+    expect(params.get('testId')).toBeNull()
+    expect(params.get('testMode')).toBeNull()
+    expect(params.get('testStudentId')).toBeNull()
   })
 
   it('polls grading rows only while grading is visible and focused', async () => {
@@ -580,7 +748,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
@@ -655,7 +823,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(screen.getByText('3/5')).toBeInTheDocument()
@@ -668,7 +836,9 @@ describe('TeacherTestsTab', () => {
 
     expect(screen.getByText('Alice Zephyr')).toBeInTheDocument()
     expect(screen.getByText('3/5')).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('Refreshing grading rows...')
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('Refreshing grades')
+    })
 
     await act(async () => {
       resolvePoll?.(
@@ -699,7 +869,9 @@ describe('TeacherTestsTab', () => {
     await waitFor(() => {
       expect(screen.getByText('4/5')).toBeInTheDocument()
     })
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
   })
 
   it('does not start polling when the server reports the test is closed', async () => {
@@ -725,7 +897,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
@@ -763,7 +935,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
@@ -801,7 +973,7 @@ describe('TeacherTestsTab', () => {
     const view = renderTab({ testsTabClickToken: 0 })
 
     fireEvent.click(await screen.findByText('Unit Test A'))
-    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
 
     view.rerender(
       <TeacherTestsTab
@@ -815,7 +987,7 @@ describe('TeacherTestsTab', () => {
     })
 
     fireEvent.click(screen.getByText('Unit Test B'))
-    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
 
     await act(async () => {
       resolveSecondResults?.(
@@ -901,7 +1073,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
@@ -1013,7 +1185,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
@@ -1021,7 +1193,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Grade with AI' }))
 
     await waitFor(() => {
-      expect(screen.getByText('AI grading started')).toBeInTheDocument()
+      expect(screen.getByRole('status')).toHaveTextContent(/grading/i)
     })
 
     await act(async () => {
@@ -1030,7 +1202,7 @@ describe('TeacherTestsTab', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('Graded 1')).toBeInTheDocument()
+      expect(screen.getByRole('status')).toHaveTextContent('Graded 1')
     })
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/teacher/tests/test-1/auto-grade-runs/run-1/tick',
@@ -1049,7 +1221,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
     await screen.findByText('Alice Zephyr')
 
     fireEvent.click(screen.getByRole('button', { name: 'AI Prompt' }))

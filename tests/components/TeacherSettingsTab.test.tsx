@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, cleanup, act, within } from '@testing-library/react'
 import { TeacherSettingsTab } from '@/app/classrooms/[classroomId]/TeacherSettingsTab'
-import { TooltipProvider } from '@/ui'
+import { AppMessageProvider, TooltipProvider } from '@/ui'
+import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import type { Classroom } from '@/types'
 import type { ReactNode } from 'react'
 
@@ -30,7 +31,13 @@ const mockClassroom: Classroom = {
 }
 
 function Wrapper({ children }: { children: ReactNode }) {
-  return <TooltipProvider>{children}</TooltipProvider>
+  return (
+    <MarkdownPreferenceProvider>
+      <AppMessageProvider>
+        <TooltipProvider>{children}</TooltipProvider>
+      </AppMessageProvider>
+    </MarkdownPreferenceProvider>
+  )
 }
 
 describe('TeacherSettingsTab - Course Name Editing', () => {
@@ -42,6 +49,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    window.localStorage.clear()
     cleanup()
   })
 
@@ -50,6 +58,34 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     const input = screen.getByLabelText('Course Name')
     expect(input).toHaveValue('Test Course')
+  })
+
+  it('hides website markdown fields when the user preference is off', async () => {
+    window.localStorage.setItem('pika_show_markdown', 'false')
+
+    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Website overview')).not.toBeInTheDocument()
+    })
+    expect(screen.queryByLabelText('Website outline')).not.toBeInTheDocument()
+    expect(screen.getByText('Website overview and outline editing is hidden by your display setting.')).toBeInTheDocument()
+  })
+
+  it('persists the show markdown display setting from the general settings tab', async () => {
+    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+
+    const markdownToggle = await screen.findByRole('checkbox', { name: 'Show markdown' })
+    expect(markdownToggle).toBeChecked()
+
+    fireEvent.click(markdownToggle)
+
+    await waitFor(() => {
+      expect(markdownToggle).not.toBeChecked()
+    })
+    expect(window.localStorage.getItem('pika_show_markdown')).toBe('false')
+    expect(screen.queryByLabelText('Website overview')).not.toBeInTheDocument()
+    expect(screen.getByText('Website overview and outline editing is hidden by your display setting.')).toBeInTheDocument()
   })
 
   it('saves on blur when value has changed', async () => {
@@ -135,7 +171,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
     fireEvent.blur(input)
 
     await waitFor(() => {
-      expect(screen.getByText('Course name updated.')).toBeInTheDocument()
+      expect(screen.getByText('Course name updated')).toBeInTheDocument()
     })
   })
 
@@ -153,7 +189,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
     fireEvent.blur(input)
 
     await waitFor(() => {
-      expect(screen.getByText('Course name updated.')).toBeInTheDocument()
+      expect(screen.getByText('Course name updated')).toBeInTheDocument()
     })
     expect(mockRefresh).not.toHaveBeenCalled()
   })
@@ -266,13 +302,67 @@ describe('TeacherSettingsTab - Allow Joining', () => {
     fireEvent.click(checkbox)
 
     await waitFor(() => {
-      expect(screen.getByText('Settings saved.')).toBeInTheDocument()
+      expect(screen.getByText('Settings saved')).toBeInTheDocument()
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, options] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/teacher/classrooms/cls-123')
     expect(JSON.parse(options.body)).toEqual({ allowEnrollment: false })
+  })
+})
+
+describe('TeacherSettingsTab - Classroom Blueprint Promotion', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn())
+    mockPush.mockClear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    cleanup()
+  })
+
+  it('opens the save-as-course-blueprint dialog with the classroom title prefilled', () => {
+    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save as Course Blueprint' }))
+
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('heading', { name: 'Save Classroom as Course Blueprint' })).toBeInTheDocument()
+    expect(within(dialog).getByPlaceholderText('Grade 11 Computer Science')).toHaveValue('Test Course')
+  })
+
+  it('saves a classroom as a course blueprint and redirects into the blueprint workspace', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        blueprint_id: 'b-1',
+        redirect_url: '/teacher/blueprints?blueprint=b-1&fromClassroom=cls-123',
+      }),
+    })
+
+    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save as Course Blueprint' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByPlaceholderText('Grade 11 Computer Science'), { target: { value: 'Reusable Draft' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save Blueprint' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/teacher/classrooms/cls-123/blueprint', expect.objectContaining({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Reusable Draft' }),
+    }))
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/teacher/blueprints?blueprint=b-1&fromClassroom=cls-123')
+    })
   })
 })
 
@@ -301,21 +391,21 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
     fireEvent.change(input, { target: { value: 'New Name' } })
     fireEvent.blur(input)
 
-    // Advance microtasks to let the fetch resolve, but not the 2s timeout
+    // Advance microtasks to let the fetch resolve, but not the timeout
     await act(async () => {
       await Promise.resolve()
     })
 
     // Success message should appear
-    expect(screen.getByText('Course name updated.')).toBeInTheDocument()
+    expect(screen.getByText('Course name updated')).toBeInTheDocument()
 
-    // Advance time by 2 seconds to trigger the auto-clear
+    // Advance time to trigger the short auto-clear
     await act(async () => {
-      vi.advanceTimersByTime(2000)
+      vi.advanceTimersByTime(1800)
     })
 
     // Success message should be gone
-    expect(screen.queryByText('Course name updated.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Course name updated')).not.toBeInTheDocument()
   })
 
   it('auto-clears enrollment success message after 2 seconds', async () => {
@@ -330,20 +420,20 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
     const checkbox = screen.getByLabelText('Allow joining')
     fireEvent.click(checkbox)
 
-    // Advance microtasks to let the fetch resolve, but not the 2s timeout
+    // Advance microtasks to let the fetch resolve, but not the timeout
     await act(async () => {
       await Promise.resolve()
     })
 
     // Success message should appear
-    expect(screen.getByText('Settings saved.')).toBeInTheDocument()
+    expect(screen.getByText('Settings saved')).toBeInTheDocument()
 
-    // Advance time by 2 seconds to trigger the auto-clear
+    // Advance time to trigger the short auto-clear
     await act(async () => {
-      vi.advanceTimersByTime(2000)
+      vi.advanceTimersByTime(1800)
     })
 
     // Success message should be gone
-    expect(screen.queryByText('Settings saved.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Settings saved')).not.toBeInTheDocument()
   })
 })

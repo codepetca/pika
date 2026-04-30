@@ -159,9 +159,14 @@ export default function TeacherDashboardPage() {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-text-default mb-2">No Classrooms Yet</h2>
           <p className="text-text-muted mb-6">Create your first classroom to get started</p>
-          <Button onClick={() => setShowCreateModal(true)}>
-            Create Classroom
-          </Button>
+          <div className="flex items-center justify-center gap-3">
+            <Button onClick={() => setShowCreateModal(true)}>
+              Create Classroom
+            </Button>
+            <Button variant="secondary" onClick={() => router.push('/teacher/blueprints')}>
+              Course Blueprints
+            </Button>
+          </div>
         </div>
 
         <CreateClassroomModal
@@ -246,6 +251,11 @@ export default function TeacherDashboardPage() {
               }
               actions={
                 [
+                  {
+                    id: 'course-blueprints',
+                    label: 'Course blueprints',
+                    onSelect: () => router.push('/teacher/blueprints'),
+                  },
                   {
                     id: 'open-classroom',
                     label: 'Open classroom',

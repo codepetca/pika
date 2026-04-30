@@ -28,6 +28,7 @@ import { QuizResultsView } from '@/components/QuizResultsView'
 import { QuizIndividualResponses } from '@/components/QuizIndividualResponses'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspaceShell'
+import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
@@ -127,6 +128,7 @@ export function QuizDetailPanel({
   const AUTOSAVE_DEBOUNCE_MS = 3000
   const AUTOSAVE_MIN_INTERVAL_MS = 10_000
   const isTestsView = quiz.assessment_type === 'test' || apiBasePath.includes('/tests')
+  const { showMarkdown } = useMarkdownPreference()
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
   const [documents, setDocuments] = useState<TestDocument[]>(
     () => normalizeTestDocuments((quiz as { documents?: unknown }).documents)
@@ -406,7 +408,7 @@ export function QuizDetailPanel({
   }, [documents, draftShowResults, editTitle, isTestsView, questions])
   const hasResponses = quiz.stats.responded > 0
   const isEditable = canEditQuizQuestions(quiz, hasResponses)
-  const hasPendingMarkdownImport = isTestsView && markdownDirty
+  const hasPendingMarkdownImport = isTestsView && showMarkdown && markdownDirty
   const isMarkdownEditable = isEditable && isMarkdownEditing
   const markdownHelperStatus = markdownSaving
     ? 'Applying markdown...'
@@ -415,7 +417,7 @@ export function QuizDetailPanel({
       : isMarkdownEditing
         ? 'Editing markdown'
         : 'Markdown mirror'
-  const usesSummaryDetailQuestions = isTestsView && testQuestionLayout === 'summary-detail'
+  const usesSummaryDetailQuestions = isTestsView && showMarkdown && testQuestionLayout === 'summary-detail'
   const { width: summaryDetailWorkspaceWidth } = useRefRect(summaryDetailWorkspaceRef, {
     enabled: usesSummaryDetailQuestions,
   })
@@ -458,6 +460,22 @@ export function QuizDetailPanel({
     }
     savedMarkdownRef.current = currentTestMarkdown
   }, [currentTestMarkdown, isTestsView, markdownContent, markdownDirty])
+
+  useEffect(() => {
+    if (showMarkdown) return
+    if (viewMode === 'markdown') {
+      setViewMode('questions')
+    }
+    if (markdownDirty) {
+      const fallbackMarkdown = savedMarkdownRef.current || currentTestMarkdown
+      setMarkdownContent(fallbackMarkdown)
+      setMarkdownDirty(false)
+      markdownDirtyRef.current = false
+    }
+    setIsMarkdownEditing(false)
+    setMarkdownError('')
+    setMarkdownInfo('')
+  }, [currentTestMarkdown, markdownDirty, showMarkdown, viewMode])
 
   useEffect(() => {
     onPendingMarkdownImportChange?.(isTestsView ? hasPendingMarkdownImport : false)
@@ -1678,7 +1696,7 @@ export function QuizDetailPanel({
             {documents.length > 0 ? `Documents (${documents.length})` : 'Documents'}
           </button>
         )}
-        {isTestsView && (
+        {isTestsView && showMarkdown && (
           <button
             type="button"
             onClick={() => setViewMode('markdown')}
@@ -1907,7 +1925,7 @@ export function QuizDetailPanel({
               headerTitle="Reference Documents"
             />
           </div>
-        ) : viewMode === 'markdown' && isTestsView ? (
+        ) : viewMode === 'markdown' && isTestsView && showMarkdown ? (
           testsMarkdownPanel
         ) : viewMode === 'preview' ? (
           <QuizPreview questions={questions} isTestsView={isTestsView} />
@@ -1992,22 +2010,25 @@ function QuizPreview({ questions, isTestsView }: { questions: QuizQuestion[]; is
               {question.options.map((option, optionIndex) => {
                 const isSelected = selected[question.id] === optionIndex
                 return (
-                  <label
+                  <div
                     key={optionIndex}
                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                       isSelected
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:bg-surface-hover'
                     }`}
+                    onClick={() => setSelected((prev) => ({ ...prev, [question.id]: optionIndex }))}
                   >
                     <input
                       type="radio"
                       name={`preview-${question.id}`}
                       checked={isSelected}
+                      aria-label={option}
                       onChange={() => setSelected((prev) => ({ ...prev, [question.id]: optionIndex }))}
                       className="sr-only"
                     />
                     <span
+                      aria-hidden="true"
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                         isSelected ? 'border-primary' : 'border-border'
                       }`}
@@ -2016,8 +2037,8 @@ function QuizPreview({ questions, isTestsView }: { questions: QuizQuestion[]; is
                         <span className="w-2.5 h-2.5 rounded-full bg-primary" />
                       )}
                     </span>
-                    <span className="text-text-default">{option}</span>
-                  </label>
+                    <QuestionMarkdown content={option} className="min-w-0 flex-1" />
+                  </div>
                 )
               })}
             </div>

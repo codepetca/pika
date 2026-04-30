@@ -25,6 +25,9 @@ function makeStudentSummary(): GradebookStudentSummary {
     quizzes_earned: 16,
     quizzes_possible: 20,
     quizzes_percent: 80,
+    tests_earned: 18,
+    tests_possible: 20,
+    tests_percent: 90,
     final_percent: 75,
   }
 }
@@ -36,6 +39,7 @@ function makeClassSummary(): GradebookClassSummary {
     average_final_percent: 75,
     assignments: [],
     quizzes: [],
+    tests: [],
   }
 }
 
@@ -57,12 +61,14 @@ describe('useGradebookData', () => {
       final_percent: 75,
       assignments: [],
       quizzes: [],
+      tests: [],
     }
     const secondDetail: GradebookStudentDetail = {
       ...student,
       final_percent: 92,
       assignments: [],
       quizzes: [],
+      tests: [],
     }
 
     const cacheFetchMock = vi.mocked(fetchJSONWithCache)

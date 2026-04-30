@@ -1,11 +1,14 @@
 'use client'
 
 import { useMemo, useState, useId } from 'react'
+import { useRouter } from 'next/navigation'
 import { Info } from 'lucide-react'
-import { Button, ConfirmDialog, Tooltip } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, FormField, Input, Tooltip, useAppMessage } from '@/ui'
 import { PageContent, PageLayout } from '@/components/PageLayout'
+import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
+import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG, slugifyCourseSiteValue } from '@/lib/course-site-publishing'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
-import type { Classroom, LessonPlanVisibility } from '@/types'
+import type { ActualCourseSiteConfig, Classroom, LessonPlanVisibility } from '@/types'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 
@@ -28,37 +31,52 @@ export function TeacherSettingsTab({
   sectionParam,
   onSectionChange = () => {},
 }: Props) {
+  const router = useRouter()
   const section: SettingsSection = sectionParam === 'class-days' ? 'class-days' : 'general'
   const allowEnrollmentId = useId()
   const titleId = useId()
+  const actualSiteSlugId = useId()
+  const actualOverviewId = useId()
+  const actualOutlineId = useId()
+  const showMarkdownId = useId()
   const isReadOnly = !!classroom.archived_at
+  const { showMarkdown, mounted: markdownMounted, setShowMarkdown } = useMarkdownPreference()
   const [title, setTitle] = useState(classroom.title)
   const [titleSaving, setTitleSaving] = useState(false)
   const [titleError, setTitleError] = useState<string>('')
-  const [titleSuccess, setTitleSuccess] = useState<string>('')
   const [joinCode, setJoinCode] = useState(classroom.class_code)
   const [allowEnrollment, setAllowEnrollment] = useState<boolean>(classroom.allow_enrollment)
   const [saving, setSaving] = useState(false)
   const [enrollmentError, setEnrollmentError] = useState<string>('')
-  const [enrollmentSuccess, setEnrollmentSuccess] = useState<string>('')
   const [joinCodeError, setJoinCodeError] = useState<string>('')
-  const [joinCodeSuccess, setJoinCodeSuccess] = useState<string>('')
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
   const [isRegenerating, setIsRegenerating] = useState(false)
-  const [copyNotice, setCopyNotice] = useState<string>('')
   const [lessonPlanVisibility, setLessonPlanVisibility] = useState<LessonPlanVisibility>(
     classroom.lesson_plan_visibility || 'current_week'
   )
   const [visibilityError, setVisibilityError] = useState<string>('')
-  const [visibilitySuccess, setVisibilitySuccess] = useState<string>('')
   const [visibilitySaving, setVisibilitySaving] = useState(false)
   const visibilityId = useId()
+  const [actualSiteSlug, setActualSiteSlug] = useState(classroom.actual_site_slug || '')
+  const [actualSitePublished, setActualSitePublished] = useState(!!classroom.actual_site_published)
+  const [actualSiteConfig, setActualSiteConfig] = useState<ActualCourseSiteConfig>(
+    classroom.actual_site_config || DEFAULT_ACTUAL_COURSE_SITE_CONFIG
+  )
+  const [courseOverviewMarkdown, setCourseOverviewMarkdown] = useState(classroom.course_overview_markdown || '')
+  const [courseOutlineMarkdown, setCourseOutlineMarkdown] = useState(classroom.course_outline_markdown || '')
+  const [siteSaving, setSiteSaving] = useState(false)
+  const [siteError, setSiteError] = useState('')
+  const [showCreateBlueprintDialog, setShowCreateBlueprintDialog] = useState(false)
+  const [blueprintTitle, setBlueprintTitle] = useState(classroom.title)
+  const [blueprintBusy, setBlueprintBusy] = useState(false)
+  const [blueprintError, setBlueprintError] = useState('')
 
   const origin = useMemo(() => {
     if (typeof window === 'undefined') return ''
     return window.location.origin
   }, [])
   const joinLink = `${origin}/join/${joinCode}`
+  const { showMessage } = useAppMessage()
 
   async function copy(text: string) {
     try {
@@ -70,8 +88,7 @@ export function TeacherSettingsTab({
 
   async function copyWithNotice(label: string, text: string) {
     await copy(text)
-    setCopyNotice(`${label} copied to clipboard.`)
-    setTimeout(() => setCopyNotice(''), 2000)
+    showMessage({ text: `${label} copied`, tone: 'success' })
   }
 
   async function saveTitle() {
@@ -86,7 +103,6 @@ export function TeacherSettingsTab({
     }
     setTitleSaving(true)
     setTitleError('')
-    setTitleSuccess('')
     try {
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
         method: 'PATCH',
@@ -98,8 +114,7 @@ export function TeacherSettingsTab({
         throw new Error(data.error || 'Failed to update course name')
       }
       setTitle(data.classroom?.title || trimmed)
-      setTitleSuccess('Course name updated.')
-      setTimeout(() => setTitleSuccess(''), 2000)
+      showMessage({ text: 'Course name updated', tone: 'success' })
     } catch (err: any) {
       setTitleError(err.message || 'Failed to update course name')
     } finally {
@@ -111,7 +126,6 @@ export function TeacherSettingsTab({
     if (isReadOnly) return
     setSaving(true)
     setEnrollmentError('')
-    setEnrollmentSuccess('')
     try {
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
         method: 'PATCH',
@@ -123,8 +137,7 @@ export function TeacherSettingsTab({
         throw new Error(data.error || 'Failed to update settings')
       }
       setAllowEnrollment(!!data.classroom?.allow_enrollment)
-      setEnrollmentSuccess('Settings saved.')
-      setTimeout(() => setEnrollmentSuccess(''), 2000)
+      showMessage({ text: 'Settings saved', tone: 'success' })
     } catch (err: any) {
       setEnrollmentError(err.message || 'Failed to update settings')
     } finally {
@@ -136,7 +149,6 @@ export function TeacherSettingsTab({
     if (isReadOnly) return
     setIsRegenerating(true)
     setJoinCodeError('')
-    setJoinCodeSuccess('')
     try {
       const newCode = generateJoinCode()
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
@@ -149,7 +161,7 @@ export function TeacherSettingsTab({
         throw new Error(data.error || 'Failed to regenerate join code')
       }
       setJoinCode(data.classroom?.class_code || newCode)
-      setJoinCodeSuccess('Join code regenerated.')
+      showMessage({ text: 'Join code regenerated', tone: 'success' })
     } catch (err: any) {
       setJoinCodeError(err.message || 'Failed to regenerate join code')
     } finally {
@@ -162,7 +174,6 @@ export function TeacherSettingsTab({
     if (isReadOnly) return
     setVisibilitySaving(true)
     setVisibilityError('')
-    setVisibilitySuccess('')
     try {
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
         method: 'PATCH',
@@ -174,11 +185,78 @@ export function TeacherSettingsTab({
         throw new Error(data.error || 'Failed to update visibility setting')
       }
       setLessonPlanVisibility(data.classroom?.lesson_plan_visibility || value)
-      setVisibilitySuccess('Calendar visibility updated.')
+      showMessage({ text: 'Visibility updated', tone: 'success' })
     } catch (err: any) {
       setVisibilityError(err.message || 'Failed to update visibility setting')
     } finally {
       setVisibilitySaving(false)
+    }
+  }
+
+  async function saveActualSiteSettings() {
+    if (isReadOnly) return
+    setSiteSaving(true)
+    setSiteError('')
+    try {
+      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actualSiteSlug: actualSiteSlug || null,
+          actualSitePublished,
+          actualSiteConfig,
+          courseOverviewMarkdown,
+          courseOutlineMarkdown,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to save actual course site settings')
+      }
+      setActualSiteSlug(data.classroom?.actual_site_slug || '')
+      setActualSitePublished(!!data.classroom?.actual_site_published)
+      setActualSiteConfig(data.classroom?.actual_site_config || actualSiteConfig)
+      setCourseOverviewMarkdown(data.classroom?.course_overview_markdown || courseOverviewMarkdown)
+      setCourseOutlineMarkdown(data.classroom?.course_outline_markdown || courseOutlineMarkdown)
+      showMessage({ text: 'Website settings saved', tone: 'success' })
+    } catch (err: any) {
+      setSiteError(err.message || 'Failed to save actual course site settings')
+    } finally {
+      setSiteSaving(false)
+    }
+  }
+
+  function openCreateBlueprintDialog() {
+    setBlueprintTitle(classroom.title)
+    setBlueprintError('')
+    setShowCreateBlueprintDialog(true)
+  }
+
+  function closeCreateBlueprintDialog() {
+    if (blueprintBusy) return
+    setBlueprintError('')
+    setShowCreateBlueprintDialog(false)
+  }
+
+  async function createBlueprintFromClassroom() {
+    if (isReadOnly) return
+    setBlueprintBusy(true)
+    setBlueprintError('')
+    try {
+      const response = await fetch(`/api/teacher/classrooms/${classroom.id}/blueprint`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: blueprintTitle.trim() || classroom.title }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save classroom as a course blueprint')
+      }
+      router.push(data.redirect_url || `/teacher/blueprints?blueprint=${data.blueprint_id}&fromClassroom=${classroom.id}`)
+    } catch (err: any) {
+      setBlueprintError(err.message || 'Failed to save classroom as a course blueprint')
+    } finally {
+      setBlueprintBusy(false)
     }
   }
 
@@ -212,7 +290,6 @@ export function TeacherSettingsTab({
 
       {section === 'general' ? (
         <PageContent className="space-y-4 pt-0">
-
             <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <label htmlFor={titleId} className="text-sm font-semibold text-text-default">
@@ -244,7 +321,6 @@ export function TeacherSettingsTab({
                 {titleSaving && <span className="text-sm text-text-muted self-center">Saving...</span>}
               </div>
               {titleError && <div className="text-sm text-danger">{titleError}</div>}
-              {titleSuccess && <div className="text-sm text-success">{titleSuccess}</div>}
             </div>
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
@@ -303,10 +379,7 @@ export function TeacherSettingsTab({
               </div>
 
               {joinCodeError && <div className="text-sm text-danger">{joinCodeError}</div>}
-              {joinCodeSuccess && <div className="text-sm text-success">{joinCodeSuccess}</div>}
               {enrollmentError && <div className="text-sm text-danger">{enrollmentError}</div>}
-              {enrollmentSuccess && <div className="text-sm text-success">{enrollmentSuccess}</div>}
-              {copyNotice && <div className="text-xs text-info">{copyNotice}</div>}
             </div>
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
@@ -338,7 +411,200 @@ export function TeacherSettingsTab({
               </div>
 
               {visibilityError && <div className="text-sm text-danger">{visibilityError}</div>}
-              {visibilitySuccess && <div className="text-sm text-success">{visibilitySuccess}</div>}
+            </div>
+
+            <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
+              <div className="text-sm font-semibold text-text-default">Display</div>
+
+              <label htmlFor={showMarkdownId} className="flex items-center gap-3 text-sm text-text-default">
+                <input
+                  id={showMarkdownId}
+                  type="checkbox"
+                  checked={markdownMounted ? showMarkdown : true}
+                  onChange={(event) => setShowMarkdown(event.target.checked)}
+                  className="h-4 w-4"
+                />
+                Show markdown
+              </label>
+            </div>
+
+            <div className="bg-surface rounded-lg border border-border p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="text-sm font-semibold text-text-default">Actual Course Website</div>
+                <Tooltip content="Publish a public-facing version of the current classroom state" side="right">
+                  <span className="text-text-muted cursor-help">
+                    <Info size={14} />
+                  </span>
+                </Tooltip>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr),auto]">
+                <div>
+                  <label htmlFor={actualSiteSlugId} className="mb-2 block text-sm text-text-muted">
+                    Public slug
+                  </label>
+                  <Input
+                    id={actualSiteSlugId}
+                    value={actualSiteSlug}
+                    onChange={(e) => setActualSiteSlug(slugifyCourseSiteValue(e.target.value))}
+                    disabled={siteSaving || isReadOnly}
+                    placeholder="career-studies-period-1"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={siteSaving || isReadOnly}
+                    onClick={() => setActualSiteSlug(slugifyCourseSiteValue(title || classroom.title))}
+                  >
+                    Generate
+                  </Button>
+                </div>
+              </div>
+
+              <label className="flex items-center gap-3 text-sm text-text-default">
+                <input
+                  type="checkbox"
+                  checked={actualSitePublished}
+                  onChange={(e) => setActualSitePublished(e.target.checked)}
+                  disabled={siteSaving || isReadOnly}
+                  className="h-4 w-4"
+                />
+                Publish this classroom as the actual course website
+              </label>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                {(
+                  [
+                    ['overview', 'Overview'],
+                    ['outline', 'Outline'],
+                    ['resources', 'Resources'],
+                    ['assignments', 'Assignments'],
+                    ['quizzes', 'Quizzes'],
+                    ['tests', 'Tests'],
+                    ['lesson_plans', 'Lesson plans'],
+                    ['announcements', 'Announcements'],
+                  ] as Array<[keyof ActualCourseSiteConfig, string]>
+                ).map(([key, label]) => (
+                  <label key={key} className="flex items-center gap-3 text-sm text-text-default">
+                    <input
+                      type="checkbox"
+                      checked={typeof actualSiteConfig[key] === 'boolean' ? (actualSiteConfig[key] as boolean) : false}
+                      onChange={(e) =>
+                        setActualSiteConfig((current) => ({
+                          ...current,
+                          [key]: e.target.checked,
+                        }))
+                      }
+                      disabled={siteSaving || isReadOnly}
+                      className="h-4 w-4"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm text-text-muted">Lesson plan visibility on website</label>
+                <select
+                  value={actualSiteConfig.lesson_plan_scope}
+                  onChange={(e) =>
+                    setActualSiteConfig((current) => ({
+                      ...current,
+                      lesson_plan_scope: e.target.value as ActualCourseSiteConfig['lesson_plan_scope'],
+                    }))
+                  }
+                  disabled={siteSaving || isReadOnly}
+                  className="rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="current_week">Current week (and earlier)</option>
+                  <option value="one_week_ahead">One week ahead</option>
+                  <option value="all">All lesson plans</option>
+                </select>
+              </div>
+
+              {showMarkdown ? (
+                <>
+                  <div>
+                    <label htmlFor={actualOverviewId} className="mb-2 block text-sm text-text-muted">
+                      Website overview
+                    </label>
+                    <textarea
+                      id={actualOverviewId}
+                      value={courseOverviewMarkdown}
+                      onChange={(e) => setCourseOverviewMarkdown(e.target.value)}
+                      disabled={siteSaving || isReadOnly}
+                      className="min-h-[140px] w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor={actualOutlineId} className="mb-2 block text-sm text-text-muted">
+                      Website outline
+                    </label>
+                    <textarea
+                      id={actualOutlineId}
+                      value={courseOutlineMarkdown}
+                      onChange={(e) => setCourseOutlineMarkdown(e.target.value)}
+                      disabled={siteSaving || isReadOnly}
+                      className="min-h-[160px] w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-muted">
+                  Website overview and outline editing is hidden by your display setting.
+                </div>
+              )}
+
+              {actualSitePublished && actualSiteSlug ? (
+                <div className="text-sm text-text-muted">
+                  Actual site URL:{' '}
+                  <a
+                    href={`/actual/${actualSiteSlug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline"
+                  >
+                    {`/actual/${actualSiteSlug}`}
+                  </a>
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap gap-3">
+                <Button type="button" onClick={saveActualSiteSettings} disabled={siteSaving || isReadOnly}>
+                  {siteSaving ? 'Saving…' : 'Save Website Settings'}
+                </Button>
+              </div>
+
+              {siteError && <div className="text-sm text-danger">{siteError}</div>}
+            </div>
+
+            <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="text-sm font-semibold text-text-default">Course Blueprint</div>
+                <Tooltip content="Save this classroom's teacher-authored course content as a reusable course blueprint" side="right">
+                  <span className="text-text-muted cursor-help">
+                    <Info size={14} />
+                  </span>
+                </Tooltip>
+              </div>
+
+              <p className="text-sm text-text-muted">
+                Save the classroom overview, outline, resources, assignments, quizzes, tests, and lesson plans as a reusable course blueprint. Students, submissions, grades, and attendance stay out of the blueprint.
+              </p>
+
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={openCreateBlueprintDialog}
+                  disabled={blueprintBusy || isReadOnly}
+                >
+                  {blueprintBusy ? 'Working...' : 'Save as Course Blueprint'}
+                </Button>
+              </div>
             </div>
 
             <ConfirmDialog
@@ -353,6 +619,59 @@ export function TeacherSettingsTab({
               onCancel={() => (isRegenerating || isReadOnly ? null : setShowRegenerateConfirm(false))}
               onConfirm={regenerateJoinCode}
             />
+
+            <DialogPanel
+              isOpen={showCreateBlueprintDialog}
+              onClose={closeCreateBlueprintDialog}
+              maxWidth="max-w-xl"
+              className="p-6"
+              ariaLabelledBy="create-classroom-blueprint-title"
+            >
+              <h2 id="create-classroom-blueprint-title" className="mb-4 text-xl font-bold text-text-default">
+                Save Classroom as Course Blueprint
+              </h2>
+
+              <div className="space-y-4">
+                <FormField label="Course Blueprint Title" required>
+                  <Input
+                    value={blueprintTitle}
+                    onChange={(e) => setBlueprintTitle(e.target.value)}
+                    disabled={blueprintBusy}
+                    placeholder="Grade 11 Computer Science"
+                  />
+                </FormField>
+
+                <div className="rounded-md border border-border bg-surface-2 px-4 py-3 text-sm text-text-muted">
+                  The course blueprint will include teacher-authored course content only. Students, submissions, grades, attendance, join codes, and roster data are not included.
+                </div>
+
+                {blueprintError ? (
+                  <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+                    {blueprintError}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={closeCreateBlueprintDialog}
+                  className="flex-1"
+                  disabled={blueprintBusy}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={createBlueprintFromClassroom}
+                  className="flex-1"
+                  disabled={blueprintBusy || !blueprintTitle.trim()}
+                >
+                  {blueprintBusy ? 'Saving...' : 'Save Blueprint'}
+                </Button>
+              </div>
+            </DialogPanel>
           </PageContent>
       ) : (
         <PageContent>

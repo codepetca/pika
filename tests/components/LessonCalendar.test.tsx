@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, describe, it, expect, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { LessonCalendar } from '@/components/LessonCalendar'
+import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { TooltipProvider } from '@/ui'
 import type { Assignment, Classroom, LessonPlan, TiptapContent } from '@/types'
 import type { ReactNode } from 'react'
@@ -58,6 +59,18 @@ const allModeLessonPlan: LessonPlan = {
 function Wrapper({ children }: { children: ReactNode }) {
   return <TooltipProvider>{children}</TooltipProvider>
 }
+
+function MarkdownPreferenceWrapper({ children }: { children: ReactNode }) {
+  return (
+    <MarkdownPreferenceProvider>
+      <TooltipProvider>{children}</TooltipProvider>
+    </MarkdownPreferenceProvider>
+  )
+}
+
+afterEach(() => {
+  window.localStorage.clear()
+})
 
 describe('LessonCalendar', () => {
   describe('All view row heights', () => {
@@ -193,5 +206,31 @@ describe('LessonCalendar', () => {
     fireEvent.click(screen.getByText('All mode lesson'))
 
     expect(screen.getByDisplayValue('All mode lesson')).toBeInTheDocument()
+  })
+
+  it('renders lesson markdown as plain text when the user preference is off', async () => {
+    window.localStorage.setItem('pika_show_markdown', 'false')
+    const markdownLessonPlan: LessonPlan = {
+      ...allModeLessonPlan,
+      content_markdown: '### Lesson title\n- **Read** `notes`',
+    }
+
+    const { container } = render(
+      <LessonCalendar
+        classroom={mockClassroom}
+        lessonPlans={[markdownLessonPlan]}
+        viewMode="week"
+        currentDate={new Date('2026-03-16T12:00:00')}
+        editable={false}
+        onDateChange={vi.fn()}
+        onViewModeChange={vi.fn()}
+      />,
+      { wrapper: MarkdownPreferenceWrapper }
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('h3')).toBeNull()
+    })
+    expect(screen.getAllByText((_, node) => node?.textContent === 'Lesson title\nRead notes').length).toBeGreaterThan(0)
   })
 })

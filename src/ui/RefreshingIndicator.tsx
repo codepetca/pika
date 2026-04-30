@@ -1,21 +1,17 @@
 'use client'
 
+import { useOverlayMessage } from './AppMessage'
+
 interface RefreshingIndicatorProps {
   label?: string
   className?: string
 }
 
 export function RefreshingIndicator({
-  label = 'Refreshing...',
+  label = 'Refreshing',
   className = '',
 }: RefreshingIndicatorProps) {
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className={['px-3 py-2 text-xs text-text-muted', className].filter(Boolean).join(' ')}
-    >
-      {label}
-    </div>
-  )
+  void className
+  useOverlayMessage(true, label, { tone: 'loading', delayMs: 0 })
+  return null
 }

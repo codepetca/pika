@@ -2,7 +2,7 @@
 
 import { useState, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Input, Button, FormField, AlertDialog } from '@/ui'
+import { AppMessageFallback, Input, Button, FormField, AlertDialog } from '@/ui'
 import { useAlertDialog } from '@/hooks/useAlertDialog'
 
 function ResetPasswordForm() {
@@ -212,7 +212,7 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<AppMessageFallback />}>
       <ResetPasswordForm />
     </Suspense>
   )

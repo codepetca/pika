@@ -1,9 +1,31 @@
 import { getServiceRoleClient } from '@/lib/supabase'
+import {
+  DEFAULT_ACTUAL_COURSE_SITE_CONFIG,
+  normalizeActualCourseSiteConfig,
+} from '@/lib/course-site-publishing'
+import type { Classroom } from '@/types'
 
 export type ClassroomAccessRecord = {
   id: string
   teacher_id: string
   archived_at: string | null
+  actual_site_slug: string | null
+  actual_site_published: boolean
+}
+
+export function hydrateClassroomRecord(row: Record<string, any>): Classroom {
+  return {
+    ...(row as Classroom),
+    source_blueprint_id: row.source_blueprint_id ?? null,
+    source_blueprint_origin: row.source_blueprint_origin ?? null,
+    actual_site_slug: row.actual_site_slug ?? null,
+    actual_site_published: !!row.actual_site_published,
+    actual_site_config: normalizeActualCourseSiteConfig(
+      row.actual_site_config ?? DEFAULT_ACTUAL_COURSE_SITE_CONFIG
+    ),
+    course_overview_markdown: row.course_overview_markdown ?? '',
+    course_outline_markdown: row.course_outline_markdown ?? '',
+  }
 }
 
 type AccessResult<T> =
@@ -17,7 +39,7 @@ export async function assertTeacherOwnsClassroom(
   const supabase = getServiceRoleClient()
   const { data: classroom, error } = await supabase
     .from('classrooms')
-    .select('id, teacher_id, archived_at')
+    .select('id, teacher_id, archived_at, actual_site_slug, actual_site_published')
     .eq('id', classroomId)
     .single()
 

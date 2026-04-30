@@ -11,6 +11,7 @@ import { useRightSidebar } from '@/components/layout'
 import { applyPendingLessonPlanChanges, lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
 import { useClassDays } from '@/hooks/useClassDays'
 import { Button } from '@/ui'
+import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import type { Classroom, LessonPlan, TiptapContent, Assignment, Announcement } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
@@ -83,6 +84,7 @@ export function TeacherLessonCalendarTab({
   const [refreshKey, setRefreshKey] = useState(0)
 
   const { toggle: toggleSidebar, isOpen: isSidebarOpen, setOpen: setSidebarOpen } = useRightSidebar()
+  const { showMarkdown } = useMarkdownPreference()
 
   // Auto-save tracking
   const pendingChangesRef = useRef<Map<string, string>>(new Map())
@@ -367,8 +369,9 @@ export function TeacherLessonCalendarTab({
 
   // Handle markdown panel toggle - just toggle, effect handles loading
   const handleMarkdownToggle = useCallback(() => {
+    if (!showMarkdown) return
     toggleSidebar()
-  }, [toggleSidebar])
+  }, [showMarkdown, toggleSidebar])
 
   // Handle markdown content change - ref updates immediately, state updates debounced
   const handleMarkdownChange = useCallback((content: string) => {
@@ -390,10 +393,15 @@ export function TeacherLessonCalendarTab({
     prevSidebarOpenRef.current = isSidebarOpen
 
     // Only load when transitioning from closed to open AND we need a refresh
-    if (isSidebarOpen && !wasOpen && needsRefreshRef.current) {
+    if (showMarkdown && isSidebarOpen && !wasOpen && needsRefreshRef.current) {
       loadMarkdownContent()
     }
-  }, [isSidebarOpen, loadMarkdownContent])
+  }, [isSidebarOpen, loadMarkdownContent, showMarkdown])
+
+  useEffect(() => {
+    if (showMarkdown || !isSidebarOpen) return
+    setSidebarOpen(false)
+  }, [isSidebarOpen, setSidebarOpen, showMarkdown])
 
   // Handle markdown save
   const handleMarkdownSave = useCallback(async () => {
@@ -468,7 +476,7 @@ export function TeacherLessonCalendarTab({
   // Note: markdownContent IS included because the sidebar uses local state to avoid cursor jump.
   // TeacherLessonCalendarSidebar tracks isDirty and ignores external updates once user starts typing.
   useEffect(() => {
-    if (isSidebarOpen) {
+    if (showMarkdown && isSidebarOpen) {
       onSidebarStateChange?.({
         markdownContent,
         markdownError,
@@ -479,7 +487,7 @@ export function TeacherLessonCalendarTab({
     } else {
       onSidebarStateChange?.(null)
     }
-  }, [isSidebarOpen, markdownContent, markdownError, bulkSaving, onSidebarStateChange, handleMarkdownSave, handleMarkdownChange])
+  }, [showMarkdown, isSidebarOpen, markdownContent, markdownError, bulkSaving, onSidebarStateChange, handleMarkdownSave, handleMarkdownChange])
 
   if (loading && lessonPlans.length === 0) {
     return (
@@ -519,20 +527,22 @@ export function TeacherLessonCalendarTab({
         trailing={
           <div className="flex items-center gap-2">
             {saving && <span className="text-sm text-text-muted">Saving...</span>}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-9 w-9 px-0"
-              onClick={handleMarkdownToggle}
-              aria-label={isSidebarOpen ? 'Close sidebar' : 'Edit as Markdown'}
-            >
-              {isSidebarOpen ? (
-                <PanelRightClose className="h-4 w-4" aria-hidden="true" />
-              ) : (
-                <PanelRight className="h-4 w-4" aria-hidden="true" />
-              )}
-            </Button>
+            {showMarkdown ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 w-9 px-0"
+                onClick={handleMarkdownToggle}
+                aria-label={isSidebarOpen ? 'Close sidebar' : 'Edit as Markdown'}
+              >
+                {isSidebarOpen ? (
+                  <PanelRightClose className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <PanelRight className="h-4 w-4" aria-hidden="true" />
+                )}
+              </Button>
+            ) : null}
           </div>
         }
       />

@@ -40,7 +40,24 @@ vi.mock('@/components/QuizModal', () => ({
       >
         Save Quiz
       </button>
-    ) : null,
+	    ) : null,
+}))
+
+vi.mock('@/components/QuizDetailPanel', () => ({
+  QuizDetailPanel: ({
+    quiz,
+    onQuizUpdate,
+  }: {
+    quiz: QuizWithStats
+    onQuizUpdate?: () => void
+  }) => (
+    <div data-testid="mock-quiz-detail">
+      Detail for {quiz.title}
+      <button type="button" onClick={() => onQuizUpdate?.()}>
+        Simulate quiz update
+      </button>
+    </div>
+  ),
 }))
 
 function Wrapper({ children }: { children: ReactNode }) {
@@ -85,8 +102,22 @@ describe('TeacherQuizzesTab', () => {
     })
   }
 
-  function renderTab(assessmentType: QuizAssessmentType = 'quiz') {
-    render(<TeacherQuizzesTab classroom={classroom} assessmentType={assessmentType} />, {
+  function renderTab(options?: {
+    assessmentType?: QuizAssessmentType
+    selectedQuizId?: string | null
+    updateSearchParams?: (
+      updater: (params: URLSearchParams) => void,
+      options?: { replace?: boolean },
+    ) => void
+    onRequestDelete?: () => void
+  }) {
+    render(<TeacherQuizzesTab
+      classroom={classroom}
+      assessmentType={options?.assessmentType ?? 'quiz'}
+      selectedQuizId={options?.selectedQuizId}
+      updateSearchParams={options?.updateSearchParams}
+      onRequestDelete={options?.onRequestDelete}
+    />, {
       wrapper: Wrapper,
     })
   }
@@ -145,10 +176,96 @@ describe('TeacherQuizzesTab', () => {
 
   it('renders quiz mode with the quiz API and primary action', async () => {
     mockQuizzesResponse([makeQuiz({ id: 'quiz-1', title: 'Loops Quiz' })])
-    renderTab('quiz')
+    renderTab({ assessmentType: 'quiz' })
 
     expect(await screen.findByText('Loops Quiz')).toBeInTheDocument()
     expect(screen.getByText('New Quiz')).toBeInTheDocument()
     expect(listFetchCalls(fetchMock)[0][0]).toContain('/api/teacher/quizzes?classroom_id=')
+  })
+
+  it('opens a selected quiz in the main workspace without opening the passive sidebar', async () => {
+    mockQuizzesResponse([makeQuiz({ id: 'quiz-1', title: 'Loops Quiz' })])
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Loops Quiz'))
+
+    expect(await screen.findByTestId('mock-quiz-detail')).toHaveTextContent('Detail for Loops Quiz')
+    expect(screen.queryByText('New Quiz')).not.toBeInTheDocument()
+    expect(setOpenMock).not.toHaveBeenCalledWith(true)
+  })
+
+  it('reports quiz selection through search params', async () => {
+    const updateSearchParams = vi.fn((updater: (params: URLSearchParams) => void) => {
+      const params = new URLSearchParams('tab=quizzes')
+      updater(params)
+    })
+
+    mockQuizzesResponse([makeQuiz({ id: 'quiz-1', title: 'Loops Quiz' })])
+    renderTab({ selectedQuizId: null, updateSearchParams })
+
+    fireEvent.click(await screen.findByText('Loops Quiz'))
+
+    expect(updateSearchParams).toHaveBeenCalledWith(expect.any(Function), undefined)
+    const params = new URLSearchParams('tab=quizzes')
+    updateSearchParams.mock.calls[0][0](params)
+    expect(params.get('quizId')).toBe('quiz-1')
+  })
+
+  it('models Browser Back by following controlled quiz params back to summary', async () => {
+    mockQuizzesResponse([makeQuiz({ id: 'quiz-1', title: 'Loops Quiz' })])
+    const { rerender } = render(
+      <TeacherQuizzesTab
+        classroom={classroom}
+        assessmentType="quiz"
+        selectedQuizId="quiz-1"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    expect(await screen.findByTestId('mock-quiz-detail')).toHaveTextContent('Detail for Loops Quiz')
+
+    rerender(
+      <TeacherQuizzesTab
+        classroom={classroom}
+        assessmentType="quiz"
+        selectedQuizId={null}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('mock-quiz-detail')).not.toBeInTheDocument()
+    })
+    expect(screen.getByText('Loops Quiz')).toBeInTheDocument()
+  })
+
+  it('shows delete only inside the selected quiz workspace', async () => {
+    const onRequestDelete = vi.fn()
+
+    mockQuizzesResponse([makeQuiz({ id: 'quiz-1', title: 'Loops Quiz' })])
+    renderTab({ onRequestDelete })
+
+    expect(await screen.findByText('Loops Quiz')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete Quiz' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Loops Quiz'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Quiz' }))
+
+    expect(onRequestDelete).toHaveBeenCalledTimes(1)
+  })
+
+  it('replaces invalid controlled quiz params with summary params', async () => {
+    const updateSearchParams = vi.fn()
+
+    mockQuizzesResponse([makeQuiz({ id: 'quiz-1', title: 'Loops Quiz' })])
+    renderTab({ selectedQuizId: 'missing-quiz', updateSearchParams })
+
+    await waitFor(() => {
+      expect(updateSearchParams).toHaveBeenCalledWith(expect.any(Function), { replace: true })
+    })
+
+    const params = new URLSearchParams('tab=quizzes&quizId=missing-quiz')
+    updateSearchParams.mock.calls[0][0](params)
+    expect(params.get('tab')).toBe('quizzes')
+    expect(params.get('quizId')).toBeNull()
   })
 })

@@ -99,4 +99,41 @@ describe('TeacherAssignmentStudentTable', () => {
     expect(onToggleSelect).toHaveBeenCalledWith('student-1')
     expect(onSelectStudent).not.toHaveBeenCalled()
   })
+
+  it('shows a distinct resubmitted status chip even when the row still has a grade', () => {
+    render(
+      <TeacherAssignmentStudentTable
+        rows={[{
+          ...row,
+          status: 'resubmitted',
+          doc: {
+            ...row.doc!,
+            submitted_at: '2026-04-22T12:00:00Z',
+            returned_at: '2026-04-21T12:00:00Z',
+            graded_at: '2026-04-21T12:00:00Z',
+          },
+        }]}
+        selectedStudentId={null}
+        onSelectStudent={vi.fn()}
+        onDeselectStudent={vi.fn()}
+        selectedIds={new Set()}
+        onToggleSelect={vi.fn()}
+        onToggleSelectAll={vi.fn()}
+        allSelected={false}
+        sortColumn="last"
+        sortDirection="asc"
+        onToggleSort={vi.fn()}
+        dueAtMs={new Date('2026-04-20T12:00:00Z').getTime()}
+        density="compact"
+        loading={false}
+        error=""
+      />,
+    )
+
+    expect(screen.getByTestId('assignment-status-resubmitted-chip')).toHaveTextContent('Resub')
+    expect(screen.getByTestId('assessment-status-icon-resubmitted')).toBeInTheDocument()
+    expect(screen.getByTestId('assessment-status-icon-late-clock')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Resubmitted (late)' })).toBeInTheDocument()
+    expect(screen.getByText('90')).toBeInTheDocument()
+  })
 })
