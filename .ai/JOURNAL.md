@@ -10079,3 +10079,20 @@
 - Manual Playwright screenshot for the assignment workspace split menu:
   - `/tmp/pika-assignment-apply-menu.png`
   - `/tmp/pika-return-in-split-menu.png`
+
+## 2026-04-30 — Shorten apply confirmation label
+
+**Completed:**
+- Changed the assignment batch apply confirmation button label to `Apply` for both grade and comments apply flows.
+- Updated component coverage to confirm the generic apply button drives the existing score-only and comments-only requests.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification script for `/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshot for the assignment apply confirmation dialog:
+  - `/tmp/pika-apply-confirm-label.png`

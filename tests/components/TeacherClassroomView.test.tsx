@@ -939,8 +939,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByText(/applies the open student's scores to the checked student/)).toBeInTheDocument()
     expect(screen.getByText(/It will not change comment drafts or return comments to students/)).toBeInTheDocument()
 
-    const gradeSelectedButtons = screen.getAllByRole('button', { name: 'Apply Grade to Selected Students' })
-    fireEvent.click(gradeSelectedButtons[gradeSelectedButtons.length - 1])
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
 
     await waitFor(() => {
       expect(gradeSelectedBodies).toHaveLength(1)
@@ -1041,8 +1040,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByText('Apply comments to 2 selected student(s)?')).toBeInTheDocument()
     expect(screen.getByText(/applies the open student's comment draft/)).toBeInTheDocument()
 
-    const commentsSelectedButtons = screen.getAllByRole('button', { name: 'Apply Comments to Selected Students' })
-    fireEvent.click(commentsSelectedButtons[commentsSelectedButtons.length - 1])
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
 
     await waitFor(() => {
       expect(gradeSelectedBodies).toHaveLength(1)
@@ -1155,8 +1153,7 @@ describe('TeacherClassroomView', () => {
 
     mockClearSelection.mockClear()
     fireEvent.click(screen.getByRole('button', { name: 'Apply Grade to Selected Students' }))
-    const gradeSelectedButtons = screen.getAllByRole('button', { name: 'Apply Grade to Selected Students' })
-    fireEvent.click(gradeSelectedButtons[gradeSelectedButtons.length - 1])
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
 
     expect(await screen.findByText('Batch save failed')).toBeInTheDocument()
     expect(mockClearSelection).not.toHaveBeenCalled()

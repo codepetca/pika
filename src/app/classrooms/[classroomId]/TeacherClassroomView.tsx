@@ -1829,9 +1829,7 @@ export function TeacherClassroomView({
         confirmLabel={
           isGradeSelectedSaving
             ? 'Applying...'
-            : gradeSelectedConfirmTarget === 'comments'
-              ? 'Apply Comments to Selected Students'
-              : 'Apply Grade to Selected Students'
+            : 'Apply'
         }
         cancelLabel="Cancel"
         isConfirmDisabled={isGradeSelectedSaving || isGradeSelectedConfirmDisabled}
