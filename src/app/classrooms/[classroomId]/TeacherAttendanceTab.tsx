@@ -1,9 +1,22 @@
 'use client'
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import { Spinner } from '@/components/Spinner'
-import { DateActionBar } from '@/components/DateActionBar'
-import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import { CalendarDateNavigator } from '@/components/CalendarActionBar'
+import { StudentLogHistory } from '@/components/StudentLogHistory'
+import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
+import { LogSummary } from './LogSummary'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
@@ -27,6 +40,7 @@ import {
 import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
 import type { Classroom, Entry } from '@/types'
+import { format, parseISO } from 'date-fns'
 
 type SortColumn = 'first_name' | 'last_name' | 'id' | 'status'
 
@@ -50,6 +64,11 @@ export interface TeacherAttendanceTabHandle {
   selectStudentByName: (name: string) => void
 }
 
+function clampPaneWidth(value: number, min: number, max: number): number {
+  if (max <= min) return min
+  return Math.min(max, Math.max(min, value))
+}
+
 export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props>(function TeacherAttendanceTab({
   classroom,
   onSelectEntry,
@@ -63,6 +82,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+  const splitRef = useRef<HTMLDivElement | null>(null)
+  const dateInputRef = useRef<HTMLInputElement | null>(null)
+  const [detailPaneWidth, setDetailPaneWidth] = useState(50)
   const showBlockingSpinner = useDelayedBusy(loading && logs.length === 0)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
     column: SortColumn
@@ -208,75 +230,180 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     onSelectEntry?.(null, '', null)
   }, [onSelectEntry])
 
-  // Keyboard navigation handler
-  const handleKeyboardSelect = useCallback(
-    (studentId: string) => {
-      const row = rows.find((r) => r.student_id === studentId)
-      if (!row) return
-
-      setSelectedStudentId(studentId)
+  const selectStudentByRow = useCallback(
+    (row: LogRow) => {
+      setSelectedStudentId(row.student_id)
       const studentName =
         [row.student_first_name, row.student_last_name].filter(Boolean).join(' ') ||
         row.email_username
       onSelectEntry?.(row.entry, studentName, row.student_id)
     },
-    [rows, onSelectEntry]
+    [onSelectEntry]
+  )
+
+  const selectStudentByName = useCallback(
+    (name: string) => {
+      const row = logs.find((logRow) => {
+        const fullName = [logRow.student_first_name, logRow.student_last_name]
+          .filter(Boolean)
+          .join(' ')
+        return fullName === name
+      })
+      if (row) {
+        selectStudentByRow(row)
+      }
+    },
+    [logs, selectStudentByRow]
+  )
+
+  // Keyboard navigation handler
+  const handleKeyboardSelect = useCallback(
+    (studentId: string) => {
+      const row = rows.find((r) => r.student_id === studentId)
+      if (!row) return
+      selectStudentByRow(row)
+    },
+    [rows, selectStudentByRow]
   )
 
   useImperativeHandle(ref, () => ({
     selectStudentByName(name: string) {
-      const row = logs.find((r) => {
-        const fullName = [r.student_first_name, r.student_last_name].filter(Boolean).join(' ')
-        return fullName === name
-      })
-      if (row) {
-        setSelectedStudentId(row.student_id)
-        const studentName = [row.student_first_name, row.student_last_name].filter(Boolean).join(' ') || row.email_username
-        onSelectEntry?.(row.entry, studentName, row.student_id)
-      }
+      selectStudentByName(name)
     },
-  }), [logs, onSelectEntry])
+  }), [selectStudentByName])
 
   // Row keys for keyboard navigation (in sorted order)
   const rowKeys = useMemo(() => rows.map((r) => r.student_id), [rows])
+  const selectedRow = useMemo(
+    () => rows.find((row) => row.student_id === selectedStudentId) ?? null,
+    [rows, selectedStudentId]
+  )
+  const selectedStudentName = selectedRow
+    ? [selectedRow.student_first_name, selectedRow.student_last_name].filter(Boolean).join(' ') ||
+      selectedRow.email_username
+    : ''
+  const selectedDateLabel = selectedDate ? format(parseISO(selectedDate), 'EEE MMM d') : 'Select date'
 
-  if (showBlockingSpinner) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
-    )
-  }
-
-  return (
-    <PageLayout>
-      <PageActionBar
-        primary={
-          <DateActionBar
+  const actionBar = (
+    <TeacherWorkSurfaceActionBar
+      label={
+        <div className="truncate px-1 text-sm font-semibold text-text-default">
+          Daily
+        </div>
+      }
+      center={
+        <>
+          <input
+            ref={dateInputRef}
+            type="date"
             value={selectedDate}
-            onChange={setSelectedDate}
+            onChange={(event) => setSelectedDate(event.target.value)}
+            className="sr-only"
+            tabIndex={-1}
+          />
+          <CalendarDateNavigator
+            label={selectedDateLabel}
+            onLabelClick={() => dateInputRef.current?.showPicker()}
+            labelAriaLabel="Select attendance date"
             onPrev={() => moveDateBy(-1)}
             onNext={() => moveDateBy(1)}
+            prevAriaLabel="Previous day"
+            nextAriaLabel="Next day"
           />
-        }
-        trailing={null}
-      />
+        </>
+      }
+    />
+  )
 
-      <PageContent>
-        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-        <div className="min-h-[200px]" onClick={(e) => {
-          // Deselect when clicking outside the table
-          if (selectedStudentId && (e.target as HTMLElement).closest('table') === null) {
-            handleDeselect()
-          }
-        }}>
+  const detailPane = selectedRow ? (
+    <StudentLogHistory studentId={selectedRow.student_id} classroomId={classroom.id} />
+  ) : selectedDate ? (
+    <LogSummary
+      classroomId={classroom.id}
+      date={selectedDate}
+      onStudentClick={selectStudentByName}
+    />
+  ) : (
+    <div className="p-4 text-sm text-text-muted">
+      Select a date to view the log summary.
+    </div>
+  )
+
+  const handlePaneResizeStart = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const splitElement = splitRef.current
+    if (!splitElement) return
+
+    event.preventDefault()
+
+    const { right, width } = splitElement.getBoundingClientRect()
+    if (width <= 0) return
+
+    const minRightPercent = Math.max(28, (280 / width) * 100)
+    const maxRightPercent = Math.min(72, ((width - 320) / width) * 100)
+
+    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
+      const nextRightWidth = ((right - moveEvent.clientX) / width) * 100
+      setDetailPaneWidth(
+        Math.round(clampPaneWidth(nextRightWidth, minRightPercent, maxRightPercent) * 10) / 10
+      )
+    }
+
+    const handleResizeEnd = () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handleResizeEnd)
+      window.removeEventListener('pointercancel', handleResizeEnd)
+      window.removeEventListener('blur', handleResizeEnd)
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handleResizeEnd)
+    window.addEventListener('pointercancel', handleResizeEnd)
+    window.addEventListener('blur', handleResizeEnd)
+  }, [])
+
+  const handlePaneResizeReset = useCallback(() => {
+    setDetailPaneWidth(50)
+  }, [])
+
+  const handlePaneResizeKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      setDetailPaneWidth((current) => clampPaneWidth(current + 5, 28, 72))
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      setDetailPaneWidth((current) => clampPaneWidth(current - 5, 28, 72))
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      setDetailPaneWidth(72)
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      setDetailPaneWidth(28)
+    } else if (event.key === 'Enter') {
+      event.preventDefault()
+      setDetailPaneWidth(50)
+    }
+  }, [])
+
+  const workspace = showBlockingSpinner ? (
+    <div className="flex justify-center py-12">
+      <Spinner size="lg" />
+    </div>
+  ) : (
+    <div ref={splitRef} className="flex min-h-0 flex-1 flex-col gap-3 bg-page lg:flex-row lg:gap-0">
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+      <div className="min-h-[200px] min-w-0 flex-1 overflow-hidden rounded-lg bg-surface" onClick={(e) => {
+        // Deselect when clicking outside the table
+        if (selectedStudentId && (e.target as HTMLElement).closest('table') === null) {
+          handleDeselect()
+        }
+      }}>
         <KeyboardNavigableTable
           rowKeys={rowKeys}
           selectedKey={selectedStudentId}
           onSelectKey={handleKeyboardSelect}
           onDeselect={handleDeselect}
         >
-          <TableCard>
+          <TableCard chrome="flush">
             {refreshing && (
               <RefreshingIndicator />
             )}
@@ -369,8 +496,46 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             </DataTable>
           </TableCard>
         </KeyboardNavigableTable>
+      </div>
+      <div className="hidden w-3 shrink-0 self-stretch lg:flex">
+        <div
+          role="separator"
+          aria-label="Resize Daily panes"
+          aria-orientation="vertical"
+          aria-valuemin={28}
+          aria-valuemax={72}
+          aria-valuenow={detailPaneWidth}
+          tabIndex={0}
+          className="min-h-full flex-1 cursor-col-resize rounded-full outline-none focus:bg-info-bg hover:bg-surface-hover"
+          onPointerDown={handlePaneResizeStart}
+          onDoubleClick={handlePaneResizeReset}
+          onKeyDown={handlePaneResizeKeyDown}
+        />
+      </div>
+      <aside
+        className="flex min-h-0 w-full flex-col overflow-hidden rounded-lg bg-surface lg:shrink-0 lg:basis-[var(--daily-detail-pane-width)]"
+        style={{ '--daily-detail-pane-width': `calc(${detailPaneWidth}% - 6px)` } as CSSProperties}
+      >
+        <div className="flex min-h-10 items-center border-b border-border px-3 py-2">
+          <span className="truncate text-sm font-semibold text-text-default">
+            {selectedRow ? selectedStudentName : 'Log Summary'}
+          </span>
         </div>
-      </PageContent>
-    </PageLayout>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {detailPane}
+        </div>
+      </aside>
+    </div>
+  )
+
+  return (
+    <TeacherWorkSurfaceShell
+      state="workspace"
+      primary={actionBar}
+      summary={null}
+      workspace={workspace}
+      workspaceFrame="standalone"
+      workspaceFrameClassName="min-h-[360px] border-0 bg-page"
+    />
   )
 })

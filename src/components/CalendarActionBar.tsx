@@ -20,6 +20,18 @@ interface CalendarActionBarProps {
   className?: string
 }
 
+interface CalendarDateNavigatorProps {
+  label: string
+  onPrev?: () => void
+  onNext?: () => void
+  onLabelClick?: () => void
+  showNavigation?: boolean
+  labelAriaLabel?: string
+  prevAriaLabel?: string
+  nextAriaLabel?: string
+  className?: string
+}
+
 function getHeaderLabel(viewMode: CalendarViewMode, currentDate: Date, rangeStart?: string | null, rangeEnd?: string | null) {
   if (viewMode === 'week' || viewMode === 'month') {
     return format(currentDate, 'MMMM yyyy')
@@ -30,6 +42,63 @@ function getHeaderLabel(viewMode: CalendarViewMode, currentDate: Date, rangeStar
   }
 
   return 'All Dates'
+}
+
+export function CalendarDateNavigator({
+  label,
+  onPrev,
+  onNext,
+  onLabelClick,
+  showNavigation = true,
+  labelAriaLabel = 'Go to today',
+  prevAriaLabel = 'Previous',
+  nextAriaLabel = 'Next',
+  className = '',
+}: CalendarDateNavigatorProps) {
+  return (
+    <div className={`flex min-w-0 items-center gap-1 sm:gap-2 ${className}`}>
+      {showNavigation && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-9 w-9 px-0"
+          onClick={onPrev}
+          aria-label={prevAriaLabel}
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      )}
+
+      {onLabelClick ? (
+        <button
+          type="button"
+          onClick={onLabelClick}
+          className="truncate rounded-control px-2 py-1 text-sm font-semibold text-text-default transition-colors hover:bg-surface-hover sm:text-base"
+          aria-label={labelAriaLabel}
+        >
+          {label}
+        </button>
+      ) : (
+        <span className="truncate px-2 py-1 text-sm font-semibold text-text-default sm:text-base">
+          {label}
+        </span>
+      )}
+
+      {showNavigation && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-9 w-9 px-0"
+          onClick={onNext}
+          aria-label={nextAriaLabel}
+        >
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      )}
+    </div>
+  )
 }
 
 export function CalendarActionBar({
@@ -51,42 +120,13 @@ export function CalendarActionBar({
       className={className}
       primary={
         <div className="relative flex min-h-9 w-full items-center">
-          <div className="flex min-w-0 items-center gap-1 sm:gap-2">
-            {viewMode !== 'all' && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 w-9 px-0"
-                onClick={onPrev}
-                aria-label="Previous"
-              >
-                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            )}
-
-            <button
-              type="button"
-              onClick={onToday}
-              className="truncate rounded-control px-2 py-1 text-sm font-semibold text-text-default transition-colors hover:bg-surface-hover sm:text-base"
-              aria-label="Go to today"
-            >
-              {headerLabel}
-            </button>
-
-            {viewMode !== 'all' && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 w-9 px-0"
-                onClick={onNext}
-                aria-label="Next"
-              >
-                <ChevronRight className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            )}
-          </div>
+          <CalendarDateNavigator
+            label={headerLabel}
+            onPrev={onPrev}
+            onNext={onNext}
+            onLabelClick={onToday}
+            showNavigation={viewMode !== 'all'}
+          />
 
           <SegmentedControl<CalendarViewMode>
             ariaLabel="Calendar view"

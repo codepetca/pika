@@ -10360,3 +10360,33 @@
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
+
+## 2026-04-30 - Daily work-surface shell
+
+**Completed:**
+- Applied the teacher work-surface shell pattern to the Daily attendance tab.
+- Moved Daily's log summary/student history from the global right sidebar into
+  the Daily lower split pane so the action bar spans the full Daily workspace.
+- Disabled the attendance route's app-level right sidebar now that Daily owns
+  its table and detail panes internally.
+- Rounded the Daily table and detail panes while leaving the lower split wrapper
+  borderless.
+- Added a desktop drag-resize handle in the gap between Daily panes, with
+  keyboard resize support and double-click reset.
+- Extracted the Calendar action-bar date navigator into a reusable
+  `CalendarDateNavigator` and reused it for Daily so the date label and arrow
+  controls match Calendar.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx tests/components/StudentTodayTabHistory.test.tsx`
+- `pnpm vitest run tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=attendance` on `http://localhost:3002`.
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=calendar` on `http://localhost:3002`.
+- Drag probe verified the Daily detail pane resized from 678px to 804px; screenshot
+  saved at `/tmp/pika-daily-resized.png`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
