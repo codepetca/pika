@@ -63,6 +63,7 @@ import {
   ASSIGNMENT_GRADING_LAYOUT,
   getAssignmentWorkspaceStudentCookieName,
   parseAssignmentWorkspaceStudentId,
+  type AssignmentWorkspaceMode,
 } from '@/lib/assignment-grading-layout'
 import { isVisibleAtNow } from '@/lib/scheduling'
 import type {
@@ -1354,7 +1355,8 @@ export function TeacherClassroomView({
         ? `${individualHeaderMeta.characterCount} chars`
         : 'Loading…'
       : null
-  const activeWorkspaceLayout = assignmentGradingLayout.overview
+  const activeWorkspaceMode: AssignmentWorkspaceMode = leftPaneView === 'individual' ? 'details' : 'overview'
+  const activeWorkspaceLayout = assignmentGradingLayout[activeWorkspaceMode]
   const highlightedInspectorSections =
     highlightedApplyTarget === 'grade'
       ? (['grades'] as const)
@@ -1741,7 +1743,7 @@ export function TeacherClassroomView({
       refreshKey={gradeSelectedRefreshCounter}
       highlightedInspectorSections={highlightedInspectorSections}
       totalWidth={workspaceWidth}
-      onLayoutChange={(next) => updateModeLayout('overview', next)}
+      onLayoutChange={(next) => updateModeLayout(activeWorkspaceMode, next)}
       onLoadingStateChange={setWorkspaceLoading}
       inspectorEditMode={assignmentEditMode}
       onDetailsMetaChange={setIndividualHeaderMeta}

@@ -13,6 +13,7 @@ const mockSetSelection = vi.fn()
 const mockShowMessage = vi.fn()
 const mockUseOverlayMessage = vi.fn()
 const mockIsVisibleAtNow = vi.fn(() => true)
+const mockUpdateModeLayout = vi.fn()
 const mockStudentSelectionState = {
   selectedIds: new Set<string>(),
   allSelected: false,
@@ -154,6 +155,8 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
     classPane,
     leftPaneView = 'class',
     leftHeader,
+    inspectorWidth,
+    onLayoutChange,
     onDetailsMetaChange,
     onGradeTemplateChange,
     highlightedInspectorSections = [],
@@ -187,6 +190,13 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
           data-testid="teacher-work-panel"
           data-highlighted-sections={highlightedInspectorSections.join(',')}
         >
+          <div data-testid="assignment-workspace-inspector-width">{inspectorWidth}</div>
+          <button
+            type="button"
+            onClick={() => onLayoutChange?.({ inspectorCollapsed: false, inspectorWidth: 61 })}
+          >
+            Mock resize split
+          </button>
           <div>{`overview:${assignmentId}:${studentId}`}</div>
           <div data-testid="assignment-left-pane">
             {leftHeader}
@@ -254,9 +264,9 @@ vi.mock('@/hooks/use-assignment-grading-layout', () => ({
   useAssignmentGradingLayout: () => ({
     layout: {
       overview: { inspectorCollapsed: false, inspectorWidth: 50 },
-      details: { inspectorCollapsed: false, inspectorWidth: 50 },
+      details: { inspectorCollapsed: false, inspectorWidth: 64 },
     },
-    updateModeLayout: vi.fn(),
+    updateModeLayout: mockUpdateModeLayout,
   }),
 }))
 
@@ -409,6 +419,7 @@ describe('TeacherClassroomView', () => {
     mockShowMessage.mockReset()
     mockUseOverlayMessage.mockReset()
     mockIsVisibleAtNow.mockReset()
+    mockUpdateModeLayout.mockReset()
     mockIsVisibleAtNow.mockReturnValue(true)
     mockStudentSelectionState.selectedIds = new Set<string>()
     mockStudentSelectionState.allSelected = false
@@ -1238,6 +1249,13 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
+    expect(screen.getByTestId('assignment-workspace-inspector-width')).toHaveTextContent('64')
+    fireEvent.click(screen.getByRole('button', { name: 'Mock resize split' }))
+
+    expect(mockUpdateModeLayout).toHaveBeenCalledWith('details', {
+      inspectorCollapsed: false,
+      inspectorWidth: 61,
+    })
     expect(within(screen.getByRole('group', { name: 'Assignment workspace view' })).getByRole('button', { name: 'Individual' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
     expect(screen.queryByRole('button', { name: /Send/i })).not.toBeInTheDocument()

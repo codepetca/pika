@@ -9609,6 +9609,30 @@
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
 
+## 2026-05-01 - Assignment individual split layout review fix
+
+**Completed:**
+- Fixed the PR review finding where the assignment workspace always read and
+  wrote the `overview` split layout, even while the left pane was in individual
+  student work mode.
+- The assignment parent now derives the active workspace layout mode from the
+  class/individual pane toggle and writes resize changes back to the matching
+  `overview` or `details` layout bucket.
+- Added focused test coverage that switches to individual mode, verifies the
+  details split width is used, and confirms resize updates are written to
+  `details`.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm vitest run tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments&assignmentId=55cfe7c5-9f16-42ef-858a-364a2468e5b9` on `http://localhost:3000`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+
 ## 2026-04-30 - Shared Daily and Assignment split primitive
 
 **Completed:**
