@@ -110,4 +110,51 @@ describe('TeacherWorkspaceSplit', () => {
     expect(onInspectorWidthChange).toHaveBeenNthCalledWith(2, 58)
     rectSpy.mockRestore()
   })
+
+  it('renders the shared gapped split variant for Daily-style panes', () => {
+    render(
+      <TeacherWorkspaceSplit
+        splitVariant="gapped"
+        primary={<div>Daily table</div>}
+        inspector={<div>Log summary</div>}
+        inspectorWidth={50}
+        inspectorCollapsed={false}
+        onInspectorWidthChange={vi.fn()}
+        primaryClassName="rounded-lg bg-surface"
+        inspectorClassName="rounded-lg bg-surface"
+        minInspectorPercent={28}
+        maxInspectorPercent={72}
+        dividerLabel="Resize Daily panes"
+      />,
+    )
+
+    const separator = screen.getByRole('separator', { name: 'Resize Daily panes' })
+    expect(screen.getByText('Daily table')).toBeInTheDocument()
+    expect(screen.getByText('Log summary')).toBeInTheDocument()
+    expect(separator).toHaveAttribute('aria-valuemin', '28')
+    expect(separator).toHaveAttribute('aria-valuemax', '72')
+  })
+
+  it('supports keyboard resizing for the shared resize handle', () => {
+    const onInspectorWidthChange = vi.fn()
+
+    render(
+      <TeacherWorkspaceSplit
+        primary={<div>Student table</div>}
+        inspector={<div>Inspector pane</div>}
+        inspectorWidth={50}
+        inspectorCollapsed={false}
+        onInspectorWidthChange={onInspectorWidthChange}
+        minInspectorPercent={28}
+        maxInspectorPercent={72}
+        dividerLabel="Resize panes"
+      />,
+    )
+
+    fireEvent.keyDown(screen.getByRole('separator', { name: 'Resize panes' }), { key: 'ArrowLeft' })
+    fireEvent.keyDown(screen.getByRole('separator', { name: 'Resize panes' }), { key: 'Enter' })
+
+    expect(onInspectorWidthChange).toHaveBeenNthCalledWith(1, 55)
+    expect(onInspectorWidthChange).toHaveBeenNthCalledWith(2, 50)
+  })
 })

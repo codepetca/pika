@@ -9608,6 +9608,67 @@
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
+
+## 2026-04-30 - Shared Daily and Assignment split primitive
+
+**Completed:**
+- Moved Daily's gapped table/detail resize behavior into `TeacherWorkspaceSplit`
+  as a reusable `gapped` split variant.
+- Kept the existing Assignment split on the same component's default `joined`
+  variant, so Assignments and Daily now share one pane resize primitive with
+  configurable middle treatment.
+- Added keyboard resize support and ARIA value metadata to the shared split
+  handle path.
+- Updated the attendance layout-config test to match the integrated Daily
+  workspace with no app-level right sidebar.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm vitest run tests/unit/layout-config.test.ts tests/components/TeacherWorkspaceSplit.test.tsx tests/components/WorkspaceSplitPane.test.tsx tests/components/SummaryDetailWorkspaceShell.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `bash "$PIKA_WORKTREE/scripts/verify-env.sh"`
+- Cleared stale generated `.next` cache after a dev-server vendor chunk error,
+  then reran Pika UI verification cleanly.
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=attendance` on `http://localhost:3002`.
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments&assignmentId=55cfe7c5-9f16-42ef-858a-364a2468e5b9` on `http://localhost:3002`.
+- Daily drag probe verified the detail pane resized from 678px to 804px.
+- Visual screenshots reviewed:
+  - `/tmp/pika-daily-teacher-warm.png`
+  - `/tmp/pika-daily-teacher-mobile.png`
+  - `/tmp/pika-daily-student.png`
+  - `/tmp/pika-assignment-teacher.png`
+  - `/tmp/pika-assignment-teacher-mobile.png`
+  - `/tmp/pika-assignment-student.png`
+
+## 2026-04-30 - Assignment gapped split mode
+
+**Completed:**
+- Switched the Assignment student-work split to the shared `gapped`
+  `TeacherWorkspaceSplit` mode used by Daily.
+- Gave the Assignment primary and grading panes rounded surface treatment and
+  removed the selected-student workspace outer border so the middle gap reads
+  as page background.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm vitest run tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkspaceSplit.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=assignments&assignmentId=55cfe7c5-9f16-42ef-858a-364a2468e5b9` on `http://localhost:3002`.
+- Assignment drag probe verified the grading pane resized from 678px to 783px.
+- Visual screenshots reviewed:
+  - `/tmp/pika-assignment-gap-teacher-warm.png`
+  - `/tmp/pika-assignment-gap-teacher-mobile.png`
+  - `/tmp/pika-assignment-gap-student.png`
+
+## 2026-04-30 - Teacher work-surface shell guidance
+
+**Completed:**
+- Added the reusable selected-workspace shell template to
+  `docs/guidance/ui/teacher-work-surfaces.md`.
+- Documented the intended `TeacherWorkSurfaceShell` plus
+  `TeacherWorkspaceSplit splitVariant="gapped"` composition for future
+  Assignments, Quizzes, Tests, and nearby teacher tabs.
+
+**Validation:**
+- `pnpm vitest run tests/unit/ui-guidance-docs.test.ts tests/unit/ui-guidance-candidate-script.test.ts`
   - `/tmp/pika-teacher-blueprint-selected.png`
   - `/tmp/pika-teacher-blueprint-selected-mobile.png`
   - `/tmp/pika-teacher-blueprint-selected-dark.png`

@@ -1,14 +1,18 @@
 'use client'
 
-import type { CSSProperties, ReactNode, PointerEventHandler } from 'react'
+import type { CSSProperties, KeyboardEventHandler, ReactNode, PointerEventHandler } from 'react'
 import { cn } from '@/ui/utils'
 
 interface WorkspaceSplitDivider {
   label: string
   onPointerDown: PointerEventHandler<HTMLDivElement>
+  onKeyDown?: KeyboardEventHandler<HTMLDivElement>
   onDoubleClick?: () => void
   className?: string
   lineClassName?: string
+  ariaValueMin?: number
+  ariaValueMax?: number
+  ariaValueNow?: number
 }
 
 interface WorkspaceSplitPaneProps {
@@ -60,12 +64,17 @@ export function WorkspaceSplitPane({
             role="separator"
             aria-orientation="vertical"
             aria-label={divider.label}
+            aria-valuemin={divider.ariaValueMin}
+            aria-valuemax={divider.ariaValueMax}
+            aria-valuenow={divider.ariaValueNow}
+            tabIndex={divider.onKeyDown ? 0 : undefined}
             className={cn(
-              'absolute inset-y-0 left-0 z-10 w-3 -translate-x-1/2 cursor-col-resize bg-transparent',
+              'absolute inset-y-0 left-0 z-10 w-3 -translate-x-1/2 cursor-col-resize bg-transparent outline-none',
               divider.className,
             )}
             onPointerDown={divider.onPointerDown}
             onDoubleClick={divider.onDoubleClick}
+            onKeyDown={divider.onKeyDown}
           >
             <div
               className={cn(
