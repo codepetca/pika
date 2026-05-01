@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react'
 import { format } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { Button, cn } from '@/ui'
+import { Button, SegmentedControl } from '@/ui'
 import { PageActionBar } from '@/components/PageLayout'
 import type { CalendarViewMode } from '@/components/LessonCalendar'
 
@@ -20,6 +20,18 @@ interface CalendarActionBarProps {
   className?: string
 }
 
+interface CalendarDateNavigatorProps {
+  label: string
+  onPrev?: () => void
+  onNext?: () => void
+  onLabelClick?: () => void
+  showNavigation?: boolean
+  labelAriaLabel?: string
+  prevAriaLabel?: string
+  nextAriaLabel?: string
+  className?: string
+}
+
 function getHeaderLabel(viewMode: CalendarViewMode, currentDate: Date, rangeStart?: string | null, rangeEnd?: string | null) {
   if (viewMode === 'week' || viewMode === 'month') {
     return format(currentDate, 'MMMM yyyy')
@@ -30,6 +42,63 @@ function getHeaderLabel(viewMode: CalendarViewMode, currentDate: Date, rangeStar
   }
 
   return 'All Dates'
+}
+
+export function CalendarDateNavigator({
+  label,
+  onPrev,
+  onNext,
+  onLabelClick,
+  showNavigation = true,
+  labelAriaLabel = 'Go to today',
+  prevAriaLabel = 'Previous',
+  nextAriaLabel = 'Next',
+  className = '',
+}: CalendarDateNavigatorProps) {
+  return (
+    <div className={`flex min-w-0 items-center gap-1 sm:gap-2 ${className}`}>
+      {showNavigation && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-9 w-9 px-0"
+          onClick={onPrev}
+          aria-label={prevAriaLabel}
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      )}
+
+      {onLabelClick ? (
+        <button
+          type="button"
+          onClick={onLabelClick}
+          className="truncate rounded-control px-2 py-1 text-sm font-semibold text-text-default transition-colors hover:bg-surface-hover sm:text-base"
+          aria-label={labelAriaLabel}
+        >
+          {label}
+        </button>
+      ) : (
+        <span className="truncate px-2 py-1 text-sm font-semibold text-text-default sm:text-base">
+          {label}
+        </span>
+      )}
+
+      {showNavigation && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-9 w-9 px-0"
+          onClick={onNext}
+          aria-label={nextAriaLabel}
+        >
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      )}
+    </div>
+  )
 }
 
 export function CalendarActionBar({
@@ -51,79 +120,40 @@ export function CalendarActionBar({
       className={className}
       primary={
         <div className="relative flex min-h-9 w-full items-center">
-          <div className="flex min-w-0 items-center gap-1 sm:gap-2">
-            {viewMode !== 'all' && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 w-9 px-0"
-                onClick={onPrev}
-                aria-label="Previous"
-              >
-                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            )}
+          <CalendarDateNavigator
+            label={headerLabel}
+            onPrev={onPrev}
+            onNext={onNext}
+            onLabelClick={onToday}
+            showNavigation={viewMode !== 'all'}
+          />
 
-            <button
-              type="button"
-              onClick={onToday}
-              className="truncate rounded-control px-2 py-1 text-sm font-semibold text-text-default transition-colors hover:bg-surface-hover sm:text-base"
-              aria-label="Go to today"
-            >
-              {headerLabel}
-            </button>
-
-            {viewMode !== 'all' && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 w-9 px-0"
-                onClick={onNext}
-                aria-label="Next"
-              >
-                <ChevronRight className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            )}
-          </div>
-
-          <div className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 sm:flex items-center gap-1 rounded-control bg-surface-2 p-0.5">
-            {(['week', 'month', 'all'] as CalendarViewMode[]).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => onViewModeChange(mode)}
-                className={cn(
-                  'rounded-control px-3 py-1 text-xs font-medium capitalize transition-colors sm:text-sm',
-                  viewMode === mode
-                    ? 'bg-info-bg text-primary'
-                    : 'text-text-muted hover:bg-surface-hover hover:text-text-default'
-                )}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl<CalendarViewMode>
+            ariaLabel="Calendar view"
+            value={viewMode}
+            onChange={onViewModeChange}
+            capitalizeLabels
+            className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 sm:flex"
+            options={[
+              { value: 'week', label: 'Week' },
+              { value: 'month', label: 'Month' },
+              { value: 'all', label: 'All' },
+            ]}
+          />
 
           <div className="ml-auto flex items-center gap-2 sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2">
-            <div className="flex items-center gap-1 rounded-control bg-surface-2 p-0.5 sm:hidden">
-              {(['week', 'month', 'all'] as CalendarViewMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => onViewModeChange(mode)}
-                  className={cn(
-                    'rounded-control px-3 py-1 text-xs font-medium capitalize transition-colors',
-                    viewMode === mode
-                      ? 'bg-info-bg text-primary'
-                      : 'text-text-muted hover:bg-surface-hover hover:text-text-default'
-                  )}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl<CalendarViewMode>
+              ariaLabel="Calendar view"
+              value={viewMode}
+              onChange={onViewModeChange}
+              capitalizeLabels
+              className="sm:hidden"
+              options={[
+                { value: 'week', label: 'Week' },
+                { value: 'month', label: 'Month' },
+                { value: 'all', label: 'All' },
+              ]}
+            />
             {trailing}
           </div>
         </div>

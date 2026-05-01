@@ -34,6 +34,22 @@ vi.mock('@/components/HistoryList', () => ({
 
 vi.mock('@/ui', () => ({
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+  SegmentedControl: ({ ariaLabel, value, options, onChange, testId }: any) => (
+    <div role="group" aria-label={ariaLabel} data-testid={testId}>
+      {options.map((option: any) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          disabled={option.disabled}
+          aria-pressed={option.value === value}
+          aria-label={option.label}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  ),
   Tooltip: ({ children }: any) => <>{children}</>,
 }))
 

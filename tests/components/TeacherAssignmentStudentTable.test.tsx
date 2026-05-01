@@ -70,13 +70,14 @@ describe('TeacherAssignmentStudentTable', () => {
   it('keeps row selection and batch selection as separate behaviors', () => {
     const onSelectStudent = vi.fn()
     const onToggleSelect = vi.fn()
+    const onDeselectStudent = vi.fn()
 
     render(
       <TeacherAssignmentStudentTable
         rows={[row]}
         selectedStudentId={null}
         onSelectStudent={onSelectStudent}
-        onDeselectStudent={vi.fn()}
+        onDeselectStudent={onDeselectStudent}
         selectedIds={new Set()}
         onToggleSelect={onToggleSelect}
         onToggleSelectAll={vi.fn()}
@@ -93,6 +94,7 @@ describe('TeacherAssignmentStudentTable', () => {
 
     fireEvent.click(screen.getByText('Ada'))
     expect(onSelectStudent).toHaveBeenCalledWith('student-1')
+    expect(onDeselectStudent).not.toHaveBeenCalled()
 
     onSelectStudent.mockClear()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))

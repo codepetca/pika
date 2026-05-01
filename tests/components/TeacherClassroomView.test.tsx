@@ -1,5 +1,5 @@
 import { forwardRef, useEffect } from 'react'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TeacherClassroomView } from '@/app/classrooms/[classroomId]/TeacherClassroomView'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
@@ -13,6 +13,7 @@ const mockSetSelection = vi.fn()
 const mockShowMessage = vi.fn()
 const mockUseOverlayMessage = vi.fn()
 const mockIsVisibleAtNow = vi.fn(() => true)
+const mockUpdateModeLayout = vi.fn()
 const mockStudentSelectionState = {
   selectedIds: new Set<string>(),
   allSelected: false,
@@ -68,6 +69,23 @@ vi.mock('@/ui', () => ({
           onFocus={() => option.onHoverChange?.(true)}
           onBlur={() => option.onHoverChange?.(false)}
         >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  ),
+  SegmentedControl: ({ ariaLabel, value, options, onChange }: any) => (
+    <div role="group" aria-label={ariaLabel}>
+      {options.map((option: any) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          disabled={option.disabled}
+          aria-pressed={option.value === value}
+          aria-label={option.label}
+        >
+          {option.icon}
           {option.label}
         </button>
       ))}
@@ -134,21 +152,26 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
     assignmentId,
     studentId,
     mode,
+    classPane,
+    leftPaneView = 'class',
+    leftHeader,
+    inspectorWidth,
+    onLayoutChange,
     onDetailsMetaChange,
     onGradeTemplateChange,
     highlightedInspectorSections = [],
   }: any) => {
     useEffect(() => {
       onDetailsMetaChange?.(
-        mode === 'details'
-        ? { studentName: `${studentId} Student`, characterCount: 17 }
-        : null,
+        mode === 'details' || mode === 'workspace'
+          ? { studentName: `${studentId} Student`, characterCount: 17 }
+          : null,
       )
-    }, [mode, onDetailsMetaChange, studentId])
+    }, [leftPaneView, mode, onDetailsMetaChange, studentId])
 
     useEffect(() => {
       onGradeTemplateChange?.(
-        mode === 'overview'
+        mode === 'overview' || mode === 'workspace'
           ? {
               studentId,
               scoreCompletion: '7',
@@ -160,6 +183,31 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
           : null,
       )
     }, [mode, onGradeTemplateChange, studentId])
+
+    if (mode === 'workspace') {
+      return (
+        <div
+          data-testid="teacher-work-panel"
+          data-highlighted-sections={highlightedInspectorSections.join(',')}
+        >
+          <div data-testid="assignment-workspace-inspector-width">{inspectorWidth}</div>
+          <button
+            type="button"
+            onClick={() => onLayoutChange?.({ inspectorCollapsed: false, inspectorWidth: 61 })}
+          >
+            Mock resize split
+          </button>
+          <div>{`overview:${assignmentId}:${studentId}`}</div>
+          <div data-testid="assignment-left-pane">
+            {leftHeader}
+            {leftPaneView === 'class' ? classPane : <div>{`work:${assignmentId}:${studentId}`}</div>}
+          </div>
+          <div data-testid="assignment-right-pane">
+            <div>{`grading:${assignmentId}:${studentId}`}</div>
+          </div>
+        </div>
+      )
+    }
 
     return (
       <div
@@ -216,9 +264,9 @@ vi.mock('@/hooks/use-assignment-grading-layout', () => ({
   useAssignmentGradingLayout: () => ({
     layout: {
       overview: { inspectorCollapsed: false, inspectorWidth: 50 },
-      details: { inspectorCollapsed: false, inspectorWidth: 50 },
+      details: { inspectorCollapsed: false, inspectorWidth: 64 },
     },
-    updateModeLayout: vi.fn(),
+    updateModeLayout: mockUpdateModeLayout,
   }),
 }))
 
@@ -371,6 +419,7 @@ describe('TeacherClassroomView', () => {
     mockShowMessage.mockReset()
     mockUseOverlayMessage.mockReset()
     mockIsVisibleAtNow.mockReset()
+    mockUpdateModeLayout.mockReset()
     mockIsVisibleAtNow.mockReturnValue(true)
     mockStudentSelectionState.selectedIds = new Set<string>()
     mockStudentSelectionState.allSelected = false
@@ -426,16 +475,17 @@ describe('TeacherClassroomView', () => {
     })
 
     expect(screen.getByRole('button', { name: 'New assignment' })).toBeInTheDocument()
-    expect(screen.getByTestId('assignment-summary-actionbar-center')).toHaveClass('justify-center')
+    expect(screen.getByTestId('assignment-summary-actionbar-center')).toHaveClass('grid')
+    expect(screen.getByText('Assignments')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
 
-    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
     expect(onEditModeChange).toHaveBeenLastCalledWith(true)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
   })
@@ -453,15 +503,14 @@ describe('TeacherClassroomView', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
-    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
 
     fireEvent.keyDown(document, { key: 'Escape' })
 
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Done' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'false')
     })
-    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
   })
 
   it('opens the assignment editor from summary cards while edit mode is active', async () => {
@@ -526,7 +575,7 @@ describe('TeacherClassroomView', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
-    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'true')
 
     rerender(
       <TeacherClassroomView
@@ -537,9 +586,8 @@ describe('TeacherClassroomView', () => {
     )
 
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Done' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'false')
     })
-    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
   })
 
@@ -663,7 +711,7 @@ describe('TeacherClassroomView', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
     const replaceCall = updateSearchParams.mock.calls.find((call) => call[1]?.replace === true)
@@ -733,7 +781,7 @@ describe('TeacherClassroomView', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
     updateSearchParams.mockClear()
@@ -786,7 +834,7 @@ describe('TeacherClassroomView', () => {
     render(<TeacherClassroomView classroom={classroom} />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
     act(() => {
@@ -809,11 +857,11 @@ describe('TeacherClassroomView', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-2:student-2')
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-2:student-2')
     })
   })
 
-  it('renders class-mode actions in the selected-assignment action bar without duplicating them in the table', async () => {
+  it('renders the class-individual switch and grading split button in the selected-assignment action bar', async () => {
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input)
 
@@ -842,11 +890,15 @@ describe('TeacherClassroomView', () => {
     render(<TeacherClassroomView classroom={classroom} />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    expect(screen.getByRole('tab', { name: 'Class' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: 'Individual' })).toHaveAttribute('aria-selected', 'false')
+    const workspaceControls = within(screen.getByRole('group', { name: 'Assignment workspace view' }))
+    expect(workspaceControls.getByRole('button', { name: 'Class' })).toHaveAttribute('aria-pressed', 'true')
+    expect(workspaceControls.getByRole('button', { name: 'Individual' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('group', { name: 'Left pane view' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Right pane view' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: /Return/i })).toHaveLength(1)
     expect(screen.getByText('Assignment One')).toBeInTheDocument()
@@ -1187,17 +1239,25 @@ describe('TeacherClassroomView', () => {
     render(<TeacherClassroomView classroom={classroom} />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Individual' }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Assignment workspace view' })).getByRole('button', { name: 'Individual' }))
 
     await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('details:assignment-1:student-1')
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('work:assignment-1:student-1')
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    expect(screen.getByRole('tab', { name: 'Individual' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.queryByRole('button', { name: /AI Grade/i })).not.toBeInTheDocument()
+    expect(screen.getByTestId('assignment-workspace-inspector-width')).toHaveTextContent('64')
+    fireEvent.click(screen.getByRole('button', { name: 'Mock resize split' }))
+
+    expect(mockUpdateModeLayout).toHaveBeenCalledWith('details', {
+      inspectorCollapsed: false,
+      inspectorWidth: 61,
+    })
+    expect(within(screen.getByRole('group', { name: 'Assignment workspace view' })).getByRole('button', { name: 'Individual' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
     expect(screen.queryByRole('button', { name: /Send/i })).not.toBeInTheDocument()
     expect(screen.getByText('student-1 Student')).toBeInTheDocument()
     await waitFor(() => {
@@ -1205,6 +1265,49 @@ describe('TeacherClassroomView', () => {
     })
     expect(screen.getByRole('button', { name: 'Previous student' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Next student' })).toBeInTheDocument()
+  })
+
+  it('keeps the right pane on grading when switching the action bar view control', async () => {
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1'),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
+    })
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'Assignment workspace view' })).getByRole('button', { name: 'Individual' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('work:assignment-1:student-1')
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
+    })
+
+    expect(within(screen.getByRole('group', { name: 'Assignment workspace view' })).getByRole('button', { name: 'Individual' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('student-1 Student')).toBeInTheDocument()
   })
 
   it('keeps class mode active when clicking a student row', async () => {
@@ -1260,17 +1363,58 @@ describe('TeacherClassroomView', () => {
     render(<TeacherClassroomView classroom={classroom} />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
     fireEvent.click(screen.getAllByText('student-2')[0])
 
     await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-2')
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-2')
     })
 
-    expect(screen.getByRole('tab', { name: 'Class' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: 'Individual' })).toHaveAttribute('aria-selected', 'false')
+    const leftPaneControls = within(screen.getByRole('group', { name: 'Assignment workspace view' }))
+    expect(leftPaneControls.getByRole('button', { name: 'Class' })).toHaveAttribute('aria-pressed', 'true')
+    expect(leftPaneControls.getByRole('button', { name: 'Individual' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('keeps the active student selected when Escape is pressed in class mode', async () => {
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1'),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
+    })
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
+    })
+    expect(screen.getByText('student-1')).toBeInTheDocument()
   })
 
   it('resumes an active assignment AI grading run and reports the final counts', async () => {
@@ -1760,7 +1904,7 @@ describe('TeacherClassroomView', () => {
     render(<TeacherClassroomView classroom={classroom} />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
     const returnButton = screen.getByRole('button', { name: /Return/i })
@@ -1894,7 +2038,7 @@ describe('TeacherClassroomView', () => {
     render(<TeacherClassroomView classroom={classroom} />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
     fireEvent.click(screen.getByRole('button', { name: /Return/i }))

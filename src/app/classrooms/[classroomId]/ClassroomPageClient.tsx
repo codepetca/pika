@@ -6,7 +6,7 @@ import { TeacherClassroomView, TeacherAssignmentsMarkdownSidebar, type Assignmen
 import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-markdown'
 import { StudentTodayTab } from './StudentTodayTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
-import { TeacherAttendanceTab, type TeacherAttendanceTabHandle } from './TeacherAttendanceTab'
+import { TeacherAttendanceTab } from './TeacherAttendanceTab'
 import { TeacherRosterTab } from './TeacherRosterTab'
 import { TeacherGradebookTab } from './TeacherGradebookTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
@@ -42,8 +42,6 @@ import {
   TEACHER_QUIZZES_UPDATED_EVENT,
 } from '@/lib/events'
 import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
-import { StudentLogHistory } from '@/components/StudentLogHistory'
-import { LogSummary } from './LogSummary'
 import { ConfirmDialog, TabContentTransition } from '@/ui'
 import { PageDensityProvider } from '@/components/PageLayout'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
@@ -51,7 +49,6 @@ import { fetchJSONWithCache, prefetchJSON } from '@/lib/request-cache'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
 import type {
   Classroom,
-  Entry,
   LessonPlan,
   TiptapContent,
   Assignment,
@@ -417,14 +414,6 @@ function ClassroomPageContent({
     window.scrollTo({ top: nextScrollTop, left: 0, behavior: 'auto' })
   }, [activeTab])
 
-  // State for attendance date (teacher attendance tab)
-  const [attendanceDate, setAttendanceDate] = useState<string>('')
-  const attendanceTabRef = useRef<TeacherAttendanceTabHandle>(null)
-
-  // State for selected student log (teacher attendance tab)
-  const [selectedStudentName, setSelectedStudentName] = useState<string>('')
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
-
   // State for selected assignment instructions (assignments tab)
   const [selectedAssignment, setSelectedAssignment] = useState<SelectedAssignmentInstructions | null>(null)
 
@@ -488,15 +477,6 @@ function ClassroomPageContent({
   const prevAssignmentMarkdownAutoOpenReadyRef = useRef(false)
   const abortControllerRef = useRef<AbortController | null>(null)
   const markdownStaleRef = useRef(true) // Start stale so first open loads
-
-  const handleSelectEntry = useCallback((_entry: Entry | null, studentName: string, studentId: string | null) => {
-    setSelectedStudentName(studentName)
-    setSelectedStudentId(studentId)
-  }, [])
-
-  const handleSummaryStudentClick = useCallback((studentName: string) => {
-    attendanceTabRef.current?.selectStudentByName(studentName)
-  }, [])
 
   const handleSelectAssignment = useCallback((assignment: SelectedAssignmentInstructions | null) => {
     setSelectedAssignment(assignment)
@@ -1068,10 +1048,7 @@ function ClassroomPageContent({
                   {mountedTabs.attendance && (
                     <TabContentTransition isActive={activeTab === 'attendance'}>
                       <TeacherAttendanceTab
-                        ref={attendanceTabRef}
                         classroom={classroom}
-                        onSelectEntry={handleSelectEntry}
-                        onDateChange={setAttendanceDate}
                         isActive={activeTab === 'attendance'}
                       />
                     </TabContentTransition>
@@ -1270,7 +1247,7 @@ function ClassroomPageContent({
               ? (selectedAssignment?.title || 'Instructions')
               : activeTab === 'today'
               ? "Today's Plan"
-              : (selectedStudentName || 'Log Summary')
+              : 'Details'
           }
           headerActions={
             showMarkdown && isTeacher && activeTab === 'assignments' && isMarkdownMode ? (
@@ -1331,15 +1308,6 @@ function ClassroomPageContent({
           ) : activeTab === 'resources' ? (
             <StudentClassResourcesSidebar classroom={classroom} />
           ) : isTeacher && isAssessmentTab ? (
-            null
-          ) : isTeacher && activeTab === 'attendance' && selectedStudentId ? (
-            <StudentLogHistory
-              studentId={selectedStudentId}
-              classroomId={classroom.id}
-            />
-          ) : isTeacher && activeTab === 'attendance' && attendanceDate ? (
-            <LogSummary classroomId={classroom.id} date={attendanceDate} onStudentClick={handleSummaryStudentClick} />
-          ) : isTeacher && activeTab === 'attendance' ? (
             null
           ) : isTeacher && activeTab === 'assignments' ? (
             <div className="p-4">
