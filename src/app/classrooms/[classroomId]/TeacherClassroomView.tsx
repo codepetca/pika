@@ -21,12 +21,16 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Copy,
   LoaderCircle,
+  MessageSquare,
   Pencil,
   Plus,
   Send,
+  User,
+  Users,
 } from 'lucide-react'
-import { Button, ConfirmDialog, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { ConfirmDialog, SegmentedControl, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
@@ -36,11 +40,13 @@ import {
   TeacherAssignmentStudentTable,
   type TeacherAssignmentStudentRow,
 } from '@/components/assignment-workspace/TeacherAssignmentStudentTable'
-import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
+import {
+  TeacherStudentWorkPanel,
+  type TeacherAssignmentGradeTemplate,
+} from '@/components/TeacherStudentWorkPanel'
+import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
-import { TeacherWorkSurfaceModeBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
-import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import {
   ACTIONBAR_ICON_BUTTON_CLASSNAME,
   ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
@@ -87,6 +93,12 @@ interface AssignmentWithStats extends Assignment {
 type TeacherAssignmentSelection = { mode: 'summary' } | { mode: 'assignment'; assignmentId: string }
 
 type StudentSubmissionRow = TeacherAssignmentStudentRow
+type GradeSelectedUpdatedDoc = NonNullable<StudentSubmissionRow['doc']> & {
+  student_id: string
+  updated_at?: string | null
+}
+type GradeSelectedApplyTarget = 'grade' | 'comments'
+type AssignmentLeftPaneView = 'class' | 'individual'
 type UpdateSearchParamsFn = (
   updater: (params: URLSearchParams) => void,
   options?: { replace?: boolean },
@@ -152,6 +164,24 @@ function getAssignmentAiRunPollDelayMs(run: AssignmentAiGradingRunSummary | null
 
   const delay = retryAt - Date.now() + 250
   return Math.min(Math.max(delay, 1000), 10_000)
+}
+
+function isGradeSelectedScoreValueValid(value: string, allowBlank: boolean): boolean {
+  const trimmed = value.trim()
+  if (allowBlank && !trimmed) return true
+  const parsed = Number(trimmed)
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 10
+}
+
+function isGradeSelectedTemplateValid(template: TeacherAssignmentGradeTemplate | null): boolean {
+  if (!template) return false
+
+  const allowBlank = template.gradeMode === 'draft'
+  return [
+    template.scoreCompletion,
+    template.scoreThinking,
+    template.scoreWorkflow,
+  ].every((value) => isGradeSelectedScoreValueValid(value, allowBlank))
 }
 
 function summarizeAssignmentAiGradingErrors(run: AssignmentAiGradingRunSummary): string {
@@ -260,8 +290,7 @@ export function TeacherClassroomView({
     studentName: string
     characterCount: number
   } | null>(null)
-  const [assignmentWorkspaceMode, setAssignmentWorkspaceMode] =
-    useState<AssignmentWorkspaceMode>('overview')
+  const [leftPaneView, setLeftPaneView] = useState<AssignmentLeftPaneView>('class')
   const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
@@ -273,10 +302,17 @@ export function TeacherClassroomView({
 
   // Batch grading state
   const [isAutoGrading, setIsAutoGrading] = useState(false)
+  const [isGradeSelectedSaving, setIsGradeSelectedSaving] = useState(false)
   const [isArtifactRepoAnalyzing, setIsArtifactRepoAnalyzing] = useState(false)
   const [isReturning, setIsReturning] = useState(false)
   const [batchProgressCount, setBatchProgressCount] = useState(0)
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
+  const [gradeSelectedConfirmTarget, setGradeSelectedConfirmTarget] =
+    useState<GradeSelectedApplyTarget | null>(null)
+  const [highlightedApplyTarget, setHighlightedApplyTarget] = useState<GradeSelectedApplyTarget | null>(null)
+  const [gradeSelectedTemplate, setGradeSelectedTemplate] =
+    useState<TeacherAssignmentGradeTemplate | null>(null)
+  const [gradeSelectedRefreshCounter, setGradeSelectedRefreshCounter] = useState(0)
   const [refreshCounter, setRefreshCounter] = useState(0)
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const wasActiveRef = useRef(isActive)
@@ -351,7 +387,7 @@ export function TeacherClassroomView({
 
     observer.observe(node)
     return () => observer.disconnect()
-  }, [selection.mode, assignmentWorkspaceMode, selectedStudentId])
+  }, [selection.mode, leftPaneView, selectedStudentId])
 
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
@@ -525,7 +561,7 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (selection.mode !== 'assignment') {
-      setAssignmentWorkspaceMode('overview')
+      setLeftPaneView('class')
       setSelectedStudentId(null)
       setWorkspaceLoading(false)
       return
@@ -665,6 +701,7 @@ export function TeacherClassroomView({
     options: { updateUrl?: boolean; replace?: boolean } = {},
   ) => {
     setSelectedStudentId(studentId)
+    setGradeSelectedConfirmTarget(null)
     if (options.updateUrl === false || !updateSearchParams || selection.mode !== 'assignment') return
 
     updateSearchParams((params) => {
@@ -732,10 +769,13 @@ export function TeacherClassroomView({
     setSelection: batchSetSelection,
     selectedCount: batchSelectedCount,
   } = useStudentSelection(studentRowIds)
+  const handleGradeTemplateChange = useCallback((template: TeacherAssignmentGradeTemplate | null) => {
+    setGradeSelectedTemplate(template)
+  }, [])
 
   useEffect(() => {
     if (selection.mode !== 'assignment') return
-    setAssignmentWorkspaceMode('overview')
+    setLeftPaneView('class')
     setSelectedStudentId(null)
     setWorkspaceLoading(false)
     batchClearSelection()
@@ -1001,6 +1041,94 @@ export function TeacherClassroomView({
     }
   }
 
+  async function handleGradeSelected(applyTarget: GradeSelectedApplyTarget) {
+    if (!selectedAssignmentData || !gradeSelectedTemplate || batchSelectedCount === 0) return
+
+    if (gradeSelectedTemplate.studentId !== activeSelectedStudentId || gradeSelectedTemplate.studentId !== selectedStudentId) {
+      setGradeSelectedTemplate(null)
+      setGradeSelectedConfirmTarget(null)
+      return
+    }
+
+    if (applyTarget === 'grade' && !isGradeSelectedTemplateValid(gradeSelectedTemplate)) {
+      setError('Scores must be blank or integers 0–10')
+      return
+    }
+
+    const studentIds = Array.from(batchSelectedIds)
+    setBatchProgressCount(studentIds.length)
+    setIsGradeSelectedSaving(true)
+    setError('')
+    setInfo('')
+    try {
+      const res = await fetch(`/api/teacher/assignments/${selectedAssignmentData.assignment.id}/grade-selected`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_ids: studentIds,
+          apply_target: applyTarget,
+          ...(applyTarget === 'grade'
+            ? {
+                score_completion: gradeSelectedTemplate.scoreCompletion,
+                score_thinking: gradeSelectedTemplate.scoreThinking,
+                score_workflow: gradeSelectedTemplate.scoreWorkflow,
+                save_mode: gradeSelectedTemplate.gradeMode,
+              }
+            : {
+                feedback: gradeSelectedTemplate.feedbackDraft,
+              }),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `Failed to apply ${applyTarget}`)
+
+      const updatedDocs: GradeSelectedUpdatedDoc[] = Array.isArray(data.docs)
+        ? data.docs.filter((doc: unknown): doc is GradeSelectedUpdatedDoc =>
+            !!doc && typeof doc === 'object' && typeof (doc as { student_id?: unknown }).student_id === 'string'
+          )
+        : []
+      const docsByStudentId = new Map<string, GradeSelectedUpdatedDoc>(
+        updatedDocs.map((doc) => [doc.student_id, doc])
+      )
+
+      if (docsByStudentId.size > 0) {
+        setSelectedAssignmentData((prev) => {
+          if (!prev || prev.assignment.id !== selectedAssignmentData.assignment.id) return prev
+
+          const nextStudents = prev.students.map((student) => {
+            const updatedDoc = docsByStudentId.get(student.student_id)
+            if (!updatedDoc) return student
+
+            return {
+              ...student,
+              doc: {
+                ...(student.doc ?? {}),
+                ...updatedDoc,
+              },
+              status: calculateAssignmentStatus(prev.assignment, updatedDoc as any),
+              student_updated_at: updatedDoc.updated_at ?? student.student_updated_at,
+            }
+          })
+
+          return { ...prev, students: nextStudents }
+        })
+      }
+
+      const updatedCount = Number(data.updated_count ?? docsByStudentId.size)
+      setInfo(`Applied ${applyTarget} to ${updatedCount} selected student${updatedCount === 1 ? '' : 's'}`)
+      setGradeSelectedConfirmTarget(null)
+      batchClearSelection()
+
+      if (activeSelectedStudentId && docsByStudentId.has(activeSelectedStudentId)) {
+        setGradeSelectedRefreshCounter((count) => count + 1)
+      }
+    } catch (err: any) {
+      setError(err.message || `Failed to apply ${applyTarget}`)
+    } finally {
+      setIsGradeSelectedSaving(false)
+    }
+  }
+
   const selectedStudentIndex = useMemo(() => {
     if (!selectedStudentId) return -1
     return currentStudentRows.findIndex((student) => student.student_id === selectedStudentId)
@@ -1097,32 +1225,27 @@ export function TeacherClassroomView({
     return currentStudentRows[0]?.student_id ?? null
   }, [classroom.id, currentStudentRows, selectedStudentId, selection])
 
-  const handleSwitchWorkspaceMode = useCallback((nextMode: AssignmentWorkspaceMode) => {
-    if (nextMode === assignmentWorkspaceMode) return
+  const handleSwitchLeftPaneView = useCallback((nextView: AssignmentLeftPaneView) => {
+    if (nextView === leftPaneView) return
 
-    if (nextMode === 'details') {
+    if (nextView === 'individual') {
       const nextStudentId = resolveDetailsStudentId()
       if (!nextStudentId) return
       setIndividualHeaderMeta(null)
       setSelectedStudentAndNavigate(nextStudentId, { replace: true })
-    } else {
-      setIndividualHeaderMeta(null)
     }
 
-    updateModeLayout(nextMode, assignmentGradingLayout[assignmentWorkspaceMode])
-    setAssignmentWorkspaceMode(nextMode)
+    setLeftPaneView(nextView)
   }, [
-    assignmentGradingLayout,
-    assignmentWorkspaceMode,
+    leftPaneView,
     resolveDetailsStudentId,
     setSelectedStudentAndNavigate,
-    updateModeLayout,
   ])
 
   useEffect(() => {
     if (selection.mode !== 'assignment') return
     if (!activeSelectedAssignmentData || selectedAssignmentLoading) return
-    const workspaceKey = `${selection.assignmentId}:${assignmentWorkspaceMode}`
+    const workspaceKey = selection.assignmentId
     if (defaultedWorkspaceKeyRef.current === workspaceKey) return
 
     if (activeSelectedStudentId) {
@@ -1138,28 +1261,11 @@ export function TeacherClassroomView({
   }, [
     activeSelectedAssignmentData,
     activeSelectedStudentId,
-    assignmentWorkspaceMode,
     resolveDetailsStudentId,
     selectedAssignmentLoading,
     setSelectedStudentAndNavigate,
     selection,
   ])
-
-  // Escape key to deselect student
-  useEffect(() => {
-    if (assignmentEditMode) return
-    if (assignmentWorkspaceMode !== 'overview') return
-    if (!selectedStudentId) return
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setSelectedStudentAndNavigate(null)
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [assignmentEditMode, assignmentWorkspaceMode, selectedStudentId, setSelectedStudentAndNavigate])
 
   useEffect(() => {
     if (selection.mode !== 'assignment') {
@@ -1249,11 +1355,15 @@ export function TeacherClassroomView({
         ? `${individualHeaderMeta.characterCount} chars`
         : 'Loading…'
       : null
-  const activeWorkspaceLayout = assignmentGradingLayout[assignmentWorkspaceMode]
-  const showOverviewInspector =
-    assignmentWorkspaceMode === 'overview' &&
-    !!activeSelectedStudentId
-  const canOpenDetails =
+  const activeWorkspaceMode: AssignmentWorkspaceMode = leftPaneView === 'individual' ? 'details' : 'overview'
+  const activeWorkspaceLayout = assignmentGradingLayout[activeWorkspaceMode]
+  const highlightedInspectorSections =
+    highlightedApplyTarget === 'grade'
+      ? (['grades'] as const)
+      : highlightedApplyTarget === 'comments'
+        ? (['comments'] as const)
+        : undefined
+  const canOpenIndividual =
     selection.mode === 'assignment' &&
     !selectedAssignmentLoading &&
     currentStudentRows.length > 0
@@ -1261,18 +1371,53 @@ export function TeacherClassroomView({
   const hasReturnableSelection =
     batchSelectedReturnSummary.returnableCount + batchSelectedReturnSummary.missingCount > 0
   const isReturnDisabled =
-    isReturning || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0 || !hasReturnableSelection
+    isReturning || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0 || !hasReturnableSelection
+  const activeGradeSelectedTemplate =
+    gradeSelectedTemplate?.studentId === activeSelectedStudentId &&
+    gradeSelectedTemplate.studentId === selectedStudentId
+      ? gradeSelectedTemplate
+      : null
+  const gradeSelectedTemplateIsValid = isGradeSelectedTemplateValid(activeGradeSelectedTemplate)
+  const isApplyGradeSelectedDisabled =
+    isGradeSelectedSaving ||
+    isAutoGrading ||
+    hasActiveAssignmentAiRun ||
+    isArtifactRepoAnalyzing ||
+    isReturning ||
+    isReadOnly ||
+    batchSelectedCount === 0 ||
+    !activeGradeSelectedTemplate ||
+    !gradeSelectedTemplateIsValid
+  const isApplyCommentsSelectedDisabled =
+    isGradeSelectedSaving ||
+    isAutoGrading ||
+    hasActiveAssignmentAiRun ||
+    isArtifactRepoAnalyzing ||
+    isReturning ||
+    isReadOnly ||
+    batchSelectedCount === 0 ||
+    !activeGradeSelectedTemplate
+  const isGradeSelectedConfirmDisabled =
+    gradeSelectedConfirmTarget === 'grade'
+      ? isApplyGradeSelectedDisabled
+      : gradeSelectedConfirmTarget === 'comments'
+        ? isApplyCommentsSelectedDisabled
+        : true
   const showAssignmentAiRunOverlay = isAutoGrading || hasActiveAssignmentAiRun
   const assignmentAiRunOverlayLabel = hasActiveAssignmentAiRun && activeAssignmentAiRun
     ? `Grading ${Math.min(activeAssignmentAiRun.processed_count, activeAssignmentAiRun.requested_count)} of ${activeAssignmentAiRun.requested_count} students…`
     : `Starting grading for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+  const gradeSelectedSavingLabel =
+    gradeSelectedConfirmTarget === 'comments' ? 'Applying comments' : 'Applying grade'
   const activeWorkMessage = showAssignmentAiRunOverlay
     ? assignmentAiRunOverlayLabel
     : isArtifactRepoAnalyzing
       ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
       : isReturning
         ? `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
-        : ''
+        : isGradeSelectedSaving
+          ? `${gradeSelectedSavingLabel} to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+          : ''
   useOverlayMessage(!!activeWorkMessage, activeWorkMessage, { tone: 'loading' })
 
   const studentBusyOverlay = activeWorkMessage ? (
@@ -1284,12 +1429,10 @@ export function TeacherClassroomView({
       rows={currentStudentRows}
       selectedStudentId={activeSelectedStudentId}
       onSelectStudent={(studentId) => {
-        if (assignmentWorkspaceMode === 'details') {
-          setIndividualHeaderMeta(null)
-        }
+        setIndividualHeaderMeta(null)
         setSelectedStudentAndNavigate(studentId)
       }}
-      onDeselectStudent={() => setSelectedStudentAndNavigate(null)}
+      onDeselectStudent={() => {}}
       tableRef={tableContainerRef}
       selectedIds={batchSelectedIds}
       onToggleSelect={batchToggleSelect}
@@ -1299,15 +1442,21 @@ export function TeacherClassroomView({
       sortDirection={sortDirection}
       onToggleSort={toggleSort}
       dueAtMs={dueAtMs}
-      density={showOverviewInspector ? 'tight' : 'compact'}
+      density={activeSelectedStudentId ? 'tight' : 'compact'}
       loading={selectedAssignmentLoading || (selection.mode === 'assignment' && !activeSelectedAssignmentData && !selectedAssignmentError)}
       error={selectedAssignmentError}
       busyOverlay={studentBusyOverlay}
     />
   )
 
-  const workspaceModeCenter = assignmentWorkspaceMode === 'overview' ? (
-    <>
+  const classPane = (
+    <div className="h-full min-h-0">
+      {studentTable}
+    </div>
+  )
+
+  const classPaneActions = (
+    <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
       <SplitButton
         label={
           <span className="inline-flex items-center gap-2">
@@ -1320,6 +1469,36 @@ export function TeacherClassroomView({
         }}
         options={[
           {
+            id: 'grade-selected',
+            label: (
+              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                <Copy className="h-4 w-4" aria-hidden="true" />
+                <span>Apply Grade to Selected Students</span>
+              </span>
+            ),
+            onHoverChange: (active) => setHighlightedApplyTarget(active ? 'grade' : null),
+            onSelect: () => {
+              setHighlightedApplyTarget(null)
+              setGradeSelectedConfirmTarget('grade')
+            },
+            disabled: isApplyGradeSelectedDisabled,
+          },
+          {
+            id: 'comments-selected',
+            label: (
+              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                <MessageSquare className="h-4 w-4" aria-hidden="true" />
+                <span>Apply Comments to Selected Students</span>
+              </span>
+            ),
+            onHoverChange: (active) => setHighlightedApplyTarget(active ? 'comments' : null),
+            onSelect: () => {
+              setHighlightedApplyTarget(null)
+              setGradeSelectedConfirmTarget('comments')
+            },
+            disabled: isApplyCommentsSelectedDisabled,
+          },
+          {
             id: 'repo-analysis',
             label: (
               <span className="inline-flex items-center gap-2">
@@ -1330,7 +1509,7 @@ export function TeacherClassroomView({
             onSelect: () => {
               void handleBatchArtifactRepoAnalyze()
             },
-            disabled: isArtifactRepoAnalyzing || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
+            disabled: isArtifactRepoAnalyzing || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
           },
           {
             id: 'return',
@@ -1346,7 +1525,7 @@ export function TeacherClassroomView({
             disabled: isReturnDisabled,
           },
         ]}
-        disabled={isAutoGrading || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
+        disabled={isAutoGrading || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
         className="inline-flex"
         toggleAriaLabel={`More grading actions${workspaceActionLabelSuffix}`}
         menuPlacement="down"
@@ -1354,11 +1533,13 @@ export function TeacherClassroomView({
           'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
         }}
       />
-    </>
-  ) : (
-    <>
+    </Tooltip>
+  )
+
+  const selectedStudentControls = (
+    <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
       <div
-        className="min-w-0 max-w-[18rem] truncate text-center text-sm font-medium text-text-default"
+        className="min-w-0 max-w-[18rem] truncate text-sm font-medium text-text-default"
         title={selectedStudentDisplayName ?? undefined}
       >
         {selectedStudentDisplayName ?? 'No student selected'}
@@ -1388,21 +1569,24 @@ export function TeacherClassroomView({
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
-    </>
+    </div>
   )
 
-  const workspaceModeStatus = workspaceLoading ? (
-    <div aria-live="polite" className="inline-flex items-center gap-1 text-xs text-text-muted">
-      <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-      <span>Updating</span>
+  const workspaceStatus = workspaceLoading ? (
+    <div
+      aria-live="polite"
+      className="pointer-events-none absolute -right-7 top-1/2 inline-flex -translate-y-1/2 items-center text-text-muted"
+    >
+      <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+      <span className="sr-only">Updating assignment workspace</span>
     </div>
   ) : null
 
-  const workspaceModeTrailing = assignmentEditMode ? (
+  const workspaceTitleControl = assignmentEditMode ? (
     <Tooltip content="Edit assignment">
       <button
         type="button"
-        className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} inline-flex max-w-[22rem] items-center gap-2`}
+        className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} inline-flex w-full max-w-[22rem] items-center gap-2 overflow-hidden`}
         onClick={() => {
           if (activeSelectedAssignmentData) {
             setEditAssignment(activeSelectedAssignmentData.assignment)
@@ -1418,7 +1602,7 @@ export function TeacherClassroomView({
     </Tooltip>
   ) : (
     <div
-      className="inline-flex min-h-10 max-w-[22rem] items-center px-2 text-sm font-medium text-text-default"
+      className="inline-flex min-h-10 w-full max-w-[22rem] items-center overflow-hidden px-2 text-sm font-medium text-text-default"
       title={selectedAssignmentTitle}
     >
       <span className="truncate">{selectedAssignmentTitle}</span>
@@ -1433,37 +1617,59 @@ export function TeacherClassroomView({
     />
   )
 
+  const assignmentWorkspaceControls = selection.mode === 'assignment' ? (
+    <div
+      data-testid="assignment-workspace-actionbar-center"
+      className="relative flex min-w-0 items-center justify-center gap-2"
+    >
+      <SegmentedControl<AssignmentLeftPaneView>
+        ariaLabel="Assignment workspace view"
+        value={leftPaneView}
+        onChange={handleSwitchLeftPaneView}
+        iconOnly
+        options={[
+          { value: 'class', label: 'Class', icon: <Users className="h-4 w-4" /> },
+          {
+            value: 'individual',
+            label: 'Individual',
+            icon: <User className="h-4 w-4" />,
+            disabled: !canOpenIndividual,
+          },
+        ]}
+      />
+      {classPaneActions}
+      {workspaceStatus}
+    </div>
+  ) : null
+
   const primaryButtons =
     selection.mode === 'summary' ? (
-      <div
-        data-testid="assignment-summary-actionbar-center"
-        className="relative flex min-h-10 w-full items-center justify-center"
-      >
-        <button
-          type="button"
-          className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
-          onClick={() => setIsCreateModalOpen(true)}
-          disabled={isReadOnly}
-          aria-label="New assignment"
-        >
-          <Plus className="h-5 w-5" aria-hidden="true" />
-          <span>New</span>
-        </button>
-        <div className="absolute right-0 top-1/2 -translate-y-1/2">
-          {assignmentEditControls}
-        </div>
-      </div>
+      <TeacherWorkSurfaceActionBar
+        testId="assignment-summary-actionbar-center"
+        label={
+          <div className="truncate px-1 text-sm font-semibold text-text-default">
+            Assignments
+          </div>
+        }
+        center={
+          <button
+            type="button"
+            className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
+            onClick={() => setIsCreateModalOpen(true)}
+            disabled={isReadOnly}
+            aria-label="New assignment"
+          >
+            <Plus className="h-5 w-5" aria-hidden="true" />
+            <span>New</span>
+          </button>
+        }
+        trailing={assignmentEditControls}
+      />
     ) : (
-      <TeacherWorkSurfaceModeBar
-        modes={[
-          { id: 'overview', label: 'Class' },
-          { id: 'details', label: 'Individual', disabled: !canOpenDetails },
-        ]}
-        activeMode={assignmentWorkspaceMode}
-        onModeChange={(mode) => handleSwitchWorkspaceMode(mode as AssignmentWorkspaceMode)}
-        center={workspaceModeCenter}
-        status={workspaceModeStatus}
-        trailing={workspaceModeTrailing}
+      <TeacherWorkSurfaceActionBar
+        label={workspaceTitleControl}
+        center={assignmentWorkspaceControls}
+        trailing={assignmentEditControls}
       />
     )
 
@@ -1521,78 +1727,38 @@ export function TeacherClassroomView({
     </DndContext>
   )
 
-  const workspaceContent = selectedAssignmentId == null ? null : assignmentWorkspaceMode === 'details' ? (
-    activeSelectedStudentId ? (
-      <TeacherStudentWorkPanel
-        classroomId={classroom.id}
-        assignmentId={selectedAssignmentId}
-        studentId={activeSelectedStudentId}
-        mode="details"
-        inspectorCollapsed={false}
-        inspectorWidth={activeWorkspaceLayout.inspectorWidth}
-        totalWidth={workspaceWidth}
-        onLayoutChange={(next) => updateModeLayout('details', next)}
-        onLoadingStateChange={setWorkspaceLoading}
-        onGoPrevStudent={handleGoPrevStudent}
-        onGoNextStudent={handleGoNextStudent}
-        canGoPrevStudent={canGoPrevStudent}
-        canGoNextStudent={canGoNextStudent}
-        inspectorEditMode={assignmentEditMode}
-        onDetailsMetaChange={setIndividualHeaderMeta}
-      />
-    ) : selectedAssignmentLoading || (!activeSelectedAssignmentData && !selectedAssignmentError) ? (
-      <div className="flex flex-1 items-center justify-center py-12">
-        <Spinner />
-      </div>
-    ) : selectedAssignmentError ? (
-      <div className="flex flex-1 items-center justify-center p-4 text-sm text-danger">
-        {selectedAssignmentError}
-      </div>
-    ) : (
-      <div className="flex flex-1 items-center justify-center text-sm text-text-muted">
-        No student submissions yet.
-      </div>
-    )
-  ) : showOverviewInspector ? (
-    <TeacherWorkspaceSplit
-      className="flex-1"
-      primaryClassName="min-h-0"
-      inspectorClassName="min-h-0"
+  const leftPaneHeader = leftPaneView === 'individual' ? selectedStudentControls : null
+
+  const workspaceContent = selectedAssignmentId == null ? null : activeSelectedStudentId ? (
+    <TeacherStudentWorkPanel
+      classroomId={classroom.id}
+      assignmentId={selectedAssignmentId}
+      studentId={activeSelectedStudentId}
+      mode="workspace"
+      classPane={classPane}
+      leftPaneView={leftPaneView}
+      leftHeader={leftPaneHeader}
       inspectorCollapsed={false}
       inspectorWidth={activeWorkspaceLayout.inspectorWidth}
-      minInspectorPx={ASSIGNMENT_GRADING_LAYOUT.inspectorMinPx}
-      minPrimaryPx={ASSIGNMENT_GRADING_LAYOUT.overviewPrimaryMinPx}
-      onInspectorCollapsedChange={(collapsed) => {
-        updateModeLayout('overview', (current) => ({
-          ...current,
-          inspectorCollapsed: collapsed,
-        }))
-      }}
-      onInspectorWidthChange={(nextInspectorWidth) => {
-        updateModeLayout('overview', (current) => ({
-          ...current,
-          inspectorCollapsed: false,
-          inspectorWidth: nextInspectorWidth,
-        }))
-      }}
-      dividerLabel="Resize table and grading panes"
-      primary={studentTable}
-      inspector={
-        <TeacherStudentWorkPanel
-          classroomId={classroom.id}
-          assignmentId={selectedAssignmentId}
-          studentId={activeSelectedStudentId}
-          mode="overview"
-          inspectorCollapsed={false}
-          inspectorWidth={activeWorkspaceLayout.inspectorWidth}
-          totalWidth={workspaceWidth}
-          inspectorEditMode={assignmentEditMode}
-          onLoadingStateChange={setWorkspaceLoading}
-        />
-      }
+      refreshKey={gradeSelectedRefreshCounter}
+      highlightedInspectorSections={highlightedInspectorSections}
+      totalWidth={workspaceWidth}
+      onLayoutChange={(next) => updateModeLayout(activeWorkspaceMode, next)}
+      onLoadingStateChange={setWorkspaceLoading}
+      inspectorEditMode={assignmentEditMode}
+      onDetailsMetaChange={setIndividualHeaderMeta}
+      onGradeTemplateChange={handleGradeTemplateChange}
     />
+  ) : selectedAssignmentLoading || (!activeSelectedAssignmentData && !selectedAssignmentError) ? (
+    <div className="flex flex-1 items-center justify-center py-12">
+      <Spinner />
+    </div>
+  ) : selectedAssignmentError ? (
+    <div className="flex flex-1 items-center justify-center p-4 text-sm text-danger">
+      {selectedAssignmentError}
+    </div>
   ) : (
-    studentTable
+    classPane
   )
 
   return (
@@ -1601,11 +1767,12 @@ export function TeacherClassroomView({
         state={selection.mode === 'summary' ? 'summary' : 'workspace'}
         primary={primaryButtons}
         actions={[]}
-        trailing={selection.mode === 'summary' ? undefined : assignmentEditControls}
+        trailing={undefined}
         feedback={feedback}
         summary={summaryContent}
         workspace={workspaceContent}
-        workspaceFrame="attachedTabs"
+        workspaceFrame="standalone"
+        workspaceFrameClassName={activeSelectedStudentId ? 'border-0 bg-page' : undefined}
         workspaceRef={workspaceContainerRef}
       />
 
@@ -1622,6 +1789,33 @@ export function TeacherClassroomView({
         onConfirm={deleteAssignment}
       />
 
+
+      <ConfirmDialog
+        isOpen={!!gradeSelectedConfirmTarget}
+        title={
+          gradeSelectedConfirmTarget === 'comments'
+            ? `Apply comments to ${batchSelectedCount} selected student(s)?`
+            : `Apply grade to ${batchSelectedCount} selected student(s)?`
+        }
+        description={
+          gradeSelectedConfirmTarget === 'comments'
+            ? `The current student's comments will be applied to the selected students.`
+            : `The current student's grading will be applied to the selected students.`
+        }
+        confirmLabel={
+          isGradeSelectedSaving
+            ? 'Applying...'
+            : 'Apply'
+        }
+        cancelLabel="Cancel"
+        isConfirmDisabled={isGradeSelectedSaving || isGradeSelectedConfirmDisabled}
+        isCancelDisabled={isGradeSelectedSaving}
+        onCancel={() => (isGradeSelectedSaving ? null : setGradeSelectedConfirmTarget(null))}
+        onConfirm={() => {
+          if (!gradeSelectedConfirmTarget) return
+          void handleGradeSelected(gradeSelectedConfirmTarget)
+        }}
+      />
 
       <ConfirmDialog
         isOpen={showReturnConfirm}

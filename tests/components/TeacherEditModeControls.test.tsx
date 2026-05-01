@@ -40,7 +40,7 @@ describe('TeacherEditModeControls', () => {
   it('renders active state with edit-only children', () => {
     renderControls({ active: true })
 
-    const toggle = screen.getByRole('button', { name: 'Done' })
+    const toggle = screen.getByRole('button', { name: 'Edit' })
     expect(toggle).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Code' })).toBeInTheDocument()
   })
@@ -63,6 +63,6 @@ describe('TeacherEditModeControls', () => {
       </TooltipProvider>,
     )
 
-    expect(screen.getByRole('button', { name: 'Done' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeDisabled()
   })
 })

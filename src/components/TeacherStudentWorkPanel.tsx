@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
@@ -14,12 +14,17 @@ import {
   type AssignmentWorkspacePaneLayout,
 } from '@/lib/assignment-grading-layout'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
+import type { InspectorSectionId } from '@/components/assignment-workspace/types'
 
 interface TeacherStudentWorkPanelProps {
   classroomId: string
   assignmentId: string
   studentId: string
-  mode?: AssignmentWorkspaceMode
+  refreshKey?: number
+  mode?: AssignmentWorkspaceMode | 'workspace'
+  classPane?: ReactNode
+  leftPaneView?: 'class' | 'individual'
+  leftHeader?: ReactNode
   inspectorCollapsed?: boolean
   inspectorWidth?: number
   totalWidth?: number
@@ -29,30 +34,60 @@ interface TeacherStudentWorkPanelProps {
       | ((current: AssignmentWorkspacePaneLayout) => AssignmentWorkspacePaneLayout),
   ) => void
   onLoadingStateChange?: (loading: boolean) => void
-  onGoPrevStudent?: () => void
-  onGoNextStudent?: () => void
-  canGoPrevStudent?: boolean
-  canGoNextStudent?: boolean
   inspectorEditMode?: boolean
   onDetailsMetaChange?: (meta: { studentName: string; characterCount: number } | null) => void
+  onGradeTemplateChange?: (template: TeacherAssignmentGradeTemplate | null) => void
+  highlightedInspectorSections?: readonly InspectorSectionId[]
+}
+
+export interface TeacherAssignmentGradeTemplate {
+  studentId: string
+  scoreCompletion: string
+  scoreThinking: string
+  scoreWorkflow: string
+  feedbackDraft: string
+  gradeMode: 'draft' | 'graded'
+}
+
+function AssignmentWorkspacePaneFrame({
+  header,
+  children,
+}: {
+  header?: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      {header ? (
+        <div className="shrink-0 border-b border-border bg-surface px-3 py-2">
+          {header}
+        </div>
+      ) : null}
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {children}
+      </div>
+    </div>
+  )
 }
 
 export function TeacherStudentWorkPanel({
   classroomId,
   assignmentId,
   studentId,
+  refreshKey = 0,
   mode = 'details',
+  classPane,
+  leftPaneView = 'class',
+  leftHeader,
   inspectorCollapsed = false,
   inspectorWidth = ASSIGNMENT_GRADING_LAYOUT.defaultInspectorWidth,
   totalWidth = 0,
   onLayoutChange,
   onLoadingStateChange,
-  onGoPrevStudent,
-  onGoNextStudent,
-  canGoPrevStudent = false,
-  canGoNextStudent = false,
   inspectorEditMode = false,
   onDetailsMetaChange,
+  onGradeTemplateChange,
+  highlightedInspectorSections = [],
 }: TeacherStudentWorkPanelProps) {
   const {
     data,
@@ -100,9 +135,16 @@ export function TeacherStudentWorkPanel({
     classroomId,
     assignmentId,
     studentId,
+    refreshKey,
     onLoadingStateChange,
   })
   const previousInspectorEditModeRef = useRef(inspectorEditMode)
+  const layoutMode: AssignmentWorkspaceMode =
+    mode === 'workspace'
+      ? leftPaneView === 'individual'
+        ? 'details'
+        : 'overview'
+      : mode
   const layout = useMemo(
     () =>
       clampAssignmentWorkspacePaneLayout(
@@ -110,10 +152,10 @@ export function TeacherStudentWorkPanel({
           inspectorCollapsed,
           inspectorWidth,
         },
-        mode,
+        layoutMode,
         { totalWidth },
       ),
-    [inspectorCollapsed, inspectorWidth, mode, totalWidth],
+    [inspectorCollapsed, inspectorWidth, layoutMode, totalWidth],
   )
 
   const updateLayout = useCallback(
@@ -135,7 +177,7 @@ export function TeacherStudentWorkPanel({
   }, [collapseAllSections, inspectorEditMode])
 
   useEffect(() => {
-    if (mode !== 'details' || showInitialSpinner || error || !data) {
+    if (mode === 'overview' || showInitialSpinner || error || !data) {
       onDetailsMetaChange?.(null)
       return
     }
@@ -151,7 +193,40 @@ export function TeacherStudentWorkPanel({
       studentName: nextStudentDisplayName,
       characterCount: nextCharacterCount,
     })
-  }, [data, error, mode, onDetailsMetaChange, previewContent, showInitialSpinner])
+  }, [data, error, leftPaneView, mode, onDetailsMetaChange, previewContent, showInitialSpinner])
+
+  useEffect(() => {
+    return () => onGradeTemplateChange?.(null)
+  }, [onGradeTemplateChange])
+
+  useEffect(() => {
+    const shouldReportGradeTemplate = mode === 'overview' || mode === 'workspace'
+    if (!shouldReportGradeTemplate || showInitialSpinner || error || !data || data.student.id !== studentId) {
+      onGradeTemplateChange?.(null)
+      return
+    }
+
+    onGradeTemplateChange?.({
+      studentId,
+      scoreCompletion,
+      scoreThinking,
+      scoreWorkflow,
+      feedbackDraft,
+      gradeMode,
+    })
+  }, [
+    data,
+    error,
+    feedbackDraft,
+    gradeMode,
+    mode,
+    onGradeTemplateChange,
+    scoreCompletion,
+    scoreThinking,
+    scoreWorkflow,
+    showInitialSpinner,
+    studentId,
+  ])
 
   if (showInitialSpinner) {
     return (
@@ -202,6 +277,7 @@ export function TeacherStudentWorkPanel({
       gradeSaving={gradeSaving}
       showDraftAutosavedNotice={showDraftAutosavedNotice}
       repoAnalyzing={repoAnalyzing}
+      highlightedSections={highlightedInspectorSections}
       expandedSections={expandedSections}
       visibleSections={visibleSections}
       editMode={inspectorEditMode}
@@ -213,17 +289,91 @@ export function TeacherStudentWorkPanel({
     />
   )
 
+  const workPane = (
+    <div className="flex h-full min-h-0 flex-col">
+      {previewEntry && (
+        <div
+          data-testid="individual-content-header"
+          className="border-b border-border bg-surface px-4 py-2 text-sm"
+        >
+          <div className="text-xs font-medium text-primary">
+            Previewing save from{' '}
+            {formatInTimeZone(
+              new Date(previewEntry.created_at),
+              'America/Toronto',
+              'MMM d, h:mm a',
+            )}
+          </div>
+        </div>
+      )}
+      {displayContent && !isEmpty(displayContent) ? (
+        <div className="min-h-0 flex-1 overflow-auto">
+          <RichTextViewer content={displayContent} fillHeight chrome="flush" />
+        </div>
+      ) : (
+        <div className="flex h-32 items-center justify-center text-text-muted">
+          No work submitted yet
+        </div>
+      )}
+    </div>
+  )
+
   if (mode === 'overview') {
     return inspector
+  }
+
+  if (mode === 'workspace') {
+    const primaryPane = leftPaneView === 'individual' ? workPane : classPane ?? workPane
+    const primaryMinPx = leftPaneView === 'individual'
+      ? ASSIGNMENT_GRADING_LAYOUT.detailsPrimaryMinPx
+      : ASSIGNMENT_GRADING_LAYOUT.overviewPrimaryMinPx
+
+    return (
+      <TeacherWorkspaceSplit
+        className="flex-1"
+        splitVariant="gapped"
+        primaryClassName="min-h-0 rounded-lg bg-surface"
+        inspectorClassName="min-h-0 rounded-lg bg-surface"
+        inspectorCollapsed={layout.inspectorCollapsed}
+        inspectorWidth={layout.inspectorWidth}
+        minInspectorPx={ASSIGNMENT_GRADING_LAYOUT.inspectorMinPx}
+        minPrimaryPx={primaryMinPx}
+        onInspectorCollapsedChange={(collapsed) => {
+          updateLayout((current) => ({
+            ...current,
+            inspectorCollapsed: collapsed,
+          }))
+        }}
+        onInspectorWidthChange={(nextInspectorWidth) => {
+          updateLayout((current) => ({
+            ...current,
+            inspectorCollapsed: false,
+            inspectorWidth: nextInspectorWidth,
+          }))
+        }}
+        dividerLabel="Resize assignment workspace panes"
+        primary={
+          <AssignmentWorkspacePaneFrame header={leftHeader}>
+            {primaryPane}
+          </AssignmentWorkspacePaneFrame>
+        }
+        inspector={
+          <AssignmentWorkspacePaneFrame>
+            {inspector}
+          </AssignmentWorkspacePaneFrame>
+        }
+      />
+    )
   }
 
   return (
     <TeacherWorkspaceSplit
       className="flex-1"
-      primaryClassName={`flex min-h-0 flex-col ${
+      splitVariant="gapped"
+      primaryClassName={`flex min-h-0 flex-col rounded-lg bg-surface ${
         previewEntry ? 'outline outline-2 outline-primary outline-offset-[-2px]' : ''
       }`}
-      inspectorClassName="flex min-h-0 flex-col"
+      inspectorClassName="flex min-h-0 flex-col rounded-lg bg-surface"
       inspectorCollapsed={layout.inspectorCollapsed}
       inspectorWidth={layout.inspectorWidth}
       minInspectorPx={ASSIGNMENT_GRADING_LAYOUT.inspectorMinPx}
@@ -242,34 +392,7 @@ export function TeacherStudentWorkPanel({
         }))
       }}
       dividerLabel="Resize content and grading panes"
-      primary={
-        <>
-          {previewEntry && (
-            <div
-              data-testid="individual-content-header"
-              className="border-b border-border bg-surface px-4 py-2 text-sm"
-            >
-              <div className="text-xs font-medium text-primary">
-                Previewing save from{' '}
-                {formatInTimeZone(
-                  new Date(previewEntry.created_at),
-                  'America/Toronto',
-                  'MMM d, h:mm a',
-                )}
-              </div>
-            </div>
-          )}
-          {displayContent && !isEmpty(displayContent) ? (
-            <div className="min-h-0 flex-1 overflow-auto">
-              <RichTextViewer content={displayContent} fillHeight chrome="flush" />
-            </div>
-          ) : (
-            <div className="flex h-32 items-center justify-center text-text-muted">
-              No work submitted yet
-            </div>
-          )}
-        </>
-      }
+      primary={workPane}
       inspector={inspector}
     />
   )

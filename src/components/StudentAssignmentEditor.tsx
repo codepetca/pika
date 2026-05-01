@@ -810,10 +810,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         </div>
       </ContentDialog>
 
-      {/* Feedback panel */}
+      {/* Comments panel */}
       {feedbackVisible && (
         <div className="bg-surface rounded-lg shadow-sm border border-border p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-text-default">Feedback</h3>
+          <h3 className="text-sm font-semibold text-text-default">Comments</h3>
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
             <div className="space-y-2 text-sm md:pr-4 md:border-r md:border-border">
               {doc?.returned_at && hasCompletionScore && (
@@ -878,7 +878,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 displayedFeedbackEntries.map((entry) => (
                   <div key={entry.id} className="rounded-md border border-border bg-page px-3 py-2">
                     <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-muted">
-                      {entry.entry_kind === 'grading_feedback' ? 'Grade Return' : 'Returned Feedback'} . {' '}
+                      {entry.entry_kind === 'grading_feedback' ? 'Grade Return' : 'Returned Comments'} . {' '}
                       {formatInTimeZone(new Date(entry.returned_at), 'America/Toronto', 'MMM d, h:mm a')}
                     </div>
                     <div className="text-sm text-text-default whitespace-pre-wrap">
@@ -888,7 +888,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 ))
               ) : (
                 <div className="text-sm text-text-default whitespace-pre-wrap">
-                  {doc?.feedback?.trim() || 'No feedback provided yet.'}
+                  {doc?.feedback?.trim() || 'No comments provided yet.'}
                 </div>
               )}
             </div>

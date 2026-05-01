@@ -5,7 +5,7 @@ import { ChevronDown, ChevronRight, Send } from 'lucide-react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { HistoryList } from '@/components/HistoryList'
 import { Spinner } from '@/components/Spinner'
-import { Button, Tooltip } from '@/ui'
+import { Button, SegmentedControl, Tooltip } from '@/ui'
 import type {
   AssignmentDocHistoryEntry,
   AssignmentFeedbackEntry,
@@ -177,6 +177,7 @@ function InspectorSection({
   onToggle,
   onVisibleChange,
   action,
+  highlighted = false,
   children,
 }: {
   id: InspectorSectionId
@@ -188,10 +189,12 @@ function InspectorSection({
   onToggle: () => void
   onVisibleChange: () => void
   action?: ReactNode
+  highlighted?: boolean
   children?: ReactNode
 }) {
   const contentId = `assignment-inspector-section-${id}`
   const effectiveExpanded = visible && expanded
+  const isHighlighted = visible && highlighted
   const handleHeaderToggle = () => {
     if (!visible) return
     onToggle()
@@ -200,11 +203,14 @@ function InspectorSection({
   return (
     <section
       data-testid={`inspector-section-${id}`}
+      data-highlighted={isHighlighted ? 'true' : undefined}
       className={[
-        'overflow-hidden rounded-lg border transition-colors',
-        visible
-          ? 'border-border bg-surface'
-          : 'border-dashed border-border bg-surface-2',
+        'overflow-hidden rounded-lg border transition-[border-color,background-color,box-shadow]',
+        isHighlighted
+          ? 'border-primary bg-info-bg shadow-sm ring-1 ring-primary/30'
+          : visible
+            ? 'border-border bg-surface'
+            : 'border-dashed border-border bg-surface-2',
       ].join(' ')}
     >
       <div
@@ -431,7 +437,7 @@ function AutoGrowFeedbackTextarea({
         'min-h-[10rem] w-full overflow-hidden rounded border px-2 py-1 text-sm text-text-default',
         hasFreshAIDraft ? 'border-primary bg-info-bg' : 'border-border bg-surface',
       ].join(' ')}
-      placeholder="Teacher feedback draft"
+      placeholder="Teacher comment draft"
     />
   )
 }
@@ -491,6 +497,7 @@ export function TeacherWorkInspector({
   gradeSaving,
   showDraftAutosavedNotice,
   repoAnalyzing,
+  highlightedSections = [],
   expandedSections,
   visibleSections,
   editMode = false,
@@ -530,6 +537,7 @@ export function TeacherWorkInspector({
   gradeSaving: boolean
   showDraftAutosavedNotice: boolean
   repoAnalyzing: boolean
+  highlightedSections?: readonly InspectorSectionId[]
   expandedSections: InspectorSectionId[]
   visibleSections: InspectorSectionId[]
   editMode?: boolean
@@ -682,50 +690,25 @@ export function TeacherWorkInspector({
           </div>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 text-xs text-text-muted">{gradeStatusLabel ?? ''}</div>
-            <div
-              data-testid="grade-mode-toggle"
-              className="inline-flex rounded-full border border-border bg-surface-2 p-0.5"
-            >
-              <button
-                type="button"
-                className={[
-                  'inline-flex h-8 items-center justify-center rounded-full px-3 text-xs font-medium transition-colors',
-                  gradeMode === 'draft'
-                    ? 'bg-surface text-text-default shadow-sm'
-                    : 'bg-transparent text-text-muted hover:bg-surface-hover hover:text-text-default',
-                ].join(' ')}
-                aria-pressed={gradeMode === 'draft'}
-                onClick={() => {
-                  void handleSetGradeMode('draft')
-                }}
-                disabled={gradeSaving}
-              >
-                Draft
-              </button>
-              <button
-                type="button"
-                className={[
-                  'inline-flex h-8 items-center justify-center rounded-full px-3 text-xs font-medium transition-colors',
-                  gradeMode === 'graded'
-                    ? 'bg-surface text-text-default shadow-sm'
-                    : 'bg-transparent text-text-muted hover:bg-surface-hover hover:text-text-default',
-                ].join(' ')}
-                aria-pressed={gradeMode === 'graded'}
-                onClick={() => {
-                  void handleSetGradeMode('graded')
-                }}
-                disabled={gradeSaving}
-              >
-                Final
-              </button>
-            </div>
+            <SegmentedControl<GradeSaveMode>
+              ariaLabel="Grade save mode"
+              value={gradeMode}
+              onChange={(nextMode) => {
+                void handleSetGradeMode(nextMode)
+              }}
+              testId="grade-mode-toggle"
+              options={[
+                { value: 'draft', label: 'Draft', disabled: gradeSaving },
+                { value: 'graded', label: 'Final', disabled: gradeSaving },
+              ]}
+            />
           </div>
         </div>
       ),
     },
     {
       id: 'comments',
-      title: 'Feedback',
+      title: 'Comments',
       summary: null,
       content: (
         <div className="space-y-3">
@@ -757,7 +740,7 @@ export function TeacherWorkInspector({
                 ) : (
                   <>
                     <Send className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>Send feedback</span>
+                    <span>Send comment</span>
                   </>
                 )}
               </Button>
@@ -767,7 +750,7 @@ export function TeacherWorkInspector({
           {feedbackEntries.length > 0 ? (
             <div className="space-y-2">
               <div className="text-xs font-medium uppercase tracking-wide text-text-muted">
-                Feedback Sent
+                Comments Sent
               </div>
               <div className="rounded border border-border bg-surface p-3">
                 <div className="space-y-3">
@@ -814,6 +797,7 @@ export function TeacherWorkInspector({
                   expanded={expandedSections.includes(section.id)}
                   visible={visible}
                   editMode={editMode}
+                  highlighted={highlightedSections.includes(section.id)}
                   summary={section.summary}
                   action={section.action}
                   onToggle={() => onToggleSection(section.id)}
