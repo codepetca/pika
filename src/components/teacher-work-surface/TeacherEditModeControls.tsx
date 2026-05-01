@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { Check, Pencil } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 import { Button, Tooltip } from '@/ui'
 import { cn } from '@/ui/utils'
 
@@ -11,7 +11,6 @@ interface TeacherEditModeControlsProps {
   disabled?: boolean
   children?: ReactNode
   editLabel?: string
-  doneLabel?: string
   className?: string
 }
 
@@ -21,12 +20,8 @@ export function TeacherEditModeControls({
   disabled = false,
   children,
   editLabel = 'Edit',
-  doneLabel = 'Done',
   className,
 }: TeacherEditModeControlsProps) {
-  const Icon = active ? Check : Pencil
-  const label = active ? doneLabel : editLabel
-
   return (
     <div className={cn('flex flex-wrap items-center justify-end gap-1.5', className)}>
       {active && children ? (
@@ -38,15 +33,20 @@ export function TeacherEditModeControls({
       <Tooltip content={active ? 'Hide edit actions' : 'Show edit actions'}>
         <Button
           type="button"
-          variant={active ? 'secondary' : 'ghost'}
+          variant="ghost"
           size="sm"
-          className="min-h-10 px-3"
+          className={cn(
+            'min-h-10 px-3',
+            active
+              ? 'border-primary/40 bg-info-bg text-primary shadow-inner hover:bg-info-bg-hover hover:text-primary'
+              : '',
+          )}
           aria-pressed={active}
           disabled={disabled}
           onClick={() => onActiveChange(!active)}
         >
-          <Icon className="h-4 w-4" aria-hidden="true" />
-          <span>{label}</span>
+          <Pencil className="h-4 w-4" aria-hidden="true" />
+          <span>{editLabel}</span>
         </Button>
       </Tooltip>
     </div>

@@ -49,6 +49,7 @@ export function TeacherWorkSurfaceShell({
 }: TeacherWorkSurfaceShellProps) {
   const isSummary = state === 'summary'
   const usesAttachedTabsFrame = workspaceFrame === 'attachedTabs'
+  const usesStandaloneFrame = workspaceFrame === 'standalone'
 
   return (
     <PageLayout
@@ -65,7 +66,9 @@ export function TeacherWorkSurfaceShell({
         className={cn(
           isSummary
             ? 'flex flex-col gap-3'
-            : 'px-0 flex min-h-0 flex-1 flex-col gap-3 pt-0',
+            : usesStandaloneFrame
+              ? 'flex min-h-0 flex-1 flex-col gap-3'
+              : 'px-0 flex min-h-0 flex-1 flex-col gap-3 pt-0',
           contentClassName,
         )}
       >

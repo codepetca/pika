@@ -22,10 +22,10 @@ describe('LEFT_SIDEBAR constants', () => {
 })
 
 describe('getLayoutConfig', () => {
-  it('should return config for valid route keys', () => {
+  it('should return disabled right sidebar for integrated attendance workspace', () => {
     const config = getLayoutConfig('attendance')
     expect(config).toBeDefined()
-    expect(config.rightSidebar.enabled).toBe(true)
+    expect(config.rightSidebar.enabled).toBe(false)
     expect(config.mainContent.maxWidth).toBe('full')
   })
 

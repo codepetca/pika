@@ -40,7 +40,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentFeedbackReturn', asyn
     : (existingDoc?.teacher_feedback_draft || '').trim()
 
   if (!feedbackDraft) {
-    throw apiErrors.badRequest('Feedback draft is required before returning feedback')
+    throw apiErrors.badRequest('Comment draft is required before returning comments')
   }
 
   const now = new Date().toISOString()

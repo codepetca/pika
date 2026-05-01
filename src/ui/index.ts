@@ -19,6 +19,7 @@ export { EmptyState, type EmptyStateProps } from './EmptyState'
 export { Tooltip, TooltipProvider, type TooltipProps } from './Tooltip'
 export { RefreshingIndicator } from './RefreshingIndicator'
 export { TabContentTransition } from './TabContentTransition'
+export { SegmentedControl, type SegmentedControlOption, type SegmentedControlProps } from './SegmentedControl'
 export { SplitButton, type SplitButtonProps, type SplitButtonOption } from './SplitButton'
 export {
   AppMessageFallback,

@@ -1781,7 +1781,7 @@ export function TeacherTestsTab({
               setShowClearOpenGradesConfirm(true)
             }}
           >
-            Clear Open Scores/Feedback
+            Clear Open Scores/Comments
           </Button>
         </div>
         <div className="mt-5 flex justify-end gap-2">

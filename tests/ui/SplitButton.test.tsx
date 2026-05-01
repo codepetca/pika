@@ -63,4 +63,28 @@ describe('SplitButton', () => {
     expect(menu.className).toContain('top-full')
     expect(menu.className).not.toContain('bottom-full')
   })
+
+  it('notifies option hover state and clears it when selected', () => {
+    const onHoverChange = vi.fn()
+
+    render(
+      <SplitButton
+        label="Post"
+        onPrimaryClick={vi.fn()}
+        options={[
+          { id: 'schedule', label: 'Schedule', onSelect: vi.fn(), onHoverChange },
+        ]}
+        toggleAriaLabel="Choose action"
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose action' }))
+    const option = screen.getByRole('menuitem', { name: 'Schedule' })
+
+    fireEvent.mouseEnter(option)
+    expect(onHoverChange).toHaveBeenLastCalledWith(true)
+
+    fireEvent.click(option)
+    expect(onHoverChange).toHaveBeenLastCalledWith(false)
+  })
 })

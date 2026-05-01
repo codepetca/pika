@@ -13,7 +13,6 @@ type MockNotifications = {
 }
 
 let mockNotifications: MockNotifications | null = null
-const fetchJSONWithCacheMock = vi.fn()
 
 vi.mock('@/components/layout/ThreePanelProvider', () => ({
   useLeftSidebar: () => ({ isExpanded: true }),
@@ -29,12 +28,7 @@ vi.mock('@/ui', () => ({
 }))
 
 vi.mock('@/lib/cookies', () => ({
-  readCookie: vi.fn(() => undefined),
   writeCookie: vi.fn(),
-}))
-
-vi.mock('@/lib/request-cache', () => ({
-  fetchJSONWithCache: (...args: unknown[]) => fetchJSONWithCacheMock(...args),
 }))
 
 function baseNotifications(overrides: Partial<MockNotifications> = {}): MockNotifications {
@@ -55,8 +49,6 @@ function renderNav(role: 'student' | 'teacher', activeTab = 'today') {
       classroomId="classroom-1"
       role={role}
       activeTab={activeTab}
-      isReadOnly={false}
-      assignmentId={null}
       onTabChange={vi.fn()}
       updateSearchParams={vi.fn()}
     />
@@ -66,8 +58,6 @@ function renderNav(role: 'student' | 'teacher', activeTab = 'today') {
 describe('NavItems notification dots', () => {
   beforeEach(() => {
     mockNotifications = baseNotifications()
-    fetchJSONWithCacheMock.mockReset()
-    fetchJSONWithCacheMock.mockImplementation(() => new Promise(() => {}))
   })
 
   it('shows dot and aria-label suffix for student today tab with new activity', () => {
@@ -93,6 +83,23 @@ describe('NavItems notification dots', () => {
 
     const assignmentsLink = screen.getByRole('link', { name: 'Assignments (new activity)' })
     expect(assignmentsLink.querySelector('[data-new-activity-dot="true"]')).toBeTruthy()
+  })
+
+  it('renders teacher assignments as a plain nav item without a dropdown affordance', () => {
+    renderNav('teacher', 'assignments')
+
+    const assignmentsLink = screen.getByRole('link', { name: 'Assignments' })
+    expect(assignmentsLink).not.toHaveAttribute('aria-expanded')
+    expect(screen.getAllByRole('link', { name: 'Assignments' })).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: /assignment/i })).toBeNull()
+  })
+
+  it('renders student assignments as a plain nav item instead of a nested assignment list', () => {
+    mockNotifications = baseNotifications({ unviewedAssignmentsCount: 2 })
+    renderNav('student', 'assignments')
+
+    expect(screen.getAllByRole('link', { name: 'Assignments (new activity)' })).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: /assignment/i })).toBeNull()
   })
 
   it('does not render notification dots for teacher nav items', () => {

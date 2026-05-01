@@ -1,17 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { withErrorHandler } from '@/lib/api-handler'
+import { apiErrors, withErrorHandler } from '@/lib/api-handler'
+import {
+  assertStudentsEnrolledForAssignmentGrade,
+  loadTeacherOwnedAssignmentForGrade,
+  parseAssignmentGradePayload,
+  upsertAssignmentGradeRows,
+} from '@/lib/server/assignment-grades'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-
-function parseDraftScore(value: unknown): number | null | typeof Number.NaN {
-  if (value === '' || value === null || value === undefined) return null
-  const parsed = Number(value)
-  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 10) return Number.NaN
-  return parsed
-}
 
 // POST /api/teacher/assignments/[id]/grade - Save grade for a student
 export const POST = withErrorHandler('PostTeacherAssignmentGrade', async (request, context) => {
@@ -28,88 +27,38 @@ export const POST = withErrorHandler('PostTeacherAssignmentGrade', async (reques
   } = body
 
   if (!student_id || typeof student_id !== 'string') {
-    return NextResponse.json({ error: 'student_id is required' }, { status: 400 })
-  }
-
-  if (typeof feedback !== 'string') {
-    return NextResponse.json({ error: 'feedback must be a string' }, { status: 400 })
-  }
-
-  if (save_mode !== undefined && save_mode !== 'draft' && save_mode !== 'graded') {
-    return NextResponse.json({ error: 'save_mode must be "draft" or "graded"' }, { status: 400 })
-  }
-
-  const shouldMarkGraded = save_mode === 'graded' || save_mode === undefined
-  const parsedScores = {
-    score_completion: shouldMarkGraded ? Number(score_completion) : parseDraftScore(score_completion),
-    score_thinking: shouldMarkGraded ? Number(score_thinking) : parseDraftScore(score_thinking),
-    score_workflow: shouldMarkGraded ? Number(score_workflow) : parseDraftScore(score_workflow),
-  }
-
-  for (const [name, value] of Object.entries(parsedScores)) {
-    if (shouldMarkGraded) {
-      if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 10) {
-        return NextResponse.json({ error: `${name} must be an integer 0–10` }, { status: 400 })
-      }
-      continue
-    }
-
-    if (Number.isNaN(value)) {
-      return NextResponse.json({ error: `${name} must be blank or an integer 0–10` }, { status: 400 })
-    }
+    throw apiErrors.badRequest('student_id is required')
   }
 
   const supabase = getServiceRoleClient()
-
-  // Verify teacher owns this assignment
-  const { data: assignment, error: assignmentError } = await supabase
-    .from('assignments')
-    .select(`
-      *,
-      classrooms!inner (
-        teacher_id
-      )
-    `)
-    .eq('id', id)
-    .single()
-
-  if (assignmentError || !assignment) {
-    return NextResponse.json({ error: 'Assignment not found' }, { status: 404 })
-  }
-
-  if (assignment.classrooms.teacher_id !== user.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
-
-  const { data: enrollment } = await supabase
-    .from('classroom_enrollments')
-    .select('id')
-    .eq('classroom_id', assignment.classroom_id)
-    .eq('student_id', student_id)
-    .maybeSingle()
-
-  if (!enrollment) {
-    return NextResponse.json({ error: 'Student is not enrolled in this classroom' }, { status: 400 })
-  }
+  const grade = parseAssignmentGradePayload({
+    score_completion,
+    score_thinking,
+    score_workflow,
+    feedback,
+    save_mode,
+  })
+  const assignment = await loadTeacherOwnedAssignmentForGrade({
+    supabase,
+    assignmentId: id,
+    teacherId: user.id,
+  })
+  await assertStudentsEnrolledForAssignmentGrade({
+    supabase,
+    classroomId: assignment.classroom_id,
+    studentIds: [student_id],
+  })
 
   // Upsert supports grading students even when no submission/doc exists yet.
-  const { data: doc, error: upsertError } = await supabase
-    .from('assignment_docs')
-    .upsert({
-      assignment_id: id,
-      student_id,
-      score_completion: parsedScores.score_completion,
-      score_thinking: parsedScores.score_thinking,
-      score_workflow: parsedScores.score_workflow,
-      teacher_feedback_draft: feedback,
-      teacher_feedback_draft_updated_at: new Date().toISOString(),
-      graded_at: shouldMarkGraded ? new Date().toISOString() : null,
-      graded_by: shouldMarkGraded ? 'teacher' : null,
-    }, { onConflict: 'assignment_id,student_id' })
-    .select()
-    .single()
+  const { data: docs, error: upsertError } = await upsertAssignmentGradeRows({
+    supabase,
+    assignmentId: id,
+    studentIds: [student_id],
+    grade,
+  })
+  const doc = Array.isArray(docs) ? docs[0] : null
 
-  if (upsertError) {
+  if (upsertError || !doc) {
     console.error('Error saving grade:', upsertError)
     return NextResponse.json({ error: 'Failed to save grade' }, { status: 500 })
   }

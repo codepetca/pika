@@ -178,6 +178,58 @@ Advances when:
 - Workspace states may add contextual controls, but the shell should remain recognizable across nearby states.
 - Workspace-mode controls are justified only when they unlock genuinely different work.
 
+### Reusable selected-workspace shell template
+
+When a teacher tab needs the Daily/Assignment two-pane work surface, reuse the
+shared shell and split primitives instead of building feature-local layout and
+resize code.
+
+Use this composition as the default selected-workspace template for assignments,
+quizzes, tests, and nearby teacher work tabs when the workflow has an active
+primary pane plus an active inspector/detail pane:
+
+```tsx
+<TeacherWorkSurfaceShell
+  state="workspace"
+  primary={actionBar}
+  summary={null}
+  workspace={workspace}
+  workspaceFrame="standalone"
+  workspaceFrameClassName="border-0 bg-page"
+/>
+```
+
+Inside `workspace`, use the shared split:
+
+```tsx
+<TeacherWorkspaceSplit
+  splitVariant="gapped"
+  primary={primaryPane}
+  inspector={inspectorPane}
+  inspectorCollapsed={false}
+  inspectorWidth={inspectorWidth}
+  onInspectorWidthChange={setInspectorWidth}
+  primaryClassName="rounded-lg bg-surface"
+  inspectorClassName="rounded-lg bg-surface"
+  dividerLabel="Resize workspace panes"
+/>
+```
+
+Default shape:
+
+- `TeacherWorkSurfaceShell` owns the tab action bar and the lower workspace slot.
+- `workspaceFrame="standalone"` keeps the one-bar page shell.
+- `workspaceFrameClassName="border-0 bg-page"` removes extra outer framing so
+  the panes sit directly on the page background.
+- `TeacherWorkspaceSplit splitVariant="gapped"` provides the page-background
+  middle gap, drag resize behavior, keyboard resize behavior, and mobile stacked
+  layout.
+- Pane content remains feature-owned; pane sizing, resize mechanics, and the
+  outer split shape should not be reimplemented in each tab.
+
+Use `TeacherWorkspaceSplit` without `splitVariant="gapped"` only when preserving
+an older joined split is explicitly desired.
+
 ### Main-content width
 
 - Summary states use the available main-content width.
@@ -202,6 +254,16 @@ Advances when:
 - Top tabs are allowed only inside `workspace` as `workspace_mode` selectors.
 - They must represent real workflow changes.
 - They should not be the first visual emphasis in a browsing state.
+
+### Action-bar workspace toggles
+
+- Compact workspace toggles are allowed in the selected-workspace action bar
+  when they choose the primary workspace view.
+- They should replace, not duplicate, top workspace tabs.
+- Keep batch or grading actions in the same action cluster when they apply to
+  the selected workspace.
+- The assignment pane-toggle implementation is an experimental assignment-led
+  pattern until promoted after visual and workflow review.
 
 ### Hard failures
 
@@ -379,6 +441,8 @@ Use this checklist when changing or reviewing teacher-family UX:
 - no passive inspector before selection
 - selected workspace earns complexity
 - workspace tabs only after selection
+- action-bar toggles replace workspace tabs when the selected workspace needs a
+  compact primary-view switch
 - inspector opens only for active comparative or review work
 - parent tab click returns to `summary`
 - page-shell primitives are reused

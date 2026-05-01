@@ -1,13 +1,20 @@
 'use client'
 
-import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
+import type {
+  CSSProperties,
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+  ReactNode,
+} from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspaceShell'
 import { useWindowSize } from '@/hooks/use-window-size'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
+import { cn } from '@/ui/utils'
 
 const DEFAULT_MIN_INSPECTOR_PX = 320
 const DEFAULT_MIN_PRIMARY_PX = 320
+const GAPPED_SPLIT_HANDLE_WIDTH_PX = 12
 
 interface TeacherWorkspaceSplitProps {
   primary: ReactNode
@@ -25,6 +32,7 @@ interface TeacherWorkspaceSplitProps {
   minPrimaryPx?: number
   minInspectorPercent?: number
   maxInspectorPercent?: number
+  splitVariant?: 'joined' | 'gapped'
 }
 
 function roundPercent(value: number): number {
@@ -83,6 +91,7 @@ export function TeacherWorkspaceSplit({
   minPrimaryPx = DEFAULT_MIN_PRIMARY_PX,
   minInspectorPercent = 0,
   maxInspectorPercent = 100,
+  splitVariant = 'joined',
 }: TeacherWorkspaceSplitProps) {
   const splitRef = useRef<HTMLDivElement | null>(null)
   const [splitWidth, setSplitWidth] = useState(0)
@@ -145,13 +154,17 @@ export function TeacherWorkspaceSplit({
         )
       }
 
-      const handlePointerUp = () => {
+      const handleResizeEnd = () => {
         window.removeEventListener('pointermove', handlePointerMove)
-        window.removeEventListener('pointerup', handlePointerUp)
+        window.removeEventListener('pointerup', handleResizeEnd)
+        window.removeEventListener('pointercancel', handleResizeEnd)
+        window.removeEventListener('blur', handleResizeEnd)
       }
 
       window.addEventListener('pointermove', handlePointerMove)
-      window.addEventListener('pointerup', handlePointerUp)
+      window.addEventListener('pointerup', handleResizeEnd)
+      window.addEventListener('pointercancel', handleResizeEnd)
+      window.addEventListener('blur', handleResizeEnd)
     },
     [
       maxInspectorPercent,
@@ -186,6 +199,104 @@ export function TeacherWorkspaceSplit({
     splitWidth,
   ])
 
+  const handleResizeKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      const baseWidth = splitWidth || splitRef.current?.getBoundingClientRect().width || 0
+      const getClampedWidth = (nextWidth: number) =>
+        clampInspectorWidthPercent(
+          nextWidth,
+          baseWidth,
+          {
+            minInspectorPx,
+            minPrimaryPx,
+            minInspectorPercent,
+            maxInspectorPercent,
+          },
+        )
+
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        onInspectorCollapsedChange?.(false)
+        onInspectorWidthChange(getClampedWidth(inspectorWidth + 5))
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        onInspectorCollapsedChange?.(false)
+        onInspectorWidthChange(getClampedWidth(inspectorWidth - 5))
+      } else if (event.key === 'Home') {
+        event.preventDefault()
+        onInspectorCollapsedChange?.(false)
+        onInspectorWidthChange(getClampedWidth(maxInspectorPercent))
+      } else if (event.key === 'End') {
+        event.preventDefault()
+        onInspectorCollapsedChange?.(false)
+        onInspectorWidthChange(getClampedWidth(minInspectorPercent))
+      } else if (event.key === 'Enter') {
+        event.preventDefault()
+        handleResizeReset()
+      }
+    },
+    [
+      handleResizeReset,
+      inspectorWidth,
+      maxInspectorPercent,
+      minInspectorPercent,
+      minInspectorPx,
+      minPrimaryPx,
+      onInspectorCollapsedChange,
+      onInspectorWidthChange,
+      splitWidth,
+    ],
+  )
+
+  if (splitVariant === 'gapped') {
+    const inspectorPaneStyle = inspectorVisible && isDesktop
+      ? {
+          '--teacher-workspace-inspector-width': `calc(${constrainedInspectorWidth}% - ${GAPPED_SPLIT_HANDLE_WIDTH_PX / 2}px)`,
+        } as CSSProperties
+      : undefined
+
+    return (
+      <div
+        ref={splitRef}
+        className={cn('flex min-h-0 flex-1 flex-col gap-3 bg-page lg:flex-row lg:gap-0', className)}
+      >
+        <div className={cn('min-h-0 min-w-0 flex-1 overflow-hidden', primaryClassName)}>
+          {primary}
+        </div>
+
+        {inspectorVisible ? (
+          <div className="hidden w-3 shrink-0 self-stretch lg:flex">
+            <div
+              role="separator"
+              aria-label={dividerLabel}
+              aria-orientation="vertical"
+              aria-valuemin={minInspectorPercent}
+              aria-valuemax={maxInspectorPercent}
+              aria-valuenow={constrainedInspectorWidth}
+              tabIndex={0}
+              className="min-h-full flex-1 cursor-col-resize rounded-full outline-none hover:bg-surface-hover focus:bg-info-bg"
+              onPointerDown={handleResizeStart}
+              onDoubleClick={handleResizeReset}
+              onKeyDown={handleResizeKeyDown}
+            />
+          </div>
+        ) : null}
+
+        {inspectorVisible ? (
+          <div
+            className={cn(
+              'min-h-0 w-full overflow-hidden lg:shrink-0 lg:basis-[var(--teacher-workspace-inspector-width)]',
+              inspectorClassName,
+            )}
+            style={inspectorPaneStyle}
+          >
+            {inspector}
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <div ref={splitRef} className="flex h-full min-h-0 flex-1">
       <SummaryDetailWorkspaceShell
@@ -201,6 +312,10 @@ export function TeacherWorkspaceSplit({
                 label: dividerLabel,
                 onPointerDown: handleResizeStart,
                 onDoubleClick: handleResizeReset,
+                onKeyDown: handleResizeKeyDown,
+                ariaValueMin: minInspectorPercent,
+                ariaValueMax: maxInspectorPercent,
+                ariaValueNow: constrainedInspectorWidth,
               }
             : undefined
         }

@@ -50,7 +50,7 @@ describe('TeacherWorkSurfaceShell', () => {
     expect(frame).toHaveClass('rounded-b-lg', 'border', 'border-border', 'bg-surface')
   })
 
-  it('supports standalone selected-workspace frames for non-tabbed workspaces', () => {
+  it('supports standalone selected-workspace frames with standard page gutters', () => {
     render(
       <TeacherWorkSurfaceShell
         state="workspace"
@@ -64,6 +64,9 @@ describe('TeacherWorkSurfaceShell', () => {
     const frame = screen.getByText('Gradebook table').parentElement?.parentElement
     expect(frame).toHaveClass('rounded-lg', 'border', 'border-border', 'bg-surface')
     expect(frame).not.toHaveClass('rounded-b-lg')
+    const content = frame?.parentElement
+    expect(content).toHaveClass('px-3', 'pt-2', 'flex-1')
+    expect(content).not.toHaveClass('px-0', 'pt-0')
   })
 
   it('keeps workspace children mounted across non-destructive shell updates', () => {
