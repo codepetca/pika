@@ -187,7 +187,16 @@ vi.mock('@/app/classrooms/[classroomId]/StudentResourcesTab', () => ({
   StudentResourcesTab: () => <div />,
 }))
 vi.mock('@/app/classrooms/[classroomId]/TeacherQuizzesTab', () => ({
-  TeacherQuizzesTab: () => <div />,
+  TeacherQuizzesTab: ({ onSelectQuiz }: any) => (
+    <div>
+      <button
+        type="button"
+        onClick={() => onSelectQuiz?.({ id: 'quiz-1', title: 'Quiz One' })}
+      >
+        Select quiz workspace
+      </button>
+    </div>
+  ),
 }))
 vi.mock('@/app/classrooms/[classroomId]/TeacherTestsTab', () => ({
   TeacherTestsTab: () => <div />,
@@ -303,6 +312,27 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     renderClient({ initialTab: 'attendance', initialSearchParams: { tab: 'attendance' } })
 
     expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Daily')
+  })
+
+  it('passes the quizzes summary label to the app shell title slot', () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=quizzes')
+
+    renderClient({ initialTab: 'quizzes', initialSearchParams: { tab: 'quizzes' } })
+
+    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Quizzes')
+  })
+
+  it('passes the selected quiz title to the app shell title slot', () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=quizzes&quizId=quiz-1')
+
+    renderClient({
+      initialTab: 'quizzes',
+      initialSearchParams: { tab: 'quizzes', quizId: 'quiz-1' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select quiz workspace' }))
+
+    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Quiz One')
   })
 
   it('does not reopen assignment markdown after the teacher manually closes the panel', async () => {

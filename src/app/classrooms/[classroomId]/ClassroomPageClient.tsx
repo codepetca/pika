@@ -509,6 +509,12 @@ function ClassroomPageContent({
         : 'Assignments'
     }
 
+    if (activeTab === 'quizzes') {
+      return quizIdParam && selectedQuiz?.id === quizIdParam
+        ? selectedQuiz.title
+        : 'Quizzes'
+    }
+
     if (activeTab === 'tests' && testIdParam && selectedQuiz?.id === testIdParam) {
       return selectedQuiz.title
     }
@@ -518,6 +524,7 @@ function ClassroomPageContent({
     activeTab,
     assignmentViewMode,
     isTeacher,
+    quizIdParam,
     selectedAssignment?.title,
     selectedQuiz,
     testIdParam,

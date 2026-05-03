@@ -10515,3 +10515,23 @@
 - `git diff --check`
 - Visual screenshot reviewed:
   - `/tmp/pika-daily-title-floating-date-fab.png`
+
+## 2026-05-03 - Quizzes shell alignment
+
+**Completed:**
+- Applied the shared teacher work-surface shell convention to Quizzes.
+- Moved Quizzes summary and selected quiz titles into the global app-header title slot.
+- Moved Quizzes summary and selected quiz actions into the shared floating center action cluster.
+- Removed the selected quiz workspace border frame and tightened mobile header truncation so the centered title does not overlap the classroom selector.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=quizzes`.
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=quizzes&quizId=1cf70f6b-9b78-4cad-8ce5-26fd7da9fdb9`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-quizzes-summary-teacher.png`
+  - `/tmp/pika-quizzes-selected-teacher.png`
+  - `/tmp/pika-quizzes-summary-teacher-mobile.png`
+  - `/tmp/pika-quizzes-selected-teacher-mobile.png`
