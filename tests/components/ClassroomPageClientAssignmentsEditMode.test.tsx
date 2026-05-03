@@ -220,15 +220,18 @@ const classroom: Classroom = {
   updated_at: '2026-01-01T00:00:00Z',
 }
 
-function renderClient() {
+function renderClient(options?: { initialTab?: string; initialSearchParams?: Record<string, string | undefined> }) {
+  const initialTab = options?.initialTab ?? 'assignments'
+  const initialSearchParams = options?.initialSearchParams ?? { tab: initialTab }
+
   return render(
     <MarkdownPreferenceProvider>
       <ClassroomPageClient
         classroom={classroom}
         user={{ id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' }}
         teacherClassrooms={[classroom]}
-        initialTab="assignments"
-        initialSearchParams={{ tab: 'assignments' }}
+        initialTab={initialTab}
+        initialSearchParams={initialSearchParams}
       />
     </MarkdownPreferenceProvider>,
   )
@@ -292,6 +295,14 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     renderClient()
 
     expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Assignments')
+  })
+
+  it('passes the daily label to the app shell title slot', () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=attendance')
+
+    renderClient({ initialTab: 'attendance', initialSearchParams: { tab: 'attendance' } })
+
+    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Daily')
   })
 
   it('does not reopen assignment markdown after the teacher manually closes the panel', async () => {

@@ -499,6 +499,10 @@ function ClassroomPageContent({
   const selectedWorkTitle = useMemo(() => {
     if (!isTeacher) return undefined
 
+    if (activeTab === 'attendance') {
+      return 'Daily'
+    }
+
     if (activeTab === 'assignments') {
       return assignmentViewMode === 'assignment'
         ? selectedAssignment?.title || 'Assignments'

@@ -10501,3 +10501,17 @@
   - `/tmp/pika-assignments-fab-centered-actionbar.png`
   - `/tmp/pika-selected-assignment-edit-in-fab.png`
   - `/tmp/pika-tests-grading-floating-cluster-menu.png`
+
+## 2026-05-02 - Daily title and floating action alignment
+
+**Completed:**
+- Applied the latest assignment shell convention to Daily.
+- Moved the Daily label into the global app-header title slot.
+- Moved Daily's date navigator into the shared floating center action cluster.
+
+**Validation:**
+- `pnpm vitest run tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherWorkspaceSplit.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Visual screenshot reviewed:
+  - `/tmp/pika-daily-title-floating-date-fab.png`
