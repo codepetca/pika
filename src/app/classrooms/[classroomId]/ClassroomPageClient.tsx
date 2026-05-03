@@ -496,6 +496,29 @@ function ClassroomPageContent({
     }
   }, [])
 
+  const selectedWorkTitle = useMemo(() => {
+    if (!isTeacher) return undefined
+
+    if (activeTab === 'assignments') {
+      return assignmentViewMode === 'assignment'
+        ? selectedAssignment?.title || 'Assignments'
+        : 'Assignments'
+    }
+
+    if (activeTab === 'tests' && testIdParam && selectedQuiz?.id === testIdParam) {
+      return selectedQuiz.title
+    }
+
+    return undefined
+  }, [
+    activeTab,
+    assignmentViewMode,
+    isTeacher,
+    selectedAssignment?.title,
+    selectedQuiz,
+    testIdParam,
+  ])
+
   // Load assignments and generate markdown content
   const loadAssignmentsMarkdown = useCallback(async () => {
     if (abortControllerRef.current) {
@@ -1016,6 +1039,7 @@ function ClassroomPageContent({
       onNavigateClassroom={handleClassroomNavigationAttempt}
       mainClassName="max-w-none px-0 py-0"
       examModeHeader={examHeaderData}
+      pageTitle={selectedWorkTitle}
     >
       <ThreePanelShell leftWidthOverride={hideLeftRailForExamMode ? 0 : undefined}>
         {hideLeftRailForExamMode ? (

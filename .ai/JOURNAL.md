@@ -10475,3 +10475,29 @@
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-02 - Assessment tab shell follow-ups
+
+**Completed:**
+- Applied the teacher work-surface shell and gapped split shape to Tests.
+- Standardized assignment, quiz, and test list cards through shared teacher
+  work-item primitives.
+- Moved Assignments and selected assignment/test titles into the global app
+  header title slot.
+- Added a shared floating center action cluster and used it for Assignments
+  summary controls, selected assignment controls, and selected test controls.
+- Consolidated selected Tests grading actions into the center split button.
+- Updated teacher work-surface guidance for title placement, floating actions,
+  and list/card reuse.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm lint`
+- `git diff --check`
+- `pnpm vitest run tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherWorkItemPrimitives.test.tsx tests/ui/SplitButton.test.tsx`
+- `pnpm vitest run tests/components/TeacherEditModeControls.test.tsx`
+- Visual screenshots reviewed:
+  - `/tmp/pika-assignments-summary-fab-standard-height.png`
+  - `/tmp/pika-assignments-fab-centered-actionbar.png`
+  - `/tmp/pika-selected-assignment-edit-in-fab.png`
+  - `/tmp/pika-tests-grading-floating-cluster-menu.png`

@@ -8,13 +8,22 @@ const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
 const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
 
 vi.mock('@/app/classrooms/[classroomId]/TeacherClassroomView', () => ({
-  TeacherClassroomView: ({ onEditModeChange }: any) => (
+  TeacherClassroomView: ({ onEditModeChange, onSelectAssignment, onViewModeChange }: any) => (
     <div>
       <button type="button" onClick={() => onEditModeChange?.(true)}>
         Set assignment edit active
       </button>
       <button type="button" onClick={() => onEditModeChange?.(false)}>
         Set assignment edit inactive
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          onViewModeChange?.('assignment')
+          onSelectAssignment?.({ title: 'Assignment One', instructions: null })
+        }}
+      >
+        Select assignment workspace
       </button>
     </div>
   ),
@@ -24,7 +33,12 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherClassroomView', () => ({
 }))
 
 vi.mock('@/components/AppShell', () => ({
-  AppShell: ({ children }: any) => <div>{children}</div>,
+  AppShell: ({ children, pageTitle }: any) => (
+    <div>
+      <div data-testid="app-shell-page-title">{pageTitle}</div>
+      {children}
+    </div>
+  ),
 }))
 
 vi.mock('@/components/layout', async () => {
@@ -264,6 +278,20 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     await waitFor(() => {
       expect(screen.queryByText(/Markdown editor:/)).not.toBeInTheDocument()
     })
+  })
+
+  it('passes the selected assignment title to the app shell title slot', () => {
+    renderClient()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select assignment workspace' }))
+
+    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Assignment One')
+  })
+
+  it('passes the assignments summary label to the app shell title slot', () => {
+    renderClient()
+
+    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Assignments')
   })
 
   it('does not reopen assignment markdown after the teacher manually closes the panel', async () => {

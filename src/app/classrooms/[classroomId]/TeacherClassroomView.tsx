@@ -30,7 +30,7 @@ import {
   User,
   Users,
 } from 'lucide-react'
-import { ConfirmDialog, SegmentedControl, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { Button, ConfirmDialog, SegmentedControl, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
@@ -46,12 +46,10 @@ import {
 } from '@/components/TeacherStudentWorkPanel'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
+import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
 import {
   ACTIONBAR_ICON_BUTTON_CLASSNAME,
-  ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
-  ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME,
-  PageStack,
 } from '@/components/PageLayout'
 import {
   calculateAssignmentStatus,
@@ -583,6 +581,9 @@ export function TeacherClassroomView({
   }, [assignmentAiGradingRun, selection])
   const activeAssignmentAiRunId = activeAssignmentAiRun?.id ?? null
   const hasActiveAssignmentAiRun = isAssignmentAiGradingRunActive(activeAssignmentAiRun)
+  const selectedAssignmentSummary = selection.mode === 'assignment'
+    ? assignments.find((item) => item.id === selection.assignmentId) ?? null
+    : null
 
   // Notify parent about selected assignment for sidebar
   useEffect(() => {
@@ -594,10 +595,18 @@ export function TeacherClassroomView({
         title: assignment.title,
         instructions: assignment.instructions_markdown || assignment.rich_instructions || assignment.description,
       })
+    } else if (selectedAssignmentSummary) {
+      onSelectAssignment?.({
+        title: selectedAssignmentSummary.title,
+        instructions:
+          selectedAssignmentSummary.instructions_markdown ||
+          selectedAssignmentSummary.rich_instructions ||
+          selectedAssignmentSummary.description,
+      })
     } else {
       onSelectAssignment?.(null)
     }
-  }, [activeSelectedAssignmentData, onSelectAssignment, selection.mode])
+  }, [activeSelectedAssignmentData, onSelectAssignment, selectedAssignmentSummary, selection.mode])
 
   // Notify parent of view mode changes
   useEffect(() => {
@@ -1340,13 +1349,6 @@ export function TeacherClassroomView({
 
   const canEditAssignment =
     selection.mode === 'assignment' && !!activeSelectedAssignmentData && !selectedAssignmentLoading && !isReadOnly
-  const selectedAssignmentSummary = selection.mode === 'assignment'
-    ? assignments.find((item) => item.id === selection.assignmentId) ?? null
-    : null
-  const selectedAssignmentTitle =
-    activeSelectedAssignmentData?.assignment.title ??
-    selectedAssignmentSummary?.title ??
-    'Assignment'
   const selectedStudentDisplayName =
     individualHeaderMeta?.studentName ?? getStudentDisplayName(selectedStudentRow)
   const individualCharacterCountLabel =
@@ -1582,11 +1584,11 @@ export function TeacherClassroomView({
     </div>
   ) : null
 
-  const workspaceTitleControl = assignmentEditMode ? (
+  const editSelectedAssignmentAction = selection.mode === 'assignment' ? (
     <Tooltip content="Edit assignment">
       <button
         type="button"
-        className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} inline-flex w-full max-w-[22rem] items-center gap-2 overflow-hidden`}
+        className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
         onClick={() => {
           if (activeSelectedAssignmentData) {
             setEditAssignment(activeSelectedAssignmentData.assignment)
@@ -1594,26 +1596,28 @@ export function TeacherClassroomView({
         }}
         disabled={!canEditAssignment}
         aria-label="Edit assignment"
-        title={selectedAssignmentTitle}
+        title="Edit assignment"
       >
-        <span className="truncate">{selectedAssignmentTitle}</span>
-        <Pencil className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <Pencil className="h-4 w-4" aria-hidden="true" />
       </button>
     </Tooltip>
-  ) : (
-    <div
-      className="inline-flex min-h-10 w-full max-w-[22rem] items-center overflow-hidden px-2 text-sm font-medium text-text-default"
-      title={selectedAssignmentTitle}
-    >
-      <span className="truncate">{selectedAssignmentTitle}</span>
-    </div>
-  )
+  ) : null
 
   const assignmentEditControls = (
     <TeacherEditModeControls
       active={assignmentEditMode}
       onActiveChange={setAssignmentEditMode}
       disabled={isReadOnly}
+    >
+      {editSelectedAssignmentAction}
+    </TeacherEditModeControls>
+  )
+  const assignmentSummaryEditControls = (
+    <TeacherEditModeControls
+      active={assignmentEditMode}
+      onActiveChange={setAssignmentEditMode}
+      disabled={isReadOnly}
+      variant="secondary"
     />
   )
 
@@ -1638,6 +1642,7 @@ export function TeacherClassroomView({
         ]}
       />
       {classPaneActions}
+      {assignmentEditControls}
       {workspaceStatus}
     </div>
   ) : null
@@ -1646,30 +1651,28 @@ export function TeacherClassroomView({
     selection.mode === 'summary' ? (
       <TeacherWorkSurfaceActionBar
         testId="assignment-summary-actionbar-center"
-        label={
-          <div className="truncate px-1 text-sm font-semibold text-text-default">
-            Assignments
+        center={
+          <div className="flex items-center justify-center gap-1.5">
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={() => setIsCreateModalOpen(true)}
+              disabled={isReadOnly}
+              aria-label="New assignment"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              <span>New</span>
+            </Button>
+            {assignmentSummaryEditControls}
           </div>
         }
-        center={
-          <button
-            type="button"
-            className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
-            onClick={() => setIsCreateModalOpen(true)}
-            disabled={isReadOnly}
-            aria-label="New assignment"
-          >
-            <Plus className="h-5 w-5" aria-hidden="true" />
-            <span>New</span>
-          </button>
-        }
-        trailing={assignmentEditControls}
+        centerPlacement="floating"
       />
     ) : (
       <TeacherWorkSurfaceActionBar
-        label={workspaceTitleControl}
         center={assignmentWorkspaceControls}
-        trailing={assignmentEditControls}
+        centerPlacement="floating"
       />
     )
 
@@ -1703,7 +1706,7 @@ export function TeacherClassroomView({
         items={assignments.map((assignment) => assignment.id)}
         strategy={verticalListSortingStrategy}
       >
-        <PageStack>
+        <TeacherWorkItemList>
           {assignments.map((assignment) => (
             <SortableAssignmentCard
               key={assignment.id}
@@ -1722,7 +1725,7 @@ export function TeacherClassroomView({
               onDelete={() => setPendingDelete({ id: assignment.id, title: assignment.title })}
             />
           ))}
-        </PageStack>
+        </TeacherWorkItemList>
       </SortableContext>
     </DndContext>
   )

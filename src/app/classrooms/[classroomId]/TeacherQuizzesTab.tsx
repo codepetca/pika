@@ -6,7 +6,7 @@ import { Spinner } from '@/components/Spinner'
 import { QuizModal } from '@/components/QuizModal'
 import { QuizCard } from '@/components/QuizCard'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
-import { PageStack } from '@/components/PageLayout'
+import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { Button, EmptyState } from '@/ui'
@@ -226,7 +226,7 @@ export function TeacherQuizzesTab({
       className="mx-auto w-full max-w-3xl"
     />
   ) : (
-    <PageStack className="w-full">
+    <TeacherWorkItemList>
       {quizzes.map((quiz) => (
         <QuizCard
           key={quiz.id}
@@ -240,7 +240,7 @@ export function TeacherQuizzesTab({
           }}
         />
       ))}
-    </PageStack>
+    </TeacherWorkItemList>
   )
 
   const workspaceContent = selectedQuizWorkspace ? (

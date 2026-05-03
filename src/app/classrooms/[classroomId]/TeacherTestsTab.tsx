@@ -6,11 +6,11 @@ import { Spinner } from '@/components/Spinner'
 import { QuizModal } from '@/components/QuizModal'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
-import { PageStack } from '@/components/PageLayout'
 import { AssessmentStatusIcon, type AssessmentStatusIconState } from '@/components/AssessmentStatusIcon'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
+import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
-import { TeacherWorkSurfaceModeBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import {
   TEACHER_QUIZZES_UPDATED_EVENT,
@@ -21,7 +21,7 @@ import { getQuizExitCount } from '@/lib/quizzes'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { compareByNameFields } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
-import { Button, ConfirmDialog, DialogPanel, EmptyState, FormField, RefreshingIndicator, Select, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, EmptyState, FormField, RefreshingIndicator, SegmentedControl, Select, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
   AssessmentWorkspaceSummaryPatch,
@@ -1178,7 +1178,6 @@ export function TeacherTestsTab({
 
   const returnWillCloseActiveTest =
     selectedWorkspaceTab === 'grading' && selectedTestWorkspace?.status === 'active'
-  const selectedTestTitle = selectedTestWorkspace?.title || 'Test'
   const selectedActivation = selectedTestWorkspace
     ? validateSelectedTestActivation(selectedTestWorkspace.stats.questions_count || 0)
     : { valid: false }
@@ -1472,60 +1471,77 @@ export function TeacherTestsTab({
       ) : null}
     </>
   ) : (
-    <>
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        onClick={openBatchPromptGuidelineModal}
-        disabled={isBatchAutoGrading || isBatchReturning || isBatchClearingOpenGrades}
-      >
-        AI Prompt
-      </Button>
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        onClick={() => {
-          if (batchSelectedCount === 0) {
-            setGradingWarning('Select students to grade')
-            return
-          }
-          setShowBatchGradeModal(true)
-        }}
-        disabled={
-          batchSelectedCount === 0 ||
-          hasActiveTestAiRun ||
-          isBatchAutoGrading ||
-          isBatchReturning ||
-          isBatchClearingOpenGrades
+    <SplitButton
+      label={
+        <span className="inline-flex items-center gap-2">
+          <Check className="h-4 w-4" aria-hidden="true" />
+          <span>AI Grade</span>
+        </span>
+      }
+      onPrimaryClick={() => {
+        if (batchSelectedCount === 0) {
+          setGradingWarning('Select students to grade')
+          return
         }
-      >
-        <Check className="h-4 w-4" />
-        AI Grade
-      </Button>
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        onClick={() => {
-          if (batchSelectedCount === 0) {
-            setGradingWarning('Select students to return')
-            return
-          }
-          setShowReturnConfirm(true)
-        }}
-        disabled={
-          batchSelectedCount === 0 ||
-          isBatchAutoGrading ||
-          isBatchReturning ||
-          isBatchClearingOpenGrades
-        }
-      >
-        <Send className="h-4 w-4" />
-        Return
-      </Button>
-    </>
+        setShowBatchGradeModal(true)
+      }}
+      options={[
+        {
+          id: 'ai-prompt',
+          label: 'AI Prompt',
+          onSelect: openBatchPromptGuidelineModal,
+          disabled: isBatchAutoGrading || isBatchReturning || isBatchClearingOpenGrades,
+        },
+        {
+          id: 'clear-open-grades',
+          label: (
+            <span className="inline-flex items-center gap-2">
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              <span>Clear Open Grades</span>
+            </span>
+          ),
+          onSelect: () => setShowClearOpenGradesConfirm(true),
+          disabled:
+            batchSelectedCount === 0 ||
+            isBatchAutoGrading ||
+            isBatchReturning ||
+            isBatchClearingOpenGrades,
+        },
+        {
+          id: 'return',
+          label: (
+            <span className="inline-flex items-center gap-2">
+              <Send className="h-4 w-4" aria-hidden="true" />
+              <span>Return</span>
+            </span>
+          ),
+          onSelect: () => {
+            if (batchSelectedCount === 0) {
+              setGradingWarning('Select students to return')
+              return
+            }
+            setShowReturnConfirm(true)
+          },
+          disabled:
+            batchSelectedCount === 0 ||
+            isBatchAutoGrading ||
+            isBatchReturning ||
+            isBatchClearingOpenGrades,
+        },
+      ]}
+      disabled={
+        hasActiveTestAiRun ||
+        isBatchAutoGrading ||
+        isBatchReturning ||
+        isBatchClearingOpenGrades
+      }
+      variant="secondary"
+      size="sm"
+      className="inline-flex"
+      toggleAriaLabel="More test grading actions"
+      menuPlacement="down"
+      primaryButtonProps={{ 'aria-label': 'AI Grade' }}
+    />
   )
 
   const workspaceModeStatus =
@@ -1595,33 +1611,44 @@ export function TeacherTestsTab({
     workspaceState,
   ])
 
-  const workspaceModeTrailing = (
-    <div
-      className="min-w-0 max-w-[22rem] truncate text-right text-sm font-medium text-text-default"
-      title={selectedTestTitle}
-    >
-      {selectedTestTitle}
-    </div>
-  )
+  const workspaceModeSwitcher = workspaceState === 'selected' ? (
+    <SegmentedControl<WorkspaceTab>
+      ariaLabel="Test workspace mode"
+      value={selectedWorkspaceTab}
+      onChange={switchTestWorkspaceMode}
+      capitalizeLabels
+      options={[
+        { value: 'authoring', label: 'Authoring' },
+        { value: 'grading', label: 'Grading' },
+      ]}
+    />
+  ) : null
 
   const primaryContent = workspaceState === 'selected' ? (
-    <TeacherWorkSurfaceModeBar
-      modes={[
-        { id: 'authoring', label: 'Authoring' },
-        { id: 'grading', label: 'Grading' },
-      ]}
-      activeMode={selectedWorkspaceTab}
-      onModeChange={(mode) => switchTestWorkspaceMode(mode as WorkspaceTab)}
-      center={workspaceModeCenter}
-      status={workspaceModeStatus}
-      trailing={workspaceModeTrailing}
-      ariaLabel="Test workspace modes"
+    <TeacherWorkSurfaceActionBar
+      center={
+        <div className="flex min-w-0 flex-wrap items-center justify-center gap-2 sm:gap-3">
+          {workspaceModeSwitcher}
+          {workspaceModeCenter}
+          {workspaceModeStatus}
+        </div>
+      }
+      centerPlacement="floating"
     />
   ) : (
-    <Button onClick={handleNewTest} variant="primary" className="gap-1.5 shadow-sm" disabled={isReadOnly}>
-      <Plus className="h-4 w-4" />
-      New Test
-    </Button>
+    <TeacherWorkSurfaceActionBar
+      label={
+        <div className="truncate px-1 text-sm font-semibold text-text-default">
+          Tests
+        </div>
+      }
+      center={
+        <Button onClick={handleNewTest} variant="primary" className="gap-1.5 shadow-sm" disabled={isReadOnly}>
+          <Plus className="h-4 w-4" />
+          New Test
+        </Button>
+      }
+    />
   )
 
   const feedback = (
@@ -1656,7 +1683,7 @@ export function TeacherTestsTab({
       className="mx-auto w-full max-w-3xl"
     />
   ) : (
-    <PageStack className="mx-auto w-full max-w-6xl">
+    <TeacherWorkItemList>
       {tests.map((test) => (
         <TeacherTestCard
           key={test.id}
@@ -1666,7 +1693,7 @@ export function TeacherTestsTab({
           onUpdate={(update) => applyTestSummaryPatch(test.id, update)}
         />
       ))}
-    </PageStack>
+    </TeacherWorkItemList>
   )
 
   const gradingInspector = selectedTest && selectedStudentId ? (
@@ -1684,38 +1711,42 @@ export function TeacherTestsTab({
       <Spinner size="lg" />
     </div>
   ) : selectedWorkspaceTab === 'authoring' ? (
-    <QuizDetailPanel
-      quiz={selectedTest}
-      classroomId={classroom.id}
-      apiBasePath={apiBasePath}
-      onDraftSummaryChange={handleSelectedTestDraftSummaryChange}
-      onQuizUpdate={(update) => {
-        if (update) {
-          applySelectedTestDraftSummary(update)
-          return
-        }
-        void loadTests()
-      }}
-      onPendingMarkdownImportChange={setHasPendingMarkdownImport}
-      showInlineDeleteAction={false}
-      testQuestionLayout="summary-detail"
-      showPreviewButton={false}
-      showResultsTab={false}
-      previewRequestToken={testPreviewRequestToken}
-    />
-  ) : gradingInspector ? (
+    <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg bg-surface">
+      <QuizDetailPanel
+        quiz={selectedTest}
+        classroomId={classroom.id}
+        apiBasePath={apiBasePath}
+        onDraftSummaryChange={handleSelectedTestDraftSummaryChange}
+        onQuizUpdate={(update) => {
+          if (update) {
+            applySelectedTestDraftSummary(update)
+            return
+          }
+          void loadTests()
+        }}
+        onPendingMarkdownImportChange={setHasPendingMarkdownImport}
+        showInlineDeleteAction={false}
+        testQuestionLayout="summary-detail"
+        showPreviewButton={false}
+        showResultsTab={false}
+        previewRequestToken={testPreviewRequestToken}
+      />
+    </div>
+  ) : (
     <TeacherWorkspaceSplit
+      className="flex-1"
+      splitVariant="gapped"
       primary={gradingTable}
-      inspector={gradingInspector}
+      inspector={gradingInspector ? <div className="h-full overflow-y-auto">{gradingInspector}</div> : undefined}
       inspectorWidth={gradingInspectorWidth}
       inspectorCollapsed={false}
       onInspectorWidthChange={setGradingInspectorWidth}
       dividerLabel="Resize grading and student response panes"
+      primaryClassName="min-h-[200px] rounded-lg bg-surface"
+      inspectorClassName="rounded-lg bg-surface"
       minPrimaryPx={420}
       minInspectorPx={360}
     />
-  ) : (
-    gradingTable
   )
 
   return (
@@ -1726,7 +1757,8 @@ export function TeacherTestsTab({
         feedback={feedback}
         summary={summaryContent}
         workspace={workspaceContent}
-        workspaceFrame="attachedTabs"
+        workspaceFrame="standalone"
+        workspaceFrameClassName="min-h-[360px] border-0 bg-page"
       />
 
       <QuizModal

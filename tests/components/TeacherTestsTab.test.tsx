@@ -285,7 +285,7 @@ describe('TeacherTestsTab', () => {
 
     expect(await screen.findByText('Unit Test')).toBeInTheDocument()
     expect(screen.getByText('New Test')).toBeInTheDocument()
-    expect(screen.queryByRole('tab', { name: 'Authoring' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(screen.queryByText('Choose a test to review settings, questions, and grading details.')).not.toBeInTheDocument()
     expect(listFetchCalls(fetchMock)[0][0]).toContain('/api/teacher/tests?classroom_id=')
   })
@@ -302,8 +302,8 @@ describe('TeacherTestsTab', () => {
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'summary-detail')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-preview', 'false')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-results', 'false')
-    expect(screen.getByRole('tab', { name: 'Authoring' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: 'Grading' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('button', { name: 'Authoring' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Grading' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('button', { name: 'Questions' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Documents' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Back to tests' })).not.toBeInTheDocument()
@@ -342,7 +342,8 @@ describe('TeacherTestsTab', () => {
 
   it('updates the authoring header and activation state immediately from local draft changes', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
-    renderTab()
+    const onSelectTest = vi.fn()
+    renderTab({ onSelectTest })
 
     fireEvent.click(await screen.findByText('Unit Test'))
 
@@ -353,7 +354,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Simulate draft change' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Unit Test Draft')).toBeInTheDocument()
+      expect(onSelectTest).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Unit Test Draft' }))
       expect(screen.getByRole('button', { name: 'Open' })).toBeDisabled()
     })
 
@@ -363,7 +364,8 @@ describe('TeacherTestsTab', () => {
 
   it('keeps the selected workspace mounted and updates saved test metadata after autosave', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
-    renderTab()
+    const onSelectTest = vi.fn()
+    renderTab({ onSelectTest })
 
     fireEvent.click(await screen.findByText('Unit Test'))
 
@@ -375,7 +377,7 @@ describe('TeacherTestsTab', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test Updated')
-      expect(screen.getByText('Unit Test Updated')).toBeInTheDocument()
+      expect(onSelectTest).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Unit Test Updated' }))
       expect(screen.getByRole('button', { name: 'Open' })).toBeDisabled()
     })
 
@@ -395,7 +397,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(screen.getByTestId('mock-test-save'))
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Created Test')
-    expect(screen.getByRole('tab', { name: 'Authoring' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('button', { name: 'Authoring' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('validates and activates a draft test from authoring', async () => {
@@ -551,7 +553,7 @@ describe('TeacherTestsTab', () => {
       expect(screen.queryByTestId('mock-test-detail')).not.toBeInTheDocument()
     })
     expect(screen.getByText('Unit Test')).toBeInTheDocument()
-    expect(screen.queryByRole('tab', { name: 'Authoring' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(onSelectTest).toHaveBeenLastCalledWith(null)
   })
 
@@ -570,7 +572,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
     setOpenMock.mockClear()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(screen.queryByTestId('mock-test-grading-panel')).not.toBeInTheDocument()
@@ -634,7 +636,7 @@ describe('TeacherTestsTab', () => {
     await screen.findByTestId('mock-test-detail')
     updateSearchParams.mockClear()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
 
     await waitFor(() => {
       expect(updateSearchParams).toHaveBeenCalledWith(expect.any(Function), { replace: true })
@@ -748,7 +750,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
@@ -823,7 +825,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(screen.getByText('3/5')).toBeInTheDocument()
@@ -897,7 +899,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
@@ -935,7 +937,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
@@ -973,7 +975,7 @@ describe('TeacherTestsTab', () => {
     const view = renderTab({ testsTabClickToken: 0 })
 
     fireEvent.click(await screen.findByText('Unit Test A'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
 
     view.rerender(
       <TeacherTestsTab
@@ -987,7 +989,7 @@ describe('TeacherTestsTab', () => {
     })
 
     fireEvent.click(screen.getByText('Unit Test B'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
 
     await act(async () => {
       resolveSecondResults?.(
@@ -1073,11 +1075,12 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
-    fireEvent.click(screen.getByRole('button', { name: 'Return' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More test grading actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Return' }))
 
     expect(
       await screen.findByText('This test is still open. Confirming will close it for all students before returning selected work.')
@@ -1185,7 +1188,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
@@ -1221,10 +1224,11 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
     await screen.findByText('Alice Zephyr')
 
-    fireEvent.click(screen.getByRole('button', { name: 'AI Prompt' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More test grading actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'AI Prompt' }))
 
     expect(await screen.findByRole('heading', { name: 'AI Prompt' })).toBeInTheDocument()
     expect(screen.getByText(/Pika automatically uses the coding rubric/i)).toBeInTheDocument()

@@ -20,6 +20,8 @@ import { Check, ChevronDown, ChevronUp, Copy, ExternalLink, Plus, RotateCcw, X }
 import { Button, EmptyState, SplitButton, Tooltip, cn } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { useRefRect } from '@/hooks/use-element-rect'
+import { useWindowSize } from '@/hooks/use-window-size'
+import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { canEditQuizQuestions } from '@/lib/quizzes'
 import { QuizQuestionEditor } from '@/components/QuizQuestionEditor'
 import { TestQuestionEditor } from '@/components/TestQuestionEditor'
@@ -421,6 +423,7 @@ export function QuizDetailPanel({
   const { width: summaryDetailWorkspaceWidth } = useRefRect(summaryDetailWorkspaceRef, {
     enabled: usesSummaryDetailQuestions,
   })
+  const { width: viewportWidth } = useWindowSize()
   const hasInlineDocumentsCard = usesSummaryDetailQuestions
   const resolvedShowResultsTab = showResultsTab ?? !isTestsView
   const totalQuestionPoints = useMemo(
@@ -447,6 +450,13 @@ export function QuizDetailPanel({
       ),
     [summaryDetailMarkdownWidthPercent, summaryDetailWorkspaceWidth]
   )
+  const usesWideSummaryDetailLayout =
+    (viewportWidth === 0 || viewportWidth >= DESKTOP_BREAKPOINT) &&
+    (summaryDetailWorkspaceWidth === 0 ||
+      summaryDetailWorkspaceWidth >=
+        TEST_SUMMARY_DETAIL_LAYOUT.minEditorWidthPx +
+          TEST_SUMMARY_DETAIL_LAYOUT.minMarkdownWidthPx +
+          48)
   const hasCollapsibleEditorSections = questions.length > 0 || hasInlineDocumentsCard
   const areAllEditorSectionsExpanded =
     (questions.length === 0 || areAllQuestionsExpanded) &&
@@ -1559,10 +1569,10 @@ export function QuizDetailPanel({
     >
       <SummaryDetailWorkspaceShell
         className="flex-1"
-        orientation="row"
+        orientation={usesWideSummaryDetailLayout ? 'row' : 'responsive'}
         leftPaneClassName="min-h-0 bg-surface-2"
         rightPaneClassName="min-h-0"
-        rightWidthPercent={clampedSummaryDetailMarkdownWidthPercent}
+        rightWidthPercent={usesWideSummaryDetailLayout ? clampedSummaryDetailMarkdownWidthPercent : undefined}
         divider={{
           label: 'Resize question and markdown panes',
           onPointerDown: handleSummaryDetailResizeStart,

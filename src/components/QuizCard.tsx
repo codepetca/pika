@@ -11,6 +11,7 @@ import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { Button, ConfirmDialog, Tooltip } from '@/ui'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
+import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
 import {
   combineScheduleDateTimeToIso,
   DEFAULT_SCHEDULE_TIME,
@@ -207,26 +208,17 @@ export function QuizCard({
   const statusBadgeClass = isScheduled
     ? 'bg-warning-bg text-warning'
     : getQuizStatusBadgeClass(quiz.status)
+  const cardTone = isSelected
+    ? 'selected'
+    : isScheduled
+      ? 'scheduled'
+      : isDraft
+        ? 'muted'
+        : 'default'
 
   return (
     <>
-      <div
-        className={[
-          'w-full rounded-card border p-3.5 text-left shadow-elevated',
-          isDraft
-            ? 'border-border-strong bg-surface-2'
-            : isScheduled
-              ? 'border-warning bg-warning-bg'
-              : 'border-border bg-surface-panel',
-          isSelected
-            ? 'border-primary bg-surface-selected shadow-panel'
-            : isDraft
-              ? 'transition hover:border-border-strong hover:bg-surface-3'
-              : isScheduled
-                ? 'transition hover:border-warning hover:bg-warning-bg'
-                : 'transition hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel',
-        ].join(' ')}
-      >
+      <TeacherWorkItemCardFrame tone={cardTone}>
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
           <button
             type="button"
@@ -423,7 +415,7 @@ export function QuizCard({
             />
           </div>
         )}
-      </div>
+      </TeacherWorkItemCardFrame>
 
       <ConfirmDialog
         isOpen={showActivateConfirm}

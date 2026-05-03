@@ -476,7 +476,7 @@ describe('TeacherClassroomView', () => {
 
     expect(screen.getByRole('button', { name: 'New assignment' })).toBeInTheDocument()
     expect(screen.getByTestId('assignment-summary-actionbar-center')).toHaveClass('grid')
-    expect(screen.getByText('Assignments')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New assignment' }).parentElement?.parentElement).toHaveClass('fixed')
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
@@ -901,7 +901,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: /Return/i })).toHaveLength(1)
-    expect(screen.getByText('Assignment One')).toBeInTheDocument()
+    expect(screen.getByTestId('assignment-workspace-actionbar-center').parentElement).toHaveClass('fixed')
     expect(screen.queryByRole('button', { name: 'Edit assignment' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
