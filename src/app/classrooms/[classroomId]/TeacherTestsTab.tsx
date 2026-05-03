@@ -85,6 +85,7 @@ interface TestGradingQuestionSummary {
 type WorkspaceState = 'list' | 'selected'
 type WorkspaceTab = 'authoring' | 'grading'
 type TestEditModalView = 'edit' | 'markdown'
+type TestEditSaveStatus = 'saved' | 'saving' | 'unsaved'
 type TestGradingSortColumn = 'first_name' | 'last_name'
 
 const GRADING_POLL_INTERVAL_MS = 15_000
@@ -243,6 +244,7 @@ export function TeacherTestsTab({
   const [showModal, setShowModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [testEditModalView, setTestEditModalView] = useState<TestEditModalView>('edit')
+  const [testEditSaveStatus, setTestEditSaveStatus] = useState<TestEditSaveStatus>('saved')
   const [pendingCreatedTestId, setPendingCreatedTestId] = useState<string | null>(null)
 
   const [gradingStudents, setGradingStudents] = useState<TestGradingStudentRow[]>([])
@@ -922,12 +924,17 @@ export function TeacherTestsTab({
 
   function handlePreviewSelectedTest() {
     if (!selectedTestId) return
+    if (hasPendingMarkdownImport || testEditSaveStatus !== 'saved') return
     const previewWindow = window.open(
       `/classrooms/${classroom.id}/tests/${selectedTestId}/preview`,
       '_blank',
     )
     previewWindow?.focus()
   }
+
+  useEffect(() => {
+    setTestEditSaveStatus('saved')
+  }, [selectedTestId])
 
   function handleNewTest() {
     setShowModal(true)
@@ -1449,7 +1456,7 @@ export function TeacherTestsTab({
             </span>
           ),
           onSelect: handlePreviewSelectedTest,
-          disabled: hasPendingMarkdownImport,
+          disabled: hasPendingMarkdownImport || testEditSaveStatus !== 'saved',
         },
         ...(onRequestDelete
           ? [
@@ -1822,6 +1829,7 @@ export function TeacherTestsTab({
                 void loadTests()
               }}
               onPendingMarkdownImportChange={setHasPendingMarkdownImport}
+              onSaveStatusChange={setTestEditSaveStatus}
               showInlineDeleteAction={false}
               testQuestionLayout={testEditModalView === 'markdown' ? 'markdown-only' : 'editor-only'}
               showPreviewButton={false}

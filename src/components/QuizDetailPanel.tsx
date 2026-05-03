@@ -53,6 +53,7 @@ interface Props {
   onRequestDelete?: () => void
   onRequestTestPreview?: (preview: { testId: string; title: string }) => void
   onPendingMarkdownImportChange?: (pending: boolean) => void
+  onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
   showInlineDeleteAction?: boolean
   testQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only'
   showPreviewButton?: boolean
@@ -121,6 +122,7 @@ export function QuizDetailPanel({
   onRequestDelete,
   onRequestTestPreview,
   onPendingMarkdownImportChange,
+  onSaveStatusChange,
   showInlineDeleteAction = true,
   testQuestionLayout = 'stacked',
   showPreviewButton = true,
@@ -195,6 +197,12 @@ export function QuizDetailPanel({
     TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth
   )
   const loadedDraftQuizIdRef = useRef<string | null>(null)
+
+  const updateSaveStatus = useCallback((status: 'saved' | 'saving' | 'unsaved') => {
+    saveStatusRef.current = status
+    setSaveStatus(status)
+    onSaveStatusChange?.(status)
+  }, [onSaveStatusChange])
 
   const requestCurrentWindowFullscreen = useCallback(async () => {
     const fullscreenElement = document.documentElement as HTMLElement & {
@@ -347,11 +355,11 @@ export function QuizDetailPanel({
       lastSavedDraftRef.current = JSON.stringify(nextSnapshot)
       pendingDraftRef.current = nextSnapshot
       loadedDraftQuizIdRef.current = quiz.id
-      setSaveStatus('saved')
+      updateSaveStatus('saved')
       setError('')
       setConflictDraft(null)
     },
-    [normalizeDraftQuestions, quiz.id, quiz.show_results, quiz.title]
+    [normalizeDraftQuestions, quiz.id, quiz.show_results, quiz.title, updateSaveStatus]
   )
 
   // Sync editTitle when quiz changes
@@ -533,11 +541,11 @@ export function QuizDetailPanel({
           : nextDraft
       const nextSerialized = JSON.stringify(contentDraft)
       if (!options?.forceFull && nextSerialized === lastSavedDraftRef.current) {
-        setSaveStatus('saved')
+        updateSaveStatus('saved')
         return true
       }
 
-      setSaveStatus('saving')
+      updateSaveStatus('saving')
       lastSaveAttemptAtRef.current = Date.now()
 
       let baseDraft = contentDraft
@@ -596,7 +604,7 @@ export function QuizDetailPanel({
               },
             })
           }
-          setSaveStatus('unsaved')
+          updateSaveStatus('unsaved')
           setError(data?.error || 'Draft updated elsewhere')
           return false
         }
@@ -630,7 +638,7 @@ export function QuizDetailPanel({
           draftVersionRef.current += 1
           lastSavedDraftRef.current = nextSerialized
           pendingDraftRef.current = nextDraft
-          setSaveStatus('saved')
+          updateSaveStatus('saved')
           setError('')
           setConflictDraft(null)
           onQuizUpdate(summarizeDraftContent(contentDraft))
@@ -638,12 +646,12 @@ export function QuizDetailPanel({
         return true
       } catch (saveError: any) {
         console.error('Error saving draft:', saveError)
-        setSaveStatus('unsaved')
+        updateSaveStatus('unsaved')
         setError(saveError?.message || 'Failed to save draft')
         return false
       }
     },
-    [apiBasePath, applyServerDraft, documents, isTestsView, normalizeDraftQuestions, onQuizUpdate, quiz.id]
+    [apiBasePath, applyServerDraft, documents, isTestsView, normalizeDraftQuestions, onQuizUpdate, quiz.id, updateSaveStatus]
   )
 
   const scheduleSave = useCallback(
@@ -685,7 +693,7 @@ export function QuizDetailPanel({
       if (conflictDraft) return
 
       pendingDraftRef.current = nextDraft
-      setSaveStatus('unsaved')
+      updateSaveStatus('unsaved')
       setError('')
 
       if (saveTimeoutRef.current) {
@@ -696,7 +704,7 @@ export function QuizDetailPanel({
         scheduleSave(nextDraft)
       }, AUTOSAVE_DEBOUNCE_MS)
     },
-    [AUTOSAVE_DEBOUNCE_MS, conflictDraft, scheduleSave]
+    [AUTOSAVE_DEBOUNCE_MS, conflictDraft, scheduleSave, updateSaveStatus]
   )
 
   const loadQuizDetails = useCallback(async () => {
@@ -887,7 +895,7 @@ export function QuizDetailPanel({
       questions,
     }
     pendingDraftRef.current = nextDraft
-    setSaveStatus('unsaved')
+    updateSaveStatus('unsaved')
     setError('')
     scheduleSave(nextDraft, { force: true })
   }

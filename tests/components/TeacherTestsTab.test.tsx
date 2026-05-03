@@ -48,6 +48,7 @@ vi.mock('@/components/QuizDetailPanel', () => ({
     showPreviewButton,
     showResultsTab,
     onPendingMarkdownImportChange,
+    onSaveStatusChange,
     onDraftSummaryChange,
     onQuizUpdate,
   }: {
@@ -56,6 +57,7 @@ vi.mock('@/components/QuizDetailPanel', () => ({
     showPreviewButton?: boolean
     showResultsTab?: boolean
     onPendingMarkdownImportChange?: (pending: boolean) => void
+    onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
     onDraftSummaryChange?: (update: {
       title: string
       show_results: boolean
@@ -79,6 +81,12 @@ vi.mock('@/components/QuizDetailPanel', () => ({
       </button>
       <button type="button" onClick={() => onPendingMarkdownImportChange?.(false)}>
         Clear pending markdown
+      </button>
+      <button type="button" onClick={() => onSaveStatusChange?.('unsaved')}>
+        Mark editor unsaved
+      </button>
+      <button type="button" onClick={() => onSaveStatusChange?.('saved')}>
+        Mark editor saved
       </button>
       <button
         type="button"
@@ -348,6 +356,18 @@ describe('TeacherTestsTab', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Open test' })).toBeEnabled()
+      expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeEnabled()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark editor unsaved' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeDisabled()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark editor saved' }))
+
+    await waitFor(() => {
       expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeEnabled()
     })
   })
