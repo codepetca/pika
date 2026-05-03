@@ -515,8 +515,10 @@ function ClassroomPageContent({
         : 'Quizzes'
     }
 
-    if (activeTab === 'tests' && testIdParam && selectedQuiz?.id === testIdParam) {
-      return selectedQuiz.title
+    if (activeTab === 'tests') {
+      return testIdParam && selectedQuiz?.id === testIdParam
+        ? selectedQuiz.title
+        : 'Tests'
     }
 
     return undefined

@@ -382,6 +382,115 @@ describe('QuizDetailPanel', () => {
       })
     })
 
+    it('renders tests in editor-only mode with the question editor pane and no tabs', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Editor Modal Test',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [],
+          },
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Editor Modal Test',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="editor-only"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      expect(await screen.findByTestId('test-editor-only-layout')).toBeInTheDocument()
+      const editorPane = screen.getByTestId('test-question-editor-pane')
+      expect(editorPane).toBeInTheDocument()
+      expect(screen.queryByTestId('test-summary-detail-layout')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('test-question-markdown-pane')).not.toBeInTheDocument()
+      expect(screen.queryByText('Questions (2)')).not.toBeInTheDocument()
+      expect(screen.queryByText('Markdown')).not.toBeInTheDocument()
+      expect(within(editorPane).getByTestId('test-documents-card')).toBeInTheDocument()
+      expect(within(editorPane).getByRole('button', { name: '+ MC Question' })).toBeInTheDocument()
+    })
+
+    it('renders tests in markdown-only mode with the markdown editor and no tabs', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Markdown Modal Test',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [],
+          },
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Markdown Modal Test',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="markdown-only"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      expect(await screen.findByTestId('test-markdown-only-layout')).toBeInTheDocument()
+      const markdownEditor = screen.getByTestId('test-markdown-editor') as HTMLTextAreaElement
+      expect(markdownEditor.value).toContain('Explain the runtime complexity of your solution.')
+      expect(markdownEditor).toHaveProperty('readOnly', true)
+      expect(screen.getByTestId('markdown-helper-status')).toHaveTextContent('Markdown mirror')
+      expect(screen.getByRole('button', { name: 'Edit Markdown' })).toBeInTheDocument()
+      expect(screen.queryByTestId('test-editor-only-layout')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('test-question-editor-pane')).not.toBeInTheDocument()
+      expect(screen.queryByText('Questions (2)')).not.toBeInTheDocument()
+      expect(screen.queryByText('Markdown')).not.toBeInTheDocument()
+    })
+
     it('cleans up interrupted summary-detail drags and resets on double click', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
