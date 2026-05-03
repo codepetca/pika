@@ -83,7 +83,7 @@ export function ClassroomDropdown({
   // If only one classroom, show as plain text
   if (classrooms.length === 1) {
     return (
-      <div className={`text-xl font-bold text-text-default truncate max-w-xs ${className}`}>
+      <div className={`max-w-full truncate text-xl font-bold text-text-default sm:max-w-xs ${className}`}>
         {classrooms[0].title}
       </div>
     )
@@ -92,7 +92,7 @@ export function ClassroomDropdown({
   return (
     <div
       ref={containerRef}
-      className={`relative ${className}`}
+      className={`relative max-w-full ${className}`}
     >
       {/* Trigger */}
       <button
@@ -111,13 +111,13 @@ export function ClassroomDropdown({
         onKeyDown={handleTriggerKeyDown}
         disabled={openingClassroomId !== null}
         aria-busy={openingClassroomId !== null}
-        className="px-2 py-1 -mx-2 text-xl font-bold text-text-default truncate max-w-xs rounded-md transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        className="min-w-0 max-w-full truncate rounded-md px-2 py-1 -mx-2 text-xl font-bold text-text-default transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface sm:max-w-xs"
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         aria-controls={menuId}
         aria-label="Select classroom"
       >
-        <span className="inline-flex min-w-0 items-center gap-2">
+        <span className="inline-flex min-w-0 max-w-full items-center gap-2">
           {openingClassroomId && (
             <LoaderCircle className="h-4 w-4 shrink-0 animate-spin text-primary" aria-hidden="true" />
           )}

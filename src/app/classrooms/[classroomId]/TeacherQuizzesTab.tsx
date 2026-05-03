@@ -6,7 +6,8 @@ import { Spinner } from '@/components/Spinner'
 import { QuizModal } from '@/components/QuizModal'
 import { QuizCard } from '@/components/QuizCard'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
-import { PageStack } from '@/components/PageLayout'
+import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
+import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { Button, EmptyState } from '@/ui'
@@ -188,30 +189,39 @@ export function TeacherQuizzesTab({
   }
 
   const primaryContent = selectedQuizWorkspace ? (
-    <div className="flex min-w-0 flex-wrap items-center gap-2">
-      <div className="min-w-0 flex-1">
-        <h2 className="truncate text-sm font-semibold text-text-default" title={selectedQuizWorkspace.title}>
-          {selectedQuizWorkspace.title}
-        </h2>
-      </div>
-      {onRequestDelete ? (
+    <TeacherWorkSurfaceActionBar
+      center={
+        onRequestDelete ? (
+          <Button
+            type="button"
+            variant="danger"
+            size="sm"
+            onClick={onRequestDelete}
+            disabled={isReadOnly}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Quiz
+          </Button>
+        ) : null
+      }
+      centerPlacement="floating"
+    />
+  ) : (
+    <TeacherWorkSurfaceActionBar
+      center={
         <Button
-          type="button"
-          variant="danger"
+          onClick={handleNewQuiz}
+          variant="primary"
           size="sm"
-          onClick={onRequestDelete}
+          className="gap-1.5"
           disabled={isReadOnly}
         >
-          <Trash2 className="h-4 w-4" />
-          Delete Quiz
+          <Plus className="h-4 w-4" />
+          New Quiz
         </Button>
-      ) : null}
-    </div>
-  ) : (
-    <Button onClick={handleNewQuiz} variant="primary" className="gap-1.5 shadow-sm" disabled={isReadOnly}>
-      <Plus className="h-4 w-4" />
-      New Quiz
-    </Button>
+      }
+      centerPlacement="floating"
+    />
   )
 
   const summaryContent = loading ? (
@@ -226,7 +236,7 @@ export function TeacherQuizzesTab({
       className="mx-auto w-full max-w-3xl"
     />
   ) : (
-    <PageStack className="w-full">
+    <TeacherWorkItemList>
       {quizzes.map((quiz) => (
         <QuizCard
           key={quiz.id}
@@ -240,7 +250,7 @@ export function TeacherQuizzesTab({
           }}
         />
       ))}
-    </PageStack>
+    </TeacherWorkItemList>
   )
 
   const workspaceContent = selectedQuizWorkspace ? (
@@ -274,6 +284,7 @@ export function TeacherQuizzesTab({
         summary={summaryContent}
         workspace={workspaceContent}
         workspaceFrame="standalone"
+        workspaceFrameClassName="min-h-[360px] border-0 bg-page"
       />
 
       <QuizModal

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Play, Square } from 'lucide-react'
+import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
 import { getAssessmentStatusLabel, getQuizStatusBadgeClass, canActivateQuiz } from '@/lib/quizzes'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { Button, ConfirmDialog, Tooltip } from '@/ui'
@@ -113,15 +114,7 @@ export function TeacherTestCard({
 
   return (
     <>
-      <div
-        className={[
-          'w-full rounded-card border p-3.5 text-left shadow-elevated',
-          isDraft ? 'border-border-strong bg-surface-2' : 'border-border bg-surface-panel',
-          isDraft
-            ? 'transition hover:border-border-strong hover:bg-surface-3'
-            : 'transition hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel',
-        ].join(' ')}
-      >
+      <TeacherWorkItemCardFrame tone={isDraft ? 'muted' : 'default'}>
         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
           <button type="button" onClick={onSelect} className="min-w-0 text-left">
             <h3 className={['truncate font-medium', isDraft ? 'text-text-muted' : 'text-text-default'].join(' ')}>
@@ -203,7 +196,7 @@ export function TeacherTestCard({
             ) : null}
           </div>
         </div>
-      </div>
+      </TeacherWorkItemCardFrame>
 
       <ConfirmDialog
         isOpen={showActivateConfirm}

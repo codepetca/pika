@@ -496,6 +496,42 @@ function ClassroomPageContent({
     }
   }, [])
 
+  const selectedWorkTitle = useMemo(() => {
+    if (!isTeacher) return undefined
+
+    if (activeTab === 'attendance') {
+      return 'Daily'
+    }
+
+    if (activeTab === 'assignments') {
+      return assignmentViewMode === 'assignment'
+        ? selectedAssignment?.title || 'Assignments'
+        : 'Assignments'
+    }
+
+    if (activeTab === 'quizzes') {
+      return quizIdParam && selectedQuiz?.id === quizIdParam
+        ? selectedQuiz.title
+        : 'Quizzes'
+    }
+
+    if (activeTab === 'tests') {
+      return testIdParam && selectedQuiz?.id === testIdParam
+        ? selectedQuiz.title
+        : 'Tests'
+    }
+
+    return undefined
+  }, [
+    activeTab,
+    assignmentViewMode,
+    isTeacher,
+    quizIdParam,
+    selectedAssignment?.title,
+    selectedQuiz,
+    testIdParam,
+  ])
+
   // Load assignments and generate markdown content
   const loadAssignmentsMarkdown = useCallback(async () => {
     if (abortControllerRef.current) {
@@ -1016,6 +1052,7 @@ function ClassroomPageContent({
       onNavigateClassroom={handleClassroomNavigationAttempt}
       mainClassName="max-w-none px-0 py-0"
       examModeHeader={examHeaderData}
+      pageTitle={selectedWorkTitle}
     >
       <ThreePanelShell leftWidthOverride={hideLeftRailForExamMode ? 0 : undefined}>
         {hideLeftRailForExamMode ? (
@@ -1105,6 +1142,7 @@ function ClassroomPageContent({
                         selectedTestStudentId={testStudentIdParam}
                         updateSearchParams={navigateInClassroom}
                         onSelectTest={handleSelectQuiz}
+                        onRequestTestPreview={setTeacherTestPreview}
                         onRequestDelete={() => {
                           void handleRequestAssessmentDelete()
                         }}

@@ -3,6 +3,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Trash2 } from 'lucide-react'
+import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
 import { formatDueDate } from '@/lib/assignments'
 import { isVisibleAtNow } from '@/lib/scheduling'
 import { Button, Tooltip } from '@/ui'
@@ -77,22 +78,13 @@ export function SortableAssignmentCard({
   }
 
   return (
-    <div
+    <TeacherWorkItemCardFrame
       ref={setNodeRef}
       style={style}
       onClick={handleCardAction}
-      className={[
-        'w-full rounded-card border p-3.5 text-left shadow-elevated',
-        isDraft || isScheduled
-          ? 'border-border-strong bg-surface-2'
-          : 'border-border bg-surface-panel',
-        isDragging
-          ? 'z-50 scale-[1.02] border-primary opacity-95 shadow-panel'
-          : isDraft || isScheduled
-            ? 'transition hover:border-border-strong hover:bg-surface-3'
-            : 'transition hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel',
-        'cursor-pointer',
-      ].join(' ')}
+      tone={isDraft || isScheduled ? 'muted' : 'default'}
+      dragging={isDragging}
+      className="cursor-pointer"
     >
       <div
         className={[
@@ -180,6 +172,6 @@ export function SortableAssignmentCard({
           </Tooltip>
         )}
       </div>
-    </div>
+    </TeacherWorkItemCardFrame>
   )
 }

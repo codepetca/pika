@@ -20,6 +20,8 @@ import { Check, ChevronDown, ChevronUp, Copy, ExternalLink, Plus, RotateCcw, X }
 import { Button, EmptyState, SplitButton, Tooltip, cn } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { useRefRect } from '@/hooks/use-element-rect'
+import { useWindowSize } from '@/hooks/use-window-size'
+import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { canEditQuizQuestions } from '@/lib/quizzes'
 import { QuizQuestionEditor } from '@/components/QuizQuestionEditor'
 import { TestQuestionEditor } from '@/components/TestQuestionEditor'
@@ -51,8 +53,9 @@ interface Props {
   onRequestDelete?: () => void
   onRequestTestPreview?: (preview: { testId: string; title: string }) => void
   onPendingMarkdownImportChange?: (pending: boolean) => void
+  onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
   showInlineDeleteAction?: boolean
-  testQuestionLayout?: 'stacked' | 'summary-detail'
+  testQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only'
   showPreviewButton?: boolean
   showResultsTab?: boolean
   previewRequestToken?: number
@@ -119,6 +122,7 @@ export function QuizDetailPanel({
   onRequestDelete,
   onRequestTestPreview,
   onPendingMarkdownImportChange,
+  onSaveStatusChange,
   showInlineDeleteAction = true,
   testQuestionLayout = 'stacked',
   showPreviewButton = true,
@@ -172,6 +176,7 @@ export function QuizDetailPanel({
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAttemptAtRef = useRef(0)
   const lastSavedDraftRef = useRef('')
+  const draftMutationRevisionRef = useRef(0)
   const saveStatusRef = useRef<'saved' | 'saving' | 'unsaved'>('saved')
   const pendingDraftRef = useRef<AssessmentEditorDraft | null>(null)
   const saveDraftRef = useRef<
@@ -193,6 +198,17 @@ export function QuizDetailPanel({
     TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth
   )
   const loadedDraftQuizIdRef = useRef<string | null>(null)
+
+  const updateSaveStatus = useCallback((status: 'saved' | 'saving' | 'unsaved') => {
+    saveStatusRef.current = status
+    setSaveStatus(status)
+    onSaveStatusChange?.(status)
+  }, [onSaveStatusChange])
+
+  const markDraftUnsaved = useCallback(() => {
+    draftMutationRevisionRef.current += 1
+    updateSaveStatus('unsaved')
+  }, [updateSaveStatus])
 
   const requestCurrentWindowFullscreen = useCallback(async () => {
     const fullscreenElement = document.documentElement as HTMLElement & {
@@ -345,11 +361,12 @@ export function QuizDetailPanel({
       lastSavedDraftRef.current = JSON.stringify(nextSnapshot)
       pendingDraftRef.current = nextSnapshot
       loadedDraftQuizIdRef.current = quiz.id
-      setSaveStatus('saved')
+      draftMutationRevisionRef.current += 1
+      updateSaveStatus('saved')
       setError('')
       setConflictDraft(null)
     },
-    [normalizeDraftQuestions, quiz.id, quiz.show_results, quiz.title]
+    [normalizeDraftQuestions, quiz.id, quiz.show_results, quiz.title, updateSaveStatus]
   )
 
   // Sync editTitle when quiz changes
@@ -408,7 +425,9 @@ export function QuizDetailPanel({
   }, [documents, draftShowResults, editTitle, isTestsView, questions])
   const hasResponses = quiz.stats.responded > 0
   const isEditable = canEditQuizQuestions(quiz, hasResponses)
-  const hasPendingMarkdownImport = isTestsView && showMarkdown && markdownDirty
+  const usesMarkdownOnlyQuestions = isTestsView && testQuestionLayout === 'markdown-only'
+  const isMarkdownSurfaceEnabled = showMarkdown || usesMarkdownOnlyQuestions
+  const hasPendingMarkdownImport = isTestsView && isMarkdownSurfaceEnabled && markdownDirty
   const isMarkdownEditable = isEditable && isMarkdownEditing
   const markdownHelperStatus = markdownSaving
     ? 'Applying markdown...'
@@ -418,10 +437,12 @@ export function QuizDetailPanel({
         ? 'Editing markdown'
         : 'Markdown mirror'
   const usesSummaryDetailQuestions = isTestsView && showMarkdown && testQuestionLayout === 'summary-detail'
+  const usesEditorOnlyQuestions = isTestsView && testQuestionLayout === 'editor-only'
   const { width: summaryDetailWorkspaceWidth } = useRefRect(summaryDetailWorkspaceRef, {
     enabled: usesSummaryDetailQuestions,
   })
-  const hasInlineDocumentsCard = usesSummaryDetailQuestions
+  const { width: viewportWidth } = useWindowSize()
+  const hasInlineDocumentsCard = usesSummaryDetailQuestions || usesEditorOnlyQuestions
   const resolvedShowResultsTab = showResultsTab ?? !isTestsView
   const totalQuestionPoints = useMemo(
     () =>
@@ -447,6 +468,13 @@ export function QuizDetailPanel({
       ),
     [summaryDetailMarkdownWidthPercent, summaryDetailWorkspaceWidth]
   )
+  const usesWideSummaryDetailLayout =
+    (viewportWidth === 0 || viewportWidth >= DESKTOP_BREAKPOINT) &&
+    (summaryDetailWorkspaceWidth === 0 ||
+      summaryDetailWorkspaceWidth >=
+        TEST_SUMMARY_DETAIL_LAYOUT.minEditorWidthPx +
+          TEST_SUMMARY_DETAIL_LAYOUT.minMarkdownWidthPx +
+          48)
   const hasCollapsibleEditorSections = questions.length > 0 || hasInlineDocumentsCard
   const areAllEditorSectionsExpanded =
     (questions.length === 0 || areAllQuestionsExpanded) &&
@@ -462,7 +490,7 @@ export function QuizDetailPanel({
   }, [currentTestMarkdown, isTestsView, markdownContent, markdownDirty])
 
   useEffect(() => {
-    if (showMarkdown) return
+    if (isMarkdownSurfaceEnabled) return
     if (viewMode === 'markdown') {
       setViewMode('questions')
     }
@@ -475,7 +503,7 @@ export function QuizDetailPanel({
     setIsMarkdownEditing(false)
     setMarkdownError('')
     setMarkdownInfo('')
-  }, [currentTestMarkdown, markdownDirty, showMarkdown, viewMode])
+  }, [currentTestMarkdown, isMarkdownSurfaceEnabled, markdownDirty, viewMode])
 
   useEffect(() => {
     onPendingMarkdownImportChange?.(isTestsView ? hasPendingMarkdownImport : false)
@@ -519,12 +547,18 @@ export function QuizDetailPanel({
             }
           : nextDraft
       const nextSerialized = JSON.stringify(contentDraft)
+      const saveRevision = draftMutationRevisionRef.current
+      const isLatestSave = () => saveRevision === draftMutationRevisionRef.current
       if (!options?.forceFull && nextSerialized === lastSavedDraftRef.current) {
-        setSaveStatus('saved')
+        if (isLatestSave()) {
+          updateSaveStatus('saved')
+        }
         return true
       }
 
-      setSaveStatus('saving')
+      if (isLatestSave()) {
+        updateSaveStatus('saving')
+      }
       lastSaveAttemptAtRef.current = Date.now()
 
       let baseDraft = contentDraft
@@ -570,6 +604,10 @@ export function QuizDetailPanel({
         const data = await response.json()
 
         if (response.status === 409) {
+          if (!isLatestSave()) {
+            return false
+          }
+
           const serverDraft = data?.draft as
             | { version: number; content: { title: string; show_results: boolean; questions: QuizQuestion[] } }
             | undefined
@@ -583,7 +621,7 @@ export function QuizDetailPanel({
               },
             })
           }
-          setSaveStatus('unsaved')
+          updateSaveStatus('unsaved')
           setError(data?.error || 'Draft updated elsewhere')
           return false
         }
@@ -599,38 +637,46 @@ export function QuizDetailPanel({
             }
           | undefined
         if (serverDraft?.content) {
-          applyServerDraft(serverDraft)
-          onQuizUpdate({
-            title:
-              typeof serverDraft.content.title === 'string'
-                ? serverDraft.content.title
-                : contentDraft.title,
-            show_results:
-              typeof serverDraft.content.show_results === 'boolean'
-                ? serverDraft.content.show_results
-                : contentDraft.show_results,
-            questions_count: Array.isArray(serverDraft.content.questions)
-              ? serverDraft.content.questions.length
-              : contentDraft.questions.length,
-          })
+          draftVersionRef.current = serverDraft.version
+          lastSavedDraftRef.current = nextSerialized
+          if (isLatestSave()) {
+            applyServerDraft(serverDraft)
+            onQuizUpdate({
+              title:
+                typeof serverDraft.content.title === 'string'
+                  ? serverDraft.content.title
+                  : contentDraft.title,
+              show_results:
+                typeof serverDraft.content.show_results === 'boolean'
+                  ? serverDraft.content.show_results
+                  : contentDraft.show_results,
+              questions_count: Array.isArray(serverDraft.content.questions)
+                ? serverDraft.content.questions.length
+                : contentDraft.questions.length,
+            })
+          }
         } else {
           draftVersionRef.current += 1
           lastSavedDraftRef.current = nextSerialized
-          pendingDraftRef.current = nextDraft
-          setSaveStatus('saved')
-          setError('')
-          setConflictDraft(null)
-          onQuizUpdate(summarizeDraftContent(contentDraft))
+          if (isLatestSave()) {
+            pendingDraftRef.current = nextDraft
+            updateSaveStatus('saved')
+            setError('')
+            setConflictDraft(null)
+            onQuizUpdate(summarizeDraftContent(contentDraft))
+          }
         }
         return true
       } catch (saveError: any) {
         console.error('Error saving draft:', saveError)
-        setSaveStatus('unsaved')
-        setError(saveError?.message || 'Failed to save draft')
+        if (isLatestSave()) {
+          updateSaveStatus('unsaved')
+          setError(saveError?.message || 'Failed to save draft')
+        }
         return false
       }
     },
-    [apiBasePath, applyServerDraft, documents, isTestsView, normalizeDraftQuestions, onQuizUpdate, quiz.id]
+    [apiBasePath, applyServerDraft, documents, isTestsView, normalizeDraftQuestions, onQuizUpdate, quiz.id, updateSaveStatus]
   )
 
   const scheduleSave = useCallback(
@@ -672,7 +718,7 @@ export function QuizDetailPanel({
       if (conflictDraft) return
 
       pendingDraftRef.current = nextDraft
-      setSaveStatus('unsaved')
+      markDraftUnsaved()
       setError('')
 
       if (saveTimeoutRef.current) {
@@ -683,7 +729,7 @@ export function QuizDetailPanel({
         scheduleSave(nextDraft)
       }, AUTOSAVE_DEBOUNCE_MS)
     },
-    [AUTOSAVE_DEBOUNCE_MS, conflictDraft, scheduleSave]
+    [AUTOSAVE_DEBOUNCE_MS, conflictDraft, markDraftUnsaved, scheduleSave]
   )
 
   const loadQuizDetails = useCallback(async () => {
@@ -874,7 +920,7 @@ export function QuizDetailPanel({
       questions,
     }
     pendingDraftRef.current = nextDraft
-    setSaveStatus('unsaved')
+    markDraftUnsaved()
     setError('')
     scheduleSave(nextDraft, { force: true })
   }
@@ -975,6 +1021,8 @@ export function QuizDetailPanel({
     emitDraftSummaryChange(nextDraft)
 
     if (options?.force) {
+      pendingDraftRef.current = nextDraft
+      markDraftUnsaved()
       scheduleSave(nextDraft, { force: true })
       return
     }
@@ -1258,6 +1306,8 @@ export function QuizDetailPanel({
     markdownDirtyRef.current = false
     setMarkdownError('')
     setMarkdownInfo('')
+    pendingDraftRef.current = nextDraft
+    markDraftUnsaved()
 
     const saved = await saveDraft(nextDraft, {
       forceFull: true,
@@ -1551,6 +1601,87 @@ export function QuizDetailPanel({
     </div>
   )
 
+  const testQuestionEditorPane = (
+    <div data-testid="test-question-editor-pane" className="flex h-full min-h-0 flex-col">
+      <div className="border-b border-border px-3 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-text-muted">
+            <span>
+              {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'unsaved' ? 'Unsaved changes' : 'Saved'}
+            </span>
+            <span aria-hidden="true">•</span>
+            <span data-testid="test-question-editor-header-summary">
+              {questions.length} question{questions.length === 1 ? '' : 's'} • {totalQuestionPoints} pts
+            </span>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-label={areAllEditorSectionsExpanded ? 'Collapse all sections' : 'Expand all sections'}
+            onClick={handleToggleAllQuestions}
+            disabled={!hasCollapsibleEditorSections}
+            className="h-8 w-8 shrink-0 p-0 text-text-muted hover:text-text-default"
+          >
+            {areAllEditorSectionsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+        </div>
+      </div>
+      <div className="relative min-h-0 flex-1">
+        <div className={cn('flex h-full min-h-0 flex-col', hasPendingMarkdownImport && 'opacity-60')}>
+          <div className="min-h-0 flex-1 overflow-y-auto p-3" data-testid="test-question-accordion-list">
+            <div className="space-y-3">
+              {testsInlineDocumentsCard}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={questions.map((question) => question.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-3">
+                    {questions.map((question, index) => (
+                      <TestQuestionEditor
+                        key={question.id}
+                        question={question}
+                        questionNumber={index + 1}
+                        isEditable={isEditable}
+                        onChange={handleQuestionChange}
+                        onDuplicate={handleDuplicateQuestion}
+                        onDelete={handleQuestionDelete}
+                        variant="accordion"
+                        isExpanded={expandedQuestionIds.includes(question.id)}
+                        onToggleExpanded={() => handleToggleQuestionExpanded(question.id)}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </div>
+          </div>
+
+          {isEditable ? (
+            <div className="border-t border-border p-3">
+              {renderTestAddQuestionSplitButton()}
+            </div>
+          ) : null}
+        </div>
+        {hasPendingMarkdownImport ? (
+          <div
+            data-testid="markdown-pending-lock"
+            className="absolute inset-0 z-10 flex items-center justify-center bg-surface/75 px-6 text-center"
+          >
+            <div className="max-w-sm rounded-md border border-warning bg-surface px-4 py-3 text-sm text-text-default shadow-lg">
+              Apply or undo markdown changes to continue editing questions.
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+
   const testsSummaryDetailPanel = (
     <div
       ref={summaryDetailWorkspaceRef}
@@ -1559,101 +1690,22 @@ export function QuizDetailPanel({
     >
       <SummaryDetailWorkspaceShell
         className="flex-1"
-        orientation="row"
+        orientation={usesWideSummaryDetailLayout ? 'row' : 'responsive'}
         leftPaneClassName="min-h-0 bg-surface-2"
         rightPaneClassName="min-h-0"
-        rightWidthPercent={clampedSummaryDetailMarkdownWidthPercent}
+        rightWidthPercent={usesWideSummaryDetailLayout ? clampedSummaryDetailMarkdownWidthPercent : undefined}
         divider={{
           label: 'Resize question and markdown panes',
           onPointerDown: handleSummaryDetailResizeStart,
           onDoubleClick: handleSummaryDetailResizeReset,
         }}
-        left={
-        <div data-testid="test-question-editor-pane" className="flex h-full min-h-0 flex-col">
-          <div className="border-b border-border px-3 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-text-muted">
-                <span>
-                  {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'unsaved' ? 'Unsaved changes' : 'Saved'}
-                </span>
-                <span aria-hidden="true">•</span>
-                <span data-testid="test-question-editor-header-summary">
-                  {questions.length} question{questions.length === 1 ? '' : 's'} • {totalQuestionPoints} pts
-                </span>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-label={areAllEditorSectionsExpanded ? 'Collapse all sections' : 'Expand all sections'}
-                onClick={handleToggleAllQuestions}
-                disabled={!hasCollapsibleEditorSections}
-                className="h-8 w-8 shrink-0 p-0 text-text-muted hover:text-text-default"
-              >
-                {areAllEditorSectionsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
-          <div className="relative min-h-0 flex-1">
-            <div className={cn('flex h-full min-h-0 flex-col', hasPendingMarkdownImport && 'opacity-60')}>
-              <div className="min-h-0 flex-1 overflow-y-auto p-3" data-testid="test-question-accordion-list">
-                <div className="space-y-3">
-                  {testsInlineDocumentsCard}
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext
-                      items={questions.map((question) => question.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <div className="space-y-3">
-                        {questions.map((question, index) => (
-                          <TestQuestionEditor
-                            key={question.id}
-                            question={question}
-                            questionNumber={index + 1}
-                            isEditable={isEditable}
-                            onChange={handleQuestionChange}
-                            onDuplicate={handleDuplicateQuestion}
-                            onDelete={handleQuestionDelete}
-                            variant="accordion"
-                            isExpanded={expandedQuestionIds.includes(question.id)}
-                            onToggleExpanded={() => handleToggleQuestionExpanded(question.id)}
-                          />
-                        ))}
-                      </div>
-                    </SortableContext>
-                  </DndContext>
-                </div>
-              </div>
-
-              {isEditable ? (
-                <div className="border-t border-border p-3">
-                  {renderTestAddQuestionSplitButton()}
-                </div>
-              ) : null}
-            </div>
-            {hasPendingMarkdownImport ? (
-              <div
-                data-testid="markdown-pending-lock"
-                className="absolute inset-0 z-10 flex items-center justify-center bg-surface/75 px-6 text-center"
-              >
-                <div className="max-w-sm rounded-md border border-warning bg-surface px-4 py-3 text-sm text-text-default shadow-lg">
-                  Apply or undo markdown changes to continue editing questions.
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-        }
+        left={testQuestionEditorPane}
         right={
-        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col" data-testid="test-question-markdown-pane">
-          <div className="flex min-h-0 flex-1 flex-col p-4">
-            {testsMarkdownPanel}
+          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col" data-testid="test-question-markdown-pane">
+            <div className="flex min-h-0 flex-1 flex-col p-4">
+              {testsMarkdownPanel}
+            </div>
           </div>
-        </div>
         }
       />
     </div>
@@ -1670,7 +1722,7 @@ export function QuizDetailPanel({
   return (
     <div className="flex h-full w-full min-w-0 flex-col">
       {/* Tabs */}
-      {!usesSummaryDetailQuestions && (
+      {!usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions && (
         <div className="flex border-b border-border shrink-0">
         <button
           type="button"
@@ -1770,7 +1822,9 @@ export function QuizDetailPanel({
       <div
         className={[
           'flex-1',
-          usesSummaryDetailQuestions ? 'min-h-0 overflow-hidden p-0' : 'overflow-y-auto p-4',
+          usesSummaryDetailQuestions || usesEditorOnlyQuestions || usesMarkdownOnlyQuestions
+            ? 'min-h-0 overflow-hidden p-0'
+            : 'overflow-y-auto p-4',
         ].join(' ')}
       >
         {error && (
@@ -1785,7 +1839,15 @@ export function QuizDetailPanel({
           </div>
         )}
 
-        {usesSummaryDetailQuestions ? (
+        {usesEditorOnlyQuestions ? (
+          <div data-testid="test-editor-only-layout" className="h-full min-h-0 bg-surface-2">
+            {testQuestionEditorPane}
+          </div>
+        ) : usesMarkdownOnlyQuestions ? (
+          <div data-testid="test-markdown-only-layout" className="flex h-full min-h-0 flex-col p-4">
+            {testsMarkdownPanel}
+          </div>
+        ) : usesSummaryDetailQuestions ? (
           testsSummaryDetailPanel
         ) : viewMode === 'questions' ? (
           <div className="space-y-3">

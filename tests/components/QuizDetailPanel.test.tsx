@@ -382,6 +382,115 @@ describe('QuizDetailPanel', () => {
       })
     })
 
+    it('renders tests in editor-only mode with the question editor pane and no tabs', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Editor Modal Test',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [],
+          },
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Editor Modal Test',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="editor-only"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      expect(await screen.findByTestId('test-editor-only-layout')).toBeInTheDocument()
+      const editorPane = screen.getByTestId('test-question-editor-pane')
+      expect(editorPane).toBeInTheDocument()
+      expect(screen.queryByTestId('test-summary-detail-layout')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('test-question-markdown-pane')).not.toBeInTheDocument()
+      expect(screen.queryByText('Questions (2)')).not.toBeInTheDocument()
+      expect(screen.queryByText('Markdown')).not.toBeInTheDocument()
+      expect(within(editorPane).getByTestId('test-documents-card')).toBeInTheDocument()
+      expect(within(editorPane).getByRole('button', { name: '+ MC Question' })).toBeInTheDocument()
+    })
+
+    it('renders tests in markdown-only mode with the markdown editor and no tabs', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Markdown Modal Test',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [],
+          },
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Markdown Modal Test',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="markdown-only"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      expect(await screen.findByTestId('test-markdown-only-layout')).toBeInTheDocument()
+      const markdownEditor = screen.getByTestId('test-markdown-editor') as HTMLTextAreaElement
+      expect(markdownEditor.value).toContain('Explain the runtime complexity of your solution.')
+      expect(markdownEditor).toHaveProperty('readOnly', true)
+      expect(screen.getByTestId('markdown-helper-status')).toHaveTextContent('Markdown mirror')
+      expect(screen.getByRole('button', { name: 'Edit Markdown' })).toBeInTheDocument()
+      expect(screen.queryByTestId('test-editor-only-layout')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('test-question-editor-pane')).not.toBeInTheDocument()
+      expect(screen.queryByText('Questions (2)')).not.toBeInTheDocument()
+      expect(screen.queryByText('Markdown')).not.toBeInTheDocument()
+    })
+
     it('cleans up interrupted summary-detail drags and resets on double click', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
@@ -739,6 +848,109 @@ describe('QuizDetailPanel', () => {
       expect(patchBody.version).toBe(1)
       expect(patchBody.content?.questions).toHaveLength(1)
     }, 10_000)
+
+    it('does not report saved when an older autosave finishes after a newer edit', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      const onSaveStatusChange = vi.fn()
+      let resolveFirstPatch: ((response: Response) => void) | null = null
+
+      fetchMock.mockImplementation((url: string, options?: RequestInit) => {
+        if (url === '/api/teacher/tests/quiz-stale-save-test/draft' && !options) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              draft: {
+                version: 1,
+                content: {
+                  title: 'Stale Save Test',
+                  show_results: false,
+                  questions: [],
+                },
+              },
+            }),
+          } as Response)
+        }
+
+        if (url === '/api/teacher/tests/quiz-stale-save-test' && !options) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              quiz: {
+                documents: [],
+              },
+            }),
+          } as Response)
+        }
+
+        if (url === '/api/teacher/tests/quiz-stale-save-test/draft' && options?.method === 'PATCH') {
+          return new Promise<Response>((resolve) => {
+            resolveFirstPatch = resolve
+          })
+        }
+
+        throw new Error(`Unexpected fetch: ${url} ${options?.method || 'GET'}`)
+      })
+
+      const testQuiz = makeQuizWithStats({
+        id: 'quiz-stale-save-test',
+        assessment_type: 'test',
+        title: 'Stale Save Test',
+        show_results: false,
+        stats: { total_students: 25, responded: 0, questions_count: 0 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          onSaveStatusChange={onSaveStatusChange}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const addQuestionButton = await screen.findByRole('button', { name: '+ MC Question' })
+      vi.useFakeTimers()
+
+      fireEvent.click(addQuestionButton)
+      expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+
+      await act(async () => {
+        vi.advanceTimersByTime(3_100)
+      })
+
+      const patchCalls = fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')
+      expect(patchCalls).toHaveLength(1)
+      expect(resolveFirstPatch).toBeTruthy()
+
+      fireEvent.click(addQuestionButton)
+      expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+      onSaveStatusChange.mockClear()
+
+      await act(async () => {
+        resolveFirstPatch?.({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 2,
+              content: {
+                title: 'Stale Save Test',
+                show_results: false,
+                questions: [createMockQuizQuestion({ id: 'saved-q1' })],
+              },
+            },
+          }),
+        } as Response)
+        await Promise.resolve()
+      })
+
+      expect(onSaveStatusChange).not.toHaveBeenCalledWith('saved')
+      expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+    })
 
     it('duplicates a test question immediately below the source in summary-detail mode', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>

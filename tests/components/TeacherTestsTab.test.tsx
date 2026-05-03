@@ -48,6 +48,9 @@ vi.mock('@/components/QuizDetailPanel', () => ({
     showPreviewButton,
     showResultsTab,
     onPendingMarkdownImportChange,
+    onSaveStatusChange,
+    onRequestTestPreview,
+    previewRequestToken,
     onDraftSummaryChange,
     onQuizUpdate,
   }: {
@@ -56,6 +59,9 @@ vi.mock('@/components/QuizDetailPanel', () => ({
     showPreviewButton?: boolean
     showResultsTab?: boolean
     onPendingMarkdownImportChange?: (pending: boolean) => void
+    onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
+    onRequestTestPreview?: (preview: { testId: string; title: string }) => void
+    previewRequestToken?: number
     onDraftSummaryChange?: (update: {
       title: string
       show_results: boolean
@@ -66,46 +72,59 @@ vi.mock('@/components/QuizDetailPanel', () => ({
       show_results: boolean
       questions_count: number
     }) => void
-  }) => (
-    <div
-      data-testid="mock-test-detail"
-      data-question-layout={testQuestionLayout}
-      data-show-preview={String(showPreviewButton)}
-      data-show-results={String(showResultsTab)}
-    >
-      Detail for {quiz.title}
-      <button type="button" onClick={() => onPendingMarkdownImportChange?.(true)}>
-        Mark pending markdown
-      </button>
-      <button type="button" onClick={() => onPendingMarkdownImportChange?.(false)}>
-        Clear pending markdown
-      </button>
-      <button
-        type="button"
-        onClick={() =>
-          onDraftSummaryChange?.({
-            title: `${quiz.title} Draft`,
-            show_results: false,
-            questions_count: 0,
-          })
-        }
+  }) => {
+    useEffect(() => {
+      if (!previewRequestToken) return
+      onRequestTestPreview?.({ testId: quiz.id, title: quiz.title })
+    }, [onRequestTestPreview, previewRequestToken, quiz.id, quiz.title])
+
+    return (
+      <div
+        data-testid="mock-test-detail"
+        data-question-layout={testQuestionLayout}
+        data-show-preview={String(showPreviewButton)}
+        data-show-results={String(showResultsTab)}
       >
-        Simulate draft change
-      </button>
-      <button
-        type="button"
-        onClick={() =>
-          onQuizUpdate?.({
-            title: `${quiz.title} Updated`,
-            show_results: false,
-            questions_count: 0,
-          })
-        }
-      >
-        Simulate autosave update
-      </button>
-    </div>
-  ),
+        Detail for {quiz.title}
+        <button type="button" onClick={() => onPendingMarkdownImportChange?.(true)}>
+          Mark pending markdown
+        </button>
+        <button type="button" onClick={() => onPendingMarkdownImportChange?.(false)}>
+          Clear pending markdown
+        </button>
+        <button type="button" onClick={() => onSaveStatusChange?.('unsaved')}>
+          Mark editor unsaved
+        </button>
+        <button type="button" onClick={() => onSaveStatusChange?.('saved')}>
+          Mark editor saved
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            onDraftSummaryChange?.({
+              title: `${quiz.title} Draft`,
+              show_results: false,
+              questions_count: 0,
+            })
+          }
+        >
+          Simulate draft change
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            onQuizUpdate?.({
+              title: `${quiz.title} Updated`,
+              show_results: false,
+              questions_count: 0,
+            })
+          }
+        >
+          Simulate autosave update
+        </button>
+      </div>
+    )
+  },
 }))
 
 vi.mock('@/components/TestStudentGradingPanel', () => ({
@@ -257,6 +276,7 @@ describe('TeacherTestsTab', () => {
       options?: { replace?: boolean },
     ) => void
     onSelectTest?: (test: QuizWithStats | null) => void
+    onRequestTestPreview?: (preview: { testId: string; title: string }) => void
     onTestGradingContextChange?: (context: {
       mode: 'authoring' | 'grading'
       testId: string | null
@@ -273,6 +293,7 @@ describe('TeacherTestsTab', () => {
         selectedTestStudentId={options?.selectedTestStudentId}
         updateSearchParams={options?.updateSearchParams}
         onSelectTest={options?.onSelectTest}
+        onRequestTestPreview={options?.onRequestTestPreview}
         onTestGradingContextChange={options?.onTestGradingContextChange}
       />,
       { wrapper: Wrapper }
@@ -285,76 +306,128 @@ describe('TeacherTestsTab', () => {
 
     expect(await screen.findByText('Unit Test')).toBeInTheDocument()
     expect(screen.getByText('New Test')).toBeInTheDocument()
-    expect(screen.queryByRole('tab', { name: 'Authoring' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(screen.queryByText('Choose a test to review settings, questions, and grading details.')).not.toBeInTheDocument()
     expect(listFetchCalls(fetchMock)[0][0]).toContain('/api/teacher/tests?classroom_id=')
   })
 
-  it('opens a selected test in authoring mode when the card is clicked', async () => {
+  it('opens a selected test in grading mode and edits in a modal', async () => {
     const onSelectTest = vi.fn()
 
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
     renderTab({ onSelectTest })
 
     fireEvent.click(await screen.findByText('Unit Test'))
 
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Grading' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
-    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'summary-detail')
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-preview', 'false')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-results', 'false')
-    expect(screen.getByRole('tab', { name: 'Authoring' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: 'Grading' })).toHaveAttribute('aria-selected', 'false')
-    expect(screen.queryByRole('button', { name: 'Questions' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Documents' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Back to tests' })).not.toBeInTheDocument()
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Markdown' }))
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'markdown-only')
+    expect(within(dialog).getByRole('button', { name: 'Markdown' })).toHaveAttribute('aria-pressed', 'true')
     expect(onSelectTest).toHaveBeenLastCalledWith(
       expect.objectContaining({ id: 'test-1', title: 'Unit Test' })
     )
   })
 
-  it('disables preview and status actions while markdown edits are pending', async () => {
+  it('disables status actions while markdown edits are pending in the edit modal', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'draft' }))
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open test' })).toBeEnabled()
 
-    expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Preview' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'Open' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-preview', 'false')
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-results', 'false')
 
     fireEvent.click(screen.getByRole('button', { name: 'Mark pending markdown' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Preview' })).toBeDisabled()
-      expect(screen.getByRole('button', { name: 'Open' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Open test' })).toBeDisabled()
       expect(
         screen.getByText('Apply or undo markdown changes before previewing or changing the test status.')
       ).toBeInTheDocument()
     })
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeDisabled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear pending markdown' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Preview' })).toBeEnabled()
-      expect(screen.getByRole('button', { name: 'Open' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Open test' })).toBeEnabled()
+      expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeEnabled()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark editor unsaved' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeEnabled()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark editor saved' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeEnabled()
     })
   })
 
-  it('updates the authoring header and activation state immediately from local draft changes', async () => {
+  it('delegates preview from the selected test menu to the open editor', async () => {
+    const onRequestTestPreview = vi.fn()
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
-    renderTab()
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'draft' }))
+    renderTab({ onRequestTestPreview })
 
     fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
 
+    fireEvent.click(screen.getByRole('button', { name: 'Mark editor unsaved' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Preview' }))
+
+    await waitFor(() => {
+      expect(onRequestTestPreview).toHaveBeenCalledWith({
+        testId: 'test-1',
+        title: 'Unit Test',
+      })
+    })
+  })
+
+  it('updates the selected test header and activation state immediately from modal draft changes', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'draft' }))
+    const onSelectTest = vi.fn()
+    renderTab({ onSelectTest })
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open test' })).toBeEnabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
-    expect(screen.getByRole('button', { name: 'Open' })).toBeEnabled()
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Simulate draft change' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Unit Test Draft')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Open' })).toBeDisabled()
+      expect(onSelectTest).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Unit Test Draft' }))
+      expect(screen.getByRole('button', { name: 'Open test' })).toBeDisabled()
     })
 
     expect(screen.getByTestId('mock-test-detail')).toBeInTheDocument()
@@ -363,47 +436,53 @@ describe('TeacherTestsTab', () => {
 
   it('keeps the selected workspace mounted and updates saved test metadata after autosave', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
-    renderTab()
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'draft' }))
+    const onSelectTest = vi.fn()
+    renderTab({ onSelectTest })
 
     fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open test' })).toBeEnabled()
 
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
-    expect(screen.getByRole('button', { name: 'Open' })).toBeEnabled()
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Simulate autosave update' }))
 
     await waitFor(() => {
       expect(screen.getByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test Updated')
-      expect(screen.getByText('Unit Test Updated')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Open' })).toBeDisabled()
+      expect(onSelectTest).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Unit Test Updated' }))
+      expect(screen.getByRole('button', { name: 'Open test' })).toBeDisabled()
     })
 
     expect(screen.getByTestId('mock-test-detail')).toBeInTheDocument()
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 
-  it('opens a newly created test directly into authoring mode', async () => {
+  it('opens a newly created test in grading with the edit modal open', async () => {
     mockTestsResponse([])
     renderTab()
 
     expect(await screen.findByText('No tests yet')).toBeInTheDocument()
 
     mockTestsResponse([makeTest({ id: 'created-test-id', title: 'Created Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ quizId: 'created-test-id', quizTitle: 'Created Test' }))
 
     fireEvent.click(screen.getByText('New Test'))
     fireEvent.click(screen.getByTestId('mock-test-save'))
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Created Test')
-    expect(screen.getByRole('tab', { name: 'Authoring' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
   })
 
-  it('validates and activates a draft test from authoring', async () => {
+  it('validates and activates a draft test from the selected test split button', async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })] }),
       })
+      .mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'draft' }))
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -427,9 +506,9 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open test' }))
 
     expect(await screen.findByText('Activate test?')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Activate' }))
@@ -446,17 +525,18 @@ describe('TeacherTestsTab', () => {
     expect(JSON.parse((patchCall?.[1] as RequestInit).body as string)).toEqual({ status: 'active' })
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Close test' })).toBeInTheDocument()
     })
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 
-  it('confirms and closes an active test from authoring', async () => {
+  it('confirms and closes an active test from the selected test split button', async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
       })
+      .mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'active' }))
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ test: { id: 'test-1', status: 'closed' } }),
@@ -465,9 +545,9 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close test' }))
     expect(await screen.findByText('Close test?')).toBeInTheDocument()
 
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
@@ -484,7 +564,7 @@ describe('TeacherTestsTab', () => {
     expect(JSON.parse((patchCall?.[1] as RequestInit).body as string)).toEqual({ status: 'closed' })
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Reopen' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Open test' })).toBeInTheDocument()
     })
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
@@ -534,10 +614,11 @@ describe('TeacherTestsTab', () => {
     const onSelectTest = vi.fn()
 
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
     const view = renderTab({ onSelectTest, testsTabClickToken: 0 })
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
     view.rerender(
       <TeacherTestsTab
@@ -548,10 +629,10 @@ describe('TeacherTestsTab', () => {
     )
 
     await waitFor(() => {
-      expect(screen.queryByTestId('mock-test-detail')).not.toBeInTheDocument()
+      expect(screen.queryByText('Alice Zephyr')).not.toBeInTheDocument()
     })
     expect(screen.getByText('Unit Test')).toBeInTheDocument()
-    expect(screen.queryByRole('tab', { name: 'Authoring' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(onSelectTest).toHaveBeenLastCalledWith(null)
   })
 
@@ -569,8 +650,6 @@ describe('TeacherTestsTab', () => {
 
     fireEvent.click(await screen.findByText('Unit Test'))
     setOpenMock.mockClear()
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(screen.queryByTestId('mock-test-grading-panel')).not.toBeInTheDocument()
@@ -603,6 +682,7 @@ describe('TeacherTestsTab', () => {
     })
 
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
     renderTab({ selectedTestId: null, updateSearchParams })
 
     fireEvent.click(await screen.findByText('Unit Test'))
@@ -611,11 +691,11 @@ describe('TeacherTestsTab', () => {
     const params = new URLSearchParams('tab=tests')
     updateSearchParams.mock.calls[0][0](params)
     expect(params.get('testId')).toBe('test-1')
-    expect(params.get('testMode')).toBe('authoring')
+    expect(params.get('testMode')).toBe('grading')
     expect(params.get('testStudentId')).toBeNull()
   })
 
-  it('replaces the selected test history entry when switching workspace modes', async () => {
+  it('treats legacy authoring params as grading mode', async () => {
     const updateSearchParams = vi.fn()
 
     fetchMock
@@ -631,27 +711,17 @@ describe('TeacherTestsTab', () => {
       updateSearchParams,
     })
 
-    await screen.findByTestId('mock-test-detail')
-    updateSearchParams.mockClear()
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
-
-    await waitFor(() => {
-      expect(updateSearchParams).toHaveBeenCalledWith(expect.any(Function), { replace: true })
-    })
-
-    const params = new URLSearchParams('tab=tests&testId=test-1&testMode=authoring')
-    updateSearchParams.mock.calls[0][0](params)
-    expect(params.get('testId')).toBe('test-1')
-    expect(params.get('testMode')).toBe('grading')
-    expect(params.get('testStudentId')).toBeNull()
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
+    expect(updateSearchParams).not.toHaveBeenCalled()
   })
 
   it('models Browser Back by following controlled test params back to summary', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
     const view = renderTab({ selectedTestId: 'test-1', selectedTestMode: 'authoring' })
 
-    expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
     view.rerender(
       <TeacherTestsTab
@@ -662,7 +732,7 @@ describe('TeacherTestsTab', () => {
     )
 
     await waitFor(() => {
-      expect(screen.queryByTestId('mock-test-detail')).not.toBeInTheDocument()
+      expect(screen.queryByText('Alice Zephyr')).not.toBeInTheDocument()
     })
     expect(screen.getByText('Unit Test')).toBeInTheDocument()
   })
@@ -679,6 +749,7 @@ describe('TeacherTestsTab', () => {
           resolveTests = resolve
         }) as unknown as Promise<Response>,
     )
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
 
     renderTab({
       selectedTestId: 'test-1',
@@ -700,7 +771,7 @@ describe('TeacherTestsTab', () => {
       await Promise.resolve()
     })
 
-    expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(updateSearchParams).not.toHaveBeenCalled()
   })
 
@@ -748,7 +819,6 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
@@ -823,7 +893,6 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(screen.getByText('3/5')).toBeInTheDocument()
@@ -897,7 +966,6 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
@@ -935,7 +1003,6 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
@@ -973,7 +1040,6 @@ describe('TeacherTestsTab', () => {
     const view = renderTab({ testsTabClickToken: 0 })
 
     fireEvent.click(await screen.findByText('Unit Test A'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
 
     view.rerender(
       <TeacherTestsTab
@@ -987,7 +1053,6 @@ describe('TeacherTestsTab', () => {
     })
 
     fireEvent.click(screen.getByText('Unit Test B'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
 
     await act(async () => {
       resolveSecondResults?.(
@@ -1073,11 +1138,11 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
-    fireEvent.click(screen.getByRole('button', { name: 'Return' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More test grading actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Return' }))
 
     expect(
       await screen.findByText('This test is still open. Confirming will close it for all students before returning selected work.')
@@ -1185,7 +1250,6 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
@@ -1221,10 +1285,10 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
-    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
     await screen.findByText('Alice Zephyr')
 
-    fireEvent.click(screen.getByRole('button', { name: 'AI Prompt' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More test grading actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'AI Prompt' }))
 
     expect(await screen.findByRole('heading', { name: 'AI Prompt' })).toBeInTheDocument()
     expect(screen.getByText(/Pika automatically uses the coding rubric/i)).toBeInTheDocument()

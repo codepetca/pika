@@ -10475,3 +10475,79 @@
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-02 - Assessment tab shell follow-ups
+
+**Completed:**
+- Applied the teacher work-surface shell and gapped split shape to Tests.
+- Standardized assignment, quiz, and test list cards through shared teacher
+  work-item primitives.
+- Moved Assignments and selected assignment/test titles into the global app
+  header title slot.
+- Added a shared floating center action cluster and used it for Assignments
+  summary controls, selected assignment controls, and selected test controls.
+- Consolidated selected Tests grading actions into the center split button.
+- Updated teacher work-surface guidance for title placement, floating actions,
+  and list/card reuse.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm lint`
+- `git diff --check`
+- `pnpm vitest run tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherWorkItemPrimitives.test.tsx tests/ui/SplitButton.test.tsx`
+- `pnpm vitest run tests/components/TeacherEditModeControls.test.tsx`
+- Visual screenshots reviewed:
+  - `/tmp/pika-assignments-summary-fab-standard-height.png`
+  - `/tmp/pika-assignments-fab-centered-actionbar.png`
+  - `/tmp/pika-selected-assignment-edit-in-fab.png`
+  - `/tmp/pika-tests-grading-floating-cluster-menu.png`
+
+## 2026-05-02 - Daily title and floating action alignment
+
+**Completed:**
+- Applied the latest assignment shell convention to Daily.
+- Moved the Daily label into the global app-header title slot.
+- Moved Daily's date navigator into the shared floating center action cluster.
+
+**Validation:**
+- `pnpm vitest run tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherWorkspaceSplit.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Visual screenshot reviewed:
+  - `/tmp/pika-daily-title-floating-date-fab.png`
+
+## 2026-05-03 - Quizzes shell alignment
+
+**Completed:**
+- Applied the shared teacher work-surface shell convention to Quizzes.
+- Moved Quizzes summary and selected quiz titles into the global app-header title slot.
+- Moved Quizzes summary and selected quiz actions into the shared floating center action cluster.
+- Removed the selected quiz workspace border frame and tightened mobile header truncation so the centered title does not overlap the classroom selector.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=quizzes`.
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=quizzes&quizId=1cf70f6b-9b78-4cad-8ce5-26fd7da9fdb9`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-quizzes-summary-teacher.png`
+  - `/tmp/pika-quizzes-selected-teacher.png`
+  - `/tmp/pika-quizzes-summary-teacher-mobile.png`
+  - `/tmp/pika-quizzes-selected-teacher-mobile.png`
+
+## 2026-05-03 - Tests preview save guard follow-up
+
+**Completed:**
+- Fixed the Tests Preview menu path so an open editor owns preview requests and
+  force-saves the current draft before showing preview.
+- Guarded `QuizDetailPanel` autosave completion with a draft revision so stale
+  in-flight saves cannot publish `saved` over newer local edits.
+- Kept pending markdown state active while a selected test is in grading mode,
+  since authoring now lives in the edit modal.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx tests/api/teacher/tests-draft-route.test.ts`
+- `pnpm lint`
+- `git diff --check`
+- `pnpm build`
