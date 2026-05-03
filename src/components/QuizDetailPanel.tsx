@@ -176,6 +176,7 @@ export function QuizDetailPanel({
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAttemptAtRef = useRef(0)
   const lastSavedDraftRef = useRef('')
+  const draftMutationRevisionRef = useRef(0)
   const saveStatusRef = useRef<'saved' | 'saving' | 'unsaved'>('saved')
   const pendingDraftRef = useRef<AssessmentEditorDraft | null>(null)
   const saveDraftRef = useRef<
@@ -203,6 +204,11 @@ export function QuizDetailPanel({
     setSaveStatus(status)
     onSaveStatusChange?.(status)
   }, [onSaveStatusChange])
+
+  const markDraftUnsaved = useCallback(() => {
+    draftMutationRevisionRef.current += 1
+    updateSaveStatus('unsaved')
+  }, [updateSaveStatus])
 
   const requestCurrentWindowFullscreen = useCallback(async () => {
     const fullscreenElement = document.documentElement as HTMLElement & {
@@ -355,6 +361,7 @@ export function QuizDetailPanel({
       lastSavedDraftRef.current = JSON.stringify(nextSnapshot)
       pendingDraftRef.current = nextSnapshot
       loadedDraftQuizIdRef.current = quiz.id
+      draftMutationRevisionRef.current += 1
       updateSaveStatus('saved')
       setError('')
       setConflictDraft(null)
@@ -540,12 +547,18 @@ export function QuizDetailPanel({
             }
           : nextDraft
       const nextSerialized = JSON.stringify(contentDraft)
+      const saveRevision = draftMutationRevisionRef.current
+      const isLatestSave = () => saveRevision === draftMutationRevisionRef.current
       if (!options?.forceFull && nextSerialized === lastSavedDraftRef.current) {
-        updateSaveStatus('saved')
+        if (isLatestSave()) {
+          updateSaveStatus('saved')
+        }
         return true
       }
 
-      updateSaveStatus('saving')
+      if (isLatestSave()) {
+        updateSaveStatus('saving')
+      }
       lastSaveAttemptAtRef.current = Date.now()
 
       let baseDraft = contentDraft
@@ -591,6 +604,10 @@ export function QuizDetailPanel({
         const data = await response.json()
 
         if (response.status === 409) {
+          if (!isLatestSave()) {
+            return false
+          }
+
           const serverDraft = data?.draft as
             | { version: number; content: { title: string; show_results: boolean; questions: QuizQuestion[] } }
             | undefined
@@ -620,34 +637,42 @@ export function QuizDetailPanel({
             }
           | undefined
         if (serverDraft?.content) {
-          applyServerDraft(serverDraft)
-          onQuizUpdate({
-            title:
-              typeof serverDraft.content.title === 'string'
-                ? serverDraft.content.title
-                : contentDraft.title,
-            show_results:
-              typeof serverDraft.content.show_results === 'boolean'
-                ? serverDraft.content.show_results
-                : contentDraft.show_results,
-            questions_count: Array.isArray(serverDraft.content.questions)
-              ? serverDraft.content.questions.length
-              : contentDraft.questions.length,
-          })
+          draftVersionRef.current = serverDraft.version
+          lastSavedDraftRef.current = nextSerialized
+          if (isLatestSave()) {
+            applyServerDraft(serverDraft)
+            onQuizUpdate({
+              title:
+                typeof serverDraft.content.title === 'string'
+                  ? serverDraft.content.title
+                  : contentDraft.title,
+              show_results:
+                typeof serverDraft.content.show_results === 'boolean'
+                  ? serverDraft.content.show_results
+                  : contentDraft.show_results,
+              questions_count: Array.isArray(serverDraft.content.questions)
+                ? serverDraft.content.questions.length
+                : contentDraft.questions.length,
+            })
+          }
         } else {
           draftVersionRef.current += 1
           lastSavedDraftRef.current = nextSerialized
-          pendingDraftRef.current = nextDraft
-          updateSaveStatus('saved')
-          setError('')
-          setConflictDraft(null)
-          onQuizUpdate(summarizeDraftContent(contentDraft))
+          if (isLatestSave()) {
+            pendingDraftRef.current = nextDraft
+            updateSaveStatus('saved')
+            setError('')
+            setConflictDraft(null)
+            onQuizUpdate(summarizeDraftContent(contentDraft))
+          }
         }
         return true
       } catch (saveError: any) {
         console.error('Error saving draft:', saveError)
-        updateSaveStatus('unsaved')
-        setError(saveError?.message || 'Failed to save draft')
+        if (isLatestSave()) {
+          updateSaveStatus('unsaved')
+          setError(saveError?.message || 'Failed to save draft')
+        }
         return false
       }
     },
@@ -693,7 +718,7 @@ export function QuizDetailPanel({
       if (conflictDraft) return
 
       pendingDraftRef.current = nextDraft
-      updateSaveStatus('unsaved')
+      markDraftUnsaved()
       setError('')
 
       if (saveTimeoutRef.current) {
@@ -704,7 +729,7 @@ export function QuizDetailPanel({
         scheduleSave(nextDraft)
       }, AUTOSAVE_DEBOUNCE_MS)
     },
-    [AUTOSAVE_DEBOUNCE_MS, conflictDraft, scheduleSave, updateSaveStatus]
+    [AUTOSAVE_DEBOUNCE_MS, conflictDraft, markDraftUnsaved, scheduleSave]
   )
 
   const loadQuizDetails = useCallback(async () => {
@@ -895,7 +920,7 @@ export function QuizDetailPanel({
       questions,
     }
     pendingDraftRef.current = nextDraft
-    updateSaveStatus('unsaved')
+    markDraftUnsaved()
     setError('')
     scheduleSave(nextDraft, { force: true })
   }
@@ -996,6 +1021,8 @@ export function QuizDetailPanel({
     emitDraftSummaryChange(nextDraft)
 
     if (options?.force) {
+      pendingDraftRef.current = nextDraft
+      markDraftUnsaved()
       scheduleSave(nextDraft, { force: true })
       return
     }
@@ -1279,6 +1306,8 @@ export function QuizDetailPanel({
     markdownDirtyRef.current = false
     setMarkdownError('')
     setMarkdownInfo('')
+    pendingDraftRef.current = nextDraft
+    markDraftUnsaved()
 
     const saved = await saveDraft(nextDraft, {
       forceFull: true,

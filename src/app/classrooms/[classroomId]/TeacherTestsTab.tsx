@@ -47,6 +47,7 @@ interface Props {
     studentId: string | null
     studentName: string | null
   }) => void
+  onRequestTestPreview?: (preview: { testId: string; title: string }) => void
   onRequestDelete?: () => void
 }
 
@@ -217,6 +218,7 @@ export function TeacherTestsTab({
   onSelectTest,
   onTestGradingDataRefresh,
   onTestGradingContextChange,
+  onRequestTestPreview,
   onRequestDelete,
 }: Props) {
   const apiBasePath = '/api/teacher/tests'
@@ -245,6 +247,7 @@ export function TeacherTestsTab({
   const [showEditModal, setShowEditModal] = useState(false)
   const [testEditModalView, setTestEditModalView] = useState<TestEditModalView>('edit')
   const [testEditSaveStatus, setTestEditSaveStatus] = useState<TestEditSaveStatus>('saved')
+  const [testPreviewRequestToken, setTestPreviewRequestToken] = useState(0)
   const [pendingCreatedTestId, setPendingCreatedTestId] = useState<string | null>(null)
 
   const [gradingStudents, setGradingStudents] = useState<TestGradingStudentRow[]>([])
@@ -684,10 +687,10 @@ export function TeacherTestsTab({
   ])
 
   useEffect(() => {
-    if (workspaceState !== 'selected' || selectedWorkspaceTab !== 'authoring') {
+    if (workspaceState !== 'selected') {
       setHasPendingMarkdownImport(false)
     }
-  }, [selectedWorkspaceTab, workspaceState])
+  }, [workspaceState])
 
   useEffect(() => {
     if (
@@ -922,14 +925,33 @@ export function TeacherTestsTab({
     clearBatchSelection()
   }
 
-  function handlePreviewSelectedTest() {
-    if (!selectedTestId) return
-    if (hasPendingMarkdownImport || testEditSaveStatus !== 'saved') return
+  function handleOpenSavedTestPreview(preview: { testId: string; title: string }) {
+    if (onRequestTestPreview) {
+      onRequestTestPreview(preview)
+      return
+    }
+
     const previewWindow = window.open(
-      `/classrooms/${classroom.id}/tests/${selectedTestId}/preview`,
+      `/classrooms/${classroom.id}/tests/${preview.testId}/preview`,
       '_blank',
     )
     previewWindow?.focus()
+  }
+
+  function handlePreviewSelectedTest() {
+    if (!selectedTestId) return
+    if (hasPendingMarkdownImport) return
+
+    if (showEditModal && selectedTestWorkspace) {
+      setTestPreviewRequestToken((value) => value + 1)
+      return
+    }
+
+    if (testEditSaveStatus !== 'saved') return
+    handleOpenSavedTestPreview({
+      testId: selectedTestId,
+      title: selectedTestWorkspace?.title || 'Test',
+    })
   }
 
   useEffect(() => {
@@ -1456,7 +1478,7 @@ export function TeacherTestsTab({
             </span>
           ),
           onSelect: handlePreviewSelectedTest,
-          disabled: hasPendingMarkdownImport || testEditSaveStatus !== 'saved',
+          disabled: hasPendingMarkdownImport || (!showEditModal && testEditSaveStatus !== 'saved'),
         },
         ...(onRequestDelete
           ? [
@@ -1830,6 +1852,8 @@ export function TeacherTestsTab({
               }}
               onPendingMarkdownImportChange={setHasPendingMarkdownImport}
               onSaveStatusChange={setTestEditSaveStatus}
+              onRequestTestPreview={handleOpenSavedTestPreview}
+              previewRequestToken={testPreviewRequestToken}
               showInlineDeleteAction={false}
               testQuestionLayout={testEditModalView === 'markdown' ? 'markdown-only' : 'editor-only'}
               showPreviewButton={false}

@@ -1142,6 +1142,7 @@ function ClassroomPageContent({
                         selectedTestStudentId={testStudentIdParam}
                         updateSearchParams={navigateInClassroom}
                         onSelectTest={handleSelectQuiz}
+                        onRequestTestPreview={setTeacherTestPreview}
                         onRequestDelete={() => {
                           void handleRequestAssessmentDelete()
                         }}

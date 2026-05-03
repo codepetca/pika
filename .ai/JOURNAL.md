@@ -10535,3 +10535,19 @@
   - `/tmp/pika-quizzes-selected-teacher.png`
   - `/tmp/pika-quizzes-summary-teacher-mobile.png`
   - `/tmp/pika-quizzes-selected-teacher-mobile.png`
+
+## 2026-05-03 - Tests preview save guard follow-up
+
+**Completed:**
+- Fixed the Tests Preview menu path so an open editor owns preview requests and
+  force-saves the current draft before showing preview.
+- Guarded `QuizDetailPanel` autosave completion with a draft revision so stale
+  in-flight saves cannot publish `saved` over newer local edits.
+- Kept pending markdown state active while a selected test is in grading mode,
+  since authoring now lives in the edit modal.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx tests/api/teacher/tests-draft-route.test.ts`
+- `pnpm lint`
+- `git diff --check`
+- `pnpm build`

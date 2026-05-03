@@ -49,6 +49,8 @@ vi.mock('@/components/QuizDetailPanel', () => ({
     showResultsTab,
     onPendingMarkdownImportChange,
     onSaveStatusChange,
+    onRequestTestPreview,
+    previewRequestToken,
     onDraftSummaryChange,
     onQuizUpdate,
   }: {
@@ -58,6 +60,8 @@ vi.mock('@/components/QuizDetailPanel', () => ({
     showResultsTab?: boolean
     onPendingMarkdownImportChange?: (pending: boolean) => void
     onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
+    onRequestTestPreview?: (preview: { testId: string; title: string }) => void
+    previewRequestToken?: number
     onDraftSummaryChange?: (update: {
       title: string
       show_results: boolean
@@ -68,52 +72,59 @@ vi.mock('@/components/QuizDetailPanel', () => ({
       show_results: boolean
       questions_count: number
     }) => void
-  }) => (
-    <div
-      data-testid="mock-test-detail"
-      data-question-layout={testQuestionLayout}
-      data-show-preview={String(showPreviewButton)}
-      data-show-results={String(showResultsTab)}
-    >
-      Detail for {quiz.title}
-      <button type="button" onClick={() => onPendingMarkdownImportChange?.(true)}>
-        Mark pending markdown
-      </button>
-      <button type="button" onClick={() => onPendingMarkdownImportChange?.(false)}>
-        Clear pending markdown
-      </button>
-      <button type="button" onClick={() => onSaveStatusChange?.('unsaved')}>
-        Mark editor unsaved
-      </button>
-      <button type="button" onClick={() => onSaveStatusChange?.('saved')}>
-        Mark editor saved
-      </button>
-      <button
-        type="button"
-        onClick={() =>
-          onDraftSummaryChange?.({
-            title: `${quiz.title} Draft`,
-            show_results: false,
-            questions_count: 0,
-          })
-        }
+  }) => {
+    useEffect(() => {
+      if (!previewRequestToken) return
+      onRequestTestPreview?.({ testId: quiz.id, title: quiz.title })
+    }, [onRequestTestPreview, previewRequestToken, quiz.id, quiz.title])
+
+    return (
+      <div
+        data-testid="mock-test-detail"
+        data-question-layout={testQuestionLayout}
+        data-show-preview={String(showPreviewButton)}
+        data-show-results={String(showResultsTab)}
       >
-        Simulate draft change
-      </button>
-      <button
-        type="button"
-        onClick={() =>
-          onQuizUpdate?.({
-            title: `${quiz.title} Updated`,
-            show_results: false,
-            questions_count: 0,
-          })
-        }
-      >
-        Simulate autosave update
-      </button>
-    </div>
-  ),
+        Detail for {quiz.title}
+        <button type="button" onClick={() => onPendingMarkdownImportChange?.(true)}>
+          Mark pending markdown
+        </button>
+        <button type="button" onClick={() => onPendingMarkdownImportChange?.(false)}>
+          Clear pending markdown
+        </button>
+        <button type="button" onClick={() => onSaveStatusChange?.('unsaved')}>
+          Mark editor unsaved
+        </button>
+        <button type="button" onClick={() => onSaveStatusChange?.('saved')}>
+          Mark editor saved
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            onDraftSummaryChange?.({
+              title: `${quiz.title} Draft`,
+              show_results: false,
+              questions_count: 0,
+            })
+          }
+        >
+          Simulate draft change
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            onQuizUpdate?.({
+              title: `${quiz.title} Updated`,
+              show_results: false,
+              questions_count: 0,
+            })
+          }
+        >
+          Simulate autosave update
+        </button>
+      </div>
+    )
+  },
 }))
 
 vi.mock('@/components/TestStudentGradingPanel', () => ({
@@ -265,6 +276,7 @@ describe('TeacherTestsTab', () => {
       options?: { replace?: boolean },
     ) => void
     onSelectTest?: (test: QuizWithStats | null) => void
+    onRequestTestPreview?: (preview: { testId: string; title: string }) => void
     onTestGradingContextChange?: (context: {
       mode: 'authoring' | 'grading'
       testId: string | null
@@ -281,6 +293,7 @@ describe('TeacherTestsTab', () => {
         selectedTestStudentId={options?.selectedTestStudentId}
         updateSearchParams={options?.updateSearchParams}
         onSelectTest={options?.onSelectTest}
+        onRequestTestPreview={options?.onRequestTestPreview}
         onTestGradingContextChange={options?.onTestGradingContextChange}
       />,
       { wrapper: Wrapper }
@@ -362,13 +375,37 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mark editor unsaved' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeDisabled()
+      expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeEnabled()
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Mark editor saved' }))
 
     await waitFor(() => {
       expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeEnabled()
+    })
+  })
+
+  it('delegates preview from the selected test menu to the open editor', async () => {
+    const onRequestTestPreview = vi.fn()
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'draft' }))
+    renderTab({ onRequestTestPreview })
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark editor unsaved' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Preview' }))
+
+    await waitFor(() => {
+      expect(onRequestTestPreview).toHaveBeenCalledWith({
+        testId: 'test-1',
+        title: 'Unit Test',
+      })
     })
   })
 

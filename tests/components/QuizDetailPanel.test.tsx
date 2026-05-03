@@ -849,6 +849,109 @@ describe('QuizDetailPanel', () => {
       expect(patchBody.content?.questions).toHaveLength(1)
     }, 10_000)
 
+    it('does not report saved when an older autosave finishes after a newer edit', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      const onSaveStatusChange = vi.fn()
+      let resolveFirstPatch: ((response: Response) => void) | null = null
+
+      fetchMock.mockImplementation((url: string, options?: RequestInit) => {
+        if (url === '/api/teacher/tests/quiz-stale-save-test/draft' && !options) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              draft: {
+                version: 1,
+                content: {
+                  title: 'Stale Save Test',
+                  show_results: false,
+                  questions: [],
+                },
+              },
+            }),
+          } as Response)
+        }
+
+        if (url === '/api/teacher/tests/quiz-stale-save-test' && !options) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              quiz: {
+                documents: [],
+              },
+            }),
+          } as Response)
+        }
+
+        if (url === '/api/teacher/tests/quiz-stale-save-test/draft' && options?.method === 'PATCH') {
+          return new Promise<Response>((resolve) => {
+            resolveFirstPatch = resolve
+          })
+        }
+
+        throw new Error(`Unexpected fetch: ${url} ${options?.method || 'GET'}`)
+      })
+
+      const testQuiz = makeQuizWithStats({
+        id: 'quiz-stale-save-test',
+        assessment_type: 'test',
+        title: 'Stale Save Test',
+        show_results: false,
+        stats: { total_students: 25, responded: 0, questions_count: 0 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          onSaveStatusChange={onSaveStatusChange}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const addQuestionButton = await screen.findByRole('button', { name: '+ MC Question' })
+      vi.useFakeTimers()
+
+      fireEvent.click(addQuestionButton)
+      expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+
+      await act(async () => {
+        vi.advanceTimersByTime(3_100)
+      })
+
+      const patchCalls = fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')
+      expect(patchCalls).toHaveLength(1)
+      expect(resolveFirstPatch).toBeTruthy()
+
+      fireEvent.click(addQuestionButton)
+      expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+      onSaveStatusChange.mockClear()
+
+      await act(async () => {
+        resolveFirstPatch?.({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 2,
+              content: {
+                title: 'Stale Save Test',
+                show_results: false,
+                questions: [createMockQuizQuestion({ id: 'saved-q1' })],
+              },
+            },
+          }),
+        } as Response)
+        await Promise.resolve()
+      })
+
+      expect(onSaveStatusChange).not.toHaveBeenCalledWith('saved')
+      expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+    })
+
     it('duplicates a test question immediately below the source in summary-detail mode', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
