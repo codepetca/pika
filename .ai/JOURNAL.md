@@ -10747,3 +10747,19 @@
 - Manual mobile drawer captures:
   - `/tmp/pika-teacher-mobile-drawer.png`
   - `/tmp/pika-student-mobile-drawer.png`
+## 2026-05-04 — Make message popup background solid
+
+**Completed:**
+- Changed global app message popup tones to use the solid semantic surface background.
+- Kept tone-specific border and text colors for info, success, and warning messages.
+- Added test coverage so success messages keep `bg-surface` instead of the translucent success background token.
+
+**Validation:**
+- `pnpm test tests/ui/AppMessage.test.tsx tests/ui/StatusPrimitives.test.tsx`
+- `pnpm lint`
+- Manual Playwright screenshots on `http://localhost:3100/verify-signup?email=teacher%40example.com`:
+  - `/tmp/pika-message-popup-light.png`
+  - `/tmp/pika-message-popup-dark.png`
+- Computed popup backgrounds verified as opaque:
+  - Light: `rgb(255, 255, 255)`
+  - Dark: `rgb(17, 24, 39)`
