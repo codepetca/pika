@@ -10551,3 +10551,176 @@
 - `pnpm lint`
 - `git diff --check`
 - `pnpm build`
+
+## 2026-04-30 — Add classroom dashboard edit toggle
+
+**Completed:**
+- Added a footer Edit/Done toggle on the teacher classroom dashboard.
+- Hid classroom drag handles, per-classroom archive actions, and the Active/Archived footer toggle until edit mode is enabled.
+- Reset the dashboard back to Active view when leaving edit mode.
+- Added component coverage for the hidden/edit-mode controls.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- Pika UI verification script for `/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshot for teacher edit mode:
+  - `/tmp/pika-teacher-edit.png`
+
+## 2026-05-03 — Rebase classroom dashboard edit toggle
+
+**Completed:**
+- Rebasing `codex/classroom-dash-edit-toggle` onto `origin/main`.
+- Stashed and restored local classroom dashboard edit toggle changes without conflicts.
+- Confirmed no migration files were added or resequenced.
+
+**Validation:**
+- Session startup verification: `pnpm test`
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+
+## 2026-05-03 — Move classroom dashboard edit controls to top
+
+**Completed:**
+- Replaced the bespoke classroom dashboard footer edit toggle with the shared assignment-style `TeacherEditModeControls`.
+- Moved `New` and `Edit` controls above the classroom cards.
+- Kept classroom drag handles, row archive actions, and the Active/Archived toggle hidden until edit mode is enabled.
+- Removed the fixed bottom action bar.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- Pika UI verification script for `/classrooms` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots:
+  - `/tmp/pika-teacher-edit.png`
+  - `/tmp/pika-teacher-mobile-edit.png`
+- `pnpm test`
+
+## 2026-05-03 — Reuse classroom dashboard FAB cluster
+
+**Completed:**
+- Reused the shared `TeacherWorkSurfaceFloatingActionCluster` for the classroom dashboard `New` and `Edit` controls.
+- Kept the action cluster horizontally centered across desktop and mobile.
+- Preserved the edit-mode behavior where drag handles, row archive actions, and the Active/Archived toggle only show after enabling Edit.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- Pika UI verification script for `/classrooms` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots:
+  - `/tmp/pika-classrooms-teacher-default.png`
+  - `/tmp/pika-classrooms-teacher-mobile-default.png`
+  - `/tmp/pika-teacher-edit.png`
+  - `/tmp/pika-teacher-mobile-edit.png`
+
+## 2026-05-03 — Align classroom view toggle with FAB buttons
+
+**Completed:**
+- Replaced the custom Active/Archived classroom view pills with the shared `SegmentedControl`.
+- Moved the Active/Archived toggle to the left of the `New` button when classroom edit mode is enabled.
+- Added coverage for the edit-mode control ordering.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- Pika UI verification script for `/classrooms` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots:
+  - `/tmp/pika-classrooms-teacher-default.png`
+  - `/tmp/pika-classrooms-teacher-mobile-default.png`
+  - `/tmp/pika-teacher-edit.png`
+  - `/tmp/pika-teacher-mobile-edit.png`
+
+## 2026-05-03 — Move classroom view toggle to bottom center
+
+**Completed:**
+- Moved the Active/Archived classroom view segmented control out of the top FAB cluster.
+- Rendered the view toggle fixed at the bottom center while classroom edit mode is enabled.
+- Kept `New` and `Edit` in the centered top FAB cluster.
+- Added bottom padding in edit mode so fixed controls do not cover classroom cards.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- Pika UI verification script for `/classrooms` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots:
+  - `/tmp/pika-classrooms-teacher-default.png`
+  - `/tmp/pika-classrooms-teacher-mobile-default.png`
+  - `/tmp/pika-teacher-edit.png`
+  - `/tmp/pika-teacher-mobile-edit.png`
+
+## 2026-05-03 — Always show classroom view toggle
+
+**Completed:**
+- Kept the Active/Archived classroom view toggle visible at the bottom center in both normal and edit modes.
+- Preserved Edit as the gate for classroom drag handles and row archive actions.
+- Stopped resetting the classroom view to Active when turning Edit off.
+- Added coverage for the always-visible view toggle and retained Archived selection after edit mode is disabled.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- Pika UI verification script for `/classrooms` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots:
+  - `/tmp/pika-classrooms-teacher-default.png`
+  - `/tmp/pika-classrooms-teacher-mobile-default.png`
+  - `/tmp/pika-teacher-edit.png`
+  - `/tmp/pika-teacher-mobile-edit.png`
+
+## 2026-05-03 — Clear classroom edit mode on escape and page restore
+
+**Completed:**
+- Added Escape handling to turn classroom edit mode off and clear any drag state.
+- Added `pageshow` handling so browser page restore after refresh/back-forward does not leave edit mode enabled.
+- Added component coverage for Escape and page-restore edit-mode clearing.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- Pika UI verification script for `/classrooms` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright interaction check:
+  - Escape clears classroom edit mode.
+  - `pageshow` clears classroom edit mode.
+  - `/tmp/pika-classrooms-after-edit-clear.png`
+
+## 2026-05-04 — Move classroom create action below list
+
+**Completed:**
+- Removed `New` from the top classroom FAB cluster so the cluster now only contains `Edit`.
+- Rendered `New` below the classroom list when there are no active classrooms or classroom edit mode is enabled.
+- Hid `New` after the first active classroom exists while edit mode is off.
+- Updated component coverage for the new create-button visibility and placement.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- Pika UI verification script for `/classrooms` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots:
+  - `/tmp/pika-classrooms-teacher-default.png`
+  - `/tmp/pika-classrooms-teacher-mobile-default.png`
+  - `/tmp/pika-teacher-edit.png`
+  - `/tmp/pika-teacher-mobile-edit.png`

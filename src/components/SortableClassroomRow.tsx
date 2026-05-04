@@ -11,6 +11,7 @@ interface SortableClassroomRowProps {
   isDragDisabled?: boolean
   isDisabled?: boolean
   isOpening?: boolean
+  showEditControls?: boolean
   onOpen: () => void
   onArchive: () => void
 }
@@ -109,6 +110,7 @@ export function SortableClassroomRow({
   isDragDisabled = false,
   isDisabled = false,
   isOpening = false,
+  showEditControls = true,
   onOpen,
   onArchive,
 }: SortableClassroomRowProps) {
@@ -119,7 +121,7 @@ export function SortableClassroomRow({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: classroom.id, disabled: isDragDisabled })
+  } = useSortable({ id: classroom.id, disabled: isDragDisabled || !showEditControls })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -141,7 +143,7 @@ export function SortableClassroomRow({
         onOpen={onOpen}
         isDisabled={isDisabled}
         isOpening={isOpening}
-        dragHandle={
+        dragHandle={showEditControls ? (
           <button
             type="button"
             className={[
@@ -157,8 +159,8 @@ export function SortableClassroomRow({
           >
             <GripVertical className="h-5 w-5" aria-hidden="true" />
           </button>
-        }
-        action={
+        ) : null}
+        action={showEditControls ? (
           <button
             type="button"
             onClick={onArchive}
@@ -169,7 +171,7 @@ export function SortableClassroomRow({
           >
             <Archive className="h-4 w-4" aria-hidden="true" />
           </button>
-        }
+        ) : null}
       />
     </div>
   )

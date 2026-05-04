@@ -21,7 +21,9 @@ import {
 import { useRouter, usePathname } from 'next/navigation'
 import { Archive, CircleDot, LoaderCircle, Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
-import { Button, ConfirmDialog } from '@/ui'
+import { TeacherWorkSurfaceFloatingActionCluster } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
+import { Button, ConfirmDialog, SegmentedControl } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
@@ -45,6 +47,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const [archivedClassrooms, setArchivedClassrooms] = useState<Classroom[]>([])
   const [view, setView] = useState<ViewMode>('active')
   const [showCreate, setShowCreate] = useState(false)
+  const [isEditingClassrooms, setIsEditingClassrooms] = useState(false)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isLoadingArchived, setIsLoadingArchived] = useState(false)
@@ -107,7 +110,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   }, [])
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
-    if (view !== 'active' || isReordering) return
+    if (!isEditingClassrooms || view !== 'active' || isReordering) return
 
     const { active, over } = event
     if (!over || active.id === over.id) {
@@ -145,11 +148,12 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       setIsReordering(false)
       setDraggingClassroomId(null)
     }
-  }, [activeClassrooms, isReordering, refreshActiveClassrooms, view])
+  }, [activeClassrooms, isEditingClassrooms, isReordering, refreshActiveClassrooms, view])
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
+    if (!isEditingClassrooms) return
     setDraggingClassroomId(String(event.active.id))
-  }, [])
+  }, [isEditingClassrooms])
 
   const handleDragCancel = useCallback(() => {
     setDraggingClassroomId(null)
@@ -170,6 +174,27 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     if (view !== 'archived') return
     loadArchived()
   }, [loadArchived, view])
+
+  useEffect(() => {
+    function clearEditMode() {
+      setIsEditingClassrooms(false)
+      setDraggingClassroomId(null)
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        clearEditMode()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('pageshow', clearEditMode)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('pageshow', clearEditMode)
+    }
+  }, [])
 
   async function archiveClassroom(classroom: Classroom) {
     setIsProcessing(true)
@@ -279,9 +304,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     : 'Confirm'
 
   const dialogVariant = pendingAction?.mode === 'delete' ? 'danger' : 'default'
-
-  const hasActiveClassrooms = activeClassrooms.length > 0
-  const showBottomCreateButton = hasActiveClassrooms || view === 'archived'
+  const showCreateClassroomButton = activeClassrooms.length === 0 || isEditingClassrooms
 
   const openClassroom = useCallback((classroom: Classroom) => {
     setOpeningClassroomId(classroom.id)
@@ -290,7 +313,23 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
   return (
     <PageLayout className="mx-auto max-w-2xl">
-      <PageContent className="pb-36">
+      <TeacherWorkSurfaceFloatingActionCluster>
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
+          <TeacherEditModeControls
+            active={isEditingClassrooms}
+            onActiveChange={(active) => {
+              setIsEditingClassrooms(active)
+              if (!active) {
+                setDraggingClassroomId(null)
+              }
+            }}
+            disabled={openingClassroomId !== null}
+            variant="secondary"
+          />
+        </div>
+      </TeacherWorkSurfaceFloatingActionCluster>
+
+      <PageContent className="pb-24 pt-16">
         {error && (
           <div className="mb-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
             {error}
@@ -309,15 +348,17 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
           view === 'active' ? (
             /* Empty active: center the CTA on screen */
             <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100dvh - 12rem)' }}>
-              <p className="mb-4 text-sm text-text-muted">Create your first classroom</p>
-              <button
+              <p className="text-sm text-text-muted">Create your first classroom</p>
+              <Button
                 type="button"
+                variant="primary"
+                size="sm"
+                className="mt-4"
                 onClick={() => setShowCreate(true)}
-                className="inline-flex items-center gap-2 rounded-control bg-primary px-6 py-3 text-sm font-semibold text-text-inverse shadow-sm transition-colors hover:bg-primary-hover"
               >
-                <Plus className="h-5 w-5" aria-hidden="true" />
-                New classroom
-              </button>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                <span>New</span>
+              </Button>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -325,6 +366,18 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
               <p className="mt-1 text-sm text-text-muted">
                 Archived classrooms will appear here so you can restore or permanently remove them later.
               </p>
+              {showCreateClassroomButton ? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  className="mt-4"
+                  onClick={() => setShowCreate(true)}
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  <span>New</span>
+                </Button>
+              ) : null}
             </div>
           )
         ) : (
@@ -345,6 +398,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                     <SortableClassroomRow
                       key={classroom.id}
                       classroom={classroom}
+                      showEditControls={isEditingClassrooms}
                       isDragDisabled={isReordering || openingClassroomId !== null}
                       isDisabled={openingClassroomId !== null}
                       isOpening={openingClassroomId === classroom.id}
@@ -418,52 +472,41 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
             )}
           </div>
         )}
+
+        {visibleClassrooms.length > 0 && showCreateClassroomButton ? (
+          <div className="flex justify-center pt-3">
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={() => setShowCreate(true)}
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              <span>New</span>
+            </Button>
+          </div>
+        ) : null}
       </PageContent>
 
-      {/* Fixed bottom bar: Active/Archived toggle with inline create CTA */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-page/90 pb-4 pt-3 backdrop-blur-sm">
-        <div className="mx-auto flex w-full max-w-2xl items-center justify-center px-4">
-          <div className="flex items-center gap-2">
-            <div className="inline-flex items-stretch rounded-full border border-border bg-surface-2 p-0.5 shadow-sm">
-              <button
-                type="button"
-                onClick={() => setView('active')}
-                className={[
-                  'inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
-                  view === 'active'
-                    ? 'bg-surface text-text-default shadow-sm'
-                    : 'text-text-muted hover:bg-surface-accent',
-                ].join(' ')}
-              >
-                <CircleDot className="h-3.5 w-3.5" aria-hidden="true" />
-                Active
-              </button>
-              <button
-                type="button"
-                onClick={() => setView('archived')}
-                className={[
-                  'inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
-                  view === 'archived'
-                    ? 'bg-surface text-text-default shadow-sm'
-                    : 'text-text-muted hover:bg-surface-accent',
-                ].join(' ')}
-              >
-                <Archive className="h-3.5 w-3.5" aria-hidden="true" />
-                Archived
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowCreate(true)}
-              className={[
-                'rounded-control bg-primary px-4 py-1.5 text-sm font-semibold text-text-inverse shadow-sm transition-colors hover:bg-primary-hover',
-                showBottomCreateButton ? 'inline-flex items-center' : 'hidden',
-              ].join(' ')}
-            >
-              + New
-            </button>
-          </div>
-        </div>
+      <div className="fixed bottom-4 left-1/2 z-40 w-max max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-lg bg-surface/95 p-1 shadow-elevated backdrop-blur">
+        <SegmentedControl<ViewMode>
+          ariaLabel="Classroom view"
+          value={view}
+          onChange={setView}
+          className="border border-border shadow-sm"
+          options={[
+            {
+              value: 'active',
+              label: 'Active',
+              icon: <CircleDot className="h-3.5 w-3.5" />,
+            },
+            {
+              value: 'archived',
+              label: 'Archived',
+              icon: <Archive className="h-3.5 w-3.5" />,
+            },
+          ]}
+        />
       </div>
 
       <CreateClassroomModal
