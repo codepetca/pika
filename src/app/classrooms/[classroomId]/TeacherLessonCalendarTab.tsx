@@ -467,7 +467,7 @@ export function TeacherLessonCalendarTab({
     [onNavigateToAssignments, classroom.id]
   )
 
-  // Handle announcement click - navigate to Resources > Announcements
+  // Handle announcement click - navigate to Announcements
   const handleAnnouncementClick = useCallback(() => {
     onNavigateToAnnouncements()
   }, [onNavigateToAnnouncements])
