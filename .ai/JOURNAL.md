@@ -10724,3 +10724,26 @@
   - `/tmp/pika-classrooms-teacher-mobile-default.png`
   - `/tmp/pika-teacher-edit.png`
   - `/tmp/pika-teacher-mobile-edit.png`
+
+## 2026-05-04 — Split announcements from resources tab
+
+**Completed:**
+- Added a dedicated `Announcements` classroom tab for teachers and students.
+- Moved announcement feeds into the new tab and made `Resources` show only class resources.
+- Routed unread announcement activity to the Announcements nav item.
+- Updated calendar announcement links, layout route keys, UI gallery links, and focused coverage.
+
+**Validation:**
+- `pnpm test tests/components/ResourcesTab.test.tsx tests/components/NavItems.test.tsx tests/unit/layout-config.test.ts tests/components/ThreePanelProvider.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- Pika UI verification script on port 3010:
+  - `classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=resources`
+  - `classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=announcements`
+- Manual Playwright student captures for the student-accessible classroom:
+  - `/tmp/pika-student-resources-accessible.png`
+  - `/tmp/pika-student-announcements-accessible.png`
+- Manual mobile drawer captures:
+  - `/tmp/pika-teacher-mobile-drawer.png`
+  - `/tmp/pika-student-mobile-drawer.png`

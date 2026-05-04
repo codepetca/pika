@@ -1,18 +1,18 @@
 'use client'
 
 import { PageContent, PageLayout } from '@/components/PageLayout'
-import { StudentClassResourcesSidebar } from './StudentClassResourcesSidebar'
+import { TeacherAnnouncementsSection } from './TeacherAnnouncementsSection'
 import type { Classroom } from '@/types'
 
 interface Props {
   classroom: Classroom
 }
 
-export function StudentResourcesTab({ classroom }: Props) {
+export function TeacherAnnouncementsTab({ classroom }: Props) {
   return (
     <PageLayout>
       <PageContent>
-        <StudentClassResourcesSidebar classroom={classroom} />
+        <TeacherAnnouncementsSection classroom={classroom} className="mx-0 max-w-none" />
       </PageContent>
     </PageLayout>
   )

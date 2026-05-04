@@ -186,6 +186,12 @@ vi.mock('@/app/classrooms/[classroomId]/StudentClassResourcesSidebar', () => ({
 vi.mock('@/app/classrooms/[classroomId]/StudentResourcesTab', () => ({
   StudentResourcesTab: () => <div />,
 }))
+vi.mock('@/app/classrooms/[classroomId]/TeacherAnnouncementsTab', () => ({
+  TeacherAnnouncementsTab: () => <div />,
+}))
+vi.mock('@/app/classrooms/[classroomId]/StudentAnnouncementsTab', () => ({
+  StudentAnnouncementsTab: () => <div />,
+}))
 vi.mock('@/app/classrooms/[classroomId]/TeacherQuizzesTab', () => ({
   TeacherQuizzesTab: ({ onSelectQuiz }: any) => (
     <div>

@@ -2,6 +2,16 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { TeacherResourcesTab } from '@/app/classrooms/[classroomId]/TeacherResourcesTab'
 import { StudentResourcesTab } from '@/app/classrooms/[classroomId]/StudentResourcesTab'
+import { TeacherAnnouncementsTab } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsTab'
+import { StudentAnnouncementsTab } from '@/app/classrooms/[classroomId]/StudentAnnouncementsTab'
+
+vi.mock('@/app/classrooms/[classroomId]/TeacherClassResourcesSidebar', () => ({
+  TeacherClassResourcesSidebar: () => <div>Teacher resources content</div>,
+}))
+
+vi.mock('@/app/classrooms/[classroomId]/StudentClassResourcesSidebar', () => ({
+  StudentClassResourcesSidebar: () => <div>Student resources content</div>,
+}))
 
 vi.mock('@/app/classrooms/[classroomId]/TeacherAnnouncementsSection', () => ({
   TeacherAnnouncementsSection: () => <div>Teacher announcements content</div>,
@@ -9,10 +19,6 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherAnnouncementsSection', () => ({
 
 vi.mock('@/app/classrooms/[classroomId]/StudentAnnouncementsSection', () => ({
   StudentAnnouncementsSection: () => <div>Student announcements content</div>,
-}))
-
-vi.mock('@/components/layout', () => ({
-  RightSidebarToggle: () => <button type="button">Open panel</button>,
 }))
 
 const classroom = {
@@ -32,21 +38,31 @@ const classroom = {
 } as const
 
 describe('ResourcesTab', () => {
-  it('renders teacher resources as announcements plus a panel toggle', () => {
+  it('renders teacher resources without announcements content', () => {
     render(<TeacherResourcesTab classroom={classroom} />)
 
-    expect(screen.getByText('Teacher announcements content')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Open panel' })).toBeInTheDocument()
-    expect(screen.queryByText('Announcements')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Class Resources' })).toBeNull()
+    expect(screen.getByText('Teacher resources content')).toBeInTheDocument()
+    expect(screen.queryByText('Teacher announcements content')).toBeNull()
   })
 
-  it('renders student resources as announcements plus a panel toggle', () => {
+  it('renders student resources without announcements content', () => {
     render(<StudentResourcesTab classroom={classroom} />)
 
+    expect(screen.getByText('Student resources content')).toBeInTheDocument()
+    expect(screen.queryByText('Student announcements content')).toBeNull()
+  })
+
+  it('renders teacher announcements in the announcements tab', () => {
+    render(<TeacherAnnouncementsTab classroom={classroom} />)
+
+    expect(screen.getByText('Teacher announcements content')).toBeInTheDocument()
+    expect(screen.queryByText('Teacher resources content')).toBeNull()
+  })
+
+  it('renders student announcements in the announcements tab', () => {
+    render(<StudentAnnouncementsTab classroom={classroom} />)
+
     expect(screen.getByText('Student announcements content')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Open panel' })).toBeInTheDocument()
-    expect(screen.queryByText('Announcements')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Class Resources' })).toBeNull()
+    expect(screen.queryByText('Student resources content')).toBeNull()
   })
 })
