@@ -47,9 +47,9 @@ const AppMessageContext = createContext<AppMessageContextValue | null>(null)
 
 const toneClassNames: Record<AppMessageTone, string> = {
   loading: 'border-border bg-surface text-text-default',
-  info: 'border-primary bg-info-bg text-info',
-  success: 'border-success bg-success-bg text-success',
-  warning: 'border-warning bg-warning-bg text-warning',
+  info: 'border-primary bg-surface text-info',
+  success: 'border-success bg-surface text-success',
+  warning: 'border-warning bg-surface text-warning',
 }
 
 function getDefaultDurationMs(tone: AppMessageTone): number {
