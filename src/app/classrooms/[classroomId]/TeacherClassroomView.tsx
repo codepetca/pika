@@ -1041,7 +1041,9 @@ export function TeacherClassroomView({
       }
       setInfo(summaryParts.join(' • '))
       setShowReturnConfirm(false)
-      // Reload assignment data to refresh statuses/grades
+      invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
+      await loadAssignments({ preserveContent: true })
+      // Reload assignment detail data to refresh statuses/grades
       setRefreshCounter((c) => c + 1)
     } catch (err: any) {
       setError(err.message || 'Return failed')

@@ -10763,3 +10763,23 @@
 - Computed popup backgrounds verified as opaque:
   - Light: `rgb(255, 255, 255)`
   - Dark: `rgb(17, 24, 39)`
+
+## 2026-04-30 — Refresh assignment counts after return
+
+**Completed:**
+- Fixed the teacher assignment list card counts staying stale after returning selected assignment work.
+- Invalidated and reloaded the teacher assignment summary cache after a successful batch return, while preserving the current workspace content.
+- Added component coverage for a resubmitted student changing the summary card from `1/31` to `0/31` after return.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm test tests/api/teacher/assignments.test.ts tests/api/teacher/assignments-id-return.test.ts`
+- `pnpm lint`
+- `pnpm test`
+- Pika UI verification script for `/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots for assignment lists:
+  - `/tmp/pika-teacher-assignments.png`
+  - `/tmp/pika-student-assignments.png`

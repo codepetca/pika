@@ -6,6 +6,7 @@ import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
 import type { Classroom } from '@/types'
 
 const mockFetchJSONWithCache = vi.fn()
+const mockInvalidateCachedJSON = vi.fn()
 const mockToggleSelect = vi.fn()
 const mockToggleSelectAll = vi.fn()
 const mockClearSelection = vi.fn()
@@ -131,9 +132,12 @@ vi.mock('@/components/AssignmentModal', () => ({
 vi.mock('@/components/SortableAssignmentCard', () => ({
   SortableAssignmentCard: ({ assignment, editMode, onOpen, onEdit, onDelete }: any) => (
     <div>
-      <button type="button" onClick={editMode ? onEdit : onOpen}>
+      <button type="button" onClick={editMode ? onEdit : onOpen} aria-label={assignment.title}>
         {assignment.title}
       </button>
+      <span data-testid={`assignment-count-${assignment.id}`}>
+        {assignment.stats.submitted}/{assignment.stats.total_students}
+      </span>
       {editMode ? (
         <button type="button" onClick={onDelete} aria-label={`Delete ${assignment.title}`}>
           Delete
@@ -294,7 +298,7 @@ vi.mock('@/components/DataTable', () => ({
 
 vi.mock('@/lib/request-cache', () => ({
   fetchJSONWithCache: (...args: any[]) => mockFetchJSONWithCache(...args),
-  invalidateCachedJSON: vi.fn(),
+  invalidateCachedJSON: (...args: any[]) => mockInvalidateCachedJSON(...args),
 }))
 
 vi.mock('@/hooks/use-window-size', () => ({
@@ -439,6 +443,7 @@ describe('TeacherClassroomView', () => {
       }
       return fetcher()
     })
+    mockInvalidateCachedJSON.mockReset()
   })
 
   afterEach(() => {
@@ -2060,5 +2065,123 @@ describe('TeacherClassroomView', () => {
       })
     })
     expect(mockSetSelection).toHaveBeenCalledWith(['student-2'])
+  })
+
+  it('refreshes assignment list card counts after returning selected work', async () => {
+    mockStudentSelectionState.selectedIds = new Set(['student-1'])
+    mockStudentSelectionState.selectedCount = 1
+    let assignmentSummaryLoadCount = 0
+
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        assignmentSummaryLoadCount += 1
+        return Promise.resolve({
+          assignments: [
+            makeAssignmentSummary('assignment-1', 'Assignment One', {
+              stats: {
+                total_students: 31,
+                submitted: assignmentSummaryLoadCount === 1 ? 1 : 0,
+                late: 0,
+              },
+            }),
+          ],
+        })
+      }
+      if (key === `class-days:${classroom.id}`) {
+        return Promise.resolve({ class_days: [] })
+      }
+      return fetcher()
+    })
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            assignment: makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1').assignment,
+            students: [
+              {
+                student_id: 'student-1',
+                student_email: 'student-1@example.com',
+                student_first_name: 'student-1',
+                student_last_name: 'Student',
+                status: 'resubmitted',
+                student_updated_at: '2026-04-22T12:00:00Z',
+                artifacts: [],
+                doc: {
+                  is_submitted: true,
+                  submitted_at: '2026-04-22T12:00:00Z',
+                  updated_at: '2026-04-22T12:00:00Z',
+                  score_completion: 8,
+                  score_thinking: 8,
+                  score_workflow: 8,
+                  graded_at: '2026-04-22T13:00:00Z',
+                  returned_at: '2026-04-21T12:00:00Z',
+                  teacher_cleared_at: '2026-04-21T12:00:00Z',
+                  feedback_returned_at: '2026-04-21T12:00:00Z',
+                },
+              },
+            ],
+          }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1/return') {
+        expect(init?.method).toBe('POST')
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            returned_count: 1,
+            cleared_count: 1,
+            created_count: 0,
+            returned_student_ids: ['student-1'],
+            blocked_count: 0,
+            blocked_student_ids: [],
+            already_returned_count: 0,
+            already_returned_student_ids: [],
+            missing_count: 0,
+            missing_student_ids: [],
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    expect(await screen.findByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    expect(screen.getByTestId('assignment-count-assignment-1')).toHaveTextContent('1/31')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Assignment One' }))
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Return/i }))
+    const confirmReturnButton = screen.getAllByRole('button', { name: 'Return' }).at(-1)
+    expect(confirmReturnButton).toBeDefined()
+    fireEvent.click(confirmReturnButton!)
+
+    await waitFor(() => {
+      expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-assignments:${classroom.id}`)
+    })
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(TEACHER_ASSIGNMENTS_SELECTION_EVENT, {
+          detail: { classroomId: classroom.id, value: 'summary' },
+        }),
+      )
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('assignment-count-assignment-1')).toHaveTextContent('0/31')
+    })
+    expect(assignmentSummaryLoadCount).toBeGreaterThan(1)
   })
 })
