@@ -7,7 +7,7 @@ import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions
 import { getRelativeDueDate } from '@/lib/assignment-relative-date'
 import { ConfirmDialog, DialogPanel, SplitButton } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
-import { format } from 'date-fns'
+import { format, isValid, parse } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
 import { useAssignmentDateValidation } from '@/hooks/useAssignmentDateValidation'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
@@ -30,7 +30,13 @@ function getDisplayedAssignmentTitle(title: string): string {
 }
 
 function validateAssignmentValues(values: AssignmentEditorValues): string | null {
-  void values
+  if (!values.dueAt) return 'Due date is required.'
+
+  const parsedDueAt = parse(values.dueAt, 'yyyy-MM-dd', new Date())
+  if (!isValid(parsedDueAt) || format(parsedDueAt, 'yyyy-MM-dd') !== values.dueAt) {
+    return 'Enter a valid due date.'
+  }
+
   return null
 }
 
@@ -508,7 +514,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   function handleDueAtChange(newDueAt: string) {
     updateDueDate(newDueAt)
-    const validationError = getScheduledAssignmentDueDateValidationMessage(currentAssignment, newDueAt)
+    const validationError = validateAssignmentEditorValues(
+      { title, instructionsMarkdown, dueAt: newDueAt },
+      currentAssignment
+    )
     if (validationError) {
       setError(validationError)
     }

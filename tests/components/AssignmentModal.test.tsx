@@ -736,6 +736,107 @@ describe('AssignmentModal', () => {
       })
     })
 
+    it('updates a changed due date and closes on draft save', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      const newAssignment = {
+        ...baseAssignment,
+        id: 'new-draft-1',
+        title: 'Untitled Assignment',
+        due_at: toTorontoEndOfDayIso('2099-03-03'),
+      }
+      const updatedAssignment = {
+        ...newAssignment,
+        due_at: toTorontoEndOfDayIso('2099-03-04'),
+      }
+
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ assignment: newAssignment }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ assignment: updatedAssignment }),
+      })
+
+      const onSuccess = vi.fn()
+      const onClose = vi.fn()
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Edit Draft')).toBeInTheDocument()
+      })
+
+      fireEvent.change(screen.getByDisplayValue('2099-03-03'), { target: { value: '2099-03-04' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Draft' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Draft' }))
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+      })
+
+      const [url, options] = fetchMock.mock.calls[1]
+      expect(url).toBe('/api/teacher/assignments/new-draft-1')
+      expect(options.method).toBe('PATCH')
+      expect(JSON.parse(options.body)).toEqual({ due_at: toTorontoEndOfDayIso('2099-03-04') })
+
+      await waitFor(() => {
+        expect(onSuccess).toHaveBeenCalled()
+        expect(onClose).toHaveBeenCalled()
+      })
+    })
+
+    it('blocks closing a draft with an empty due date without throwing an invalid time error', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      const newAssignment = {
+        ...baseAssignment,
+        id: 'new-draft-1',
+        title: 'Untitled Assignment',
+        due_at: toTorontoEndOfDayIso('2099-03-03'),
+      }
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ assignment: newAssignment }),
+      })
+
+      const onSuccess = vi.fn()
+      const onClose = vi.fn()
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Edit Draft')).toBeInTheDocument()
+      })
+
+      fireEvent.change(screen.getByDisplayValue('2099-03-03'), { target: { value: '' } })
+
+      expect(screen.getByText('Due date is required.')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Draft' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Draft' }))
+
+      expect(screen.getByText('Due date is required.')).toBeInTheDocument()
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(onSuccess).not.toHaveBeenCalled()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
     it('opens schedule modal from split action and schedules release', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       const newAssignment = {
