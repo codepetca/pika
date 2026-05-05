@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
-import { isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
+import {
+  getEffectiveStudentTestAccess,
+  isMissingTestAttemptClosureColumnsError,
+  isMissingTestAttemptReturnColumnsError,
+  isMissingTestStudentAvailabilityError,
+} from '@/lib/server/tests'
 import { getStudentTestStatus } from '@/lib/quizzes'
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import { hasMeaningfulTestResponse } from '@/lib/test-responses'
@@ -62,15 +67,22 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
 
   const respondedTestIds = new Set<string>()
   const returnedTestIds = new Set<string>()
+  const lockedTestIds = new Set<string>()
+  const availabilityByTestId = new Map<string, 'open' | 'closed'>()
   if (classroomTestIds.length > 0) {
-    type AttemptRow = { test_id: string; is_submitted: boolean; returned_at: string | null }
+    type AttemptRow = {
+      test_id: string
+      is_submitted: boolean
+      returned_at: string | null
+      closed_for_grading_at: string | null
+    }
     let attempts: AttemptRow[] | null = null
     let attemptsError: { code?: string; message?: string; details?: string; hint?: string } | null = null
 
     {
       const latestAttemptsResult = await supabase
         .from('test_attempts')
-        .select('test_id, is_submitted, returned_at')
+        .select('test_id, is_submitted, returned_at, closed_for_grading_at')
         .eq('student_id', user.id)
         .in('test_id', classroomTestIds)
 
@@ -86,7 +98,30 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
         .in('test_id', classroomTestIds)
 
       attempts = ((legacyAttemptsResult.data as Array<{ test_id: string; is_submitted: boolean }> | null) || [])
-        .map((attempt) => ({ ...attempt, returned_at: null }))
+        .map((attempt) => ({
+          ...attempt,
+          returned_at: null,
+          closed_for_grading_at: null,
+        }))
+      attemptsError = legacyAttemptsResult.error
+    }
+
+    if (attemptsError && isMissingTestAttemptClosureColumnsError(attemptsError)) {
+      const legacyAttemptsResult = await supabase
+        .from('test_attempts')
+        .select('test_id, is_submitted, returned_at')
+        .eq('student_id', user.id)
+        .in('test_id', classroomTestIds)
+
+      attempts = ((legacyAttemptsResult.data as Array<{
+        test_id: string
+        is_submitted: boolean
+        returned_at: string | null
+      }> | null) || [])
+        .map((attempt) => ({
+          ...attempt,
+          closed_for_grading_at: null,
+        }))
       attemptsError = legacyAttemptsResult.error
     }
 
@@ -101,6 +136,9 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
       }
       if (attempt.returned_at) {
         returnedTestIds.add(attempt.test_id)
+      }
+      if (attempt.closed_for_grading_at) {
+        lockedTestIds.add(attempt.test_id)
       }
     }
 
@@ -127,22 +165,83 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
     }
   }
 
-  const respondedClosedTests = (closedTests || []).filter((test) =>
-    respondedTestIds.has(test.id)
-  )
+  if (classroomTestIds.length > 0) {
+    let availabilityRows: Array<{ test_id: string; state: unknown }> | null = null
+    let availabilityError: any = null
+    try {
+      const availabilityResult = await supabase
+        .from('test_student_availability')
+        .select('test_id, state')
+        .eq('student_id', user.id)
+        .in('test_id', classroomTestIds)
+      availabilityRows = availabilityResult.data
+      availabilityError = availabilityResult.error
+    } catch (error) {
+      availabilityError = error
+    }
 
-  const allTests = [...(activeTests || []), ...respondedClosedTests]
+    const mockMissingAvailability =
+      `${availabilityError?.message || availabilityError || ''}`.includes('Unexpected table: test_student_availability')
+    if (availabilityError && !isMissingTestStudentAvailabilityError(availabilityError) && !mockMissingAvailability) {
+      console.error('Error fetching selected student test access:', availabilityError)
+      return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
+    }
+
+    for (const row of availabilityRows || []) {
+      if (row.state === 'open' || row.state === 'closed') {
+        availabilityByTestId.set(row.test_id, row.state)
+      }
+    }
+  }
+
+  const visibleActiveTests = (activeTests || []).filter((test) => {
+    const access = getEffectiveStudentTestAccess({
+      testStatus: test.status,
+      accessState: availabilityByTestId.get(test.id) ?? null,
+      hasSubmitted: respondedTestIds.has(test.id),
+      returnedAt: returnedTestIds.has(test.id) ? 'returned' : null,
+      isLockedForGrading: lockedTestIds.has(test.id),
+    })
+    return access.can_start_or_continue || access.can_view_submitted
+  })
+
+  const visibleClosedTests = (closedTests || []).filter((test) => {
+    const access = getEffectiveStudentTestAccess({
+      testStatus: test.status,
+      accessState: availabilityByTestId.get(test.id) ?? null,
+      hasSubmitted: respondedTestIds.has(test.id),
+      returnedAt: returnedTestIds.has(test.id) ? 'returned' : null,
+      isLockedForGrading: lockedTestIds.has(test.id),
+    })
+    return access.can_start_or_continue || access.can_view_submitted
+  })
+
+  const allTests = [...visibleActiveTests, ...visibleClosedTests]
 
   const testsWithStatus = allTests.map((test: Quiz) => {
     const hasResponded = respondedTestIds.has(test.id)
     const isReturned = returnedTestIds.has(test.id)
-    const studentStatus = getStudentTestStatus(test, hasResponded, isReturned)
+    const access = getEffectiveStudentTestAccess({
+      testStatus: test.status,
+      accessState: availabilityByTestId.get(test.id) ?? null,
+      hasSubmitted: hasResponded,
+      returnedAt: isReturned ? 'returned' : null,
+      isLockedForGrading: lockedTestIds.has(test.id),
+    })
+    const studentStatus =
+      (hasResponded || lockedTestIds.has(test.id)) && isReturned && access.effective_access === 'closed'
+        ? 'can_view_results'
+        : lockedTestIds.has(test.id)
+          ? 'responded'
+          : getStudentTestStatus(test, hasResponded, isReturned)
 
     return {
       ...test,
       assessment_type: 'test' as const,
       documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
       student_status: studentStatus,
+      access_state: access.access_state,
+      effective_access: access.effective_access,
     }
   })
 

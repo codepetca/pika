@@ -79,7 +79,7 @@ export function StudentLessonCalendarTab({
     [onNavigateToAssignments]
   )
 
-  // Handle announcement click - navigate to Resources > Announcements
+  // Handle announcement click - navigate to Announcements
   const handleAnnouncementClick = useCallback(() => {
     onNavigateToAnnouncements()
   }, [onNavigateToAnnouncements])

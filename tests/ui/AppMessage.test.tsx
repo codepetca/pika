@@ -42,7 +42,8 @@ describe('AppMessageProvider', () => {
     expect(overlay).toHaveAttribute('aria-live', 'polite')
     expect(overlay).toHaveAttribute('aria-atomic', 'true')
     expect(overlay).toHaveClass('fixed', 'left-1/2', 'top-6', '-translate-y-1/2', 'pointer-events-none')
-    expect(screen.getByTestId('app-message-pill')).not.toHaveClass('transition-[opacity,transform]')
+    expect(screen.getByTestId('app-message-pill')).toHaveClass('bg-surface', 'text-success')
+    expect(screen.getByTestId('app-message-pill')).not.toHaveClass('bg-success-bg', 'transition-[opacity,transform]')
     expect(container.firstElementChild).toBe(screen.getByRole('button', { name: 'Show' }))
     expect(screen.getByRole('status')).toHaveTextContent('Saved')
 

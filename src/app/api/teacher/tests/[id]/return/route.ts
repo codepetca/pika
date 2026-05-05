@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { assertTeacherOwnsTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
+import {
+  assertTeacherOwnsTest,
+  getEffectiveStudentTestAccess,
+  getTestStudentAvailabilityMap,
+  isMissingTestAttemptReturnColumnsError,
+} from '@/lib/server/tests'
 import { finalizeUnsubmittedTestAttemptsOnClose } from '@/lib/server/finalize-test-attempts'
 import { withErrorHandler } from '@/lib/api-handler'
 
@@ -17,8 +22,24 @@ function hasGradedOpenResponse(score: unknown): boolean {
 
 function migrationRequiredResponse() {
   return NextResponse.json(
-    { error: 'Returning tests requires migration 043 to be applied' },
+    { error: 'Returning tests requires migrations 043 and 063 to be applied' },
     { status: 400 }
+  )
+}
+
+function isMissingReturnRpcError(error: {
+  code?: string
+  message?: string
+  details?: string | null
+  hint?: string | null
+} | null | undefined): boolean {
+  if (!error) return false
+  const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
+  return (
+    isMissingTestAttemptReturnColumnsError(error) ||
+    error.code === '42883' ||
+    error.code === 'PGRST202' ||
+    combined.includes('return_test_attempts_atomic')
   )
 }
 
@@ -47,53 +68,44 @@ export const POST = withErrorHandler('ReturnTeacherTest', async (request, contex
     return NextResponse.json({ error: 'Cannot return more than 100 students at once' }, { status: 400 })
   }
 
-  const closeTest = body?.close_test === true
-
   const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
   }
+  if (access.test.status === 'draft') {
+    return NextResponse.json({ error: 'Cannot return work for a draft test' }, { status: 400 })
+  }
 
   const supabase = getServiceRoleClient()
+  const availabilityResult = await getTestStudentAvailabilityMap(supabase, testId, studentIds)
+  if (availabilityResult.error && !availabilityResult.missingTable) {
+    console.error('Error loading test access for return:', availabilityResult.error)
+    return NextResponse.json({ error: 'Failed to load selected student access' }, { status: 500 })
+  }
 
-  if (access.test.status === 'active' && !closeTest) {
+  const openStudentIds = studentIds.filter((studentId) => {
+    const accessState = getEffectiveStudentTestAccess({
+      testStatus: access.test.status,
+      accessState: availabilityResult.stateByStudentId.get(studentId) ?? null,
+    })
+    return accessState.effective_access === 'open'
+  })
+
+  if (openStudentIds.length > 0) {
     return NextResponse.json(
-      { error: 'Test is still active. Confirm close and return to close it first.' },
+      { error: 'Close selected students before returning their test work.' },
       { status: 409 }
     )
   }
 
-  let closedInRequest = false
-  if (access.test.status === 'active' && closeTest) {
-    const { error: closeError } = await supabase
-      .from('tests')
-      .update({ status: 'closed' })
-      .eq('id', testId)
-      .eq('status', 'active')
-
-    if (closeError) {
-      console.error('Error closing test during return:', closeError)
-      return NextResponse.json({ error: 'Failed to close test before return' }, { status: 500 })
+  if (access.test.status === 'closed') {
+    const finalizeResult = await finalizeUnsubmittedTestAttemptsOnClose(supabase, testId, {
+      studentIds,
+      closedBy: user.id,
+    })
+    if (!finalizeResult.ok) {
+      return NextResponse.json({ error: finalizeResult.error }, { status: finalizeResult.status })
     }
-
-    closedInRequest = true
-  }
-
-  const finalizeResult = await finalizeUnsubmittedTestAttemptsOnClose(supabase, testId)
-  if (!finalizeResult.ok) {
-    if (closedInRequest) {
-      const { error: reopenError } = await supabase
-        .from('tests')
-        .update({ status: 'active' })
-        .eq('id', testId)
-        .eq('status', 'closed')
-
-      if (reopenError) {
-        console.error('Error reopening test after close+return finalization failure:', reopenError)
-      }
-    }
-
-    return NextResponse.json({ error: finalizeResult.error }, { status: finalizeResult.status })
   }
 
   const { data: openQuestionRows, error: openQuestionError } = await supabase
@@ -111,7 +123,7 @@ export const POST = withErrorHandler('ReturnTeacherTest', async (request, contex
 
   const { data: submittedAttemptRows, error: submittedAttemptError } = await supabase
     .from('test_attempts')
-    .select('student_id, is_submitted, submitted_at')
+    .select('student_id, is_submitted, submitted_at, closed_for_grading_at')
     .eq('test_id', testId)
     .in('student_id', studentIds)
 
@@ -121,9 +133,14 @@ export const POST = withErrorHandler('ReturnTeacherTest', async (request, contex
   }
 
   const submittedByStudent = new Map<string, string | null>()
+  const closedForGradingStudentIds = new Set<string>()
   for (const row of submittedAttemptRows || []) {
-    if (!row.is_submitted) continue
-    submittedByStudent.set(row.student_id, row.submitted_at || null)
+    if (row.is_submitted) {
+      submittedByStudent.set(row.student_id, row.submitted_at || null)
+    }
+    if (row.closed_for_grading_at) {
+      closedForGradingStudentIds.add(row.student_id)
+    }
   }
 
   const { data: responseRows, error: responsesError } = await supabase
@@ -162,7 +179,8 @@ export const POST = withErrorHandler('ReturnTeacherTest', async (request, contex
   for (const studentId of studentIds) {
     const studentResponses = responsesByStudent.get(studentId) || []
     const hasSubmittedAttempt = submittedByStudent.has(studentId)
-    const hasSubmittedWork = hasSubmittedAttempt || studentResponses.length > 0
+    const hasClosedForGradingAttempt = closedForGradingStudentIds.has(studentId)
+    const hasSubmittedWork = hasSubmittedAttempt || hasClosedForGradingAttempt || studentResponses.length > 0
     if (!hasSubmittedWork) continue
 
     if (hasSubmittedAttempt && !latestSubmittedAtByStudent.has(studentId)) {
@@ -187,66 +205,32 @@ export const POST = withErrorHandler('ReturnTeacherTest', async (request, contex
   const now = new Date().toISOString()
 
   if (eligibleStudentIds.length > 0) {
-    const { error: updateError } = await supabase
-      .from('test_attempts')
-      .update({
-        returned_at: now,
-        returned_by: user.id,
-        is_submitted: true,
-      })
-      .eq('test_id', testId)
-      .in('student_id', eligibleStudentIds)
+    const submittedAtByStudent = Object.fromEntries(
+      eligibleStudentIds.map((studentId) => [
+        studentId,
+        latestSubmittedAtByStudent.get(studentId) || now,
+      ])
+    )
 
-    if (updateError && updateError.code !== 'PGRST205') {
-      if (isMissingTestAttemptReturnColumnsError(updateError)) {
+    const { error: returnError } = await supabase.rpc('return_test_attempts_atomic', {
+      p_test_id: testId,
+      p_student_ids: eligibleStudentIds,
+      p_returned_by: user.id,
+      p_submitted_at_by_student: submittedAtByStudent,
+    })
+
+    if (returnError) {
+      if (isMissingReturnRpcError(returnError)) {
         return migrationRequiredResponse()
       }
-      console.error('Error updating existing attempts during return:', updateError)
+      console.error('Error returning test attempts:', returnError)
       return NextResponse.json({ error: 'Failed to return test work' }, { status: 500 })
-    }
-
-    const { data: existingAttempts, error: existingAttemptsError } = await supabase
-      .from('test_attempts')
-      .select('student_id')
-      .eq('test_id', testId)
-      .in('student_id', eligibleStudentIds)
-
-    if (existingAttemptsError && existingAttemptsError.code !== 'PGRST205') {
-      console.error('Error loading existing attempts during return:', existingAttemptsError)
-      return NextResponse.json({ error: 'Failed to return test work' }, { status: 500 })
-    }
-
-    const existingStudentIds = new Set((existingAttempts || []).map((row) => row.student_id))
-    const missingAttemptRows = eligibleStudentIds
-      .filter((studentId) => !existingStudentIds.has(studentId))
-      .map((studentId) => ({
-        test_id: testId,
-        student_id: studentId,
-        responses: {},
-        is_submitted: true,
-        submitted_at: latestSubmittedAtByStudent.get(studentId) || now,
-        returned_at: now,
-        returned_by: user.id,
-      }))
-
-    if (missingAttemptRows.length > 0) {
-      const { error: insertMissingError } = await supabase
-        .from('test_attempts')
-        .insert(missingAttemptRows)
-
-      if (insertMissingError) {
-        if (isMissingTestAttemptReturnColumnsError(insertMissingError)) {
-          return migrationRequiredResponse()
-        }
-        console.error('Error creating missing attempts during return:', insertMissingError)
-        return NextResponse.json({ error: 'Failed to return test work' }, { status: 500 })
-      }
     }
   }
 
   return NextResponse.json({
     returned_count: eligibleStudentIds.length,
     skipped_count: studentIds.length - eligibleStudentIds.length,
-    test_closed: access.test.status === 'active' && closeTest,
+    test_closed: false,
   })
 })

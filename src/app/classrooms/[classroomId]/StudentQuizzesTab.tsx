@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ClockAlert, LogOut, Maximize } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ClockAlert, LogOut, Maximize } from 'lucide-react'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout, PageStack } from '@/components/PageLayout'
@@ -1249,14 +1249,19 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                                     type="button"
                                     variant="secondary"
                                     size="sm"
-                                    className="w-full justify-start"
+                                    className="w-full justify-between gap-2 text-left"
                                     onClick={() => {
                                       markAllowedDocInteraction()
                                       setActiveDoc(doc)
                                     }}
                                     tabIndex={showDocPanel ? -1 : 0}
                                   >
-                                    {doc.title}
+                                    <span className="min-w-0 truncate">{doc.title}</span>
+                                    <ChevronRight
+                                      aria-hidden="true"
+                                      data-testid="student-test-document-open-icon"
+                                      className="h-4 w-4 flex-shrink-0 text-text-muted"
+                                    />
                                   </Button>
                                 ))}
                               </div>

@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { Pencil } from 'lucide-react'
-import { Button, Tooltip } from '@/ui'
+import { Button, Tooltip, type ButtonProps } from '@/ui'
 import { cn } from '@/ui/utils'
 
 interface TeacherEditModeControlsProps {
@@ -11,6 +11,7 @@ interface TeacherEditModeControlsProps {
   disabled?: boolean
   children?: ReactNode
   editLabel?: string
+  variant?: NonNullable<ButtonProps['variant']>
   className?: string
 }
 
@@ -20,6 +21,7 @@ export function TeacherEditModeControls({
   disabled = false,
   children,
   editLabel = 'Edit',
+  variant = 'ghost',
   className,
 }: TeacherEditModeControlsProps) {
   return (
@@ -33,10 +35,9 @@ export function TeacherEditModeControls({
       <Tooltip content={active ? 'Hide edit actions' : 'Show edit actions'}>
         <Button
           type="button"
-          variant="ghost"
+          variant={variant}
           size="sm"
           className={cn(
-            'min-h-10 px-3',
             active
               ? 'border-primary/40 bg-info-bg text-primary shadow-inner hover:bg-info-bg-hover hover:text-primary'
               : '',

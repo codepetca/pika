@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { aggregateResults, canStudentViewTestResults } from '@/lib/quizzes'
-import { assertStudentCanAccessTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
+import {
+  assertStudentCanAccessTest,
+  getEffectiveStudentTestAccess,
+  getTestStudentAvailabilityState,
+  isMissingTestAttemptClosureColumnsError,
+  isMissingTestAttemptReturnColumnsError,
+} from '@/lib/server/tests'
 import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { QuizQuestion, QuizResponse } from '@/types'
@@ -25,6 +31,7 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
   type AttemptRow = {
     is_submitted: boolean
     returned_at: string | null
+    closed_for_grading_at: string | null
   }
 
   let attempt: AttemptRow | null = null
@@ -33,7 +40,7 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
   {
     const attemptWithReturnResult = await supabase
       .from('test_attempts')
-      .select('is_submitted, returned_at')
+      .select('is_submitted, returned_at, closed_for_grading_at')
       .eq('test_id', testId)
       .eq('student_id', user.id)
       .maybeSingle()
@@ -42,7 +49,11 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
     attemptError = attemptWithReturnResult.error
   }
 
-  if (attemptError && isMissingTestAttemptReturnColumnsError(attemptError)) {
+  if (
+    attemptError &&
+    (isMissingTestAttemptReturnColumnsError(attemptError) ||
+      isMissingTestAttemptClosureColumnsError(attemptError))
+  ) {
     const legacyAttemptResult = await supabase
       .from('test_attempts')
       .select('is_submitted')
@@ -54,6 +65,7 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
       ? {
           ...(legacyAttemptResult.data as { is_submitted: boolean }),
           returned_at: null,
+          closed_for_grading_at: null,
         }
       : null)
     attemptError = legacyAttemptResult.error
@@ -70,9 +82,24 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
     .eq('test_id', testId)
     .eq('student_id', user.id)
 
-  const hasResponded = Boolean(attempt?.is_submitted) || hasAnyMeaningfulTestResponse(studentResponses)
+  const isLockedForGrading = Boolean(attempt?.closed_for_grading_at)
+  const hasResponded = Boolean(attempt?.is_submitted) || (!isLockedForGrading && hasAnyMeaningfulTestResponse(studentResponses))
+  const availabilityResult = await getTestStudentAvailabilityState(supabase, testId, user.id)
+  if (availabilityResult.error && !availabilityResult.missingTable) {
+    console.error('Error fetching student test access for results:', availabilityResult.error)
+    return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
+  }
+  const accessState = getEffectiveStudentTestAccess({
+    testStatus: test.status,
+    accessState: availabilityResult.state,
+    hasSubmitted: hasResponded,
+    returnedAt: attempt?.returned_at || null,
+    isLockedForGrading,
+  })
+  const canViewReturnedSelectedStudentResults =
+    (hasResponded || isLockedForGrading) && Boolean(attempt?.returned_at) && accessState.effective_access === 'closed'
 
-  if (!canStudentViewTestResults(test, hasResponded, attempt?.returned_at)) {
+  if (!canViewReturnedSelectedStudentResults && !canStudentViewTestResults(test, hasResponded, attempt?.returned_at)) {
     return NextResponse.json(
       { error: 'Results are available after your teacher returns this test' },
       { status: 403 }
@@ -184,6 +211,8 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
       title: test.title,
       status: test.status,
       returned_at: attempt?.returned_at || null,
+      access_state: accessState.access_state,
+      effective_access: accessState.effective_access,
     },
     results: aggregated,
     my_responses: myResponses,

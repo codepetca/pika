@@ -266,6 +266,7 @@ export interface DialogPanelProps {
   onClose: () => void
   maxWidth?: string
   className?: string
+  viewportPaddingClassName?: string
   /** ID of the element that labels the dialog (for accessibility) */
   ariaLabelledBy?: string
   children: ReactNode
@@ -296,6 +297,7 @@ export function DialogPanel({
   onClose,
   maxWidth = 'max-w-2xl',
   className,
+  viewportPaddingClassName = 'p-4',
   ariaLabelledBy,
   children,
 }: DialogPanelProps) {
@@ -311,7 +313,7 @@ export function DialogPanel({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center ${viewportPaddingClassName}`}>
       <button
         type="button"
         className={dialogBackdropStyles}

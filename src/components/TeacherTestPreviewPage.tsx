@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, Maximize, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Maximize, X } from 'lucide-react'
 import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { StudentQuizForm } from '@/components/StudentQuizForm'
@@ -432,11 +432,15 @@ export function TeacherTestPreviewPage({
                         type="button"
                         variant="secondary"
                         size="sm"
-                        className="w-full justify-start"
+                        className="w-full justify-between gap-2 text-left"
                         onClick={() => setActiveDoc(doc)}
                         tabIndex={showDocPanel ? -1 : 0}
                       >
-                        {doc.title}
+                        <span className="min-w-0 truncate">{doc.title}</span>
+                        <ChevronRight
+                          aria-hidden="true"
+                          className="h-4 w-4 flex-shrink-0 text-text-muted"
+                        />
                       </Button>
                     ))}
                   </div>

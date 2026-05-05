@@ -37,6 +37,7 @@ It replaces older prompt/spec history artifacts (which are intentionally not kep
 
 ## AI-Assisted Development Workflow
 - `.ai/START-HERE.md` defines the start-of-session ritual and end-of-session logging.
-- `.ai/JOURNAL.md` is append-only session continuity.
+- `.ai/CURRENT.md` is the compact default continuity file.
+- `.ai/SESSION-LOG.md` is a rolling recent session log, trimmed with `scripts/trim-session-log.mjs`.
+- `.ai/JOURNAL-ARCHIVE.md` preserves full historical session continuity for historical investigation only.
 - `.ai/features.json` tracks **big epics only** (append-only).
-

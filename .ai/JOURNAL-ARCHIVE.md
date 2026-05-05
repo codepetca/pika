@@ -10475,3 +10475,624 @@
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-02 - Assessment tab shell follow-ups
+
+**Completed:**
+- Applied the teacher work-surface shell and gapped split shape to Tests.
+- Standardized assignment, quiz, and test list cards through shared teacher
+  work-item primitives.
+- Moved Assignments and selected assignment/test titles into the global app
+  header title slot.
+- Added a shared floating center action cluster and used it for Assignments
+  summary controls, selected assignment controls, and selected test controls.
+- Consolidated selected Tests grading actions into the center split button.
+- Updated teacher work-surface guidance for title placement, floating actions,
+  and list/card reuse.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm lint`
+- `git diff --check`
+- `pnpm vitest run tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherWorkItemPrimitives.test.tsx tests/ui/SplitButton.test.tsx`
+- `pnpm vitest run tests/components/TeacherEditModeControls.test.tsx`
+- Visual screenshots reviewed:
+  - `/tmp/pika-assignments-summary-fab-standard-height.png`
+  - `/tmp/pika-assignments-fab-centered-actionbar.png`
+  - `/tmp/pika-selected-assignment-edit-in-fab.png`
+  - `/tmp/pika-tests-grading-floating-cluster-menu.png`
+
+## 2026-05-02 - Daily title and floating action alignment
+
+**Completed:**
+- Applied the latest assignment shell convention to Daily.
+- Moved the Daily label into the global app-header title slot.
+- Moved Daily's date navigator into the shared floating center action cluster.
+
+**Validation:**
+- `pnpm vitest run tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherWorkspaceSplit.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Visual screenshot reviewed:
+  - `/tmp/pika-daily-title-floating-date-fab.png`
+
+## 2026-05-03 - Quizzes shell alignment
+
+**Completed:**
+- Applied the shared teacher work-surface shell convention to Quizzes.
+- Moved Quizzes summary and selected quiz titles into the global app-header title slot.
+- Moved Quizzes summary and selected quiz actions into the shared floating center action cluster.
+- Removed the selected quiz workspace border frame and tightened mobile header truncation so the centered title does not overlap the classroom selector.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=quizzes`.
+- Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=quizzes&quizId=1cf70f6b-9b78-4cad-8ce5-26fd7da9fdb9`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-quizzes-summary-teacher.png`
+  - `/tmp/pika-quizzes-selected-teacher.png`
+  - `/tmp/pika-quizzes-summary-teacher-mobile.png`
+  - `/tmp/pika-quizzes-selected-teacher-mobile.png`
+
+## 2026-05-03 - Tests preview save guard follow-up
+
+**Completed:**
+- Fixed the Tests Preview menu path so an open editor owns preview requests and
+  force-saves the current draft before showing preview.
+- Guarded `QuizDetailPanel` autosave completion with a draft revision so stale
+  in-flight saves cannot publish `saved` over newer local edits.
+- Kept pending markdown state active while a selected test is in grading mode,
+  since authoring now lives in the edit modal.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx tests/api/teacher/tests-draft-route.test.ts`
+- `pnpm lint`
+- `git diff --check`
+- `pnpm build`
+
+## 2026-04-30 — Add classroom dashboard edit toggle
+
+**Completed:**
+- Added a footer Edit/Done toggle on the teacher classroom dashboard.
+- Hid classroom drag handles, per-classroom archive actions, and the Active/Archived footer toggle until edit mode is enabled.
+- Reset the dashboard back to Active view when leaving edit mode.
+- Added component coverage for the hidden/edit-mode controls.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- Pika UI verification script for `/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshot for teacher edit mode:
+  - `/tmp/pika-teacher-edit.png`
+
+## 2026-05-03 — Rebase classroom dashboard edit toggle
+
+**Completed:**
+- Rebasing `codex/classroom-dash-edit-toggle` onto `origin/main`.
+- Stashed and restored local classroom dashboard edit toggle changes without conflicts.
+- Confirmed no migration files were added or resequenced.
+
+**Validation:**
+- Session startup verification: `pnpm test`
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+
+## 2026-05-03 — Move classroom dashboard edit controls to top
+
+**Completed:**
+- Replaced the bespoke classroom dashboard footer edit toggle with the shared assignment-style `TeacherEditModeControls`.
+- Moved `New` and `Edit` controls above the classroom cards.
+- Kept classroom drag handles, row archive actions, and the Active/Archived toggle hidden until edit mode is enabled.
+- Removed the fixed bottom action bar.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- Pika UI verification script for `/classrooms` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots:
+  - `/tmp/pika-teacher-edit.png`
+  - `/tmp/pika-teacher-mobile-edit.png`
+- `pnpm test`
+
+## 2026-05-03 — Reuse classroom dashboard FAB cluster
+
+**Completed:**
+- Reused the shared `TeacherWorkSurfaceFloatingActionCluster` for the classroom dashboard `New` and `Edit` controls.
+- Kept the action cluster horizontally centered across desktop and mobile.
+- Preserved the edit-mode behavior where drag handles, row archive actions, and the Active/Archived toggle only show after enabling Edit.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- Pika UI verification script for `/classrooms` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots:
+  - `/tmp/pika-classrooms-teacher-default.png`
+  - `/tmp/pika-classrooms-teacher-mobile-default.png`
+  - `/tmp/pika-teacher-edit.png`
+  - `/tmp/pika-teacher-mobile-edit.png`
+
+## 2026-05-03 — Align classroom view toggle with FAB buttons
+
+**Completed:**
+- Replaced the custom Active/Archived classroom view pills with the shared `SegmentedControl`.
+- Moved the Active/Archived toggle to the left of the `New` button when classroom edit mode is enabled.
+- Added coverage for the edit-mode control ordering.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- Pika UI verification script for `/classrooms` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots:
+  - `/tmp/pika-classrooms-teacher-default.png`
+  - `/tmp/pika-classrooms-teacher-mobile-default.png`
+  - `/tmp/pika-teacher-edit.png`
+  - `/tmp/pika-teacher-mobile-edit.png`
+
+## 2026-05-03 — Move classroom view toggle to bottom center
+
+**Completed:**
+- Moved the Active/Archived classroom view segmented control out of the top FAB cluster.
+- Rendered the view toggle fixed at the bottom center while classroom edit mode is enabled.
+- Kept `New` and `Edit` in the centered top FAB cluster.
+- Added bottom padding in edit mode so fixed controls do not cover classroom cards.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- Pika UI verification script for `/classrooms` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots:
+  - `/tmp/pika-classrooms-teacher-default.png`
+  - `/tmp/pika-classrooms-teacher-mobile-default.png`
+  - `/tmp/pika-teacher-edit.png`
+  - `/tmp/pika-teacher-mobile-edit.png`
+
+## 2026-05-03 — Always show classroom view toggle
+
+**Completed:**
+- Kept the Active/Archived classroom view toggle visible at the bottom center in both normal and edit modes.
+- Preserved Edit as the gate for classroom drag handles and row archive actions.
+- Stopped resetting the classroom view to Active when turning Edit off.
+- Added coverage for the always-visible view toggle and retained Archived selection after edit mode is disabled.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- Pika UI verification script for `/classrooms` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots:
+  - `/tmp/pika-classrooms-teacher-default.png`
+  - `/tmp/pika-classrooms-teacher-mobile-default.png`
+  - `/tmp/pika-teacher-edit.png`
+  - `/tmp/pika-teacher-mobile-edit.png`
+
+## 2026-05-03 — Clear classroom edit mode on escape and page restore
+
+**Completed:**
+- Added Escape handling to turn classroom edit mode off and clear any drag state.
+- Added `pageshow` handling so browser page restore after refresh/back-forward does not leave edit mode enabled.
+- Added component coverage for Escape and page-restore edit-mode clearing.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- Pika UI verification script for `/classrooms` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright interaction check:
+  - Escape clears classroom edit mode.
+  - `pageshow` clears classroom edit mode.
+  - `/tmp/pika-classrooms-after-edit-clear.png`
+
+## 2026-05-04 — Move classroom create action below list
+
+**Completed:**
+- Removed `New` from the top classroom FAB cluster so the cluster now only contains `Edit`.
+- Rendered `New` below the classroom list when there are no active classrooms or classroom edit mode is enabled.
+- Hid `New` after the first active classroom exists while edit mode is off.
+- Updated component coverage for the new create-button visibility and placement.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- Pika UI verification script for `/classrooms` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots:
+  - `/tmp/pika-classrooms-teacher-default.png`
+  - `/tmp/pika-classrooms-teacher-mobile-default.png`
+  - `/tmp/pika-teacher-edit.png`
+  - `/tmp/pika-teacher-mobile-edit.png`
+
+## 2026-05-04 — Split announcements from resources tab
+
+**Completed:**
+- Added a dedicated `Announcements` classroom tab for teachers and students.
+- Moved announcement feeds into the new tab and made `Resources` show only class resources.
+- Routed unread announcement activity to the Announcements nav item.
+- Updated calendar announcement links, layout route keys, UI gallery links, and focused coverage.
+
+**Validation:**
+- `pnpm test tests/components/ResourcesTab.test.tsx tests/components/NavItems.test.tsx tests/unit/layout-config.test.ts tests/components/ThreePanelProvider.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- Pika UI verification script on port 3010:
+  - `classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=resources`
+  - `classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=announcements`
+- Manual Playwright student captures for the student-accessible classroom:
+  - `/tmp/pika-student-resources-accessible.png`
+  - `/tmp/pika-student-announcements-accessible.png`
+- Manual mobile drawer captures:
+  - `/tmp/pika-teacher-mobile-drawer.png`
+  - `/tmp/pika-student-mobile-drawer.png`
+## 2026-05-04 — Make message popup background solid
+
+**Completed:**
+- Changed global app message popup tones to use the solid semantic surface background.
+- Kept tone-specific border and text colors for info, success, and warning messages.
+- Added test coverage so success messages keep `bg-surface` instead of the translucent success background token.
+
+**Validation:**
+- `pnpm test tests/ui/AppMessage.test.tsx tests/ui/StatusPrimitives.test.tsx`
+- `pnpm lint`
+- Manual Playwright screenshots on `http://localhost:3100/verify-signup?email=teacher%40example.com`:
+  - `/tmp/pika-message-popup-light.png`
+  - `/tmp/pika-message-popup-dark.png`
+- Computed popup backgrounds verified as opaque:
+  - Light: `rgb(255, 255, 255)`
+  - Dark: `rgb(17, 24, 39)`
+
+## 2026-04-30 — Refresh assignment counts after return
+
+**Completed:**
+- Fixed the teacher assignment list card counts staying stale after returning selected assignment work.
+- Invalidated and reloaded the teacher assignment summary cache after a successful batch return, while preserving the current workspace content.
+- Added component coverage for a resubmitted student changing the summary card from `1/31` to `0/31` after return.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm test tests/api/teacher/assignments.test.ts tests/api/teacher/assignments-id-return.test.ts`
+- `pnpm lint`
+- `pnpm test`
+- Pika UI verification script for `/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots for assignment lists:
+  - `/tmp/pika-teacher-assignments.png`
+  - `/tmp/pika-student-assignments.png`
+
+## 2026-05-05 — Make exam documents visibly clickable
+
+**Completed:**
+- Added a right chevron affordance to active student exam-mode document rows.
+- Matched the same document-row affordance in the teacher test preview.
+- Added focused component coverage for the student document-row chevron.
+
+**Validation:**
+- `pnpm test tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Pre-edit startup verification: `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/issue-548-doc-chevron bash scripts/verify-env.sh`
+- Pika UI verification script on `http://localhost:3002/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted Playwright screenshots:
+  - `/tmp/pika-student-exam-docs-chevron.png`
+  - `/tmp/pika-teacher-test-preview-docs-chevron.png`
+## 2026-05-05 — Block assignment scheduled release after due date
+
+**Completed:**
+- Added shared assignment schedule-vs-due-date validation with the canonical error message.
+- Blocked draft release, scheduled rescheduling, and due-date edits that would leave a future scheduled release after the due date.
+- Added inline schedule-dialog validation so teachers see the issue before an API request is sent.
+- Covered helper, API, and assignment modal behavior.
+
+**Validation:**
+- `pnpm test -- tests/lib/assignment-schedule-validation.test.ts tests/api/teacher/assignments-draft.test.ts tests/api/teacher/assignments-id.test.ts tests/components/AssignmentModal.test.tsx` (Vitest ran the broad suite: 243 files, 2033 tests)
+- `pnpm lint`
+- Manual Playwright visual verification on port 3003:
+  - `/tmp/pika-issue-547-teacher-schedule-validation.png`
+  - `/tmp/pika-issue-547-student-classrooms-smoke.png`
+
+---
+---
+## 2026-05-04 13:10 [AI - Codex]
+**Goal:** Align Gradebook and Roster with the Daily teacher work-surface shell.
+**Completed:** Moved Gradebook and Roster onto the floating center action cluster plus gapped split workspace used by Daily; kept student tables in the left pane and summary/student detail inspectors on the right; moved roster row removal into the selected-student detail pane and hid secondary roster columns on mobile.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherGradebookTab.tsx`, `src/app/classrooms/[classroomId]/TeacherRosterTab.tsx`, `.ai/JOURNAL.md`
+- Visual verification: `/tmp/pika-final-gradebook-teacher.png`, `/tmp/pika-final-roster-teacher-after.png`, `/tmp/pika-final-gradebook-mobile.png`, `/tmp/pika-final-roster-mobile-after.png`
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/api/teacher/roster.test.ts tests/api/teacher/gradebook.test.ts`
+- `pnpm build`
+**Next:** None
+**Blockers:** None
+
+---
+---
+## 2026-05-04 14:25 [AI - Codex]
+**Goal:** Make Gradebook's student table follow the Roster table pattern.
+**Completed:** Split Gradebook's single student-name column into sortable First and Last columns, added roster-style row and header checkboxes, sorted the displayed gradebook rows by first/last name, and hid category grade columns on mobile so the left table fits like Roster while preserving Final.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherGradebookTab.tsx`, `tests/components/TeacherGradebookTab.test.tsx`, `.ai/JOURNAL.md`
+- Visual verification: `/tmp/pika-gradebook-table-teacher.png`, `/tmp/pika-gradebook-table-mobile-after.png`
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/api/teacher/roster.test.ts tests/api/teacher/gradebook.test.ts`
+- `pnpm build`
+**Next:** None
+**Blockers:** None
+
+---
+---
+## 2026-05-04 14:30 [AI - Codex]
+**Goal:** Collapse Roster's floating actions into one split button.
+**Completed:** Replaced separate `+ Students`, `+ CSV`, and selected-email controls with a single `SplitButton`; primary action opens Add Students, menu contains `+ CSV` and email actions for the current selection.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherRosterTab.tsx`, `.ai/JOURNAL.md`
+- Visual verification: `/tmp/pika-roster-split-button-teacher.png`, `/tmp/pika-roster-split-button-mobile.png`, `/tmp/pika-roster-split-button-menu.png`
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/api/teacher/roster.test.ts`
+- `pnpm build`
+**Next:** None
+**Blockers:** None
+## 2026-05-01 — Selected student test access
+
+**Completed:**
+- Added `test_student_availability` for per-student open/closed test overrides.
+- Added the teacher student-access API, effective access helper, and student route enforcement for list/detail/session/autosave/submit/results.
+- Added Tests grading workspace selected-student Open/Close actions, Access pills, and close confirmation copy.
+- Adjusted selected-student return behavior so returning work no longer closes the whole test.
+- Added teacher-closed attempt locking for grading without marking work student-submitted.
+- Added per-student Reopen Selected to clear submitted/returned/closed-for-grading state, reopen access, and preserve draft answers for editing.
+- Zero-filled blank/unanswered questions when teacher closure finalizes work for grading.
+
+**Validation:**
+- `pnpm test tests/unit/test-student-access.test.ts tests/api/teacher/tests-student-access.test.ts tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-results.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-session-status.test.ts tests/api/student/tests-attempt.test.ts tests/api/student/tests-respond.test.ts tests/api/integration/test-return-visibility-flow.test.ts tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test tests/lib/finalize-test-attempts.test.ts tests/api/teacher/tests-reopen.test.ts tests/api/teacher/tests-id-route.test.ts tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm e2e:auth`
+- `pnpm e2e:verify assessment-ux-parity`
+
+## 2026-05-03 - Rebase selected student test access
+
+**Completed:**
+- Rebased `codex/selected-student-exam-access` onto `origin/main`.
+- Resolved the `TeacherTestsTab` conflict by keeping the new work-surface action bar and adding selected-student Open, Close, and Reopen actions to the grading split-button menu.
+- Confirmed feature migrations remain correctly numbered as `060_test_student_availability.sql` and `061_test_attempt_teacher_closure.sql`.
+- Updated component tests to use the post-rebase grading action menu.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/api/teacher/tests-reopen.test.ts tests/api/teacher/tests-student-access.test.ts tests/lib/finalize-test-attempts.test.ts tests/unit/test-student-access.test.ts`
+- `pnpm test`
+- `pnpm e2e:verify assessment-ux-parity`
+
+## 2026-05-03 - Tests list edit and access controls
+
+**Completed:**
+- Moved the teacher Tests edit affordance from the selected grading workspace into the summary floating action cluster, matching the assignment list edit toggle.
+- Made summary test-card clicks mode-dependent: normal mode opens the grading workspace, edit mode opens the test editor modal.
+- Collapsed the selected-test workspace FAB cluster to two split buttons: a context-aware access button and the grading button.
+- Made the access button switch between `Open All`, `Close All`, `Open X Selected`, and `Close X Selected` based on selected rows and effective access; its dropdown exposes the opposite open/close action.
+- Replaced the selected-student `Reopen Selected` grading action with `Unsubmit Selected`, which marks attempts unsubmitted without opening access.
+- Combined the selected-test access and grading split buttons into one context-aware split button.
+- Removed the AI Prompt option and prompt-guideline modal from Tests grading actions.
+- Matched open/close menu icon colors to the green unlock and red lock access status colors.
+- Moved test Preview out of the AI Grade dropdown and into the test edit modal header, with the same pending-markdown disable guard.
+- Expanded test and assignment creation modals to fill the available viewport and added visible top-right X close controls.
+- Combined the Tests grading table `Status` and `Access` columns, showing access as a green unlock or red lock icon beside the attempt status.
+- Removed the visible `Not started` text from Tests grading rows while leaving the status tooltip on the icon.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test tests/api/teacher/tests-unsubmit.test.ts tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test tests/api/teacher/tests-unsubmit.test.ts tests/components/TeacherTestsTab.test.tsx tests/api/teacher/tests-return.test.ts tests/api/student/tests-attempt.test.ts tests/api/student/tests-respond.test.ts tests/api/student/tests-route.test.ts`
+- `pnpm test tests/components/QuizModal.test.tsx tests/components/AssignmentModal.test.tsx`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual Tests summary screenshots: `/tmp/pika-teacher-tests-list-edit-off.png`, `/tmp/pika-teacher-tests-list-edit-on.png`
+- Manual selected Tests workspace screenshot: `/tmp/pika-teacher-tests-selected-access.png`
+- Manual context-aware access screenshots: `/tmp/pika-teacher-tests-selected-access-context-none.png`, `/tmp/pika-teacher-tests-selected-access-context-selected.png`
+- Manual preview placement screenshots: `/tmp/pika-teacher-tests-edit-modal-preview-loaded.png`, `/tmp/pika-teacher-tests-ai-grade-menu-no-preview.png`
+- Manual creation modal screenshots: `/tmp/pika-new-test-modal-fullscreen.png`, `/tmp/pika-new-assignment-modal-fullscreen.png`, `/tmp/pika-new-test-modal-mobile.png`, `/tmp/pika-new-assignment-modal-mobile.png`
+- Manual combined status/access screenshot: `/tmp/pika-teacher-tests-status-access-combined.png`
+- Manual not-started status icon screenshot: `/tmp/pika-teacher-tests-status-access-icons-only-not-started.png`
+- Manual unsubmit screenshots: `/tmp/pika-teacher-tests-unsubmit-menu.png`, `/tmp/pika-teacher-tests-unsubmit-confirm.png`
+- Manual combined split action screenshot: `/tmp/pika-teacher-tests-one-split-actions.png`
+- Manual no-AI-prompt menu screenshot: `/tmp/pika-teacher-tests-no-ai-prompt-menu.png`
+- Manual menu icon color screenshot: `/tmp/pika-teacher-tests-menu-icon-colors.png`
+
+## 2026-05-04 - Per-student test deletion edit mode
+
+**Completed:**
+- Removed the whole-test `Delete` option from the selected Tests workspace action menu.
+- Added a selected-test row `Edit` toggle that reveals a trash icon on each student row.
+- Added per-student deletion confirmation that deletes that student's saved test work, finalized responses, AI grading queue items, and focus history without changing student access or deleting the whole test.
+- Added a teacher API route for deleting a single enrolled student's test attempt data.
+- Removed the `Clear Open Grades` action and the AI grading modal's clear scores/comments shortcut from the selected Tests workspace UI.
+- Made row status symbols actionable: clicking a student's lock/unlock icon opens an individual access confirmation, and clicking a submitted status icon opens an individual unsubmit confirmation.
+- Added Escape handling in the selected Tests grading workspace to leave row edit mode and clear selected student checkboxes when no dialog or form field has focus.
+- Shortened selected Tests confirmation dialog copy for open/close access, unsubmit, and per-student delete flows.
+- Disabled `AI Grade` in the selected Tests action menu until at least one student is selected.
+
+**Validation:**
+- `pnpm test tests/api/teacher/tests-student-attempt-delete.test.ts tests/api/teacher/tests-student-access.test.ts tests/api/teacher/tests-unsubmit.test.ts tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual selected Tests row edit screenshot: `/tmp/pika-teacher-tests-row-delete-edit-mode.png`
+- Manual selected Tests row delete confirmation screenshot: `/tmp/pika-teacher-tests-row-delete-confirm.png`
+- Manual selected Tests action menu screenshot without Clear Open Grades: `/tmp/pika-teacher-tests-no-clear-open-grades-menu.png`
+- Manual selected Tests row symbol screenshots: `/tmp/pika-teacher-tests-row-symbol-actions.png`, `/tmp/pika-teacher-tests-row-access-confirm.png`
+- Manual concise confirmation screenshot: `/tmp/pika-teacher-tests-concise-confirm.png`
+
+## 2026-05-04 - Tests overview card stats and maximized modals
+
+**Completed:**
+- Removed whole-test open/close/reopen controls from teacher Tests summary cards.
+- Added a per-card Preview icon button that opens the saved test preview from the Tests overview.
+- Added Tests overview stats for submitted attempts plus effective open/closed student access counts.
+- Extended the teacher Tests list API payload with `submitted`, `open_access`, and `closed_access` stats, scoped to currently enrolled students.
+- Tightened the Test and Assignment creation modal viewport padding so create flows use nearly the full screen while keeping the visible top-right close button.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/QuizModal.test.tsx tests/components/AssignmentModal.test.tsx tests/api/teacher/tests-route.test.ts`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual Tests overview screenshot: `/tmp/pika-tests-card-preview-stats.png`
+- Manual creation modal screenshots: `/tmp/pika-new-test-modal-maximized.png`, `/tmp/pika-new-assignment-modal-maximized.png`
+
+## 2026-05-04 - Tests overview create/edit cleanup
+
+**Completed:**
+- Changed new test creation to close the modal and return to the Tests list instead of opening the new test workspace/editor.
+- Made the Tests list edit toggle reset whenever the Tests tab is revisited.
+- Added a trash icon to each Tests overview card while list edit mode is active, with a delete confirmation for the whole test.
+- Added the visible `Preview` label next to the Tests overview card preview icon.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/api/teacher/tests-route.test.ts`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual Tests overview screenshots: `/tmp/pika-tests-card-preview-label.png`, `/tmp/pika-tests-card-edit-delete.png`
+
+## 2026-05-04 - Test editor Code toggle
+
+**Completed:**
+- Replaced the test editor `Edit`/`Markdown` segmented control with a single icon + `Code` toggle.
+- Made the Code toggle switch into markdown view when active and back to the regular editor when untoggled.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual test editor screenshots: `/tmp/pika-test-editor-code-toggle-edit.png`, `/tmp/pika-test-editor-code-toggle-markdown.png`
+- Manual labeled toggle screenshots: `/tmp/pika-test-editor-code-label-toggle-edit.png`, `/tmp/pika-test-editor-code-label-toggle-markdown.png`
+
+## 2026-05-04 - Tests edit-mode Delete Selected action
+
+**Completed:**
+- Added `Delete Selected` to the selected Tests action dropdown only while row edit mode is active.
+- Added a batch confirmation that deletes selected students' test work through the existing per-student delete route.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/api/teacher/tests-student-attempt-delete.test.ts`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual selected Tests dropdown screenshot: `/tmp/pika-tests-edit-dropdown-delete-selected.png`
+
+## 2026-05-04 - Tests list edit-mode drag reorder
+
+**Completed:**
+- Added drag handles to Tests summary cards while list edit mode is active.
+- Added optimistic drag reordering for Tests cards, persisted through `POST /api/teacher/tests/reorder`.
+- Persisted test positions so the existing descending position sort reloads the same visible order.
+
+**Validation:**
+- `pnpm test tests/api/teacher/tests-reorder.test.ts`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual Tests list edit screenshot: `/tmp/pika-tests-list-edit-reorder.png`
+
+## 2026-05-04 - Selected test row deselection
+
+**Completed:**
+- Made Escape clear the active selected-test grading row in addition to edit mode and batch selections.
+- Made clicks on selected-test grading table chrome outside student rows clear the highlighted row without unmounting the grading inspector during inspector interactions.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+
+## 2026-05-05 - Rebase selected-student exam access worktree
+
+**Completed:**
+- Rebasing `codex/selected-student-exam-access` onto `origin/main` completed cleanly.
+- Restored the staged feature work from the temporary rebase stash and dropped that stash.
+- Confirmed branch migrations remain sequential after `origin/main` migration `059`.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/api/teacher/tests-reorder.test.ts tests/api/teacher/tests-student-access.test.ts tests/api/teacher/tests-unsubmit.test.ts tests/api/teacher/tests-student-attempt-delete.test.ts tests/unit/test-student-access.test.ts tests/lib/finalize-test-attempts.test.ts`
+- `pnpm lint`
+
+## 2026-05-05 - Selected test status/access columns
+
+**Completed:**
+- Split the selected Tests grading table into separate `Status` and `Access` columns.
+- Removed visible row status text labels so status/access are represented by icons with tooltip and aria-label text.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual selected Tests screenshot: `/tmp/pika-tests-status-access-split-icons.png`
+
+## 2026-05-05 - PR review fix for selected reopen
+
+**Completed:**
+- Fixed `Open Selected` for previously teacher-closed in-progress test attempts by clearing `closed_for_grading_*` locks and removing temporary finalized response rows.
+- Added API coverage for reopening selected students after a teacher close.
+
+**Validation:**
+- `pnpm test tests/api/teacher/tests-student-access.test.ts tests/components/TeacherTestsTab.test.tsx tests/api/teacher/tests-unsubmit.test.ts tests/api/teacher/tests-student-attempt-delete.test.ts tests/unit/test-student-access.test.ts`
+- `pnpm lint`
+
+## 2026-05-05 - PR review fix for selected access consistency
+
+**Completed:**
+- Reordered selected-student access mutations so availability rows are written before close/open side effects.
+- Added best-effort restoration of previous selected-student access rows when close/open side effects fail after the access upsert.
+- Expanded server test helper coverage for effective access, migration shims, availability lookup helpers, and teacher/student access assertions.
+
+**Validation:**
+- `pnpm test tests/api/teacher/tests-student-access.test.ts tests/unit/test-student-access.test.ts`
+- `pnpm test:coverage`
+- `pnpm lint`
+
+## 2026-05-05 - PR review fix for atomic selected access
+
+**Completed:**
+- Added a Postgres RPC for selected-student access changes so availability updates, teacher-close finalization, and reopen cleanup run in one database transaction.
+- Switched the teacher student-access route to call the atomic RPC after ownership/enrollment validation.
+- Fixed the assignment workspace CI race by waiting for the apply-grade action to become enabled before opening the confirmation.
+
+**Validation:**
+- `pnpm test tests/api/teacher/tests-student-access.test.ts tests/components/TeacherClassroomView.test.tsx tests/unit/test-student-access.test.ts`
+- `pnpm test:coverage`
+- `pnpm lint`
