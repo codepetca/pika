@@ -10816,3 +10816,52 @@
 - Manual Playwright visual verification on port 3003:
   - `/tmp/pika-issue-547-teacher-schedule-validation.png`
   - `/tmp/pika-issue-547-student-classrooms-smoke.png`
+
+---
+---
+## 2026-05-04 13:10 [AI - Codex]
+**Goal:** Align Gradebook and Roster with the Daily teacher work-surface shell.
+**Completed:** Moved Gradebook and Roster onto the floating center action cluster plus gapped split workspace used by Daily; kept student tables in the left pane and summary/student detail inspectors on the right; moved roster row removal into the selected-student detail pane and hid secondary roster columns on mobile.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherGradebookTab.tsx`, `src/app/classrooms/[classroomId]/TeacherRosterTab.tsx`, `.ai/JOURNAL.md`
+- Visual verification: `/tmp/pika-final-gradebook-teacher.png`, `/tmp/pika-final-roster-teacher-after.png`, `/tmp/pika-final-gradebook-mobile.png`, `/tmp/pika-final-roster-mobile-after.png`
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/api/teacher/roster.test.ts tests/api/teacher/gradebook.test.ts`
+- `pnpm build`
+**Next:** None
+**Blockers:** None
+
+---
+---
+## 2026-05-04 14:25 [AI - Codex]
+**Goal:** Make Gradebook's student table follow the Roster table pattern.
+**Completed:** Split Gradebook's single student-name column into sortable First and Last columns, added roster-style row and header checkboxes, sorted the displayed gradebook rows by first/last name, and hid category grade columns on mobile so the left table fits like Roster while preserving Final.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherGradebookTab.tsx`, `tests/components/TeacherGradebookTab.test.tsx`, `.ai/JOURNAL.md`
+- Visual verification: `/tmp/pika-gradebook-table-teacher.png`, `/tmp/pika-gradebook-table-mobile-after.png`
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/api/teacher/roster.test.ts tests/api/teacher/gradebook.test.ts`
+- `pnpm build`
+**Next:** None
+**Blockers:** None
+
+---
+---
+## 2026-05-04 14:30 [AI - Codex]
+**Goal:** Collapse Roster's floating actions into one split button.
+**Completed:** Replaced separate `+ Students`, `+ CSV`, and selected-email controls with a single `SplitButton`; primary action opens Add Students, menu contains `+ CSV` and email actions for the current selection.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherRosterTab.tsx`, `.ai/JOURNAL.md`
+- Visual verification: `/tmp/pika-roster-split-button-teacher.png`, `/tmp/pika-roster-split-button-mobile.png`, `/tmp/pika-roster-split-button-menu.png`
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/api/teacher/roster.test.ts`
+- `pnpm build`
+**Next:** None
+**Blockers:** None

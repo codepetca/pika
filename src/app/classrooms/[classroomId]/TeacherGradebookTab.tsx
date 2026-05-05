@@ -9,9 +9,9 @@ import type {
 } from '@/types'
 import { Button, FormField, Input } from '@/ui'
 import { Spinner } from '@/components/Spinner'
-import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspaceShell'
-import { TeacherWorkSurfaceModeBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
+import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
+import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import {
   DataTable,
   DataTableBody,
@@ -21,14 +21,18 @@ import {
   DataTableRow,
   EmptyStateRow,
   KeyboardNavigableTable,
+  SortableHeaderCell,
   TableCard,
 } from '@/components/DataTable'
 import {
   fetchJSONWithCache,
   invalidateCachedJSONMatching,
 } from '@/lib/request-cache'
+import { compareByNameFields, toggleSort } from '@/lib/table-sort'
+import { useStudentSelection } from '@/hooks/useStudentSelection'
 
 type GradebookSection = 'grades' | 'settings'
+type GradebookSortColumn = 'first_name' | 'last_name'
 
 interface GradebookSettingsState {
   use_weights: boolean
@@ -373,8 +377,31 @@ export function TeacherGradebookTab({
   const [studentDetail, setStudentDetail] = useState<GradebookStudentDetail | null>(null)
   const [studentDetailLoading, setStudentDetailLoading] = useState(false)
   const [studentDetailError, setStudentDetailError] = useState('')
+  const [detailPaneWidth, setDetailPaneWidth] = useState(50)
+  const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
+    column: GradebookSortColumn
+    direction: 'asc' | 'desc'
+  }>({ column: 'last_name', direction: 'asc' })
 
-  const rowKeys = useMemo(() => students.map((student) => student.student_id), [students])
+  const sortedStudents = useMemo(() => {
+    const rows = [...students]
+    rows.sort((a, b) =>
+      compareByNameFields(
+        { firstName: a.student_first_name, lastName: a.student_last_name, id: a.student_email },
+        { firstName: b.student_first_name, lastName: b.student_last_name, id: b.student_email },
+        sortColumn,
+        sortDirection,
+      )
+    )
+    return rows
+  }, [students, sortColumn, sortDirection])
+
+  const rowKeys = useMemo(() => sortedStudents.map((student) => student.student_id), [sortedStudents])
+  const { selectedIds, toggleSelect, toggleSelectAll, allSelected } = useStudentSelection(rowKeys)
+
+  function handleSort(column: GradebookSortColumn) {
+    setSortState((previous) => toggleSort(previous, column))
+  }
 
   const loadGradebook = useCallback(async () => {
     setLoading(true)
@@ -489,19 +516,58 @@ export function TeacherGradebookTab({
     [settings.assignments_weight, settings.quizzes_weight, settings.tests_weight],
   )
 
+  const actionBar = (
+    <TeacherWorkSurfaceActionBar
+      center={
+        <div role="tablist" aria-label="Gradebook sections" className="flex items-center gap-1">
+          <Button
+            type="button"
+            role="tab"
+            aria-selected={section === 'grades'}
+            size="sm"
+            variant={section === 'grades' ? 'primary' : 'surface'}
+            onClick={() => onSectionChange('grades')}
+          >
+            Grades
+          </Button>
+          <Button
+            type="button"
+            role="tab"
+            aria-selected={section === 'settings'}
+            size="sm"
+            variant={section === 'settings' ? 'primary' : 'surface'}
+            onClick={() => onSectionChange('settings')}
+          >
+            Settings
+          </Button>
+        </div>
+      }
+      centerPlacement="floating"
+    />
+  )
+
   const gradesWorkspace = loading ? (
     <div className="flex flex-1 justify-center py-12">
       <Spinner size="lg" />
     </div>
   ) : (
-    <SummaryDetailWorkspaceShell
+    <TeacherWorkspaceSplit
       className="flex-1"
-      orientation="responsive"
-      leftPaneClassName="flex min-h-0 flex-col lg:basis-1/2"
-      rightPaneClassName="flex min-h-0 flex-col lg:basis-1/2"
-      left={
-        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
-          <TableCard>
+      splitVariant="gapped"
+      primaryClassName="min-h-[200px] rounded-lg bg-surface"
+      inspectorClassName="flex flex-col rounded-lg bg-surface"
+      inspectorCollapsed={false}
+      inspectorWidth={detailPaneWidth}
+      minInspectorPx={280}
+      minPrimaryPx={320}
+      minInspectorPercent={28}
+      maxInspectorPercent={72}
+      defaultInspectorWidth={50}
+      onInspectorWidthChange={setDetailPaneWidth}
+      dividerLabel="Resize Gradebook panes"
+      primary={
+        <div className="h-full min-h-0 overflow-auto">
+          <TableCard chrome="flush">
             <KeyboardNavigableTable
               rowKeys={rowKeys}
               selectedKey={selectedStudent?.student_id ?? null}
@@ -514,16 +580,43 @@ export function TeacherGradebookTab({
               <DataTable density="tight">
                 <DataTableHead>
                   <DataTableRow>
-                    <DataTableHeaderCell className="text-xs sm:text-sm">Student</DataTableHeaderCell>
-                    <DataTableHeaderCell align="right" className="text-xs sm:text-sm" aria-label="Assignments">
+                    <DataTableHeaderCell className="w-10">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleSelectAll}
+                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                        aria-label="Select all students"
+                      />
+                    </DataTableHeaderCell>
+                    <SortableHeaderCell
+                      label="First"
+                      isActive={sortColumn === 'first_name'}
+                      direction={sortDirection}
+                      onClick={() => handleSort('first_name')}
+                      density="tight"
+                      trailing={sortedStudents.length > 0 ? (
+                        <span className="ml-1 inline-flex min-w-6 items-center justify-center rounded-full border border-border bg-surface px-2 py-0.5 text-xs font-semibold text-text-muted">
+                          {sortedStudents.length}
+                        </span>
+                      ) : undefined}
+                    />
+                    <SortableHeaderCell
+                      label="Last"
+                      isActive={sortColumn === 'last_name'}
+                      direction={sortDirection}
+                      onClick={() => handleSort('last_name')}
+                      density="tight"
+                    />
+                    <DataTableHeaderCell align="right" className="hidden text-xs sm:text-sm md:table-cell" aria-label="Assignments">
                       <span className="hidden sm:inline">Assignments</span>
                       <span className="sm:hidden">Assign.</span>
                     </DataTableHeaderCell>
-                    <DataTableHeaderCell align="right" className="text-xs sm:text-sm" aria-label="Quizzes">
+                    <DataTableHeaderCell align="right" className="hidden text-xs sm:text-sm md:table-cell" aria-label="Quizzes">
                       <span className="hidden sm:inline">Quizzes</span>
                       <span className="sm:hidden">Quiz</span>
                     </DataTableHeaderCell>
-                    <DataTableHeaderCell align="right" className="text-xs sm:text-sm" aria-label="Tests">
+                    <DataTableHeaderCell align="right" className="hidden text-xs sm:text-sm md:table-cell" aria-label="Tests">
                       <span className="hidden sm:inline">Tests</span>
                       <span className="sm:hidden">Test</span>
                     </DataTableHeaderCell>
@@ -531,7 +624,7 @@ export function TeacherGradebookTab({
                   </DataTableRow>
                 </DataTableHead>
                 <DataTableBody>
-                  {students.map((student) => {
+                  {sortedStudents.map((student) => {
                     const isSelected = student.student_id === selectedStudent?.student_id
                     return (
                       <DataTableRow
@@ -540,18 +633,33 @@ export function TeacherGradebookTab({
                           'cursor-pointer transition-colors',
                           isSelected ? 'bg-surface-selected hover:bg-surface-selected' : 'hover:bg-surface-hover',
                         ].join(' ')}
-                        onClick={() => setSelectedStudent(isSelected ? null : student)}
+                        onClick={(event) => {
+                          if ((event.target as HTMLElement).closest('button,input,a')) return
+                          setSelectedStudent(isSelected ? null : student)
+                        }}
                       >
-                        <DataTableCell className="max-w-[7rem] text-xs sm:max-w-none sm:text-sm">
-                          {getStudentName(student)}
+                        <DataTableCell>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(student.student_id)}
+                            onChange={() => toggleSelect(student.student_id)}
+                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                            aria-label={`Select ${getStudentName(student)}`}
+                          />
                         </DataTableCell>
-                        <DataTableCell align="right" className="whitespace-nowrap text-xs sm:text-sm">
+                        <DataTableCell className="max-w-[5.5rem] truncate text-xs sm:max-w-none sm:text-sm">
+                          {student.student_first_name || '—'}
+                        </DataTableCell>
+                        <DataTableCell className="max-w-[5.5rem] truncate text-xs sm:max-w-none sm:text-sm">
+                          {student.student_last_name || '—'}
+                        </DataTableCell>
+                        <DataTableCell align="right" className="hidden whitespace-nowrap text-xs sm:text-sm md:table-cell">
                           {formatPercent(student.assignments_percent)}
                         </DataTableCell>
-                        <DataTableCell align="right" className="whitespace-nowrap text-xs sm:text-sm">
+                        <DataTableCell align="right" className="hidden whitespace-nowrap text-xs sm:text-sm md:table-cell">
                           {formatPercent(student.quizzes_percent)}
                         </DataTableCell>
-                        <DataTableCell align="right" className="whitespace-nowrap text-xs sm:text-sm">
+                        <DataTableCell align="right" className="hidden whitespace-nowrap text-xs sm:text-sm md:table-cell">
                           {formatPercent(student.tests_percent)}
                         </DataTableCell>
                         <DataTableCell align="right" className="whitespace-nowrap text-xs font-semibold sm:text-sm">
@@ -561,8 +669,8 @@ export function TeacherGradebookTab({
                     )
                   })}
 
-                  {students.length === 0 && (
-                    <EmptyStateRow colSpan={5} message="No students enrolled yet" />
+                  {sortedStudents.length === 0 && (
+                    <EmptyStateRow colSpan={7} message="No students enrolled yet" />
                   )}
                 </DataTableBody>
               </DataTable>
@@ -570,24 +678,31 @@ export function TeacherGradebookTab({
           </TableCard>
         </div>
       }
-      right={
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {selectedStudent ? (
-            <StudentDetailPanel
-              detail={studentDetail}
-              loading={studentDetailLoading}
-              error={studentDetailError}
-            />
-          ) : (
-            <ClassSummaryPanel summary={classSummary} />
-          )}
-        </div>
+      inspector={
+        <>
+          <div className="flex min-h-10 items-center border-b border-border px-3 py-2">
+            <span className="truncate text-sm font-semibold text-text-default">
+              {selectedStudent ? getStudentName(selectedStudent) : 'Class Summary'}
+            </span>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {selectedStudent ? (
+              <StudentDetailPanel
+                detail={studentDetail}
+                loading={studentDetailLoading}
+                error={studentDetailError}
+              />
+            ) : (
+              <ClassSummaryPanel summary={classSummary} />
+            )}
+          </div>
+        </>
       }
     />
   )
 
   const settingsWorkspace = (
-    <div className="min-h-0 flex-1 overflow-y-auto p-4">
+    <div className="min-h-0 flex-1 overflow-y-auto rounded-lg bg-surface p-4">
       <div className="max-w-2xl space-y-5">
         <label className="inline-flex items-center gap-2 text-sm text-text-default">
           <input
@@ -657,18 +772,8 @@ export function TeacherGradebookTab({
   return (
     <TeacherWorkSurfaceShell
       state="workspace"
-      workspaceFrame="attachedTabs"
-      primary={
-        <TeacherWorkSurfaceModeBar
-          modes={[
-            { id: 'grades', label: 'Grades' },
-            { id: 'settings', label: 'Settings' },
-          ]}
-          activeMode={section}
-          onModeChange={(mode) => onSectionChange(mode as GradebookSection)}
-          ariaLabel="Gradebook sections"
-        />
-      }
+      workspaceFrame="standalone"
+      primary={actionBar}
       feedback={
         error ? (
           <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
@@ -678,7 +783,7 @@ export function TeacherGradebookTab({
       }
       summary={null}
       workspace={section === 'grades' ? gradesWorkspace : settingsWorkspace}
-      workspaceClassName="bg-surface"
+      workspaceFrameClassName="min-h-[360px] border-0 bg-page"
     />
   )
 }
