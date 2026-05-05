@@ -13,6 +13,7 @@ import { useAssignmentDateValidation } from '@/hooks/useAssignmentDateValidation
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import { DEFAULT_SCHEDULE_TIME, getDefaultScheduleDateInSchedulingTimezone, getTodayInSchedulingTimezone, isVisibleAtNow, parseScheduleIsoToParts } from '@/lib/scheduling'
 import { useAssignmentScheduling, type CreateSubmitAction } from '@/hooks/useAssignmentScheduling'
+import { getScheduledReleaseDueDateError } from '@/lib/assignment-schedule-validation'
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
@@ -34,6 +35,16 @@ function validateAssignmentValues(values: AssignmentEditorValues): string | null
 }
 
 const RELEASE_TITLE_ERROR = 'Add a title before posting or scheduling this assignment.'
+
+function getScheduleDueDateValidationMessage(scheduleIso: string, dueAt: string, isScheduleValid: boolean): string | null {
+  if (!scheduleIso || !dueAt || !isScheduleValid) return null
+
+  try {
+    return getScheduledReleaseDueDateError(scheduleIso, toTorontoEndOfDayIso(dueAt))
+  } catch {
+    return null
+  }
+}
 
 interface AssignmentModalProps {
   isOpen: boolean
@@ -616,6 +627,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       ? 'warning'
       : 'primary'
     : 'muted'
+  const scheduleDueDateValidationMessage = getScheduleDueDateValidationMessage(scheduleIso, dueAt, isScheduleValid)
 
   return (
     <>
@@ -719,6 +731,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           time={scheduleTime}
           minDate={getTodayInSchedulingTimezone()}
           isFutureValid={isScheduleValid}
+          validationMessage={scheduleDueDateValidationMessage}
           onDateChange={setScheduleDate}
           onTimeChange={setScheduleTime}
           onCancel={

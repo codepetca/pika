@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
+import {
+  ASSIGNMENT_SCHEDULE_DUE_DATE_ERROR,
+  isScheduledReleaseOnOrBeforeDueDate,
+} from '@/lib/assignment-schedule-validation'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -68,6 +72,12 @@ export const POST = withErrorHandler('PostTeacherAssignmentRelease', async (requ
     if (parsed <= new Date()) {
       return NextResponse.json(
         { error: 'Release date must be in the future' },
+        { status: 400 }
+      )
+    }
+    if (!isScheduledReleaseOnOrBeforeDueDate(parsed, existing.due_at)) {
+      return NextResponse.json(
+        { error: ASSIGNMENT_SCHEDULE_DUE_DATE_ERROR },
         { status: 400 }
       )
     }

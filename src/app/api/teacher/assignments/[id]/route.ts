@@ -6,6 +6,10 @@ import { extractAssignmentArtifacts } from '@/lib/assignment-artifacts'
 import { buildAssignmentInstructionFields, getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getActiveAssignmentAiGradingRunSummary } from '@/lib/server/assignment-ai-grading-runs'
+import {
+  ASSIGNMENT_SCHEDULE_DUE_DATE_ERROR,
+  isScheduledReleaseOnOrBeforeDueDate,
+} from '@/lib/assignment-schedule-validation'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -293,6 +297,25 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
     } else if (existingIsScheduled) {
       updates.released_at = parsedReleasedAt ?? now.toISOString()
     }
+  }
+
+  const effectiveDueAt = due_at ?? existing.due_at
+  const effectiveReleaseAt = updates.released_at ?? existing.released_at
+  const effectiveReleaseDate = effectiveReleaseAt ? new Date(effectiveReleaseAt) : null
+  const isFutureScheduledRelease =
+    updates.is_draft !== true &&
+    !!effectiveReleaseDate &&
+    !Number.isNaN(effectiveReleaseDate.getTime()) &&
+    effectiveReleaseDate > now
+
+  if (
+    isFutureScheduledRelease &&
+    !isScheduledReleaseOnOrBeforeDueDate(effectiveReleaseDate, effectiveDueAt)
+  ) {
+    return NextResponse.json(
+      { error: ASSIGNMENT_SCHEDULE_DUE_DATE_ERROR },
+      { status: 400 }
+    )
   }
 
   if (Object.keys(updates).length === 0) {

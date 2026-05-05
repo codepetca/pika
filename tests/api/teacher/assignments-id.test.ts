@@ -264,6 +264,142 @@ describe('PATCH /api/teacher/assignments/[id]', () => {
     const response = await PATCH(request, { params: { id: 'a-1' } })
     expect(response.status).toBe(200)
   })
+
+  it('rejects rescheduling a scheduled assignment after the due date', async () => {
+    let updateCalled = false
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'a-1',
+                  is_draft: false,
+                  released_at: '2099-03-01T14:00:00.000Z',
+                  due_at: '2099-03-01T23:59:00.000Z',
+                  classrooms: { teacher_id: 'teacher-1', archived_at: null },
+                },
+                error: null,
+              }),
+            })),
+          })),
+          update: vi.fn(() => {
+            updateCalled = true
+            return {
+              eq: vi.fn(() => ({
+                select: vi.fn(() => ({
+                  single: vi.fn().mockResolvedValue({ data: null, error: null }),
+                })),
+              })),
+            }
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ released_at: '2099-03-02T00:00:00.000Z' }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'a-1' } })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('Scheduled release must be on or before the due date.')
+    expect(updateCalled).toBe(false)
+  })
+
+  it('rejects moving the due date before an existing scheduled release', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'a-1',
+                  is_draft: false,
+                  released_at: '2099-03-02T14:00:00.000Z',
+                  due_at: '2099-03-03T23:59:00.000Z',
+                  classrooms: { teacher_id: 'teacher-1', archived_at: null },
+                },
+                error: null,
+              }),
+            })),
+          })),
+          update: vi.fn(() => {
+            throw new Error('Update should not be called')
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ due_at: '2099-03-01T23:59:00.000Z' }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'a-1' } })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('Scheduled release must be on or before the due date.')
+  })
+
+  it('allows clearing a scheduled release back to draft', async () => {
+    let capturedUpdate: any = null
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'a-1',
+                  is_draft: false,
+                  released_at: '2099-03-02T14:00:00.000Z',
+                  due_at: '2099-03-01T23:59:00.000Z',
+                  classrooms: { teacher_id: 'teacher-1', archived_at: null },
+                },
+                error: null,
+              }),
+            })),
+          })),
+          update: vi.fn((updateData) => {
+            capturedUpdate = updateData
+            return {
+              eq: vi.fn(() => ({
+                select: vi.fn(() => ({
+                  single: vi.fn().mockResolvedValue({
+                    data: { id: 'a-1', ...updateData },
+                    error: null,
+                  }),
+                })),
+              })),
+            }
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ is_draft: true, released_at: null }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'a-1' } })
+
+    expect(response.status).toBe(200)
+    expect(capturedUpdate).toEqual({ is_draft: true, released_at: null })
+  })
 })
 
 describe('DELETE /api/teacher/assignments/[id]', () => {
