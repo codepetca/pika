@@ -44,7 +44,8 @@ Use `docs/guides/ai-ui-testing.md` and `.codex/prompts/ui-verify.md` for the act
 
 ## AI Continuity Rules
 - `.ai/CURRENT.md` is the default always-read AI context file.
-- `.ai/JOURNAL.md` is append-only. Log meaningful work each session.
+- `.ai/SESSION-LOG.md` is the rolling recent log. Log meaningful work each session, then run `node scripts/trim-session-log.mjs`.
+- `.ai/JOURNAL-ARCHIVE.md` is historical only; do not read it during normal startup.
 - `.ai/features.json` is append-only. Track **big epics only** and update status with `node scripts/features.mjs`.
 
 ## Non-Negotiable Constraints
@@ -60,4 +61,5 @@ Use `docs/guides/ai-ui-testing.md` and `.codex/prompts/ui-verify.md` for the act
 4. `docs/core/tests.md` (testing requirements)
 5. `docs/core/design.md` (UI/UX rules)
 6. `docs/core/project-context.md` (setup and commands)
-7. `.ai/JOURNAL.md` + `docs/core/decision-log.md` (history/rationale)
+7. `.ai/SESSION-LOG.md` + `docs/core/decision-log.md` (recent handoff/history/rationale)
+8. `.ai/JOURNAL-ARCHIVE.md` (historical investigation only)
