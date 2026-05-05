@@ -106,6 +106,13 @@ describe('POST /api/teacher/tests/[id]/student-access', () => {
       }
       if (table === 'test_student_availability') {
         return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn(async () => ({
+              data: [],
+              error: null,
+            })),
+          })),
           upsert: vi.fn(async (rows: Array<{ student_id: string; state: string }>) => {
             upsertRows.push(...rows)
             return { error: null }
@@ -199,6 +206,13 @@ describe('POST /api/teacher/tests/[id]/student-access', () => {
       }
       if (table === 'test_student_availability') {
         return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn(async () => ({
+              data: [{ student_id: 'student-1', state: 'closed' }],
+              error: null,
+            })),
+          })),
           upsert: vi.fn(async (rows: Array<{ student_id: string; state: string }>) => {
             upsertRows.push(...rows)
             return { error: null }
@@ -232,5 +246,77 @@ describe('POST /api/teacher/tests/[id]/student-access', () => {
         state: 'open',
       }),
     ])
+  })
+
+  it('restores selected-student access when close side effects fail after upsert', async () => {
+    const upsertCalls: Array<Array<{ student_id: string; state: string }>> = []
+    const deleteRestores: string[][] = []
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn(async () => ({
+              data: [{ student_id: 'student-existing' }, { student_id: 'student-new' }],
+              error: null,
+            })),
+          })),
+        }
+      }
+      if (table === 'test_student_availability') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn(async () => ({
+              data: [{ student_id: 'student-existing', state: 'open' }],
+              error: null,
+            })),
+          })),
+          upsert: vi.fn(async (rows: Array<{ student_id: string; state: string }>) => {
+            upsertCalls.push(rows)
+            return { error: null }
+          }),
+          delete: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn(async (_column: string, studentIds: string[]) => {
+              deleteRestores.push(studentIds)
+              return { error: null }
+            }),
+          })),
+        }
+      }
+      if (table === 'test_questions') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(async () => ({ data: null, error: { message: 'questions failed' } })),
+          })),
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/student-access', {
+        method: 'POST',
+        body: JSON.stringify({
+          state: 'closed',
+          student_ids: ['student-existing', 'student-new'],
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe('Failed to finalize test submissions')
+    expect(upsertCalls[0]).toEqual([
+      expect.objectContaining({ student_id: 'student-existing', state: 'closed' }),
+      expect.objectContaining({ student_id: 'student-new', state: 'closed' }),
+    ])
+    expect(upsertCalls[1]).toEqual([
+      expect.objectContaining({ student_id: 'student-existing', state: 'open' }),
+    ])
+    expect(deleteRestores).toEqual([['student-new']])
   })
 })

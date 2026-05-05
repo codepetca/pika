@@ -14,6 +14,11 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 const MAX_STUDENTS_PER_REQUEST = 100
+type SupabaseClient = ReturnType<typeof getServiceRoleClient>
+type PreviousAvailabilityRow = {
+  student_id: string
+  state: TestStudentAvailabilityState
+}
 
 function parseStudentIds(value: unknown): string[] {
   if (!Array.isArray(value)) return []
@@ -27,7 +32,7 @@ function parseStudentIds(value: unknown): string[] {
 }
 
 async function unlockTeacherClosedAttemptsForAccessOpen(
-  supabase: ReturnType<typeof getServiceRoleClient>,
+  supabase: SupabaseClient,
   testId: string,
   studentIds: string[]
 ): Promise<{ ok: true; unlockedCount: number } | { ok: false; status: number; error: string }> {
@@ -85,6 +90,123 @@ async function unlockTeacherClosedAttemptsForAccessOpen(
   return { ok: true, unlockedCount: lockedStudentIds.length }
 }
 
+async function loadPreviousStudentAvailability(
+  supabase: SupabaseClient,
+  testId: string,
+  studentIds: string[]
+): Promise<
+  | { ok: true; rows: PreviousAvailabilityRow[] }
+  | { ok: false; status: number; error: string }
+> {
+  const { data, error } = await supabase
+    .from('test_student_availability')
+    .select('student_id, state')
+    .eq('test_id', testId)
+    .in('student_id', studentIds)
+
+  if (error) {
+    if (isMissingTestStudentAvailabilityError(error)) {
+      return {
+        ok: false,
+        status: 400,
+        error: 'Selected-student exam access requires migration 060 to be applied',
+      }
+    }
+    console.error('Error loading existing selected student test access:', error)
+    return { ok: false, status: 500, error: 'Failed to update selected student access' }
+  }
+
+  return {
+    ok: true,
+    rows: (data || []).filter(
+      (row): row is PreviousAvailabilityRow => row.state === 'open' || row.state === 'closed'
+    ),
+  }
+}
+
+async function restoreStudentAvailability(
+  supabase: SupabaseClient,
+  testId: string,
+  previousRows: PreviousAvailabilityRow[],
+  studentIds: string[],
+  updatedBy: string
+): Promise<{ ok: true } | { ok: false; error: unknown }> {
+  const previousByStudentId = new Map(previousRows.map((row) => [row.student_id, row.state]))
+  const studentIdsWithoutPreviousRows = studentIds.filter((studentId) => !previousByStudentId.has(studentId))
+  const now = new Date().toISOString()
+
+  if (previousRows.length > 0) {
+    const restoreRows = previousRows.map((row) => ({
+      test_id: testId,
+      student_id: row.student_id,
+      state: row.state,
+      updated_by: updatedBy,
+      updated_at: now,
+    }))
+
+    const { error } = await supabase
+      .from('test_student_availability')
+      .upsert(restoreRows, {
+        onConflict: 'test_id,student_id',
+      })
+
+    if (error) {
+      return { ok: false, error }
+    }
+  }
+
+  if (studentIdsWithoutPreviousRows.length > 0) {
+    const { error } = await supabase
+      .from('test_student_availability')
+      .delete()
+      .eq('test_id', testId)
+      .in('student_id', studentIdsWithoutPreviousRows)
+
+    if (error) {
+      return { ok: false, error }
+    }
+  }
+
+  return { ok: true }
+}
+
+async function upsertStudentAvailability(
+  supabase: SupabaseClient,
+  testId: string,
+  studentIds: string[],
+  state: TestStudentAvailabilityState,
+  updatedBy: string
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const now = new Date().toISOString()
+  const rows = studentIds.map((studentId) => ({
+    test_id: testId,
+    student_id: studentId,
+    state,
+    updated_by: updatedBy,
+    updated_at: now,
+  }))
+
+  const { error } = await supabase
+    .from('test_student_availability')
+    .upsert(rows, {
+      onConflict: 'test_id,student_id',
+    })
+
+  if (error) {
+    if (isMissingTestStudentAvailabilityError(error)) {
+      return {
+        ok: false,
+        status: 400,
+        error: 'Selected-student exam access requires migration 060 to be applied',
+      }
+    }
+    console.error('Error updating selected student test access:', error)
+    return { ok: false, status: 500, error: 'Failed to update selected student access' }
+  }
+
+  return { ok: true }
+}
+
 // POST /api/teacher/tests/[id]/student-access - Open/close selected students' test access
 export const POST = withErrorHandler('UpdateTeacherTestStudentAccess', async (request, context) => {
   const user = await requireRole('teacher')
@@ -134,6 +256,32 @@ export const POST = withErrorHandler('UpdateTeacherTestStudentAccess', async (re
     return NextResponse.json({ error: 'No selected students are enrolled in this classroom' }, { status: 400 })
   }
 
+  const previousAvailability = await loadPreviousStudentAvailability(supabase, testId, eligibleStudentIds)
+  if (!previousAvailability.ok) {
+    return NextResponse.json(
+      { error: previousAvailability.error },
+      { status: previousAvailability.status }
+    )
+  }
+
+  const upsertResult = await upsertStudentAvailability(supabase, testId, eligibleStudentIds, state, user.id)
+  if (!upsertResult.ok) {
+    return NextResponse.json({ error: upsertResult.error }, { status: upsertResult.status })
+  }
+
+  const restoreAccessOnFailure = async () => {
+    const restoreResult = await restoreStudentAvailability(
+      supabase,
+      testId,
+      previousAvailability.rows,
+      eligibleStudentIds,
+      user.id
+    )
+    if (!restoreResult.ok) {
+      console.error('Error restoring selected student test access after side-effect failure:', restoreResult.error)
+    }
+  }
+
   let lockedCount = 0
   let unlockedCount = 0
   if (state === 'closed') {
@@ -142,41 +290,17 @@ export const POST = withErrorHandler('UpdateTeacherTestStudentAccess', async (re
       closedBy: user.id,
     })
     if (!finalizeResult.ok) {
+      await restoreAccessOnFailure()
       return NextResponse.json({ error: finalizeResult.error }, { status: finalizeResult.status })
     }
     lockedCount = finalizeResult.finalized_attempts
   } else {
     const unlockResult = await unlockTeacherClosedAttemptsForAccessOpen(supabase, testId, eligibleStudentIds)
     if (!unlockResult.ok) {
+      await restoreAccessOnFailure()
       return NextResponse.json({ error: unlockResult.error }, { status: unlockResult.status })
     }
     unlockedCount = unlockResult.unlockedCount
-  }
-
-  const now = new Date().toISOString()
-  const rows = eligibleStudentIds.map((studentId) => ({
-    test_id: testId,
-    student_id: studentId,
-    state,
-    updated_by: user.id,
-    updated_at: now,
-  }))
-
-  const { error: upsertError } = await supabase
-    .from('test_student_availability')
-    .upsert(rows, {
-      onConflict: 'test_id,student_id',
-    })
-
-  if (upsertError) {
-    if (isMissingTestStudentAvailabilityError(upsertError)) {
-      return NextResponse.json(
-        { error: 'Selected-student exam access requires migration 060 to be applied' },
-        { status: 400 }
-      )
-    }
-    console.error('Error updating selected student test access:', upsertError)
-    return NextResponse.json({ error: 'Failed to update selected student access' }, { status: 500 })
   }
 
   return NextResponse.json({

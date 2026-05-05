@@ -11072,3 +11072,15 @@
 **Validation:**
 - `pnpm test tests/api/teacher/tests-student-access.test.ts tests/components/TeacherTestsTab.test.tsx tests/api/teacher/tests-unsubmit.test.ts tests/api/teacher/tests-student-attempt-delete.test.ts tests/unit/test-student-access.test.ts`
 - `pnpm lint`
+
+## 2026-05-05 - PR review fix for selected access consistency
+
+**Completed:**
+- Reordered selected-student access mutations so availability rows are written before close/open side effects.
+- Added best-effort restoration of previous selected-student access rows when close/open side effects fail after the access upsert.
+- Expanded server test helper coverage for effective access, migration shims, availability lookup helpers, and teacher/student access assertions.
+
+**Validation:**
+- `pnpm test tests/api/teacher/tests-student-access.test.ts tests/unit/test-student-access.test.ts`
+- `pnpm test:coverage`
+- `pnpm lint`
