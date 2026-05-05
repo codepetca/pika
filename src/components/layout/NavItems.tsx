@@ -8,6 +8,7 @@ import {
   ClipboardList,
   LibraryBig,
   FileCheck,
+  Megaphone,
   Settings,
   PenSquare,
   SquarePercent,
@@ -32,6 +33,7 @@ export type ClassroomNavItemId =
   | 'tests'
   | 'calendar'
   | 'resources'
+  | 'announcements'
   | 'roster'
   | 'settings'
   | 'today'
@@ -54,6 +56,7 @@ const teacherItems: NavItem[] = [
   { id: 'gradebook', label: 'Gradebook', icon: SquarePercent },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'resources', label: 'Resources', icon: LibraryBig },
+  { id: 'announcements', label: 'Announcements', icon: Megaphone },
   { id: 'roster', label: 'Roster', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -65,6 +68,7 @@ const studentItems: NavItem[] = [
   { id: 'tests', label: 'Tests', icon: FileCheck },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'resources', label: 'Resources', icon: LibraryBig },
+  { id: 'announcements', label: 'Announcements', icon: Megaphone },
 ]
 
 // ============================================================================
@@ -139,7 +143,7 @@ export function NavItems({
     role === 'student' &&
     !notifications?.loading &&
     (notifications?.activeTestsCount ?? 0) > 0
-  const showResourcesPulse =
+  const showAnnouncementsPulse =
     role === 'student' &&
     !notifications?.loading &&
     (notifications?.unreadAnnouncementsCount ?? 0) > 0
@@ -207,7 +211,7 @@ export function NavItems({
           (item.id === 'assignments' && showAssignmentsPulse) ||
           (item.id === 'quizzes' && showQuizzesPulse) ||
           (item.id === 'tests' && showTestsPulse) ||
-          (item.id === 'resources' && showResourcesPulse)
+          (item.id === 'announcements' && showAnnouncementsPulse)
         const ariaLabel = shouldPulse ? `${item.label} (new activity)` : item.label
 
         const navLink = (

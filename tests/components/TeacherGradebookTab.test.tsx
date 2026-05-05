@@ -72,8 +72,12 @@ describe('TeacherGradebookTab', () => {
       />,
     )
 
-    expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument()
+    expect(await screen.findByText('Ada')).toBeInTheDocument()
+    expect(screen.getByText('Lovelace')).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Grades' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('checkbox', { name: 'Select all students' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /First/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Last/ })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Tests' })).toBeInTheDocument()
     expect(screen.getByRole('row', { name: /Ada Lovelace .* 85\.0%/ })).toBeInTheDocument()
 

@@ -278,11 +278,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
   const actionBar = (
     <TeacherWorkSurfaceActionBar
-      label={
-        <div className="truncate px-1 text-sm font-semibold text-text-default">
-          Daily
-        </div>
-      }
       center={
         <>
           <input
@@ -304,6 +299,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           />
         </>
       }
+      centerPlacement="floating"
     />
   )
 

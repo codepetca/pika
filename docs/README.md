@@ -186,7 +186,7 @@ Individual task files with acceptance criteria:
 **Single source of truth:** See [ai-instructions.md](ai-instructions.md) for the authoritative reading order.
 
 Quick summary:
-1. `.ai/START-HERE.md` — session ritual (worktree, env, journal)
+1. `.ai/START-HERE.md` — session ritual (worktree, env, session log)
 2. `docs/ai-instructions.md` — AI orchestrator with full reading order
 3. Follow the 7 core docs listed in ai-instructions.md
 

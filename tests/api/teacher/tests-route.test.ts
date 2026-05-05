@@ -256,7 +256,7 @@ describe('GET /api/teacher/tests', () => {
             order: vi.fn().mockReturnThis(),
             then: vi.fn((resolve: any) =>
               resolve({
-                data: [{ id: 'test-1', classroom_id: 'classroom-1', title: 'T1', position: 0 }],
+                data: [{ id: 'test-1', classroom_id: 'classroom-1', title: 'T1', status: 'active', position: 0 }],
                 error: null,
               })
             ),
@@ -322,6 +322,19 @@ describe('GET /api/teacher/tests', () => {
         }
       }
 
+      if (table === 'test_student_availability') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn(() => ({
+              in: vi.fn().mockResolvedValue({
+                data: [{ test_id: 'test-1', student_id: 'student-1', state: 'closed' }],
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -334,6 +347,9 @@ describe('GET /api/teacher/tests', () => {
     expect(data.quizzes).toHaveLength(1)
     expect(data.quizzes[0].stats.total_students).toBe(2)
     expect(data.quizzes[0].stats.responded).toBe(2)
+    expect(data.quizzes[0].stats.submitted).toBe(1)
+    expect(data.quizzes[0].stats.open_access).toBe(1)
+    expect(data.quizzes[0].stats.closed_access).toBe(1)
   })
 })
 

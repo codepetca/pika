@@ -13,7 +13,7 @@ Read these files at the start of every session:
 3. [`.ai/features.json`](../.ai/features.json)
 4. [`docs/ai-instructions.md`](./ai-instructions.md)
 
-Do not tail `.ai/JOURNAL.md` by default. Use it only for historical investigation.
+Do not tail `.ai/JOURNAL-ARCHIVE.md` by default. Use `.ai/SESSION-LOG.md` only for recent handoff context.
 
 ## Load Only The Docs You Need
 
@@ -47,7 +47,7 @@ Inspect or modify source only after the startup set and the docs required by you
 - Tiptap content parsing: import `parseContentField` from `@/lib/tiptap-content`
 - UI primitives: import from `@/ui`; use semantic tokens in app code instead of raw `dark:` classes
 - Migrations: AI may create or edit migration files, but humans apply them manually
-- Workflow: do non-trivial work in a bound worktree, plan before coding, and keep `.ai/JOURNAL.md` append-only
+- Workflow: do non-trivial work in a bound worktree, plan before coding, append a concise `.ai/SESSION-LOG.md` entry, and trim it with `node scripts/trim-session-log.mjs`
 - Risk profile: for non-trivial work, declare `none`, `workspace-state`, `async-grading`, `exam-mode`, or `runtime-platform` in the plan
 
 ## Prompt And Command Map
@@ -75,4 +75,5 @@ UI changes must be visually verified before commit. Use [`docs/guides/ai-ui-test
 6. `docs/core/project-context.md`
 7. `docs/core/roadmap.md`
 8. `docs/core/decision-log.md`
-9. `.ai/JOURNAL.md` on demand
+9. `.ai/SESSION-LOG.md` on demand for recent handoff context
+10. `.ai/JOURNAL-ARCHIVE.md` only for historical investigation

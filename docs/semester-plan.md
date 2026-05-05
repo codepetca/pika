@@ -277,18 +277,9 @@ UI: Checklist-style rubric that auto-calculates total.
 | `docs/core/pilot-mvp.md` | Archive to `docs/archive/` | Historical; pilot decisions made |
 | `docs/issues/archive/*` | Keep | Already archived properly |
 
-### JOURNAL.md Management
+### Session Log Management
 
-Add to `.ai/START-HERE.md`:
-
-```markdown
-### Journal Maintenance
-
-When JOURNAL.md exceeds 1500 lines:
-1. Create `.ai/archive/JOURNAL-YYYY-MM.md`
-2. Move entries older than 30 days to archive
-3. Keep last 50 entries in active journal
-```
+`.ai/JOURNAL.md` has been retired and replaced with `.ai/SESSION-LOG.md`, a rolling recent handoff log trimmed by `scripts/trim-session-log.mjs`. Full historical session history is preserved in `.ai/JOURNAL-ARCHIVE.md`.
 
 ### Documentation Line Targets
 
@@ -297,7 +288,7 @@ When JOURNAL.md exceeds 1500 lines:
 | `ai-instructions.md` | 350 | 300 | Remove workflow duplication |
 | `architecture.md` | 210 | 200 | Already tight |
 | `design.md` | 715 | 400 | Move component examples to storybook/gallery |
-| `JOURNAL.md` | 1374 | 500 | Archive older entries |
+| `SESSION-LOG.md` | <= 20 entries | <= 20 entries | Trim with `scripts/trim-session-log.mjs` |
 | **Total** | ~7200 | ~4000 | 44% reduction |
 
 ---
@@ -354,7 +345,7 @@ Copy this to GitHub Issues or your task tracker:
 
 - [ ] #3 Documentation
   - [ ] Create docs/workflow/migrations.md
-  - [ ] Archive JOURNAL entries > 30 days
+  - [x] Retire JOURNAL into `.ai/JOURNAL-ARCHIVE.md` and keep `.ai/SESSION-LOG.md` rolling
 
 - [ ] #4 Backup procedure
   - [ ] Document in docs/deployment/backup.md

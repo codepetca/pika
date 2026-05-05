@@ -40,7 +40,7 @@ Loaded AI instructions and core documentation:
 - Multi-agent collaboration (6 specialized agents)
 - TDD requirements (100% core coverage, test-first workflow)
 - Current roadmap (MVP complete, tests in progress)
-- AI continuity layer (`.ai/`): journal + feature inventory
+- AI continuity layer (`.ai/`): current context + rolling session log + feature inventory
 
 What would you like to work on?
 ```

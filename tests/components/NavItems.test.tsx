@@ -102,6 +102,15 @@ describe('NavItems notification dots', () => {
     expect(screen.queryByRole('button', { name: /assignment/i })).toBeNull()
   })
 
+  it('puts unread announcement activity on the announcements nav item', () => {
+    mockNotifications = baseNotifications({ unreadAnnouncementsCount: 4 })
+    renderNav('student', 'announcements')
+
+    const announcementsLink = screen.getByRole('link', { name: 'Announcements (new activity)' })
+    expect(announcementsLink.querySelector('[data-new-activity-dot="true"]')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Resources' }).querySelector('[data-new-activity-dot="true"]')).toBeNull()
+  })
+
   it('does not render notification dots for teacher nav items', () => {
     mockNotifications = baseNotifications({
       hasTodayEntry: false,

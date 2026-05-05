@@ -18,13 +18,16 @@ Steps:
 2) Recover recent context
    - Run: `git -C "$PIKA_WORKTREE" log --oneline -10`
    - Run: `git -C "$PIKA_WORKTREE" status -sb`
-   - Run: `tail -60 "$PIKA_WORKTREE/.ai/JOURNAL.md"`
+   - Read `$PIKA_WORKTREE/.ai/CURRENT.md`.
+   - Read `$PIKA_WORKTREE/.ai/SESSION-LOG.md` only if recent handoff context is needed.
    - Summarize: current branch, last few commits, uncommitted changes.
 
 3) Load documentation
    - Read in order:
-     1. `$PIKA_WORKTREE/docs/ai-instructions.md`
-     2. `$PIKA_WORKTREE/docs/core/architecture.md`
+     1. `$PIKA_WORKTREE/.ai/START-HERE.md`
+     2. `$PIKA_WORKTREE/.ai/features.json`
+     3. `$PIKA_WORKTREE/docs/ai-instructions.md`
+     4. Task-specific docs routed by `docs/ai-instructions.md`
    - Briefly confirm: current feature area being developed.
 
 4) Check feature inventory

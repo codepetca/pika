@@ -53,19 +53,25 @@ describe('getLayoutConfig', () => {
     expect(viewingConfig.rightSidebar.desktopAlwaysOpen).toBe(true)
   })
 
-  it('should use a persistent two-pane layout for resources tabs', () => {
+  it('should use single-pane layouts for resources and announcements tabs', () => {
     const teacherConfig = getLayoutConfig('resources-teacher')
     const studentConfig = getLayoutConfig('resources-student')
+    const teacherAnnouncementsConfig = getLayoutConfig('announcements-teacher')
+    const studentAnnouncementsConfig = getLayoutConfig('announcements-student')
 
-    expect(teacherConfig.rightSidebar.enabled).toBe(true)
-    expect(teacherConfig.rightSidebar.defaultOpen).toBe(true)
-    expect(teacherConfig.rightSidebar.defaultWidth).toBe('50%')
-    expect(teacherConfig.rightSidebar.desktopAlwaysOpen).toBe(true)
+    expect(teacherConfig.rightSidebar.enabled).toBe(false)
+    expect(teacherConfig.rightSidebar.defaultOpen).toBe(false)
+    expect(teacherConfig.mainContent.maxWidth).toBe('full')
 
-    expect(studentConfig.rightSidebar.enabled).toBe(true)
-    expect(studentConfig.rightSidebar.defaultOpen).toBe(true)
-    expect(studentConfig.rightSidebar.defaultWidth).toBe('50%')
-    expect(studentConfig.rightSidebar.desktopAlwaysOpen).toBe(true)
+    expect(studentConfig.rightSidebar.enabled).toBe(false)
+    expect(studentConfig.rightSidebar.defaultOpen).toBe(false)
+    expect(studentConfig.mainContent.maxWidth).toBe('full')
+
+    expect(teacherAnnouncementsConfig.rightSidebar.enabled).toBe(false)
+    expect(teacherAnnouncementsConfig.mainContent.maxWidth).toBe('full')
+
+    expect(studentAnnouncementsConfig.rightSidebar.enabled).toBe(false)
+    expect(studentAnnouncementsConfig.mainContent.maxWidth).toBe('full')
   })
 
   it('should not reserve external sidebars for teacher gradebook, quizzes, and tests', () => {
@@ -162,11 +168,13 @@ describe('getRouteKeyFromTab', () => {
     expect(getRouteKeyFromTab('gradebook', 'teacher')).toBe('gradebook')
     expect(getRouteKeyFromTab('roster', 'teacher')).toBe('roster')
     expect(getRouteKeyFromTab('settings', 'teacher')).toBe('settings')
+    expect(getRouteKeyFromTab('announcements', 'teacher')).toBe('announcements-teacher')
   })
 
   it('should return correct route key for student tabs', () => {
     expect(getRouteKeyFromTab('today', 'student')).toBe('today')
     expect(getRouteKeyFromTab('tests', 'student')).toBe('tests-student')
+    expect(getRouteKeyFromTab('announcements', 'student')).toBe('announcements-student')
   })
 
   it('should return assignments-student for student assignments', () => {
@@ -213,6 +221,8 @@ describe('ROUTE_CONFIGS', () => {
       'calendar-student',
       'resources-teacher',
       'resources-student',
+      'announcements-teacher',
+      'announcements-student',
     ]
 
     expectedKeys.forEach((key) => {

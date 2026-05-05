@@ -91,7 +91,7 @@ export function AppHeader({
   return (
     <header className="sticky top-0 z-50 h-12 bg-surface border-b border-border grid grid-cols-[1fr_minmax(0,1fr)_1fr] items-center px-4">
       {/* Left section */}
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         {/* Mobile sidebar trigger (classroom pages) */}
         {onOpenSidebar && (
           <Tooltip content="Open navigation">
@@ -126,7 +126,7 @@ export function AppHeader({
         {/* Classroom Selector (teachers with multiple classrooms, or when explicitly provided) */}
         {classrooms && classrooms.length > 0 && (
           <ClassroomDropdown
-            className="ml-4"
+            className="ml-1 min-w-0 sm:ml-4"
             classrooms={classrooms}
             currentClassroomId={currentClassroomId}
             currentTab={currentTab}

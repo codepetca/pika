@@ -8,13 +8,22 @@ const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
 const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
 
 vi.mock('@/app/classrooms/[classroomId]/TeacherClassroomView', () => ({
-  TeacherClassroomView: ({ onEditModeChange }: any) => (
+  TeacherClassroomView: ({ onEditModeChange, onSelectAssignment, onViewModeChange }: any) => (
     <div>
       <button type="button" onClick={() => onEditModeChange?.(true)}>
         Set assignment edit active
       </button>
       <button type="button" onClick={() => onEditModeChange?.(false)}>
         Set assignment edit inactive
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          onViewModeChange?.('assignment')
+          onSelectAssignment?.({ title: 'Assignment One', instructions: null })
+        }}
+      >
+        Select assignment workspace
       </button>
     </div>
   ),
@@ -24,7 +33,12 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherClassroomView', () => ({
 }))
 
 vi.mock('@/components/AppShell', () => ({
-  AppShell: ({ children }: any) => <div>{children}</div>,
+  AppShell: ({ children, pageTitle }: any) => (
+    <div>
+      <div data-testid="app-shell-page-title">{pageTitle}</div>
+      {children}
+    </div>
+  ),
 }))
 
 vi.mock('@/components/layout', async () => {
@@ -172,11 +186,35 @@ vi.mock('@/app/classrooms/[classroomId]/StudentClassResourcesSidebar', () => ({
 vi.mock('@/app/classrooms/[classroomId]/StudentResourcesTab', () => ({
   StudentResourcesTab: () => <div />,
 }))
+vi.mock('@/app/classrooms/[classroomId]/TeacherAnnouncementsTab', () => ({
+  TeacherAnnouncementsTab: () => <div />,
+}))
+vi.mock('@/app/classrooms/[classroomId]/StudentAnnouncementsTab', () => ({
+  StudentAnnouncementsTab: () => <div />,
+}))
 vi.mock('@/app/classrooms/[classroomId]/TeacherQuizzesTab', () => ({
-  TeacherQuizzesTab: () => <div />,
+  TeacherQuizzesTab: ({ onSelectQuiz }: any) => (
+    <div>
+      <button
+        type="button"
+        onClick={() => onSelectQuiz?.({ id: 'quiz-1', title: 'Quiz One' })}
+      >
+        Select quiz workspace
+      </button>
+    </div>
+  ),
 }))
 vi.mock('@/app/classrooms/[classroomId]/TeacherTestsTab', () => ({
-  TeacherTestsTab: () => <div />,
+  TeacherTestsTab: ({ onSelectTest }: any) => (
+    <div>
+      <button
+        type="button"
+        onClick={() => onSelectTest?.({ id: 'test-1', title: 'Test One' })}
+      >
+        Select test workspace
+      </button>
+    </div>
+  ),
 }))
 vi.mock('@/app/classrooms/[classroomId]/StudentQuizzesTab', () => ({
   StudentQuizzesTab: () => <div />,
@@ -206,15 +244,18 @@ const classroom: Classroom = {
   updated_at: '2026-01-01T00:00:00Z',
 }
 
-function renderClient() {
+function renderClient(options?: { initialTab?: string; initialSearchParams?: Record<string, string | undefined> }) {
+  const initialTab = options?.initialTab ?? 'assignments'
+  const initialSearchParams = options?.initialSearchParams ?? { tab: initialTab }
+
   return render(
     <MarkdownPreferenceProvider>
       <ClassroomPageClient
         classroom={classroom}
         user={{ id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' }}
         teacherClassrooms={[classroom]}
-        initialTab="assignments"
-        initialSearchParams={{ tab: 'assignments' }}
+        initialTab={initialTab}
+        initialSearchParams={initialSearchParams}
       />
     </MarkdownPreferenceProvider>,
   )
@@ -264,6 +305,70 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     await waitFor(() => {
       expect(screen.queryByText(/Markdown editor:/)).not.toBeInTheDocument()
     })
+  })
+
+  it('passes the selected assignment title to the app shell title slot', () => {
+    renderClient()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select assignment workspace' }))
+
+    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Assignment One')
+  })
+
+  it('passes the assignments summary label to the app shell title slot', () => {
+    renderClient()
+
+    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Assignments')
+  })
+
+  it('passes the daily label to the app shell title slot', () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=attendance')
+
+    renderClient({ initialTab: 'attendance', initialSearchParams: { tab: 'attendance' } })
+
+    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Daily')
+  })
+
+  it('passes the quizzes summary label to the app shell title slot', () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=quizzes')
+
+    renderClient({ initialTab: 'quizzes', initialSearchParams: { tab: 'quizzes' } })
+
+    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Quizzes')
+  })
+
+  it('passes the selected quiz title to the app shell title slot', () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=quizzes&quizId=quiz-1')
+
+    renderClient({
+      initialTab: 'quizzes',
+      initialSearchParams: { tab: 'quizzes', quizId: 'quiz-1' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select quiz workspace' }))
+
+    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Quiz One')
+  })
+
+  it('passes the tests summary label to the app shell title slot', () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=tests')
+
+    renderClient({ initialTab: 'tests', initialSearchParams: { tab: 'tests' } })
+
+    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Tests')
+  })
+
+  it('passes the selected test title to the app shell title slot', () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=tests&testId=test-1')
+
+    renderClient({
+      initialTab: 'tests',
+      initialSearchParams: { tab: 'tests', testId: 'test-1' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select test workspace' }))
+
+    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Test One')
   })
 
   it('does not reopen assignment markdown after the teacher manually closes the panel', async () => {

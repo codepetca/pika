@@ -18,6 +18,7 @@ describe('QuizModal', () => {
 
     expect(screen.getByRole('heading', { name: 'New Test' })).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Enter test title')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close test modal' })).toBeInTheDocument()
   })
 
   it('keeps quiz-specific title copy when editing a quiz', () => {

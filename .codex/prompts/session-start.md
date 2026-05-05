@@ -12,12 +12,13 @@ Manual fallback:
 2. Run `bash "$PIKA_WORKTREE/scripts/verify-env.sh"`.
 3. Review `git -C "$PIKA_WORKTREE" status -sb` and `git -C "$PIKA_WORKTREE" log --oneline -8`.
 4. Read `.ai/START-HERE.md`, `.ai/CURRENT.md`, `.ai/features.json`, and `docs/ai-instructions.md`.
-5. Load only the task-specific docs routed by `docs/ai-instructions.md`.
+5. Read `.ai/SESSION-LOG.md` only if recent handoff context is needed; use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+6. Load only the task-specific docs routed by `docs/ai-instructions.md`.
    - For UI work, include a UI guidance declaration.
    - Record: stable guidance followed
    - Record: experimental guidance introduced: yes/no
    - Record: human promotion needed: yes/no
    - For non-trivial work, declare risk profile: `none`, `workspace-state`, `async-grading`, `exam-mode`, or `runtime-platform`.
    - If any risk profile applies, read `docs/guidance/dev-flow-risk-checklists.md`.
-6. If `$ARGUMENTS` is an issue number, run `gh issue view $ARGUMENTS --json number,title,body,labels`.
-7. State the task, propose the approach, and wait for approval before coding.
+7. If `$ARGUMENTS` is an issue number, run `gh issue view $ARGUMENTS --json number,title,body,labels`.
+8. State the task, propose the approach, and wait for approval before coding.

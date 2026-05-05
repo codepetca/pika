@@ -20,7 +20,7 @@
 ```
 
 Do not start coding if verification fails.
-Use `.ai/JOURNAL.md` only if you need historical detail that is not covered by `.ai/CURRENT.md`.
+Read `.ai/SESSION-LOG.md` only for recent handoff context; `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
 ---
 
@@ -39,14 +39,15 @@ All agents are bound to exactly ONE worktree via `$PIKA_WORKTREE`.
 
 ## End of Session (MANDATORY)
 
-1. Append a session entry to `$PIKA_WORKTREE/.ai/JOURNAL.md`.
-2. Update `.ai/features.json` if anything changed:
+1. Append a concise session entry to `$PIKA_WORKTREE/.ai/SESSION-LOG.md`.
+2. Run `node "$PIKA_WORKTREE/scripts/trim-session-log.mjs"` to keep only the latest 20 entries.
+3. Update `.ai/features.json` if anything changed:
    ```bash
    node "$PIKA_WORKTREE/scripts/features.mjs" pass <feature-id>
    node "$PIKA_WORKTREE/scripts/features.mjs" fail <feature-id>
    ```
-3. Commit and push the journal + feature changes.
-4. If work was merged, clean up:
+4. Commit and push the session log + feature changes.
+5. If work was merged, clean up:
    ```bash
    export PIKA_WORKTREE="$HOME/Repos/pika"
    git -C "$PIKA_WORKTREE" fetch origin
@@ -68,4 +69,5 @@ Trust in this order:
 6. `docs/core/project-context.md` — setup and commands
 7. `docs/core/roadmap.md` — phase strategy
 8. `docs/core/decision-log.md` — historical rationale
-9. `.ai/JOURNAL.md` — session history (on demand)
+9. `.ai/SESSION-LOG.md` — recent handoff history (on demand)
+10. `.ai/JOURNAL-ARCHIVE.md` — historical investigation only

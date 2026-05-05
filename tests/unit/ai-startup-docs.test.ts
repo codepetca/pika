@@ -65,15 +65,27 @@ describe('AI startup docs', () => {
   it('keeps journal reads out of the default startup flow', () => {
     const files = [
       '.ai/START-HERE.md',
+      '.claude/commands/session-start.md',
       '.codex/prompts/session-start.md',
       '.codex/skills/pika-session-start/scripts/session_start.sh',
+      'docs/issue-worker.md',
     ]
 
     for (const file of files) {
       const content = readRepoFile(file)
-      expect(content).not.toContain('tail -40 "$PIKA_WORKTREE/.ai/JOURNAL.md"')
-      expect(content).not.toContain('tail -60 "$PIKA_WORKTREE/.ai/JOURNAL.md"')
+      expect(content).not.toMatch(/tail -\d+ "\$PIKA_WORKTREE\/\.ai\/JOURNAL/)
+      expect(content).not.toContain('Append to `.ai/JOURNAL.md`')
     }
+  })
+
+  it('keeps the rolling session log small', () => {
+    const sessionLog = readRepoFile('.ai/SESSION-LOG.md')
+    const entryCount = sessionLog.match(/^## /gm)?.length ?? 0
+
+    expect(sessionLog).toContain('Rolling recent session log')
+    expect(entryCount).toBeGreaterThan(0)
+    expect(entryCount).toBeLessThanOrEqual(20)
+    expect(readRepoFile('.ai/JOURNAL-ARCHIVE.md')).toContain('# Pika Project Journal')
   })
 
   it('keeps the manual startup prompt aligned with the required startup set', () => {

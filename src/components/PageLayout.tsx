@@ -200,7 +200,7 @@ export function PageActionBar({
   className?: string
 }) {
   const outerClass = cn(
-    'mt-header-compact w-full bg-page',
+    'w-full bg-page',
     PAGE_GUTTER_X_CLASS,
     className,
   )

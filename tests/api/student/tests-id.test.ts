@@ -14,26 +14,30 @@ vi.mock('@/lib/auth', () => ({
   })),
 }))
 
-vi.mock('@/lib/server/tests', () => ({
-  isMissingTestAttemptReturnColumnsError: vi.fn((error: { code?: string; message?: string } | null | undefined) => {
-    if (!error) return false
-    const message = (error.message || '').toLowerCase()
-    return error.code === 'PGRST204' && message.includes('returned_at')
-  }),
-  assertStudentCanAccessTest: vi.fn(async () => ({
-    ok: true,
-    test: {
-      id: 'test-1',
-      classroom_id: 'classroom-1',
-      title: 'Unit Test',
-      status: 'active',
-      show_results: false,
-      position: 0,
-      created_at: '2026-01-01T00:00:00.000Z',
-      updated_at: '2026-01-01T00:00:00.000Z',
-    },
-  })),
-}))
+vi.mock('@/lib/server/tests', async () => {
+  const actual = await vi.importActual<any>('@/lib/server/tests')
+  return {
+    ...actual,
+    isMissingTestAttemptReturnColumnsError: vi.fn((error: { code?: string; message?: string } | null | undefined) => {
+      if (!error) return false
+      const message = (error.message || '').toLowerCase()
+      return error.code === 'PGRST204' && message.includes('returned_at')
+    }),
+    assertStudentCanAccessTest: vi.fn(async () => ({
+      ok: true,
+      test: {
+        id: 'test-1',
+        classroom_id: 'classroom-1',
+        title: 'Unit Test',
+        status: 'active',
+        show_results: false,
+        position: 0,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      },
+    })),
+  }
+})
 
 const mockSupabaseClient = { from: vi.fn() }
 

@@ -24,6 +24,7 @@ interface ScheduleDateTimePickerProps {
   className?: string
   contextLabel?: string | null
   contextTone?: 'primary' | 'warning' | 'muted'
+  validationMessage?: string | null
 }
 
 export function ScheduleDateTimePicker({
@@ -46,6 +47,7 @@ export function ScheduleDateTimePicker({
   className = '',
   contextLabel,
   contextTone = 'muted',
+  validationMessage,
 }: ScheduleDateTimePickerProps) {
   const dateInputId = useId()
   const timeInputId = useId()
@@ -104,6 +106,10 @@ export function ScheduleDateTimePicker({
         <p className="text-xs text-danger mt-2">Schedule must be in the future</p>
       )}
 
+      {validationMessage && (
+        <p className="text-xs text-danger mt-2">{validationMessage}</p>
+      )}
+
       <div className="mt-3 flex items-center gap-2">
         {onCancel && (
           <Button variant={cancelVariant} size="sm" className="flex-1" onClick={onCancel}>
@@ -115,7 +121,7 @@ export function ScheduleDateTimePicker({
           size="sm"
           className={onCancel ? 'flex-1' : 'w-full'}
           onClick={onConfirm}
-          disabled={!date || !isFutureValid}
+          disabled={!date || !isFutureValid || !!validationMessage}
         >
           {confirmLabel}
         </Button>

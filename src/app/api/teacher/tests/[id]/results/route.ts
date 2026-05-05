@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { aggregateResults, summarizeQuizFocusEvents } from '@/lib/quizzes'
-import { assertTeacherOwnsTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
+import {
+  assertTeacherOwnsTest,
+  getEffectiveStudentTestAccess,
+  getTestStudentAvailabilityMap,
+  isMissingTestAttemptClosureColumnsError,
+  isMissingTestAttemptReturnColumnsError,
+} from '@/lib/server/tests'
 import { getActiveTestAiGradingRunSummary } from '@/lib/server/test-ai-grading-runs'
 import { normalizeTestResponses } from '@/lib/test-attempts'
 import type { QuizFocusSummary, QuizQuestion, QuizResponse } from '@/types'
@@ -56,6 +62,12 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
   }
 
   const classroomStudentIds = [...new Set((enrollments || []).map((row) => row.student_id))]
+  const availabilityResult = await getTestStudentAvailabilityMap(supabase, testId, classroomStudentIds)
+  if (availabilityResult.error && !availabilityResult.missingTable) {
+    console.error('Error fetching test student availability:', availabilityResult.error)
+    return NextResponse.json({ error: 'Failed to fetch student access' }, { status: 500 })
+  }
+  const availabilityByStudent = availabilityResult.stateByStudentId
   const questionById = new Map((questions || []).map((question) => [question.id, question]))
   const testPointsPossible = (questions || []).reduce(
     (sum, question) => sum + Number(question.points || 0),
@@ -119,6 +131,8 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
       submitted_at: string | null
       returned_at: string | null
       returned_by: string | null
+      closed_for_grading_at: string | null
+      closed_for_grading_by: string | null
       updated_at: string
       responses: unknown
     }
@@ -131,6 +145,8 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
           submitted_at: string | null
           returned_at: string | null
           returned_by: string | null
+          closed_for_grading_at: string | null
+          closed_for_grading_by: string | null
           updated_at: string
           responses: unknown
         }>
@@ -140,7 +156,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     {
       const attemptsWithReturnResult = await supabase
         .from('test_attempts')
-        .select('student_id, is_submitted, submitted_at, returned_at, returned_by, updated_at, responses')
+        .select('student_id, is_submitted, submitted_at, returned_at, returned_by, closed_for_grading_at, closed_for_grading_by, updated_at, responses')
         .eq('test_id', testId)
         .in('student_id', classroomStudentIds)
 
@@ -166,6 +182,32 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
           ...attempt,
           returned_at: null,
           returned_by: null,
+          closed_for_grading_at: null,
+          closed_for_grading_by: null,
+        }))
+      attemptsError = legacyAttemptsResult.error
+    }
+
+    if (attemptsError && isMissingTestAttemptClosureColumnsError(attemptsError)) {
+      const legacyAttemptsResult = await supabase
+        .from('test_attempts')
+        .select('student_id, is_submitted, submitted_at, returned_at, returned_by, updated_at, responses')
+        .eq('test_id', testId)
+        .in('student_id', classroomStudentIds)
+
+      attempts =
+        ((legacyAttemptsResult.data as Array<{
+          student_id: string
+          is_submitted: boolean
+          submitted_at: string | null
+          returned_at: string | null
+          returned_by: string | null
+          updated_at: string
+          responses: unknown
+        }> | null) || []).map((attempt) => ({
+          ...attempt,
+          closed_for_grading_at: null,
+          closed_for_grading_by: null,
         }))
       attemptsError = legacyAttemptsResult.error
     }
@@ -181,6 +223,8 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
         submitted_at: attempt.submitted_at,
         returned_at: attempt.returned_at,
         returned_by: attempt.returned_by,
+        closed_for_grading_at: attempt.closed_for_grading_at,
+        closed_for_grading_by: attempt.closed_for_grading_by,
         updated_at: attempt.updated_at,
         responses: attempt.responses,
       })
@@ -242,19 +286,22 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     const attempt = attemptByStudent.get(studentId)
     const submittedAnswers = studentAnswers[studentId] || {}
     const hasSubmittedAnswers = Object.keys(submittedAnswers).length > 0
-    const isSubmitted = !!attempt?.is_submitted || hasSubmittedAnswers
+    const isClosedForGrading = !!attempt?.closed_for_grading_at
+    const isSubmitted = !!attempt?.is_submitted || (hasSubmittedAnswers && !attempt)
     const isReturned = !!attempt?.returned_at
-    const status: 'not_started' | 'in_progress' | 'submitted' | 'returned' = isReturned
+    const status: 'not_started' | 'in_progress' | 'closed' | 'submitted' | 'returned' = isReturned
       ? 'returned'
       : isSubmitted
       ? 'submitted'
+      : isClosedForGrading
+      ? 'closed'
       : attempt
       ? 'in_progress'
       : 'not_started'
 
-    // If the student has not submitted, expose draft attempt answers for monitoring.
+    // If the student has not submitted or been locked for grading, expose draft attempt answers for monitoring.
     let answersForStudent = submittedAnswers
-    if (!isSubmitted && attempt) {
+    if (!isSubmitted && !isClosedForGrading && attempt) {
       const normalizedDraft = normalizeTestResponses(attempt.responses)
       const draftAnswers: Record<string, {
         response_id: string | null
@@ -305,6 +352,13 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     const percent = status === 'not_started' || testPointsPossible <= 0
       ? null
       : (pointsEarned / testPointsPossible) * 100
+    const effectiveAccess = getEffectiveStudentTestAccess({
+      testStatus: test.status,
+      accessState: availabilityByStudent.get(studentId) ?? null,
+      hasSubmitted: isSubmitted,
+      returnedAt: attempt?.returned_at || null,
+      isLockedForGrading: isClosedForGrading,
+    })
 
     return {
       student_id: studentId,
@@ -316,12 +370,17 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
       submitted_at: submittedAt,
       returned_at: attempt?.returned_at || null,
       returned_by: attempt?.returned_by || null,
+      closed_for_grading_at: attempt?.closed_for_grading_at || null,
+      closed_for_grading_by: attempt?.closed_for_grading_by || null,
       last_activity_at: lastActivityAt,
       points_earned: pointsEarned,
       points_possible: testPointsPossible,
       percent,
       graded_open_responses: openGradedCounts.get(studentId) || 0,
       ungraded_open_responses: openUngradedCounts.get(studentId) || 0,
+      access_state: effectiveAccess.access_state,
+      effective_access: effectiveAccess.effective_access,
+      access_source: effectiveAccess.access_source,
       answers: answersForStudent,
       focus_summary: focusSummaryByStudent.get(studentId) || null,
     }

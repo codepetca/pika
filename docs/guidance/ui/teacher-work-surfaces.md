@@ -262,6 +262,13 @@ an older joined split is explicitly desired.
 - They should replace, not duplicate, top workspace tabs.
 - Keep batch or grading actions in the same action cluster when they apply to
   the selected workspace.
+- Summary states should put the tab label, such as `Assignments`, in the global
+  app-header title slot instead of duplicating it in the page action bar.
+- In selected workspaces, place the selected item title in the global app-header
+  title slot rather than inside the page action bar.
+- Render central summary or selected-workspace actions through the floating
+  center action cluster so the controls stay anchored under the app header while
+  the teacher scrolls the workspace.
 - The assignment pane-toggle implementation is an experimental assignment-led
   pattern until promoted after visual and workflow review.
 

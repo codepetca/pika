@@ -12,10 +12,10 @@ import { TeacherGradebookTab } from './TeacherGradebookTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
 import { TeacherLessonCalendarTab, TeacherLessonCalendarSidebar, CalendarSidebarState } from './TeacherLessonCalendarTab'
 import { StudentLessonCalendarTab } from './StudentLessonCalendarTab'
-import { TeacherClassResourcesSidebar } from './TeacherClassResourcesSidebar'
 import { TeacherResourcesTab } from './TeacherResourcesTab'
-import { StudentClassResourcesSidebar } from './StudentClassResourcesSidebar'
 import { StudentResourcesTab } from './StudentResourcesTab'
+import { TeacherAnnouncementsTab } from './TeacherAnnouncementsTab'
+import { StudentAnnouncementsTab } from './StudentAnnouncementsTab'
 import { TeacherQuizzesTab } from './TeacherQuizzesTab'
 import { TeacherTestsTab } from './TeacherTestsTab'
 import { StudentQuizzesTab } from './StudentQuizzesTab'
@@ -117,8 +117,8 @@ export function ClassroomPageClient({
   const validTabs = useMemo(
     () =>
       isTeacher
-        ? (['attendance', 'gradebook', 'assignments', 'quizzes', 'tests', 'calendar', 'resources', 'roster', 'settings'] as const)
-        : (['today', 'assignments', 'quizzes', 'tests', 'calendar', 'resources'] as const),
+        ? (['attendance', 'gradebook', 'assignments', 'quizzes', 'tests', 'calendar', 'resources', 'announcements', 'roster', 'settings'] as const)
+        : (['today', 'assignments', 'quizzes', 'tests', 'calendar', 'resources', 'announcements'] as const),
     [isTeacher]
   )
 
@@ -496,6 +496,42 @@ function ClassroomPageContent({
     }
   }, [])
 
+  const selectedWorkTitle = useMemo(() => {
+    if (!isTeacher) return undefined
+
+    if (activeTab === 'attendance') {
+      return 'Daily'
+    }
+
+    if (activeTab === 'assignments') {
+      return assignmentViewMode === 'assignment'
+        ? selectedAssignment?.title || 'Assignments'
+        : 'Assignments'
+    }
+
+    if (activeTab === 'quizzes') {
+      return quizIdParam && selectedQuiz?.id === quizIdParam
+        ? selectedQuiz.title
+        : 'Quizzes'
+    }
+
+    if (activeTab === 'tests') {
+      return testIdParam && selectedQuiz?.id === testIdParam
+        ? selectedQuiz.title
+        : 'Tests'
+    }
+
+    return undefined
+  }, [
+    activeTab,
+    assignmentViewMode,
+    isTeacher,
+    quizIdParam,
+    selectedAssignment?.title,
+    selectedQuiz,
+    testIdParam,
+  ])
+
   // Load assignments and generate markdown content
   const loadAssignmentsMarkdown = useCallback(async () => {
     if (abortControllerRef.current) {
@@ -728,8 +764,6 @@ function ClassroomPageContent({
   useEffect(() => {
     if (isTeacher && activeTab === 'assignments') {
       setRightSidebarWidth('50%')
-    } else if (activeTab === 'resources') {
-      setRightSidebarWidth('50%')
     }
   }, [
     isTeacher,
@@ -799,15 +833,6 @@ function ClassroomPageContent({
             },
             20_000,
           )
-          prefetchJSON(
-            `teacher-announcements:${classroom.id}`,
-            async () => {
-              const response = await fetch(`/api/teacher/classrooms/${classroom.id}/announcements`)
-              if (!response.ok) throw new Error('Prefetch failed')
-              return response.json()
-            },
-            20_000,
-          )
         } else {
           prefetchJSON(
             `student-resources:${classroom.id}`,
@@ -818,6 +843,21 @@ function ClassroomPageContent({
             },
             20_000,
           )
+        }
+      }
+
+      if (tab === 'announcements') {
+        if (isTeacher) {
+          prefetchJSON(
+            `teacher-announcements:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/teacher/classrooms/${classroom.id}/announcements`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
+        } else {
           prefetchJSON(
             `student-announcements:${classroom.id}`,
             async () => {
@@ -841,6 +881,7 @@ function ClassroomPageContent({
         () => {
           prefetchTabData('assignments')
           prefetchTabData('resources')
+          prefetchTabData('announcements')
         },
         { timeout: 1200 },
       )
@@ -853,6 +894,7 @@ function ClassroomPageContent({
     const timer = window.setTimeout(() => {
       prefetchTabData('assignments')
       prefetchTabData('resources')
+      prefetchTabData('announcements')
     }, 350)
     return () => window.clearTimeout(timer)
   }, [prefetchTabData])
@@ -869,7 +911,7 @@ function ClassroomPageContent({
           params.delete('assignmentId')
           params.delete('assignmentStudentId')
         }
-        if (tab !== 'resources' && tab !== 'settings') {
+        if (tab !== 'settings') {
           params.delete('section')
         }
         if (tab !== 'tests' || activeTab === 'tests') {
@@ -1016,6 +1058,7 @@ function ClassroomPageContent({
       onNavigateClassroom={handleClassroomNavigationAttempt}
       mainClassName="max-w-none px-0 py-0"
       examModeHeader={examHeaderData}
+      pageTitle={selectedWorkTitle}
     >
       <ThreePanelShell leftWidthOverride={hideLeftRailForExamMode ? 0 : undefined}>
         {hideLeftRailForExamMode ? (
@@ -1105,6 +1148,7 @@ function ClassroomPageContent({
                         selectedTestStudentId={testStudentIdParam}
                         updateSearchParams={navigateInClassroom}
                         onSelectTest={handleSelectQuiz}
+                        onRequestTestPreview={setTeacherTestPreview}
                         onRequestDelete={() => {
                           void handleRequestAssessmentDelete()
                         }}
@@ -1129,7 +1173,7 @@ function ClassroomPageContent({
                         }
                         onNavigateToAnnouncements={() =>
                           navigateInClassroom((params) => {
-                            params.set('tab', 'resources')
+                            params.set('tab', 'announcements')
                             params.delete('section')
                             params.delete('assignmentId')
                             params.delete('assignmentStudentId')
@@ -1141,6 +1185,11 @@ function ClassroomPageContent({
                   {mountedTabs.resources && (
                     <TabContentTransition isActive={activeTab === 'resources'}>
                       <TeacherResourcesTab classroom={classroom} />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.announcements && (
+                    <TabContentTransition isActive={activeTab === 'announcements'}>
+                      <TeacherAnnouncementsTab classroom={classroom} />
                     </TabContentTransition>
                   )}
                   {mountedTabs.roster && (
@@ -1210,7 +1259,7 @@ function ClassroomPageContent({
                         }
                         onNavigateToAnnouncements={() =>
                           navigateInClassroom((params) => {
-                            params.set('tab', 'resources')
+                            params.set('tab', 'announcements')
                             params.delete('section')
                             params.delete('assignmentId')
                           })
@@ -1223,6 +1272,11 @@ function ClassroomPageContent({
                       <StudentResourcesTab classroom={classroom} />
                     </TabContentTransition>
                   )}
+                  {mountedTabs.announcements && (
+                    <TabContentTransition isActive={activeTab === 'announcements'}>
+                      <StudentAnnouncementsTab classroom={classroom} />
+                    </TabContentTransition>
+                  )}
                 </>
               )}
             </div>
@@ -1230,8 +1284,8 @@ function ClassroomPageContent({
         </MainContent>
 
         <RightSidebar
-          hideDesktopHeader={activeTab === 'resources'}
-          minimalMobileHeader={activeTab === 'resources'}
+          hideDesktopHeader={false}
+          minimalMobileHeader={false}
           title={
             showMarkdown && isTeacher && activeTab === 'assignments' && isMarkdownMode
               ? 'Assignments'
@@ -1241,8 +1295,6 @@ function ClassroomPageContent({
               ? ''
               : isTeacher && activeTab === 'assignments'
               ? ''
-              : activeTab === 'resources'
-              ? 'Class Resources'
               : activeTab === 'assignments'
               ? (selectedAssignment?.title || 'Instructions')
               : activeTab === 'today'
@@ -1303,10 +1355,6 @@ function ClassroomPageContent({
             )
           ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
             <TeacherLessonCalendarSidebar {...calendarSidebarState} />
-          ) : isTeacher && activeTab === 'resources' ? (
-            <TeacherClassResourcesSidebar classroom={classroom} />
-          ) : activeTab === 'resources' ? (
-            <StudentClassResourcesSidebar classroom={classroom} />
           ) : isTeacher && isAssessmentTab ? (
             null
           ) : isTeacher && activeTab === 'assignments' ? (

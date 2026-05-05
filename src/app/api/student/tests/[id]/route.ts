@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { getStudentTestStatus, summarizeQuizFocusEvents } from '@/lib/quizzes'
-import { assertStudentCanAccessTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
+import {
+  assertStudentCanAccessTest,
+  getEffectiveStudentTestAccess,
+  getTestStudentAvailabilityState,
+  isMissingTestAttemptClosureColumnsError,
+  isMissingTestAttemptReturnColumnsError,
+} from '@/lib/server/tests'
 import { normalizeTestResponses, type TestResponses } from '@/lib/test-attempts'
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
@@ -27,6 +33,7 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
     responses: unknown
     is_submitted: boolean
     returned_at: string | null
+    closed_for_grading_at: string | null
   }
 
   let attempt: AttemptRow | null = null
@@ -35,7 +42,7 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
   {
     const attemptWithReturnResult = await supabase
       .from('test_attempts')
-      .select('responses, is_submitted, returned_at')
+      .select('responses, is_submitted, returned_at, closed_for_grading_at')
       .eq('test_id', testId)
       .eq('student_id', user.id)
       .maybeSingle()
@@ -44,7 +51,11 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
     attemptError = attemptWithReturnResult.error
   }
 
-  if (attemptError && isMissingTestAttemptReturnColumnsError(attemptError)) {
+  if (
+    attemptError &&
+    (isMissingTestAttemptReturnColumnsError(attemptError) ||
+      isMissingTestAttemptClosureColumnsError(attemptError))
+  ) {
     const legacyAttemptResult = await supabase
       .from('test_attempts')
       .select('responses, is_submitted')
@@ -56,6 +67,7 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
       ? {
           ...(legacyAttemptResult.data as { responses: unknown; is_submitted: boolean }),
           returned_at: null,
+          closed_for_grading_at: null,
         }
       : null)
     attemptError = legacyAttemptResult.error
@@ -79,12 +91,25 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
     return NextResponse.json({ error: 'Failed to fetch test progress' }, { status: 500 })
   }
 
-  const hasSubmitted = Boolean(attempt?.is_submitted) || hasAnyMeaningfulTestResponse(responses)
+  const isLockedForGrading = Boolean(attempt?.closed_for_grading_at)
+  const hasSubmitted = Boolean(attempt?.is_submitted) || (!isLockedForGrading && hasAnyMeaningfulTestResponse(responses))
+  const availabilityResult = await getTestStudentAvailabilityState(supabase, testId, user.id)
+  if (availabilityResult.error && !availabilityResult.missingTable) {
+    console.error('Error fetching student test access:', availabilityResult.error)
+    return NextResponse.json({ error: 'Failed to fetch test access' }, { status: 500 })
+  }
+  const accessState = getEffectiveStudentTestAccess({
+    testStatus: test.status,
+    accessState: availabilityResult.state,
+    hasSubmitted,
+    returnedAt: attempt?.returned_at || null,
+    isLockedForGrading,
+  })
 
   if (test.status === 'draft') {
     return NextResponse.json({ error: 'Test not found' }, { status: 404 })
   }
-  if (test.status === 'closed' && !hasSubmitted) {
+  if (!accessState.can_start_or_continue && !accessState.can_view_submitted) {
     return NextResponse.json({ error: 'Test not found' }, { status: 404 })
   }
 
@@ -99,10 +124,15 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
     return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
   }
 
-  const studentStatus = getStudentTestStatus(test, hasSubmitted, attempt?.returned_at)
+  const studentStatus =
+    (hasSubmitted || isLockedForGrading) && attempt?.returned_at && accessState.effective_access === 'closed'
+      ? 'can_view_results'
+      : isLockedForGrading
+        ? 'responded'
+        : getStudentTestStatus(test, hasSubmitted, attempt?.returned_at)
 
   let studentResponses: TestResponses = draftResponses
-  if (hasSubmitted) {
+  if (hasSubmitted || isLockedForGrading) {
     const { data: allResponses, error: allResponsesError } = await supabase
       .from('test_responses')
       .select('question_id, selected_option, response_text')
@@ -154,6 +184,8 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
       position: test.position,
       student_status: studentStatus,
       returned_at: attempt?.returned_at || null,
+      access_state: accessState.access_state,
+      effective_access: accessState.effective_access,
       created_at: test.created_at,
       updated_at: test.updated_at,
     },
