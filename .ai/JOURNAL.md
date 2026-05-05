@@ -10783,3 +10783,22 @@
 - Manual Playwright screenshots for assignment lists:
   - `/tmp/pika-teacher-assignments.png`
   - `/tmp/pika-student-assignments.png`
+
+## 2026-05-05 — Make exam documents visibly clickable
+
+**Completed:**
+- Added a right chevron affordance to active student exam-mode document rows.
+- Matched the same document-row affordance in the teacher test preview.
+- Added focused component coverage for the student document-row chevron.
+
+**Validation:**
+- `pnpm test tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Pre-edit startup verification: `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/issue-548-doc-chevron bash scripts/verify-env.sh`
+- Pika UI verification script on `http://localhost:3002/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted Playwright screenshots:
+  - `/tmp/pika-student-exam-docs-chevron.png`
+  - `/tmp/pika-teacher-test-preview-docs-chevron.png`
