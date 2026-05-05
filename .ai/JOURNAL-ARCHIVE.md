@@ -10802,3 +10802,17 @@
 - Targeted Playwright screenshots:
   - `/tmp/pika-student-exam-docs-chevron.png`
   - `/tmp/pika-teacher-test-preview-docs-chevron.png`
+## 2026-05-05 — Block assignment scheduled release after due date
+
+**Completed:**
+- Added shared assignment schedule-vs-due-date validation with the canonical error message.
+- Blocked draft release, scheduled rescheduling, and due-date edits that would leave a future scheduled release after the due date.
+- Added inline schedule-dialog validation so teachers see the issue before an API request is sent.
+- Covered helper, API, and assignment modal behavior.
+
+**Validation:**
+- `pnpm test -- tests/lib/assignment-schedule-validation.test.ts tests/api/teacher/assignments-draft.test.ts tests/api/teacher/assignments-id.test.ts tests/components/AssignmentModal.test.tsx` (Vitest ran the broad suite: 243 files, 2033 tests)
+- `pnpm lint`
+- Manual Playwright visual verification on port 3003:
+  - `/tmp/pika-issue-547-teacher-schedule-validation.png`
+  - `/tmp/pika-issue-547-student-classrooms-smoke.png`

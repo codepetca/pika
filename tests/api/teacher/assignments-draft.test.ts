@@ -204,6 +204,41 @@ describe('POST /api/teacher/assignments/[id]/release', () => {
       expect(response.status).toBe(400)
       expect(data.error).toBe('Release date must be in the future')
     })
+
+    it('should return 400 when scheduled release is after the due date', async () => {
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'assignments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'assignment-1',
+                    is_draft: true,
+                    due_at: '2099-03-01T23:59:00.000Z',
+                    classrooms: { teacher_id: 'teacher-1', archived_at: null },
+                  },
+                  error: null,
+                }),
+              })),
+            })),
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/release', {
+        method: 'POST',
+        body: JSON.stringify({ release_at: '2099-03-02T00:00:00.000Z' }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Scheduled release must be on or before the due date.')
+    })
   })
 
   describe('successful release', () => {
