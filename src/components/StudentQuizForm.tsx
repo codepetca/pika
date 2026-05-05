@@ -35,6 +35,8 @@ function isAssessmentAvailabilityError(message: string): boolean {
   return (
     normalized.includes('not active') ||
     normalized.includes('not found') ||
+    normalized.includes('closed for you') ||
+    normalized.includes('closed for grading') ||
     normalized.includes('submitted test') ||
     normalized.includes('already responded')
   )

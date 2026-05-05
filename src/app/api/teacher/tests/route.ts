@@ -11,7 +11,12 @@ import {
   validateTestDraftContent,
   type TestDraftContent,
 } from '@/lib/server/assessment-drafts'
+import {
+  getEffectiveStudentTestAccess,
+  isMissingTestStudentAvailabilityError,
+} from '@/lib/server/tests'
 import { withErrorHandler } from '@/lib/api-handler'
+import type { TestStudentAvailabilityState } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -75,8 +80,10 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
   }
 
   const respondentCountMap: Record<string, number> = {}
+  const submittedCountMap: Record<string, number> = {}
   if (testIds.length > 0) {
     const seen: Record<string, Set<string>> = {}
+    const submittedSeen: Record<string, Set<string>> = {}
 
     const { data: attemptRows, error: attemptRowsError } = await supabase
       .from('test_attempts')
@@ -93,6 +100,8 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
       if (!enrolledStudentIds.has(row.student_id)) continue
       if (!seen[row.test_id]) seen[row.test_id] = new Set()
       seen[row.test_id].add(row.student_id)
+      if (!submittedSeen[row.test_id]) submittedSeen[row.test_id] = new Set()
+      submittedSeen[row.test_id].add(row.student_id)
     }
 
     const { data: responseRows, error: responseRowsError } = await supabase
@@ -113,6 +122,44 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
     }
     for (const [testId, students] of Object.entries(seen)) {
       respondentCountMap[testId] = students.size
+    }
+    for (const [testId, students] of Object.entries(submittedSeen)) {
+      submittedCountMap[testId] = students.size
+    }
+  }
+
+  const availabilityByTestId = new Map<string, Map<string, TestStudentAvailabilityState>>()
+  const enrolledStudentIdList = Array.from(enrolledStudentIds)
+  if (testIds.length > 0 && enrolledStudentIdList.length > 0) {
+    let availabilityRows: Array<{ test_id: string; student_id: string; state: unknown }> | null = null
+    let availabilityError: any = null
+
+    try {
+      const result = await supabase
+        .from('test_student_availability')
+        .select('test_id, student_id, state')
+        .in('test_id', testIds)
+        .in('student_id', enrolledStudentIdList)
+      availabilityRows = result.data
+      availabilityError = result.error
+    } catch (error) {
+      availabilityError = error
+    }
+
+    const isMissingAvailabilityTable =
+      isMissingTestStudentAvailabilityError(availabilityError) ||
+      `${availabilityError?.message || availabilityError || ''}`.includes('Unexpected table: test_student_availability')
+
+    if (availabilityError && !isMissingAvailabilityTable) {
+      console.error('Error fetching test student availability:', availabilityError)
+      return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
+    }
+
+    for (const row of availabilityRows || []) {
+      if (row.state !== 'open' && row.state !== 'closed') continue
+      const states = availabilityByTestId.get(row.test_id) ?? new Map<string, TestStudentAvailabilityState>()
+      states.set(row.student_id, row.state)
+      availabilityByTestId.set(row.test_id, states)
     }
   }
 
@@ -141,18 +188,45 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
     }
   }
 
-  const testsWithStats = (tests || []).map((test) => ({
-    ...test,
-    title: draftByTestId[test.id]?.title ?? test.title,
-    show_results: draftByTestId[test.id]?.show_results ?? test.show_results,
-    assessment_type: 'test' as const,
-    documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
-    stats: {
-      total_students: totalStudents || 0,
-      responded: respondentCountMap[test.id] || 0,
-      questions_count: (draftByTestId[test.id]?.questions.length ?? questionCountMap[test.id]) || 0,
-    },
-  }))
+  const testsWithStats = (tests || []).map((test) => {
+    const totalStudentCount = totalStudents || 0
+    let openAccessCount = 0
+    let closedAccessCount = 0
+
+    if (enrolledStudentIdList.length > 0) {
+      const availabilityStates = availabilityByTestId.get(test.id)
+      for (const studentId of enrolledStudentIdList) {
+        const access = getEffectiveStudentTestAccess({
+          testStatus: test.status,
+          accessState: availabilityStates?.get(studentId) ?? null,
+        })
+        if (access.effective_access === 'open') {
+          openAccessCount += 1
+        } else {
+          closedAccessCount += 1
+        }
+      }
+    } else {
+      openAccessCount = test.status === 'active' ? totalStudentCount : 0
+      closedAccessCount = Math.max(totalStudentCount - openAccessCount, 0)
+    }
+
+    return {
+      ...test,
+      title: draftByTestId[test.id]?.title ?? test.title,
+      show_results: draftByTestId[test.id]?.show_results ?? test.show_results,
+      assessment_type: 'test' as const,
+      documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
+      stats: {
+        total_students: totalStudentCount,
+        responded: respondentCountMap[test.id] || 0,
+        submitted: submittedCountMap[test.id] || 0,
+        open_access: openAccessCount,
+        closed_access: closedAccessCount,
+        questions_count: (draftByTestId[test.id]?.questions.length ?? questionCountMap[test.id]) || 0,
+      },
+    }
+  })
 
   // Keep response key as `quizzes` for current UI component compatibility.
   return NextResponse.json({ quizzes: testsWithStats })

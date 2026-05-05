@@ -14,27 +14,31 @@ vi.mock('@/lib/auth', () => ({
   })),
 }))
 
-vi.mock('@/lib/server/tests', () => ({
-  assertStudentCanAccessTest: vi.fn(async () => ({
-    ok: true,
-    test: {
-      id: 'test-1',
-      classroom_id: 'classroom-1',
-      status: 'active',
-      title: 'Unit Test',
-      show_results: false,
-      position: 0,
-      created_by: 'teacher-1',
-      created_at: '2026-01-01T00:00:00.000Z',
-      updated_at: '2026-01-01T00:00:00.000Z',
-      classrooms: {
-        id: 'classroom-1',
-        teacher_id: 'teacher-1',
-        archived_at: null,
+vi.mock('@/lib/server/tests', async () => {
+  const actual = await vi.importActual<any>('@/lib/server/tests')
+  return {
+    ...actual,
+    assertStudentCanAccessTest: vi.fn(async () => ({
+      ok: true,
+      test: {
+        id: 'test-1',
+        classroom_id: 'classroom-1',
+        status: 'active',
+        title: 'Unit Test',
+        show_results: false,
+        position: 0,
+        created_by: 'teacher-1',
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+        classrooms: {
+          id: 'classroom-1',
+          teacher_id: 'teacher-1',
+          archived_at: null,
+        },
       },
-    },
-  })),
-}))
+    })),
+  }
+})
 
 const mockSupabaseClient = { from: vi.fn() }
 

@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { X } from 'lucide-react'
 import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { getRelativeDueDate } from '@/lib/assignment-relative-date'
-import { ConfirmDialog, DialogPanel, SplitButton } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, SplitButton } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
 import { format, isValid, parse } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
@@ -672,21 +673,40 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       : 'primary'
     : 'muted'
   const scheduleDueDateValidationMessage = getScheduleDueDateValidationMessage(scheduleIso, dueAt, isScheduleValid)
+  const creationPanelClass =
+    '!h-[calc(100dvh-0.5rem)] !max-h-[calc(100dvh-0.5rem)] !w-[calc(100vw-0.5rem)] !max-w-[calc(100vw-0.5rem)] overflow-hidden p-0 sm:!h-[calc(100dvh-1rem)] sm:!max-h-[calc(100dvh-1rem)] sm:!w-[calc(100vw-1rem)] sm:!max-w-[calc(100vw-1rem)]'
 
   return (
     <>
       <DialogPanel
         isOpen={isOpen}
         onClose={handleClose}
-        maxWidth="w-[min(90vw,56rem)]"
-        className="max-h-[92vh] p-6"
+        maxWidth={isCreateMode ? 'max-w-none' : 'w-[min(90vw,56rem)]'}
+        className={isCreateMode ? creationPanelClass : 'max-h-[92vh] p-0'}
+        viewportPaddingClassName={isCreateMode ? 'p-1 sm:p-2' : undefined}
         ariaLabelledBy="assignment-modal-title"
       >
-        <h2 id="assignment-modal-title" className="sr-only">
-          {modalTitle}
-        </h2>
+        <div className="flex flex-shrink-0 items-center gap-3 border-b border-border px-4 py-3">
+          <h2 id="assignment-modal-title" className="min-w-0 flex-1 truncate text-base font-semibold text-text-default">
+            {modalTitle}
+          </h2>
+          <Button
+            type="button"
+            variant="surface"
+            size="sm"
+            className="h-10 w-10 flex-shrink-0 px-0"
+            onClick={() => {
+              void handleClose()
+            }}
+            disabled={saving || releasing}
+            aria-label="Close assignment modal"
+            title="Close"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </Button>
+        </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4">
           <AssignmentForm
             title={title}
             instructionsMarkdown={instructionsMarkdown}

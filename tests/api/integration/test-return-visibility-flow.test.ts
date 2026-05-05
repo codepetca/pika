@@ -68,9 +68,14 @@ const state = {
       returned_by: null as string | null,
     },
   ],
+  testStudentAvailability: [] as Array<{
+    test_id: string
+    student_id: string
+    state: 'open' | 'closed'
+  }>,
 }
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -98,25 +103,80 @@ vi.mock('@/lib/server/classrooms', () => ({
   })),
 }))
 
-vi.mock('@/lib/server/tests', () => ({
-  isMissingTestAttemptReturnColumnsError: vi.fn(() => false),
-  assertStudentCanAccessTest: vi.fn(async () => ({
-    ok: true,
-    test: {
-      ...state.tests[0],
-      classrooms: { id: 'classroom-1', teacher_id: 'teacher-1', archived_at: null },
-    },
-  })),
-  assertTeacherOwnsTest: vi.fn(async () => ({
-    ok: true,
-    test: {
-      ...state.tests[0],
-      classrooms: { id: 'classroom-1', teacher_id: 'teacher-1', archived_at: null },
-    },
-  })),
-}))
+vi.mock('@/lib/server/tests', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/server/tests')>('@/lib/server/tests')
+  return {
+    ...actual,
+    isMissingTestAttemptReturnColumnsError: vi.fn(() => false),
+    assertStudentCanAccessTest: vi.fn(async () => ({
+      ok: true,
+      test: {
+        ...state.tests[0],
+        classrooms: { id: 'classroom-1', teacher_id: 'teacher-1', archived_at: null },
+      },
+    })),
+    assertTeacherOwnsTest: vi.fn(async () => ({
+      ok: true,
+      test: {
+        ...state.tests[0],
+        classrooms: { id: 'classroom-1', teacher_id: 'teacher-1', archived_at: null },
+      },
+    })),
+  }
+})
 
 function setupSupabaseMock() {
+  mockSupabaseClient.rpc = vi.fn(async (fnName: string, params?: Record<string, any>) => {
+    if (fnName === 'finalize_test_attempts_for_grading_atomic') {
+      return {
+        data: { finalized_attempts: 0, inserted_responses: 0 },
+        error: null,
+      }
+    }
+    if (fnName === 'return_test_attempts_atomic') {
+      const testId = params?.p_test_id
+      const studentIds = params?.p_student_ids || []
+      const returnedBy = params?.p_returned_by
+      const submittedAtByStudent = params?.p_submitted_at_by_student || {}
+      const returnedAt = new Date().toISOString()
+      let updatedCount = 0
+      let insertedCount = 0
+
+      for (const studentId of studentIds) {
+        const attempt = state.testAttempts.find(
+          (row) => row.test_id === testId && row.student_id === studentId
+        )
+        if (attempt) {
+          attempt.returned_at = returnedAt
+          attempt.returned_by = returnedBy
+          updatedCount += 1
+          continue
+        }
+
+        state.testAttempts.push({
+          test_id: testId,
+          student_id: studentId,
+          responses: {},
+          is_submitted: true,
+          submitted_at: submittedAtByStudent[studentId] || returnedAt,
+          returned_at: returnedAt,
+          returned_by: returnedBy,
+        })
+        insertedCount += 1
+      }
+
+      return {
+        data: {
+          returned_count: updatedCount + insertedCount,
+          updated_count: updatedCount,
+          inserted_count: insertedCount,
+        },
+        error: null,
+      }
+    }
+    throw new Error(`Unexpected RPC: ${fnName}`)
+  })
+
   ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
     if (table === 'tests') {
       let classroomId: string | null = null
@@ -287,6 +347,36 @@ function setupSupabaseMock() {
       }
     }
 
+    if (table === 'test_student_availability') {
+      return {
+        select: vi.fn(() => {
+          const eqFilters: Record<string, string> = {}
+          const chain: any = {
+            eq: vi.fn((column: string, value: string) => {
+              eqFilters[column] = value
+              return chain
+            }),
+            in: vi.fn(async (column: string, values: string[]) => ({
+              data: state.testStudentAvailability.filter((row) => {
+                const eqMatch = Object.entries(eqFilters).every(
+                  ([key, val]) => String((row as any)[key]) === val
+                )
+                return eqMatch && values.includes(String((row as any)[column]))
+              }),
+              error: null,
+            })),
+            maybeSingle: vi.fn(async () => {
+              const found = state.testStudentAvailability.find((row) =>
+                Object.entries(eqFilters).every(([key, val]) => String((row as any)[key]) === val)
+              )
+              return { data: found || null, error: null }
+            }),
+          }
+          return chain
+        }),
+      }
+    }
+
     throw new Error(`Unexpected table: ${table}`)
   })
 }
@@ -298,6 +388,7 @@ describe('Test Return Visibility Integration', () => {
     state.tests[0].status = 'closed'
     state.testAttempts[0].returned_at = null
     state.testAttempts[0].returned_by = null
+    state.testStudentAvailability = []
     setupSupabaseMock()
   })
 
@@ -365,7 +456,7 @@ describe('Test Return Visibility Integration', () => {
     expect(resultsAfterData.summary.earned_points).toBe(4)
   })
 
-  it('closes active tests before return when close_test is confirmed and then unlocks student results', async () => {
+  it('returns selected work during an active test after selected access is closed', async () => {
     state.tests[0].status = 'active'
 
     currentUser = { id: 'teacher-1', role: 'teacher' }
@@ -378,21 +469,25 @@ describe('Test Return Visibility Integration', () => {
     )
     const returnWithoutCloseData = await returnWithoutClose.json()
     expect(returnWithoutClose.status).toBe(409)
-    expect(returnWithoutCloseData.error).toContain('still active')
+    expect(returnWithoutCloseData.error).toContain('Close selected students')
     expect(state.tests[0].status).toBe('active')
     expect(state.testAttempts[0].returned_at).toBeNull()
 
-    const returnWithClose = await returnTeacherTest(
+    state.testStudentAvailability = [
+      { test_id: 'test-1', student_id: 'student-1', state: 'closed' },
+    ]
+
+    const returnAfterSelectedClose = await returnTeacherTest(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
         method: 'POST',
-        body: JSON.stringify({ student_ids: ['student-1'], close_test: true }),
+        body: JSON.stringify({ student_ids: ['student-1'] }),
       }),
       { params: Promise.resolve({ id: 'test-1' }) }
     )
-    const returnWithCloseData = await returnWithClose.json()
-    expect(returnWithClose.status).toBe(200)
-    expect(returnWithCloseData.test_closed).toBe(true)
-    expect(state.tests[0].status).toBe('closed')
+    const returnAfterSelectedCloseData = await returnAfterSelectedClose.json()
+    expect(returnAfterSelectedClose.status).toBe(200)
+    expect(returnAfterSelectedCloseData.test_closed).toBe(false)
+    expect(state.tests[0].status).toBe('active')
     expect(state.testAttempts[0].returned_at).not.toBeNull()
 
     currentUser = { id: 'student-1', role: 'student' }

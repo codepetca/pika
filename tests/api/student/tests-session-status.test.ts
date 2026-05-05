@@ -14,26 +14,30 @@ vi.mock('@/lib/auth', () => ({
   })),
 }))
 
-vi.mock('@/lib/server/tests', () => ({
-  isMissingTestAttemptReturnColumnsError: vi.fn((error: { code?: string; message?: string } | null | undefined) => {
-    if (!error) return false
-    const message = (error.message || '').toLowerCase()
-    return error.code === 'PGRST204' && message.includes('returned_at')
-  }),
-  assertStudentCanAccessTest: vi.fn(async () => ({
-    ok: true,
-    test: {
-      id: 'test-1',
-      classroom_id: 'classroom-1',
-      title: 'Unit Test',
-      status: 'active',
-      show_results: false,
-      position: 0,
-      created_at: '2026-01-01T00:00:00.000Z',
-      updated_at: '2026-01-01T00:00:00.000Z',
-    },
-  })),
-}))
+vi.mock('@/lib/server/tests', async () => {
+  const actual = await vi.importActual<any>('@/lib/server/tests')
+  return {
+    ...actual,
+    isMissingTestAttemptReturnColumnsError: vi.fn((error: { code?: string; message?: string } | null | undefined) => {
+      if (!error) return false
+      const message = (error.message || '').toLowerCase()
+      return error.code === 'PGRST204' && message.includes('returned_at')
+    }),
+    assertStudentCanAccessTest: vi.fn(async () => ({
+      ok: true,
+      test: {
+        id: 'test-1',
+        classroom_id: 'classroom-1',
+        title: 'Unit Test',
+        status: 'active',
+        show_results: false,
+        position: 0,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      },
+    })),
+  }
+})
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -240,5 +244,55 @@ describe('GET /api/student/tests/[id]/session-status', () => {
 
     expect(response.status).toBe(404)
     expect(data.error).toBe('Test not found')
+  })
+
+  it('returns a draft-preserved message when selected-student access is closed mid-test', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { is_submitted: false, returned_at: null },
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
+          })),
+        }
+      }
+
+      if (table === 'test_student_availability') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockResolvedValue({
+              data: [{ student_id: 'student-1', state: 'closed' }],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/student/tests/test-1/session-status'),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.can_continue).toBe(false)
+    expect(data.effective_access ?? data.quiz.effective_access).toBe('closed')
+    expect(data.message).toContain('saved draft is preserved')
   })
 })

@@ -5,7 +5,6 @@ import { canActivateQuiz } from '@/lib/quizzes'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { normalizeTestDocuments, validateTestDocumentsPayload } from '@/lib/test-documents'
-import { finalizeUnsubmittedTestAttemptsOnClose } from '@/lib/server/finalize-test-attempts'
 import {
   getAssessmentDraftByType,
   isMissingAssessmentDraftsError,
@@ -18,6 +17,23 @@ import { withErrorHandler } from '@/lib/api-handler'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+function isMissingCloseTestRpcError(error: {
+  code?: string
+  message?: string
+  details?: string | null
+  hint?: string | null
+} | null | undefined): boolean {
+  if (!error) return false
+  const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
+  return (
+    error.code === '42883' ||
+    error.code === 'PGRST202' ||
+    combined.includes('close_test_for_grading_atomic') ||
+    combined.includes('finalize_test_attempts_for_grading_atomic') ||
+    combined.includes('closed_for_grading')
+  )
+}
 
 // GET /api/teacher/tests/[id] - Get test with questions
 export const GET = withErrorHandler('GetTestById', async (_request, context) => {
@@ -215,7 +231,7 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
 
   const updates: Record<string, any> = {}
   if (title !== undefined) updates.title = title.trim()
-  if (status !== undefined) updates.status = status
+  if (status !== undefined && !shouldFinalizeOnClose) updates.status = status
   if (show_results !== undefined) updates.show_results = show_results
   if (documents !== undefined) {
     const validated = validateTestDocumentsPayload(documents)
@@ -225,46 +241,53 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     updates.documents = validated.documents
   }
 
-  if (Object.keys(updates).length === 0) {
+  if (Object.keys(updates).length === 0 && !shouldFinalizeOnClose) {
     return NextResponse.json({ error: 'No updates provided' }, { status: 400 })
   }
 
-  const { data: test, error } = await supabase
-    .from('tests')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single()
+  let test: Record<string, any> = existing as Record<string, any>
 
-  if (error) {
-    if (
-      (error.code === '42703' || error.code === 'PGRST204') &&
-      `${error.message || ''} ${error.details || ''}`.toLowerCase().includes('documents')
-    ) {
-      return NextResponse.json(
-        { error: 'Test documents require migration 042 to be applied' },
-        { status: 400 }
-      )
+  if (Object.keys(updates).length > 0) {
+    const { data: updatedTest, error } = await supabase
+      .from('tests')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      if (
+        (error.code === '42703' || error.code === 'PGRST204') &&
+        `${error.message || ''} ${error.details || ''}`.toLowerCase().includes('documents')
+      ) {
+        return NextResponse.json(
+          { error: 'Test documents require migration 042 to be applied' },
+          { status: 400 }
+        )
+      }
+      console.error('Error updating test:', error)
+      return NextResponse.json({ error: 'Failed to update test' }, { status: 500 })
     }
-    console.error('Error updating test:', error)
-    return NextResponse.json({ error: 'Failed to update test' }, { status: 500 })
+
+    test = updatedTest as Record<string, any>
   }
 
   if (shouldFinalizeOnClose) {
-    const finalizeResult = await finalizeUnsubmittedTestAttemptsOnClose(supabase, id)
-    if (!finalizeResult.ok) {
-      const { error: reopenError } = await supabase
-        .from('tests')
-        .update({ status: 'active' })
-        .eq('id', id)
-        .eq('status', 'closed')
-
-      if (reopenError) {
-        console.error('Error reopening test after close finalization failure:', reopenError)
+    const { error: closeError } = await supabase.rpc('close_test_for_grading_atomic', {
+      p_test_id: id,
+      p_closed_by: user.id,
+    })
+    if (closeError) {
+      if (isMissingCloseTestRpcError(closeError)) {
+        return NextResponse.json(
+          { error: 'Closing tests for grading requires migration 063 to be applied' },
+          { status: 400 }
+        )
       }
-
-      return NextResponse.json({ error: finalizeResult.error }, { status: finalizeResult.status })
+      console.error('Error closing test for grading:', closeError)
+      return NextResponse.json({ error: 'Failed to finalize test submissions' }, { status: 500 })
     }
+    test = { ...test, status: 'closed' }
   }
 
   if (title !== undefined || show_results !== undefined) {

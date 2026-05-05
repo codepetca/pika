@@ -201,3 +201,30 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/trim-session-log.test.ts`
 - `pnpm test`
 - `pnpm lint`
+
+## 2026-05-05 — Harden selected-student exam lifecycle mutations
+
+**Completed:**
+- Added atomic database functions for test close/finalize, unsubmit, and per-student test-work deletion.
+- Routed whole-test close, selected return finalization, selected unsubmit, and student-work delete through atomic RPCs.
+- Added atomic selected-student return marking so existing attempts are marked returned and missing returned attempts are created in one database function.
+- Changed grading finalization to avoid invalid blank multiple-choice response rows; missing MC responses continue to score as zero by absence.
+- Updated route and integration coverage for selected-only finalization and RPC migration fallbacks.
+
+**Validation:**
+- `pnpm test tests/lib/finalize-test-attempts.test.ts tests/api/teacher/tests-unsubmit.test.ts tests/api/teacher/tests-student-attempt-delete.test.ts tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-student-access.test.ts`
+- `pnpm test tests/api/integration/test-return-visibility-flow.test.ts tests/api/student/tests-attempt.test.ts tests/api/student/tests-respond.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/api/student/tests-session-status.test.ts tests/api/teacher/tests-results.test.ts tests/api/teacher/tests-route.test.ts tests/unit/test-student-access.test.ts`
+- `pnpm lint`
+- `pnpm test:coverage`
+
+## 2026-05-05 — Rebase selected-student exam access onto main
+
+**Completed:**
+- Rebasing `codex/selected-student-exam-access` onto `origin/main` completed.
+- Resolved conflicts in `.ai/JOURNAL-ARCHIVE.md` and `AssignmentModal.tsx` by preserving main's schedule-validation behavior and the branch's maximized creation-modal behavior.
+- Restored the temporary pre-rebase stash and dropped it.
+- Confirmed migrations are sequential after `origin/main` migration `059`: `060`, `061`, `062`, and uncommitted `063`.
+
+**Validation:**
+- `pnpm test tests/components/AssignmentModal.test.tsx tests/lib/finalize-test-attempts.test.ts tests/api/teacher/tests-unsubmit.test.ts tests/api/teacher/tests-student-attempt-delete.test.ts tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-student-access.test.ts tests/api/integration/test-return-visibility-flow.test.ts`
+- `pnpm lint`
