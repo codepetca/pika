@@ -75,7 +75,7 @@ const state = {
   }>,
 }
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -126,6 +126,57 @@ vi.mock('@/lib/server/tests', async () => {
 })
 
 function setupSupabaseMock() {
+  mockSupabaseClient.rpc = vi.fn(async (fnName: string, params?: Record<string, any>) => {
+    if (fnName === 'finalize_test_attempts_for_grading_atomic') {
+      return {
+        data: { finalized_attempts: 0, inserted_responses: 0 },
+        error: null,
+      }
+    }
+    if (fnName === 'return_test_attempts_atomic') {
+      const testId = params?.p_test_id
+      const studentIds = params?.p_student_ids || []
+      const returnedBy = params?.p_returned_by
+      const submittedAtByStudent = params?.p_submitted_at_by_student || {}
+      const returnedAt = new Date().toISOString()
+      let updatedCount = 0
+      let insertedCount = 0
+
+      for (const studentId of studentIds) {
+        const attempt = state.testAttempts.find(
+          (row) => row.test_id === testId && row.student_id === studentId
+        )
+        if (attempt) {
+          attempt.returned_at = returnedAt
+          attempt.returned_by = returnedBy
+          updatedCount += 1
+          continue
+        }
+
+        state.testAttempts.push({
+          test_id: testId,
+          student_id: studentId,
+          responses: {},
+          is_submitted: true,
+          submitted_at: submittedAtByStudent[studentId] || returnedAt,
+          returned_at: returnedAt,
+          returned_by: returnedBy,
+        })
+        insertedCount += 1
+      }
+
+      return {
+        data: {
+          returned_count: updatedCount + insertedCount,
+          updated_count: updatedCount,
+          inserted_count: insertedCount,
+        },
+        error: null,
+      }
+    }
+    throw new Error(`Unexpected RPC: ${fnName}`)
+  })
+
   ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
     if (table === 'tests') {
       let classroomId: string | null = null

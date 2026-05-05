@@ -3,7 +3,6 @@ import { NextRequest } from 'next/server'
 import { GET, PATCH } from '@/app/api/teacher/tests/[id]/route'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { getAssessmentDraftByType } from '@/lib/server/assessment-drafts'
-import { finalizeUnsubmittedTestAttemptsOnClose } from '@/lib/server/finalize-test-attempts'
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -45,19 +44,12 @@ vi.mock('@/lib/server/assessment-drafts', () => ({
   validateTestDraftContent: vi.fn((content: unknown) => ({ valid: true, value: content })),
 }))
 
-vi.mock('@/lib/server/finalize-test-attempts', () => ({
-  finalizeUnsubmittedTestAttemptsOnClose: vi.fn(async () => ({
-    ok: true,
-    finalized_attempts: 0,
-    inserted_responses: 0,
-  })),
-}))
-
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 describe('PATCH /api/teacher/tests/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSupabaseClient.rpc = vi.fn(async () => ({ data: {}, error: null }))
   })
 
   it('returns canonical questions for closed tests even when a draft overlay exists', async () => {
@@ -419,21 +411,9 @@ describe('PATCH /api/teacher/tests/[id]', () => {
   })
 
   it('finalizes draft attempts when closing an active test', async () => {
-    const updateSpy = vi.fn(() => ({
-      eq: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: {
-              id: 'test-1',
-              classroom_id: 'classroom-1',
-              title: 'Unit Test',
-              status: 'closed',
-              show_results: false,
-            },
-            error: null,
-          }),
-        })),
-      })),
+    mockSupabaseClient.rpc = vi.fn(async () => ({
+      data: { closed_count: 1, finalized_attempts: 0, inserted_responses: 0 },
+      error: null,
     }))
 
     vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({
@@ -455,12 +435,6 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     })
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'tests') {
-        return {
-          update: updateSpy,
-        }
-      }
-
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -475,44 +449,13 @@ describe('PATCH /api/teacher/tests/[id]', () => {
 
     expect(response.status).toBe(200)
     expect(data.quiz.status).toBe('closed')
-    expect(finalizeUnsubmittedTestAttemptsOnClose).toHaveBeenCalledWith(
-      mockSupabaseClient,
-      'test-1',
-      { closedBy: 'teacher-1' }
-    )
-    expect(updateSpy.mock.invocationCallOrder[0]).toBeLessThan(
-      vi.mocked(finalizeUnsubmittedTestAttemptsOnClose).mock.invocationCallOrder[0]
-    )
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('close_test_for_grading_atomic', {
+      p_test_id: 'test-1',
+      p_closed_by: 'teacher-1',
+    })
   })
 
-  it('reopens the test when close finalization fails', async () => {
-    const updateSpy = vi.fn((payload: Record<string, unknown>) => {
-      if (payload.status === 'active') {
-        return {
-          eq: vi.fn(() => ({
-            eq: vi.fn(async () => ({ error: null })),
-          })),
-        }
-      }
-
-      return {
-        eq: vi.fn(() => ({
-          select: vi.fn(() => ({
-            single: vi.fn().mockResolvedValue({
-              data: {
-                id: 'test-1',
-                classroom_id: 'classroom-1',
-                title: 'Unit Test',
-                status: 'closed',
-                show_results: false,
-              },
-              error: null,
-            }),
-          })),
-        })),
-      }
-    })
-
+  it('returns an error when atomic close finalization fails', async () => {
     vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({
       ok: true,
       test: {
@@ -531,19 +474,12 @@ describe('PATCH /api/teacher/tests/[id]', () => {
       } as any,
     })
 
-    vi.mocked(finalizeUnsubmittedTestAttemptsOnClose).mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      error: 'Failed to finalize test submissions',
-    } as any)
+    mockSupabaseClient.rpc = vi.fn(async () => ({
+      data: null,
+      error: { code: '23514', message: 'constraint violation' },
+    }))
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'tests') {
-        return {
-          update: updateSpy,
-        }
-      }
-
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -558,7 +494,9 @@ describe('PATCH /api/teacher/tests/[id]', () => {
 
     expect(response.status).toBe(500)
     expect(data.error).toBe('Failed to finalize test submissions')
-    expect(updateSpy).toHaveBeenCalledWith({ status: 'closed' })
-    expect(updateSpy).toHaveBeenCalledWith({ status: 'active' })
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('close_test_for_grading_atomic', {
+      p_test_id: 'test-1',
+      p_closed_by: 'teacher-1',
+    })
   })
 })

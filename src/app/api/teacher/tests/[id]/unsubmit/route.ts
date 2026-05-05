@@ -24,6 +24,28 @@ function parseStudentIds(value: unknown): string[] {
   )
 }
 
+function isMissingUnsubmitRpcError(error: {
+  code?: string
+  message?: string
+  details?: string | null
+  hint?: string | null
+} | null | undefined): boolean {
+  if (!error) return false
+  const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
+  return (
+    isMissingTestAttemptClosureColumnsError(error) ||
+    error.code === '42883' ||
+    error.code === 'PGRST202' ||
+    combined.includes('unsubmit_test_attempts_atomic')
+  )
+}
+
+type UnsubmittedAttempt = {
+  id: string
+  student_id: string
+  responses: unknown
+}
+
 // POST /api/teacher/tests/[id]/unsubmit - Mark selected students' attempts unsubmitted
 export const POST = withErrorHandler('UnsubmitTeacherTestAttempts', async (request, context) => {
   const user = await requireRole('teacher')
@@ -69,47 +91,33 @@ export const POST = withErrorHandler('UnsubmitTeacherTestAttempts', async (reque
     return NextResponse.json({ error: 'No selected students are enrolled in this classroom' }, { status: 400 })
   }
 
-  const { data: unsubmittedAttempts, error: updateError } = await supabase
-    .from('test_attempts')
-    .update({
-      is_submitted: false,
-      submitted_at: null,
-      returned_at: null,
-      returned_by: null,
-      closed_for_grading_at: null,
-      closed_for_grading_by: null,
-    })
-    .eq('test_id', testId)
-    .in('student_id', eligibleStudentIds)
-    .select('id, student_id, responses')
+  const { data: unsubmitResult, error: unsubmitError } = await supabase.rpc(
+    'unsubmit_test_attempts_atomic',
+    {
+      p_test_id: testId,
+      p_student_ids: eligibleStudentIds,
+      p_updated_by: user.id,
+    }
+  )
 
-  if (updateError) {
-    if (isMissingTestAttemptClosureColumnsError(updateError)) {
+  if (unsubmitError) {
+    if (isMissingUnsubmitRpcError(unsubmitError)) {
       return NextResponse.json(
-        { error: 'Unsubmitting test attempts requires migration 061 to be applied' },
+        { error: 'Unsubmitting test attempts requires migrations 061-063 to be applied' },
         { status: 400 }
       )
     }
-    console.error('Error unsubmitting test attempts:', updateError)
+    console.error('Error unsubmitting test attempts:', unsubmitError)
     return NextResponse.json({ error: 'Failed to unsubmit selected students' }, { status: 500 })
   }
 
-  const unsubmittedStudentIds = new Set((unsubmittedAttempts || []).map((attempt) => attempt.student_id))
-  const unsubmittedCount = unsubmittedStudentIds.size
+  const unsubmittedAttempts = Array.isArray(unsubmitResult?.attempts)
+    ? (unsubmitResult.attempts as UnsubmittedAttempt[])
+    : []
+  const unsubmittedCount = Number(unsubmitResult?.unsubmitted_count ?? unsubmittedAttempts.length)
 
   if (unsubmittedCount > 0) {
-    const { error: deleteResponsesError } = await supabase
-      .from('test_responses')
-      .delete()
-      .eq('test_id', testId)
-      .in('student_id', Array.from(unsubmittedStudentIds))
-
-    if (deleteResponsesError) {
-      console.error('Error deleting finalized responses while unsubmitting:', deleteResponsesError)
-      return NextResponse.json({ error: 'Failed to unsubmit selected students' }, { status: 500 })
-    }
-
-    for (const attempt of unsubmittedAttempts || []) {
+    for (const attempt of unsubmittedAttempts) {
       try {
         const responses = normalizeTestResponses(attempt.responses)
         await insertVersionedBaselineHistory({

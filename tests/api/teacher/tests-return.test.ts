@@ -46,11 +46,15 @@ vi.mock('@/lib/server/finalize-test-attempts', () => ({
   })),
 }))
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 describe('POST /api/teacher/tests/[id]/return', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSupabaseClient.rpc = vi.fn(async () => ({
+      data: { returned_count: 0, updated_count: 0, inserted_count: 0 },
+      error: null,
+    }))
   })
 
   it('returns 400 when student_ids is missing', async () => {
@@ -66,9 +70,6 @@ describe('POST /api/teacher/tests/[id]/return', () => {
   })
 
   it('returns only students whose open responses are fully graded', async () => {
-    const updatedStudentIds: string[][] = []
-    const insertedRows: Array<{ test_id: string; student_id: string }> = []
-
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_questions') {
         const query = {
@@ -114,14 +115,6 @@ describe('POST /api/teacher/tests/[id]/return', () => {
 
       if (table === 'test_attempts') {
         return {
-          update: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              in: vi.fn(async (_column: string, ids: string[]) => {
-                updatedStudentIds.push(ids)
-                return { error: null }
-              }),
-            })),
-          })),
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
             in: vi.fn(async () => ({
@@ -129,10 +122,6 @@ describe('POST /api/teacher/tests/[id]/return', () => {
               error: null,
             })),
           })),
-          insert: vi.fn(async (rows: Array<{ test_id: string; student_id: string }>) => {
-            insertedRows.push(...rows)
-            return { error: null }
-          }),
         }
       }
 
@@ -149,18 +138,15 @@ describe('POST /api/teacher/tests/[id]/return', () => {
     expect(response.status).toBe(200)
     expect(data.returned_count).toBe(1)
     expect(data.skipped_count).toBe(1)
-    expect(updatedStudentIds).toEqual([['student-1']])
-    expect(insertedRows).toEqual([
-      expect.objectContaining({
-        test_id: 'test-1',
-        student_id: 'student-1',
-      }),
-    ])
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('return_test_attempts_atomic', {
+      p_test_id: 'test-1',
+      p_student_ids: ['student-1'],
+      p_returned_by: 'teacher-1',
+      p_submitted_at_by_student: { 'student-1': '2026-02-24T15:00:00.000Z' },
+    })
   })
 
   it('treats score-only open responses as graded for return eligibility', async () => {
-    const updatedStudentIds: string[][] = []
-
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_questions') {
         const query = {
@@ -199,14 +185,6 @@ describe('POST /api/teacher/tests/[id]/return', () => {
 
       if (table === 'test_attempts') {
         return {
-          update: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              in: vi.fn(async (_column: string, ids: string[]) => {
-                updatedStudentIds.push(ids)
-                return { error: null }
-              }),
-            })),
-          })),
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
             in: vi.fn(async () => ({
@@ -214,7 +192,6 @@ describe('POST /api/teacher/tests/[id]/return', () => {
               error: null,
             })),
           })),
-          insert: vi.fn(async () => ({ error: null })),
         }
       }
 
@@ -231,13 +208,15 @@ describe('POST /api/teacher/tests/[id]/return', () => {
     expect(response.status).toBe(200)
     expect(data.returned_count).toBe(1)
     expect(data.skipped_count).toBe(0)
-    expect(updatedStudentIds).toEqual([['student-1']])
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('return_test_attempts_atomic', {
+      p_test_id: 'test-1',
+      p_student_ids: ['student-1'],
+      p_returned_by: 'teacher-1',
+      p_submitted_at_by_student: { 'student-1': '2026-02-24T15:00:00.000Z' },
+    })
   })
 
   it('returns submitted students with empty finalized responses', async () => {
-    const updatedStudentIds: string[][] = []
-    const insertSpy = vi.fn(async () => ({ error: null }))
-
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_questions') {
         const query = {
@@ -268,14 +247,6 @@ describe('POST /api/teacher/tests/[id]/return', () => {
 
       if (table === 'test_attempts') {
         return {
-          update: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              in: vi.fn(async (_column: string, ids: string[]) => {
-                updatedStudentIds.push(ids)
-                return { error: null }
-              }),
-            })),
-          })),
           select: vi.fn((columns: string) => ({
             eq: vi.fn().mockReturnThis(),
             in: vi.fn(async () => {
@@ -298,7 +269,6 @@ describe('POST /api/teacher/tests/[id]/return', () => {
               }
             }),
           })),
-          insert: insertSpy,
         }
       }
 
@@ -315,8 +285,83 @@ describe('POST /api/teacher/tests/[id]/return', () => {
     expect(response.status).toBe(200)
     expect(data.returned_count).toBe(1)
     expect(data.skipped_count).toBe(0)
-    expect(updatedStudentIds).toEqual([['student-empty']])
-    expect(insertSpy).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('return_test_attempts_atomic', {
+      p_test_id: 'test-1',
+      p_student_ids: ['student-empty'],
+      p_returned_by: 'teacher-1',
+      p_submitted_at_by_student: { 'student-empty': '2026-02-24T15:00:00.000Z' },
+    })
+  })
+
+  it('returns teacher-closed multiple-choice work without finalized response rows', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_questions') {
+        const query = {
+          eq: vi.fn().mockReturnThis(),
+        } as any
+        query.eq.mockImplementationOnce(() => query)
+        query.eq.mockImplementationOnce(async () => ({
+          data: [],
+          error: null,
+        }))
+        return {
+          select: vi.fn(() => query),
+        }
+      }
+
+      if (table === 'test_responses') {
+        const query = {
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn(async () => ({
+            data: [],
+            error: null,
+          })),
+        }
+        return {
+          select: vi.fn(() => query),
+        }
+      }
+
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn(async () => ({
+              data: [
+                {
+                  student_id: 'student-blank-mc',
+                  is_submitted: false,
+                  submitted_at: null,
+                  closed_for_grading_at: '2026-02-24T15:00:00.000Z',
+                },
+              ],
+              error: null,
+            })),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
+      method: 'POST',
+      body: JSON.stringify({ student_ids: ['student-blank-mc'] }),
+    })
+    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.returned_count).toBe(1)
+    expect(data.skipped_count).toBe(0)
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('return_test_attempts_atomic', {
+      p_test_id: 'test-1',
+      p_student_ids: ['student-blank-mc'],
+      p_returned_by: 'teacher-1',
+      p_submitted_at_by_student: {
+        'student-blank-mc': expect.any(String),
+      },
+    })
   })
 
   it('returns 409 for active tests while selected students still have open access', async () => {
@@ -410,11 +455,6 @@ describe('POST /api/teacher/tests/[id]/return', () => {
 
       if (table === 'test_attempts') {
         return {
-          update: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              in: vi.fn(async () => ({ error: null })),
-            })),
-          })),
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
             in: vi.fn(async () => ({
@@ -422,7 +462,6 @@ describe('POST /api/teacher/tests/[id]/return', () => {
               error: null,
             })),
           })),
-          insert: vi.fn(async () => ({ error: null })),
         }
       }
 
@@ -439,9 +478,23 @@ describe('POST /api/teacher/tests/[id]/return', () => {
     expect(response.status).toBe(200)
     expect(data.test_closed).toBe(false)
     expect(finalizeUnsubmittedTestAttemptsOnClose).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('return_test_attempts_atomic', {
+      p_test_id: 'test-1',
+      p_student_ids: ['student-1'],
+      p_returned_by: 'teacher-1',
+      p_submitted_at_by_student: { 'student-1': '2026-02-24T15:00:00.000Z' },
+    })
   })
 
-  it('returns migration error when returned_at column is missing', async () => {
+  it('returns migration error when return rpc is missing', async () => {
+    mockSupabaseClient.rpc = vi.fn(async () => ({
+      data: null,
+      error: {
+        code: 'PGRST202',
+        message: 'Could not find the function public.return_test_attempts_atomic in the schema cache',
+      },
+    }))
+
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_questions') {
         const query = {
@@ -480,17 +533,6 @@ describe('POST /api/teacher/tests/[id]/return', () => {
 
       if (table === 'test_attempts') {
         return {
-          update: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              in: vi.fn(async () => ({
-                error: {
-                  code: 'PGRST204',
-                  message:
-                    "Could not find the 'returned_at' column of 'test_attempts' in the schema cache",
-                },
-              })),
-            })),
-          })),
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
             in: vi.fn(async () => ({
@@ -498,7 +540,6 @@ describe('POST /api/teacher/tests/[id]/return', () => {
               error: null,
             })),
           })),
-          insert: vi.fn(async () => ({ error: null })),
         }
       }
 
@@ -513,7 +554,7 @@ describe('POST /api/teacher/tests/[id]/return', () => {
     const data = await response.json()
 
     expect(response.status).toBe(400)
-    expect(data.error).toBe('Returning tests requires migration 043 to be applied')
+    expect(data.error).toBe('Returning tests requires migrations 043 and 063 to be applied')
   })
 
   it('returns finalize failure for closed tests', async () => {
@@ -548,5 +589,10 @@ describe('POST /api/teacher/tests/[id]/return', () => {
 
     expect(response.status).toBe(500)
     expect(data.error).toBe('Failed to finalize test submissions')
+    expect(finalizeUnsubmittedTestAttemptsOnClose).toHaveBeenCalledWith(
+      mockSupabaseClient,
+      'test-1',
+      { studentIds: ['student-1'], closedBy: 'teacher-1' }
+    )
   })
 })

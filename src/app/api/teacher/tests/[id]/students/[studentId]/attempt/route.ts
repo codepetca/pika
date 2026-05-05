@@ -7,27 +7,18 @@ import { getServiceRoleClient } from '@/lib/supabase'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-type DeleteResult = {
-  data?: Array<{ id: string }> | null
-  error?: { message?: string; code?: string; details?: string; hint?: string } | null
-}
-
-function deletedCount(result: DeleteResult): number {
-  return Array.isArray(result.data) ? result.data.length : 0
-}
-
-function isMissingTableError(error: {
+function isMissingDeleteAttemptRpcError(error: {
   message?: string
   code?: string
   details?: string | null
   hint?: string | null
-} | null | undefined, tableName: string): boolean {
+} | null | undefined): boolean {
   if (!error) return false
   const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
   return (
-    error.code === 'PGRST205' ||
-    error.code === '42P01' ||
-    (combined.includes(tableName.toLowerCase()) && combined.includes('schema cache'))
+    error.code === '42883' ||
+    error.code === 'PGRST202' ||
+    combined.includes('delete_student_test_attempt_atomic')
   )
 }
 
@@ -57,58 +48,29 @@ export const DELETE = withErrorHandler('DeleteTeacherTestStudentAttempt', async 
     return NextResponse.json({ error: 'Student is not enrolled in this classroom' }, { status: 400 })
   }
 
-  const aiItemsDelete = await supabase
-    .from('test_ai_grading_run_items')
-    .delete()
-    .eq('test_id', testId)
-    .eq('student_id', studentId)
-    .select('id')
+  const { data: deleteResult, error: deleteError } = await supabase.rpc(
+    'delete_student_test_attempt_atomic',
+    {
+      p_test_id: testId,
+      p_student_id: studentId,
+    }
+  )
 
-  if (aiItemsDelete.error && !isMissingTableError(aiItemsDelete.error, 'test_ai_grading_run_items')) {
-    console.error('Error deleting test AI grading run items for student:', aiItemsDelete.error)
-    return NextResponse.json({ error: 'Failed to delete student test work' }, { status: 500 })
-  }
-
-  const responsesDelete = await supabase
-    .from('test_responses')
-    .delete()
-    .eq('test_id', testId)
-    .eq('student_id', studentId)
-    .select('id')
-
-  if (responsesDelete.error) {
-    console.error('Error deleting finalized test responses for student:', responsesDelete.error)
-    return NextResponse.json({ error: 'Failed to delete student test work' }, { status: 500 })
-  }
-
-  const focusEventsDelete = await supabase
-    .from('test_focus_events')
-    .delete()
-    .eq('test_id', testId)
-    .eq('student_id', studentId)
-    .select('id')
-
-  if (focusEventsDelete.error) {
-    console.error('Error deleting test focus events for student:', focusEventsDelete.error)
-    return NextResponse.json({ error: 'Failed to delete student test work' }, { status: 500 })
-  }
-
-  const attemptsDelete = await supabase
-    .from('test_attempts')
-    .delete()
-    .eq('test_id', testId)
-    .eq('student_id', studentId)
-    .select('id')
-
-  if (attemptsDelete.error) {
-    console.error('Error deleting test attempt for student:', attemptsDelete.error)
+  if (deleteError) {
+    if (isMissingDeleteAttemptRpcError(deleteError)) {
+      return NextResponse.json(
+        { error: 'Deleting student test work requires migration 063 to be applied' },
+        { status: 400 }
+      )
+    }
+    console.error('Error deleting test attempt data for student:', deleteError)
     return NextResponse.json({ error: 'Failed to delete student test work' }, { status: 500 })
   }
 
   return NextResponse.json({
-    deleted_attempts: deletedCount(attemptsDelete),
-    deleted_responses: deletedCount(responsesDelete),
-    deleted_focus_events: deletedCount(focusEventsDelete),
-    deleted_ai_grading_items: aiItemsDelete.error ? 0 : deletedCount(aiItemsDelete),
+    deleted_attempts: Number(deleteResult?.deleted_attempts ?? 0),
+    deleted_responses: Number(deleteResult?.deleted_responses ?? 0),
+    deleted_focus_events: Number(deleteResult?.deleted_focus_events ?? 0),
+    deleted_ai_grading_items: Number(deleteResult?.deleted_ai_grading_items ?? 0),
   })
 })

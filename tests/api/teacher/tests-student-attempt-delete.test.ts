@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server'
 import { DELETE } from '@/app/api/teacher/tests/[id]/students/[studentId]/attempt/route'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -44,27 +44,10 @@ function makeContext(studentId = 'student-1') {
   return { params: Promise.resolve({ id: 'test-1', studentId }) }
 }
 
-function makeDeleteQuery(rows: Array<{ id: string }>, calls: string[]) {
-  return {
-    delete: vi.fn(() => ({
-      eq: vi.fn((column: string, value: string) => {
-        calls.push(`${column}:${value}`)
-        return {
-          eq: vi.fn((nextColumn: string, nextValue: string) => {
-            calls.push(`${nextColumn}:${nextValue}`)
-            return {
-              select: vi.fn(async () => ({ data: rows, error: null })),
-            }
-          }),
-        }
-      }),
-    })),
-  }
-}
-
 describe('DELETE /api/teacher/tests/[id]/students/[studentId]/attempt', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSupabaseClient.rpc = vi.fn()
   })
 
   it('requires the student to be enrolled in the test classroom', async () => {
@@ -89,7 +72,15 @@ describe('DELETE /api/teacher/tests/[id]/students/[studentId]/attempt', () => {
   })
 
   it('deletes one student attempt data without changing access overrides', async () => {
-    const deleteCalls: Record<string, string[]> = {}
+    mockSupabaseClient.rpc = vi.fn(async () => ({
+      data: {
+        deleted_attempts: 1,
+        deleted_responses: 2,
+        deleted_focus_events: 1,
+        deleted_ai_grading_items: 1,
+      },
+      error: null,
+    }))
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classroom_enrollments') {
@@ -99,20 +90,6 @@ describe('DELETE /api/teacher/tests/[id]/students/[studentId]/attempt', () => {
             maybeSingle: vi.fn(async () => ({ data: { student_id: 'student-1' }, error: null })),
           })),
         }
-      }
-
-      if (
-        table === 'test_ai_grading_run_items' ||
-        table === 'test_responses' ||
-        table === 'test_focus_events' ||
-        table === 'test_attempts'
-      ) {
-        deleteCalls[table] = []
-        const rows =
-          table === 'test_responses'
-            ? [{ id: 'response-1' }, { id: 'response-2' }]
-            : [{ id: `${table}-1` }]
-        return makeDeleteQuery(rows, deleteCalls[table])
       }
 
       throw new Error(`Unexpected table: ${table}`)
@@ -129,7 +106,39 @@ describe('DELETE /api/teacher/tests/[id]/students/[studentId]/attempt', () => {
       deleted_ai_grading_items: 1,
     })
     expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('test_student_availability')
-    expect(deleteCalls.test_attempts).toEqual(['test_id:test-1', 'student_id:student-1'])
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('delete_student_test_attempt_atomic', {
+      p_test_id: 'test-1',
+      p_student_id: 'student-1',
+    })
+  })
+
+  it('returns migration guidance when the atomic delete RPC is missing', async () => {
+    mockSupabaseClient.rpc = vi.fn(async () => ({
+      data: null,
+      error: {
+        code: 'PGRST202',
+        message: 'Could not find function delete_student_test_attempt_atomic',
+      },
+    }))
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn(async () => ({ data: { student_id: 'student-1' }, error: null })),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await DELETE(makeRequest(), makeContext())
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('Deleting student test work requires migration 063 to be applied')
   })
 
   it('rejects archived classrooms through the ownership check', async () => {
