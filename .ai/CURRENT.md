@@ -1,6 +1,6 @@
 # Pika Current Context
 
-Read this file at the start of every AI session. It is the compact continuity layer for current repo state. Use `.ai/JOURNAL.md` only when you need historical detail.
+Read this file at the start of every AI session. It is the compact continuity layer for current repo state. Use `.ai/SESSION-LOG.md` only for recent handoff context and `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
 ## Current Focus
 
@@ -29,7 +29,8 @@ Read this file at the start of every AI session. It is the compact continuity la
 ## Known Hazards
 
 - Do not work in the hub checkout for non-trivial changes; bind to a worktree first
-- Do not tail `.ai/JOURNAL.md` by default; it is intentionally large and should be consulted on demand
+- Do not tail `.ai/JOURNAL-ARCHIVE.md` by default; it is intentionally large
+- Keep `.ai/SESSION-LOG.md` as a rolling recent log and run `node scripts/trim-session-log.mjs` after appending
 - Do not run `supabase db push`, `supabase db reset`, or other migration-application commands as an AI agent
 - `main` accepts linear history only; `production` merges go through the protected PR flow
 
