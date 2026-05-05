@@ -36,6 +36,30 @@ function validateAssignmentValues(values: AssignmentEditorValues): string | null
 
 const RELEASE_TITLE_ERROR = 'Add a title before posting or scheduling this assignment.'
 
+function getScheduledAssignmentDueDateValidationMessage(
+  assignment: Assignment | null,
+  dueAt: string
+): string | null {
+  if (!assignment || assignment.is_draft || !assignment.released_at || !dueAt) return null
+
+  const releaseDate = new Date(assignment.released_at)
+  if (Number.isNaN(releaseDate.getTime()) || releaseDate <= new Date()) return null
+
+  try {
+    return getScheduledReleaseDueDateError(releaseDate, toTorontoEndOfDayIso(dueAt))
+  } catch {
+    return null
+  }
+}
+
+function validateAssignmentEditorValues(
+  values: AssignmentEditorValues,
+  assignment: Assignment | null
+): string | null {
+  return validateAssignmentValues(values)
+    ?? getScheduledAssignmentDueDateValidationMessage(assignment, values.dueAt)
+}
+
 function getScheduleDueDateValidationMessage(scheduleIso: string, dueAt: string, isScheduleValid: boolean): string | null {
   if (!scheduleIso || !dueAt || !isScheduleValid) return null
 
@@ -322,7 +346,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     values: AssignmentEditorValues,
     options?: { closeAfter?: boolean }
   ) => {
-    const validationError = validateAssignmentValues(values)
+    const validationError = validateAssignmentEditorValues(values, currentAssignment)
     if (validationError) {
       setError(validationError)
       setSaveStatus('unsaved')
@@ -455,7 +479,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   function handleTitleChange(newTitle: string) {
     setTitle(newTitle)
-    if (newTitle.trim()) {
+    if (newTitle.trim() && error === RELEASE_TITLE_ERROR) {
       setError('')
     }
     scheduleAutosave({ title: newTitle, instructionsMarkdown, dueAt })
@@ -484,6 +508,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   function handleDueAtChange(newDueAt: string) {
     updateDueDate(newDueAt)
+    const validationError = getScheduledAssignmentDueDateValidationMessage(currentAssignment, newDueAt)
+    if (validationError) {
+      setError(validationError)
+    }
     scheduleAutosave({ title, instructionsMarkdown, dueAt: newDueAt })
   }
 
@@ -524,6 +552,13 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
     if ((saveStatus === 'unsaved' || pendingValuesRef.current) && currentAssignment) {
       const valuesToSave = pendingValuesRef.current ?? { title, instructionsMarkdown, dueAt }
+      const validationError = validateAssignmentEditorValues(valuesToSave, currentAssignment)
+      if (validationError) {
+        setError(validationError)
+        setSaveStatus('unsaved')
+        throw new Error(validationError)
+      }
+
       const changedFields = getChangedFields(valuesToSave)
 
       if (changedFields) {

@@ -417,6 +417,41 @@ describe('AssignmentModal', () => {
       expect(onSuccess).not.toHaveBeenCalled()
     })
 
+    it('blocks moving the due date before an existing scheduled release without autosaving', async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-03-01T13:00:00.000Z'))
+
+      const scheduledAssignment: Assignment = {
+        ...baseAssignment,
+        due_at: toTorontoEndOfDayIso('2099-03-03'),
+        is_draft: false,
+        released_at: '2099-03-02T14:00:00.000Z',
+      }
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={scheduledAssignment}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      fireEvent.change(screen.getByDisplayValue('2099-03-03'), { target: { value: '2099-03-01' } })
+
+      expect(screen.getByText('Scheduled release must be on or before the due date.')).toBeInTheDocument()
+      expect(screen.getByText('Unsaved')).toBeInTheDocument()
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000)
+      })
+
+      expect(fetchMock).not.toHaveBeenCalled()
+      expect(screen.getByText('Scheduled release must be on or before the due date.')).toBeInTheDocument()
+    })
+
     it('closes both modals when save schedule is confirmed', async () => {
       const scheduledAssignment: Assignment = {
         ...baseAssignment,
