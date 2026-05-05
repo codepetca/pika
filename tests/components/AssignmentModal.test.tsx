@@ -65,6 +65,7 @@ describe('AssignmentModal', () => {
       expect(screen.getByLabelText(/Title/)).toHaveValue('Original title')
       expect(screen.getByDisplayValue('2025-01-15')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Wed Jan 15' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Close assignment modal' })).toBeInTheDocument()
     })
 
     it('renders a markdown-only instructions editor with formatting buttons', () => {

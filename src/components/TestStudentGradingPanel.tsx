@@ -35,7 +35,7 @@ interface TestStudentRow {
   student_id: string
   name: string | null
   email: string
-  status: 'not_started' | 'in_progress' | 'submitted' | 'returned'
+  status: 'not_started' | 'in_progress' | 'closed' | 'submitted' | 'returned'
   submitted_at: string | null
   last_activity_at: string | null
   points_earned: number

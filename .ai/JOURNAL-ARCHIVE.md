@@ -10865,3 +10865,200 @@
 - `pnpm build`
 **Next:** None
 **Blockers:** None
+## 2026-05-01 — Selected student test access
+
+**Completed:**
+- Added `test_student_availability` for per-student open/closed test overrides.
+- Added the teacher student-access API, effective access helper, and student route enforcement for list/detail/session/autosave/submit/results.
+- Added Tests grading workspace selected-student Open/Close actions, Access pills, and close confirmation copy.
+- Adjusted selected-student return behavior so returning work no longer closes the whole test.
+- Added teacher-closed attempt locking for grading without marking work student-submitted.
+- Added per-student Reopen Selected to clear submitted/returned/closed-for-grading state, reopen access, and preserve draft answers for editing.
+- Zero-filled blank/unanswered questions when teacher closure finalizes work for grading.
+
+**Validation:**
+- `pnpm test tests/unit/test-student-access.test.ts tests/api/teacher/tests-student-access.test.ts tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-results.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-session-status.test.ts tests/api/student/tests-attempt.test.ts tests/api/student/tests-respond.test.ts tests/api/integration/test-return-visibility-flow.test.ts tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test tests/lib/finalize-test-attempts.test.ts tests/api/teacher/tests-reopen.test.ts tests/api/teacher/tests-id-route.test.ts tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm e2e:auth`
+- `pnpm e2e:verify assessment-ux-parity`
+
+## 2026-05-03 - Rebase selected student test access
+
+**Completed:**
+- Rebased `codex/selected-student-exam-access` onto `origin/main`.
+- Resolved the `TeacherTestsTab` conflict by keeping the new work-surface action bar and adding selected-student Open, Close, and Reopen actions to the grading split-button menu.
+- Confirmed feature migrations remain correctly numbered as `060_test_student_availability.sql` and `061_test_attempt_teacher_closure.sql`.
+- Updated component tests to use the post-rebase grading action menu.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/api/teacher/tests-reopen.test.ts tests/api/teacher/tests-student-access.test.ts tests/lib/finalize-test-attempts.test.ts tests/unit/test-student-access.test.ts`
+- `pnpm test`
+- `pnpm e2e:verify assessment-ux-parity`
+
+## 2026-05-03 - Tests list edit and access controls
+
+**Completed:**
+- Moved the teacher Tests edit affordance from the selected grading workspace into the summary floating action cluster, matching the assignment list edit toggle.
+- Made summary test-card clicks mode-dependent: normal mode opens the grading workspace, edit mode opens the test editor modal.
+- Collapsed the selected-test workspace FAB cluster to two split buttons: a context-aware access button and the grading button.
+- Made the access button switch between `Open All`, `Close All`, `Open X Selected`, and `Close X Selected` based on selected rows and effective access; its dropdown exposes the opposite open/close action.
+- Replaced the selected-student `Reopen Selected` grading action with `Unsubmit Selected`, which marks attempts unsubmitted without opening access.
+- Combined the selected-test access and grading split buttons into one context-aware split button.
+- Removed the AI Prompt option and prompt-guideline modal from Tests grading actions.
+- Matched open/close menu icon colors to the green unlock and red lock access status colors.
+- Moved test Preview out of the AI Grade dropdown and into the test edit modal header, with the same pending-markdown disable guard.
+- Expanded test and assignment creation modals to fill the available viewport and added visible top-right X close controls.
+- Combined the Tests grading table `Status` and `Access` columns, showing access as a green unlock or red lock icon beside the attempt status.
+- Removed the visible `Not started` text from Tests grading rows while leaving the status tooltip on the icon.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test tests/api/teacher/tests-unsubmit.test.ts tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test tests/api/teacher/tests-unsubmit.test.ts tests/components/TeacherTestsTab.test.tsx tests/api/teacher/tests-return.test.ts tests/api/student/tests-attempt.test.ts tests/api/student/tests-respond.test.ts tests/api/student/tests-route.test.ts`
+- `pnpm test tests/components/QuizModal.test.tsx tests/components/AssignmentModal.test.tsx`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual Tests summary screenshots: `/tmp/pika-teacher-tests-list-edit-off.png`, `/tmp/pika-teacher-tests-list-edit-on.png`
+- Manual selected Tests workspace screenshot: `/tmp/pika-teacher-tests-selected-access.png`
+- Manual context-aware access screenshots: `/tmp/pika-teacher-tests-selected-access-context-none.png`, `/tmp/pika-teacher-tests-selected-access-context-selected.png`
+- Manual preview placement screenshots: `/tmp/pika-teacher-tests-edit-modal-preview-loaded.png`, `/tmp/pika-teacher-tests-ai-grade-menu-no-preview.png`
+- Manual creation modal screenshots: `/tmp/pika-new-test-modal-fullscreen.png`, `/tmp/pika-new-assignment-modal-fullscreen.png`, `/tmp/pika-new-test-modal-mobile.png`, `/tmp/pika-new-assignment-modal-mobile.png`
+- Manual combined status/access screenshot: `/tmp/pika-teacher-tests-status-access-combined.png`
+- Manual not-started status icon screenshot: `/tmp/pika-teacher-tests-status-access-icons-only-not-started.png`
+- Manual unsubmit screenshots: `/tmp/pika-teacher-tests-unsubmit-menu.png`, `/tmp/pika-teacher-tests-unsubmit-confirm.png`
+- Manual combined split action screenshot: `/tmp/pika-teacher-tests-one-split-actions.png`
+- Manual no-AI-prompt menu screenshot: `/tmp/pika-teacher-tests-no-ai-prompt-menu.png`
+- Manual menu icon color screenshot: `/tmp/pika-teacher-tests-menu-icon-colors.png`
+
+## 2026-05-04 - Per-student test deletion edit mode
+
+**Completed:**
+- Removed the whole-test `Delete` option from the selected Tests workspace action menu.
+- Added a selected-test row `Edit` toggle that reveals a trash icon on each student row.
+- Added per-student deletion confirmation that deletes that student's saved test work, finalized responses, AI grading queue items, and focus history without changing student access or deleting the whole test.
+- Added a teacher API route for deleting a single enrolled student's test attempt data.
+- Removed the `Clear Open Grades` action and the AI grading modal's clear scores/comments shortcut from the selected Tests workspace UI.
+- Made row status symbols actionable: clicking a student's lock/unlock icon opens an individual access confirmation, and clicking a submitted status icon opens an individual unsubmit confirmation.
+- Added Escape handling in the selected Tests grading workspace to leave row edit mode and clear selected student checkboxes when no dialog or form field has focus.
+- Shortened selected Tests confirmation dialog copy for open/close access, unsubmit, and per-student delete flows.
+- Disabled `AI Grade` in the selected Tests action menu until at least one student is selected.
+
+**Validation:**
+- `pnpm test tests/api/teacher/tests-student-attempt-delete.test.ts tests/api/teacher/tests-student-access.test.ts tests/api/teacher/tests-unsubmit.test.ts tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual selected Tests row edit screenshot: `/tmp/pika-teacher-tests-row-delete-edit-mode.png`
+- Manual selected Tests row delete confirmation screenshot: `/tmp/pika-teacher-tests-row-delete-confirm.png`
+- Manual selected Tests action menu screenshot without Clear Open Grades: `/tmp/pika-teacher-tests-no-clear-open-grades-menu.png`
+- Manual selected Tests row symbol screenshots: `/tmp/pika-teacher-tests-row-symbol-actions.png`, `/tmp/pika-teacher-tests-row-access-confirm.png`
+- Manual concise confirmation screenshot: `/tmp/pika-teacher-tests-concise-confirm.png`
+
+## 2026-05-04 - Tests overview card stats and maximized modals
+
+**Completed:**
+- Removed whole-test open/close/reopen controls from teacher Tests summary cards.
+- Added a per-card Preview icon button that opens the saved test preview from the Tests overview.
+- Added Tests overview stats for submitted attempts plus effective open/closed student access counts.
+- Extended the teacher Tests list API payload with `submitted`, `open_access`, and `closed_access` stats, scoped to currently enrolled students.
+- Tightened the Test and Assignment creation modal viewport padding so create flows use nearly the full screen while keeping the visible top-right close button.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/QuizModal.test.tsx tests/components/AssignmentModal.test.tsx tests/api/teacher/tests-route.test.ts`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual Tests overview screenshot: `/tmp/pika-tests-card-preview-stats.png`
+- Manual creation modal screenshots: `/tmp/pika-new-test-modal-maximized.png`, `/tmp/pika-new-assignment-modal-maximized.png`
+
+## 2026-05-04 - Tests overview create/edit cleanup
+
+**Completed:**
+- Changed new test creation to close the modal and return to the Tests list instead of opening the new test workspace/editor.
+- Made the Tests list edit toggle reset whenever the Tests tab is revisited.
+- Added a trash icon to each Tests overview card while list edit mode is active, with a delete confirmation for the whole test.
+- Added the visible `Preview` label next to the Tests overview card preview icon.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/api/teacher/tests-route.test.ts`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual Tests overview screenshots: `/tmp/pika-tests-card-preview-label.png`, `/tmp/pika-tests-card-edit-delete.png`
+
+## 2026-05-04 - Test editor Code toggle
+
+**Completed:**
+- Replaced the test editor `Edit`/`Markdown` segmented control with a single icon + `Code` toggle.
+- Made the Code toggle switch into markdown view when active and back to the regular editor when untoggled.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual test editor screenshots: `/tmp/pika-test-editor-code-toggle-edit.png`, `/tmp/pika-test-editor-code-toggle-markdown.png`
+- Manual labeled toggle screenshots: `/tmp/pika-test-editor-code-label-toggle-edit.png`, `/tmp/pika-test-editor-code-label-toggle-markdown.png`
+
+## 2026-05-04 - Tests edit-mode Delete Selected action
+
+**Completed:**
+- Added `Delete Selected` to the selected Tests action dropdown only while row edit mode is active.
+- Added a batch confirmation that deletes selected students' test work through the existing per-student delete route.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/api/teacher/tests-student-attempt-delete.test.ts`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual selected Tests dropdown screenshot: `/tmp/pika-tests-edit-dropdown-delete-selected.png`
+
+## 2026-05-04 - Tests list edit-mode drag reorder
+
+**Completed:**
+- Added drag handles to Tests summary cards while list edit mode is active.
+- Added optimistic drag reordering for Tests cards, persisted through `POST /api/teacher/tests/reorder`.
+- Persisted test positions so the existing descending position sort reloads the same visible order.
+
+**Validation:**
+- `pnpm test tests/api/teacher/tests-reorder.test.ts`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual Tests list edit screenshot: `/tmp/pika-tests-list-edit-reorder.png`
+
+## 2026-05-04 - Selected test row deselection
+
+**Completed:**
+- Made Escape clear the active selected-test grading row in addition to edit mode and batch selections.
+- Made clicks on selected-test grading table chrome outside student rows clear the highlighted row without unmounting the grading inspector during inspector interactions.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+
+## 2026-05-05 - Rebase selected-student exam access worktree
+
+**Completed:**
+- Rebasing `codex/selected-student-exam-access` onto `origin/main` completed cleanly.
+- Restored the staged feature work from the temporary rebase stash and dropped that stash.
+- Confirmed branch migrations remain sequential after `origin/main` migration `059`.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/api/teacher/tests-reorder.test.ts tests/api/teacher/tests-student-access.test.ts tests/api/teacher/tests-unsubmit.test.ts tests/api/teacher/tests-student-attempt-delete.test.ts tests/unit/test-student-access.test.ts tests/lib/finalize-test-attempts.test.ts`
+- `pnpm lint`
+
+## 2026-05-05 - Selected test status/access columns
+
+**Completed:**
+- Split the selected Tests grading table into separate `Status` and `Access` columns.
+- Removed visible row status text labels so status/access are represented by icons with tooltip and aria-label text.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm e2e:verify assessment-ux-parity`
+- Manual selected Tests screenshot: `/tmp/pika-tests-status-access-split-icons.png`

@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { assertTeacherOwnsTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
+import {
+  assertTeacherOwnsTest,
+  getEffectiveStudentTestAccess,
+  getTestStudentAvailabilityMap,
+  isMissingTestAttemptReturnColumnsError,
+} from '@/lib/server/tests'
 import { finalizeUnsubmittedTestAttemptsOnClose } from '@/lib/server/finalize-test-attempts'
 import { withErrorHandler } from '@/lib/api-handler'
 
@@ -47,53 +52,43 @@ export const POST = withErrorHandler('ReturnTeacherTest', async (request, contex
     return NextResponse.json({ error: 'Cannot return more than 100 students at once' }, { status: 400 })
   }
 
-  const closeTest = body?.close_test === true
-
   const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
   }
+  if (access.test.status === 'draft') {
+    return NextResponse.json({ error: 'Cannot return work for a draft test' }, { status: 400 })
+  }
 
   const supabase = getServiceRoleClient()
+  const availabilityResult = await getTestStudentAvailabilityMap(supabase, testId, studentIds)
+  if (availabilityResult.error && !availabilityResult.missingTable) {
+    console.error('Error loading test access for return:', availabilityResult.error)
+    return NextResponse.json({ error: 'Failed to load selected student access' }, { status: 500 })
+  }
 
-  if (access.test.status === 'active' && !closeTest) {
+  const openStudentIds = studentIds.filter((studentId) => {
+    const accessState = getEffectiveStudentTestAccess({
+      testStatus: access.test.status,
+      accessState: availabilityResult.stateByStudentId.get(studentId) ?? null,
+    })
+    return accessState.effective_access === 'open'
+  })
+
+  if (openStudentIds.length > 0) {
     return NextResponse.json(
-      { error: 'Test is still active. Confirm close and return to close it first.' },
+      { error: 'Close selected students before returning their test work.' },
       { status: 409 }
     )
   }
 
-  let closedInRequest = false
-  if (access.test.status === 'active' && closeTest) {
-    const { error: closeError } = await supabase
-      .from('tests')
-      .update({ status: 'closed' })
-      .eq('id', testId)
-      .eq('status', 'active')
-
-    if (closeError) {
-      console.error('Error closing test during return:', closeError)
-      return NextResponse.json({ error: 'Failed to close test before return' }, { status: 500 })
+  if (access.test.status === 'closed') {
+    const finalizeResult = await finalizeUnsubmittedTestAttemptsOnClose(supabase, testId, {
+      closedBy: user.id,
+    })
+    if (!finalizeResult.ok) {
+      return NextResponse.json({ error: finalizeResult.error }, { status: finalizeResult.status })
     }
-
-    closedInRequest = true
-  }
-
-  const finalizeResult = await finalizeUnsubmittedTestAttemptsOnClose(supabase, testId)
-  if (!finalizeResult.ok) {
-    if (closedInRequest) {
-      const { error: reopenError } = await supabase
-        .from('tests')
-        .update({ status: 'active' })
-        .eq('id', testId)
-        .eq('status', 'closed')
-
-      if (reopenError) {
-        console.error('Error reopening test after close+return finalization failure:', reopenError)
-      }
-    }
-
-    return NextResponse.json({ error: finalizeResult.error }, { status: finalizeResult.status })
   }
 
   const { data: openQuestionRows, error: openQuestionError } = await supabase
@@ -192,7 +187,6 @@ export const POST = withErrorHandler('ReturnTeacherTest', async (request, contex
       .update({
         returned_at: now,
         returned_by: user.id,
-        is_submitted: true,
       })
       .eq('test_id', testId)
       .in('student_id', eligibleStudentIds)
@@ -247,6 +241,6 @@ export const POST = withErrorHandler('ReturnTeacherTest', async (request, contex
   return NextResponse.json({
     returned_count: eligibleStudentIds.length,
     skipped_count: studentIds.length - eligibleStudentIds.length,
-    test_closed: access.test.status === 'active' && closeTest,
+    test_closed: false,
   })
 })

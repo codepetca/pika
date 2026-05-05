@@ -251,7 +251,9 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
   }
 
   if (shouldFinalizeOnClose) {
-    const finalizeResult = await finalizeUnsubmittedTestAttemptsOnClose(supabase, id)
+    const finalizeResult = await finalizeUnsubmittedTestAttemptsOnClose(supabase, id, {
+      closedBy: user.id,
+    })
     if (!finalizeResult.ok) {
       const { error: reopenError } = await supabase
         .from('tests')

@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
-import { assertStudentCanAccessTest } from '@/lib/server/tests'
+import {
+  assertStudentCanAccessTest,
+  getEffectiveStudentTestAccess,
+  getTestStudentAvailabilityState,
+} from '@/lib/server/tests'
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
   buildTestAttemptHistoryMetrics,
@@ -44,11 +48,23 @@ export const PATCH = withErrorHandler('PatchStudentTestAttempt', async (request,
   }
   const test = access.test
 
-  if (test.status !== 'active') {
-    return NextResponse.json({ error: 'Cannot edit a test that is not active' }, { status: 403 })
-  }
-
   const supabase = getServiceRoleClient()
+  const availabilityResult = await getTestStudentAvailabilityState(supabase, testId, user.id)
+  if (availabilityResult.error && !availabilityResult.missingTable) {
+    console.error('Error fetching student test access for draft save:', availabilityResult.error)
+    return NextResponse.json({ error: 'Failed to save responses' }, { status: 500 })
+  }
+  const accessState = getEffectiveStudentTestAccess({
+    testStatus: test.status,
+    accessState: availabilityResult.state,
+  })
+
+  if (!accessState.can_start_or_continue) {
+    return NextResponse.json(
+      { error: 'This test is closed for you. Your saved draft is preserved.' },
+      { status: 403 }
+    )
+  }
 
   const { data: questions, error: questionsError } = await supabase
     .from('test_questions')
@@ -67,7 +83,7 @@ export const PATCH = withErrorHandler('PatchStudentTestAttempt', async (request,
 
   const { data: existingAttempt, error: attemptError } = await supabase
     .from('test_attempts')
-    .select('id, responses, is_submitted')
+    .select('id, responses, is_submitted, closed_for_grading_at')
     .eq('test_id', testId)
     .eq('student_id', user.id)
     .maybeSingle()
@@ -87,6 +103,13 @@ export const PATCH = withErrorHandler('PatchStudentTestAttempt', async (request,
   if (existingAttempt?.is_submitted) {
     return NextResponse.json(
       { error: 'Cannot edit a submitted test' },
+      { status: 403 }
+    )
+  }
+
+  if (existingAttempt?.closed_for_grading_at) {
+    return NextResponse.json(
+      { error: 'This test is closed for grading. Your saved draft is preserved.' },
       { status: 403 }
     )
   }

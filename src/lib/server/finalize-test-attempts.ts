@@ -29,9 +29,14 @@ type TestAttemptRow = {
 
 export async function finalizeUnsubmittedTestAttemptsOnClose(
   supabase: SupabaseLike,
-  testId: string
+  testId: string,
+  options?: {
+    studentIds?: string[]
+    closedBy?: string | null
+  }
 ): Promise<FinalizeResult> {
   const now = new Date().toISOString()
+  const studentIdsFilter = Array.from(new Set((options?.studentIds || []).filter(Boolean)))
 
   const { data: questionRows, error: questionError } = await supabase
     .from('test_questions')
@@ -45,11 +50,17 @@ export async function finalizeUnsubmittedTestAttemptsOnClose(
 
   const questions = (questionRows || []) as TestQuestionRow[]
 
-  const { data: attemptRows, error: attemptError } = await supabase
+  let attemptQuery = supabase
     .from('test_attempts')
     .select('id, student_id, responses')
     .eq('test_id', testId)
     .eq('is_submitted', false)
+
+  if (studentIdsFilter.length > 0) {
+    attemptQuery = attemptQuery.in('student_id', studentIdsFilter)
+  }
+
+  const { data: attemptRows, error: attemptError } = await attemptQuery
 
   if (attemptError?.code === 'PGRST205') {
     return { ok: false, status: 400, error: 'Tests require migration 039 to be applied' }
@@ -99,34 +110,38 @@ export async function finalizeUnsubmittedTestAttemptsOnClose(
 
     for (const question of questions) {
       const response = normalizedResponses[question.id]
-      if (!response) continue
 
       const existingKey = `${attempt.student_id}:${question.id}`
       if (existingKeys.has(existingKey)) continue
 
       if (question.question_type === 'open_response') {
-        if (response.question_type !== 'open_response') continue
-        if (!response.response_text.trim()) continue
+        const responseText =
+          response?.question_type === 'open_response'
+            ? response.response_text
+            : ''
+        const hasText = responseText.trim().length > 0
 
         responseRows.push({
           test_id: testId,
           question_id: question.id,
           student_id: attempt.student_id,
           selected_option: null,
-          response_text: response.response_text,
-          score: null,
+          response_text: responseText,
+          score: hasText ? null : 0,
           feedback: null,
-          graded_at: null,
+          graded_at: hasText ? null : now,
           graded_by: null,
           submitted_at: now,
         })
         continue
       }
 
-      if (response.question_type !== 'multiple_choice') continue
-
-      const selectedOption = response.selected_option
-      if (!Number.isInteger(selectedOption) || selectedOption < 0) continue
+      const selectedOption =
+        response?.question_type === 'multiple_choice' &&
+        Number.isInteger(response.selected_option) &&
+        response.selected_option >= 0
+          ? response.selected_option
+          : null
 
       const points = Number(question.points ?? 1)
       const isCorrect = selectedOption === question.correct_option
@@ -164,13 +179,15 @@ export async function finalizeUnsubmittedTestAttemptsOnClose(
   const { error: updateAttemptError } = await supabase
     .from('test_attempts')
     .update({
-      is_submitted: true,
-      submitted_at: now,
+      closed_for_grading_at: now,
+      closed_for_grading_by: options?.closedBy || null,
+      returned_at: null,
+      returned_by: null,
     })
     .in('id', attemptIds)
 
   if (updateAttemptError) {
-    console.error('Error marking test attempts submitted during close finalization:', updateAttemptError)
+    console.error('Error marking test attempts closed for grading:', updateAttemptError)
     return { ok: false, status: 500, error: 'Failed to finalize test submissions' }
   }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
@@ -50,7 +50,6 @@ vi.mock('@/components/QuizDetailPanel', () => ({
     onPendingMarkdownImportChange,
     onSaveStatusChange,
     onRequestTestPreview,
-    previewRequestToken,
     onDraftSummaryChange,
     onQuizUpdate,
   }: {
@@ -61,7 +60,6 @@ vi.mock('@/components/QuizDetailPanel', () => ({
     onPendingMarkdownImportChange?: (pending: boolean) => void
     onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
     onRequestTestPreview?: (preview: { testId: string; title: string }) => void
-    previewRequestToken?: number
     onDraftSummaryChange?: (update: {
       title: string
       show_results: boolean
@@ -73,10 +71,7 @@ vi.mock('@/components/QuizDetailPanel', () => ({
       questions_count: number
     }) => void
   }) => {
-    useEffect(() => {
-      if (!previewRequestToken) return
-      onRequestTestPreview?.({ testId: quiz.id, title: quiz.title })
-    }, [onRequestTestPreview, previewRequestToken, quiz.id, quiz.title])
+    const [pendingMarkdown, setPendingMarkdown] = useState(false)
 
     return (
       <div
@@ -86,10 +81,31 @@ vi.mock('@/components/QuizDetailPanel', () => ({
         data-show-results={String(showResultsTab)}
       >
         Detail for {quiz.title}
-        <button type="button" onClick={() => onPendingMarkdownImportChange?.(true)}>
+        {showPreviewButton ? (
+          <button
+            type="button"
+            disabled={pendingMarkdown}
+            onClick={() => onRequestTestPreview?.({ testId: quiz.id, title: quiz.title })}
+          >
+            Preview
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => {
+            setPendingMarkdown(true)
+            onPendingMarkdownImportChange?.(true)
+          }}
+        >
           Mark pending markdown
         </button>
-        <button type="button" onClick={() => onPendingMarkdownImportChange?.(false)}>
+        <button
+          type="button"
+          onClick={() => {
+            setPendingMarkdown(false)
+            onPendingMarkdownImportChange?.(false)
+          }}
+        >
           Clear pending markdown
         </button>
         <button type="button" onClick={() => onSaveStatusChange?.('unsaved')}>
@@ -277,6 +293,7 @@ describe('TeacherTestsTab', () => {
     ) => void
     onSelectTest?: (test: QuizWithStats | null) => void
     onRequestTestPreview?: (preview: { testId: string; title: string }) => void
+    onRequestDelete?: () => void
     onTestGradingContextChange?: (context: {
       mode: 'authoring' | 'grading'
       testId: string | null
@@ -294,6 +311,7 @@ describe('TeacherTestsTab', () => {
         updateSearchParams={options?.updateSearchParams}
         onSelectTest={options?.onSelectTest}
         onRequestTestPreview={options?.onRequestTestPreview}
+        onRequestDelete={options?.onRequestDelete}
         onTestGradingContextChange={options?.onTestGradingContextChange}
       />,
       { wrapper: Wrapper }
@@ -306,6 +324,7 @@ describe('TeacherTestsTab', () => {
 
     expect(await screen.findByText('Unit Test')).toBeInTheDocument()
     expect(screen.getByText('New Test')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(screen.queryByText('Choose a test to review settings, questions, and grading details.')).not.toBeInTheDocument()
     expect(listFetchCalls(fetchMock)[0][0]).toContain('/api/teacher/tests?classroom_id=')
@@ -318,22 +337,28 @@ describe('TeacherTestsTab', () => {
     fetchMock.mockResolvedValueOnce(makeResultsResponse())
     renderTab({ onSelectTest })
 
-    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Unit Test')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Unit Test' }))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Grading' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-preview', 'false')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-results', 'false')
     const dialog = screen.getByRole('dialog')
-    expect(within(dialog).getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Markdown' }))
+    const codeToggle = within(dialog).getByRole('button', { name: 'Code' })
+    expect(codeToggle).toHaveAttribute('aria-pressed', 'false')
+    expect(within(dialog).queryByRole('button', { name: 'Markdown' })).not.toBeInTheDocument()
+    fireEvent.click(codeToggle)
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'markdown-only')
-    expect(within(dialog).getByRole('button', { name: 'Markdown' })).toHaveAttribute('aria-pressed', 'true')
+    expect(codeToggle).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(codeToggle)
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
+    expect(codeToggle).toHaveAttribute('aria-pressed', 'false')
     expect(onSelectTest).toHaveBeenLastCalledWith(
       expect.objectContaining({ id: 'test-1', title: 'Unit Test' })
     )
@@ -344,11 +369,12 @@ describe('TeacherTestsTab', () => {
     fetchMock.mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'draft' }))
     renderTab()
 
-    fireEvent.click(await screen.findByText('Unit Test'))
-    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Open test' })).toBeEnabled()
-
+    expect(await screen.findByText('Unit Test')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Unit Test' }))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open All' })).toBeEnabled()
+
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-preview', 'false')
@@ -357,49 +383,48 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mark pending markdown' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Open test' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Open All' })).toBeDisabled()
       expect(
         screen.getByText('Apply or undo markdown changes before previewing or changing the test status.')
       ).toBeInTheDocument()
     })
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Preview' })).toBeDisabled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear pending markdown' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Open test' })).toBeEnabled()
-      expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Open All' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Preview' })).toBeEnabled()
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Mark editor unsaved' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Preview' })).toBeEnabled()
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Mark editor saved' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Preview' })).toBeEnabled()
     })
   })
 
-  it('delegates preview from the selected test menu to the open editor', async () => {
+  it('delegates preview from the test edit modal', async () => {
     const onRequestTestPreview = vi.fn()
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
     fetchMock.mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'draft' }))
     renderTab({ onRequestTestPreview })
 
-    fireEvent.click(await screen.findByText('Unit Test'))
-    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(await screen.findByText('Unit Test')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Unit Test' }))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Mark editor unsaved' }))
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeEnabled()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Preview' }))
+    expect(screen.getByRole('button', { name: 'Preview' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
 
     await waitFor(() => {
       expect(onRequestTestPreview).toHaveBeenCalledWith({
@@ -415,11 +440,12 @@ describe('TeacherTestsTab', () => {
     const onSelectTest = vi.fn()
     renderTab({ onSelectTest })
 
-    fireEvent.click(await screen.findByText('Unit Test'))
-    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Open test' })).toBeEnabled()
-
+    expect(await screen.findByText('Unit Test')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Unit Test' }))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open All' })).toBeEnabled()
+
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
 
@@ -427,7 +453,7 @@ describe('TeacherTestsTab', () => {
 
     await waitFor(() => {
       expect(onSelectTest).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Unit Test Draft' }))
-      expect(screen.getByRole('button', { name: 'Open test' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Open All' })).toBeDisabled()
     })
 
     expect(screen.getByTestId('mock-test-detail')).toBeInTheDocument()
@@ -440,11 +466,12 @@ describe('TeacherTestsTab', () => {
     const onSelectTest = vi.fn()
     renderTab({ onSelectTest })
 
-    fireEvent.click(await screen.findByText('Unit Test'))
-    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Open test' })).toBeEnabled()
-
+    expect(await screen.findByText('Unit Test')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Unit Test' }))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open All' })).toBeEnabled()
+
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
 
@@ -453,27 +480,28 @@ describe('TeacherTestsTab', () => {
     await waitFor(() => {
       expect(screen.getByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test Updated')
       expect(onSelectTest).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Unit Test Updated' }))
-      expect(screen.getByRole('button', { name: 'Open test' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Open All' })).toBeDisabled()
     })
 
     expect(screen.getByTestId('mock-test-detail')).toBeInTheDocument()
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 
-  it('opens a newly created test in grading with the edit modal open', async () => {
+  it('returns to the tests list after creating a test', async () => {
     mockTestsResponse([])
     renderTab()
 
     expect(await screen.findByText('No tests yet')).toBeInTheDocument()
 
     mockTestsResponse([makeTest({ id: 'created-test-id', title: 'Created Test' })])
-    fetchMock.mockResolvedValueOnce(makeResultsResponse({ quizId: 'created-test-id', quizTitle: 'Created Test' }))
 
     fireEvent.click(screen.getByText('New Test'))
     fireEvent.click(screen.getByTestId('mock-test-save'))
 
-    expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Created Test')
+    expect(await screen.findByText('Created Test')).toBeInTheDocument()
+    expect(screen.queryByTestId('mock-test-detail')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('validates and activates a draft test from the selected test split button', async () => {
@@ -508,7 +536,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open test' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open All' }))
 
     expect(await screen.findByText('Activate test?')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Activate' }))
@@ -525,12 +553,12 @@ describe('TeacherTestsTab', () => {
     expect(JSON.parse((patchCall?.[1] as RequestInit).body as string)).toEqual({ status: 'active' })
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Close test' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Close All' })).toBeInTheDocument()
     })
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 
-  it('confirms and closes an active test from the selected test split button', async () => {
+  it('confirms and closes access for all students from the selected test split button', async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -539,75 +567,156 @@ describe('TeacherTestsTab', () => {
       .mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'active' }))
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ test: { id: 'test-1', status: 'closed' } }),
+        json: async () => ({ updated_count: 1, skipped_count: 0, state: 'closed' }),
       })
+      .mockResolvedValueOnce(makeResultsResponse({
+        quizStatus: 'active',
+        students: [
+          {
+            student_id: 'student-1',
+            name: 'Alice Zephyr',
+            first_name: 'Alice',
+            last_name: 'Zephyr',
+            email: 'alice@example.com',
+            status: 'in_progress',
+            submitted_at: null,
+            last_activity_at: '2026-04-17T18:15:00.000Z',
+            points_earned: 0,
+            points_possible: 5,
+            percent: null,
+            graded_open_responses: 0,
+            ungraded_open_responses: 0,
+            access_state: 'closed',
+            effective_access: 'closed',
+            access_source: 'student',
+            focus_summary: null,
+          },
+        ],
+      }))
 
     renderTab()
 
     fireEvent.click(await screen.findByText('Unit Test'))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close test' }))
-    expect(await screen.findByText('Close test?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close All' }))
+    expect(await screen.findByText('Close access for 1 student(s)?')).toBeInTheDocument()
 
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close Access' }))
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-1', expect.objectContaining({ method: 'PATCH' }))
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/teacher/tests/test-1/student-access',
+        expect.objectContaining({ method: 'POST' })
+      )
     })
 
-    const patchCall = fetchMock.mock.calls.find(
-      ([url, init]: [string, RequestInit | undefined]) =>
-        url === '/api/teacher/tests/test-1' && init?.method === 'PATCH'
+    const accessCall = fetchMock.mock.calls.find(
+      ([url]: [string]) => typeof url === 'string' && url === '/api/teacher/tests/test-1/student-access'
     )
-    expect(patchCall).toBeTruthy()
-    expect(JSON.parse((patchCall?.[1] as RequestInit).body as string)).toEqual({ status: 'closed' })
+    expect(accessCall).toBeTruthy()
+    expect(JSON.parse(accessCall?.[1]?.body as string)).toMatchObject({
+      student_ids: ['student-1'],
+      state: 'closed',
+    })
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Open test' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Open All' })).toBeInTheDocument()
     })
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 
-  it('updates summary-card status actions locally without refetching the full list', async () => {
-    fetchMock
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })] }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          questions: [
-            {
-              id: 'q1',
-              question_type: 'multiple_choice',
-              question_text: 'Ready to activate?',
-              options: ['Yes', 'No'],
-              correct_option: 0,
-              points: 1,
-            },
-          ],
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ test: { id: 'test-1', status: 'active' } }),
-      })
+  it('shows test-card preview and access/submission counts without card status actions', async () => {
+    const onRequestTestPreview = vi.fn()
+    mockTestsResponse([
+      makeTest({
+        id: 'test-1',
+        title: 'Unit Test',
+        status: 'active',
+        stats: {
+          total_students: 2,
+          responded: 2,
+          submitted: 1,
+          open_access: 1,
+          closed_access: 1,
+          questions_count: 3,
+        },
+      }),
+    ])
 
+    renderTab({ onRequestTestPreview })
+
+    expect(await screen.findByText('Unit Test')).toBeInTheDocument()
+    expect(screen.getByText('1/2 submitted')).toBeInTheDocument()
+    expect(screen.getByLabelText('1 open')).toBeInTheDocument()
+    expect(screen.getByLabelText('1 closed')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Open test' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Close test' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reopen test' })).not.toBeInTheDocument()
+
+    expect(screen.getByRole('button', { name: 'Preview Unit Test' })).toHaveTextContent('Preview')
+    fireEvent.click(screen.getByRole('button', { name: 'Preview Unit Test' }))
+
+    expect(onRequestTestPreview).toHaveBeenCalledWith({
+      testId: 'test-1',
+      title: 'Unit Test',
+    })
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('shows card reorder and delete controls in edit mode and resets edit mode when tests is revisited', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    const view = renderTab({ testsTabClickToken: 0 })
+
+    expect(await screen.findByText('Unit Test')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Drag to reorder Unit Test' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+
+    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Drag to reorder Unit Test' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete Unit Test' })).toBeInTheDocument()
+
+    view.rerender(
+      <TeacherTestsTab
+        classroom={classroom}
+        testsTabClickToken={1}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'false')
+    })
+    expect(screen.queryByRole('button', { name: 'Drag to reorder Unit Test' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete Unit Test' })).not.toBeInTheDocument()
+  })
+
+  it('deletes a test from the summary card edit mode with confirmation', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
     renderTab()
 
     expect(await screen.findByText('Unit Test')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Open test' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open test' }))
-    expect(await screen.findByText('Activate test?')).toBeInTheDocument()
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Activate' }))
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, responses_count: 0 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [] }),
+      })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Unit Test' }))
+    expect(await screen.findByText('Delete test?')).toBeInTheDocument()
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Close test' })).toBeInTheDocument()
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-1', expect.objectContaining({ method: 'DELETE' }))
     })
-    expect(listFetchCalls(fetchMock)).toHaveLength(1)
+    await waitFor(() => {
+      expect(screen.queryByText('Unit Test')).not.toBeInTheDocument()
+    })
   })
 
   it('returns to the tests list when the tests tab is clicked again', async () => {
@@ -672,6 +781,54 @@ describe('TeacherTestsTab', () => {
       testId: 'test-1',
       studentId: 'student-1',
       studentName: 'Alice Zephyr',
+    })
+  })
+
+  it('clears the selected grading row with Escape', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    fireEvent.click(await screen.findByText('Alice Zephyr'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test-grading-panel')).toBeInTheDocument()
+    })
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('mock-test-grading-panel')).not.toBeInTheDocument()
+    })
+  })
+
+  it('clears the selected grading row when clicking table chrome outside the highlighted row', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    fireEvent.click(await screen.findByText('Alice Zephyr'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test-grading-panel')).toBeInTheDocument()
+    })
+
+    fireEvent.pointerDown(screen.getByText('Score'))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('mock-test-grading-panel')).not.toBeInTheDocument()
     })
   })
 
@@ -897,6 +1054,9 @@ describe('TeacherTestsTab', () => {
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(screen.getByText('3/5')).toBeInTheDocument()
     expect(screen.getByTestId('assessment-status-icon-submitted')).toHaveClass('text-success')
+    expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Access' })).toBeInTheDocument()
+    expect(screen.queryByText('Submitted')).not.toBeInTheDocument()
 
     await act(async () => {
       intervalCallback?.()
@@ -1118,20 +1278,11 @@ describe('TeacherTestsTab', () => {
     })
   })
 
-  it('prompts to close an active test before return and sends close_test=true', async () => {
+  it('requires selected students to be closed before returning work', async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
-      })
-      .mockResolvedValueOnce(makeResultsResponse())
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ returned_count: 1, skipped_count: 0, test_closed: true }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'closed' })] }),
       })
       .mockResolvedValueOnce(makeResultsResponse())
 
@@ -1141,30 +1292,536 @@ describe('TeacherTestsTab', () => {
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
-    fireEvent.click(screen.getByRole('button', { name: 'More test grading actions' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Return' }))
 
-    expect(
-      await screen.findByText('This test is still open. Confirming will close it for all students before returning selected work.')
-    ).toBeInTheDocument()
+    expect(await screen.findByText('Close selected students before returning')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([url]) => url === '/api/teacher/tests/test-1/return')).toBe(false)
+  })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close and Return' }))
+  it('closes access for selected students without submitting their work', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({
+        students: [
+          {
+            student_id: 'student-1',
+            name: 'Alice Zephyr',
+            first_name: 'Alice',
+            last_name: 'Zephyr',
+            email: 'alice@example.com',
+            status: 'in_progress',
+            submitted_at: null,
+            last_activity_at: '2026-04-17T18:15:00.000Z',
+            points_earned: 0,
+            points_possible: 5,
+            percent: null,
+            graded_open_responses: 0,
+            ungraded_open_responses: 0,
+            access_state: null,
+            effective_access: 'open',
+            access_source: 'test',
+            focus_summary: null,
+          },
+        ],
+      }))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ updated_count: 1, skipped_count: 0, state: 'closed' }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({
+        students: [
+          {
+            student_id: 'student-1',
+            name: 'Alice Zephyr',
+            first_name: 'Alice',
+            last_name: 'Zephyr',
+            email: 'alice@example.com',
+            status: 'in_progress',
+            submitted_at: null,
+            last_activity_at: '2026-04-17T18:15:00.000Z',
+            points_earned: 0,
+            points_possible: 5,
+            percent: null,
+            graded_open_responses: 0,
+            ungraded_open_responses: 0,
+            access_state: 'closed',
+            effective_access: 'closed',
+            access_source: 'student',
+            focus_summary: null,
+          },
+        ],
+      }))
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(screen.getByLabelText(/Access open, inherited from test status/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
+    expect(screen.getByRole('button', { name: 'Close 1 Selected' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    expect(screen.getByRole('menuitem', { name: 'Open 1 Selected' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close 1 Selected' }))
+    expect(await screen.findByText(/Saved work stays available for grading/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close Access' }))
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/teacher/tests/test-1/return',
+        '/api/teacher/tests/test-1/student-access',
         expect.objectContaining({ method: 'POST' })
       )
     })
 
-    const returnCall = fetchMock.mock.calls.find(
-      ([url]: [string]) => typeof url === 'string' && url === '/api/teacher/tests/test-1/return'
+    const accessCall = fetchMock.mock.calls.find(
+      ([url]: [string]) => typeof url === 'string' && url === '/api/teacher/tests/test-1/student-access'
     )
-    expect(returnCall).toBeTruthy()
-    expect(JSON.parse(returnCall?.[1]?.body as string)).toMatchObject({
+    expect(accessCall).toBeTruthy()
+    expect(JSON.parse(accessCall?.[1]?.body as string)).toMatchObject({
       student_ids: ['student-1'],
-      close_test: true,
+      state: 'closed',
     })
+    expect(await screen.findByLabelText(/Access closed for this student/)).toBeInTheDocument()
+  })
+
+  it('toggles one student access from the row access icon with confirmation', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ updated_count: 1, skipped_count: 0, locked_count: 1, state: 'closed' }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({
+        students: [
+          {
+            student_id: 'student-1',
+            name: 'Alice Zephyr',
+            first_name: 'Alice',
+            last_name: 'Zephyr',
+            email: 'alice@example.com',
+            status: 'closed',
+            submitted_at: null,
+            last_activity_at: '2026-04-17T18:15:00.000Z',
+            points_earned: 3,
+            points_possible: 5,
+            percent: 60,
+            graded_open_responses: 0,
+            ungraded_open_responses: 0,
+            access_state: 'closed',
+            effective_access: 'closed',
+            access_source: 'student',
+            focus_summary: null,
+          },
+        ],
+      }))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ updated_count: 1, skipped_count: 0, locked_count: 0, state: 'open' }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText(/Close access for Alice Zephyr/))
+    expect(await screen.findByText('Close access for Alice Zephyr?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close Access' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/teacher/tests/test-1/student-access',
+        expect.objectContaining({ method: 'POST' })
+      )
+    })
+    let accessCalls = fetchMock.mock.calls.filter(
+      ([url]: [string]) => typeof url === 'string' && url === '/api/teacher/tests/test-1/student-access'
+    )
+    expect(JSON.parse(accessCalls[0][1]?.body as string)).toMatchObject({
+      student_ids: ['student-1'],
+      state: 'closed',
+    })
+
+    fireEvent.click(await screen.findByLabelText(/Open access for Alice Zephyr/))
+    expect(await screen.findByText('Open access for Alice Zephyr?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open Access' }))
+
+    await waitFor(() => {
+      accessCalls = fetchMock.mock.calls.filter(
+        ([url]: [string]) => typeof url === 'string' && url === '/api/teacher/tests/test-1/student-access'
+      )
+      expect(accessCalls).toHaveLength(2)
+    })
+    expect(JSON.parse(accessCalls[1][1]?.body as string)).toMatchObject({
+      student_ids: ['student-1'],
+      state: 'open',
+    })
+  })
+
+  it('marks selected student attempts unsubmitted without opening access', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'closed' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({
+        quizStatus: 'closed',
+        students: [
+          {
+            student_id: 'student-1',
+            name: 'Alice Zephyr',
+            first_name: 'Alice',
+            last_name: 'Zephyr',
+            email: 'alice@example.com',
+            status: 'submitted',
+            submitted_at: '2026-04-17T18:15:00.000Z',
+            last_activity_at: '2026-04-17T18:15:00.000Z',
+            points_earned: 3,
+            points_possible: 5,
+            percent: 60,
+            graded_open_responses: 1,
+            ungraded_open_responses: 0,
+            access_state: 'closed',
+            effective_access: 'closed',
+            access_source: 'student',
+            focus_summary: null,
+          },
+        ],
+      }))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ unsubmitted_count: 1, skipped_count: 0 }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({
+        quizStatus: 'closed',
+        students: [
+          {
+            student_id: 'student-1',
+            name: 'Alice Zephyr',
+            first_name: 'Alice',
+            last_name: 'Zephyr',
+            email: 'alice@example.com',
+            status: 'in_progress',
+            submitted_at: null,
+            last_activity_at: '2026-04-17T18:15:00.000Z',
+            points_earned: 0,
+            points_possible: 5,
+            percent: null,
+            graded_open_responses: 0,
+            ungraded_open_responses: 0,
+            access_state: 'closed',
+            effective_access: 'closed',
+            access_source: 'student',
+            focus_summary: null,
+          },
+        ],
+      }))
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Unsubmit Selected' }))
+    expect(await screen.findByText(/Access is unchanged/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Mark Unsubmitted' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/teacher/tests/test-1/unsubmit',
+        expect.objectContaining({ method: 'POST' })
+      )
+    })
+
+    const unsubmitCall = fetchMock.mock.calls.find(
+      ([url]: [string]) => typeof url === 'string' && url === '/api/teacher/tests/test-1/unsubmit'
+    )
+    expect(unsubmitCall).toBeTruthy()
+    expect(JSON.parse(unsubmitCall?.[1]?.body as string)).toMatchObject({
+      student_ids: ['student-1'],
+    })
+  })
+
+  it('marks one submitted student unsubmitted from the row submitted icon with confirmation', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'closed' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({
+        quizStatus: 'closed',
+        students: [
+          {
+            student_id: 'student-1',
+            name: 'Alice Zephyr',
+            first_name: 'Alice',
+            last_name: 'Zephyr',
+            email: 'alice@example.com',
+            status: 'submitted',
+            submitted_at: '2026-04-17T18:15:00.000Z',
+            last_activity_at: '2026-04-17T18:15:00.000Z',
+            points_earned: 3,
+            points_possible: 5,
+            percent: 60,
+            graded_open_responses: 1,
+            ungraded_open_responses: 0,
+            access_state: 'closed',
+            effective_access: 'closed',
+            access_source: 'student',
+            focus_summary: null,
+          },
+        ],
+      }))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ unsubmitted_count: 1, skipped_count: 0 }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({
+        quizStatus: 'closed',
+        students: [
+          {
+            student_id: 'student-1',
+            name: 'Alice Zephyr',
+            first_name: 'Alice',
+            last_name: 'Zephyr',
+            email: 'alice@example.com',
+            status: 'in_progress',
+            submitted_at: null,
+            last_activity_at: '2026-04-17T18:15:00.000Z',
+            points_earned: 0,
+            points_possible: 5,
+            percent: null,
+            graded_open_responses: 0,
+            ungraded_open_responses: 0,
+            access_state: 'closed',
+            effective_access: 'closed',
+            access_source: 'student',
+            focus_summary: null,
+          },
+        ],
+      }))
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Mark Alice Zephyr unsubmitted/ }))
+    expect(await screen.findByText('Mark Alice Zephyr unsubmitted?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Mark Unsubmitted' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/teacher/tests/test-1/unsubmit',
+        expect.objectContaining({ method: 'POST' })
+      )
+    })
+    const unsubmitCall = fetchMock.mock.calls.find(
+      ([url]: [string]) => typeof url === 'string' && url === '/api/teacher/tests/test-1/unsubmit'
+    )
+    expect(JSON.parse(unsubmitCall?.[1]?.body as string)).toMatchObject({
+      student_ids: ['student-1'],
+    })
+  })
+
+  it('uses row edit mode to delete one student test with confirmation', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          deleted_attempts: 1,
+          deleted_responses: 2,
+          deleted_focus_events: 1,
+          deleted_ai_grading_items: 0,
+        }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({
+        students: [
+          {
+            student_id: 'student-1',
+            name: 'Alice Zephyr',
+            first_name: 'Alice',
+            last_name: 'Zephyr',
+            email: 'alice@example.com',
+            status: 'not_started',
+            submitted_at: null,
+            last_activity_at: null,
+            points_earned: 0,
+            points_possible: 5,
+            percent: null,
+            graded_open_responses: 0,
+            ungraded_open_responses: 0,
+            effective_access: 'open',
+            access_source: 'test',
+            focus_summary: null,
+          },
+        ],
+      }))
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete Alice Zephyr test' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Alice Zephyr test' }))
+
+    expect(await screen.findByText("Delete Alice Zephyr's test work?")).toBeInTheDocument()
+    expect(screen.getByText(/Access is unchanged/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Work' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/teacher/tests/test-1/students/student-1/attempt',
+        expect.objectContaining({ method: 'DELETE' })
+      )
+    })
+    expect(await screen.findByLabelText('Status Not started')).toBeInTheDocument()
+  })
+
+  it('shows delete selected in the action dropdown while row edit mode is active', async () => {
+    const students = [
+      {
+        student_id: 'student-1',
+        name: 'Alice Zephyr',
+        first_name: 'Alice',
+        last_name: 'Zephyr',
+        email: 'alice@example.com',
+        status: 'submitted',
+        submitted_at: null,
+        last_activity_at: '2026-04-17T18:15:00.000Z',
+        points_earned: 3,
+        points_possible: 5,
+        percent: 60,
+        graded_open_responses: 0,
+        ungraded_open_responses: 1,
+        effective_access: 'open',
+        access_source: 'test',
+        focus_summary: null,
+      },
+      {
+        student_id: 'student-2',
+        name: 'Bob Yellow',
+        first_name: 'Bob',
+        last_name: 'Yellow',
+        email: 'bob@example.com',
+        status: 'submitted',
+        submitted_at: null,
+        last_activity_at: '2026-04-17T18:16:00.000Z',
+        points_earned: 4,
+        points_possible: 5,
+        percent: 80,
+        graded_open_responses: 1,
+        ungraded_open_responses: 0,
+        effective_access: 'open',
+        access_source: 'test',
+        focus_summary: null,
+      },
+    ]
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({ students }))
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(await screen.findByText('Bob Yellow')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    expect(screen.queryByRole('menuitem', { name: 'Delete Selected' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
+    fireEvent.click(screen.getByLabelText('Select Bob Yellow'))
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          deleted_attempts: 1,
+          deleted_responses: 1,
+          deleted_focus_events: 1,
+          deleted_ai_grading_items: 0,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          deleted_attempts: 1,
+          deleted_responses: 1,
+          deleted_focus_events: 0,
+          deleted_ai_grading_items: 0,
+        }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({ students: [] }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete Selected' }))
+
+    expect(await screen.findByText('Delete 2 selected test work items?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Work' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/teacher/tests/test-1/students/student-1/attempt',
+        expect.objectContaining({ method: 'DELETE' })
+      )
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/teacher/tests/test-1/students/student-2/attempt',
+        expect.objectContaining({ method: 'DELETE' })
+      )
+    })
+  })
+
+  it('turns off row edit mode and clears student selections with Escape', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+
+    const rowCheckbox = screen.getByLabelText('Select Alice Zephyr') as HTMLInputElement
+    fireEvent.click(rowCheckbox)
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+
+    expect(rowCheckbox.checked).toBe(true)
+    expect(screen.getByRole('button', { name: 'Delete Alice Zephyr test' })).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(rowCheckbox.checked).toBe(false)
+    expect(screen.queryByRole('button', { name: 'Delete Alice Zephyr test' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('starts a background AI grading run, polls it, and refreshes rows on completion', async () => {
@@ -1253,7 +1910,8 @@ describe('TeacherTestsTab', () => {
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
-    fireEvent.click(screen.getByRole('button', { name: 'AI Grade' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'AI Grade' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Grade with AI' }))
 
     await waitFor(() => {
@@ -1274,7 +1932,30 @@ describe('TeacherTestsTab', () => {
     )
   })
 
-  it('keeps the AI prompt modal but removes the grading strategy selector', async () => {
+  it('does not expose the AI prompt or whole-test delete options', async () => {
+    const onRequestDelete = vi.fn()
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValue(makeResultsResponse())
+
+    renderTab({ onRequestDelete })
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    await screen.findByText('Alice Zephyr')
+
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+
+    expect(screen.queryByRole('menuitem', { name: 'AI Prompt' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Delete' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Clear Open Grades' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Grading strategy')).not.toBeInTheDocument()
+    expect(screen.queryByText('Grading strategy')).not.toBeInTheDocument()
+  })
+
+  it('disables AI Grade until students are selected', async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -1287,13 +1968,14 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
     await screen.findByText('Alice Zephyr')
 
-    fireEvent.click(screen.getByRole('button', { name: 'More test grading actions' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'AI Prompt' }))
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    expect(screen.getByRole('menuitem', { name: 'AI Grade' })).toBeDisabled()
 
-    expect(await screen.findByRole('heading', { name: 'AI Prompt' })).toBeInTheDocument()
-    expect(screen.getByText(/Pika automatically uses the coding rubric/i)).toBeInTheDocument()
-    expect(screen.queryByLabelText('Grading strategy')).not.toBeInTheDocument()
-    expect(screen.queryByText('Grading strategy')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+
+    expect(screen.getByRole('menuitem', { name: 'AI Grade' })).toBeEnabled()
   })
 
   it('reloads the list once when the update event fires', async () => {

@@ -475,7 +475,11 @@ describe('PATCH /api/teacher/tests/[id]', () => {
 
     expect(response.status).toBe(200)
     expect(data.quiz.status).toBe('closed')
-    expect(finalizeUnsubmittedTestAttemptsOnClose).toHaveBeenCalledWith(mockSupabaseClient, 'test-1')
+    expect(finalizeUnsubmittedTestAttemptsOnClose).toHaveBeenCalledWith(
+      mockSupabaseClient,
+      'test-1',
+      { closedBy: 'teacher-1' }
+    )
     expect(updateSpy.mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(finalizeUnsubmittedTestAttemptsOnClose).mock.invocationCallOrder[0]
     )

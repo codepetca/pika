@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { finalizeUnsubmittedTestAttemptsOnClose } from '@/lib/server/finalize-test-attempts'
 
 describe('finalizeUnsubmittedTestAttemptsOnClose', () => {
-  it('converts unsubmitted draft attempts into submitted test responses', async () => {
+  it('locks unsubmitted draft attempts for grading without marking them submitted', async () => {
     const upsertSpy = vi.fn(async () => ({ error: null }))
     const updateSpy = vi.fn(() => ({
       in: vi.fn(async () => ({ error: null })),
@@ -108,9 +108,13 @@ describe('finalizeUnsubmittedTestAttemptsOnClose', () => {
 
     const updatePayload = updateSpy.mock.calls[0][0]
     expect(updatePayload).toMatchObject({
-      is_submitted: true,
+      returned_at: null,
+      returned_by: null,
     })
-    expect(typeof updatePayload.submitted_at).toBe('string')
+    expect(updatePayload).not.toHaveProperty('is_submitted')
+    expect(updatePayload).not.toHaveProperty('submitted_at')
+    expect(typeof updatePayload.closed_for_grading_at).toBe('string')
+    expect(updatePayload.closed_for_grading_by).toBeNull()
   })
 
   it('returns success when there are no unsubmitted attempts', async () => {
@@ -152,7 +156,7 @@ describe('finalizeUnsubmittedTestAttemptsOnClose', () => {
     })
   })
 
-  it('skips blank open-response drafts when finalizing', async () => {
+  it('zero-fills blank open-response drafts when finalizing', async () => {
     const upsertSpy = vi.fn(async () => ({ error: null }))
     const updateSpy = vi.fn(() => ({
       in: vi.fn(async () => ({ error: null })),
@@ -220,9 +224,16 @@ describe('finalizeUnsubmittedTestAttemptsOnClose', () => {
     expect(result).toEqual({
       ok: true,
       finalized_attempts: 1,
-      inserted_responses: 0,
+      inserted_responses: 1,
     })
-    expect(upsertSpy).not.toHaveBeenCalled()
+    expect(upsertSpy).toHaveBeenCalledOnce()
+    expect(upsertSpy.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        question_id: 'q-open',
+        response_text: '   ',
+        score: 0,
+      }),
+    ])
     expect(updateSpy).toHaveBeenCalledOnce()
   })
 

@@ -16,23 +16,27 @@ vi.mock('@/lib/auth', () => ({
   })),
 }))
 
-vi.mock('@/lib/server/tests', () => ({
-  assertTeacherOwnsTest: vi.fn(async () => ({
-    ok: true,
-    test: {
-      id: 'test-1',
-      title: 'Unit Test',
-      status: 'closed',
-      classroom_id: 'classroom-1',
-      classrooms: { archived_at: null },
-    },
-  })),
-  isMissingTestAttemptReturnColumnsError: vi.fn((error: { code?: string; message?: string } | null) => {
-    if (!error) return false
-    const message = `${error.message || ''}`.toLowerCase()
-    return (error.code === 'PGRST204' || error.code === '42703') && message.includes('returned_at')
-  }),
-}))
+vi.mock('@/lib/server/tests', async () => {
+  const actual = await vi.importActual<any>('@/lib/server/tests')
+  return {
+    ...actual,
+    assertTeacherOwnsTest: vi.fn(async () => ({
+      ok: true,
+      test: {
+        id: 'test-1',
+        title: 'Unit Test',
+        status: 'closed',
+        classroom_id: 'classroom-1',
+        classrooms: { archived_at: null },
+      },
+    })),
+    isMissingTestAttemptReturnColumnsError: vi.fn((error: { code?: string; message?: string } | null) => {
+      if (!error) return false
+      const message = `${error.message || ''}`.toLowerCase()
+      return (error.code === 'PGRST204' || error.code === '42703') && message.includes('returned_at')
+    }),
+  }
+})
 
 vi.mock('@/lib/server/finalize-test-attempts', () => ({
   finalizeUnsubmittedTestAttemptsOnClose: vi.fn(async () => ({
@@ -315,7 +319,7 @@ describe('POST /api/teacher/tests/[id]/return', () => {
     expect(insertSpy).not.toHaveBeenCalled()
   })
 
-  it('returns 409 for active tests when close_test is not provided', async () => {
+  it('returns 409 for active tests while selected students still have open access', async () => {
     vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({
       ok: true,
       test: {
@@ -326,6 +330,12 @@ describe('POST /api/teacher/tests/[id]/return', () => {
         classrooms: { archived_at: null },
       } as any,
     })
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_student_availability') {
+        throw new Error(`Unexpected table: ${table}`)
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
       method: 'POST',
@@ -335,12 +345,10 @@ describe('POST /api/teacher/tests/[id]/return', () => {
     const data = await response.json()
 
     expect(response.status).toBe(409)
-    expect(data.error).toBe('Test is still active. Confirm close and return to close it first.')
+    expect(data.error).toBe('Close selected students before returning their test work.')
   })
 
-  it('closes active tests when close_test is provided', async () => {
-    const closeUpdates: Array<{ status: string }> = []
-
+  it('returns selected work during an active test after selected access is closed', async () => {
     vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({
       ok: true,
       test: {
@@ -353,16 +361,15 @@ describe('POST /api/teacher/tests/[id]/return', () => {
     })
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'tests') {
+      if (table === 'test_student_availability') {
         return {
-          update: vi.fn((payload: { status: string }) => {
-            closeUpdates.push(payload)
-            return {
-              eq: vi.fn(() => ({
-                eq: vi.fn(async () => ({ error: null })),
-              })),
-            }
-          }),
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn(async () => ({
+              data: [{ student_id: 'student-1', state: 'closed' }],
+              error: null,
+            })),
+          })),
         }
       }
 
@@ -424,15 +431,14 @@ describe('POST /api/teacher/tests/[id]/return', () => {
 
     const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
       method: 'POST',
-      body: JSON.stringify({ student_ids: ['student-1'], close_test: true }),
+      body: JSON.stringify({ student_ids: ['student-1'] }),
     })
     const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.test_closed).toBe(true)
-    expect(closeUpdates).toEqual([{ status: 'closed' }])
-    expect(finalizeUnsubmittedTestAttemptsOnClose).toHaveBeenCalledWith(mockSupabaseClient, 'test-1')
+    expect(data.test_closed).toBe(false)
+    expect(finalizeUnsubmittedTestAttemptsOnClose).not.toHaveBeenCalled()
   })
 
   it('returns migration error when returned_at column is missing', async () => {
@@ -510,20 +516,7 @@ describe('POST /api/teacher/tests/[id]/return', () => {
     expect(data.error).toBe('Returning tests requires migration 043 to be applied')
   })
 
-  it('reopens active test when close+return finalization fails', async () => {
-    const statusUpdates: Array<{ status: string }> = []
-
-    vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({
-      ok: true,
-      test: {
-        id: 'test-1',
-        title: 'Unit Test',
-        status: 'active',
-        classroom_id: 'classroom-1',
-        classrooms: { archived_at: null },
-      } as any,
-    })
-
+  it('returns finalize failure for closed tests', async () => {
     vi.mocked(finalizeUnsubmittedTestAttemptsOnClose).mockResolvedValueOnce({
       ok: false,
       status: 500,
@@ -531,16 +524,15 @@ describe('POST /api/teacher/tests/[id]/return', () => {
     } as any)
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'tests') {
+      if (table === 'test_student_availability') {
         return {
-          update: vi.fn((payload: { status: string }) => {
-            statusUpdates.push(payload)
-            return {
-              eq: vi.fn(() => ({
-                eq: vi.fn(async () => ({ error: null })),
-              })),
-            }
-          }),
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn(async () => ({
+              data: [],
+              error: null,
+            })),
+          })),
         }
       }
 
@@ -549,13 +541,12 @@ describe('POST /api/teacher/tests/[id]/return', () => {
 
     const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
       method: 'POST',
-      body: JSON.stringify({ student_ids: ['student-1'], close_test: true }),
+      body: JSON.stringify({ student_ids: ['student-1'] }),
     })
     const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
     const data = await response.json()
 
     expect(response.status).toBe(500)
     expect(data.error).toBe('Failed to finalize test submissions')
-    expect(statusUpdates).toEqual([{ status: 'closed' }, { status: 'active' }])
   })
 })

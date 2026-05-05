@@ -1796,7 +1796,7 @@ export function QuizDetailPanel({
               onClick={() => {
                 void handleOpenTestPreview()
               }}
-              disabled={openingTestPreview}
+              disabled={openingTestPreview || hasPendingMarkdownImport}
               className="h-8 gap-1.5 px-3 font-semibold"
             >
               <ExternalLink className="h-4 w-4" />

@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { assertStudentCanAccessTest } from '@/lib/server/tests'
+import {
+  assertStudentCanAccessTest,
+  getEffectiveStudentTestAccess,
+  getTestStudentAvailabilityState,
+} from '@/lib/server/tests'
 import {
   buildTestAttemptHistoryMetrics,
   normalizeTestResponses,
@@ -35,13 +39,23 @@ export const POST = withErrorHandler('PostStudentTestRespond', async (request, c
   const test = access.test
   const supabase = getServiceRoleClient()
 
-  if (test.status !== 'active') {
+  const availabilityResult = await getTestStudentAvailabilityState(supabase, testId, user.id)
+  if (availabilityResult.error && !availabilityResult.missingTable) {
+    console.error('Error fetching student test access for submit:', availabilityResult.error)
+    return NextResponse.json({ error: 'Failed to submit responses' }, { status: 500 })
+  }
+  const accessState = getEffectiveStudentTestAccess({
+    testStatus: test.status,
+    accessState: availabilityResult.state,
+  })
+
+  if (!accessState.can_start_or_continue) {
     return NextResponse.json({ error: 'Test is not active' }, { status: 400 })
   }
 
   const { data: existingAttempt, error: attemptError } = await supabase
     .from('test_attempts')
-    .select('id, responses, is_submitted')
+    .select('id, responses, is_submitted, closed_for_grading_at')
     .eq('test_id', testId)
     .eq('student_id', user.id)
     .maybeSingle()
@@ -53,6 +67,10 @@ export const POST = withErrorHandler('PostStudentTestRespond', async (request, c
 
   if (existingAttempt?.is_submitted) {
     return NextResponse.json({ error: 'You have already responded to this test' }, { status: 400 })
+  }
+
+  if (existingAttempt?.closed_for_grading_at) {
+    return NextResponse.json({ error: 'This test is closed for grading' }, { status: 400 })
   }
 
   const { data: existingResponses } = await supabase

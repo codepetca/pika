@@ -701,6 +701,7 @@ export interface CreateClassroomFromBlueprintInput {
 // Quiz types
 export type QuizStatus = 'draft' | 'active' | 'closed'
 export type QuizAssessmentType = 'quiz' | 'test'
+export type TestStudentAvailabilityState = 'open' | 'closed'
 export type QuizFocusEventType =
   | 'away_start'
   | 'away_end'
@@ -857,6 +858,9 @@ export interface QuizWithStats extends Quiz {
   stats: {
     total_students: number
     responded: number
+    submitted?: number
+    open_access?: number
+    closed_access?: number
     questions_count: number
   }
 }
