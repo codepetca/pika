@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
-import { assertTeacherOwnsTest, isMissingTestStudentAvailabilityError } from '@/lib/server/tests'
+import {
+  assertTeacherOwnsTest,
+  isMissingTestAttemptClosureColumnsError,
+  isMissingTestStudentAvailabilityError,
+} from '@/lib/server/tests'
 import { finalizeUnsubmittedTestAttemptsOnClose } from '@/lib/server/finalize-test-attempts'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { TestStudentAvailabilityState } from '@/types'
@@ -20,6 +24,65 @@ function parseStudentIds(value: unknown): string[] {
         .map((item) => item.trim())
     )
   )
+}
+
+async function unlockTeacherClosedAttemptsForAccessOpen(
+  supabase: ReturnType<typeof getServiceRoleClient>,
+  testId: string,
+  studentIds: string[]
+): Promise<{ ok: true; unlockedCount: number } | { ok: false; status: number; error: string }> {
+  const { data: lockedAttempts, error: lockedAttemptsError } = await supabase
+    .from('test_attempts')
+    .select('student_id')
+    .eq('test_id', testId)
+    .eq('is_submitted', false)
+    .not('closed_for_grading_at', 'is', null)
+    .in('student_id', studentIds)
+
+  if (lockedAttemptsError) {
+    console.error('Error loading teacher-closed test attempts:', lockedAttemptsError)
+    return { ok: false, status: 500, error: 'Failed to open selected student access' }
+  }
+
+  const lockedStudentIds = Array.from(
+    new Set((lockedAttempts || []).map((attempt) => attempt.student_id).filter(Boolean))
+  )
+  if (lockedStudentIds.length === 0) {
+    return { ok: true, unlockedCount: 0 }
+  }
+
+  const { error: deleteResponsesError } = await supabase
+    .from('test_responses')
+    .delete()
+    .eq('test_id', testId)
+    .in('student_id', lockedStudentIds)
+
+  if (deleteResponsesError) {
+    console.error('Error clearing finalized responses while opening selected student access:', deleteResponsesError)
+    return { ok: false, status: 500, error: 'Failed to open selected student access' }
+  }
+
+  const { error: unlockError } = await supabase
+    .from('test_attempts')
+    .update({
+      closed_for_grading_at: null,
+      closed_for_grading_by: null,
+      returned_at: null,
+      returned_by: null,
+    })
+    .eq('test_id', testId)
+    .eq('is_submitted', false)
+    .in('student_id', lockedStudentIds)
+
+  if (unlockError) {
+    if (isMissingTestAttemptClosureColumnsError(unlockError)) {
+      return { ok: false, status: 400, error: 'Opening teacher-closed test attempts requires migration 061 to be applied' }
+    }
+    console.error('Error unlocking teacher-closed test attempts:', unlockError)
+    return { ok: false, status: 500, error: 'Failed to open selected student access' }
+  }
+
+  return { ok: true, unlockedCount: lockedStudentIds.length }
 }
 
 // POST /api/teacher/tests/[id]/student-access - Open/close selected students' test access
@@ -71,6 +134,25 @@ export const POST = withErrorHandler('UpdateTeacherTestStudentAccess', async (re
     return NextResponse.json({ error: 'No selected students are enrolled in this classroom' }, { status: 400 })
   }
 
+  let lockedCount = 0
+  let unlockedCount = 0
+  if (state === 'closed') {
+    const finalizeResult = await finalizeUnsubmittedTestAttemptsOnClose(supabase, testId, {
+      studentIds: eligibleStudentIds,
+      closedBy: user.id,
+    })
+    if (!finalizeResult.ok) {
+      return NextResponse.json({ error: finalizeResult.error }, { status: finalizeResult.status })
+    }
+    lockedCount = finalizeResult.finalized_attempts
+  } else {
+    const unlockResult = await unlockTeacherClosedAttemptsForAccessOpen(supabase, testId, eligibleStudentIds)
+    if (!unlockResult.ok) {
+      return NextResponse.json({ error: unlockResult.error }, { status: unlockResult.status })
+    }
+    unlockedCount = unlockResult.unlockedCount
+  }
+
   const now = new Date().toISOString()
   const rows = eligibleStudentIds.map((studentId) => ({
     test_id: testId,
@@ -97,22 +179,11 @@ export const POST = withErrorHandler('UpdateTeacherTestStudentAccess', async (re
     return NextResponse.json({ error: 'Failed to update selected student access' }, { status: 500 })
   }
 
-  let lockedCount = 0
-  if (state === 'closed') {
-    const finalizeResult = await finalizeUnsubmittedTestAttemptsOnClose(supabase, testId, {
-      studentIds: eligibleStudentIds,
-      closedBy: user.id,
-    })
-    if (!finalizeResult.ok) {
-      return NextResponse.json({ error: finalizeResult.error }, { status: finalizeResult.status })
-    }
-    lockedCount = finalizeResult.finalized_attempts
-  }
-
   return NextResponse.json({
     updated_count: eligibleStudentIds.length,
     skipped_count: skippedStudentIds.length,
     locked_count: lockedCount,
+    unlocked_count: unlockedCount,
     state,
   })
 })

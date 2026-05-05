@@ -11062,3 +11062,13 @@
 - `pnpm lint`
 - `pnpm e2e:verify assessment-ux-parity`
 - Manual selected Tests screenshot: `/tmp/pika-tests-status-access-split-icons.png`
+
+## 2026-05-05 - PR review fix for selected reopen
+
+**Completed:**
+- Fixed `Open Selected` for previously teacher-closed in-progress test attempts by clearing `closed_for_grading_*` locks and removing temporary finalized response rows.
+- Added API coverage for reopening selected students after a teacher close.
+
+**Validation:**
+- `pnpm test tests/api/teacher/tests-student-access.test.ts tests/components/TeacherTestsTab.test.tsx tests/api/teacher/tests-unsubmit.test.ts tests/api/teacher/tests-student-attempt-delete.test.ts tests/unit/test-student-access.test.ts`
+- `pnpm lint`
