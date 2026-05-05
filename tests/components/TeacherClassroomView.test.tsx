@@ -1208,7 +1208,12 @@ describe('TeacherClassroomView', () => {
     })
 
     mockClearSelection.mockClear()
-    fireEvent.click(screen.getByRole('button', { name: 'Apply Grade to Selected Students' }))
+    const gradeSelectedOption = screen.getByRole('button', { name: 'Apply Grade to Selected Students' })
+    await waitFor(() => {
+      expect(gradeSelectedOption).not.toBeDisabled()
+    })
+
+    fireEvent.click(gradeSelectedOption)
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
 
     expect(await screen.findByText('Batch save failed')).toBeInTheDocument()

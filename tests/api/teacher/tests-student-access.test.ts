@@ -32,11 +32,13 @@ vi.mock('@/lib/server/tests', async () => {
   }
 })
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 describe('POST /api/teacher/tests/[id]/student-access', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSupabaseClient.from.mockReset()
+    mockSupabaseClient.rpc.mockReset()
   })
 
   it('requires state and selected students', async () => {
@@ -90,7 +92,10 @@ describe('POST /api/teacher/tests/[id]/student-access', () => {
   })
 
   it('upserts access for enrolled students and skips outsiders', async () => {
-    const upsertRows: Array<{ student_id: string; state: string }> = []
+    mockSupabaseClient.rpc.mockResolvedValueOnce({
+      data: { locked_count: 0, unlocked_count: 0, inserted_responses: 0 },
+      error: null,
+    })
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classroom_enrollments') {
@@ -102,37 +107,6 @@ describe('POST /api/teacher/tests/[id]/student-access', () => {
               error: null,
             })),
           })),
-        }
-      }
-      if (table === 'test_student_availability') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            in: vi.fn(async () => ({
-              data: [],
-              error: null,
-            })),
-          })),
-          upsert: vi.fn(async (rows: Array<{ student_id: string; state: string }>) => {
-            upsertRows.push(...rows)
-            return { error: null }
-          }),
-        }
-      }
-      if (table === 'test_questions') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(async () => ({ data: [], error: null })),
-          })),
-        }
-      }
-      if (table === 'test_attempts') {
-        const selectQuery: any = {
-          eq: vi.fn().mockReturnThis(),
-          in: vi.fn(async () => ({ data: [], error: null })),
-        }
-        return {
-          select: vi.fn(() => selectQuery),
         }
       }
       throw new Error(`Unexpected table: ${table}`)
@@ -149,18 +123,19 @@ describe('POST /api/teacher/tests/[id]/student-access', () => {
 
     expect(response.status).toBe(200)
     expect(data).toMatchObject({ updated_count: 1, skipped_count: 1, locked_count: 0, state: 'closed' })
-    expect(upsertRows).toEqual([
-      expect.objectContaining({
-        student_id: 'student-1',
-        state: 'closed',
-      }),
-    ])
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('update_test_student_access_atomic', {
+      p_test_id: 'test-1',
+      p_student_ids: ['student-1'],
+      p_state: 'closed',
+      p_updated_by: 'teacher-1',
+    })
   })
 
-  it('opens selected students by clearing teacher-close locks and finalized response rows', async () => {
-    const updatePayloads: unknown[] = []
-    const upsertRows: Array<{ student_id: string; state: string }> = []
-    const deletedResponseStudentIds: string[][] = []
+  it('opens selected students through the atomic access RPC', async () => {
+    mockSupabaseClient.rpc.mockResolvedValueOnce({
+      data: { locked_count: 0, unlocked_count: 1, inserted_responses: 0 },
+      error: null,
+    })
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classroom_enrollments') {
@@ -172,51 +147,6 @@ describe('POST /api/teacher/tests/[id]/student-access', () => {
               error: null,
             })),
           })),
-        }
-      }
-      if (table === 'test_attempts') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            not: vi.fn().mockReturnThis(),
-            in: vi.fn(async () => ({
-              data: [{ student_id: 'student-1' }],
-              error: null,
-            })),
-          })),
-          update: vi.fn((payload: unknown) => {
-            updatePayloads.push(payload)
-            return {
-              eq: vi.fn().mockReturnThis(),
-              in: vi.fn(async () => ({ error: null })),
-            }
-          }),
-        }
-      }
-      if (table === 'test_responses') {
-        return {
-          delete: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            in: vi.fn(async (_column: string, studentIds: string[]) => {
-              deletedResponseStudentIds.push(studentIds)
-              return { error: null }
-            }),
-          })),
-        }
-      }
-      if (table === 'test_student_availability') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            in: vi.fn(async () => ({
-              data: [{ student_id: 'student-1', state: 'closed' }],
-              error: null,
-            })),
-          })),
-          upsert: vi.fn(async (rows: Array<{ student_id: string; state: string }>) => {
-            upsertRows.push(...rows)
-            return { error: null }
-          }),
         }
       }
       throw new Error(`Unexpected table: ${table}`)
@@ -233,24 +163,19 @@ describe('POST /api/teacher/tests/[id]/student-access', () => {
 
     expect(response.status).toBe(200)
     expect(data).toMatchObject({ updated_count: 1, unlocked_count: 1, state: 'open' })
-    expect(deletedResponseStudentIds).toEqual([['student-1']])
-    expect(updatePayloads).toEqual([
-      expect.objectContaining({
-        closed_for_grading_at: null,
-        closed_for_grading_by: null,
-      }),
-    ])
-    expect(upsertRows).toEqual([
-      expect.objectContaining({
-        student_id: 'student-1',
-        state: 'open',
-      }),
-    ])
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('update_test_student_access_atomic', {
+      p_test_id: 'test-1',
+      p_student_ids: ['student-1'],
+      p_state: 'open',
+      p_updated_by: 'teacher-1',
+    })
   })
 
-  it('restores selected-student access when close side effects fail after upsert', async () => {
-    const upsertCalls: Array<Array<{ student_id: string; state: string }>> = []
-    const deleteRestores: string[][] = []
+  it('reports missing atomic access RPC migrations before mutating in route code', async () => {
+    mockSupabaseClient.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { code: 'PGRST202', message: 'Could not find function update_test_student_access_atomic' },
+    })
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classroom_enrollments') {
@@ -261,35 +186,6 @@ describe('POST /api/teacher/tests/[id]/student-access', () => {
               data: [{ student_id: 'student-existing' }, { student_id: 'student-new' }],
               error: null,
             })),
-          })),
-        }
-      }
-      if (table === 'test_student_availability') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            in: vi.fn(async () => ({
-              data: [{ student_id: 'student-existing', state: 'open' }],
-              error: null,
-            })),
-          })),
-          upsert: vi.fn(async (rows: Array<{ student_id: string; state: string }>) => {
-            upsertCalls.push(rows)
-            return { error: null }
-          }),
-          delete: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            in: vi.fn(async (_column: string, studentIds: string[]) => {
-              deleteRestores.push(studentIds)
-              return { error: null }
-            }),
-          })),
-        }
-      }
-      if (table === 'test_questions') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(async () => ({ data: null, error: { message: 'questions failed' } })),
           })),
         }
       }
@@ -308,15 +204,13 @@ describe('POST /api/teacher/tests/[id]/student-access', () => {
     )
     const data = await response.json()
 
-    expect(response.status).toBe(500)
-    expect(data.error).toBe('Failed to finalize test submissions')
-    expect(upsertCalls[0]).toEqual([
-      expect.objectContaining({ student_id: 'student-existing', state: 'closed' }),
-      expect.objectContaining({ student_id: 'student-new', state: 'closed' }),
-    ])
-    expect(upsertCalls[1]).toEqual([
-      expect.objectContaining({ student_id: 'student-existing', state: 'open' }),
-    ])
-    expect(deleteRestores).toEqual([['student-new']])
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('Selected-student exam access requires migrations 060-062 to be applied')
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('update_test_student_access_atomic', {
+      p_test_id: 'test-1',
+      p_student_ids: ['student-existing', 'student-new'],
+      p_state: 'closed',
+      p_updated_by: 'teacher-1',
+    })
   })
 })

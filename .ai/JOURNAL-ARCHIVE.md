@@ -11084,3 +11084,15 @@
 - `pnpm test tests/api/teacher/tests-student-access.test.ts tests/unit/test-student-access.test.ts`
 - `pnpm test:coverage`
 - `pnpm lint`
+
+## 2026-05-05 - PR review fix for atomic selected access
+
+**Completed:**
+- Added a Postgres RPC for selected-student access changes so availability updates, teacher-close finalization, and reopen cleanup run in one database transaction.
+- Switched the teacher student-access route to call the atomic RPC after ownership/enrollment validation.
+- Fixed the assignment workspace CI race by waiting for the apply-grade action to become enabled before opening the confirmation.
+
+**Validation:**
+- `pnpm test tests/api/teacher/tests-student-access.test.ts tests/components/TeacherClassroomView.test.tsx tests/unit/test-student-access.test.ts`
+- `pnpm test:coverage`
+- `pnpm lint`
