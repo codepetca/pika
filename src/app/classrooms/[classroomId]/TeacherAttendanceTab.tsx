@@ -15,6 +15,7 @@ import { StudentLogHistory } from '@/components/StudentLogHistory'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
+import { LogSummary } from './LogSummary'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
@@ -541,8 +542,26 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         />
       </div>
     ) : (
-      <div className="daily-table-enter flex-1 rounded-lg bg-surface">
-        {renderStudentTable(true)}
+      <div className="daily-table-enter flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+        <div className="min-h-[180px] flex-[2_1_0] overflow-auto rounded-lg bg-surface">
+          {renderStudentTable(true)}
+        </div>
+        {selectedDate && (
+          <section className="min-h-[140px] flex-[1_1_0] overflow-hidden rounded-lg bg-surface">
+            <div className="flex min-h-10 items-center border-b border-border px-3 py-2">
+              <h3 className="truncate text-sm font-semibold text-text-default">
+                Class Log Summary
+              </h3>
+            </div>
+            <div className="max-h-[min(260px,32vh)] overflow-y-auto">
+              <LogSummary
+                classroomId={classroom.id}
+                date={selectedDate}
+                onStudentClick={selectStudentByName}
+              />
+            </div>
+          </section>
+        )}
       </div>
     )
   )

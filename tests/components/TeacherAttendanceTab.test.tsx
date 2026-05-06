@@ -35,6 +35,12 @@ vi.mock('@/components/StudentLogHistory', () => ({
   ),
 }))
 
+vi.mock('@/app/classrooms/[classroomId]/LogSummary', () => ({
+  LogSummary: () => (
+    <div data-testid="class-log-summary">Cached class summary</div>
+  ),
+}))
+
 vi.mock('@/ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/ui')>()
   return {
@@ -131,6 +137,8 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('columnheader', { name: 'Log' })).toBeInTheDocument()
     expect(logText).toHaveClass('truncate')
     expect(logText).toHaveAttribute('title', longLogText)
+    expect(screen.getByText('Class Log Summary')).toBeInTheDocument()
+    expect(screen.getByTestId('class-log-summary')).toBeInTheDocument()
     expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
   })
 
@@ -145,6 +153,7 @@ describe('TeacherAttendanceTab', () => {
     expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-1')
     expect(screen.getByRole('separator', { name: 'Resize Daily panes' })).toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: 'Log' })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('class-log-summary')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('cell', { name: 'Student1', exact: true }))
 
@@ -152,6 +161,7 @@ describe('TeacherAttendanceTab', () => {
       expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
     })
     expect(screen.getByRole('columnheader', { name: 'Log' })).toBeInTheDocument()
+    expect(screen.getByTestId('class-log-summary')).toBeInTheDocument()
   })
 
   it('deselects the selected student when Escape is pressed', async () => {

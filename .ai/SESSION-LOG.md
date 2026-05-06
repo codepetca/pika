@@ -7,26 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-03 — Align classroom view toggle with FAB buttons
-
-**Completed:**
-- Replaced the custom Active/Archived classroom view pills with the shared `SegmentedControl`.
-- Moved the Active/Archived toggle to the left of the `New` button when classroom edit mode is enabled.
-- Added coverage for the edit-mode control ordering.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- Pika UI verification script for `/classrooms` on port 3003:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Manual Playwright screenshots:
-  - `/tmp/pika-classrooms-teacher-default.png`
-  - `/tmp/pika-classrooms-teacher-mobile-default.png`
-  - `/tmp/pika-teacher-edit.png`
-  - `/tmp/pika-teacher-mobile-edit.png`
-
 ## 2026-05-03 — Move classroom view toggle to bottom center
 
 **Completed:**
@@ -503,3 +483,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Re-ran targeted Daily selected/deselected browser check:
   - `/tmp/pika-teacher-daily-animated-selected.png`
   - `/tmp/pika-teacher-daily-animated-deselected.png`
+
+## 2026-05-06 — Restore Daily class summary placement
+
+**Completed:**
+- Restored the cached class log summary in the deselected Daily state as a full-width panel below the full-width student log table.
+- Kept the selected-student state focused on the split table/history pane, with the class summary hidden until deselection.
+- Added regression coverage so the class summary remains visible in the deselected table state and disappears during student-history selection.
+
+**Validation:**
+- `pnpm exec vitest tests/components/TeacherAttendanceTab.test.tsx tests/api/teacher/log-summary.test.ts`
+- `pnpm lint && pnpm build`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3002:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted Daily class summary screenshots/check:
+  - `/tmp/pika-teacher-summary-restored.png`
+  - `/tmp/pika-teacher-daily-summary-selected.png`
+  - `/tmp/pika-teacher-daily-summary-deselected.png`
