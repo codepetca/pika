@@ -155,6 +155,16 @@ describe('Calendar view mode persistence', () => {
         expect(readCookieSpy).toHaveBeenCalledWith('calendarViewMode:cls-123')
       })
     })
+
+    it('renders the teacher edit control in the calendar action cluster', async () => {
+      readCookieSpy.mockReturnValue(null)
+
+      render(<TeacherLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument()
+      })
+    })
   })
 
   describe('StudentLessonCalendarTab', () => {
@@ -200,6 +210,17 @@ describe('Calendar view mode persistence', () => {
       await waitFor(() => {
         expectCalendarViewSelected('week')
       })
+    })
+
+    it('does not render the teacher edit control', async () => {
+      readCookieSpy.mockReturnValue(null)
+
+      render(<StudentLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
+
+      await waitFor(() => {
+        expectCalendarViewSelected('week')
+      })
+      expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument()
     })
   })
 })

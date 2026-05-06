@@ -2,15 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addMonths, addWeeks, endOfMonth, format, startOfMonth, subMonths, subWeeks } from 'date-fns'
-import { PanelRight, PanelRightClose } from 'lucide-react'
-import { CalendarActionBar } from '@/components/CalendarActionBar'
+import {
+  CalendarActionBar,
+  getCalendarHeaderLabel,
+  type CalendarHeaderControlsState,
+} from '@/components/CalendarActionBar'
 import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useRightSidebar } from '@/components/layout'
+import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
 import { applyPendingLessonPlanChanges, lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
 import { useClassDays } from '@/hooks/useClassDays'
-import { Button } from '@/ui'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import type { Classroom, LessonPlan, TiptapContent, Assignment, Announcement } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
@@ -49,6 +52,7 @@ export interface CalendarSidebarState {
 interface Props {
   classroom: Classroom
   onSidebarStateChange?: (state: CalendarSidebarState | null) => void
+  onHeaderControlsChange?: (state: CalendarHeaderControlsState | null) => void
   onNavigateToAssignments?: (assignmentId?: string | null) => void
   onNavigateToAnnouncements?: () => void
 }
@@ -56,6 +60,7 @@ interface Props {
 export function TeacherLessonCalendarTab({
   classroom,
   onSidebarStateChange,
+  onHeaderControlsChange,
   onNavigateToAssignments = () => {},
   onNavigateToAnnouncements = () => {},
 }: Props) {
@@ -82,9 +87,20 @@ export function TeacherLessonCalendarTab({
   const [markdownError, setMarkdownError] = useState<string | null>(null)
   const [bulkSaving, setBulkSaving] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [isDateDocked, setIsDateDocked] = useState(false)
 
   const { toggle: toggleSidebar, isOpen: isSidebarOpen, setOpen: setSidebarOpen } = useRightSidebar()
   const { showMarkdown } = useMarkdownPreference()
+
+  useEffect(() => {
+    function updateDateDocking() {
+      setIsDateDocked(window.scrollY > 24)
+    }
+
+    updateDateDocking()
+    window.addEventListener('scroll', updateDateDocking, { passive: true })
+    return () => window.removeEventListener('scroll', updateDateDocking)
+  }, [])
 
   // Auto-save tracking
   const pendingChangesRef = useRef<Map<string, string>>(new Map())
@@ -472,6 +488,55 @@ export function TeacherLessonCalendarTab({
     onNavigateToAnnouncements()
   }, [onNavigateToAnnouncements])
 
+  const handlePreviousDate = useCallback(() => {
+    if (viewMode === 'week') {
+      setCurrentDate((prev) => subWeeks(prev, 1))
+    } else if (viewMode === 'month') {
+      setCurrentDate((prev) => subMonths(prev, 1))
+    }
+  }, [viewMode])
+
+  const handleNextDate = useCallback(() => {
+    if (viewMode === 'week') {
+      setCurrentDate((prev) => addWeeks(prev, 1))
+    } else if (viewMode === 'month') {
+      setCurrentDate((prev) => addMonths(prev, 1))
+    }
+  }, [viewMode])
+
+  const handleToday = useCallback(() => {
+    setCurrentDate(new Date())
+  }, [])
+
+  const headerLabel = getCalendarHeaderLabel(viewMode, currentDate, classroom.start_date, classroom.end_date)
+
+  useEffect(() => {
+    if (!onHeaderControlsChange) return undefined
+
+    if (!isDateDocked) {
+      onHeaderControlsChange(null)
+      return undefined
+    }
+
+    onHeaderControlsChange({
+      label: headerLabel,
+      showNavigation: viewMode !== 'all',
+      onPrev: handlePreviousDate,
+      onNext: handleNextDate,
+      onToday: handleToday,
+    })
+
+    return () => onHeaderControlsChange(null)
+  }, [
+    handleNextDate,
+    handlePreviousDate,
+    handleToday,
+    headerLabel,
+    isDateDocked,
+    onHeaderControlsChange,
+    viewMode,
+  ])
+
   // Notify parent when sidebar opens/closes, content changes, or error/saving state changes
   // Note: markdownContent IS included because the sidebar uses local state to avoid cursor jump.
   // TeacherLessonCalendarSidebar tracks isDirty and ignores external updates once user starts typing.
@@ -508,45 +573,27 @@ export function TeacherLessonCalendarTab({
         currentDate={currentDate}
         rangeStart={classroom.start_date}
         rangeEnd={classroom.end_date}
-        onPrev={() => {
-          if (viewMode === 'week') {
-            setCurrentDate((prev) => subWeeks(prev, 1))
-          } else if (viewMode === 'month') {
-            setCurrentDate((prev) => subMonths(prev, 1))
-          }
-        }}
-        onNext={() => {
-          if (viewMode === 'week') {
-            setCurrentDate((prev) => addWeeks(prev, 1))
-          } else if (viewMode === 'month') {
-            setCurrentDate((prev) => addMonths(prev, 1))
-          }
-        }}
-        onToday={() => setCurrentDate(new Date())}
+        onPrev={handlePreviousDate}
+        onNext={handleNextDate}
+        onToday={handleToday}
         onViewModeChange={handleViewModeChange}
-        trailing={
-          <div className="flex items-center gap-2">
-            {saving && <span className="text-sm text-text-muted">Saving...</span>}
+        datePlacement={isDateDocked ? 'header' : 'cluster'}
+        trailing={saving || showMarkdown ? (
+          <div className="flex items-center gap-1.5">
+            {saving && <span className="hidden text-sm text-text-muted sm:inline">Saving...</span>}
             {showMarkdown ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 w-9 px-0"
-                onClick={handleMarkdownToggle}
-                aria-label={isSidebarOpen ? 'Close sidebar' : 'Edit as Markdown'}
-              >
-                {isSidebarOpen ? (
-                  <PanelRightClose className="h-4 w-4" aria-hidden="true" />
-                ) : (
-                  <PanelRight className="h-4 w-4" aria-hidden="true" />
-                )}
-              </Button>
+              <TeacherEditModeControls
+                active={isSidebarOpen}
+                onActiveChange={handleMarkdownToggle}
+                disabled={Boolean(classroom.archived_at)}
+                variant="secondary"
+                className="[&>button>span]:sr-only sm:[&>button>span]:not-sr-only"
+              />
             ) : null}
           </div>
-        }
+        ) : null}
       />
-      <PageContent className="pt-2">
+      <PageContent className="pb-24 pt-2">
         <div className="overflow-hidden rounded-lg border border-border bg-surface">
           <LessonCalendar
             classroom={classroom}

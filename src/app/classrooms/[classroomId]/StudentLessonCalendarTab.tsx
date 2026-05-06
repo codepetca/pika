@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { addMonths, addWeeks, endOfMonth, format, startOfMonth, startOfWeek, subMonths, subWeeks } from 'date-fns'
-import { CalendarActionBar } from '@/components/CalendarActionBar'
+import {
+  CalendarActionBar,
+  getCalendarHeaderLabel,
+  type CalendarHeaderControlsState,
+} from '@/components/CalendarActionBar'
 import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
@@ -12,12 +16,14 @@ import type { Classroom, LessonPlan, Assignment, Announcement } from '@/types'
 
 interface Props {
   classroom: Classroom
+  onHeaderControlsChange?: (state: CalendarHeaderControlsState | null) => void
   onNavigateToAssignments?: (assignmentId: string) => void
   onNavigateToAnnouncements?: () => void
 }
 
 export function StudentLessonCalendarTab({
   classroom,
+  onHeaderControlsChange,
   onNavigateToAssignments = () => {},
   onNavigateToAnnouncements = () => {},
 }: Props) {
@@ -36,6 +42,17 @@ export function StudentLessonCalendarTab({
   }, [classroom.id])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [maxDate, setMaxDate] = useState<string | null>(null)
+  const [isDateDocked, setIsDateDocked] = useState(false)
+
+  useEffect(() => {
+    function updateDateDocking() {
+      setIsDateDocked(window.scrollY > 24)
+    }
+
+    updateDateDocking()
+    window.addEventListener('scroll', updateDateDocking, { passive: true })
+    return () => window.removeEventListener('scroll', updateDateDocking)
+  }, [])
 
   // Always fetch the full term - switching views is then instant
   const fetchRange = {
@@ -85,7 +102,7 @@ export function StudentLessonCalendarTab({
   }, [onNavigateToAnnouncements])
 
   // Prevent navigation beyond max date
-  const handleDateChange = (newDate: Date) => {
+  const handleDateChange = useCallback((newDate: Date) => {
     if (maxDate) {
       const newDateStr = format(startOfWeek(newDate, { weekStartsOn: 0 }), 'yyyy-MM-dd')
       if (newDateStr > maxDate) {
@@ -94,7 +111,56 @@ export function StudentLessonCalendarTab({
       }
     }
     setCurrentDate(newDate)
-  }
+  }, [maxDate])
+
+  const handlePreviousDate = useCallback(() => {
+    if (viewMode === 'week') {
+      handleDateChange(subWeeks(currentDate, 1))
+    } else if (viewMode === 'month') {
+      handleDateChange(subMonths(currentDate, 1))
+    }
+  }, [currentDate, handleDateChange, viewMode])
+
+  const handleNextDate = useCallback(() => {
+    if (viewMode === 'week') {
+      handleDateChange(addWeeks(currentDate, 1))
+    } else if (viewMode === 'month') {
+      handleDateChange(addMonths(currentDate, 1))
+    }
+  }, [currentDate, handleDateChange, viewMode])
+
+  const handleToday = useCallback(() => {
+    handleDateChange(new Date())
+  }, [handleDateChange])
+
+  const headerLabel = getCalendarHeaderLabel(viewMode, currentDate, classroom.start_date, classroom.end_date)
+
+  useEffect(() => {
+    if (!onHeaderControlsChange) return undefined
+
+    if (!isDateDocked) {
+      onHeaderControlsChange(null)
+      return undefined
+    }
+
+    onHeaderControlsChange({
+      label: headerLabel,
+      showNavigation: viewMode !== 'all',
+      onPrev: handlePreviousDate,
+      onNext: handleNextDate,
+      onToday: handleToday,
+    })
+
+    return () => onHeaderControlsChange(null)
+  }, [
+    handleNextDate,
+    handlePreviousDate,
+    handleToday,
+    headerLabel,
+    isDateDocked,
+    onHeaderControlsChange,
+    viewMode,
+  ])
 
   if (loading && lessonPlans.length === 0) {
     return (
@@ -115,24 +181,13 @@ export function StudentLessonCalendarTab({
         currentDate={currentDate}
         rangeStart={classroom.start_date}
         rangeEnd={classroom.end_date}
-        onPrev={() => {
-          if (viewMode === 'week') {
-            handleDateChange(subWeeks(currentDate, 1))
-          } else if (viewMode === 'month') {
-            handleDateChange(subMonths(currentDate, 1))
-          }
-        }}
-        onNext={() => {
-          if (viewMode === 'week') {
-            handleDateChange(addWeeks(currentDate, 1))
-          } else if (viewMode === 'month') {
-            handleDateChange(addMonths(currentDate, 1))
-          }
-        }}
-        onToday={() => handleDateChange(new Date())}
+        onPrev={handlePreviousDate}
+        onNext={handleNextDate}
+        onToday={handleToday}
         onViewModeChange={handleViewModeChange}
+        datePlacement={isDateDocked ? 'header' : 'cluster'}
       />
-      <PageContent className="pt-2">
+      <PageContent className="pb-24 pt-2">
         <div className="overflow-hidden rounded-lg border border-border bg-surface">
           <LessonCalendar
             classroom={classroom}

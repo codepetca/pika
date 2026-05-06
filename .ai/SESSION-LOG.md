@@ -273,6 +273,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-assignment-split-teacher.png`
   - `/tmp/pika-test-grading-split-teacher.png`
 - Playwright assertion pass confirmed no document-level vertical scroll on the affected desktop split routes and a 126px resize-handle movement after drag.
+
 ## 2026-05-06 — Make assignment edit mode modal-close ephemeral
 
 **Completed:**
@@ -294,3 +295,77 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-assignment-edit-mode-before-create-modal.png`
   - `/tmp/pika-assignment-create-modal-before-close-ephemeral.png`
   - `/tmp/pika-assignment-edit-mode-after-create-close.png`
+
+## 2026-05-06 — Align calendar controls with floating tab pattern
+
+**Completed:**
+- Moved the classroom calendar date navigator and Week/Month/All selector into the shared centered floating action cluster.
+- Replaced the teacher calendar markdown-sidebar icon with the shared Edit control and kept student calendar without teacher edit chrome.
+- Set the teacher calendar title-bar label to `Calendar` and added mobile spacing so the wrapped teacher FAB does not cover the calendar header.
+- Follow-up: stacked the Week/Month/All selector below the date navigator, with teacher Edit beside the lower selector row.
+- Follow-up: moved teacher Edit into the date navigator row and aligned it to the row's right edge while keeping Week/Month/All below.
+- Follow-up: moved teacher Edit into its own right-side floating FAB, kept the center FAB focused on date + view mode, and added bottom calendar padding so the last table row does not end at the viewport edge.
+- Made the mobile teacher edit FAB icon-only with an accessible label so the long All-date range does not collide with the right FAB.
+- Follow-up: replaced the far-right edit FAB with an inline Edit control beside Week/Month/All and added scroll docking so the calendar date navigator moves into the app header after scrolling, leaving a shorter selector/Edit floating cluster.
+- Rebase follow-up: rebased `codex/calendar-fab-pattern` onto latest `origin/main` without conflicts; branch has no added migrations to resequence and duplicate migration prefix check was clean.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/calendar-view-persistence.test.tsx tests/components/StudentLessonCalendarTab.test.tsx tests/components/LessonCalendar.test.tsx`
+- `pnpm build`
+- `pnpm test`
+- Pika UI verification script for teacher/student calendar capture:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots after role-specific classroom routing and loaded-state waits:
+  - `/tmp/pika-teacher-calendar-week.png`
+  - `/tmp/pika-teacher-calendar-mobile-week-2.png`
+  - `/tmp/pika-teacher-calendar-mobile-all-2.png`
+  - `/tmp/pika-student-calendar-mobile-week.png`
+  - `/tmp/pika-student-calendar-mobile-all.png`
+  - `/tmp/pika-teacher-calendar-dark.png`
+- Follow-up validation:
+  - `pnpm lint`
+  - `pnpm test tests/components/calendar-view-persistence.test.tsx tests/components/StudentLessonCalendarTab.test.tsx tests/components/LessonCalendar.test.tsx`
+  - `pnpm build`
+  - `/tmp/pika-teacher-calendar-selector-below.png`
+  - `/tmp/pika-teacher-calendar-mobile-selector-below.png`
+  - `/tmp/pika-teacher-calendar-mobile-all-selector-below.png`
+  - `/tmp/pika-student-calendar-mobile-selector-below.png`
+  - `/tmp/pika-student-calendar-mobile-all-selector-below.png`
+- Edit-row follow-up validation:
+  - `pnpm lint`
+  - `pnpm test tests/components/calendar-view-persistence.test.tsx tests/components/StudentLessonCalendarTab.test.tsx tests/components/LessonCalendar.test.tsx`
+  - `pnpm build`
+  - `/tmp/pika-teacher-calendar-edit-top-right.png`
+  - `/tmp/pika-teacher-calendar-mobile-edit-top-right.png`
+  - `/tmp/pika-teacher-calendar-mobile-all-edit-top-right.png`
+  - `/tmp/pika-student-calendar-mobile-edit-top-right.png`
+- Independent-FAB/bottom-buffer follow-up validation:
+  - `pnpm lint`
+  - `pnpm test tests/components/calendar-view-persistence.test.tsx tests/components/LessonCalendar.test.tsx tests/components/StudentLessonCalendarTab.test.tsx tests/components/TeacherEditModeControls.test.tsx`
+  - `pnpm build`
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-teacher-mobile-compact-edit-loaded.png`
+  - `/tmp/pika-teacher-calendar-mobile-all-bottom-compact-edit.png`
+  - `/tmp/pika-teacher-calendar-desktop-all-bottom.png`
+  - `/tmp/pika-student-calendar-valid.png`
+  - `/tmp/pika-student-calendar-mobile-all-bottom-buffer.png`
+  - `/tmp/pika-teacher-calendar-320-all-compact-edit.png`
+- Scroll-docked date follow-up validation:
+  - `pnpm lint`
+  - `pnpm test tests/components/calendar-view-persistence.test.tsx tests/components/LessonCalendar.test.tsx tests/components/StudentLessonCalendarTab.test.tsx tests/components/TeacherEditModeControls.test.tsx`
+  - `pnpm test tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherClassroomView.test.tsx`
+  - `pnpm build`
+  - `/tmp/pika-calendar-scroll-teacher-initial-desktop.png`
+  - `/tmp/pika-calendar-scroll-teacher-scrolled-desktop.png`
+  - `/tmp/pika-calendar-scroll-teacher-initial-mobile.png`
+  - `/tmp/pika-calendar-scroll-teacher-scrolled-mobile.png`
+  - `/tmp/pika-calendar-scroll-student-scrolled-mobile.png`
+- Rebase validation:
+  - `pnpm lint`
+  - `pnpm test tests/components/calendar-view-persistence.test.tsx tests/components/LessonCalendar.test.tsx tests/components/StudentLessonCalendarTab.test.tsx tests/components/TeacherEditModeControls.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherClassroomView.test.tsx`
+  - `pnpm build`
+  - `git -C "$PIKA_WORKTREE" diff --name-only --diff-filter=A origin/main -- supabase/migrations`
+  - duplicate migration prefix check returned no output
