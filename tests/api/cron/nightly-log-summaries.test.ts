@@ -155,6 +155,224 @@ describe('cron nightly-log-summaries route', () => {
     expect(callOpenAIForSummary).not.toHaveBeenCalled()
   })
 
+  it('returns 500 when classroom discovery fails', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      expect(table).toBe('entries')
+      return {
+        select: vi.fn(() => {
+          const query: any = {
+            eq: vi.fn(() => query),
+            is: vi.fn(() => query),
+            lte: vi.fn(() => query),
+            gte: vi.fn().mockResolvedValue({
+              data: null,
+              error: { message: 'entries failed' },
+            }),
+          }
+          return query
+        }),
+      }
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/cron/nightly-log-summaries', {
+        headers: { Authorization: 'Bearer secret' },
+      })
+    )
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to fetch entries' })
+    expect(callOpenAIForSummary).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 when class-day discovery fails', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'entries') {
+        return {
+          select: vi.fn(() => {
+            const query: any = {
+              eq: vi.fn(() => query),
+              is: vi.fn(() => query),
+              lte: vi.fn(() => query),
+              gte: vi.fn().mockResolvedValue({
+                data: [{ classroom_id: 'classroom-1' }],
+                error: null,
+              }),
+            }
+            return query
+          }),
+        }
+      }
+
+      if (table === 'class_days') {
+        return {
+          select: vi.fn(() => {
+            const query: any = {
+              in: vi.fn(() => query),
+              eq: vi.fn(() => query),
+            }
+            query.eq
+              .mockReturnValueOnce(query)
+              .mockResolvedValueOnce({ data: null, error: { message: 'class days failed' } })
+            return query
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/cron/nightly-log-summaries', {
+        headers: { Authorization: 'Bearer secret' },
+      })
+    )
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to fetch class days' })
+    expect(callOpenAIForSummary).not.toHaveBeenCalled()
+  })
+
+  it('skips a classroom when the eligibility recheck no longer finds it active and in range', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'entries') {
+        return {
+          select: vi.fn(() => {
+            const query: any = {
+              eq: vi.fn(() => query),
+              is: vi.fn(() => query),
+              lte: vi.fn(() => query),
+              gte: vi.fn().mockResolvedValue({
+                data: [{ classroom_id: 'classroom-1' }],
+                error: null,
+              }),
+            }
+            return query
+          }),
+        }
+      }
+
+      if (table === 'class_days') {
+        return {
+          select: vi.fn(() => {
+            const query: any = {
+              in: vi.fn(() => query),
+              eq: vi.fn(() => query),
+            }
+            query.eq
+              .mockReturnValueOnce(query)
+              .mockResolvedValueOnce({ data: [{ classroom_id: 'classroom-1' }], error: null })
+            return query
+          }),
+        }
+      }
+
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => {
+            const query: any = {
+              eq: vi.fn(() => query),
+              is: vi.fn(() => query),
+              lte: vi.fn(() => query),
+              gte: vi.fn(() => query),
+              single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+            }
+            return query
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/cron/nightly-log-summaries', {
+        headers: { Authorization: 'Bearer secret' },
+      })
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ status: 'ok', generated: 0, skipped: 1 })
+    expect(callOpenAIForSummary).not.toHaveBeenCalled()
+  })
+
+  it('skips a classroom when the eligibility recheck no longer finds a class day', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    let classDaySelectCount = 0
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'entries') {
+        return {
+          select: vi.fn(() => {
+            const query: any = {
+              eq: vi.fn(() => query),
+              is: vi.fn(() => query),
+              lte: vi.fn(() => query),
+              gte: vi.fn().mockResolvedValue({
+                data: [{ classroom_id: 'classroom-1' }],
+                error: null,
+              }),
+            }
+            return query
+          }),
+        }
+      }
+
+      if (table === 'class_days') {
+        return {
+          select: vi.fn(() => {
+            classDaySelectCount++
+            if (classDaySelectCount === 1) {
+              const query: any = {
+                in: vi.fn(() => query),
+                eq: vi.fn(() => query),
+              }
+              query.eq
+                .mockReturnValueOnce(query)
+                .mockResolvedValueOnce({ data: [{ classroom_id: 'classroom-1' }], error: null })
+              return query
+            }
+
+            const query: any = {
+              eq: vi.fn(() => query),
+              single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+            }
+            return query
+          }),
+        }
+      }
+
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => {
+            const query: any = {
+              eq: vi.fn(() => query),
+              is: vi.fn(() => query),
+              lte: vi.fn(() => query),
+              gte: vi.fn(() => query),
+              single: vi.fn().mockResolvedValue({ data: { id: 'classroom-1' }, error: null }),
+            }
+            return query
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/cron/nightly-log-summaries', {
+        headers: { Authorization: 'Bearer secret' },
+      })
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ status: 'ok', generated: 0, skipped: 1 })
+    expect(callOpenAIForSummary).not.toHaveBeenCalled()
+  })
+
   it('generates and stores a summary for active classrooms', async () => {
     vi.stubEnv('CRON_SECRET', 'secret')
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {

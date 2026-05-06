@@ -7,29 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-04 — Split announcements from resources tab
-
-**Completed:**
-- Added a dedicated `Announcements` classroom tab for teachers and students.
-- Moved announcement feeds into the new tab and made `Resources` show only class resources.
-- Routed unread announcement activity to the Announcements nav item.
-- Updated calendar announcement links, layout route keys, UI gallery links, and focused coverage.
-
-**Validation:**
-- `pnpm test tests/components/ResourcesTab.test.tsx tests/components/NavItems.test.tsx tests/unit/layout-config.test.ts tests/components/ThreePanelProvider.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-- Pika UI verification script on port 3010:
-  - `classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=resources`
-  - `classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=announcements`
-- Manual Playwright student captures for the student-accessible classroom:
-  - `/tmp/pika-student-resources-accessible.png`
-  - `/tmp/pika-student-announcements-accessible.png`
-- Manual mobile drawer captures:
-  - `/tmp/pika-teacher-mobile-drawer.png`
-  - `/tmp/pika-student-mobile-drawer.png`
-
 ## 2026-05-04 — Make message popup background solid
 
 **Completed:**
@@ -443,3 +420,14 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm vitest run tests/api/cron/nightly-log-summaries.test.ts`
 - `pnpm lint`
 - `pnpm test -- tests/api/cron/nightly-log-summaries.test.ts` (ran full suite: 251 files, 2110 tests)
+
+## 2026-05-06 — Fix cron coverage gate
+
+**Completed:**
+- Addressed the latest CI failure for `src/app/api/cron/nightly-log-summaries/route.ts` per-file coverage.
+- Added cron route tests for entry discovery errors, class-day discovery errors, and eligibility recheck skip paths.
+
+**Validation:**
+- `pnpm vitest run tests/api/cron/nightly-log-summaries.test.ts`
+- `pnpm run test:coverage`
+- `pnpm lint`
