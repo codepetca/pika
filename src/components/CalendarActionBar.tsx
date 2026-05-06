@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button, SegmentedControl } from '@/ui'
 import { PageActionBar } from '@/components/PageLayout'
+import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import type { CalendarViewMode } from '@/components/LessonCalendar'
 
 interface CalendarActionBarProps {
@@ -119,44 +120,35 @@ export function CalendarActionBar({
     <PageActionBar
       className={className}
       primary={
-        <div className="relative flex min-h-9 w-full items-center">
-          <CalendarDateNavigator
-            label={headerLabel}
-            onPrev={onPrev}
-            onNext={onNext}
-            onLabelClick={onToday}
-            showNavigation={viewMode !== 'all'}
-          />
+        <TeacherWorkSurfaceActionBar
+          center={
+            <div className="flex max-w-full flex-wrap items-center justify-center gap-1.5">
+              <CalendarDateNavigator
+                label={headerLabel}
+                onPrev={onPrev}
+                onNext={onNext}
+                onLabelClick={viewMode === 'all' ? undefined : onToday}
+                showNavigation={viewMode !== 'all'}
+                className="max-w-full"
+              />
 
-          <SegmentedControl<CalendarViewMode>
-            ariaLabel="Calendar view"
-            value={viewMode}
-            onChange={onViewModeChange}
-            capitalizeLabels
-            className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 sm:flex"
-            options={[
-              { value: 'week', label: 'Week' },
-              { value: 'month', label: 'Month' },
-              { value: 'all', label: 'All' },
-            ]}
-          />
+              <SegmentedControl<CalendarViewMode>
+                ariaLabel="Calendar view"
+                value={viewMode}
+                onChange={onViewModeChange}
+                capitalizeLabels
+                options={[
+                  { value: 'week', label: 'Week' },
+                  { value: 'month', label: 'Month' },
+                  { value: 'all', label: 'All' },
+                ]}
+              />
 
-          <div className="ml-auto flex items-center gap-2 sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2">
-            <SegmentedControl<CalendarViewMode>
-              ariaLabel="Calendar view"
-              value={viewMode}
-              onChange={onViewModeChange}
-              capitalizeLabels
-              className="sm:hidden"
-              options={[
-                { value: 'week', label: 'Week' },
-                { value: 'month', label: 'Month' },
-                { value: 'all', label: 'All' },
-              ]}
-            />
-            {trailing}
-          </div>
-        </div>
+              {trailing}
+            </div>
+          }
+          centerPlacement="floating"
+        />
       }
     />
   )

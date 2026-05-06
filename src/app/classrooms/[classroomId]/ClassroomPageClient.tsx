@@ -523,6 +523,10 @@ function ClassroomPageContent({
         : 'Tests'
     }
 
+    if (activeTab === 'calendar') {
+      return 'Calendar'
+    }
+
     return undefined
   }, [
     activeTab,

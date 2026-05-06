@@ -294,3 +294,26 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-assignment-edit-mode-before-create-modal.png`
   - `/tmp/pika-assignment-create-modal-before-close-ephemeral.png`
   - `/tmp/pika-assignment-edit-mode-after-create-close.png`
+## 2026-05-06 — Align calendar controls with floating tab pattern
+
+**Completed:**
+- Moved the classroom calendar date navigator and Week/Month/All selector into the shared centered floating action cluster.
+- Replaced the teacher calendar markdown-sidebar icon with the shared Edit control and kept student calendar without teacher edit chrome.
+- Set the teacher calendar title-bar label to `Calendar` and added mobile spacing so the wrapped teacher FAB does not cover the calendar header.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/calendar-view-persistence.test.tsx tests/components/StudentLessonCalendarTab.test.tsx tests/components/LessonCalendar.test.tsx`
+- `pnpm build`
+- `pnpm test`
+- Pika UI verification script for teacher/student calendar capture:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshots after role-specific classroom routing and loaded-state waits:
+  - `/tmp/pika-teacher-calendar-week.png`
+  - `/tmp/pika-teacher-calendar-mobile-week-2.png`
+  - `/tmp/pika-teacher-calendar-mobile-all-2.png`
+  - `/tmp/pika-student-calendar-mobile-week.png`
+  - `/tmp/pika-student-calendar-mobile-all.png`
+  - `/tmp/pika-teacher-calendar-dark.png`

@@ -2,15 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addMonths, addWeeks, endOfMonth, format, startOfMonth, subMonths, subWeeks } from 'date-fns'
-import { PanelRight, PanelRightClose } from 'lucide-react'
 import { CalendarActionBar } from '@/components/CalendarActionBar'
 import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useRightSidebar } from '@/components/layout'
+import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
 import { applyPendingLessonPlanChanges, lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
 import { useClassDays } from '@/hooks/useClassDays'
-import { Button } from '@/ui'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import type { Classroom, LessonPlan, TiptapContent, Assignment, Announcement } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
@@ -504,6 +503,7 @@ export function TeacherLessonCalendarTab({
   return (
     <PageLayout bleedX={false}>
       <CalendarActionBar
+        className="pb-10 sm:pb-0"
         viewMode={viewMode}
         currentDate={currentDate}
         rangeStart={classroom.start_date}
@@ -525,23 +525,15 @@ export function TeacherLessonCalendarTab({
         onToday={() => setCurrentDate(new Date())}
         onViewModeChange={handleViewModeChange}
         trailing={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {saving && <span className="text-sm text-text-muted">Saving...</span>}
             {showMarkdown ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-9 w-9 px-0"
-                onClick={handleMarkdownToggle}
-                aria-label={isSidebarOpen ? 'Close sidebar' : 'Edit as Markdown'}
-              >
-                {isSidebarOpen ? (
-                  <PanelRightClose className="h-4 w-4" aria-hidden="true" />
-                ) : (
-                  <PanelRight className="h-4 w-4" aria-hidden="true" />
-                )}
-              </Button>
+              <TeacherEditModeControls
+                active={isSidebarOpen}
+                onActiveChange={handleMarkdownToggle}
+                disabled={Boolean(classroom.archived_at)}
+                variant="secondary"
+              />
             ) : null}
           </div>
         }
