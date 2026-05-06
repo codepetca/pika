@@ -124,14 +124,18 @@ export function CalendarActionBar({
         <TeacherWorkSurfaceActionBar
           center={
             <div className="flex max-w-full flex-col items-center justify-center gap-1.5">
-              <CalendarDateNavigator
-                label={headerLabel}
-                onPrev={onPrev}
-                onNext={onNext}
-                onLabelClick={viewMode === 'all' ? undefined : onToday}
-                showNavigation={viewMode !== 'all'}
-                className="max-w-full"
-              />
+              <div className="flex w-full max-w-full items-center justify-between gap-3">
+                <CalendarDateNavigator
+                  label={headerLabel}
+                  onPrev={onPrev}
+                  onNext={onNext}
+                  onLabelClick={viewMode === 'all' ? undefined : onToday}
+                  showNavigation={viewMode !== 'all'}
+                  className="max-w-full"
+                />
+
+                {trailing}
+              </div>
 
               <div className="flex flex-wrap items-center justify-center gap-1.5">
                 <SegmentedControl<CalendarViewMode>
@@ -145,8 +149,6 @@ export function CalendarActionBar({
                     { value: 'all', label: 'All' },
                   ]}
                 />
-
-                {trailing}
               </div>
             </div>
           }

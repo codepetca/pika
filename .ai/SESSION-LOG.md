@@ -301,6 +301,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Replaced the teacher calendar markdown-sidebar icon with the shared Edit control and kept student calendar without teacher edit chrome.
 - Set the teacher calendar title-bar label to `Calendar` and added mobile spacing so the wrapped teacher FAB does not cover the calendar header.
 - Follow-up: stacked the Week/Month/All selector below the date navigator, with teacher Edit beside the lower selector row.
+- Follow-up: moved teacher Edit into the date navigator row and aligned it to the row's right edge while keeping Week/Month/All below.
 
 **Validation:**
 - `pnpm lint`
@@ -327,3 +328,11 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-teacher-calendar-mobile-all-selector-below.png`
   - `/tmp/pika-student-calendar-mobile-selector-below.png`
   - `/tmp/pika-student-calendar-mobile-all-selector-below.png`
+- Edit-row follow-up validation:
+  - `pnpm lint`
+  - `pnpm test tests/components/calendar-view-persistence.test.tsx tests/components/StudentLessonCalendarTab.test.tsx tests/components/LessonCalendar.test.tsx`
+  - `pnpm build`
+  - `/tmp/pika-teacher-calendar-edit-top-right.png`
+  - `/tmp/pika-teacher-calendar-mobile-edit-top-right.png`
+  - `/tmp/pika-teacher-calendar-mobile-all-edit-top-right.png`
+  - `/tmp/pika-student-calendar-mobile-edit-top-right.png`
