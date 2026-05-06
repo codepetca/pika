@@ -21,6 +21,7 @@ interface AppShellProps {
   onNavigateHome?: (href: string) => boolean
   onNavigateClassroom?: (href: string) => boolean
   mainClassName?: string
+  constrainToViewport?: boolean
   examModeHeader?: {
     testTitle: string
     exitsCount: number
@@ -44,11 +45,14 @@ export function AppShell({
   onNavigateHome,
   onNavigateClassroom,
   mainClassName,
+  constrainToViewport = false,
   examModeHeader,
   pageTitle,
 }: AppShellProps) {
+  const shouldConstrainViewport = constrainToViewport || !!examModeHeader
+
   return (
-    <div className={`flex min-h-dvh flex-col bg-page${examModeHeader ? ' lg:h-dvh lg:overflow-hidden' : ''}`}>
+    <div className={`flex min-h-dvh flex-col bg-page${shouldConstrainViewport ? ' lg:h-dvh lg:overflow-hidden' : ''}`}>
       {showHeader && (
         <AppHeader
           user={user}
@@ -65,8 +69,9 @@ export function AppShell({
       <main
         className={[
           'flex-1 min-h-0',
+          shouldConstrainViewport ? 'lg:overflow-hidden' : '',
           mainClassName || 'max-w-7xl mx-auto px-4 py-3',
-        ].join(' ')}
+        ].filter(Boolean).join(' ')}
       >
         {children}
       </main>

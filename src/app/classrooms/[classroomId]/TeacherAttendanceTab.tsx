@@ -339,7 +339,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       primary={
         // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
         <div
-          className="h-full"
+          className="h-full min-h-0 overflow-auto"
           onClick={(e) => {
             // Deselect when clicking outside the table
             if (selectedStudentId && (e.target as HTMLElement).closest('table') === null) {
