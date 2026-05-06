@@ -167,6 +167,140 @@ describe('GET /api/teacher/log-summary', () => {
     await expect(response.json()).resolves.toEqual({ error: 'Forbidden' })
   })
 
+  it('returns 404 when the classroom cannot be found', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'not found' },
+              }),
+            })),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/log-summary?classroom_id=c1&date=2026-03-15')
+    )
+
+    expect(response.status).toBe(404)
+    await expect(response.json()).resolves.toEqual({ error: 'Classroom not found' })
+  })
+
+  it('returns 500 when entry stats cannot be loaded', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { teacher_id: 'teacher-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'entries') {
+        return {
+          select: vi.fn((columns: string) => {
+            if (columns === 'updated_at') {
+              const updatedAtQuery: any = {
+                eq: vi.fn(() => updatedAtQuery),
+                order: vi.fn(() => ({
+                  limit: vi.fn().mockResolvedValue({
+                    data: null,
+                    error: { message: 'stats failed' },
+                  }),
+                })),
+              }
+              return updatedAtQuery
+            }
+
+            throw new Error(`Unexpected entries select: ${columns}`)
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/log-summary?classroom_id=c1&date=2026-03-15')
+    )
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to fetch entries' })
+    errorSpy.mockRestore()
+  })
+
+  it('returns 500 when entry count cannot be loaded', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { teacher_id: 'teacher-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'entries') {
+        return {
+          select: vi.fn((columns: string, options?: Record<string, unknown>) => {
+            if (columns === 'updated_at') {
+              const updatedAtQuery: any = {
+                eq: vi.fn(() => updatedAtQuery),
+                order: vi.fn(() => ({
+                  limit: vi.fn().mockResolvedValue({
+                    data: [{ updated_at: '2026-03-15T12:00:00.000Z' }],
+                    error: null,
+                  }),
+                })),
+              }
+              return updatedAtQuery
+            }
+
+            if (options?.head) {
+              const countQuery: any = {
+                eq: vi.fn(() => countQuery),
+                then: vi.fn((resolve: any) =>
+                  Promise.resolve(resolve({ count: null, error: { message: 'count failed' } }))
+                ),
+              }
+              return countQuery
+            }
+
+            throw new Error(`Unexpected entries select: ${columns}`)
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/log-summary?classroom_id=c1&date=2026-03-15')
+    )
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to count entries' })
+    errorSpy.mockRestore()
+  })
+
   it('returns pending when entries exist but the cached summary is stale', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classrooms') {

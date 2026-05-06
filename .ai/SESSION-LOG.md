@@ -7,27 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-03 — Move classroom view toggle to bottom center
-
-**Completed:**
-- Moved the Active/Archived classroom view segmented control out of the top FAB cluster.
-- Rendered the view toggle fixed at the bottom center while classroom edit mode is enabled.
-- Kept `New` and `Edit` in the centered top FAB cluster.
-- Added bottom padding in edit mode so fixed controls do not cover classroom cards.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- Pika UI verification script for `/classrooms` on port 3003:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Manual Playwright screenshots:
-  - `/tmp/pika-classrooms-teacher-default.png`
-  - `/tmp/pika-classrooms-teacher-mobile-default.png`
-  - `/tmp/pika-teacher-edit.png`
-  - `/tmp/pika-teacher-mobile-edit.png`
-
 ## 2026-05-03 — Always show classroom view toggle
 
 **Completed:**
@@ -502,3 +481,14 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-teacher-summary-restored.png`
   - `/tmp/pika-teacher-daily-summary-selected.png`
   - `/tmp/pika-teacher-daily-summary-deselected.png`
+
+## 2026-05-06 — Fix PR coverage gate
+
+**Completed:**
+- Investigated the failed GitHub CI run on the first PR commit.
+- Found the failure was a per-file coverage threshold miss for `src/app/api/teacher/log-summary/route.ts`.
+- Added route tests for classroom-not-found, entry-stats failure, and entry-count failure to cover the cron-only summary endpoint error branches.
+
+**Validation:**
+- `pnpm run test:coverage`
+- `pnpm lint`
