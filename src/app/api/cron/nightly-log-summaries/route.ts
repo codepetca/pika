@@ -19,6 +19,8 @@ export const revalidate = 0
 const TIMEZONE = 'America/Toronto'
 const CONCURRENCY_LIMIT = 5
 
+type SupabaseClient = ReturnType<typeof getServiceRoleClient>
+
 function getCronAuthHeader(request: NextRequest): string | null {
   return request.headers.get('authorization') ?? request.headers.get('Authorization')
 }
@@ -45,22 +47,13 @@ async function handle(request: NextRequest) {
     'yyyy-MM-dd'
   )
 
-  // Find only active classrooms that had entries yesterday (single query)
-  const { data: activeEntries, error: entriesError } = await supabase
-    .from('entries')
-    .select('classroom_id, classrooms!inner(archived_at)')
-    .eq('date', yesterday)
-    .is('classrooms.archived_at', null)
+  const { classroomIds, error: eligibleClassroomsError } =
+    await getEligibleClassroomIds(supabase, yesterday)
 
-  if (entriesError) {
-    console.error('Error fetching active classrooms:', entriesError)
-    return NextResponse.json(
-      { error: 'Failed to fetch entries' },
-      { status: 500 }
-    )
+  if (eligibleClassroomsError) {
+    return eligibleClassroomsError
   }
 
-  const classroomIds = [...new Set((activeEntries || []).map((e: { classroom_id: string }) => e.classroom_id))]
   if (classroomIds.length === 0) {
     return NextResponse.json({ status: 'ok', generated: 0, skipped: 0 })
   }
@@ -94,18 +87,78 @@ async function handle(request: NextRequest) {
   return NextResponse.json({ status: 'ok', generated, skipped })
 }
 
+async function getEligibleClassroomIds(
+  supabase: SupabaseClient,
+  date: string
+): Promise<{ classroomIds: string[]; error: NextResponse | null }> {
+  const { data: activeEntries, error: entriesError } = await supabase
+    .from('entries')
+    .select('classroom_id, classrooms!inner(archived_at,start_date,end_date)')
+    .eq('date', date)
+    .is('classrooms.archived_at', null)
+    .lte('classrooms.start_date', date)
+    .gte('classrooms.end_date', date)
+
+  if (entriesError) {
+    console.error('Error fetching active classrooms:', entriesError)
+    return {
+      classroomIds: [],
+      error: NextResponse.json(
+        { error: 'Failed to fetch entries' },
+        { status: 500 }
+      ),
+    }
+  }
+
+  const classroomIds = [...new Set((activeEntries || []).map((e: { classroom_id: string }) => e.classroom_id))]
+  if (classroomIds.length === 0) {
+    return { classroomIds: [], error: null }
+  }
+
+  const { data: classDays, error: classDaysError } = await supabase
+    .from('class_days')
+    .select('classroom_id')
+    .in('classroom_id', classroomIds)
+    .eq('date', date)
+    .eq('is_class_day', true)
+
+  if (classDaysError) {
+    console.error('Error fetching class days:', classDaysError)
+    return {
+      classroomIds: [],
+      error: NextResponse.json(
+        { error: 'Failed to fetch class days' },
+        { status: 500 }
+      ),
+    }
+  }
+
+  const classDayIds = new Set((classDays || []).map((day: { classroom_id: string }) => day.classroom_id))
+  return {
+    classroomIds: classroomIds.filter((classroomId) => classDayIds.has(classroomId)),
+    error: null,
+  }
+}
+
 async function generateSummaryForClassroom(
-  supabase: ReturnType<typeof getServiceRoleClient>,
+  supabase: SupabaseClient,
   classroomId: string,
   date: string
 ): Promise<boolean> {
+  const eligible = await isClassroomEligibleForSummary(supabase, classroomId, date)
+  if (!eligible) {
+    return false
+  }
+
   // Fetch entries for this active classroom and date
   const { data: entries, error: entriesError } = await supabase
     .from('entries')
-    .select('*, classrooms!inner(archived_at)')
+    .select('*, classrooms!inner(archived_at,start_date,end_date)')
     .eq('classroom_id', classroomId)
     .eq('date', date)
     .is('classrooms.archived_at', null)
+    .lte('classrooms.start_date', date)
+    .gte('classrooms.end_date', date)
 
   if (entriesError) {
     console.error(`Error fetching entries for classroom ${classroomId}:`, entriesError)
@@ -208,6 +261,35 @@ async function generateSummaryForClassroom(
   }
 
   return true
+}
+
+async function isClassroomEligibleForSummary(
+  supabase: SupabaseClient,
+  classroomId: string,
+  date: string
+): Promise<boolean> {
+  const { data: classroom, error: classroomError } = await supabase
+    .from('classrooms')
+    .select('id')
+    .eq('id', classroomId)
+    .is('archived_at', null)
+    .lte('start_date', date)
+    .gte('end_date', date)
+    .single()
+
+  if (classroomError || !classroom) {
+    return false
+  }
+
+  const { data: classDay, error: classDayError } = await supabase
+    .from('class_days')
+    .select('id')
+    .eq('classroom_id', classroomId)
+    .eq('date', date)
+    .eq('is_class_day', true)
+    .single()
+
+  return !classDayError && !!classDay
 }
 
 export const GET = withErrorHandler('GetCronNightlyLogSummaries', async (request: NextRequest) => {

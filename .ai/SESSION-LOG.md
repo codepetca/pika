@@ -7,27 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-04 — Move classroom create action below list
-
-**Completed:**
-- Removed `New` from the top classroom FAB cluster so the cluster now only contains `Edit`.
-- Rendered `New` below the classroom list when there are no active classrooms or classroom edit mode is enabled.
-- Hid `New` after the first active classroom exists while edit mode is off.
-- Updated component coverage for the new create-button visibility and placement.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- Pika UI verification script for `/classrooms` on port 3003:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Manual Playwright screenshots:
-  - `/tmp/pika-classrooms-teacher-default.png`
-  - `/tmp/pika-classrooms-teacher-mobile-default.png`
-  - `/tmp/pika-teacher-edit.png`
-  - `/tmp/pika-teacher-mobile-edit.png`
-
 ## 2026-05-04 — Split announcements from resources tab
 
 **Completed:**
@@ -452,3 +431,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `pnpm run test:coverage`
 - `pnpm lint`
+
+## 2026-05-06 — Restrict nightly log summaries to class days
+
+**Completed:**
+- Tightened `/api/cron/nightly-log-summaries` eligibility so AI summaries only run for unarchived classrooms with entries on yesterday, yesterday inside the classroom semester range, and an explicit `class_days.is_class_day = true` row.
+- Added a per-classroom eligibility recheck before the OpenAI call to keep the guard close to generation.
+- Added cron route tests for outside-semester and non-class-day cases and asserted they do not call OpenAI.
+
+**Validation:**
+- `pnpm vitest run tests/api/cron/nightly-log-summaries.test.ts`
+- `pnpm lint`
+- `pnpm test -- tests/api/cron/nightly-log-summaries.test.ts` (ran full suite: 251 files, 2110 tests)
