@@ -304,6 +304,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Follow-up: moved teacher Edit into the date navigator row and aligned it to the row's right edge while keeping Week/Month/All below.
 - Follow-up: moved teacher Edit into its own right-side floating FAB, kept the center FAB focused on date + view mode, and added bottom calendar padding so the last table row does not end at the viewport edge.
 - Made the mobile teacher edit FAB icon-only with an accessible label so the long All-date range does not collide with the right FAB.
+- Follow-up: replaced the far-right edit FAB with an inline Edit control beside Week/Month/All and added scroll docking so the calendar date navigator moves into the app header after scrolling, leaving a shorter selector/Edit floating cluster.
 
 **Validation:**
 - `pnpm lint`
@@ -349,3 +350,13 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-student-calendar-valid.png`
   - `/tmp/pika-student-calendar-mobile-all-bottom-buffer.png`
   - `/tmp/pika-teacher-calendar-320-all-compact-edit.png`
+- Scroll-docked date follow-up validation:
+  - `pnpm lint`
+  - `pnpm test tests/components/calendar-view-persistence.test.tsx tests/components/LessonCalendar.test.tsx tests/components/StudentLessonCalendarTab.test.tsx tests/components/TeacherEditModeControls.test.tsx`
+  - `pnpm test tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherClassroomView.test.tsx`
+  - `pnpm build`
+  - `/tmp/pika-calendar-scroll-teacher-initial-desktop.png`
+  - `/tmp/pika-calendar-scroll-teacher-scrolled-desktop.png`
+  - `/tmp/pika-calendar-scroll-teacher-initial-mobile.png`
+  - `/tmp/pika-calendar-scroll-teacher-scrolled-mobile.png`
+  - `/tmp/pika-calendar-scroll-student-scrolled-mobile.png`

@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { AppHeader } from './AppHeader'
 
 interface AppShellProps {
@@ -27,7 +27,7 @@ interface AppShellProps {
     exitsCount: number
     awayTotalSeconds: number
   } | null
-  pageTitle?: string
+  pageTitle?: ReactNode
 }
 
 /**
