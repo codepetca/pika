@@ -7,23 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-04 — Make message popup background solid
-
-**Completed:**
-- Changed global app message popup tones to use the solid semantic surface background.
-- Kept tone-specific border and text colors for info, success, and warning messages.
-- Added test coverage so success messages keep `bg-surface` instead of the translucent success background token.
-
-**Validation:**
-- `pnpm test tests/ui/AppMessage.test.tsx tests/ui/StatusPrimitives.test.tsx`
-- `pnpm lint`
-- Manual Playwright screenshots on `http://localhost:3100/verify-signup?email=teacher%40example.com`:
-  - `/tmp/pika-message-popup-light.png`
-  - `/tmp/pika-message-popup-dark.png`
-- Computed popup backgrounds verified as opaque:
-  - Light: `rgb(255, 255, 255)`
-  - Dark: `rgb(17, 24, 39)`
-
 ## 2026-04-30 — Refresh assignment counts after return
 
 **Completed:**
@@ -244,6 +227,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `pnpm build`
   - `git -C "$PIKA_WORKTREE" diff --name-only --diff-filter=A origin/main -- supabase/migrations`
   - duplicate migration prefix check returned no output
+
 ## 2026-05-06 — Make classroom log summaries cron-only
 
 **Completed:**
