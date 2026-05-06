@@ -2,9 +2,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
+import type { Entry } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+const HISTORY_PREVIEW_LIMIT = 5
+const ENTRY_SELECT = [
+  'id',
+  'student_id',
+  'classroom_id',
+  'date',
+  'text',
+  'rich_content',
+  'version',
+  'minutes_reported',
+  'mood',
+  'created_at',
+  'updated_at',
+  'on_time',
+].join(', ')
+
+type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 
 /**
  * GET /api/teacher/logs?classroom_id=xxx&date=YYYY-MM-DD
@@ -72,10 +91,12 @@ export const GET = withErrorHandler('GetTeacherLogs', async (request: NextReques
   }
 
   const studentIds = (enrollments || []).map(e => e.student_id)
-  const { data: profiles, error: profilesError } = await supabase
-    .from('student_profiles')
-    .select('user_id, first_name, last_name')
-    .in('user_id', studentIds)
+  const { data: profiles, error: profilesError } = studentIds.length > 0
+    ? await supabase
+      .from('student_profiles')
+      .select('user_id, first_name, last_name')
+      .in('user_id', studentIds)
+    : { data: [], error: null }
 
   if (profilesError) {
     console.error('Error fetching student profiles:', profilesError)
@@ -98,16 +119,13 @@ export const GET = withErrorHandler('GetTeacherLogs', async (request: NextReques
     })
     .sort((a, b) => a.email.localeCompare(b.email))
 
-  let entriesQuery = supabase
-    .from('entries')
-    .select('*')
-    .eq('classroom_id', classroomId)
-
-  if (date) {
-    entriesQuery = entriesQuery.eq('date', date)
-  }
-
-  const { data: entries, error: entriesError } = await entriesQuery
+  const { data: entries, error: entriesError } = date
+    ? await supabase
+      .from('entries')
+      .select(ENTRY_SELECT)
+      .eq('classroom_id', classroomId)
+      .eq('date', date)
+    : { data: [], error: null }
 
   if (entriesError) {
     console.error('Error fetching entries:', entriesError)
@@ -117,9 +135,29 @@ export const GET = withErrorHandler('GetTeacherLogs', async (request: NextReques
     )
   }
 
+  const selectedEntries = (entries || []) as unknown as Entry[]
   const entryByStudentId = new Map(
-    (entries || []).map(entry => [entry.student_id, entry])
+    selectedEntries.map(entry => [entry.student_id, entry])
   )
+
+  const { entries: historyPreviewEntries, error: historyPreviewError } =
+    await fetchHistoryPreviewEntries(supabase, classroomId, studentIds)
+
+  if (historyPreviewError) {
+    console.error('Error fetching history preview:', historyPreviewError)
+    return NextResponse.json(
+      { error: 'Failed to fetch history preview' },
+      { status: 500 }
+    )
+  }
+
+  const historyPreviewByStudentId = new Map<string, Entry[]>()
+  for (const entry of (historyPreviewEntries || []) as unknown as Entry[]) {
+    const preview = historyPreviewByStudentId.get(entry.student_id) || []
+    if (preview.length >= HISTORY_PREVIEW_LIMIT) continue
+    preview.push(entry)
+    historyPreviewByStudentId.set(entry.student_id, preview)
+  }
 
   const logs = students.map(student => {
     const entry = entryByStudentId.get(student.id) || null
@@ -129,6 +167,7 @@ export const GET = withErrorHandler('GetTeacherLogs', async (request: NextReques
       student_first_name: student.first_name,
       student_last_name: student.last_name,
       entry,
+      history_preview: historyPreviewByStudentId.get(student.id) || [],
     }
   })
 
@@ -138,3 +177,60 @@ export const GET = withErrorHandler('GetTeacherLogs', async (request: NextReques
     logs,
   })
 })
+
+async function fetchHistoryPreviewEntries(
+  supabase: SupabaseClient,
+  classroomId: string,
+  studentIds: string[]
+): Promise<{ entries: Entry[]; error: unknown | null }> {
+  if (studentIds.length === 0) {
+    return { entries: [], error: null }
+  }
+
+  const { data, error } = await supabase.rpc('get_teacher_log_history_preview', {
+    p_classroom_id: classroomId,
+    p_student_ids: studentIds,
+    p_limit: HISTORY_PREVIEW_LIMIT,
+  })
+
+  if (!error) {
+    return { entries: (data || []) as unknown as Entry[], error: null }
+  }
+
+  if (!isMissingRpcError(error)) {
+    return { entries: [], error }
+  }
+
+  console.warn('History preview RPC is unavailable; falling back to per-student preview queries')
+  const results = await Promise.all(
+    studentIds.map((studentId) =>
+      supabase
+        .from('entries')
+        .select(ENTRY_SELECT)
+        .eq('classroom_id', classroomId)
+        .eq('student_id', studentId)
+        .order('date', { ascending: false })
+        .order('updated_at', { ascending: false })
+        .limit(HISTORY_PREVIEW_LIMIT)
+    )
+  )
+
+  const failed = results.find(result => result.error)
+  if (failed?.error) {
+    return { entries: [], error: failed.error }
+  }
+
+  return {
+    entries: results.flatMap(result => (result.data || []) as unknown as Entry[]),
+    error: null,
+  }
+}
+
+function isMissingRpcError(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code?: string }).code === 'PGRST202'
+  )
+}

@@ -249,7 +249,7 @@ export function TeacherWorkspaceSplit({
   )
 
   if (splitVariant === 'gapped') {
-    const inspectorPaneStyle = inspectorVisible && isDesktop
+    const inspectorPaneStyle = inspectorVisible
       ? {
           '--teacher-workspace-inspector-width': `calc(${constrainedInspectorWidth}% - ${GAPPED_SPLIT_HANDLE_WIDTH_PX / 2}px)`,
         } as CSSProperties

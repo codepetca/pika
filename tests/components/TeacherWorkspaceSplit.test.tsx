@@ -129,10 +129,12 @@ describe('TeacherWorkspaceSplit', () => {
     )
 
     const separator = screen.getByRole('separator', { name: 'Resize Daily panes' })
+    const inspectorPane = screen.getByText('Log summary').parentElement
     expect(screen.getByText('Daily table')).toBeInTheDocument()
     expect(screen.getByText('Log summary')).toBeInTheDocument()
     expect(separator).toHaveAttribute('aria-valuemin', '28')
     expect(separator).toHaveAttribute('aria-valuemax', '72')
+    expect(inspectorPane).toHaveStyle('--teacher-workspace-inspector-width: calc(50% - 6px)')
   })
 
   it('supports keyboard resizing for the shared resize handle', () => {

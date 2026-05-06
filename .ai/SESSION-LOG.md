@@ -7,148 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-03 — Align classroom view toggle with FAB buttons
-
-**Completed:**
-- Replaced the custom Active/Archived classroom view pills with the shared `SegmentedControl`.
-- Moved the Active/Archived toggle to the left of the `New` button when classroom edit mode is enabled.
-- Added coverage for the edit-mode control ordering.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- Pika UI verification script for `/classrooms` on port 3003:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Manual Playwright screenshots:
-  - `/tmp/pika-classrooms-teacher-default.png`
-  - `/tmp/pika-classrooms-teacher-mobile-default.png`
-  - `/tmp/pika-teacher-edit.png`
-  - `/tmp/pika-teacher-mobile-edit.png`
-
-## 2026-05-03 — Move classroom view toggle to bottom center
-
-**Completed:**
-- Moved the Active/Archived classroom view segmented control out of the top FAB cluster.
-- Rendered the view toggle fixed at the bottom center while classroom edit mode is enabled.
-- Kept `New` and `Edit` in the centered top FAB cluster.
-- Added bottom padding in edit mode so fixed controls do not cover classroom cards.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- Pika UI verification script for `/classrooms` on port 3003:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Manual Playwright screenshots:
-  - `/tmp/pika-classrooms-teacher-default.png`
-  - `/tmp/pika-classrooms-teacher-mobile-default.png`
-  - `/tmp/pika-teacher-edit.png`
-  - `/tmp/pika-teacher-mobile-edit.png`
-
-## 2026-05-03 — Always show classroom view toggle
-
-**Completed:**
-- Kept the Active/Archived classroom view toggle visible at the bottom center in both normal and edit modes.
-- Preserved Edit as the gate for classroom drag handles and row archive actions.
-- Stopped resetting the classroom view to Active when turning Edit off.
-- Added coverage for the always-visible view toggle and retained Archived selection after edit mode is disabled.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- Pika UI verification script for `/classrooms` on port 3003:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Manual Playwright screenshots:
-  - `/tmp/pika-classrooms-teacher-default.png`
-  - `/tmp/pika-classrooms-teacher-mobile-default.png`
-  - `/tmp/pika-teacher-edit.png`
-  - `/tmp/pika-teacher-mobile-edit.png`
-
-## 2026-05-03 — Clear classroom edit mode on escape and page restore
-
-**Completed:**
-- Added Escape handling to turn classroom edit mode off and clear any drag state.
-- Added `pageshow` handling so browser page restore after refresh/back-forward does not leave edit mode enabled.
-- Added component coverage for Escape and page-restore edit-mode clearing.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- Pika UI verification script for `/classrooms` on port 3003:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Manual Playwright interaction check:
-  - Escape clears classroom edit mode.
-  - `pageshow` clears classroom edit mode.
-  - `/tmp/pika-classrooms-after-edit-clear.png`
-
-## 2026-05-04 — Move classroom create action below list
-
-**Completed:**
-- Removed `New` from the top classroom FAB cluster so the cluster now only contains `Edit`.
-- Rendered `New` below the classroom list when there are no active classrooms or classroom edit mode is enabled.
-- Hid `New` after the first active classroom exists while edit mode is off.
-- Updated component coverage for the new create-button visibility and placement.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- Pika UI verification script for `/classrooms` on port 3003:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Manual Playwright screenshots:
-  - `/tmp/pika-classrooms-teacher-default.png`
-  - `/tmp/pika-classrooms-teacher-mobile-default.png`
-  - `/tmp/pika-teacher-edit.png`
-  - `/tmp/pika-teacher-mobile-edit.png`
-
-## 2026-05-04 — Split announcements from resources tab
-
-**Completed:**
-- Added a dedicated `Announcements` classroom tab for teachers and students.
-- Moved announcement feeds into the new tab and made `Resources` show only class resources.
-- Routed unread announcement activity to the Announcements nav item.
-- Updated calendar announcement links, layout route keys, UI gallery links, and focused coverage.
-
-**Validation:**
-- `pnpm test tests/components/ResourcesTab.test.tsx tests/components/NavItems.test.tsx tests/unit/layout-config.test.ts tests/components/ThreePanelProvider.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-- Pika UI verification script on port 3010:
-  - `classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=resources`
-  - `classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=announcements`
-- Manual Playwright student captures for the student-accessible classroom:
-  - `/tmp/pika-student-resources-accessible.png`
-  - `/tmp/pika-student-announcements-accessible.png`
-- Manual mobile drawer captures:
-  - `/tmp/pika-teacher-mobile-drawer.png`
-  - `/tmp/pika-student-mobile-drawer.png`
-
-## 2026-05-04 — Make message popup background solid
-
-**Completed:**
-- Changed global app message popup tones to use the solid semantic surface background.
-- Kept tone-specific border and text colors for info, success, and warning messages.
-- Added test coverage so success messages keep `bg-surface` instead of the translucent success background token.
-
-**Validation:**
-- `pnpm test tests/ui/AppMessage.test.tsx tests/ui/StatusPrimitives.test.tsx`
-- `pnpm lint`
-- Manual Playwright screenshots on `http://localhost:3100/verify-signup?email=teacher%40example.com`:
-  - `/tmp/pika-message-popup-light.png`
-  - `/tmp/pika-message-popup-dark.png`
-- Computed popup backgrounds verified as opaque:
-  - Light: `rgb(255, 255, 255)`
-  - Dark: `rgb(17, 24, 39)`
-
 ## 2026-04-30 — Refresh assignment counts after return
 
 **Completed:**
@@ -369,3 +227,191 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `pnpm build`
   - `git -C "$PIKA_WORKTREE" diff --name-only --diff-filter=A origin/main -- supabase/migrations`
   - duplicate migration prefix check returned no output
+
+## 2026-05-06 — Make classroom log summaries cron-only
+
+**Completed:**
+- Removed on-demand OpenAI generation from the teacher log-summary API; it now only returns fresh cached nightly summaries.
+- Added `summary_status` so the Daily pane can show pending nightly summaries separately from dates with no logs.
+- Filtered nightly log-summary cron work to active classrooms with logs and clarified that removed `entry_summaries` are distinct from active classroom/day `log_summaries`.
+
+**Validation:**
+- `pnpm exec vitest tests/api/cron/nightly-log-summaries.test.ts tests/api/teacher/log-summary.test.ts`
+- `pnpm lint`
+- `bash scripts/verify-env.sh`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-06 — Speed up Daily student log cycling
+
+**Completed:**
+- Added a batched `history_preview` payload to the teacher logs API, capped at five entries per student.
+- Rendered selected-day and preview history immediately when a teacher selects a student, while refreshing exact history through a short-lived client cache.
+- Filtered blank/absent entries out of the history pane so absent selected days do not render empty selected-date blocks.
+
+**Validation:**
+- `pnpm exec vitest tests/api/teacher/logs.test.ts tests/api/teacher/student-history.test.ts tests/components/StudentLogHistory.test.tsx`
+- `pnpm lint`
+- `bash scripts/verify-env.sh`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted selected-history screenshots:
+  - `/tmp/pika-teacher-selected-history.png`
+  - `/tmp/pika-teacher-mobile-selected-history.png`
+
+## 2026-05-06 — Make deselected Daily table full-width
+
+**Completed:**
+- Changed the Daily tab so the deselected state is a full-width student table instead of a split summary pane.
+- Added a one-line `Log` column in the full-width table with ellipsis overflow and native title text for the full day log.
+- Kept selected students in the split history view, and restored the full-width log table after row deselection.
+
+**Validation:**
+- `pnpm exec vitest tests/components/TeacherAttendanceTab.test.tsx tests/components/StudentLogHistory.test.tsx tests/api/teacher/logs.test.ts`
+- `pnpm lint`
+- `bash scripts/verify-env.sh`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted Daily screenshots:
+  - `/tmp/pika-teacher-desktop-daily-log-table.png`
+  - `/tmp/pika-teacher-desktop-daily-selected.png`
+  - `/tmp/pika-teacher-desktop-daily-deselected.png`
+  - `/tmp/pika-teacher-mobile-daily-log-table.png`
+  - `/tmp/pika-teacher-mobile-daily-selected.png`
+  - `/tmp/pika-teacher-mobile-daily-deselected.png`
+
+## 2026-05-06 — Polish Daily row deselection
+
+**Completed:**
+- Added Escape-key deselection while a Daily student row is selected.
+- Removed the first-render split flash by setting the gapped inspector width CSS variable immediately, before the window-size hook resolves.
+- Added regression coverage for Escape deselection and first-render gapped split sizing.
+
+**Validation:**
+- `pnpm exec vitest tests/components/TeacherAttendanceTab.test.tsx tests/components/TeacherWorkspaceSplit.test.tsx`
+- `pnpm lint`
+- `bash scripts/verify-env.sh`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted transition screenshots:
+  - `/tmp/pika-teacher-esc-before-select.png`
+  - `/tmp/pika-teacher-select-immediate-split.png`
+  - `/tmp/pika-teacher-after-escape-deselect.png`
+
+## 2026-05-06 — Deselect Daily row on outside click
+
+**Completed:**
+- Added outside-click deselection for the selected Daily workspace while preserving clicks inside the table/history split.
+- Kept row clicks, Escape, and keyboard table deselection flowing through the same deselect handler.
+- Re-ran visual verification against this worktree on port 3002 after finding port 3001 belonged to another checkout.
+
+**Validation:**
+- `pnpm exec vitest tests/components/TeacherAttendanceTab.test.tsx`
+- `pnpm lint`
+- `bash scripts/verify-env.sh`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3002:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted outside-click screenshots:
+  - `/tmp/pika-teacher-outside-click-selected.png`
+  - `/tmp/pika-teacher-outside-click-deselected.png`
+
+## 2026-05-06 — Smooth Daily selection transitions
+
+**Completed:**
+- Added short opacity/transform entry animations for the full-width Daily table, selected split workspace, and history inspector pane.
+- Added reduced-motion CSS so those animations are disabled for users who request less motion.
+- Replaced the Daily initial-load state flag with a ref to avoid a redundant same-date refetch that could clear selection immediately after a row click.
+
+**Validation:**
+- `pnpm exec vitest tests/components/TeacherAttendanceTab.test.tsx`
+- `pnpm lint`
+- `bash scripts/verify-env.sh`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3002:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted animation screenshots and computed CSS check:
+  - `/tmp/pika-teacher-daily-animated-selected.png`
+  - `/tmp/pika-teacher-daily-animated-deselected.png`
+
+## 2026-05-06 — Pre-PR review fixes for log previews
+
+**Completed:**
+- Rebased the branch onto `origin/main` after `Constrain split-pane workspace scrolling` landed.
+- Kept main's split-pane scroll containment while preserving the Daily selection animations and outside-click deselection.
+- Reworked `history_preview` to use a service-role-only database RPC with a lateral query so the preview cap is truly five entries per student, not a shared global limit.
+
+**Validation:**
+- `pnpm exec vitest tests/api/teacher/logs.test.ts`
+- `pnpm exec vitest tests/api/teacher/logs.test.ts tests/components/StudentLogHistory.test.tsx tests/components/TeacherAttendanceTab.test.tsx tests/api/cron/nightly-log-summaries.test.ts tests/api/teacher/log-summary.test.ts tests/components/TeacherWorkspaceSplit.test.tsx`
+- `bash scripts/verify-env.sh --full`
+- Re-ran Pika UI verification on port 3002 after adding the RPC deployment-order fallback:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Re-ran targeted Daily selected/deselected browser check:
+  - `/tmp/pika-teacher-daily-animated-selected.png`
+  - `/tmp/pika-teacher-daily-animated-deselected.png`
+
+## 2026-05-06 — Restore Daily class summary placement
+
+**Completed:**
+- Restored the cached class log summary in the deselected Daily state as a full-width panel below the full-width student log table.
+- Kept the selected-student state focused on the split table/history pane, with the class summary hidden until deselection.
+- Added regression coverage so the class summary remains visible in the deselected table state and disappears during student-history selection.
+
+**Validation:**
+- `pnpm exec vitest tests/components/TeacherAttendanceTab.test.tsx tests/api/teacher/log-summary.test.ts`
+- `pnpm lint && pnpm build`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3002:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted Daily class summary screenshots/check:
+  - `/tmp/pika-teacher-summary-restored.png`
+  - `/tmp/pika-teacher-daily-summary-selected.png`
+  - `/tmp/pika-teacher-daily-summary-deselected.png`
+
+## 2026-05-06 — Fix PR coverage gate
+
+**Completed:**
+- Investigated the failed GitHub CI run on the first PR commit.
+- Found the failure was a per-file coverage threshold miss for `src/app/api/teacher/log-summary/route.ts`.
+- Added route tests for classroom-not-found, entry-stats failure, and entry-count failure to cover the cron-only summary endpoint error branches.
+
+**Validation:**
+- `pnpm run test:coverage`
+- `pnpm lint`
+
+## 2026-05-06 — Restrict nightly log summaries to class days
+
+**Completed:**
+- Tightened `/api/cron/nightly-log-summaries` eligibility so AI summaries only run for unarchived classrooms with entries on yesterday, yesterday inside the classroom semester range, and an explicit `class_days.is_class_day = true` row.
+- Added a per-classroom eligibility recheck before the OpenAI call to keep the guard close to generation.
+- Added cron route tests for outside-semester and non-class-day cases and asserted they do not call OpenAI.
+
+**Validation:**
+- `pnpm vitest run tests/api/cron/nightly-log-summaries.test.ts`
+- `pnpm lint`
+- `pnpm test -- tests/api/cron/nightly-log-summaries.test.ts` (ran full suite: 251 files, 2110 tests)
+
+## 2026-05-06 — Fix cron coverage gate
+
+**Completed:**
+- Addressed the latest CI failure for `src/app/api/cron/nightly-log-summaries/route.ts` per-file coverage.
+- Added cron route tests for entry discovery errors, class-day discovery errors, and eligibility recheck skip paths.
+
+**Validation:**
+- `pnpm vitest run tests/api/cron/nightly-log-summaries.test.ts`
+- `pnpm run test:coverage`
+- `pnpm lint`
