@@ -673,40 +673,40 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       : 'primary'
     : 'muted'
   const scheduleDueDateValidationMessage = getScheduleDueDateValidationMessage(scheduleIso, dueAt, isScheduleValid)
-  const creationPanelClass =
+  const editorPanelClass =
     '!h-[calc(100dvh-0.5rem)] !max-h-[calc(100dvh-0.5rem)] !w-[calc(100vw-0.5rem)] !max-w-[calc(100vw-0.5rem)] overflow-hidden p-0 sm:!h-[calc(100dvh-1rem)] sm:!max-h-[calc(100dvh-1rem)] sm:!w-[calc(100vw-1rem)] sm:!max-w-[calc(100vw-1rem)]'
+  const closeAssignmentModalButton = (
+    <Button
+      type="button"
+      variant="surface"
+      size="sm"
+      className="h-9 w-9 flex-shrink-0 px-0"
+      onClick={() => {
+        void handleClose()
+      }}
+      disabled={saving || releasing}
+      aria-label="Close assignment modal"
+      title="Close"
+    >
+      <X className="h-4 w-4" aria-hidden="true" />
+    </Button>
+  )
 
   return (
     <>
       <DialogPanel
         isOpen={isOpen}
         onClose={handleClose}
-        maxWidth={isCreateMode ? 'max-w-none' : 'w-[min(90vw,56rem)]'}
-        className={isCreateMode ? creationPanelClass : 'max-h-[92vh] p-0'}
-        viewportPaddingClassName={isCreateMode ? 'p-1 sm:p-2' : undefined}
+        maxWidth="max-w-none"
+        className={editorPanelClass}
+        viewportPaddingClassName="p-1 sm:p-2"
         ariaLabelledBy="assignment-modal-title"
       >
-        <div className="flex flex-shrink-0 items-center gap-3 border-b border-border px-4 py-3">
-          <h2 id="assignment-modal-title" className="min-w-0 flex-1 truncate text-base font-semibold text-text-default">
-            {modalTitle}
-          </h2>
-          <Button
-            type="button"
-            variant="surface"
-            size="sm"
-            className="h-10 w-10 flex-shrink-0 px-0"
-            onClick={() => {
-              void handleClose()
-            }}
-            disabled={saving || releasing}
-            aria-label="Close assignment modal"
-            title="Close"
-          >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </Button>
-        </div>
+        <h2 id="assignment-modal-title" className="sr-only">
+          {modalTitle}
+        </h2>
 
-        <div className="flex-1 min-h-0 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
           <AssignmentForm
             title={title}
             instructionsMarkdown={instructionsMarkdown}
@@ -726,6 +726,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
             markdownWarning={markdownWarning}
             canUndoInstructions={instructionsHistoryIndexRef.current > 0}
             canRedoInstructions={instructionsHistoryIndexRef.current < instructionsHistoryRef.current.length - 1}
+            fillHeight
             statusContent={(
               <span
                 className={`text-xs ${
@@ -740,38 +741,37 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
               </span>
             )}
             topRowActions={
-              currentAssignment
-                ? (
-                    <div className="flex flex-col items-start gap-2">
-                      {isScheduled && currentAssignment.released_at && (
-                        <div className="text-xs font-medium text-warning">
-                          {formatReleaseDate(currentAssignment.released_at)}
-                        </div>
-                      )}
-                      <div className="flex">
-                        <SplitButton
-                          label={primaryLabel}
-                          onPrimaryClick={() => {
-                            void handleTriggerPrimaryAction()
-                          }}
-                          variant={effectivePrimaryAction === 'post' ? 'success' : 'primary'}
-                          size="md"
-                          disabled={creating || releasing || saving || !currentAssignment}
-                        className="shadow-sm"
-                        toggleAriaLabel="Choose assignment action"
-                        menuPlacement="down"
-                        primaryButtonProps={{
-                          className: 'w-[9rem] justify-center font-semibold',
-                        }}
-                          options={splitOptions.map((option) => ({
-                            ...option,
-                            onSelect: () => handleSplitActionSelection(option.id as CreateSubmitAction),
-                          }))}
-                        />
-                      </div>
-                    </div>
-                  )
-                : undefined
+              <div className="flex flex-col items-start gap-2 lg:items-end">
+                {currentAssignment && isScheduled && currentAssignment.released_at && (
+                  <div className="text-xs font-medium text-warning">
+                    {formatReleaseDate(currentAssignment.released_at)}
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  {currentAssignment ? (
+                    <SplitButton
+                      label={primaryLabel}
+                      onPrimaryClick={() => {
+                        void handleTriggerPrimaryAction()
+                      }}
+                      variant={effectivePrimaryAction === 'post' ? 'success' : 'primary'}
+                      size="md"
+                      disabled={creating || releasing || saving || !currentAssignment}
+                      className="shadow-sm"
+                      toggleAriaLabel="Choose assignment action"
+                      menuPlacement="down"
+                      primaryButtonProps={{
+                        className: 'w-[9rem] justify-center font-semibold',
+                      }}
+                      options={splitOptions.map((option) => ({
+                        ...option,
+                        onSelect: () => handleSplitActionSelection(option.id as CreateSubmitAction),
+                      }))}
+                    />
+                  ) : null}
+                  {closeAssignmentModalButton}
+                </div>
+              </div>
             }
           />
         </div>

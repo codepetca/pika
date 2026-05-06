@@ -38,6 +38,7 @@ interface AssignmentFormProps {
   markdownWarning?: string | null
   canUndoInstructions?: boolean
   canRedoInstructions?: boolean
+  fillHeight?: boolean
 }
 
 export function AssignmentForm({
@@ -62,6 +63,7 @@ export function AssignmentForm({
   markdownWarning,
   canUndoInstructions = false,
   canRedoInstructions = false,
+  fillHeight = false,
 }: AssignmentFormProps) {
   const instructionsRef = useRef<HTMLTextAreaElement>(null)
   const titleFieldId = useId()
@@ -152,7 +154,7 @@ export function AssignmentForm({
   }
 
   return (
-    <div className="space-y-3 w-full">
+    <div className={fillHeight ? 'flex h-full min-h-0 w-full flex-col gap-3' : 'space-y-3 w-full'}>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end lg:gap-x-8">
         <div className="min-w-0 space-y-1">
           <label htmlFor={titleFieldId} className="block text-sm font-medium text-text-default">
@@ -206,7 +208,7 @@ export function AssignmentForm({
         )}
       </div>
 
-      <div className="space-y-1">
+      <div className={fillHeight ? 'flex min-h-0 flex-1 flex-col space-y-1' : 'space-y-1'}>
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
           <label className="block text-sm font-medium text-text-default">
             Instructions
@@ -216,14 +218,14 @@ export function AssignmentForm({
           </div>
           <div aria-hidden="true" />
         </div>
-        <div className="rounded-lg border border-border-strong overflow-hidden">
+        <div className={fillHeight ? 'flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border-strong' : 'rounded-lg border border-border-strong overflow-hidden'}>
           {markdownWarning && (
             <div className="border-b border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
               {markdownWarning}
             </div>
           )}
           {showMarkdown ? (
-            <div className="grid min-h-[400px] gap-0 md:grid-cols-2 lg:min-h-[460px]">
+            <div className={fillHeight ? 'grid min-h-0 flex-1 gap-0 md:grid-cols-2' : 'grid min-h-[400px] gap-0 md:grid-cols-2 lg:min-h-[460px]'}>
               <div className="flex h-full min-h-0 flex-col border-b border-border md:border-b-0 md:border-r md:border-border">
                 <div className="flex flex-wrap gap-1 border-b border-border bg-surface px-2 py-2">
                   <Button type="button" variant="ghost" size="sm" onClick={onInstructionsUndo} disabled={disabled || !canUndoInstructions} className="h-8 w-8 px-0" aria-label="Undo" title="Undo">
@@ -260,14 +262,14 @@ export function AssignmentForm({
                   placeholder="Assignment instructions"
                   disabled={disabled}
                   spellCheck={false}
-                  className="h-full min-h-[360px] w-full flex-1 resize-none border-0 bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-0 lg:min-h-[420px]"
+                  className={fillHeight ? 'h-full min-h-0 w-full flex-1 resize-none border-0 bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-0' : 'h-full min-h-[360px] w-full flex-1 resize-none border-0 bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-0 lg:min-h-[420px]'}
                 />
               </div>
-              <div className="bg-page">
+              <div className="flex min-h-0 flex-col bg-page">
                 <div className="px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">
                   Preview
                 </div>
-                <div className="min-h-[360px] px-3 pb-3 lg:min-h-[420px]">
+                <div className={fillHeight ? 'min-h-0 flex-1 overflow-y-auto px-3 pb-3' : 'min-h-[360px] px-3 pb-3 lg:min-h-[420px]'}>
                   <LimitedMarkdown
                     content={instructionsMarkdown}
                     emptyPlaceholder={<div className="text-sm text-text-muted">No assignment details provided.</div>}
@@ -276,7 +278,7 @@ export function AssignmentForm({
               </div>
             </div>
           ) : (
-            <div className="min-h-[400px] lg:min-h-[460px]">
+            <div className={fillHeight ? 'flex min-h-0 flex-1' : 'min-h-[400px] lg:min-h-[460px]'}>
               <textarea
                 ref={instructionsRef}
                 value={instructionsMarkdown}
@@ -285,7 +287,7 @@ export function AssignmentForm({
                 onBlur={onBlur}
                 placeholder="Assignment instructions"
                 disabled={disabled}
-                className="min-h-[400px] w-full resize-none border-0 bg-surface p-3 text-sm leading-6 text-text-default focus:outline-none focus:ring-0 lg:min-h-[460px]"
+                className={fillHeight ? 'min-h-0 w-full flex-1 resize-none border-0 bg-surface p-3 text-sm leading-6 text-text-default focus:outline-none focus:ring-0' : 'min-h-[400px] w-full resize-none border-0 bg-surface p-3 text-sm leading-6 text-text-default focus:outline-none focus:ring-0 lg:min-h-[460px]'}
               />
             </div>
           )}

@@ -321,6 +321,14 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Assignments')
   })
 
+  it('clears the assignments summary label while assignment edit mode is active', () => {
+    renderClient()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set assignment edit active' }))
+
+    expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
+  })
+
   it('passes the daily label to the app shell title slot', () => {
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=attendance')
 

@@ -476,11 +476,16 @@ export function TeacherClassroomView({
       setEditAssignment(assignment)
       writeCookie(cookieName, 'summary')
       setSelection({ mode: 'summary' })
+      updateSearchParams?.((params) => {
+        params.set('tab', 'assignments')
+        params.delete('assignmentId')
+        params.delete('assignmentStudentId')
+      }, { replace: true })
     } else {
       writeCookie(cookieName, value)
       setSelection({ mode: 'assignment', assignmentId: value })
     }
-  }, [assignments, classroom.id, isUrlSelectionControlled, loading, selectedAssignmentIdProp])
+  }, [assignments, classroom.id, isUrlSelectionControlled, loading, selectedAssignmentIdProp, updateSearchParams])
 
   useEffect(() => {
     function onSelectionEvent(e: Event) {
@@ -683,6 +688,12 @@ export function TeacherClassroomView({
     invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
     loadAssignments()
   }
+
+  const closeAssignmentModal = useCallback(() => {
+    setEditAssignment(null)
+    setIsCreateModalOpen(false)
+    setAssignmentEditMode(false)
+  }, [])
 
   const setSelectionAndPersist = useCallback((
     next: TeacherAssignmentSelection,
@@ -1839,10 +1850,7 @@ export function TeacherClassroomView({
         classroomId={classroom.id}
         assignment={editAssignment}
         classDays={classDays}
-        onClose={() => {
-          setEditAssignment(null)
-          setIsCreateModalOpen(false)
-        }}
+        onClose={closeAssignmentModal}
         onSuccess={(assignment, options) => {
           if (editAssignment) {
             handleEditSuccess(assignment)
@@ -1852,8 +1860,7 @@ export function TeacherClassroomView({
           if (options?.closeModal === false) {
             return
           }
-          setEditAssignment(null)
-          setIsCreateModalOpen(false)
+          closeAssignmentModal()
         }}
       />
     </>

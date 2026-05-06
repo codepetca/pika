@@ -169,6 +169,29 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-teacher-assignments.png`
   - `/tmp/pika-student-assignments.png`
 
+## 2026-05-06 — Tighten assignment edit chrome and modal height
+
+**Completed:**
+- Hid the app-header `Assignments` title while teacher assignment summary edit mode is active, leaving the floating assignment action cluster as the working control surface.
+- Made the assignment create/edit modal use the near-full viewport panel in both modes.
+- Removed the visible modal header row, kept an accessible hidden dialog title, and moved the close button into the form action row.
+- Let the assignment instructions editor and preview flex into the added modal height.
+- Fixed calendar clicks on unreleased assignments so the editor modal clears the stale `assignmentId` route selection and does not reopen after close.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-actionbar-spacer bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/AssignmentModal.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- Focused Playwright calendar flow: clicked unreleased assignment from Calendar, closed the editor modal, confirmed it stayed closed at `?tab=assignments`.
+- Pika UI verification on shared assignment page:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Focused Playwright screenshots:
+  - `/tmp/pika-assignment-edit-modal.png`
+  - `/tmp/pika-assignment-create-modal.png`
+  - `/tmp/pika-assignment-edit-modal-mobile.png`
+
 ## 2026-05-05 — Make exam documents visibly clickable
 
 **Completed:**
@@ -250,3 +273,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-assignment-split-teacher.png`
   - `/tmp/pika-test-grading-split-teacher.png`
 - Playwright assertion pass confirmed no document-level vertical scroll on the affected desktop split routes and a 126px resize-handle movement after drag.
+## 2026-05-06 — Make assignment edit mode modal-close ephemeral
+
+**Completed:**
+- Cleared teacher assignment edit mode whenever the assignment create/edit modal exits.
+- Preserved modal-internal updates that intentionally keep the modal open.
+- Added regression coverage for closing the create assignment modal after starting summary edit mode.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-actionbar-spacer bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm test tests/components/AssignmentModal.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification on the shared assignments page:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Focused Playwright flow: toggled assignment edit mode, opened New assignment, closed the create modal, confirmed Edit returned to `aria-pressed="false"`, and cleaned up the temporary draft.
+  - `/tmp/pika-assignment-edit-mode-before-create-modal.png`
+  - `/tmp/pika-assignment-create-modal-before-close-ephemeral.png`
+  - `/tmp/pika-assignment-edit-mode-after-create-close.png`
