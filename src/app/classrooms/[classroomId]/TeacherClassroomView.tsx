@@ -476,11 +476,16 @@ export function TeacherClassroomView({
       setEditAssignment(assignment)
       writeCookie(cookieName, 'summary')
       setSelection({ mode: 'summary' })
+      updateSearchParams?.((params) => {
+        params.set('tab', 'assignments')
+        params.delete('assignmentId')
+        params.delete('assignmentStudentId')
+      }, { replace: true })
     } else {
       writeCookie(cookieName, value)
       setSelection({ mode: 'assignment', assignmentId: value })
     }
-  }, [assignments, classroom.id, isUrlSelectionControlled, loading, selectedAssignmentIdProp])
+  }, [assignments, classroom.id, isUrlSelectionControlled, loading, selectedAssignmentIdProp, updateSearchParams])
 
   useEffect(() => {
     function onSelectionEvent(e: Event) {

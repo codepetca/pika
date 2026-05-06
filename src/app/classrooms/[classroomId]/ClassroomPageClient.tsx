@@ -504,6 +504,8 @@ function ClassroomPageContent({
     }
 
     if (activeTab === 'assignments') {
+      if (assignmentEditMode) return undefined
+
       return assignmentViewMode === 'assignment'
         ? selectedAssignment?.title || 'Assignments'
         : 'Assignments'
@@ -524,6 +526,7 @@ function ClassroomPageContent({
     return undefined
   }, [
     activeTab,
+    assignmentEditMode,
     assignmentViewMode,
     isTeacher,
     quizIdParam,

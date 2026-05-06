@@ -633,6 +633,48 @@ describe('TeacherClassroomView', () => {
     expect(updateSearchParams).not.toHaveBeenCalled()
   })
 
+  it('clears URL selection after opening an unreleased assignment editor from a route selection', async () => {
+    mockIsVisibleAtNow.mockReturnValue(false)
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return Promise.resolve({
+          assignments: [
+            makeAssignmentSummary('scheduled-assignment', 'Scheduled Assignment', {
+              released_at: '2026-05-10T12:00:00Z',
+            }),
+          ],
+        })
+      }
+      if (key === `class-days:${classroom.id}`) {
+        return Promise.resolve({ class_days: [] })
+      }
+      return fetcher()
+    })
+    const updateSearchParams = vi.fn()
+
+    render(
+      <TeacherClassroomView
+        classroom={classroom}
+        selectedAssignmentId="scheduled-assignment"
+        updateSearchParams={updateSearchParams}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toHaveTextContent('Editing Scheduled Assignment')
+    })
+
+    expect(updateSearchParams).toHaveBeenCalled()
+    const { params, options } = applySearchParamsUpdate(
+      updateSearchParams.mock.calls[0],
+      'tab=calendar&assignmentId=scheduled-assignment&assignmentStudentId=student-1',
+    )
+    expect(options?.replace).toBe(true)
+    expect(params.get('tab')).toBe('assignments')
+    expect(params.get('assignmentId')).toBeNull()
+    expect(params.get('assignmentStudentId')).toBeNull()
+  })
+
   it('pushes assignment selection into classroom history', async () => {
     const updateSearchParams = vi.fn()
 
