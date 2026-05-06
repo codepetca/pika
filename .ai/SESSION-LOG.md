@@ -302,6 +302,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Set the teacher calendar title-bar label to `Calendar` and added mobile spacing so the wrapped teacher FAB does not cover the calendar header.
 - Follow-up: stacked the Week/Month/All selector below the date navigator, with teacher Edit beside the lower selector row.
 - Follow-up: moved teacher Edit into the date navigator row and aligned it to the row's right edge while keeping Week/Month/All below.
+- Follow-up: moved teacher Edit into its own right-side floating FAB, kept the center FAB focused on date + view mode, and added bottom calendar padding so the last table row does not end at the viewport edge.
+- Made the mobile teacher edit FAB icon-only with an accessible label so the long All-date range does not collide with the right FAB.
 
 **Validation:**
 - `pnpm lint`
@@ -336,3 +338,14 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-teacher-calendar-mobile-edit-top-right.png`
   - `/tmp/pika-teacher-calendar-mobile-all-edit-top-right.png`
   - `/tmp/pika-student-calendar-mobile-edit-top-right.png`
+- Independent-FAB/bottom-buffer follow-up validation:
+  - `pnpm lint`
+  - `pnpm test tests/components/calendar-view-persistence.test.tsx tests/components/LessonCalendar.test.tsx tests/components/StudentLessonCalendarTab.test.tsx tests/components/TeacherEditModeControls.test.tsx`
+  - `pnpm build`
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-teacher-mobile-compact-edit-loaded.png`
+  - `/tmp/pika-teacher-calendar-mobile-all-bottom-compact-edit.png`
+  - `/tmp/pika-teacher-calendar-desktop-all-bottom.png`
+  - `/tmp/pika-student-calendar-valid.png`
+  - `/tmp/pika-student-calendar-mobile-all-bottom-buffer.png`
+  - `/tmp/pika-teacher-calendar-320-all-compact-edit.png`

@@ -523,21 +523,22 @@ export function TeacherLessonCalendarTab({
         }}
         onToday={() => setCurrentDate(new Date())}
         onViewModeChange={handleViewModeChange}
-        trailing={
+        trailing={saving || showMarkdown ? (
           <div className="flex items-center gap-1.5">
-            {saving && <span className="text-sm text-text-muted">Saving...</span>}
+            {saving && <span className="hidden text-sm text-text-muted sm:inline">Saving...</span>}
             {showMarkdown ? (
               <TeacherEditModeControls
                 active={isSidebarOpen}
                 onActiveChange={handleMarkdownToggle}
                 disabled={Boolean(classroom.archived_at)}
                 variant="secondary"
+                className="[&>button>span]:sr-only sm:[&>button>span]:not-sr-only"
               />
             ) : null}
           </div>
-        }
+        ) : null}
       />
-      <PageContent className="pt-2">
+      <PageContent className="pb-24 pt-2">
         <div className="overflow-hidden rounded-lg border border-border bg-surface">
           <LessonCalendar
             classroom={classroom}
