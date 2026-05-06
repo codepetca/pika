@@ -1648,7 +1648,7 @@ export function TeacherTestsTab({
           tone="muted"
         />
       ) : (
-        <div className="min-h-0 w-full overflow-hidden rounded-md border border-border bg-surface">
+        <div className="min-h-0 w-full overflow-auto rounded-md border border-border bg-surface">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-surface-hover text-left text-text-muted">
@@ -2228,7 +2228,7 @@ export function TeacherTestsTab({
       className="flex-1"
       splitVariant="gapped"
       primary={gradingTable}
-      inspector={gradingInspector ? <div className="h-full overflow-y-auto">{gradingInspector}</div> : undefined}
+      inspector={gradingInspector ? <div className="h-full min-h-0 overflow-y-auto">{gradingInspector}</div> : undefined}
       inspectorWidth={gradingInspectorWidth}
       inspectorCollapsed={false}
       onInspectorWidthChange={setGradingInspectorWidth}

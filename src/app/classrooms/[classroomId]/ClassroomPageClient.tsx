@@ -971,6 +971,15 @@ function ClassroomPageContent({
       : activeTab === 'tests'
         ? 'pb-0'
         : ''
+  const hasActiveTeacherSplitPanes =
+    isTeacher &&
+    (
+      activeTab === 'attendance' ||
+      activeTab === 'roster' ||
+      (activeTab === 'gradebook' && gradebookSectionParam !== 'settings') ||
+      (activeTab === 'assignments' && !!assignmentIdParam && !!assignmentStudentIdParam) ||
+      (activeTab === 'tests' && !!testIdParam && testModeParam === 'grading' && !!testStudentIdParam)
+    )
 
   async function handleRequestAssessmentDelete() {
     if (!selectedQuiz) return
@@ -1057,6 +1066,7 @@ function ClassroomPageContent({
       onNavigateHome={handleHomeNavigationAttempt}
       onNavigateClassroom={handleClassroomNavigationAttempt}
       mainClassName="max-w-none px-0 py-0"
+      constrainToViewport={hasActiveTeacherSplitPanes}
       examModeHeader={examHeaderData}
       pageTitle={selectedWorkTitle}
     >

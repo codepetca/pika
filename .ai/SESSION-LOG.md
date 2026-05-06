@@ -228,3 +228,25 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `pnpm test tests/components/AssignmentModal.test.tsx tests/lib/finalize-test-attempts.test.ts tests/api/teacher/tests-unsubmit.test.ts tests/api/teacher/tests-student-attempt-delete.test.ts tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-student-access.test.ts tests/api/integration/test-return-visibility-flow.test.ts`
 - `pnpm lint`
+
+## 2026-05-06 — Independent split-pane scrolling
+
+**Completed:**
+- Added an opt-in viewport constraint to `AppShell` and enabled it for active desktop teacher split-pane workspaces.
+- Bounded the gapped teacher workspace split at desktop sizes without changing resize handlers or inspector-width state.
+- Moved overflowing table/content regions inside the affected split panes so attendance, roster, gradebook, assignment review, and test grading can scroll panes independently.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test -- tests/components/TeacherWorkspaceSplit.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherGradebookTab.test.tsx` (ran full suite: 249 files, 2091 tests)
+- `pnpm lint`
+- Pika UI verification for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance`:
+  - `/tmp/pika-attendance-teacher.png`
+  - `/tmp/pika-attendance-student.png`
+  - `/tmp/pika-attendance-teacher-mobile.png`
+- Focused teacher split screenshots:
+  - `/tmp/pika-gradebook-teacher.png`
+  - `/tmp/pika-roster-teacher.png`
+  - `/tmp/pika-assignment-split-teacher.png`
+  - `/tmp/pika-test-grading-split-teacher.png`
+- Playwright assertion pass confirmed no document-level vertical scroll on the affected desktop split routes and a 126px resize-handle movement after drag.

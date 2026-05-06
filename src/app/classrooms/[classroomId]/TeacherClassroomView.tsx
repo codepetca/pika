@@ -1454,7 +1454,7 @@ export function TeacherClassroomView({
   )
 
   const classPane = (
-    <div className="h-full min-h-0">
+    <div className="h-full min-h-0 overflow-auto">
       {studentTable}
     </div>
   )
