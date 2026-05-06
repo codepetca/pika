@@ -7,6 +7,7 @@ import { Button, SegmentedControl } from '@/ui'
 import { PageActionBar } from '@/components/PageLayout'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import type { CalendarViewMode } from '@/components/LessonCalendar'
+import { cn } from '@/ui/utils'
 
 interface CalendarActionBarProps {
   viewMode: CalendarViewMode
@@ -118,11 +119,11 @@ export function CalendarActionBar({
 
   return (
     <PageActionBar
-      className={className}
+      className={cn('pb-10', className)}
       primary={
         <TeacherWorkSurfaceActionBar
           center={
-            <div className="flex max-w-full flex-wrap items-center justify-center gap-1.5">
+            <div className="flex max-w-full flex-col items-center justify-center gap-1.5">
               <CalendarDateNavigator
                 label={headerLabel}
                 onPrev={onPrev}
@@ -132,19 +133,21 @@ export function CalendarActionBar({
                 className="max-w-full"
               />
 
-              <SegmentedControl<CalendarViewMode>
-                ariaLabel="Calendar view"
-                value={viewMode}
-                onChange={onViewModeChange}
-                capitalizeLabels
-                options={[
-                  { value: 'week', label: 'Week' },
-                  { value: 'month', label: 'Month' },
-                  { value: 'all', label: 'All' },
-                ]}
-              />
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
+                <SegmentedControl<CalendarViewMode>
+                  ariaLabel="Calendar view"
+                  value={viewMode}
+                  onChange={onViewModeChange}
+                  capitalizeLabels
+                  options={[
+                    { value: 'week', label: 'Week' },
+                    { value: 'month', label: 'Month' },
+                    { value: 'all', label: 'All' },
+                  ]}
+                />
 
-              {trailing}
+                {trailing}
+              </div>
             </div>
           }
           centerPlacement="floating"

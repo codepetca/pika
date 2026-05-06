@@ -503,7 +503,6 @@ export function TeacherLessonCalendarTab({
   return (
     <PageLayout bleedX={false}>
       <CalendarActionBar
-        className="pb-10 sm:pb-0"
         viewMode={viewMode}
         currentDate={currentDate}
         rangeStart={classroom.start_date}
