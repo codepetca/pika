@@ -17,24 +17,11 @@ vi.mock('@/lib/auth', () => ({
   })),
 }))
 
-vi.mock('@/lib/tiptap-content', () => ({
-  extractPlainText: vi.fn(() => 'Worked carefully'),
-  isValidTiptapContent: vi.fn(() => true),
-}))
-
 vi.mock('@/lib/log-summary', () => ({
-  buildInitialsMap: vi.fn(() => ({ AB: 'Alice Brown' })),
-  sanitizeEntryText: vi.fn((text: string) => text),
-  buildSummaryPrompt: vi.fn(() => ({ system: 'sys', user: 'usr' })),
-  callOpenAIForSummary: vi.fn(async () => ({
-    overview: 'Strong progress',
-    action_items: [{ text: 'Check in with AB', initials: 'AB' }],
-  })),
   restoreNames: vi.fn((summary: any) => ({
     overview: summary.overview,
     action_items: [{ text: 'Check in with Alice Brown' }],
   })),
-  getSummaryModel: vi.fn(() => 'gpt-test'),
 }))
 
 describe('GET /api/teacher/log-summary', () => {
@@ -144,10 +131,13 @@ describe('GET /api/teacher/log-summary', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.summary).toEqual({
-      overview: 'Strong progress',
-      action_items: [{ text: 'Check in with Alice Brown' }],
-      generated_at: '2026-03-15T13:00:00.000Z',
+    expect(data).toEqual({
+      summary_status: 'ready',
+      summary: {
+        overview: 'Strong progress',
+        action_items: [{ text: 'Check in with Alice Brown' }],
+        generated_at: '2026-03-15T13:00:00.000Z',
+      },
     })
   })
 
@@ -177,12 +167,7 @@ describe('GET /api/teacher/log-summary', () => {
     await expect(response.json()).resolves.toEqual({ error: 'Forbidden' })
   })
 
-  it('generates and caches a summary when the cache is stale', async () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-03-15T14:00:00.000Z'))
-
-    const upsertSpy = vi.fn().mockResolvedValue({ error: null })
-
+  it('returns pending when entries exist but the cached summary is stale', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classrooms') {
         return {
@@ -223,48 +208,8 @@ describe('GET /api/teacher/log-summary', () => {
               return countQuery
             }
 
-            if (columns === '*') {
-              const entryQuery: any = {
-                eq: vi.fn((column: string) => {
-                  if (column === 'date') {
-                    return Promise.resolve({
-                      data: [
-                        {
-                          id: 'entry-1',
-                          student_id: 'student-1',
-                          text: 'Worked carefully',
-                          rich_content: null,
-                          updated_at: '2026-03-15T12:00:00.000Z',
-                        },
-                      ],
-                      error: null,
-                    })
-                  }
-                  return entryQuery
-                }),
-              }
-              return entryQuery
-            }
-
             throw new Error(`Unexpected entries select: ${columns}`)
           }),
-        }
-      }
-
-      if (table === 'student_profiles') {
-        return {
-          select: vi.fn(() => ({
-            in: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  user_id: 'student-1',
-                  first_name: 'Alice',
-                  last_name: 'Brown',
-                },
-              ],
-              error: null,
-            }),
-          })),
         }
       }
 
@@ -272,14 +217,22 @@ describe('GET /api/teacher/log-summary', () => {
         const cacheQuery: any = {
           eq: vi.fn(() => cacheQuery),
           single: vi.fn().mockResolvedValue({
-            data: null,
+            data: {
+              summary_items: {
+                overview: 'Older summary',
+                action_items: [],
+              },
+              initials_map: {},
+              entry_count: 1,
+              entries_updated_at: '2026-03-15T11:00:00.000Z',
+              generated_at: '2026-03-15T11:05:00.000Z',
+            },
             error: null,
           }),
         }
 
         return {
           select: vi.fn(() => cacheQuery),
-          upsert: upsertSpy,
         }
       }
 
@@ -292,19 +245,64 @@ describe('GET /api/teacher/log-summary', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.summary).toEqual({
-      overview: 'Strong progress',
-      action_items: [{ text: 'Check in with Alice Brown' }],
-      generated_at: '2026-03-15T14:00:00.000Z',
+    expect(data).toEqual({ summary: null, summary_status: 'pending' })
+  })
+
+  it('returns no_entries when the date has no student logs', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { teacher_id: 'teacher-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'entries') {
+        return {
+          select: vi.fn((columns: string, options?: Record<string, unknown>) => {
+            if (columns === 'updated_at') {
+              const updatedAtQuery: any = {
+                eq: vi.fn(() => updatedAtQuery),
+                order: vi.fn(() => ({
+                  limit: vi.fn().mockResolvedValue({
+                    data: [],
+                    error: null,
+                  }),
+                })),
+              }
+              return updatedAtQuery
+            }
+
+            if (options?.head) {
+              const countQuery: any = {
+                eq: vi.fn(() => countQuery),
+                then: vi.fn((resolve: any) =>
+                  Promise.resolve(resolve({ count: 0, error: null }))
+                ),
+              }
+              return countQuery
+            }
+
+            throw new Error(`Unexpected entries select: ${columns}`)
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
     })
-    expect(upsertSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        classroom_id: 'c1',
-        date: '2026-03-15',
-        entry_count: 1,
-        model: 'gpt-test',
-      }),
-      { onConflict: 'classroom_id,date' }
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/log-summary?classroom_id=c1&date=2026-03-15')
     )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data).toEqual({ summary: null, summary_status: 'no_entries' })
   })
 })

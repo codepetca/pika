@@ -45,11 +45,12 @@ async function handle(request: NextRequest) {
     'yyyy-MM-dd'
   )
 
-  // Find only classrooms that had entries yesterday (single query)
+  // Find only active classrooms that had entries yesterday (single query)
   const { data: activeEntries, error: entriesError } = await supabase
     .from('entries')
-    .select('classroom_id')
+    .select('classroom_id, classrooms!inner(archived_at)')
     .eq('date', yesterday)
+    .is('classrooms.archived_at', null)
 
   if (entriesError) {
     console.error('Error fetching active classrooms:', entriesError)
@@ -98,12 +99,13 @@ async function generateSummaryForClassroom(
   classroomId: string,
   date: string
 ): Promise<boolean> {
-  // Fetch entries for this classroom and date
+  // Fetch entries for this active classroom and date
   const { data: entries, error: entriesError } = await supabase
     .from('entries')
-    .select('*')
+    .select('*, classrooms!inner(archived_at)')
     .eq('classroom_id', classroomId)
     .eq('date', date)
+    .is('classrooms.archived_at', null)
 
   if (entriesError) {
     console.error(`Error fetching entries for classroom ${classroomId}:`, entriesError)

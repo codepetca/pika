@@ -52,11 +52,14 @@ describe('cron nightly-log-summaries route', () => {
 
   it('returns generated=0 when there were no active classrooms yesterday', async () => {
     vi.stubEnv('CRON_SECRET', 'secret')
+    const activeClassroomsIsSpy = vi.fn().mockResolvedValue({ data: [], error: null })
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       expect(table).toBe('entries')
       return {
         select: vi.fn(() => ({
-          eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          eq: vi.fn(() => ({
+            is: activeClassroomsIsSpy,
+          })),
         })),
       }
     })
@@ -69,6 +72,7 @@ describe('cron nightly-log-summaries route', () => {
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({ status: 'ok', generated: 0, skipped: 0 })
+    expect(activeClassroomsIsSpy).toHaveBeenCalledWith('classrooms.archived_at', null)
   })
 
   it('generates and stores a summary for active classrooms', async () => {
@@ -77,32 +81,30 @@ describe('cron nightly-log-summaries route', () => {
       if (table === 'entries') {
         return {
           select: vi.fn((columns: string) => {
-            if (columns === 'classroom_id') {
-              return {
-                eq: vi.fn().mockResolvedValue({
+            if (columns === 'classroom_id, classrooms!inner(archived_at)') {
+              const activeClassroomQuery: any = {
+                eq: vi.fn(() => activeClassroomQuery),
+                is: vi.fn().mockResolvedValue({
                   data: [{ classroom_id: 'classroom-1' }],
                   error: null,
                 }),
               }
+              return activeClassroomQuery
             }
 
             const entryQuery: any = {
-              eq: vi.fn((column: string) => {
-                if (column === 'date') {
-                  return Promise.resolve({
-                    data: [
-                      {
-                        classroom_id: 'classroom-1',
-                        student_id: 'student-1',
-                        text: 'Reflected on progress',
-                        rich_content: null,
-                        updated_at: '2026-03-15T12:00:00.000Z',
-                      },
-                    ],
-                    error: null,
-                  })
-                }
-                return entryQuery
+              eq: vi.fn(() => entryQuery),
+              is: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    classroom_id: 'classroom-1',
+                    student_id: 'student-1',
+                    text: 'Reflected on progress',
+                    rich_content: null,
+                    updated_at: '2026-03-15T12:00:00.000Z',
+                  },
+                ],
+                error: null,
               }),
             }
             return entryQuery

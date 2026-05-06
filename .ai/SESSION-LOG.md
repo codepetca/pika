@@ -369,3 +369,137 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `pnpm build`
   - `git -C "$PIKA_WORKTREE" diff --name-only --diff-filter=A origin/main -- supabase/migrations`
   - duplicate migration prefix check returned no output
+## 2026-05-06 — Make classroom log summaries cron-only
+
+**Completed:**
+- Removed on-demand OpenAI generation from the teacher log-summary API; it now only returns fresh cached nightly summaries.
+- Added `summary_status` so the Daily pane can show pending nightly summaries separately from dates with no logs.
+- Filtered nightly log-summary cron work to active classrooms with logs and clarified that removed `entry_summaries` are distinct from active classroom/day `log_summaries`.
+
+**Validation:**
+- `pnpm exec vitest tests/api/cron/nightly-log-summaries.test.ts tests/api/teacher/log-summary.test.ts`
+- `pnpm lint`
+- `bash scripts/verify-env.sh`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-06 — Speed up Daily student log cycling
+
+**Completed:**
+- Added a batched `history_preview` payload to the teacher logs API, capped at five entries per student.
+- Rendered selected-day and preview history immediately when a teacher selects a student, while refreshing exact history through a short-lived client cache.
+- Filtered blank/absent entries out of the history pane so absent selected days do not render empty selected-date blocks.
+
+**Validation:**
+- `pnpm exec vitest tests/api/teacher/logs.test.ts tests/api/teacher/student-history.test.ts tests/components/StudentLogHistory.test.tsx`
+- `pnpm lint`
+- `bash scripts/verify-env.sh`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted selected-history screenshots:
+  - `/tmp/pika-teacher-selected-history.png`
+  - `/tmp/pika-teacher-mobile-selected-history.png`
+
+## 2026-05-06 — Make deselected Daily table full-width
+
+**Completed:**
+- Changed the Daily tab so the deselected state is a full-width student table instead of a split summary pane.
+- Added a one-line `Log` column in the full-width table with ellipsis overflow and native title text for the full day log.
+- Kept selected students in the split history view, and restored the full-width log table after row deselection.
+
+**Validation:**
+- `pnpm exec vitest tests/components/TeacherAttendanceTab.test.tsx tests/components/StudentLogHistory.test.tsx tests/api/teacher/logs.test.ts`
+- `pnpm lint`
+- `bash scripts/verify-env.sh`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted Daily screenshots:
+  - `/tmp/pika-teacher-desktop-daily-log-table.png`
+  - `/tmp/pika-teacher-desktop-daily-selected.png`
+  - `/tmp/pika-teacher-desktop-daily-deselected.png`
+  - `/tmp/pika-teacher-mobile-daily-log-table.png`
+  - `/tmp/pika-teacher-mobile-daily-selected.png`
+  - `/tmp/pika-teacher-mobile-daily-deselected.png`
+
+## 2026-05-06 — Polish Daily row deselection
+
+**Completed:**
+- Added Escape-key deselection while a Daily student row is selected.
+- Removed the first-render split flash by setting the gapped inspector width CSS variable immediately, before the window-size hook resolves.
+- Added regression coverage for Escape deselection and first-render gapped split sizing.
+
+**Validation:**
+- `pnpm exec vitest tests/components/TeacherAttendanceTab.test.tsx tests/components/TeacherWorkspaceSplit.test.tsx`
+- `pnpm lint`
+- `bash scripts/verify-env.sh`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted transition screenshots:
+  - `/tmp/pika-teacher-esc-before-select.png`
+  - `/tmp/pika-teacher-select-immediate-split.png`
+  - `/tmp/pika-teacher-after-escape-deselect.png`
+
+## 2026-05-06 — Deselect Daily row on outside click
+
+**Completed:**
+- Added outside-click deselection for the selected Daily workspace while preserving clicks inside the table/history split.
+- Kept row clicks, Escape, and keyboard table deselection flowing through the same deselect handler.
+- Re-ran visual verification against this worktree on port 3002 after finding port 3001 belonged to another checkout.
+
+**Validation:**
+- `pnpm exec vitest tests/components/TeacherAttendanceTab.test.tsx`
+- `pnpm lint`
+- `bash scripts/verify-env.sh`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3002:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted outside-click screenshots:
+  - `/tmp/pika-teacher-outside-click-selected.png`
+  - `/tmp/pika-teacher-outside-click-deselected.png`
+
+## 2026-05-06 — Smooth Daily selection transitions
+
+**Completed:**
+- Added short opacity/transform entry animations for the full-width Daily table, selected split workspace, and history inspector pane.
+- Added reduced-motion CSS so those animations are disabled for users who request less motion.
+- Replaced the Daily initial-load state flag with a ref to avoid a redundant same-date refetch that could clear selection immediately after a row click.
+
+**Validation:**
+- `pnpm exec vitest tests/components/TeacherAttendanceTab.test.tsx`
+- `pnpm lint`
+- `bash scripts/verify-env.sh`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3002:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted animation screenshots and computed CSS check:
+  - `/tmp/pika-teacher-daily-animated-selected.png`
+  - `/tmp/pika-teacher-daily-animated-deselected.png`
+
+## 2026-05-06 — Pre-PR review fixes for log previews
+
+**Completed:**
+- Rebased the branch onto `origin/main` after `Constrain split-pane workspace scrolling` landed.
+- Kept main's split-pane scroll containment while preserving the Daily selection animations and outside-click deselection.
+- Reworked `history_preview` to use a service-role-only database RPC with a lateral query so the preview cap is truly five entries per student, not a shared global limit.
+
+**Validation:**
+- `pnpm exec vitest tests/api/teacher/logs.test.ts`
+- `pnpm exec vitest tests/api/teacher/logs.test.ts tests/components/StudentLogHistory.test.tsx tests/components/TeacherAttendanceTab.test.tsx tests/api/cron/nightly-log-summaries.test.ts tests/api/teacher/log-summary.test.ts tests/components/TeacherWorkspaceSplit.test.tsx`
+- `bash scripts/verify-env.sh --full`
+- Re-ran Pika UI verification on port 3002 after adding the RPC deployment-order fallback:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Re-ran targeted Daily selected/deselected browser check:
+  - `/tmp/pika-teacher-daily-animated-selected.png`
+  - `/tmp/pika-teacher-daily-animated-deselected.png`

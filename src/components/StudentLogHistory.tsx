@@ -1,95 +1,139 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
+import { entryHasContent } from '@/lib/attendance'
+import { fetchJSONWithCache } from '@/lib/request-cache'
 import type { Entry } from '@/types'
 
 interface Props {
   studentId: string
   classroomId: string
+  selectedEntry?: Entry | null
+  initialEntries?: Entry[]
 }
 
-export function StudentLogHistory({ studentId, classroomId }: Props) {
+interface StudentHistoryResponse {
+  entries: Entry[]
+}
+
+const HISTORY_LIMIT = 10
+const HISTORY_CACHE_TTL_MS = 60_000
+const EMPTY_ENTRIES: Entry[] = []
+
+export function StudentLogHistory({
+  studentId,
+  classroomId,
+  selectedEntry = null,
+  initialEntries = EMPTY_ENTRIES,
+}: Props) {
   const [entries, setEntries] = useState<Entry[]>([])
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(false)
-  const abortRef = useRef<AbortController | null>(null)
+  const previewEntries = useMemo(
+    () => normalizeEntries(initialEntries),
+    [initialEntries]
+  )
+  const selectedDisplayEntry = selectedEntry && entryHasContent(selectedEntry)
+    ? selectedEntry
+    : null
+  const selectedEntryId = selectedDisplayEntry?.id ?? null
 
   useEffect(() => {
-    abortRef.current?.abort()
-    const controller = new AbortController()
-    abortRef.current = controller
+    let cancelled = false
 
-    setLoading(true)
+    setEntries(previewEntries)
+    setHasMore(previewEntries.length === HISTORY_LIMIT)
+    setLoading(previewEntries.length === 0)
 
     const params = new URLSearchParams({
       classroom_id: classroomId,
       student_id: studentId,
-      limit: '10',
+      limit: String(HISTORY_LIMIT),
     })
+    const cacheKey = `teacher-student-history:${classroomId}:${studentId}:latest:${HISTORY_LIMIT}`
 
-    fetch(`/api/teacher/student-history?${params}`, { signal: controller.signal })
-      .then(res => res.json())
+    fetchJSONWithCache<StudentHistoryResponse>(
+      cacheKey,
+      async () => {
+        const res = await fetch(`/api/teacher/student-history?${params}`)
+        if (!res.ok) {
+          throw new Error('Failed to load student history')
+        }
+        return res.json()
+      },
+      HISTORY_CACHE_TTL_MS
+    )
       .then(data => {
-        if (controller.signal.aborted) return
+        if (cancelled) return
         const fetched: Entry[] = data.entries || []
-        setEntries(fetched)
-        setHasMore(fetched.length === 10)
+        setEntries(normalizeEntries(fetched))
+        setHasMore(fetched.length === HISTORY_LIMIT)
       })
       .catch(err => {
-        if (err instanceof Error && err.name === 'AbortError') return
         console.error('Error loading student history:', err)
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
+        if (!cancelled) setLoading(false)
       })
 
-    return () => controller.abort()
-  }, [studentId, classroomId])
+    return () => {
+      cancelled = true
+    }
+  }, [studentId, classroomId, previewEntries])
 
   function loadMore() {
     if (entries.length === 0) return
     const oldestDate = entries[entries.length - 1].date
     setLoading(true)
 
-    const controller = new AbortController()
-
     const params = new URLSearchParams({
       classroom_id: classroomId,
       student_id: studentId,
       before_date: oldestDate,
-      limit: '10',
+      limit: String(HISTORY_LIMIT),
     })
+    const cacheKey = `teacher-student-history:${classroomId}:${studentId}:before:${oldestDate}:${HISTORY_LIMIT}`
 
-    fetch(`/api/teacher/student-history?${params}`, { signal: controller.signal })
-      .then(res => res.json())
+    fetchJSONWithCache<StudentHistoryResponse>(
+      cacheKey,
+      async () => {
+        const res = await fetch(`/api/teacher/student-history?${params}`)
+        if (!res.ok) {
+          throw new Error('Failed to load more history')
+        }
+        return res.json()
+      },
+      HISTORY_CACHE_TTL_MS
+    )
       .then(data => {
         const fetched: Entry[] = data.entries || []
-        setEntries(prev => [...prev, ...fetched])
-        setHasMore(fetched.length === 10)
+        setEntries(prev => normalizeEntries([...prev, ...fetched]))
+        setHasMore(fetched.length === HISTORY_LIMIT)
       })
       .catch(err => {
-        if (err instanceof Error && err.name === 'AbortError') return
         console.error('Error loading more history:', err)
       })
       .finally(() => setLoading(false))
   }
 
+  const historyEntries = selectedEntryId
+    ? entries.filter(entry => entry.id !== selectedEntryId)
+    : entries
+  const isEmpty = !selectedDisplayEntry && historyEntries.length === 0 && !loading
+
   return (
     <div className="p-4 space-y-3">
-      {entries.length === 0 && !loading && (
+      {isEmpty && (
         <p className="text-sm text-text-muted">No entries.</p>
       )}
 
-      {entries.map(entry => (
-        <div key={entry.id}>
-          <p className="text-xs text-text-muted mb-1">
-            {formatDate(entry.date)}
-          </p>
-          <p className="text-sm text-text-default whitespace-pre-wrap">
-            {entry.text}
-          </p>
-        </div>
+      {selectedDisplayEntry && (
+        <EntryBlock entry={selectedDisplayEntry} label="Selected date" />
+      )}
+
+      {historyEntries.map(entry => (
+        <EntryBlock key={entry.id} entry={entry} />
       ))}
 
       {loading && (
@@ -109,6 +153,45 @@ export function StudentLogHistory({ studentId, classroomId }: Props) {
       )}
     </div>
   )
+}
+
+function EntryBlock({ entry, label }: { entry: Entry; label?: string }) {
+  return (
+    <div>
+      <p className="text-xs text-text-muted mb-1">
+        {label ? `${label} - ` : ''}
+        {formatDate(entry.date)}
+      </p>
+      <p className="text-sm text-text-default whitespace-pre-wrap">
+        {entry.text}
+      </p>
+    </div>
+  )
+}
+
+function dedupeEntries(entries: Entry[]): Entry[] {
+  const seen = new Set<string>()
+  const deduped: Entry[] = []
+
+  for (const entry of entries) {
+    if (seen.has(entry.id)) continue
+    seen.add(entry.id)
+    deduped.push(entry)
+  }
+
+  return deduped
+}
+
+function normalizeEntries(entries: Entry[]): Entry[] {
+  return sortEntriesNewestFirst(dedupeEntries(entries.filter(entryHasContent)))
+}
+
+function sortEntriesNewestFirst(entries: Entry[]): Entry[] {
+  return [...entries].sort((a, b) => {
+    const dateCompare = b.date.localeCompare(a.date)
+    if (dateCompare !== 0) return dateCompare
+    return b.updated_at.localeCompare(a.updated_at)
+  })
 }
 
 function formatDate(dateStr: string): string {

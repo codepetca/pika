@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { extractPlainText, isValidTiptapContent } from '@/lib/tiptap-content'
 import {
-  buildInitialsMap,
-  sanitizeEntryText,
-  buildSummaryPrompt,
-  callOpenAIForSummary,
   restoreNames,
-  getSummaryModel,
   type RawSummaryResponse,
 } from '@/lib/log-summary'
-import type { TiptapContent } from '@/types'
 import { withErrorHandler } from '@/lib/api-handler'
 
 export const dynamic = 'force-dynamic'
@@ -19,7 +12,7 @@ export const revalidate = 0
 
 /**
  * GET /api/teacher/log-summary?classroom_id=xxx&date=YYYY-MM-DD
- * Returns an AI-generated summary of all student logs for the given date.
+ * Returns a cached nightly summary of all student logs for the given date.
  */
 export const GET = withErrorHandler('GetLogSummary', async (request: NextRequest) => {
   const user = await requireRole('teacher')
@@ -97,7 +90,7 @@ export const GET = withErrorHandler('GetLogSummary', async (request: NextRequest
 
   // No entries → no summary
   if (!actualEntryCount || actualEntryCount === 0) {
-    return NextResponse.json({ summary: null })
+    return NextResponse.json({ summary: null, summary_status: 'no_entries' })
   }
 
   const maxUpdatedAt = entryStats?.[0]?.updated_at || null
@@ -135,6 +128,7 @@ export const GET = withErrorHandler('GetLogSummary', async (request: NextRequest
     )
 
     return NextResponse.json({
+      summary_status: 'ready',
       summary: {
         ...restored,
         generated_at: cached.generated_at,
@@ -142,123 +136,5 @@ export const GET = withErrorHandler('GetLogSummary', async (request: NextRequest
     })
   }
 
-  // Generate new summary
-  const summary = await generateSummary(supabase, classroomId, date, actualEntryCount, maxUpdatedAt)
-  return NextResponse.json({ summary })
+  return NextResponse.json({ summary: null, summary_status: 'pending' })
 })
-
-async function generateSummary(
-  supabase: ReturnType<typeof getServiceRoleClient>,
-  classroomId: string,
-  date: string,
-  entryCount: number,
-  entriesUpdatedAt: string | null
-) {
-  // Fetch entries and student profiles
-  const { data: entries, error: entriesError } = await supabase
-    .from('entries')
-    .select('*')
-    .eq('classroom_id', classroomId)
-    .eq('date', date)
-
-  if (entriesError || !entries?.length) {
-    return null
-  }
-
-  const studentIds = [...new Set(entries.map((e) => e.student_id))]
-
-  const { data: profiles } = await supabase
-    .from('student_profiles')
-    .select('user_id, first_name, last_name')
-    .in('user_id', studentIds)
-
-  const profileMap = new Map(
-    (profiles || []).map((p) => [p.user_id, p])
-  )
-
-  // Build unique students list (deduplicate by student_id)
-  const students = studentIds
-    .map((id) => {
-      const profile = profileMap.get(id)
-      return {
-        studentId: id,
-        firstName: profile?.first_name || '',
-        lastName: profile?.last_name || '',
-      }
-    })
-    .filter((s) => s.firstName || s.lastName)
-
-  const initialsMap = buildInitialsMap(students)
-
-  // Build reverse map for quick lookup
-  const nameToInitials: Record<string, string> = {}
-  for (const [initials, fullName] of Object.entries(initialsMap)) {
-    nameToInitials[fullName] = initials
-  }
-
-  // Sanitize entries and build logs
-  const sanitizedLogs: { initials: string; text: string }[] = []
-  for (const entry of entries) {
-    const profile = profileMap.get(entry.student_id)
-    const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
-    const initials = nameToInitials[fullName] || '?'
-
-    let text = ''
-    if (entry.rich_content && isValidTiptapContent(entry.rich_content)) {
-      text = extractPlainText(entry.rich_content as TiptapContent)
-    }
-    if (!text.trim() && entry.text) {
-      text = entry.text
-    }
-
-    if (!text.trim()) continue
-
-    const sanitized = sanitizeEntryText(text, students, initialsMap)
-    sanitizedLogs.push({ initials, text: sanitized })
-  }
-
-  if (sanitizedLogs.length === 0) {
-    return null
-  }
-
-  // Call OpenAI
-  const { system, user } = buildSummaryPrompt(date, sanitizedLogs)
-  const rawResponse = await callOpenAIForSummary(system, user)
-  const restored = restoreNames(rawResponse, initialsMap)
-
-  // Store raw response (with initials) for cache
-  const summaryItemsForStorage = {
-    overview: rawResponse.overview,
-    action_items: rawResponse.action_items.map((item) => ({
-      text: item.text,
-      initials: item.initials,
-    })),
-  }
-
-  const model = getSummaryModel()
-  const now = new Date().toISOString()
-
-  // Upsert into cache
-  const { error: upsertError } = await supabase.from('log_summaries').upsert(
-    {
-      classroom_id: classroomId,
-      date,
-      summary_items: summaryItemsForStorage,
-      initials_map: initialsMap,
-      entry_count: entryCount,
-      entries_updated_at: entriesUpdatedAt,
-      model,
-      generated_at: now,
-    },
-    { onConflict: 'classroom_id,date' }
-  )
-
-  if (upsertError) {
-    console.error('Error upserting log summary:', upsertError)
-  }
-
-  return {
-    ...restored,
-    generated_at: now,
-  }
-}
