@@ -7,46 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-03 — Always show classroom view toggle
-
-**Completed:**
-- Kept the Active/Archived classroom view toggle visible at the bottom center in both normal and edit modes.
-- Preserved Edit as the gate for classroom drag handles and row archive actions.
-- Stopped resetting the classroom view to Active when turning Edit off.
-- Added coverage for the always-visible view toggle and retained Archived selection after edit mode is disabled.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- Pika UI verification script for `/classrooms` on port 3003:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Manual Playwright screenshots:
-  - `/tmp/pika-classrooms-teacher-default.png`
-  - `/tmp/pika-classrooms-teacher-mobile-default.png`
-  - `/tmp/pika-teacher-edit.png`
-  - `/tmp/pika-teacher-mobile-edit.png`
-
-## 2026-05-03 — Clear classroom edit mode on escape and page restore
-
-**Completed:**
-- Added Escape handling to turn classroom edit mode off and clear any drag state.
-- Added `pageshow` handling so browser page restore after refresh/back-forward does not leave edit mode enabled.
-- Added component coverage for Escape and page-restore edit-mode clearing.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- Pika UI verification script for `/classrooms` on port 3003:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Manual Playwright interaction check:
-  - Escape clears classroom edit mode.
-  - `pageshow` clears classroom edit mode.
-  - `/tmp/pika-classrooms-after-edit-clear.png`
-
 ## 2026-05-04 — Move classroom create action below list
 
 **Completed:**
