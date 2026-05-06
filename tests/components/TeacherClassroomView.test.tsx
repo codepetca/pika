@@ -120,10 +120,13 @@ vi.mock('@/components/Spinner', () => ({
 }))
 
 vi.mock('@/components/AssignmentModal', () => ({
-  AssignmentModal: ({ isOpen, assignment }: any) => (
+  AssignmentModal: ({ isOpen, assignment, onClose }: any) => (
     isOpen ? (
       <div role="dialog">
         {assignment ? `Editing ${assignment.title}` : 'New Assignment'}
+        <button type="button" onClick={onClose}>
+          Close assignment modal
+        </button>
       </div>
     ) : null
   ),
@@ -539,6 +542,35 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment One')
     expect(updateSearchParams).not.toHaveBeenCalled()
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
+  })
+
+  it('exits assignment edit mode when the create assignment modal closes', async () => {
+    const onEditModeChange = vi.fn()
+
+    render(
+      <TeacherClassroomView
+        classroom={classroom}
+        selectedAssignmentId={null}
+        onEditModeChange={onEditModeChange}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'New assignment' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('New Assignment')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'false')
+    })
+    expect(onEditModeChange).toHaveBeenLastCalledWith(false)
   })
 
   it('resets edit mode when the selected assignment workspace changes', async () => {

@@ -689,6 +689,12 @@ export function TeacherClassroomView({
     loadAssignments()
   }
 
+  const closeAssignmentModal = useCallback(() => {
+    setEditAssignment(null)
+    setIsCreateModalOpen(false)
+    setAssignmentEditMode(false)
+  }, [])
+
   const setSelectionAndPersist = useCallback((
     next: TeacherAssignmentSelection,
     options: { updateUrl?: boolean; replace?: boolean } = {},
@@ -1844,10 +1850,7 @@ export function TeacherClassroomView({
         classroomId={classroom.id}
         assignment={editAssignment}
         classDays={classDays}
-        onClose={() => {
-          setEditAssignment(null)
-          setIsCreateModalOpen(false)
-        }}
+        onClose={closeAssignmentModal}
         onSuccess={(assignment, options) => {
           if (editAssignment) {
             handleEditSuccess(assignment)
@@ -1857,8 +1860,7 @@ export function TeacherClassroomView({
           if (options?.closeModal === false) {
             return
           }
-          setEditAssignment(null)
-          setIsCreateModalOpen(false)
+          closeAssignmentModal()
         }}
       />
     </>
