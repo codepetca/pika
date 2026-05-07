@@ -15,6 +15,7 @@ import {
   hasDraftSavedGrade,
   isAssignmentAlreadyReturnedWithoutResubmission,
   isAssignmentReturnable,
+  hasAssignmentSubmissionContent,
   formatDueDate,
   isPastDue,
   formatRelativeDueDate,
@@ -396,6 +397,24 @@ describe('assignment utilities', () => {
       const status = calculateAssignmentStatus(assignment, doc)
 
       expect(status).toBe('in_progress')
+    })
+  })
+
+  describe('hasAssignmentSubmissionContent', () => {
+    it('allows repo metadata to count as submittable work', () => {
+      expect(hasAssignmentSubmissionContent({
+        content: { type: 'doc', content: [] },
+        repo_url: 'https://github.com/codepetca/pika-student',
+        github_username: null,
+      })).toBe(true)
+    })
+
+    it('rejects docs with no written work or repo metadata', () => {
+      expect(hasAssignmentSubmissionContent({
+        content: { type: 'doc', content: [] },
+        repo_url: '   ',
+        github_username: null,
+      })).toBe(false)
     })
   })
 

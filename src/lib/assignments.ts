@@ -1,4 +1,5 @@
-import { Assignment, AssignmentDoc, AssignmentStatus, AssignmentStats } from '@/types'
+import { Assignment, AssignmentDoc, AssignmentStatus, AssignmentStats, TiptapContent } from '@/types'
+import { isEmpty } from '@/lib/tiptap-content'
 import { formatInTimeZone } from 'date-fns-tz'
 
 type AssignmentStatDoc = Pick<AssignmentDoc, 'is_submitted' | 'submitted_at' | 'returned_at' | 'teacher_cleared_at'>
@@ -48,6 +49,16 @@ export function isAssignmentReturnable(
 ): boolean {
   const rubricState = getAssignmentRubricState(doc)
   return rubricState === 'blank' || rubricState === 'complete'
+}
+
+export function hasAssignmentSubmissionContent(input: {
+  content: TiptapContent
+  repo_url?: string | null
+  github_username?: string | null
+}): boolean {
+  return !isEmpty(input.content)
+    || Boolean(input.repo_url?.trim())
+    || Boolean(input.github_username?.trim())
 }
 
 export function isAssignmentAlreadyReturnedWithoutResubmission(

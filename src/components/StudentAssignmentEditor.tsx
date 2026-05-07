@@ -16,8 +16,8 @@ import {
   calculateAssignmentStatus,
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
+  hasAssignmentSubmissionContent,
 } from '@/lib/assignments'
-import { isEmpty } from '@/lib/tiptap-content'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
 import { HistoryList } from '@/components/HistoryList'
@@ -296,7 +296,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
   const handleSubmit = useCallback(async () => {
     // Save first if there are unsaved changes
-    if (JSON.stringify(content) !== lastSavedContentRef.current) {
+    if (
+      JSON.stringify(content) !== lastSavedContentRef.current
+      || repoUrl !== lastSavedRepoUrlRef.current
+      || githubUsername !== lastSavedGitHubUsernameRef.current
+    ) {
       await saveContent(content, repoUrl, githubUsername, { trigger: 'autosave' })
     }
 
@@ -449,7 +453,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
   // Compute state for imperative handle (before early returns)
   const isSubmitted = doc?.is_submitted || false
-  const canSubmit = (!isEmpty(content) || !!repoUrl.trim() || !!githubUsername.trim()) && !previewEntry
+  const canSubmit = hasAssignmentSubmissionContent({
+    content,
+    repo_url: repoUrl,
+    github_username: githubUsername,
+  }) && !previewEntry
   const hasRepoMetadata = !!repoUrl.trim() || !!githubUsername.trim()
 
   // Expose imperative handle for parent components
