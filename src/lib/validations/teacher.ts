@@ -102,7 +102,7 @@ export const updateClassroomPublishingSchema = z.object({
   if (value.actualSitePublished && value.actualSiteSlug === null) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'A public slug is required before publishing the actual course website',
+      message: 'A syllabus slug is required before publishing the syllabus',
       path: ['actualSiteSlug'],
     })
   }

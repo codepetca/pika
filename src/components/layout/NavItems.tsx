@@ -2,11 +2,11 @@
 
 import { useCallback, useMemo } from 'react'
 import {
+  BookOpen,
   Calendar,
   CircleHelp,
   ClipboardCheck,
   ClipboardList,
-  LibraryBig,
   FileCheck,
   Megaphone,
   Settings,
@@ -50,12 +50,12 @@ type NavItem = {
 
 const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Daily', icon: ClipboardCheck },
-  { id: 'assignments', label: 'Assignments', icon: ClipboardList },
+  { id: 'assignments', label: 'Classwork', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
   { id: 'tests', label: 'Tests', icon: FileCheck },
   { id: 'gradebook', label: 'Gradebook', icon: SquarePercent },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'resources', label: 'Resources', icon: LibraryBig },
+  { id: 'resources', label: 'Syllabus', icon: BookOpen },
   { id: 'announcements', label: 'Announcements', icon: Megaphone },
   { id: 'roster', label: 'Roster', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
@@ -63,11 +63,11 @@ const teacherItems: NavItem[] = [
 
 const studentItems: NavItem[] = [
   { id: 'today', label: 'Today', icon: PenSquare },
-  { id: 'assignments', label: 'Assignments', icon: ClipboardList },
+  { id: 'assignments', label: 'Classwork', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
   { id: 'tests', label: 'Tests', icon: FileCheck },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'resources', label: 'Resources', icon: LibraryBig },
+  { id: 'resources', label: 'Syllabus', icon: BookOpen },
   { id: 'announcements', label: 'Announcements', icon: Megaphone },
 ]
 

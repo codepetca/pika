@@ -60,16 +60,16 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
     expect(input).toHaveValue('Test Course')
   })
 
-  it('hides website markdown fields when the user preference is off', async () => {
+  it('hides syllabus markdown fields when the user preference is off', async () => {
     window.localStorage.setItem('pika_show_markdown', 'false')
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
-      expect(screen.queryByLabelText('Website overview')).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Course overview')).not.toBeInTheDocument()
     })
-    expect(screen.queryByLabelText('Website outline')).not.toBeInTheDocument()
-    expect(screen.getByText('Website overview and outline editing is hidden by your display setting.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Course outline')).not.toBeInTheDocument()
+    expect(screen.getByText('Course overview and outline editing is hidden by your display setting.')).toBeInTheDocument()
   })
 
   it('persists the show markdown display setting from the general settings tab', async () => {
@@ -84,8 +84,8 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
       expect(markdownToggle).not.toBeChecked()
     })
     expect(window.localStorage.getItem('pika_show_markdown')).toBe('false')
-    expect(screen.queryByLabelText('Website overview')).not.toBeInTheDocument()
-    expect(screen.getByText('Website overview and outline editing is hidden by your display setting.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Course overview')).not.toBeInTheDocument()
+    expect(screen.getByText('Course overview and outline editing is hidden by your display setting.')).toBeInTheDocument()
   })
 
   it('saves on blur when value has changed', async () => {

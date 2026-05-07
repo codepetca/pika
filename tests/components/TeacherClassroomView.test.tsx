@@ -49,6 +49,22 @@ vi.mock('@/ui', () => ({
       </div>
     ) : null
   ),
+  ContentDialog: ({ isOpen, title, subtitle, children }: any) => (
+    isOpen ? (
+      <div role="dialog" aria-label={title}>
+        <div>{title}</div>
+        {subtitle ? <div>{subtitle}</div> : null}
+        {children}
+      </div>
+    ) : null
+  ),
+  FormField: ({ label, children }: any) => (
+    <label>
+      <span>{label}</span>
+      {children}
+    </label>
+  ),
+  Input: (props: any) => <input {...props} />,
   SplitButton: ({ label, onPrimaryClick, disabled, primaryButtonProps, options = [] }: any) => (
     <div>
       <button
@@ -444,6 +460,9 @@ describe('TeacherClassroomView', () => {
       if (key === `class-days:${classroom.id}`) {
         return Promise.resolve({ class_days: [] })
       }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
       return fetcher()
     })
     mockInvalidateCachedJSON.mockReset()
@@ -484,7 +503,7 @@ describe('TeacherClassroomView', () => {
 
     expect(screen.getByRole('button', { name: 'New assignment' })).toBeInTheDocument()
     expect(screen.getByTestId('assignment-summary-actionbar-center')).toHaveClass('grid')
-    expect(screen.getByRole('button', { name: 'New assignment' }).parentElement?.parentElement).toHaveClass('fixed')
+    expect(screen.getByRole('button', { name: 'New assignment' }).closest('.fixed')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
@@ -644,6 +663,9 @@ describe('TeacherClassroomView', () => {
       if (key === `class-days:${classroom.id}`) {
         return Promise.resolve({ class_days: [] })
       }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
       return fetcher()
     })
     const updateSearchParams = vi.fn()
@@ -679,6 +701,9 @@ describe('TeacherClassroomView', () => {
       }
       if (key === `class-days:${classroom.id}`) {
         return Promise.resolve({ class_days: [] })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
       }
       return fetcher()
     })
@@ -2168,6 +2193,9 @@ describe('TeacherClassroomView', () => {
       }
       if (key === `class-days:${classroom.id}`) {
         return Promise.resolve({ class_days: [] })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
       }
       return fetcher()
     })

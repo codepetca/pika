@@ -403,3 +403,124 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-compact-mc-teacher-mobile.png`
   - `/tmp/pika-compact-mc-student-mobile.png`
 - `pnpm test`
+## 2026-05-06 — Separate Materials and Syllabus branch
+
+**Completed:**
+- Created isolated branch/worktree `codex/materials-syllabus` from `origin/main`, separate from the existing `codex/classwork-tab` exploration.
+- Renamed visible Assignments navigation to Classwork and Resources navigation to Syllabus while keeping existing query-tab compatibility.
+- Added ungraded Classwork Materials with teacher CRUD APIs/UI, student read UI/API, and a `classwork_materials` migration.
+- Replaced the Resources tab surface with a syllabus/course-site entry point that opens a published course site or points teachers to Course Website Settings.
+- Renamed teacher-facing "Actual Course Website" copy to "Course Website" in Settings.
+- Added a simplified public syllabus grading summary to `/actual/[slug]`, including category weights and per-item approximate course weights from gradebook settings plus point values.
+- Embedded the published syllabus inside the Pika Syllabus tab for teachers and students, with an `Open External` action for the standalone `/actual/<slug>` page.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/api/teacher/materials.test.ts tests/api/student/materials.test.ts tests/components/ResourcesTab.test.tsx tests/components/NavItems.test.tsx tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `pnpm test`
+- Pika UI verification for Classwork and Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Focused Playwright screenshots:
+  - `/tmp/pika-classwork-new-menu.png`
+  - `/tmp/pika-material-dialog.png`
+  - `/tmp/pika-course-website-settings.png`
+  - `/tmp/pika-actual-syllabus-grading.png`
+  - `/tmp/pika-actual-syllabus-grading-mobile.png`
+  - Re-ran Syllabus tab visual verification after embedding the preview:
+    - `/tmp/pika-teacher.png`
+    - `/tmp/pika-student.png`
+    - `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-06 — Rebase materials branch and align Announcements action
+
+**Completed:**
+- Rebasing `codex/materials-syllabus` onto `origin/main` completed cleanly, leaving the branch at `0 0` ahead/behind.
+- Resequenced the new classwork materials migration from `064_classwork_materials.sql` to `065_classwork_materials.sql` after `origin/main` added `064_teacher_log_history_preview_rpc.sql`.
+- Moved the Announcements teacher create action into the shared centered floating work-surface action cluster and removed the old bottom `New Announcement` button.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/api/teacher/announcements.test.ts tests/api/teacher/announcements-id.test.ts tests/api/student/announcements.test.ts`
+- `pnpm build`
+- `git diff --check`
+- Duplicate migration prefix check
+- Pika UI verification for Announcements on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=announcements`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-06 — Simplify Syllabus tab embed
+
+**Completed:**
+- Removed the published-state top Course site/Syllabus card from teacher and student Syllabus tabs.
+- Published Syllabus now opens directly to the embedded in-Pika course syllabus frame.
+- Kept unpublished teacher/student fallback states so teachers can still reach Course Website Settings when there is no published site.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/ResourcesTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-06 — Fill Syllabus main content frame
+
+**Completed:**
+- Updated teacher and student Syllabus tabs so the published embed container fills the available main content width and height instead of using a centered max-width wrapper.
+- Preserved stable mobile height for the iframe so the course syllabus remains usable inside the classroom shell.
+
+**Validation:**
+- `pnpm test tests/components/ResourcesTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-07 — Strip Syllabus framing and simplify generated content
+
+**Completed:**
+- Removed the published Syllabus iframe wrapper/card from teacher and student classroom tabs so the iframe renders directly in the main content area.
+- Simplified `/actual/[slug]` by removing the Grading summary, Resources section, and Current Lesson Sequence.
+- Reduced Classwork rows to assignment title plus approximate course weight only.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/ResourcesTab.test.tsx tests/lib/server/course-sites.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Standalone syllabus screenshots:
+  - `/tmp/pika-actual-syllabus.png`
+  - `/tmp/pika-actual-syllabus-mobile.png`
+
+## 2026-05-07 — Match actual syllabus to blueprint-style overview
+
+**Completed:**
+- Confirmed the in-Pika course overview comes from `classrooms.course_overview_markdown`, which is seeded from `course_blueprints.overview_markdown` when a classroom is created from a blueprint and then editable per classroom in Settings.
+- Reworked `/actual/[slug]` into a simplified syllabus page with header, Course Overview when present, optional Test Docs, and one Assignments list using A/Q/T labels plus course-weight percentages.
+- Removed the unused Resources publish toggle from Public Syllabus settings and renamed remaining teacher/student-facing course-site labels to syllabus language.
+
+**Validation:**
+- `pnpm test tests/components/ResourcesTab.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/lib/server/course-sites.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms-id.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Settings screenshot for Public Syllabus labels:
+  - `/tmp/pika-settings-teacher-full.png`

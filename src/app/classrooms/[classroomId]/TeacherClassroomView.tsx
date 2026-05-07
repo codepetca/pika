@@ -27,10 +27,11 @@ import {
   Pencil,
   Plus,
   Send,
+  Trash2,
   User,
   Users,
 } from 'lucide-react'
-import { Button, ConfirmDialog, SegmentedControl, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { Button, ConfirmDialog, ContentDialog, FormField, Input, SegmentedControl, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
@@ -47,7 +48,9 @@ import {
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
+import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
+import { RichTextEditor } from '@/components/editor'
 import {
   ACTIONBAR_ICON_BUTTON_CLASSNAME,
 } from '@/components/PageLayout'
@@ -71,6 +74,7 @@ import type {
   AssignmentStats,
   AssignmentStatus,
   ClassDay,
+  ClassworkMaterial,
   TiptapContent,
 } from '@/types'
 import {
@@ -104,6 +108,8 @@ type UpdateSearchParamsFn = (
 
 export type AssignmentViewMode = 'summary' | 'assignment'
 
+const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
+
 interface Props {
   classroom: Classroom
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
@@ -111,6 +117,7 @@ interface Props {
   onEditModeChange?: (active: boolean) => void
   isActive?: boolean
   selectedAssignmentId?: string | null
+  selectedMaterialId?: string | null
   selectedAssignmentStudentId?: string | null
   updateSearchParams?: UpdateSearchParamsFn
 }
@@ -128,6 +135,224 @@ function MetricBar({ value }: { value: number }) {
         style={{ width: `${percentage}%` }}
       />
     </div>
+  )
+}
+
+function TeacherMaterialCard({
+  material,
+  isReadOnly,
+  editMode,
+  onOpen,
+  onDelete,
+}: {
+  material: ClassworkMaterial
+  isReadOnly: boolean
+  editMode: boolean
+  onOpen: () => void
+  onDelete: () => void
+}) {
+  const showEditActions = editMode && !isReadOnly
+
+  return (
+    <TeacherWorkItemCardFrame
+      onClick={onOpen}
+      tone={material.is_draft ? 'muted' : 'default'}
+      className="cursor-pointer"
+    >
+      <div
+        className={[
+          'grid items-center gap-3',
+          showEditActions ? 'grid-cols-[minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)]',
+        ].join(' ')}
+      >
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            onOpen()
+          }}
+          className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-left"
+          aria-label={`Open ${material.title}`}
+        >
+          <span className="min-w-0">
+            <span
+              className={[
+                'block truncate font-medium',
+                material.is_draft ? 'text-text-muted' : 'text-text-default',
+              ].join(' ')}
+            >
+              {material.title}
+            </span>
+            <span className="block text-xs text-text-muted">Material</span>
+          </span>
+
+          <span className="whitespace-nowrap px-2 text-center">
+            {material.is_draft ? (
+              <span className="inline-flex items-center rounded-badge bg-surface-3 px-2.5 py-1 text-xs font-semibold text-text-muted">
+                Draft
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-primary">
+                Posted
+              </span>
+            )}
+          </span>
+        </button>
+
+        {showEditActions && (
+          <Tooltip content="Delete material">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-1.5 text-danger hover:bg-danger-bg"
+              aria-label={`Delete ${material.title}`}
+              disabled={isReadOnly}
+              onClick={(event) => {
+                event.stopPropagation()
+                onDelete()
+              }}
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </Tooltip>
+        )}
+      </div>
+    </TeacherWorkItemCardFrame>
+  )
+}
+
+function TeacherMaterialDialog({
+  classroom,
+  material,
+  isOpen,
+  onClose,
+  onSaved,
+  onRequestDelete,
+}: {
+  classroom: Classroom
+  material: ClassworkMaterial | null
+  isOpen: boolean
+  onClose: () => void
+  onSaved: (material: ClassworkMaterial) => void
+  onRequestDelete: (material: ClassworkMaterial) => void
+}) {
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { showMessage } = useAppMessage()
+  const isReadOnly = !!classroom.archived_at
+  const isDraft = material?.is_draft ?? true
+
+  useEffect(() => {
+    if (!isOpen) return
+    setTitle(material?.title || '')
+    setContent(material?.content || EMPTY_DOC)
+    setError(null)
+  }, [isOpen, material])
+
+  async function saveMaterial(nextDraft: boolean) {
+    const cleanTitle = title.trim()
+    if (!cleanTitle) {
+      setError('Title is required')
+      return
+    }
+
+    setSaving(true)
+    setError(null)
+    try {
+      const response = await fetch(
+        material
+          ? `/api/teacher/classrooms/${classroom.id}/materials/${material.id}`
+          : `/api/teacher/classrooms/${classroom.id}/materials`,
+        {
+          method: material ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: cleanTitle, content, is_draft: nextDraft }),
+        },
+      )
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to save material')
+      onSaved(data.material as ClassworkMaterial)
+      showMessage({ text: nextDraft ? 'Material saved as draft.' : 'Material posted.', tone: 'success' })
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save material')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <ContentDialog
+      isOpen={isOpen}
+      onClose={saving ? () => {} : onClose}
+      title={material ? 'Material' : 'New Material'}
+      subtitle="Ungraded classwork"
+      maxWidth="max-w-4xl"
+      showFooterClose={false}
+    >
+      <div className="space-y-4">
+        <FormField label="Title">
+          <Input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            disabled={saving || isReadOnly}
+            placeholder="Reading, link, handout..."
+          />
+        </FormField>
+
+        <FormField label="Content">
+          <RichTextEditor
+            content={content}
+            onChange={setContent}
+            editable={!saving && !isReadOnly}
+            placeholder="Add links, notes, readings, or instructions..."
+          />
+        </FormField>
+
+        {error && (
+          <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+            {error}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            {material && !isReadOnly ? (
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => onRequestDelete(material)}
+                disabled={saving}
+              >
+                Delete
+              </Button>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => saveMaterial(true)}
+              disabled={saving || isReadOnly}
+            >
+              {saving ? 'Saving...' : 'Save Draft'}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => saveMaterial(false)}
+              disabled={saving || isReadOnly}
+            >
+              {saving ? 'Saving...' : isDraft ? 'Post Material' : 'Save'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </ContentDialog>
   )
 }
 
@@ -249,10 +474,15 @@ export function TeacherClassroomView({
   const isUrlSelectionControlled = selectedAssignmentIdProp !== undefined
 
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
+  const [materials, setMaterials] = useState<ClassworkMaterial[]>([])
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [loading, setLoading] = useState(true)
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false)
+  const [editMaterial, setEditMaterial] = useState<ClassworkMaterial | null>(null)
+  const [pendingMaterialDelete, setPendingMaterialDelete] = useState<ClassworkMaterial | null>(null)
+  const [isDeletingMaterial, setIsDeletingMaterial] = useState(false)
   const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
   const [isReordering, setIsReordering] = useState(false)
   const [assignmentEditMode, setAssignmentEditMode] = useState(false)
@@ -315,7 +545,7 @@ export function TeacherClassroomView({
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const wasActiveRef = useRef(isActive)
   const handledCompletedRunKeysRef = useRef<Set<string>>(new Set())
-  const showSummarySpinner = useDelayedBusy(loading && assignments.length === 0)
+  const showSummarySpinner = useDelayedBusy(loading && assignments.length === 0 && materials.length === 0)
   const { showMessage } = useAppMessage()
   const {
     layout: assignmentGradingLayout,
@@ -328,28 +558,38 @@ export function TeacherClassroomView({
       setLoading(true)
     }
     try {
-	      const [assignmentsData, classDaysRes] = await Promise.all([
-	        fetchJSONWithCache(
-	          `teacher-assignments:${classroom.id}`,
-	          async () => {
-	            const response = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
-	            if (!response.ok) throw new Error('Failed to load assignments')
-	            return response.json()
-	          },
-	          20_000,
-	        ),
-	        fetchJSONWithCache(
-	          `class-days:${classroom.id}`,
-	          async () => {
-	            const response = await fetch(`/api/classrooms/${classroom.id}/class-days`)
-	            if (!response.ok) return { class_days: [] }
-	            return response.json().catch(() => ({ class_days: [] }))
-	          },
-	          20_000,
-	        ),
-	      ])
-	      setAssignments(assignmentsData.assignments || [])
-	      setClassDays(classDaysRes.class_days || [])
+      const [assignmentsData, materialsData, classDaysRes] = await Promise.all([
+        fetchJSONWithCache(
+          `teacher-assignments:${classroom.id}`,
+          async () => {
+            const response = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
+            if (!response.ok) throw new Error('Failed to load assignments')
+            return response.json()
+          },
+          20_000,
+        ),
+        fetchJSONWithCache(
+          `teacher-materials:${classroom.id}`,
+          async () => {
+            const response = await fetch(`/api/teacher/classrooms/${classroom.id}/materials`)
+            if (!response.ok) throw new Error('Failed to load materials')
+            return response.json()
+          },
+          20_000,
+        ),
+        fetchJSONWithCache(
+          `class-days:${classroom.id}`,
+          async () => {
+            const response = await fetch(`/api/classrooms/${classroom.id}/class-days`)
+            if (!response.ok) return { class_days: [] }
+            return response.json().catch(() => ({ class_days: [] }))
+          },
+          20_000,
+        ),
+      ])
+      setAssignments(assignmentsData.assignments || [])
+      setMaterials(materialsData.materials || [])
+      setClassDays(classDaysRes.class_days || [])
       setHasLoadedOnce(true)
       window.dispatchEvent(
         new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
@@ -366,6 +606,47 @@ export function TeacherClassroomView({
   useEffect(() => {
     loadAssignments()
   }, [loadAssignments])
+
+  const handleMaterialSaved = useCallback((material: ClassworkMaterial) => {
+    invalidateCachedJSON(`teacher-materials:${classroom.id}`)
+    invalidateCachedJSON(`student-materials:${classroom.id}`)
+    setMaterials((current) => {
+      const exists = current.some((item) => item.id === material.id)
+      const next = exists
+        ? current.map((item) => (item.id === material.id ? material : item))
+        : [material, ...current]
+      return next.sort((a, b) => {
+        const aTime = new Date(a.created_at).getTime()
+        const bTime = new Date(b.created_at).getTime()
+        return bTime - aTime
+      })
+    })
+    setEditMaterial(null)
+    setIsMaterialModalOpen(false)
+  }, [classroom.id])
+
+  const deleteMaterial = useCallback(async () => {
+    if (!pendingMaterialDelete) return
+    setIsDeletingMaterial(true)
+    try {
+      const response = await fetch(`/api/teacher/classrooms/${classroom.id}/materials/${pendingMaterialDelete.id}`, {
+        method: 'DELETE',
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to delete material')
+      invalidateCachedJSON(`teacher-materials:${classroom.id}`)
+      invalidateCachedJSON(`student-materials:${classroom.id}`)
+      setMaterials((current) => current.filter((material) => material.id !== pendingMaterialDelete.id))
+      setPendingMaterialDelete(null)
+      setEditMaterial(null)
+      setIsMaterialModalOpen(false)
+      showMessage({ text: 'Material deleted.', tone: 'success' })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete material')
+    } finally {
+      setIsDeletingMaterial(false)
+    }
+  }, [classroom.id, pendingMaterialDelete, showMessage])
 
   useEffect(() => {
     if (isActive && !wasActiveRef.current && hasLoadedOnce) {
@@ -1666,17 +1947,34 @@ export function TeacherClassroomView({
         testId="assignment-summary-actionbar-center"
         center={
           <div className="flex items-center justify-center gap-1.5">
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={() => setIsCreateModalOpen(true)}
+            <SplitButton
+              label={
+                <span className="inline-flex items-center gap-1.5">
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  <span>New</span>
+                </span>
+              }
+              onPrimaryClick={() => setIsCreateModalOpen(true)}
+              options={[
+                {
+                  id: 'assignment',
+                  label: 'Assignment',
+                  onSelect: () => setIsCreateModalOpen(true),
+                },
+                {
+                  id: 'material',
+                  label: 'Material',
+                  onSelect: () => {
+                    setEditMaterial(null)
+                    setIsMaterialModalOpen(true)
+                  },
+                },
+              ]}
               disabled={isReadOnly}
-              aria-label="New assignment"
-            >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              <span>New</span>
-            </Button>
+              toggleAriaLabel="Choose classwork type"
+              menuPlacement="down"
+              primaryButtonProps={{ 'aria-label': 'New assignment' }}
+            />
             {assignmentSummaryEditControls}
           </div>
         }
@@ -1705,42 +2003,57 @@ export function TeacherClassroomView({
     <div className="flex justify-center py-8">
       <Spinner />
     </div>
-  ) : assignments.length === 0 ? (
+  ) : assignments.length === 0 && materials.length === 0 ? (
     <div className="py-6 text-center text-sm text-text-muted">
-      No assignments yet
+      No classwork yet
     </div>
   ) : (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
-    >
-      <SortableContext
-        items={assignments.map((assignment) => assignment.id)}
-        strategy={verticalListSortingStrategy}
-      >
-        <TeacherWorkItemList>
-          {assignments.map((assignment) => (
-            <SortableAssignmentCard
-              key={assignment.id}
-              assignment={assignment}
-              isReadOnly={isReadOnly}
-              isDragDisabled={isReordering}
-              editMode={assignmentEditMode}
-              onOpen={() => {
-                if (assignment.is_draft || isScheduledAssignment(assignment)) {
-                  setEditAssignment(assignment)
-                } else {
-                  setSelectionAndPersist({ mode: 'assignment', assignmentId: assignment.id })
-                }
-              }}
-              onEdit={() => setEditAssignment(assignment)}
-              onDelete={() => setPendingDelete({ id: assignment.id, title: assignment.title })}
-            />
-          ))}
-        </TeacherWorkItemList>
-      </SortableContext>
-    </DndContext>
+    <TeacherWorkItemList>
+      {materials.map((material) => (
+        <TeacherMaterialCard
+          key={material.id}
+          material={material}
+          isReadOnly={isReadOnly}
+          editMode={assignmentEditMode}
+          onOpen={() => {
+            setEditMaterial(material)
+            setIsMaterialModalOpen(true)
+          }}
+          onDelete={() => setPendingMaterialDelete(material)}
+        />
+      ))}
+      {assignments.length > 0 ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={assignments.map((assignment) => assignment.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {assignments.map((assignment) => (
+              <SortableAssignmentCard
+                key={assignment.id}
+                assignment={assignment}
+                isReadOnly={isReadOnly}
+                isDragDisabled={isReordering}
+                editMode={assignmentEditMode}
+                onOpen={() => {
+                  if (assignment.is_draft || isScheduledAssignment(assignment)) {
+                    setEditAssignment(assignment)
+                  } else {
+                    setSelectionAndPersist({ mode: 'assignment', assignmentId: assignment.id })
+                  }
+                }}
+                onEdit={() => setEditAssignment(assignment)}
+                onDelete={() => setPendingDelete({ id: assignment.id, title: assignment.title })}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+      ) : null}
+    </TeacherWorkItemList>
   )
 
   const leftPaneHeader = leftPaneView === 'individual' ? selectedStudentControls : null
@@ -1805,6 +2118,21 @@ export function TeacherClassroomView({
         onConfirm={deleteAssignment}
       />
 
+      <ConfirmDialog
+        isOpen={!!pendingMaterialDelete}
+        title="Delete material?"
+        description={pendingMaterialDelete ? `${pendingMaterialDelete.title}\n\nThis cannot be undone.` : undefined}
+        confirmLabel={isDeletingMaterial ? 'Deleting...' : 'Delete'}
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        isConfirmDisabled={isDeletingMaterial}
+        isCancelDisabled={isDeletingMaterial}
+        onCancel={() => (isDeletingMaterial ? null : setPendingMaterialDelete(null))}
+        onConfirm={() => {
+          void deleteMaterial()
+        }}
+      />
+
 
       <ConfirmDialog
         isOpen={!!gradeSelectedConfirmTarget}
@@ -1862,6 +2190,18 @@ export function TeacherClassroomView({
           }
           closeAssignmentModal()
         }}
+      />
+
+      <TeacherMaterialDialog
+        classroom={classroom}
+        material={editMaterial}
+        isOpen={isMaterialModalOpen}
+        onClose={() => {
+          setIsMaterialModalOpen(false)
+          setEditMaterial(null)
+        }}
+        onSaved={handleMaterialSaved}
+        onRequestDelete={setPendingMaterialDelete}
       />
     </>
   )

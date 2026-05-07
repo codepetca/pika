@@ -318,7 +318,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
   it('passes the assignments summary label to the app shell title slot', () => {
     renderClient()
 
-    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Assignments')
+    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Classwork')
   })
 
   it('clears the assignments summary label while assignment edit mode is active', () => {

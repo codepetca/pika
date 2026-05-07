@@ -12,13 +12,13 @@ describe('teacher validations', () => {
     expect(result.error?.issues[0]?.message).toBe('A planned site slug is required before publishing the planned site')
   })
 
-  it('rejects publishing an actual site when the request clears the slug', () => {
+  it('rejects publishing a syllabus when the request clears the slug', () => {
     const result = updateClassroomPublishingSchema.safeParse({
       actualSiteSlug: null,
       actualSitePublished: true,
     })
 
     expect(result.success).toBe(false)
-    expect(result.error?.issues[0]?.message).toBe('A public slug is required before publishing the actual course website')
+    expect(result.error?.issues[0]?.message).toBe('A syllabus slug is required before publishing the syllabus')
   })
 })

@@ -186,7 +186,7 @@ describe('PATCH /api/teacher/classrooms/[id]', () => {
     expect(data.error).toBe('Classroom is not archived')
   })
 
-  it('should require a slug before publishing the actual course website', async () => {
+  it('should require a slug before publishing the syllabus', async () => {
     const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1', {
       method: 'PATCH',
       body: JSON.stringify({ actualSitePublished: true }),
@@ -196,7 +196,7 @@ describe('PATCH /api/teacher/classrooms/[id]', () => {
     expect(response.status).toBe(400)
 
     const data = await response.json()
-    expect(data.error).toBe('A public slug is required before publishing the actual course website')
+    expect(data.error).toBe('A syllabus slug is required before publishing the syllabus')
   })
 })
 

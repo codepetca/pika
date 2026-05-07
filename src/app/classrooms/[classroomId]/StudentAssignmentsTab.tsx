@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Pencil } from 'lucide-react'
+import { BookOpen, Pencil } from 'lucide-react'
 import { Button, Card, ContentDialog, EmptyState, RefreshingIndicator } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout, PageStack } from '@/components/PageLayout'
@@ -11,7 +11,7 @@ import {
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
 } from '@/lib/assignments'
-import type { AssignmentWithStatus, Classroom, TiptapContent } from '@/types'
+import type { AssignmentWithStatus, Classroom, ClassworkMaterial, TiptapContent } from '@/types'
 import { StudentAssignmentEditor, type StudentAssignmentEditorHandle } from '@/components/StudentAssignmentEditor'
 import { RichTextViewer } from '@/components/editor'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
@@ -21,19 +21,22 @@ import { fetchJSONWithCache } from '@/lib/request-cache'
 interface Props {
   classroom: Classroom
   selectedAssignmentId?: string | null
+  selectedMaterialId?: string | null
   isActive?: boolean
   updateSearchParams?: (updater: (params: URLSearchParams) => void, options?: { replace?: boolean }) => void
 }
 
-type StudentAssignmentsView = 'summary' | 'edit'
+type StudentAssignmentsView = 'summary' | 'edit' | 'material'
 
 export function StudentAssignmentsTab({
   classroom,
   selectedAssignmentId = null,
+  selectedMaterialId = null,
   isActive = true,
   updateSearchParams = () => {},
 }: Props) {
   const [assignments, setAssignments] = useState<AssignmentWithStatus[]>([])
+  const [materials, setMaterials] = useState<ClassworkMaterial[]>([])
   const [loading, setLoading] = useState(false)
   const [hasLoaded, setHasLoaded] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -41,7 +44,7 @@ export function StudentAssignmentsTab({
   const [editorState, setEditorState] = useState({ isSubmitted: false, canSubmit: false, submitting: false, hasRepoMetadata: false })
   const editorRef = useRef<StudentAssignmentEditorHandle>(null)
   const wasActiveRef = useRef(isActive)
-  const showBlockingSpinner = useDelayedBusy(loading && assignments.length === 0)
+  const showBlockingSpinner = useDelayedBusy(loading && assignments.length === 0 && materials.length === 0)
 
   const loadAssignments = useCallback(
     async (options?: { preserveContent?: boolean }) => {
@@ -52,16 +55,28 @@ export function StudentAssignmentsTab({
         setLoading(true)
       }
       try {
-        const data = await fetchJSONWithCache(
-          `student-assignments:${classroom.id}`,
-          async () => {
-            const res = await fetch(`/api/student/assignments?classroom_id=${classroom.id}`)
-            if (!res.ok) throw new Error('Failed to load assignments')
-            return res.json()
-          },
-          20_000,
-        )
-        setAssignments(data.assignments || [])
+        const [assignmentsData, materialsData] = await Promise.all([
+          fetchJSONWithCache(
+            `student-assignments:${classroom.id}`,
+            async () => {
+              const res = await fetch(`/api/student/assignments?classroom_id=${classroom.id}`)
+              if (!res.ok) throw new Error('Failed to load assignments')
+              return res.json()
+            },
+            20_000,
+          ),
+          fetchJSONWithCache(
+            `student-materials:${classroom.id}`,
+            async () => {
+              const res = await fetch(`/api/student/classrooms/${classroom.id}/materials`)
+              if (!res.ok) throw new Error('Failed to load materials')
+              return res.json()
+            },
+            20_000,
+          ),
+        ])
+        setAssignments(assignmentsData.assignments || [])
+        setMaterials(materialsData.materials || [])
         setHasLoaded(true)
       } catch (err) {
         console.error('Error loading assignments:', err)
@@ -90,14 +105,20 @@ export function StudentAssignmentsTab({
     return assignments.find((a) => a.id === selectedAssignmentId) ?? null
   }, [assignments, selectedAssignmentId])
 
+  const selectedMaterial = useMemo(() => {
+    if (!selectedMaterialId) return null
+    return materials.find((material) => material.id === selectedMaterialId) ?? null
+  }, [materials, selectedMaterialId])
+
   const view: StudentAssignmentsView = useMemo(() => {
+    if (selectedMaterialId && selectedMaterial) return 'material'
     if (!selectedAssignmentId) return 'summary'
     if (!selectedAssignment) return 'summary'
     return 'edit'
-  }, [selectedAssignment, selectedAssignmentId])
+  }, [selectedAssignment, selectedAssignmentId, selectedMaterial, selectedMaterialId])
 
   const navigate = useCallback(
-    (next: { assignmentId?: string | null }) => {
+    (next: { assignmentId?: string | null; materialId?: string | null }) => {
       updateSearchParams((params) => {
         params.set('tab', 'assignments')
         params.delete('view')
@@ -105,6 +126,11 @@ export function StudentAssignmentsTab({
           params.set('assignmentId', next.assignmentId)
         } else {
           params.delete('assignmentId')
+        }
+        if (next.materialId) {
+          params.set('materialId', next.materialId)
+        } else {
+          params.delete('materialId')
         }
       })
     },
@@ -214,6 +240,14 @@ export function StudentAssignmentsTab({
             </Button>
           }
         />
+      ) : selectedMaterial ? (
+        <PageActionBar
+          primary={
+            <Button size="sm" variant="secondary" onClick={() => navigate({ materialId: null })}>
+              Back
+            </Button>
+          }
+        />
       ) : null}
       <PageContent className="flex-1 min-h-0">
         <div className="min-w-0 h-full flex flex-col">
@@ -227,13 +261,37 @@ export function StudentAssignmentsTab({
                 </div>
               </Card>
             ) : view === 'summary' ? (
-              assignments.length === 0 ? (
+              assignments.length === 0 && materials.length === 0 ? (
                 <EmptyState
-                  title="No assignments yet"
-                  description="When your teacher posts work, it will show up here with due dates and submission status."
+                  title="No classwork yet"
+                  description="When your teacher posts assignments or materials, they will show up here."
                 />
               ) : (
                 <PageStack>
+                  {materials.map((material) => (
+                    <button
+                      key={material.id}
+                      type="button"
+                      data-testid="material-card"
+                      onClick={() => navigate({ materialId: material.id })}
+                      className="block w-full rounded-card border border-border bg-surface-panel px-5 py-4 text-left transition-[background-color,border-color,box-shadow,transform] hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-base font-semibold text-text-default">
+                            {material.title}
+                          </h3>
+                          <p className="mt-1 inline-flex items-center gap-1 text-sm text-text-muted">
+                            <BookOpen className="h-4 w-4" aria-hidden="true" />
+                            Material
+                          </p>
+                        </div>
+                        <span className="rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-primary">
+                          Posted
+                        </span>
+                      </div>
+                    </button>
+                  ))}
                   {assignments.map((assignment) => (
                     <button
                       key={assignment.id}
@@ -264,6 +322,14 @@ export function StudentAssignmentsTab({
                   ))}
                 </PageStack>
               )
+            ) : view === 'material' && selectedMaterial ? (
+              <Card tone="panel" padding="lg">
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-text-muted">Material</p>
+                  <h2 className="mt-1 text-2xl font-semibold text-text-default">{selectedMaterial.title}</h2>
+                </div>
+                <RichTextViewer content={selectedMaterial.content} />
+              </Card>
             ) : !selectedAssignment ? (
               <EmptyState
                 title="Assignment unavailable"

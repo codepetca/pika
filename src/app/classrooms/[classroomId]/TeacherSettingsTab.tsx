@@ -211,16 +211,16 @@ export function TeacherSettingsTab({
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to save actual course site settings')
+        throw new Error(data.error || 'Failed to save syllabus settings')
       }
       setActualSiteSlug(data.classroom?.actual_site_slug || '')
       setActualSitePublished(!!data.classroom?.actual_site_published)
       setActualSiteConfig(data.classroom?.actual_site_config || actualSiteConfig)
       setCourseOverviewMarkdown(data.classroom?.course_overview_markdown || courseOverviewMarkdown)
       setCourseOutlineMarkdown(data.classroom?.course_outline_markdown || courseOutlineMarkdown)
-      showMessage({ text: 'Website settings saved', tone: 'success' })
+      showMessage({ text: 'Syllabus settings saved', tone: 'success' })
     } catch (err: any) {
-      setSiteError(err.message || 'Failed to save actual course site settings')
+      setSiteError(err.message || 'Failed to save syllabus settings')
     } finally {
       setSiteSaving(false)
     }
@@ -430,8 +430,8 @@ export function TeacherSettingsTab({
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-4">
               <div className="flex items-center gap-2">
-                <div className="text-sm font-semibold text-text-default">Actual Course Website</div>
-                <Tooltip content="Publish a public-facing version of the current classroom state" side="right">
+                <div className="text-sm font-semibold text-text-default">Public Syllabus</div>
+                <Tooltip content="Publish the public syllabus page for this classroom" side="right">
                   <span className="text-text-muted cursor-help">
                     <Info size={14} />
                   </span>
@@ -441,7 +441,7 @@ export function TeacherSettingsTab({
               <div className="grid gap-3 md:grid-cols-[minmax(0,1fr),auto]">
                 <div>
                   <label htmlFor={actualSiteSlugId} className="mb-2 block text-sm text-text-muted">
-                    Public slug
+                    Syllabus slug
                   </label>
                   <Input
                     id={actualSiteSlugId}
@@ -471,7 +471,7 @@ export function TeacherSettingsTab({
                   disabled={siteSaving || isReadOnly}
                   className="h-4 w-4"
                 />
-                Publish this classroom as the actual course website
+                Publish this classroom syllabus
               </label>
 
               <div className="grid gap-3 md:grid-cols-2">
@@ -479,7 +479,6 @@ export function TeacherSettingsTab({
                   [
                     ['overview', 'Overview'],
                     ['outline', 'Outline'],
-                    ['resources', 'Resources'],
                     ['assignments', 'Assignments'],
                     ['quizzes', 'Quizzes'],
                     ['tests', 'Tests'],
@@ -506,7 +505,7 @@ export function TeacherSettingsTab({
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-text-muted">Lesson plan visibility on website</label>
+                <label className="mb-2 block text-sm text-text-muted">Lesson plan visibility on syllabus</label>
                 <select
                   value={actualSiteConfig.lesson_plan_scope}
                   onChange={(e) =>
@@ -528,7 +527,7 @@ export function TeacherSettingsTab({
                 <>
                   <div>
                     <label htmlFor={actualOverviewId} className="mb-2 block text-sm text-text-muted">
-                      Website overview
+                      Course overview
                     </label>
                     <textarea
                       id={actualOverviewId}
@@ -541,7 +540,7 @@ export function TeacherSettingsTab({
 
                   <div>
                     <label htmlFor={actualOutlineId} className="mb-2 block text-sm text-text-muted">
-                      Website outline
+                      Course outline
                     </label>
                     <textarea
                       id={actualOutlineId}
@@ -554,13 +553,13 @@ export function TeacherSettingsTab({
                 </>
               ) : (
                 <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-muted">
-                  Website overview and outline editing is hidden by your display setting.
+                  Course overview and outline editing is hidden by your display setting.
                 </div>
               )}
 
               {actualSitePublished && actualSiteSlug ? (
                 <div className="text-sm text-text-muted">
-                  Actual site URL:{' '}
+                  Syllabus URL:{' '}
                   <a
                     href={`/actual/${actualSiteSlug}`}
                     target="_blank"
@@ -574,7 +573,7 @@ export function TeacherSettingsTab({
 
               <div className="flex flex-wrap gap-3">
                 <Button type="button" onClick={saveActualSiteSettings} disabled={siteSaving || isReadOnly}>
-                  {siteSaving ? 'Saving…' : 'Save Website Settings'}
+                  {siteSaving ? 'Saving…' : 'Save Syllabus'}
                 </Button>
               </div>
 
