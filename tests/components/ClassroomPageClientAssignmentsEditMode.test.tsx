@@ -307,18 +307,18 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     })
   })
 
-  it('passes the selected assignment title to the app shell title slot', () => {
+  it('does not pin the selected assignment title in the app shell title slot', () => {
     renderClient()
 
     fireEvent.click(screen.getByRole('button', { name: 'Select assignment workspace' }))
 
-    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Assignment One')
+    expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
   })
 
-  it('passes the assignments summary label to the app shell title slot', () => {
+  it('does not pin the assignments summary label in the app shell title slot', () => {
     renderClient()
 
-    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Classwork')
+    expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
   })
 
   it('clears the assignments summary label while assignment edit mode is active', () => {
@@ -329,23 +329,23 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
   })
 
-  it('passes the daily label to the app shell title slot', () => {
+  it('does not pin the daily label in the app shell title slot', () => {
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=attendance')
 
     renderClient({ initialTab: 'attendance', initialSearchParams: { tab: 'attendance' } })
 
-    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Daily')
+    expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
   })
 
-  it('passes the quizzes summary label to the app shell title slot', () => {
+  it('does not pin the quizzes summary label in the app shell title slot', () => {
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=quizzes')
 
     renderClient({ initialTab: 'quizzes', initialSearchParams: { tab: 'quizzes' } })
 
-    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Quizzes')
+    expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
   })
 
-  it('passes the selected quiz title to the app shell title slot', () => {
+  it('does not pin the selected quiz title in the app shell title slot', () => {
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=quizzes&quizId=quiz-1')
 
     renderClient({
@@ -355,18 +355,18 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Select quiz workspace' }))
 
-    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Quiz One')
+    expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
   })
 
-  it('passes the tests summary label to the app shell title slot', () => {
+  it('does not pin the tests summary label in the app shell title slot', () => {
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=tests')
 
     renderClient({ initialTab: 'tests', initialSearchParams: { tab: 'tests' } })
 
-    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Tests')
+    expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
   })
 
-  it('passes the selected test title to the app shell title slot', () => {
+  it('does not pin the selected test title in the app shell title slot', () => {
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=tests&testId=test-1')
 
     renderClient({
@@ -376,7 +376,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Select test workspace' }))
 
-    expect(screen.getByTestId('app-shell-page-title')).toHaveTextContent('Test One')
+    expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
   })
 
   it('does not reopen assignment markdown after the teacher manually closes the panel', async () => {

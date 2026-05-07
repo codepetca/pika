@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { ThreePanelProvider } from '@/components/layout/ThreePanelProvider'
 import { ThreePanelShell } from '@/components/layout/ThreePanelShell'
-import { TeacherWorkSurfaceFloatingActionCluster } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import {
+  TeacherWorkSurfaceActionBar,
+  TeacherWorkSurfaceFloatingActionCluster,
+} from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 
 vi.mock('@/lib/cookies', () => ({
   writeCookie: vi.fn(),
@@ -33,5 +36,19 @@ describe('TeacherWorkSurfaceFloatingActionCluster', () => {
     expect(cluster?.className).toContain('lg:transition-[left]')
     expect(cluster?.className).toContain('lg:duration-200')
     expect(cluster?.className).toContain('lg:ease-out')
+  })
+
+  it('renders the optional calendar date label in the scrollable action bar left slot', () => {
+    render(
+      <TeacherWorkSurfaceActionBar
+        label="May 2026"
+        center={<button type="button">Tue May 5</button>}
+        centerPlacement="floating"
+      />,
+    )
+
+    const label = screen.getByText('May 2026')
+    expect(label).toBeInTheDocument()
+    expect(label).toHaveClass('justify-self-start', 'font-semibold', 'text-text-default')
   })
 })

@@ -2,11 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { addMonths, addWeeks, endOfMonth, format, startOfMonth, startOfWeek, subMonths, subWeeks } from 'date-fns'
-import {
-  CalendarActionBar,
-  getCalendarHeaderLabel,
-  type CalendarHeaderControlsState,
-} from '@/components/CalendarActionBar'
+import { CalendarActionBar } from '@/components/CalendarActionBar'
 import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
@@ -16,14 +12,12 @@ import type { Classroom, LessonPlan, Assignment, Announcement } from '@/types'
 
 interface Props {
   classroom: Classroom
-  onHeaderControlsChange?: (state: CalendarHeaderControlsState | null) => void
   onNavigateToAssignments?: (assignmentId: string) => void
   onNavigateToAnnouncements?: () => void
 }
 
 export function StudentLessonCalendarTab({
   classroom,
-  onHeaderControlsChange,
   onNavigateToAssignments = () => {},
   onNavigateToAnnouncements = () => {},
 }: Props) {
@@ -42,17 +36,6 @@ export function StudentLessonCalendarTab({
   }, [classroom.id])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [maxDate, setMaxDate] = useState<string | null>(null)
-  const [isDateDocked, setIsDateDocked] = useState(false)
-
-  useEffect(() => {
-    function updateDateDocking() {
-      setIsDateDocked(window.scrollY > 24)
-    }
-
-    updateDateDocking()
-    window.addEventListener('scroll', updateDateDocking, { passive: true })
-    return () => window.removeEventListener('scroll', updateDateDocking)
-  }, [])
 
   // Always fetch the full term - switching views is then instant
   const fetchRange = {
@@ -133,35 +116,6 @@ export function StudentLessonCalendarTab({
     handleDateChange(new Date())
   }, [handleDateChange])
 
-  const headerLabel = getCalendarHeaderLabel(viewMode, currentDate, classroom.start_date, classroom.end_date)
-
-  useEffect(() => {
-    if (!onHeaderControlsChange) return undefined
-
-    if (!isDateDocked) {
-      onHeaderControlsChange(null)
-      return undefined
-    }
-
-    onHeaderControlsChange({
-      label: headerLabel,
-      showNavigation: viewMode !== 'all',
-      onPrev: handlePreviousDate,
-      onNext: handleNextDate,
-      onToday: handleToday,
-    })
-
-    return () => onHeaderControlsChange(null)
-  }, [
-    handleNextDate,
-    handlePreviousDate,
-    handleToday,
-    headerLabel,
-    isDateDocked,
-    onHeaderControlsChange,
-    viewMode,
-  ])
-
   if (loading && lessonPlans.length === 0) {
     return (
       <PageLayout bleedX={false}>
@@ -185,7 +139,6 @@ export function StudentLessonCalendarTab({
         onNext={handleNextDate}
         onToday={handleToday}
         onViewModeChange={handleViewModeChange}
-        datePlacement={isDateDocked ? 'header' : 'cluster'}
       />
       <PageContent className="pb-24 pt-2">
         <div className="overflow-hidden rounded-lg border border-border bg-surface">

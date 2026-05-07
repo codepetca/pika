@@ -53,7 +53,7 @@ export function TeacherWorkSurfaceActionBar({
         className,
       )}
     >
-      <div className={cn('min-w-0 max-w-full overflow-hidden justify-self-start', labelClassName)}>
+      <div className={cn('min-w-0 max-w-full overflow-hidden justify-self-start text-sm font-semibold text-text-default', labelClassName)}>
         {label}
       </div>
       {center ? (
