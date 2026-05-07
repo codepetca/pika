@@ -169,28 +169,63 @@ async function generateSummaryForClassroom(
     return false
   }
 
-  const studentIds = [...new Set(entries.map((e) => e.student_id))]
+  const entryStudentIds = [...new Set(entries.map((e) => e.student_id))]
 
-  const { data: profiles } = await supabase
-    .from('student_profiles')
-    .select('user_id, first_name, last_name')
-    .in('user_id', studentIds)
+  const { data: enrollments, error: enrollmentsError } = await supabase
+    .from('classroom_enrollments')
+    .select('student_id')
+    .eq('classroom_id', classroomId)
+
+  if (enrollmentsError) {
+    console.error(`Error fetching roster for classroom ${classroomId}:`, enrollmentsError)
+    return false
+  }
+
+  const rosterStudentIds = [...new Set((enrollments || []).map((row) => row.student_id))]
+  const studentIdsForRedaction = [...new Set([...entryStudentIds, ...rosterStudentIds])]
+
+  const { data: rosterRows, error: rosterError } = await supabase
+    .from('classroom_roster')
+    .select('first_name, last_name')
+    .eq('classroom_id', classroomId)
+
+  if (rosterError) {
+    console.error(`Error fetching roster names for classroom ${classroomId}:`, rosterError)
+    return false
+  }
+
+  const profilesResult = studentIdsForRedaction.length > 0
+    ? await supabase
+      .from('student_profiles')
+      .select('user_id, first_name, last_name')
+      .in('user_id', studentIdsForRedaction)
+    : { data: [] }
 
   const profileMap = new Map(
-    (profiles || []).map((p) => [p.user_id, p])
+    (profilesResult.data || []).map((p) => [p.user_id, p])
   )
 
-  // Build unique students list (deduplicate by student_id)
-  const students = studentIds
-    .map((id) => {
-      const profile = profileMap.get(id)
-      return {
-        studentId: id,
-        firstName: profile?.first_name || '',
-        lastName: profile?.last_name || '',
-      }
-    })
-    .filter((s) => s.firstName || s.lastName)
+  const studentsByName = new Map<string, { firstName: string; lastName: string }>()
+  function addStudentForRedaction(firstName?: string | null, lastName?: string | null) {
+    const student = {
+      firstName: firstName || '',
+      lastName: lastName || '',
+    }
+    const key = `${student.firstName} ${student.lastName}`.trim().toLowerCase()
+    if (!key) return
+    if (!studentsByName.has(key)) studentsByName.set(key, student)
+  }
+
+  for (const studentId of studentIdsForRedaction) {
+    const profile = profileMap.get(studentId)
+    addStudentForRedaction(profile?.first_name, profile?.last_name)
+  }
+
+  for (const row of rosterRows || []) {
+    addStudentForRedaction(row.first_name, row.last_name)
+  }
+
+  const students = [...studentsByName.values()]
 
   const initialsMap = buildInitialsMap(students)
 
