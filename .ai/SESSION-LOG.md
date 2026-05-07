@@ -7,29 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-06 — Tighten assignment edit chrome and modal height
-
-**Completed:**
-- Hid the app-header `Assignments` title while teacher assignment summary edit mode is active, leaving the floating assignment action cluster as the working control surface.
-- Made the assignment create/edit modal use the near-full viewport panel in both modes.
-- Removed the visible modal header row, kept an accessible hidden dialog title, and moved the close button into the form action row.
-- Let the assignment instructions editor and preview flex into the added modal height.
-- Fixed calendar clicks on unreleased assignments so the editor modal clears the stale `assignmentId` route selection and does not reopen after close.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-actionbar-spacer bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/AssignmentModal.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- Focused Playwright calendar flow: clicked unreleased assignment from Calendar, closed the editor modal, confirmed it stayed closed at `?tab=assignments`.
-- Pika UI verification on shared assignment page:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Focused Playwright screenshots:
-  - `/tmp/pika-assignment-edit-modal.png`
-  - `/tmp/pika-assignment-create-modal.png`
-  - `/tmp/pika-assignment-edit-modal-mobile.png`
-
 ## 2026-05-05 — Make exam documents visibly clickable
 
 **Completed:**
@@ -409,3 +386,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test -- tests/unit/assignments.test.ts` (ran full suite: 251 files, 2119 tests)
 - `pnpm lint`
 - `pnpm build`
+
+## 2026-05-07 — Compact MC answer review
+
+**Completed:**
+- Added a shared compact multiple-choice option review component that preserves original option order and uses a fixed check/X gutter.
+- Replaced the separate student/correct answer blocks in returned student test results and teacher test grading with the compact full-option list.
+- Put unanswered MC state in the short question meta line as `No answer`.
+
+**Validation:**
+- `pnpm vitest run tests/components/StudentQuizResults.test.tsx tests/components/TestStudentGradingPanel.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual screenshots on port 3003:
+  - `/tmp/pika-compact-mc-teacher.png`
+  - `/tmp/pika-compact-mc-teacher-mobile.png`
+  - `/tmp/pika-compact-mc-student-mobile.png`
+- `pnpm test`

@@ -329,7 +329,7 @@ describe('TestStudentGradingPanel save-all grading', () => {
     })
   })
 
-  it('highlights incorrect MC answers and shows the correct answer', async () => {
+  it('shows MC options in original order with compact gutter markers', async () => {
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input)
       if (url.endsWith('/api/teacher/tests/test-1/results')) {
@@ -352,22 +352,26 @@ describe('TestStudentGradingPanel save-all grading', () => {
       />
     )
 
-    await screen.findByText('Student answer')
+    const optionList = await screen.findByRole('list', { name: 'Multiple choice answer options' })
 
-    const studentAnswerLabel = screen.getByText('Student answer')
-    const studentAnswerBlock = studentAnswerLabel.closest('div')
-    const correctAnswerLabel = screen.getByText('Correct answer')
-    const correctAnswerBlock = correctAnswerLabel.closest('div')
+    expect(screen.queryByText('Student answer')).not.toBeInTheDocument()
+    expect(screen.queryByText('Correct answer')).not.toBeInTheDocument()
 
-    expect(studentAnswerLabel.className).toContain('text-warning')
-    expect(studentAnswerBlock).not.toBeNull()
-    expect(correctAnswerBlock).not.toBeNull()
-    expect(within(studentAnswerBlock!).getByText('4').className).toContain('text-warning')
-    expect(correctAnswerLabel).toBeInTheDocument()
-    expect(within(correctAnswerBlock!).getByText('5')).toBeInTheDocument()
+    const optionRows = within(optionList).getAllByRole('listitem')
+    expect(optionRows).toHaveLength(3)
+    expect(within(optionRows[0]).getByText('A')).toBeInTheDocument()
+    expect(within(optionRows[0]).getByText('3')).toBeInTheDocument()
+    expect(within(optionRows[1]).getByText('B')).toBeInTheDocument()
+    expect(within(optionRows[1]).getByText('4')).toBeInTheDocument()
+    expect(within(optionRows[2]).getByText('C')).toBeInTheDocument()
+    expect(within(optionRows[2]).getByText('5')).toBeInTheDocument()
+    expect(within(optionRows[1]).getByText('✕')).toHaveClass('text-warning')
+    expect(within(optionRows[2]).getByText('✓')).toHaveClass('text-success')
+    expect(optionRows[1]).toHaveClass('bg-warning-bg')
+    expect(optionRows[2]).toHaveClass('bg-success-bg-muted')
   })
 
-  it('does not highlight correct MC answers', async () => {
+  it('uses only the check marker for correct MC answers', async () => {
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input)
       if (url.endsWith('/api/teacher/tests/test-1/results')) {
@@ -390,18 +394,12 @@ describe('TestStudentGradingPanel save-all grading', () => {
       />
     )
 
-    await screen.findByText('Student answer')
+    const optionList = await screen.findByRole('list', { name: 'Multiple choice answer options' })
+    const optionRows = within(optionList).getAllByRole('listitem')
 
-    const studentAnswerLabel = screen.getByText('Student answer')
-    const studentAnswerBlock = studentAnswerLabel.closest('div')
-    const correctAnswerLabel = screen.getByText('Correct answer')
-    const correctAnswerBlock = correctAnswerLabel.closest('div')
-
-    expect(studentAnswerLabel.className).not.toContain('text-warning')
-    expect(studentAnswerBlock).not.toBeNull()
-    expect(correctAnswerBlock).not.toBeNull()
-    expect(within(studentAnswerBlock!).getByText('4').className).not.toContain('text-warning')
-    expect(within(correctAnswerBlock!).getByText('4')).toBeInTheDocument()
+    expect(within(optionRows[1]).queryByText('✕')).not.toBeInTheDocument()
+    expect(within(optionRows[1]).getByText('✓')).toHaveClass('text-success')
+    expect(optionRows[1]).toHaveClass('bg-success-bg-muted')
   })
 
   it('saves cleared score/feedback as clear_grade through save-all handler', async () => {

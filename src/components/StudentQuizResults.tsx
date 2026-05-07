@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
+import {
+  MultipleChoiceOptionReview,
+  normalizeMultipleChoiceOptionIndex,
+} from '@/components/MultipleChoiceOptionReview'
 import type {
   QuizAssessmentType,
   QuizResultsAggregate,
@@ -152,16 +156,10 @@ export function StudentQuizResults({
         ? questionResults.map((result, index) => {
             const possible = Number(result.points || 0)
             const earned = result.score
-            const isIncorrectMultipleChoice =
-              result.question_type === 'multiple_choice' && result.is_correct === false
-            const selectedAnswer =
-              typeof result.selected_option === 'number'
-                ? (result.options[result.selected_option] || '—')
-                : 'No answer selected'
-            const correctAnswer =
-              typeof result.correct_option === 'number'
-                ? (result.options[result.correct_option] || '—')
-                : '—'
+            const selectedOption =
+              result.question_type === 'multiple_choice'
+                ? normalizeMultipleChoiceOptionIndex(result.selected_option, result.options.length)
+                : null
 
             return (
               <div
@@ -171,33 +169,19 @@ export function StudentQuizResults({
                 <div className="space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
                     Q{index + 1} · {possible} pts
+                    {result.question_type === 'multiple_choice' && selectedOption == null
+                      ? ' · No answer'
+                      : ''}
                   </p>
                   <QuestionMarkdown content={result.question_text} />
                 </div>
 
                 {result.question_type === 'multiple_choice' ? (
-                  <div className="space-y-1 text-sm">
-                    <div className="rounded-md bg-surface-2 px-3 py-2 text-text-default">
-                      <p
-                        className={`text-xs font-semibold uppercase tracking-wide ${
-                          isIncorrectMultipleChoice ? 'text-warning' : ''
-                        }`}
-                      >
-                        Your answer
-                      </p>
-                      <p className={`font-medium ${isIncorrectMultipleChoice ? 'text-warning' : ''}`}>
-                        {selectedAnswer}
-                      </p>
-                    </div>
-                    <div
-                      className="rounded-md bg-surface-2 px-3 py-2 text-text-muted"
-                    >
-                      <p className="text-xs font-semibold uppercase tracking-wide">
-                        Correct answer
-                      </p>
-                      <p className="font-medium">{correctAnswer}</p>
-                    </div>
-                  </div>
+                  <MultipleChoiceOptionReview
+                    options={result.options}
+                    selectedOption={selectedOption}
+                    correctOption={result.correct_option}
+                  />
                 ) : (
                   <div className="space-y-2">
                     <p className="whitespace-pre-wrap rounded-md bg-surface-2 px-3 py-2 text-sm text-text-default">
