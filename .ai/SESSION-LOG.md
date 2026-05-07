@@ -7,18 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-05 — Rebase selected-student exam access onto main
-
-**Completed:**
-- Rebasing `codex/selected-student-exam-access` onto `origin/main` completed.
-- Resolved conflicts in `.ai/JOURNAL-ARCHIVE.md` and `AssignmentModal.tsx` by preserving main's schedule-validation behavior and the branch's maximized creation-modal behavior.
-- Restored the temporary pre-rebase stash and dropped it.
-- Confirmed migrations are sequential after `origin/main` migration `059`: `060`, `061`, `062`, and uncommitted `063`.
-
-**Validation:**
-- `pnpm test tests/components/AssignmentModal.test.tsx tests/lib/finalize-test-attempts.test.ts tests/api/teacher/tests-unsubmit.test.ts tests/api/teacher/tests-student-attempt-delete.test.ts tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-student-access.test.ts tests/api/integration/test-return-visibility-flow.test.ts`
-- `pnpm lint`
-
 ## 2026-05-06 — Independent split-pane scrolling
 
 **Completed:**
@@ -578,3 +566,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-teacher-assignments-new-tooltip.png`
   - `/tmp/pika-teacher-quizzes-new-tooltip.png`
   - `/tmp/pika-teacher-tests-new-tooltip.png`
+
+## 2026-05-07 — Hide classroom view labels outside edit mode
+
+**Completed:**
+- Made the teacher classroom list Active/Archived segmented toggle icon-only until classroom edit mode is enabled.
+- Preserved accessible button names and native titles while the toggle is icon-only.
+- Added focused test coverage for the icon-only versus labeled edit-mode states.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification on port 3010:
+  - `/tmp/pika-classrooms-toggle-teacher-desktop.png`
+  - `/tmp/pika-classrooms-toggle-teacher-desktop-edit.png`
+  - `/tmp/pika-classrooms-toggle-teacher-mobile.png`
+  - `/tmp/pika-classrooms-toggle-teacher-mobile-edit.png`
+  - `/tmp/pika-classrooms-student-mobile.png`
