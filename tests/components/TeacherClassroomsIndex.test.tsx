@@ -88,8 +88,8 @@ describe('TeacherClassroomsIndex', () => {
 
     expect(screen.getByRole('button', { name: 'Active' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Archived' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Active' })).toHaveAttribute('title', 'Active')
-    expect(screen.getByRole('button', { name: 'Archived' })).toHaveAttribute('title', 'Archived')
+    expect(screen.getByRole('button', { name: 'Active' })).not.toHaveAttribute('title')
+    expect(screen.getByRole('button', { name: 'Archived' })).not.toHaveAttribute('title')
     expect(screen.queryByRole('button', { name: 'Drag to reorder Math 101' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Archive Math 101' })).not.toBeInTheDocument()
 

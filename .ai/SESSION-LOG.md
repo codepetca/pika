@@ -7,28 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-06 — Independent split-pane scrolling
-
-**Completed:**
-- Added an opt-in viewport constraint to `AppShell` and enabled it for active desktop teacher split-pane workspaces.
-- Bounded the gapped teacher workspace split at desktop sizes without changing resize handlers or inspector-width state.
-- Moved overflowing table/content regions inside the affected split panes so attendance, roster, gradebook, assignment review, and test grading can scroll panes independently.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test -- tests/components/TeacherWorkspaceSplit.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherGradebookTab.test.tsx` (ran full suite: 249 files, 2091 tests)
-- `pnpm lint`
-- Pika UI verification for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance`:
-  - `/tmp/pika-attendance-teacher.png`
-  - `/tmp/pika-attendance-student.png`
-  - `/tmp/pika-attendance-teacher-mobile.png`
-- Focused teacher split screenshots:
-  - `/tmp/pika-gradebook-teacher.png`
-  - `/tmp/pika-roster-teacher.png`
-  - `/tmp/pika-assignment-split-teacher.png`
-  - `/tmp/pika-test-grading-split-teacher.png`
-- Playwright assertion pass confirmed no document-level vertical scroll on the affected desktop split routes and a 126px resize-handle movement after drag.
-
 ## 2026-05-06 — Make assignment edit mode modal-close ephemeral
 
 **Completed:**
@@ -571,7 +549,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Completed:**
 - Made the teacher classroom list Active/Archived segmented toggle icon-only until classroom edit mode is enabled.
-- Preserved accessible button names and native titles while the toggle is icon-only.
+- Preserved accessible button names while the toggle is icon-only.
 - Added focused test coverage for the icon-only versus labeled edit-mode states.
 
 **Validation:**
@@ -585,3 +563,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-classrooms-toggle-teacher-mobile.png`
   - `/tmp/pika-classrooms-toggle-teacher-mobile-edit.png`
   - `/tmp/pika-classrooms-student-mobile.png`
+
+## 2026-05-07 — Add classroom view toggle tooltips
+
+**Completed:**
+- Added styled app tooltips to icon-only segmented controls.
+- Placed icon-only segmented control tooltips above the trigger so the bottom classroom view toggle remains visible on hover.
+- Removed the native title fallback from segmented buttons.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual hover verification on port 3011:
+  - `/tmp/pika-classrooms-toggle-active-tooltip.png`
+  - `/tmp/pika-classrooms-toggle-archived-tooltip.png`
