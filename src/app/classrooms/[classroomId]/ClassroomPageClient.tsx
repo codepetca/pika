@@ -12,7 +12,6 @@ import { TeacherGradebookTab } from './TeacherGradebookTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
 import { TeacherLessonCalendarTab, TeacherLessonCalendarSidebar, CalendarSidebarState } from './TeacherLessonCalendarTab'
 import { StudentLessonCalendarTab } from './StudentLessonCalendarTab'
-import { CalendarDateNavigator, type CalendarHeaderControlsState } from '@/components/CalendarActionBar'
 import { TeacherResourcesTab } from './TeacherResourcesTab'
 import { StudentResourcesTab } from './StudentResourcesTab'
 import { TeacherAnnouncementsTab } from './TeacherAnnouncementsTab'
@@ -424,7 +423,6 @@ function ClassroomPageContent({
 
   // State for calendar sidebar (teacher calendar tab)
   const [calendarSidebarState, setCalendarSidebarState] = useState<CalendarSidebarState | null>(null)
-  const [calendarHeaderControls, setCalendarHeaderControls] = useState<CalendarHeaderControlsState | null>(null)
 
   // State for selected quiz (teacher quizzes tab)
   const [selectedQuiz, setSelectedQuiz] = useState<QuizWithStats | null>(null)
@@ -452,12 +450,6 @@ function ClassroomPageContent({
   useEffect(() => {
     if (activeTab !== 'tests') {
       setTeacherTestPreview(null)
-    }
-  }, [activeTab])
-
-  useEffect(() => {
-    if (activeTab !== 'calendar') {
-      setCalendarHeaderControls(null)
     }
   }, [activeTab])
 
@@ -504,60 +496,6 @@ function ClassroomPageContent({
       abortControllerRef.current?.abort()
     }
   }, [])
-
-  const selectedWorkTitle = useMemo(() => {
-    if (!isTeacher) return undefined
-
-    if (activeTab === 'attendance') {
-      return 'Daily'
-    }
-
-    if (activeTab === 'assignments') {
-      if (assignmentEditMode) return undefined
-
-      return assignmentViewMode === 'assignment'
-        ? selectedAssignment?.title || 'Classwork'
-        : 'Classwork'
-    }
-
-    if (activeTab === 'quizzes') {
-      return quizIdParam && selectedQuiz?.id === quizIdParam
-        ? selectedQuiz.title
-        : 'Quizzes'
-    }
-
-    if (activeTab === 'tests') {
-      return testIdParam && selectedQuiz?.id === testIdParam
-        ? selectedQuiz.title
-        : 'Tests'
-    }
-
-    if (activeTab === 'calendar') {
-      return 'Calendar'
-    }
-
-    return undefined
-  }, [
-    activeTab,
-    assignmentEditMode,
-    assignmentViewMode,
-    isTeacher,
-    quizIdParam,
-    selectedAssignment?.title,
-    selectedQuiz,
-    testIdParam,
-  ])
-
-  const appHeaderTitle = activeTab === 'calendar' && calendarHeaderControls ? (
-    <CalendarDateNavigator
-      label={calendarHeaderControls.label}
-      onPrev={calendarHeaderControls.onPrev}
-      onNext={calendarHeaderControls.onNext}
-      onLabelClick={calendarHeaderControls.showNavigation ? calendarHeaderControls.onToday : undefined}
-      showNavigation={calendarHeaderControls.showNavigation}
-      className="max-w-full justify-center"
-    />
-  ) : selectedWorkTitle
 
   // Load assignments and generate markdown content
   const loadAssignmentsMarkdown = useCallback(async () => {
@@ -1088,7 +1026,7 @@ function ClassroomPageContent({
       mainClassName="max-w-none px-0 py-0"
       constrainToViewport={hasActiveTeacherSplitPanes}
       examModeHeader={examHeaderData}
-      pageTitle={appHeaderTitle}
+      pageTitle={undefined}
     >
       <ThreePanelShell leftWidthOverride={hideLeftRailForExamMode ? 0 : undefined}>
         {hideLeftRailForExamMode ? (
@@ -1191,7 +1129,6 @@ function ClassroomPageContent({
                       <TeacherLessonCalendarTab
                         classroom={classroom}
                         onSidebarStateChange={setCalendarSidebarState}
-                        onHeaderControlsChange={setCalendarHeaderControls}
                         onNavigateToAssignments={(assignmentId) =>
                           navigateInClassroom((params) => {
                             params.set('tab', 'assignments')
@@ -1281,7 +1218,6 @@ function ClassroomPageContent({
                     <TabContentTransition isActive={activeTab === 'calendar'}>
                       <StudentLessonCalendarTab
                         classroom={classroom}
-                        onHeaderControlsChange={setCalendarHeaderControls}
                         onNavigateToAssignments={(assignmentId) =>
                           navigateInClassroom((params) => {
                             params.set('tab', 'assignments')

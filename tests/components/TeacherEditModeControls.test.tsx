@@ -34,6 +34,7 @@ describe('TeacherEditModeControls', () => {
 
     const toggle = screen.getByRole('button', { name: 'Edit' })
     expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    expect(toggle).toHaveTextContent('')
     expect(screen.queryByRole('button', { name: 'Code' })).not.toBeInTheDocument()
   })
 

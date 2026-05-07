@@ -503,7 +503,7 @@ describe('TeacherClassroomView', () => {
 
     expect(screen.getByRole('button', { name: 'New assignment' })).toBeInTheDocument()
     expect(screen.getByTestId('assignment-summary-actionbar-center')).toHaveClass('grid')
-    expect(screen.getByRole('button', { name: 'New assignment' }).closest('.fixed')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New assignment' }).closest('.fixed')).toHaveClass('fixed')
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))

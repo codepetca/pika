@@ -44,6 +44,8 @@ export function ThreePanelShell({ children, className, leftWidthOverride }: Thre
         {
           '--left-width': `${leftWidthOverride ?? widths.left}px`,
           '--right-width': rightWidth,
+          '--main-content-center-x':
+            'calc(var(--left-width) + ((100vw - var(--left-width) - var(--right-width)) / 2))',
         } as React.CSSProperties
       }
     >

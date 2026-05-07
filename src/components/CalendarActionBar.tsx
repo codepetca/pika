@@ -18,17 +18,8 @@ interface CalendarActionBarProps {
   onNext: () => void
   onToday: () => void
   onViewModeChange: (mode: CalendarViewMode) => void
-  datePlacement?: 'cluster' | 'header'
   trailing?: ReactNode
   className?: string
-}
-
-export interface CalendarHeaderControlsState {
-  label: string
-  showNavigation: boolean
-  onPrev: () => void
-  onNext: () => void
-  onToday: () => void
 }
 
 interface CalendarDateNavigatorProps {
@@ -126,33 +117,30 @@ export function CalendarActionBar({
   onNext,
   onToday,
   onViewModeChange,
-  datePlacement = 'cluster',
   trailing,
   className = '',
 }: CalendarActionBarProps) {
   const headerLabel = getCalendarHeaderLabel(viewMode, currentDate, rangeStart, rangeEnd)
-  const showDateInCluster = datePlacement === 'cluster'
 
   return (
     <PageActionBar
-      className={cn(showDateInCluster ? 'pb-10' : 'pb-2', className)}
+      className={cn('pb-14 sm:pb-2', className)}
       primary={
         <TeacherWorkSurfaceActionBar
+          label={
+            <CalendarDateNavigator
+              label={headerLabel}
+              onPrev={onPrev}
+              onNext={onNext}
+              onLabelClick={viewMode === 'all' ? undefined : onToday}
+              showNavigation={viewMode !== 'all'}
+              className="max-w-full"
+            />
+          }
+          labelClassName="w-max"
+          centerClassName="top-[5.75rem] sm:top-[3.25rem]"
           center={
             <div className="flex max-w-full flex-col items-center justify-center gap-1.5">
-              {showDateInCluster ? (
-                <div className="flex w-full max-w-full items-center justify-center">
-                  <CalendarDateNavigator
-                    label={headerLabel}
-                    onPrev={onPrev}
-                    onNext={onNext}
-                    onLabelClick={viewMode === 'all' ? undefined : onToday}
-                    showNavigation={viewMode !== 'all'}
-                    className="max-w-full"
-                  />
-                </div>
-              ) : null}
-
               <div className="flex max-w-full flex-wrap items-center justify-center gap-1.5">
                 <SegmentedControl<CalendarViewMode>
                   ariaLabel="Calendar view"
