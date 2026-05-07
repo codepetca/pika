@@ -2051,12 +2051,14 @@ export function TeacherTestsTab({
         type="button"
         variant={studentAttemptEditMode ? 'secondary' : 'ghost'}
         size="sm"
+        className="h-9 w-9 px-0"
+        aria-label="Edit"
+        title="Edit"
         aria-pressed={studentAttemptEditMode}
         disabled={isReadOnly}
         onClick={() => setStudentAttemptEditMode((prev) => !prev)}
       >
         <Pencil className="h-4 w-4" aria-hidden="true" />
-        <span>Edit</span>
       </Button>
       {workspaceModeStatus}
     </div>

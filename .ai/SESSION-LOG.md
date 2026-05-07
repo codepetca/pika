@@ -7,25 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-05 — Make exam documents visibly clickable
-
-**Completed:**
-- Added a right chevron affordance to active student exam-mode document rows.
-- Matched the same document-row affordance in the teacher test preview.
-- Added focused component coverage for the student document-row chevron.
-
-**Validation:**
-- `pnpm test tests/components/StudentQuizzesTab.test.tsx`
-- `pnpm lint`
-- Pre-edit startup verification: `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/issue-548-doc-chevron bash scripts/verify-env.sh`
-- Pika UI verification script on `http://localhost:3002/classrooms`:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Targeted Playwright screenshots:
-  - `/tmp/pika-student-exam-docs-chevron.png`
-  - `/tmp/pika-teacher-test-preview-docs-chevron.png`
-
 ## 2026-05-05 — Retire large journal from default workflow
 
 **Completed:**
@@ -575,3 +556,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
   - `/tmp/pika-teacher-attendance-labels.png`
+
+## 2026-05-07 — Make edit controls icon-only
+
+**Completed:**
+- Removed visible `Edit` text from shared teacher edit-mode controls and the selected-test workspace edit toggle.
+- Kept accessible names and titles on the icon-only pencil buttons.
+- Added focused coverage that the shared edit toggle remains named `Edit` without visible button text.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/fab-rail-centering bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherEditModeControls.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherAttendanceTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification on port 3001:
+  - `/tmp/pika-teacher-tests-edit-icon.png`
+  - `/tmp/pika-teacher-selected-test-edit-icon.png`
+  - `/tmp/pika-teacher-classrooms-edit-icon.png`
