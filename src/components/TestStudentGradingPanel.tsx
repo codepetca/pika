@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import {
+  MultipleChoiceOptionReview,
+  normalizeMultipleChoiceOptionIndex,
+} from '@/components/MultipleChoiceOptionReview'
+import {
   TEACHER_TEST_GRADING_ROW_UPDATED_EVENT,
   type TeacherTestGradingRowUpdatedEventDetail,
 } from '@/lib/events'
@@ -576,46 +580,22 @@ export function TestStudentGradingPanel({
               const responseId = answer?.response_id || null
               const isGradeEditable = !!responseId && !answer?.is_draft
               const selectedOption =
-                typeof answer?.selected_option === 'number' ? answer.selected_option : null
-              const selectedText =
-                selectedOption != null ? question.options[selectedOption] || '—' : 'No response'
-              const correctText =
-                typeof question.correct_option === 'number'
-                  ? question.options[question.correct_option] || '—'
-                  : '—'
-              const isIncorrectMultipleChoice =
-                selectedOption != null &&
-                typeof question.correct_option === 'number' &&
-                selectedOption !== question.correct_option
+                normalizeMultipleChoiceOptionIndex(answer?.selected_option, question.options.length)
 
               return (
                 <div key={question.id} className="space-y-2 py-1">
                   <p className="inline-flex items-center rounded bg-primary/10 pl-0 pr-2 py-1 text-sm font-bold text-primary">
                     Q{index + 1} MC
+                    {answer?.is_draft ? ' · Draft' : ''}
+                    {selectedOption == null ? ' · No answer' : ''}
                   </p>
                   <QuestionMarkdown content={question.question_text} />
                   <div className="grid grid-cols-[minmax(0,1fr)_76px] items-start gap-2">
-                    <div className="space-y-1 text-sm">
-                      <div className="rounded-md bg-surface-2 px-3 py-2 text-text-default">
-                        <p
-                          className={`text-xs font-semibold uppercase tracking-wide ${
-                            isIncorrectMultipleChoice ? 'text-warning' : ''
-                          }`}
-                        >
-                          Student answer
-                        </p>
-                        <p className={`font-medium ${isIncorrectMultipleChoice ? 'text-warning' : ''}`}>
-                          {selectedText}
-                          {answer?.is_draft ? ' (Draft)' : ''}
-                        </p>
-                      </div>
-                      <div className="rounded-md bg-surface-2 px-3 py-2 text-text-muted">
-                        <p className="text-xs font-semibold uppercase tracking-wide">
-                          Correct answer
-                        </p>
-                        <p className="font-medium">{correctText}</p>
-                      </div>
-                    </div>
+                    <MultipleChoiceOptionReview
+                      options={question.options}
+                      selectedOption={selectedOption}
+                      correctOption={question.correct_option}
+                    />
                     <SplitScoreInput
                       ariaLabel={`Q${index + 1} score`}
                       maxPoints={points}
