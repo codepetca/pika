@@ -7,20 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-05 — Retire large journal from default workflow
-
-**Completed:**
-- Moved the full AI session history to `.ai/JOURNAL-ARCHIVE.md`.
-- Added `.ai/SESSION-LOG.md` as the small rolling handoff log and `scripts/trim-session-log.mjs` to cap recent entries.
-- Updated startup/end-session guidance and the weekly simplification automation to use the session log instead of the large journal.
-- Made the trim script resolve default paths from the script repo rather than process cwd.
-- Added regression coverage for startup token budget, no default journal tailing, and session-log trimming.
-
-**Validation:**
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/trim-session-log.test.ts`
-- `pnpm test`
-- `pnpm lint`
-
 ## 2026-05-05 — Harden selected-student exam lifecycle mutations
 
 **Completed:**
@@ -573,3 +559,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-teacher-tests-edit-icon.png`
   - `/tmp/pika-teacher-selected-test-edit-icon.png`
   - `/tmp/pika-teacher-classrooms-edit-icon.png`
+
+## 2026-05-07 — Shorten assessment new labels
+
+**Completed:**
+- Changed teacher quiz and test summary action labels from `New Quiz` and `New Test` to `New`.
+- Kept the plus icon visible so the action reads as `+ New`.
+- Updated focused quiz/test component coverage for the shorter accessible button name.
+
+**Validation:**
+- `pnpm test tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification on port 3001:
+  - `/tmp/pika-teacher-tests-new-label.png`
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`

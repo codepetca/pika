@@ -2131,8 +2131,8 @@ export function TeacherTestsTab({
             className="gap-1.5"
             disabled={isReadOnly}
           >
-            <Plus className="h-4 w-4" />
-            New Test
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            New
           </Button>
           <TeacherEditModeControls
             active={testEditMode}
