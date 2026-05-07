@@ -7,21 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-05 — Harden selected-student exam lifecycle mutations
-
-**Completed:**
-- Added atomic database functions for test close/finalize, unsubmit, and per-student test-work deletion.
-- Routed whole-test close, selected return finalization, selected unsubmit, and student-work delete through atomic RPCs.
-- Added atomic selected-student return marking so existing attempts are marked returned and missing returned attempts are created in one database function.
-- Changed grading finalization to avoid invalid blank multiple-choice response rows; missing MC responses continue to score as zero by absence.
-- Updated route and integration coverage for selected-only finalization and RPC migration fallbacks.
-
-**Validation:**
-- `pnpm test tests/lib/finalize-test-attempts.test.ts tests/api/teacher/tests-unsubmit.test.ts tests/api/teacher/tests-student-attempt-delete.test.ts tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-student-access.test.ts`
-- `pnpm test tests/api/integration/test-return-visibility-flow.test.ts tests/api/student/tests-attempt.test.ts tests/api/student/tests-respond.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/api/student/tests-session-status.test.ts tests/api/teacher/tests-results.test.ts tests/api/teacher/tests-route.test.ts tests/unit/test-student-access.test.ts`
-- `pnpm lint`
-- `pnpm test:coverage`
-
 ## 2026-05-05 — Rebase selected-student exam access onto main
 
 **Completed:**
@@ -576,3 +561,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-07 — Add create action tooltips
+
+**Completed:**
+- Added contextual tooltips to the compact teacher summary `+ New` buttons for assignments, quizzes, and tests.
+- Kept the visible button labels unchanged and preserved the assignment button's accessible name.
+- Updated the assignment action-bar test to assert the fixed floating cluster without depending on the tooltip-adjusted DOM parent chain.
+
+**Validation:**
+- `pnpm test tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification on port 3001 for assignments, quizzes, and tests.
+- Hover screenshots:
+  - `/tmp/pika-teacher-assignments-new-tooltip.png`
+  - `/tmp/pika-teacher-quizzes-new-tooltip.png`
+  - `/tmp/pika-teacher-tests-new-tooltip.png`

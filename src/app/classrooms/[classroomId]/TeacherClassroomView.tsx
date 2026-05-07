@@ -1947,34 +1947,36 @@ export function TeacherClassroomView({
         testId="assignment-summary-actionbar-center"
         center={
           <div className="flex items-center justify-center gap-1.5">
-            <SplitButton
-              label={
-                <span className="inline-flex items-center gap-1.5">
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  <span>New</span>
-                </span>
-              }
-              onPrimaryClick={() => setIsCreateModalOpen(true)}
-              options={[
-                {
-                  id: 'assignment',
-                  label: 'Assignment',
-                  onSelect: () => setIsCreateModalOpen(true),
-                },
-                {
-                  id: 'material',
-                  label: 'Material',
-                  onSelect: () => {
-                    setEditMaterial(null)
-                    setIsMaterialModalOpen(true)
+            <Tooltip content="Create a new assignment">
+              <SplitButton
+                label={
+                  <span className="inline-flex items-center gap-1.5">
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    <span>New</span>
+                  </span>
+                }
+                onPrimaryClick={() => setIsCreateModalOpen(true)}
+                options={[
+                  {
+                    id: 'assignment',
+                    label: 'Assignment',
+                    onSelect: () => setIsCreateModalOpen(true),
                   },
-                },
-              ]}
-              disabled={isReadOnly}
-              toggleAriaLabel="Choose classwork type"
-              menuPlacement="down"
-              primaryButtonProps={{ 'aria-label': 'New assignment' }}
-            />
+                  {
+                    id: 'material',
+                    label: 'Material',
+                    onSelect: () => {
+                      setEditMaterial(null)
+                      setIsMaterialModalOpen(true)
+                    },
+                  },
+                ]}
+                disabled={isReadOnly}
+                toggleAriaLabel="Choose classwork type"
+                menuPlacement="down"
+                primaryButtonProps={{ 'aria-label': 'New assignment' }}
+              />
+            </Tooltip>
             {assignmentSummaryEditControls}
           </div>
         }

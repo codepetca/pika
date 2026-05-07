@@ -10,7 +10,7 @@ import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWo
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
-import { Button, EmptyState } from '@/ui'
+import { Button, EmptyState, Tooltip } from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
   Classroom,
@@ -209,16 +209,18 @@ export function TeacherQuizzesTab({
   ) : (
     <TeacherWorkSurfaceActionBar
       center={
-        <Button
-          onClick={handleNewQuiz}
-          variant="primary"
-          size="sm"
-          className="gap-1.5"
-          disabled={isReadOnly}
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          New
-        </Button>
+        <Tooltip content="Create a new quiz">
+          <Button
+            onClick={handleNewQuiz}
+            variant="primary"
+            size="sm"
+            className="gap-1.5"
+            disabled={isReadOnly}
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            New
+          </Button>
+        </Tooltip>
       }
       centerPlacement="floating"
     />

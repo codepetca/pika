@@ -2124,16 +2124,18 @@ export function TeacherTestsTab({
     <TeacherWorkSurfaceActionBar
       center={
         <div className="flex items-center justify-center gap-1.5">
-          <Button
-            onClick={handleNewTest}
-            variant="primary"
-            size="sm"
-            className="gap-1.5"
-            disabled={isReadOnly}
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            New
-          </Button>
+          <Tooltip content="Create a new test">
+            <Button
+              onClick={handleNewTest}
+              variant="primary"
+              size="sm"
+              className="gap-1.5"
+              disabled={isReadOnly}
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              New
+            </Button>
+          </Tooltip>
           <TeacherEditModeControls
             active={testEditMode}
             onActiveChange={setTestEditMode}
