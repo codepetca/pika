@@ -7,26 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-04-30 — Refresh assignment counts after return
-
-**Completed:**
-- Fixed the teacher assignment list card counts staying stale after returning selected assignment work.
-- Invalidated and reloaded the teacher assignment summary cache after a successful batch return, while preserving the current workspace content.
-- Added component coverage for a resubmitted student changing the summary card from `1/31` to `0/31` after return.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx`
-- `pnpm test tests/api/teacher/assignments.test.ts tests/api/teacher/assignments-id-return.test.ts`
-- `pnpm lint`
-- `pnpm test`
-- Pika UI verification script for `/classrooms`:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Manual Playwright screenshots for assignment lists:
-  - `/tmp/pika-teacher-assignments.png`
-  - `/tmp/pika-student-assignments.png`
-
 ## 2026-05-06 — Tighten assignment edit chrome and modal height
 
 **Completed:**
@@ -415,3 +395,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm vitest run tests/api/cron/nightly-log-summaries.test.ts`
 - `pnpm run test:coverage`
 - `pnpm lint`
+
+## 2026-05-07 — Allow late assignment submissions with repo metadata
+
+**Completed:**
+- Fixed assignment submit validation so saved repo metadata counts as submittable work, matching the student editor's Submit button rule.
+- Made the student assignment editor flush pending repo URL/GitHub username edits before calling the submit endpoint.
+- Added regression coverage for a past-due repo-only assignment submission.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test -- tests/api/assignment-docs/submit.test.ts` (ran full suite: 251 files, 2119 tests)
+- `pnpm test -- tests/unit/assignments.test.ts` (ran full suite: 251 files, 2119 tests)
+- `pnpm lint`
+- `pnpm build`
