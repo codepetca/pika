@@ -35,21 +35,52 @@ const classroom = {
   archived_at: null,
   lesson_plan_visibility: 'current_week',
   position: 0,
+  source_blueprint_id: null,
+  source_blueprint_origin: null,
+  actual_site_slug: 'test-classroom',
+  actual_site_published: true,
+  actual_site_config: {
+    overview: true,
+    outline: true,
+    resources: true,
+    assignments: true,
+    quizzes: true,
+    tests: true,
+    lesson_plans: true,
+    announcements: true,
+    lesson_plan_scope: 'current_week',
+  },
+  course_overview_markdown: '',
+  course_outline_markdown: '',
 } as const
 
 describe('ResourcesTab', () => {
-  it('renders teacher resources without announcements content', () => {
+  it('renders teacher resources as a syllabus entry point', () => {
     render(<TeacherResourcesTab classroom={classroom} />)
 
-    expect(screen.getByText('Teacher resources content')).toBeInTheDocument()
+    expect(screen.getByTitle('Test Classroom syllabus preview')).toHaveAttribute('src', '/actual/test-classroom')
+    expect(screen.queryByText('Public syllabus')).toBeNull()
+    expect(screen.queryByRole('button', { name: /open external/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /syllabus settings/i })).toBeNull()
+    expect(screen.queryByRole('link', { name: '/actual/test-classroom' })).toBeNull()
     expect(screen.queryByText('Teacher announcements content')).toBeNull()
   })
 
-  it('renders student resources without announcements content', () => {
+  it('renders student resources as a syllabus entry point', () => {
     render(<StudentResourcesTab classroom={classroom} />)
 
-    expect(screen.getByText('Student resources content')).toBeInTheDocument()
+    expect(screen.getByTitle('Test Classroom syllabus preview')).toHaveAttribute('src', '/actual/test-classroom')
+    expect(screen.queryByText('Public syllabus')).toBeNull()
+    expect(screen.queryByRole('button', { name: /open external/i })).toBeNull()
     expect(screen.queryByText('Student announcements content')).toBeNull()
+  })
+
+  it('shows unpublished state for students when the site is private', () => {
+    render(<StudentResourcesTab classroom={{ ...classroom, actual_site_published: false }} />)
+
+    expect(screen.getByText('No syllabus yet')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /open external/i })).toBeNull()
+    expect(screen.queryByTitle('Test Classroom syllabus preview')).toBeNull()
   })
 
   it('renders teacher announcements in the announcements tab', () => {

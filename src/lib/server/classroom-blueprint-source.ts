@@ -32,6 +32,8 @@ export type ClassroomBlueprintSource = {
     title: string
     content: QuizDraftContent
     documents: TestDocument[]
+    points_possible: number | null
+    include_in_final: boolean
     position: number
   }>
   tests: Array<{
@@ -39,6 +41,8 @@ export type ClassroomBlueprintSource = {
     title: string
     content: TestDraftContent
     documents: TestDocument[]
+    points_possible: number | null
+    include_in_final: boolean
     position: number
   }>
   lesson_templates: Array<{
@@ -218,6 +222,8 @@ export async function loadClassroomBlueprintSource(
           title: quiz.title,
           content: quiz.content,
           documents: [],
+          points_possible: quiz.points_possible ?? null,
+          include_in_final: quiz.include_in_final !== false,
           position: quiz.position ?? 0,
         })),
       tests: testQuestions
@@ -227,6 +233,8 @@ export async function loadClassroomBlueprintSource(
           title: test.title,
           content: test.content,
           documents: Array.isArray(test.documents) ? (test.documents as TestDocument[]) : [],
+          points_possible: test.points_possible ?? null,
+          include_in_final: test.include_in_final !== false,
           position: test.position ?? 0,
         })),
       lesson_templates: ((lessonPlansResult.data || []) as Array<Record<string, any>>).map((plan, index) => ({

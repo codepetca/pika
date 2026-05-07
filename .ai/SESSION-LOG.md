@@ -7,110 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-05 — Make exam documents visibly clickable
-
-**Completed:**
-- Added a right chevron affordance to active student exam-mode document rows.
-- Matched the same document-row affordance in the teacher test preview.
-- Added focused component coverage for the student document-row chevron.
-
-**Validation:**
-- `pnpm test tests/components/StudentQuizzesTab.test.tsx`
-- `pnpm lint`
-- Pre-edit startup verification: `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/issue-548-doc-chevron bash scripts/verify-env.sh`
-- Pika UI verification script on `http://localhost:3002/classrooms`:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Targeted Playwright screenshots:
-  - `/tmp/pika-student-exam-docs-chevron.png`
-  - `/tmp/pika-teacher-test-preview-docs-chevron.png`
-
-## 2026-05-05 — Retire large journal from default workflow
-
-**Completed:**
-- Moved the full AI session history to `.ai/JOURNAL-ARCHIVE.md`.
-- Added `.ai/SESSION-LOG.md` as the small rolling handoff log and `scripts/trim-session-log.mjs` to cap recent entries.
-- Updated startup/end-session guidance and the weekly simplification automation to use the session log instead of the large journal.
-- Made the trim script resolve default paths from the script repo rather than process cwd.
-- Added regression coverage for startup token budget, no default journal tailing, and session-log trimming.
-
-**Validation:**
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/trim-session-log.test.ts`
-- `pnpm test`
-- `pnpm lint`
-
-## 2026-05-05 — Harden selected-student exam lifecycle mutations
-
-**Completed:**
-- Added atomic database functions for test close/finalize, unsubmit, and per-student test-work deletion.
-- Routed whole-test close, selected return finalization, selected unsubmit, and student-work delete through atomic RPCs.
-- Added atomic selected-student return marking so existing attempts are marked returned and missing returned attempts are created in one database function.
-- Changed grading finalization to avoid invalid blank multiple-choice response rows; missing MC responses continue to score as zero by absence.
-- Updated route and integration coverage for selected-only finalization and RPC migration fallbacks.
-
-**Validation:**
-- `pnpm test tests/lib/finalize-test-attempts.test.ts tests/api/teacher/tests-unsubmit.test.ts tests/api/teacher/tests-student-attempt-delete.test.ts tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-student-access.test.ts`
-- `pnpm test tests/api/integration/test-return-visibility-flow.test.ts tests/api/student/tests-attempt.test.ts tests/api/student/tests-respond.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/api/student/tests-session-status.test.ts tests/api/teacher/tests-results.test.ts tests/api/teacher/tests-route.test.ts tests/unit/test-student-access.test.ts`
-- `pnpm lint`
-- `pnpm test:coverage`
-
-## 2026-05-05 — Rebase selected-student exam access onto main
-
-**Completed:**
-- Rebasing `codex/selected-student-exam-access` onto `origin/main` completed.
-- Resolved conflicts in `.ai/JOURNAL-ARCHIVE.md` and `AssignmentModal.tsx` by preserving main's schedule-validation behavior and the branch's maximized creation-modal behavior.
-- Restored the temporary pre-rebase stash and dropped it.
-- Confirmed migrations are sequential after `origin/main` migration `059`: `060`, `061`, `062`, and uncommitted `063`.
-
-**Validation:**
-- `pnpm test tests/components/AssignmentModal.test.tsx tests/lib/finalize-test-attempts.test.ts tests/api/teacher/tests-unsubmit.test.ts tests/api/teacher/tests-student-attempt-delete.test.ts tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-student-access.test.ts tests/api/integration/test-return-visibility-flow.test.ts`
-- `pnpm lint`
-
-## 2026-05-06 — Independent split-pane scrolling
-
-**Completed:**
-- Added an opt-in viewport constraint to `AppShell` and enabled it for active desktop teacher split-pane workspaces.
-- Bounded the gapped teacher workspace split at desktop sizes without changing resize handlers or inspector-width state.
-- Moved overflowing table/content regions inside the affected split panes so attendance, roster, gradebook, assignment review, and test grading can scroll panes independently.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test -- tests/components/TeacherWorkspaceSplit.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherGradebookTab.test.tsx` (ran full suite: 249 files, 2091 tests)
-- `pnpm lint`
-- Pika UI verification for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance`:
-  - `/tmp/pika-attendance-teacher.png`
-  - `/tmp/pika-attendance-student.png`
-  - `/tmp/pika-attendance-teacher-mobile.png`
-- Focused teacher split screenshots:
-  - `/tmp/pika-gradebook-teacher.png`
-  - `/tmp/pika-roster-teacher.png`
-  - `/tmp/pika-assignment-split-teacher.png`
-  - `/tmp/pika-test-grading-split-teacher.png`
-- Playwright assertion pass confirmed no document-level vertical scroll on the affected desktop split routes and a 126px resize-handle movement after drag.
-
-## 2026-05-06 — Make assignment edit mode modal-close ephemeral
-
-**Completed:**
-- Cleared teacher assignment edit mode whenever the assignment create/edit modal exits.
-- Preserved modal-internal updates that intentionally keep the modal open.
-- Added regression coverage for closing the create assignment modal after starting summary edit mode.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-actionbar-spacer bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherClassroomView.test.tsx`
-- `pnpm test tests/components/AssignmentModal.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- `git diff --check`
-- Pika UI verification on the shared assignments page:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Focused Playwright flow: toggled assignment edit mode, opened New assignment, closed the create modal, confirmed Edit returned to `aria-pressed="false"`, and cleaned up the temporary draft.
-  - `/tmp/pika-assignment-edit-mode-before-create-modal.png`
-  - `/tmp/pika-assignment-create-modal-before-close-ephemeral.png`
-  - `/tmp/pika-assignment-edit-mode-after-create-close.png`
-
 ## 2026-05-06 — Align calendar controls with floating tab pattern
 
 **Completed:**
@@ -403,3 +299,125 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-compact-mc-teacher-mobile.png`
   - `/tmp/pika-compact-mc-student-mobile.png`
 - `pnpm test`
+
+## 2026-05-06 — Separate Materials and Syllabus branch
+
+**Completed:**
+- Created isolated branch/worktree `codex/materials-syllabus` from `origin/main`, separate from the existing `codex/classwork-tab` exploration.
+- Renamed visible Assignments navigation to Classwork and Resources navigation to Syllabus while keeping existing query-tab compatibility.
+- Added ungraded Classwork Materials with teacher CRUD APIs/UI, student read UI/API, and a `classwork_materials` migration.
+- Replaced the Resources tab surface with a syllabus/course-site entry point that opens a published course site or points teachers to Course Website Settings.
+- Renamed teacher-facing "Actual Course Website" copy to "Course Website" in Settings.
+- Added a simplified public syllabus grading summary to `/actual/[slug]`, including category weights and per-item approximate course weights from gradebook settings plus point values.
+- Embedded the published syllabus inside the Pika Syllabus tab for teachers and students, with an `Open External` action for the standalone `/actual/<slug>` page.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/api/teacher/materials.test.ts tests/api/student/materials.test.ts tests/components/ResourcesTab.test.tsx tests/components/NavItems.test.tsx tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `pnpm test`
+- Pika UI verification for Classwork and Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Focused Playwright screenshots:
+  - `/tmp/pika-classwork-new-menu.png`
+  - `/tmp/pika-material-dialog.png`
+  - `/tmp/pika-course-website-settings.png`
+  - `/tmp/pika-actual-syllabus-grading.png`
+  - `/tmp/pika-actual-syllabus-grading-mobile.png`
+  - Re-ran Syllabus tab visual verification after embedding the preview:
+    - `/tmp/pika-teacher.png`
+    - `/tmp/pika-student.png`
+    - `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-06 — Rebase materials branch and align Announcements action
+
+**Completed:**
+- Rebasing `codex/materials-syllabus` onto `origin/main` completed cleanly, leaving the branch at `0 0` ahead/behind.
+- Resequenced the new classwork materials migration from `064_classwork_materials.sql` to `065_classwork_materials.sql` after `origin/main` added `064_teacher_log_history_preview_rpc.sql`.
+- Moved the Announcements teacher create action into the shared centered floating work-surface action cluster and removed the old bottom `New Announcement` button.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/api/teacher/announcements.test.ts tests/api/teacher/announcements-id.test.ts tests/api/student/announcements.test.ts`
+- `pnpm build`
+- `git diff --check`
+- Duplicate migration prefix check
+- Pika UI verification for Announcements on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=announcements`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-06 — Simplify Syllabus tab embed
+
+**Completed:**
+- Removed the published-state top Course site/Syllabus card from teacher and student Syllabus tabs.
+- Published Syllabus now opens directly to the embedded in-Pika course syllabus frame.
+- Kept unpublished teacher/student fallback states so teachers can still reach Course Website Settings when there is no published site.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/ResourcesTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-06 — Fill Syllabus main content frame
+
+**Completed:**
+- Updated teacher and student Syllabus tabs so the published embed container fills the available main content width and height instead of using a centered max-width wrapper.
+- Preserved stable mobile height for the iframe so the course syllabus remains usable inside the classroom shell.
+
+**Validation:**
+- `pnpm test tests/components/ResourcesTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-07 — Strip Syllabus framing and simplify generated content
+
+**Completed:**
+- Removed the published Syllabus iframe wrapper/card from teacher and student classroom tabs so the iframe renders directly in the main content area.
+- Simplified `/actual/[slug]` by removing the Grading summary, Resources section, and Current Lesson Sequence.
+- Reduced Classwork rows to assignment title plus approximate course weight only.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/ResourcesTab.test.tsx tests/lib/server/course-sites.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Standalone syllabus screenshots:
+  - `/tmp/pika-actual-syllabus.png`
+  - `/tmp/pika-actual-syllabus-mobile.png`
+
+## 2026-05-07 — Match actual syllabus to blueprint-style overview
+
+**Completed:**
+- Confirmed the in-Pika course overview comes from `classrooms.course_overview_markdown`, which is seeded from `course_blueprints.overview_markdown` when a classroom is created from a blueprint and then editable per classroom in Settings.
+- Reworked `/actual/[slug]` into a simplified syllabus page with header, Course Overview when present, optional Test Docs, and one Assignments list using A/Q/T labels plus course-weight percentages.
+- Removed the unused Resources publish toggle from Public Syllabus settings and renamed remaining teacher/student-facing course-site labels to syllabus language.
+
+**Validation:**
+- `pnpm test tests/components/ResourcesTab.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/lib/server/course-sites.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms-id.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Settings screenshot for Public Syllabus labels:
+  - `/tmp/pika-settings-teacher-full.png`

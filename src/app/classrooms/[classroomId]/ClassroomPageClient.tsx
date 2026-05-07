@@ -226,6 +226,7 @@ function ClassroomPageContent({
   const { showMarkdown } = useMarkdownPreference()
   const isTeacher = user.role === 'teacher'
   const assignmentIdParam = searchParams.get('assignmentId')
+  const materialIdParam = activeTab === 'assignments' ? searchParams.get('materialId') : null
   const assignmentStudentIdParam = searchParams.get('assignmentStudentId')
   const quizIdParam = activeTab === 'quizzes' ? searchParams.get('quizId') : null
   const testIdParam = activeTab === 'tests' ? searchParams.get('testId') : null
@@ -515,8 +516,8 @@ function ClassroomPageContent({
       if (assignmentEditMode) return undefined
 
       return assignmentViewMode === 'assignment'
-        ? selectedAssignment?.title || 'Assignments'
-        : 'Assignments'
+        ? selectedAssignment?.title || 'Classwork'
+        : 'Classwork'
     }
 
     if (activeTab === 'quizzes') {
@@ -835,6 +836,15 @@ function ClassroomPageContent({
             },
             20_000,
           )
+          prefetchJSON(
+            `teacher-materials:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/teacher/classrooms/${classroom.id}/materials`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
         } else {
           prefetchJSON(
             `student-assignments:${classroom.id}`,
@@ -845,25 +855,10 @@ function ClassroomPageContent({
             },
             20_000,
           )
-        }
-      }
-
-      if (tab === 'resources') {
-        if (isTeacher) {
           prefetchJSON(
-            `teacher-resources:${classroom.id}`,
+            `student-materials:${classroom.id}`,
             async () => {
-              const response = await fetch(`/api/teacher/classrooms/${classroom.id}/resources`)
-              if (!response.ok) throw new Error('Prefetch failed')
-              return response.json()
-            },
-            20_000,
-          )
-        } else {
-          prefetchJSON(
-            `student-resources:${classroom.id}`,
-            async () => {
-              const response = await fetch(`/api/student/classrooms/${classroom.id}/resources`)
+              const response = await fetch(`/api/student/classrooms/${classroom.id}/materials`)
               if (!response.ok) throw new Error('Prefetch failed')
               return response.json()
             },
@@ -906,7 +901,6 @@ function ClassroomPageContent({
       const id = idleCallback(
         () => {
           prefetchTabData('assignments')
-          prefetchTabData('resources')
           prefetchTabData('announcements')
         },
         { timeout: 1200 },
@@ -919,7 +913,6 @@ function ClassroomPageContent({
 
     const timer = window.setTimeout(() => {
       prefetchTabData('assignments')
-      prefetchTabData('resources')
       prefetchTabData('announcements')
     }, 350)
     return () => window.clearTimeout(timer)
@@ -935,6 +928,7 @@ function ClassroomPageContent({
         params.set('tab', tab)
         if (tab !== 'assignments') {
           params.delete('assignmentId')
+          params.delete('materialId')
           params.delete('assignmentStudentId')
         }
         if (tab !== 'settings') {
@@ -1155,6 +1149,7 @@ function ClassroomPageContent({
                         onEditModeChange={handleAssignmentsEditModeChange}
                         isActive={activeTab === 'assignments'}
                         selectedAssignmentId={assignmentIdParam}
+                        selectedMaterialId={materialIdParam}
                         selectedAssignmentStudentId={assignmentStudentIdParam}
                         updateSearchParams={navigateInClassroom}
                       />
@@ -1206,6 +1201,7 @@ function ClassroomPageContent({
                               params.delete('assignmentId')
                             }
                             params.delete('assignmentStudentId')
+                            params.delete('materialId')
                           })
                         }
                         onNavigateToAnnouncements={() =>
@@ -1213,6 +1209,7 @@ function ClassroomPageContent({
                             params.set('tab', 'announcements')
                             params.delete('section')
                             params.delete('assignmentId')
+                            params.delete('materialId')
                             params.delete('assignmentStudentId')
                           })
                         }
@@ -1264,6 +1261,7 @@ function ClassroomPageContent({
                       <StudentAssignmentsTab
                         classroom={classroom}
                         selectedAssignmentId={assignmentIdParam}
+                        selectedMaterialId={materialIdParam}
                         isActive={activeTab === 'assignments'}
                         updateSearchParams={navigateInClassroom}
                       />
@@ -1293,6 +1291,7 @@ function ClassroomPageContent({
                               params.delete('assignmentId')
                             }
                             params.delete('assignmentStudentId')
+                            params.delete('materialId')
                           })
                         }
                         onNavigateToAnnouncements={() =>
@@ -1300,6 +1299,7 @@ function ClassroomPageContent({
                             params.set('tab', 'announcements')
                             params.delete('section')
                             params.delete('assignmentId')
+                            params.delete('materialId')
                           })
                         }
                       />
