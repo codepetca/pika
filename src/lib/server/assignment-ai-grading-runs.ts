@@ -26,9 +26,12 @@ import type {
 } from '@/types'
 
 const DEFAULT_MODEL = 'gpt-5-nano'
+const GRADEX_ASSIGNMENT_MODEL_ALIAS = 'gradex:pika-assignment-v1'
 const RETRY_BACKOFF_SECONDS = [15, 60, 180]
 const TIMEOUT_RETRY_BACKOFF_SECONDS = [7, 20, 45]
 const MISSING_ASSIGNMENT_GRADE_FEEDBACK = 'Missing'
+
+type AssignmentGraderProvider = 'pika' | 'gradex'
 
 export const ASSIGNMENT_AI_GRADING_RUN_CHUNK_SIZE = 4
 export const ASSIGNMENT_AI_GRADING_ITEM_CONCURRENCY = 2
@@ -58,6 +61,7 @@ type GradeAssignmentDocWithAiOptions = {
   }
   gradedBy?: string | null
   requestTimeoutMs?: number
+  graderProvider?: AssignmentGraderProvider
   telemetry?: {
     operation?: string
     requestedStrategy?: string | null
@@ -80,9 +84,19 @@ type SupabaseSchemaError = {
   hint?: string | null
 }
 
-function getModelAlias(): string {
-  if (isGradexAssignmentGradingEnabled()) {
-    return 'gradex:pika-assignment-v1'
+function getLiveAssignmentGraderProvider(): AssignmentGraderProvider {
+  return isGradexAssignmentGradingEnabled() ? 'gradex' : 'pika'
+}
+
+function getAssignmentGraderProviderFromRunModel(
+  model: string | null | undefined,
+): AssignmentGraderProvider {
+  return model?.startsWith('gradex:') ? 'gradex' : 'pika'
+}
+
+function getModelAlias(provider: AssignmentGraderProvider = getLiveAssignmentGraderProvider()): string {
+  if (provider === 'gradex') {
+    return GRADEX_ASSIGNMENT_MODEL_ALIAS
   }
   return process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
 }
@@ -356,6 +370,7 @@ export async function gradeAssignmentDocWithAi({
   assignmentDoc,
   gradedBy,
   requestTimeoutMs,
+  graderProvider,
   telemetry,
 }: GradeAssignmentDocWithAiOptions): Promise<void> {
   const studentWork = parseContentField(assignmentDoc.content)
@@ -369,7 +384,8 @@ export async function gradeAssignmentDocWithAi({
     return
   }
 
-  const result = isGradexAssignmentGradingEnabled()
+  const resolvedGraderProvider = graderProvider ?? getLiveAssignmentGraderProvider()
+  const result = resolvedGraderProvider === 'gradex'
     ? await (async () => {
         const gradexPayload = buildPikaAssignmentGradexPayload({
           assignment,
@@ -672,6 +688,7 @@ async function processAssignmentAiRunItem(opts: {
       assignmentDoc,
       gradedBy: run.triggered_by,
       requestTimeoutMs: ASSIGNMENT_AI_GRADING_REQUEST_TIMEOUT_MS,
+      graderProvider: getAssignmentGraderProviderFromRunModel(run.model),
       telemetry: {
         operation: 'background_batch_item',
         requestedStrategy: 'background_chunked',
@@ -830,7 +847,7 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
   const { data: run, error: runError } = await supabase.rpc('create_assignment_ai_grading_run_atomic', {
     p_assignment_id: opts.assignmentId,
     p_teacher_id: opts.teacherId,
-    p_model: getModelAlias(),
+    p_model: getModelAlias(getLiveAssignmentGraderProvider()),
     p_requested_student_ids: normalizedStudentIds,
     p_selection_hash: selectionHash,
     p_gradable_count: gradableCount,

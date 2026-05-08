@@ -7,17 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-06 — Fix PR coverage gate
-
-**Completed:**
-- Investigated the failed GitHub CI run on the first PR commit.
-- Found the failure was a per-file coverage threshold miss for `src/app/api/teacher/log-summary/route.ts`.
-- Added route tests for classroom-not-found, entry-stats failure, and entry-count failure to cover the cron-only summary endpoint error branches.
-
-**Validation:**
-- `pnpm run test:coverage`
-- `pnpm lint`
-
 ## 2026-05-06 — Restrict nightly log summaries to class days
 
 **Completed:**
@@ -344,3 +333,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - `pnpm test`
+
+## 2026-05-08 — Stabilize Gradex assignment run provider
+
+**Completed:**
+- Made background assignment AI grading use the provider stored on the run model instead of rereading the live Gradex feature flag per item.
+- Kept single-student/direct assignment grading controlled by the live `GRADEX_ASSIGNMENT_GRADING_ENABLED` flag.
+- Added regression coverage for both flag-flip directions: persisted Gradex runs stay on Gradex and persisted Pika runs stay on Pika.
+- Added coverage that new Gradex-enabled assignment grading runs persist `gradex:pika-assignment-v1`.
+
+**Validation:**
+- `pnpm test tests/lib/assignment-ai-grading-runs.test.ts tests/lib/assignment-ai-grading-runs-gradex.test.ts`
+- `pnpm test tests/lib/gradex-client.test.ts tests/lib/gradex-assignment-payload.test.ts tests/lib/assignment-ai-grading-runs.test.ts tests/lib/assignment-ai-grading-runs-gradex.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts`
+- `pnpm lint`
+- `pnpm build`

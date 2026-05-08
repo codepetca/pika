@@ -9,6 +9,13 @@ const { gradePikaAssignmentWithGradex } = vi.hoisted(() => ({
   gradePikaAssignmentWithGradex: vi.fn(),
 }))
 
+const { mockServiceSupabase } = vi.hoisted(() => ({
+  mockServiceSupabase: {
+    from: vi.fn(),
+    rpc: vi.fn(),
+  },
+}))
+
 vi.mock('@/lib/ai-grading', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/ai-grading')>()
   return {
@@ -23,7 +30,14 @@ vi.mock('@/lib/server/gradex-client', () => ({
     process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED?.trim().toLowerCase() === 'true',
 }))
 
-import { gradeAssignmentDocWithAi } from '@/lib/server/assignment-ai-grading-runs'
+vi.mock('@/lib/supabase', () => ({
+  getServiceRoleClient: vi.fn(() => mockServiceSupabase),
+}))
+
+import {
+  gradeAssignmentDocWithAi,
+  tickAssignmentAiGradingRun,
+} from '@/lib/server/assignment-ai-grading-runs'
 
 const assignment: Assignment = {
   id: 'assignment-db-123',
@@ -83,12 +97,150 @@ function buildSupabaseUpdateHarness() {
   }
 }
 
+function buildBackgroundRunHarness(runModel: string) {
+  const run = {
+    id: 'run-1',
+    assignment_id: assignment.id,
+    status: 'queued',
+    triggered_by: 'teacher-1',
+    model: runModel,
+    selection_hash: 'selection-hash',
+    requested_student_ids_json: [assignmentDoc.student_id],
+    requested_count: 1,
+    gradable_count: 1,
+    processed_count: 0,
+    completed_count: 0,
+    skipped_missing_count: 0,
+    skipped_empty_count: 0,
+    failed_count: 0,
+    error_samples_json: [],
+    lease_token: null,
+    lease_expires_at: null,
+    started_at: null,
+    completed_at: null,
+    created_at: '2026-05-04T20:00:00.000Z',
+    updated_at: '2026-05-04T20:00:00.000Z',
+  }
+  const item = {
+    id: 'item-1',
+    run_id: run.id,
+    assignment_id: assignment.id,
+    student_id: assignmentDoc.student_id,
+    assignment_doc_id: assignmentDoc.id,
+    queue_position: 0,
+    status: 'queued',
+    skip_reason: null,
+    attempt_count: 0,
+    next_retry_at: null,
+    last_error_code: null,
+    last_error_message: null,
+    started_at: null,
+    completed_at: null,
+    created_at: '2026-05-04T20:00:00.000Z',
+    updated_at: '2026-05-04T20:00:00.000Z',
+  }
+  const docUpdates: Record<string, unknown>[] = []
+
+  mockServiceSupabase.rpc.mockImplementation(async (fn: string) => {
+    if (fn === 'claim_assignment_ai_grading_run') {
+      return { data: true, error: null }
+    }
+    throw new Error(`Unexpected rpc: ${fn}`)
+  })
+
+  mockServiceSupabase.from.mockImplementation((table: string) => {
+    if (table === 'assignment_ai_grading_runs') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn((field: string, value: string) => {
+            if (field !== 'id') throw new Error(`Unexpected run eq field: ${field}`)
+            return {
+              maybeSingle: vi.fn(async () => ({
+                data: value === run.id ? { ...run } : null,
+                error: null,
+              })),
+            }
+          }),
+        })),
+        update: vi.fn((payload: Record<string, unknown>) => ({
+          eq: vi.fn((field: string, value: string) => ({
+            select: vi.fn(() => ({
+              single: vi.fn(async () => {
+                if (field !== 'id' || value !== run.id) return { data: null, error: null }
+                Object.assign(run, payload)
+                return { data: { ...run }, error: null }
+              }),
+            })),
+          })),
+        })),
+      }
+    }
+
+    if (table === 'assignment_ai_grading_run_items') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn((field: string, value: string) => ({
+            order: vi.fn(async () => ({
+              data:
+                field === 'run_id' && value === run.id
+                  ? [{ ...item }]
+                  : [],
+              error: null,
+            })),
+          })),
+        })),
+        update: vi.fn((payload: Record<string, unknown>) => ({
+          eq: vi.fn(async (field: string, value: string) => {
+            if (field === 'id' && value === item.id) Object.assign(item, payload)
+            return { error: null }
+          }),
+        })),
+      }
+    }
+
+    if (table === 'assignments') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: vi.fn(async () => ({ data: assignment, error: null })),
+          })),
+        })),
+      }
+    }
+
+    if (table === 'assignment_docs') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: vi.fn(async () => ({
+              data: assignmentDoc,
+              error: null,
+            })),
+          })),
+        })),
+        update: vi.fn((payload: Record<string, unknown>) => {
+          docUpdates.push(payload)
+          return {
+            eq: vi.fn(async () => ({ error: null })),
+          }
+        }),
+      }
+    }
+
+    throw new Error(`Unexpected table: ${table}`)
+  })
+
+  return { docUpdates, item, run }
+}
+
 describe('assignment AI grading Gradex feature flag', () => {
   const originalFlag = process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED
   const originalSalt = process.env.GRADEX_PIKA_PSEUDONYM_SALT
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockServiceSupabase.from.mockReset()
+    mockServiceSupabase.rpc.mockReset()
     delete process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED
     process.env.GRADEX_PIKA_PSEUDONYM_SALT = 'stable-test-salt'
     gradeStudentWork.mockResolvedValue({
@@ -204,5 +356,45 @@ describe('assignment AI grading Gradex feature flag', () => {
     })
 
     expect(harness.update).not.toHaveBeenCalled()
+  })
+
+  it('keeps using Gradex for a persisted Gradex background run if the live flag is later disabled', async () => {
+    process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED = 'false'
+    const harness = buildBackgroundRunHarness('gradex:pika-assignment-v1')
+
+    const result = await tickAssignmentAiGradingRun({
+      assignmentId: assignment.id,
+      runId: 'run-1',
+    })
+
+    expect(result.run.status).toBe('completed')
+    expect(gradePikaAssignmentWithGradex).toHaveBeenCalledTimes(1)
+    expect(gradeStudentWork).not.toHaveBeenCalled()
+    expect(harness.docUpdates[0]).toEqual(expect.objectContaining({
+      score_completion: 6,
+      score_thinking: 7,
+      score_workflow: 8,
+      ai_feedback_model: 'gradex:gradex-model',
+    }))
+  })
+
+  it('keeps using Pika for a persisted Pika background run if the live flag is later enabled', async () => {
+    process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED = 'true'
+    const harness = buildBackgroundRunHarness('gpt-5-nano')
+
+    const result = await tickAssignmentAiGradingRun({
+      assignmentId: assignment.id,
+      runId: 'run-1',
+    })
+
+    expect(result.run.status).toBe('completed')
+    expect(gradeStudentWork).toHaveBeenCalledTimes(1)
+    expect(gradePikaAssignmentWithGradex).not.toHaveBeenCalled()
+    expect(harness.docUpdates[0]).toEqual(expect.objectContaining({
+      score_completion: 8,
+      score_thinking: 7,
+      score_workflow: 9,
+      ai_feedback_model: 'gpt-5-nano',
+    }))
   })
 })
