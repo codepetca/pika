@@ -43,34 +43,427 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm test`
 - Pika UI verification for Classwork and Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea`:
+## 2026-05-07 — Gradebook raw/percent matrix footer
+
+**Completed:**
+- Removed the separate gradebook summary view and replaced the `Grade` / `Summary` control with a `%` / `Raw` score display toggle.
+- Added compact `AVG` and `MED` footer rows to the assessment matrix, including the final percent column.
+- Simplified assessment tooltips to the assessment title and moved assignment due dates under the assessment code in the column header.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/gradebook-assessment-matrix bash /Users/stew/Repos/pika/.codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/api/teacher/gradebook.test.ts tests/hooks/useGradebookData.test.ts tests/components/TeacherEditModeControls.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=gradebook` on port 3001:
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
-- Focused Playwright screenshots:
-  - `/tmp/pika-classwork-new-menu.png`
-  - `/tmp/pika-material-dialog.png`
-  - `/tmp/pika-course-website-settings.png`
-  - `/tmp/pika-actual-syllabus-grading.png`
-  - `/tmp/pika-actual-syllabus-grading-mobile.png`
-  - Re-ran Syllabus tab visual verification after embedding the preview:
-    - `/tmp/pika-teacher.png`
-    - `/tmp/pika-student.png`
-    - `/tmp/pika-teacher-mobile.png`
+- Direct final-state captures:
+  - `/tmp/pika-gradebook-percent-footer.png`
+  - `/tmp/pika-gradebook-raw-footer.png`
+  - `/tmp/pika-gradebook-title-tooltip.png`
+  - `/tmp/pika-gradebook-raw-mobile.png`
 
-## 2026-05-06 — Rebase materials branch and align Announcements action
+## 2026-05-07 — Gradebook column visibility editor
 
 **Completed:**
-- Rebasing `codex/materials-syllabus` onto `origin/main` completed cleanly, leaving the branch at `0 0` ahead/behind.
-- Resequenced the new classwork materials migration from `064_classwork_materials.sql` to `065_classwork_materials.sql` after `origin/main` added `064_teacher_log_history_preview_rpc.sql`.
-- Moved the Announcements teacher create action into the shared centered floating work-surface action cluster and removed the old bottom `New Announcement` button.
+- Changed the gradebook pen button to open edit mode while keeping the matrix visible.
+- Moved category weight settings into their own card above the student table in edit mode.
+- Added a checkbox header row inside the table so `First`, `Last`, `ID`, every assessment code, and `Final` can be shown or hidden from the column header itself.
+- Kept hidden columns restorable while edit mode is open, then omitted them from the normal table when edit mode closes; guarded against hiding all student identity columns.
+- Fixed hidden sticky identity headers to stay opaque on mobile horizontal scroll.
+- Renamed the category toggle to `Use category weights`, disabled the weight controls while unchecked, and kept Save available to persist the toggle.
+- Moved `Use category weights` into the category settings card title area, replacing the separate `Category settings` heading.
+- Added a `Visible columns` title above the edit-mode column visibility checkbox row.
+- Hid row-selection and select-all checkboxes while gradebook edit mode is active to avoid confusion with column visibility checkboxes.
+- Changed unchecked columns to keep their data visible but muted in edit mode instead of blanking the values.
 
 **Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/api/teacher/gradebook.test.ts tests/hooks/useGradebookData.test.ts tests/components/TeacherEditModeControls.test.tsx`
 - `pnpm lint`
-- `pnpm test tests/api/teacher/announcements.test.ts tests/api/teacher/announcements-id.test.ts tests/api/student/announcements.test.ts`
 - `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=gradebook` on port 3001 after clearing stale `.next` output:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Direct edit-mode captures:
+  - `/tmp/pika-gradebook-edit-header-checkboxes.png`
+  - `/tmp/pika-gradebook-edit-header-checkboxes-hidden.png`
+  - `/tmp/pika-gradebook-edit-header-checkboxes-mobile.png`
+  - `/tmp/pika-gradebook-edit-header-checkboxes-mobile-hidden.png`
+  - `/tmp/pika-gradebook-category-settings-disabled.png`
+  - `/tmp/pika-gradebook-dimmed-hidden-columns.png`
+  - `/tmp/pika-gradebook-category-settings-disabled-mobile.png`
+  - `/tmp/pika-gradebook-dimmed-hidden-columns-mobile.png`
+  - `/tmp/pika-gradebook-category-settings-title-checkbox.png`
+  - `/tmp/pika-gradebook-category-settings-title-checkbox-mobile.png`
+  - `/tmp/pika-gradebook-use-category-weights-title.png`
+  - `/tmp/pika-gradebook-use-category-weights-title-mobile.png`
+  - `/tmp/pika-gradebook-visible-columns-title.png`
+  - `/tmp/pika-gradebook-visible-columns-title-mobile.png`
+  - `/tmp/pika-gradebook-edit-no-selection-checkboxes.png`
+  - `/tmp/pika-gradebook-edit-no-selection-checkboxes-mobile.png`
+
+## 2026-05-07 — Gradebook per-assessment weights
+
+**Completed:**
+- Added `gradebook_weight` as a separate per-assessment metadata field for assignments, quizzes, and tests, defaulting to `10` and staying independent from `points_possible`.
+- Updated gradebook calculations so explicit assessment weights control each item’s contribution, while existing point-based behavior remains the fallback when no weight is provided.
+- Added a gradebook PATCH path for saving an individual assessment weight with integer validation from `1` to `999`.
+- Returned assessment weights in gradebook matrix columns and added compact edit-mode weight inputs under each assessment code.
+- Added API, unit, and component coverage for the new weighting behavior and edit-mode inputs.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/unit/gradebook.test.ts tests/api/teacher/gradebook.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Direct edit-mode captures:
+  - `/tmp/pika-teacher-gradebook-edit-desktop.png`
+  - `/tmp/pika-teacher-gradebook-edit-mobile.png`
+
+## 2026-05-07 — Gradebook branch rebase
+
+**Completed:**
+- Rebasing `codex/gradebook-assessment-matrix` onto latest `origin/main` completed without conflicts.
+- Reapplied the local gradebook work from the pre-rebase stash and dropped that stash.
+- Resequenced the assessment weight migration from `060_add_assessment_gradebook_weights.sql` to `066_add_assessment_gradebook_weights.sql` because `origin/main` now includes migrations through `065`.
+- Verified duplicate migration prefix check is clean.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/unit/gradebook.test.ts tests/api/teacher/gradebook.test.ts`
+- `pnpm lint`
+- `pnpm build`
+
+## 2026-05-07 — Gradebook assessment weight row
+
+**Completed:**
+- Moved per-assessment weight inputs out of the assessment title header and into a dedicated edit-mode `Weights` table row.
+- Kept the row aligned with the assessment columns so each textbox reads as that assessment's editable gradebook weight.
+- Added a right-side total cell that sums the current assessment weight inputs.
+- Updated component coverage for the explicit weights row and clearer input labels.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Direct edit-mode captures:
+  - `/tmp/pika-gradebook-weight-row-desktop.png`
+  - `/tmp/pika-gradebook-weight-row-mobile.png`
+
+## 2026-05-07 — Gradebook category save disabled
+
+**Completed:**
+- Disabled the category weight `Save` button unless `Use category weights` is checked.
+- Updated the focused gradebook component coverage to assert the disabled state while category weights are off and the enabled state after checking the setting with a valid 100% total.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Direct edit-mode captures:
+  - `/tmp/pika-gradebook-category-save-disabled-desktop.png`
+  - `/tmp/pika-gradebook-category-save-disabled-mobile.png`
+
+## 2026-05-07 — Gradebook edit row labels
+
+**Completed:**
+- Added a leading edit-mode label column for the table setting rows.
+- Moved `Visible` and `Weights` labels into that column so checkbox and weight rows read like table rows before the student identity columns.
+- Kept the regular gradebook student-selection column compact outside edit mode.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Direct edit-mode captures:
+  - `/tmp/pika-gradebook-edit-row-labels-desktop.png`
+  - `/tmp/pika-gradebook-edit-row-labels-mobile.png`
+
+## 2026-05-07 — Gradebook header label styling
+
+**Completed:**
+- Restyled assessment code headers from bordered rounded chips to flat header labels so `A1`/`Q1`/`T1` no longer read like editable textboxes.
+- Hid native browser increment/decrement controls on the per-assessment weight inputs while keeping numeric input behavior.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Direct edit-mode captures:
+  - `/tmp/pika-gradebook-header-labels-no-spinners-desktop.png`
+  - `/tmp/pika-gradebook-header-labels-no-spinners-mobile.png`
+
+## 2026-05-07 — Gradebook visible header removed
+
+**Completed:**
+- Removed the standalone `Visible columns` header strip from gradebook edit mode.
+- Kept `Visible` as the row label inside the table for the column visibility checkboxes.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Direct edit-mode captures:
+  - `/tmp/pika-gradebook-visible-header-removed-desktop.png`
+  - `/tmp/pika-gradebook-visible-header-removed-mobile.png`
+
+## 2026-05-07 — Gradebook summary row visibility
+
+**Completed:**
+- Added edit-mode checkboxes beside the `Avg` and `Med` summary row labels.
+- Kept unchecked summary rows visible but dimmed while settings are open.
+- Hid unchecked summary rows from the regular gradebook view.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted mocked-data captures:
+  - `/tmp/pika-gradebook-avg-med-row-toggles-desktop.png`
+  - `/tmp/pika-gradebook-avg-med-row-toggles-mobile.png`
+  - `/tmp/pika-gradebook-avg-row-hidden-edit-desktop.png`
+  - `/tmp/pika-gradebook-avg-row-hidden-normal-desktop.png`
+
+## 2026-05-08 — Gradebook assessment-only weights
+
+**Completed:**
+- Removed the gradebook category-weight settings card from teacher edit mode.
+- Made assessment-specific weights the exclusive teacher-facing weighting model.
+- Moved `Avg` and `Med` row visibility checkboxes into the leading label column with the `Visible` and `Weights` controls.
+- Added border lines to the edit-mode `Visible` and `Weights` rows and to the leading label column.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/api/teacher/gradebook.test.ts tests/unit/gradebook.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3001:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted mocked-data captures and DOM border checks:
+  - `/tmp/pika-gradebook-assessment-only-edit-desktop.png`
+  - `/tmp/pika-gradebook-assessment-only-avg-hidden-edit-desktop.png`
+  - `/tmp/pika-gradebook-assessment-only-avg-hidden-normal-desktop.png`
+  - `/tmp/pika-gradebook-assessment-only-edit-mobile.png`
+
+## 2026-05-08 — Gradebook summary labels in leading column
+
+**Completed:**
+- Moved non-edit gradebook `Avg` and `Med` summary labels into the leading select/label column.
+- Left the First/Last/ID summary cells empty so summary labels align with edit mode and do not appear under student identity columns.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `E2E_BASE_URL=http://localhost:3002 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3002:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted mocked-data captures and DOM cell-order checks:
+  - `/tmp/pika-gradebook-summary-label-leading-desktop.png`
+  - `/tmp/pika-gradebook-summary-label-leading-mobile.png`
+
+## 2026-05-08 — Gradebook stats gap
+
+**Completed:**
+- Added a small visual gap between student grade rows and the `Avg`/`Med` stats rows.
+- Kept the stats rows in the same table flow so assessment and final columns retain the exact same spacing as the student rows.
+- Added borders around the separated stats block so it reads as its own compact section.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `pnpm build` after stopping the dev server; first build attempt raced with the active dev server over `.next` and failed on an unrelated page-module lookup, then passed cleanly.
+- `E2E_BASE_URL=http://localhost:3003 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted mocked-data captures and spacer-height checks:
+  - `/tmp/pika-gradebook-stats-gap-desktop.png`
+  - `/tmp/pika-gradebook-stats-gap-mobile.png`
+  - `/tmp/pika-gradebook-stats-gap-edit-desktop.png`
+
+## 2026-05-08 — Gradebook edit grid dividers
+
+**Completed:**
+- Added a small edit-mode spacer between the `Weights` row and the main student data header.
+- Updated the edit-mode sticky header offset so the data header remains below that spacer while scrolling.
+- Added vertical column divider lines across the edit-mode visibility row, weights row, data rows, and stats rows.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3003 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted mocked-data captures and DOM checks for spacer height and 1px edit-mode column borders:
+  - `/tmp/pika-gradebook-edit-gap-lines-desktop.png`
+  - `/tmp/pika-gradebook-edit-gap-lines-mobile.png`
+
+## 2026-05-08 — Gradebook student assessment inspector
+
+**Completed:**
+- Added non-edit row selection to the gradebook student table.
+- Clicking a student opens a resizable right-side assessment detail panel.
+- The panel lists each assessment vertically with code, title, assessment metadata, that student's score/raw points, possible points, and weight.
+- Closing the panel, entering settings mode, or losing the selected student clears the selection.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3003 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted mocked-data captures for the row-click inspector:
+  - `/tmp/pika-gradebook-student-detail-panel-desktop.png`
+  - `/tmp/pika-gradebook-student-detail-panel-mobile.png`
+
+## 2026-05-08 — Compact gradebook student inspector
+
+**Completed:**
+- Simplified each assessment entry in the student detail inspector to two compact lines.
+- Removed the per-assessment `Score`, `Possible`, and `Weight` mini blocks from the right pane.
+- Kept the top-line score aligned with the current `%`/`Raw` display toggle and the second line as the alternate score.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3003 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted mocked-data captures for compact row-click inspector:
+  - `/tmp/pika-gradebook-student-detail-panel-compact-desktop.png`
+  - `/tmp/pika-gradebook-student-detail-panel-compact-mobile.png`
+
+## 2026-05-08 — Sparse assessment statuses in gradebook inspector
+
+**Completed:**
+- Added sparse per-student assessment status data to gradebook assessment cells.
+- Reused assignment status logic for missing, late, submitted, submitted late, and resubmitted assignment states.
+- Added quiz/test status derivation for not submitted, started, and submitted states from response/attempt data.
+- Rendered compact status icon+label in the student detail inspector second line while keeping normal graded rows quiet.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/api/teacher/gradebook.test.ts`
+- `pnpm test tests/hooks/useGradebookData.test.ts tests/unit/gradebook.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3003 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted mocked-data captures for student inspector status icons:
+  - `/tmp/pika-gradebook-student-detail-status-desktop.png`
+  - `/tmp/pika-gradebook-student-detail-status-mobile.png`
+
+## 2026-05-08 — Gradebook weight share labels
+
+**Completed:**
+- Added a secondary percent label under each edit-mode assessment weight input.
+- The percent label shows that assessment's share of the current total assessment weight.
+- Updated the total cell to show both total raw weight and `100%`.
+- Increased the edit-mode weights row height and sticky header offset to keep the row legible.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3003 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted mocked-data edit-mode captures:
+  - `/tmp/pika-gradebook-weight-share-edit-desktop.png`
+  - `/tmp/pika-gradebook-weight-share-edit-mobile.png`
+
+## 2026-05-08 — Shared gradebook status icons
+
+**Completed:**
+- Swapped gradebook inspector status symbols to the shared `AssessmentStatusIcon` component used by assignments/tests.
+- `Submitted` now uses the shared submitted circle instead of the returned/send symbol.
+- Submitted-late, missing, not-submitted, started, and resubmitted statuses keep compact labels with shared icon states.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/components/AssessmentStatusIcon.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3003 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3003:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Targeted mocked-data captures for shared status icons:
+  - `/tmp/pika-gradebook-shared-status-icons-desktop.png`
+  - `/tmp/pika-gradebook-shared-status-icons-mobile.png`
+
+## 2026-05-08 — Shared assessment status indicator mapping
+
+**Completed:**
+- Added `AssessmentStatusIndicator` with centralized student-work status display mappings for assignments, test grading rows, and gradebook assessment details.
+- Replaced local status/icon switches in the assignment student table, teacher test grading table, and gradebook student inspector.
+- Preserved the assignment resubmitted chip and submitted-test unsubmit button while routing both through the shared status mapping.
+
+**Validation:**
+- `pnpm test tests/components/AssessmentStatusIndicator.test.tsx tests/components/AssessmentStatusIcon.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3003 pnpm e2e:auth`
 - `git diff --check`
-- Duplicate migration prefix check
-- Pika UI verification for Announcements on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=announcements`:
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3003:
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
@@ -352,3 +745,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm vitest run tests/unit/assignments.test.ts`
 - `pnpm run test:coverage`
 - `pnpm lint`
+- Targeted mocked-data captures for the shared indicator in the gradebook inspector:
+  - `/tmp/pika-assessment-status-indicator-gradebook-desktop.png`
+  - `/tmp/pika-assessment-status-indicator-gradebook-mobile.png`

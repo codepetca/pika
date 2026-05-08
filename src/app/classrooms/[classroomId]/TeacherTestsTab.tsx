@@ -21,7 +21,10 @@ import { Spinner } from '@/components/Spinner'
 import { QuizModal } from '@/components/QuizModal'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
-import { AssessmentStatusIcon, type AssessmentStatusIconState } from '@/components/AssessmentStatusIcon'
+import {
+  AssessmentStatusIndicator,
+  getTestGradingWorkStatusDisplay,
+} from '@/components/AssessmentStatusIndicator'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
@@ -110,17 +113,6 @@ type TestEditSaveStatus = 'saved' | 'saving' | 'unsaved'
 type TestGradingSortColumn = 'first_name' | 'last_name'
 
 const GRADING_POLL_INTERVAL_MS = 15_000
-
-const STATUS_META: Record<
-  TestGradingStudentRow['status'],
-  { label: string; iconState: AssessmentStatusIconState }
-> = {
-  not_started: { label: 'Not started', iconState: 'not_started' },
-  in_progress: { label: 'In progress', iconState: 'in_progress' },
-  closed: { label: 'Closed for grading', iconState: 'draft_graded' },
-  submitted: { label: 'Submitted', iconState: 'submitted' },
-  returned: { label: 'Returned', iconState: 'returned' },
-}
 
 function splitDisplayName(name: string | null): { firstName: string | null; lastName: string | null } {
   const trimmed = (name || '').trim()
@@ -1725,7 +1717,7 @@ export function TeacherTestsTab({
                   student.status === 'not_started'
                     ? '—'
                     : `${formatPoints(student.points_earned)}/${formatPoints(student.points_possible)}`
-                const statusMeta = STATUS_META[student.status]
+                const statusMeta = getTestGradingWorkStatusDisplay(student.status)
                 const awayCount = student.focus_summary?.away_count ?? 0
                 const awaySeconds = student.focus_summary?.away_total_seconds ?? 0
                 const awayMinutes = Math.floor(awaySeconds / 60)
@@ -1804,7 +1796,7 @@ export function TeacherTestsTab({
                               setShowUnsubmitConfirm(true)
                             }}
                           >
-                            <AssessmentStatusIcon state={statusMeta.iconState} />
+                            <AssessmentStatusIndicator display={statusMeta} showLabel={false} />
                           </button>
                         </Tooltip>
                       ) : (
@@ -1813,7 +1805,7 @@ export function TeacherTestsTab({
                             className="inline-flex min-w-5 cursor-help items-center justify-center"
                             aria-label={`Status ${statusMeta.label}`}
                           >
-                            <AssessmentStatusIcon state={statusMeta.iconState} />
+                            <AssessmentStatusIndicator display={statusMeta} showLabel={false} />
                           </span>
                         </Tooltip>
                       )}

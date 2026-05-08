@@ -58,6 +58,24 @@ describe('gradebook final percent', () => {
     expect(result.finalPercent).toBe(83)
   })
 
+  it('uses assessment weights separately from points possible', () => {
+    const result = calculateFinalPercent({
+      useWeights: false,
+      assignmentsWeight: 50,
+      quizzesWeight: 20,
+      testsWeight: 30,
+      assignments: [
+        { earned: 100, possible: 100, weight: 10 },
+        { earned: 0, possible: 10, weight: 10 },
+      ],
+      quizzes: [],
+      tests: [],
+    })
+
+    expect(result.assignmentsPercent).toBe(50)
+    expect(result.finalPercent).toBe(50)
+  })
+
   it('renormalizes weighted calc when one category has no scores', () => {
     const result = calculateFinalPercent({
       useWeights: true,
