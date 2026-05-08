@@ -7,70 +7,40 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-07 — Compact MC answer review
+## 2026-05-08 — Shared gradebook status icons
 
 **Completed:**
-- Added a shared compact multiple-choice option review component that preserves original option order and uses a fixed check/X gutter.
-- Replaced the separate student/correct answer blocks in returned student test results and teacher test grading with the compact full-option list.
-- Put unanswered MC state in the short question meta line as `No answer`.
+- Swapped gradebook inspector status symbols to the shared `AssessmentStatusIcon` component used by assignments/tests.
+- `Submitted` now uses the shared submitted circle instead of the returned/send symbol.
+- Submitted-late, missing, not-submitted, started, and resubmitted statuses keep compact labels with shared icon states.
 
 **Validation:**
-- `pnpm vitest run tests/components/StudentQuizResults.test.tsx tests/components/TestStudentGradingPanel.test.tsx`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/components/AssessmentStatusIcon.test.tsx`
 - `pnpm lint`
 - `pnpm build`
-- Visual screenshots on port 3003:
-  - `/tmp/pika-compact-mc-teacher.png`
-  - `/tmp/pika-compact-mc-teacher-mobile.png`
-  - `/tmp/pika-compact-mc-student-mobile.png`
-- `pnpm test`
-
-## 2026-05-06 — Separate Materials and Syllabus branch
-
-**Completed:**
-- Created isolated branch/worktree `codex/materials-syllabus` from `origin/main`, separate from the existing `codex/classwork-tab` exploration.
-- Renamed visible Assignments navigation to Classwork and Resources navigation to Syllabus while keeping existing query-tab compatibility.
-- Added ungraded Classwork Materials with teacher CRUD APIs/UI, student read UI/API, and a `classwork_materials` migration.
-- Replaced the Resources tab surface with a syllabus/course-site entry point that opens a published course site or points teachers to Course Website Settings.
-- Renamed teacher-facing "Actual Course Website" copy to "Course Website" in Settings.
-- Added a simplified public syllabus grading summary to `/actual/[slug]`, including category weights and per-item approximate course weights from gradebook settings plus point values.
-- Embedded the published syllabus inside the Pika Syllabus tab for teachers and students, with an `Open External` action for the standalone `/actual/<slug>` page.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/api/teacher/materials.test.ts tests/api/student/materials.test.ts tests/components/ResourcesTab.test.tsx tests/components/NavItems.test.tsx tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm test`
-- Pika UI verification for Classwork and Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea`:
+- `E2E_BASE_URL=http://localhost:3003 pnpm e2e:auth`
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3003:
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
-- Focused Playwright screenshots:
-  - `/tmp/pika-classwork-new-menu.png`
-  - `/tmp/pika-material-dialog.png`
-  - `/tmp/pika-course-website-settings.png`
-  - `/tmp/pika-actual-syllabus-grading.png`
-  - `/tmp/pika-actual-syllabus-grading-mobile.png`
-  - Re-ran Syllabus tab visual verification after embedding the preview:
-    - `/tmp/pika-teacher.png`
-    - `/tmp/pika-student.png`
-    - `/tmp/pika-teacher-mobile.png`
+- Targeted mocked-data captures for shared status icons:
+  - `/tmp/pika-gradebook-shared-status-icons-desktop.png`
+  - `/tmp/pika-gradebook-shared-status-icons-mobile.png`
 
-## 2026-05-06 — Rebase materials branch and align Announcements action
+## 2026-05-08 — Shared assessment status indicator mapping
 
 **Completed:**
-- Rebasing `codex/materials-syllabus` onto `origin/main` completed cleanly, leaving the branch at `0 0` ahead/behind.
-- Resequenced the new classwork materials migration from `064_classwork_materials.sql` to `065_classwork_materials.sql` after `origin/main` added `064_teacher_log_history_preview_rpc.sql`.
-- Moved the Announcements teacher create action into the shared centered floating work-surface action cluster and removed the old bottom `New Announcement` button.
+- Added `AssessmentStatusIndicator` with centralized student-work status display mappings for assignments, test grading rows, and gradebook assessment details.
+- Replaced local status/icon switches in the assignment student table, teacher test grading table, and gradebook student inspector.
+- Preserved the assignment resubmitted chip and submitted-test unsubmit button while routing both through the shared status mapping.
 
 **Validation:**
+- `pnpm test tests/components/AssessmentStatusIndicator.test.tsx tests/components/AssessmentStatusIcon.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherGradebookTab.test.tsx`
 - `pnpm lint`
-- `pnpm test tests/api/teacher/announcements.test.ts tests/api/teacher/announcements-id.test.ts tests/api/student/announcements.test.ts`
 - `pnpm build`
+- `E2E_BASE_URL=http://localhost:3003 pnpm e2e:auth`
 - `git diff --check`
-- Duplicate migration prefix check
-- Pika UI verification for Announcements on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=announcements`:
+- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3003:
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
@@ -352,3 +322,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm vitest run tests/unit/assignments.test.ts`
 - `pnpm run test:coverage`
 - `pnpm lint`
+- Targeted mocked-data captures for the shared indicator in the gradebook inspector:
+  - `/tmp/pika-assessment-status-indicator-gradebook-desktop.png`
+  - `/tmp/pika-assessment-status-indicator-gradebook-mobile.png`
+
+## 2026-05-08 — Gradebook edit weight label
+
+**Completed:**
+- Changed the edit-mode gradebook row label from `Weights` to `Weight`.
+- Updated focused gradebook component assertions for the singular label.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/gradebook-assessment-matrix E2E_BASE_URL=http://localhost:3003 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=gradebook&gradebookSection=settings'`
+- Visual captures:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-student.png`

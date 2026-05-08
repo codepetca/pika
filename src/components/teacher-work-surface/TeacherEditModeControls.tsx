@@ -11,6 +11,8 @@ interface TeacherEditModeControlsProps {
   disabled?: boolean
   children?: ReactNode
   editLabel?: string
+  activeTooltip?: ReactNode
+  inactiveTooltip?: ReactNode
   variant?: NonNullable<ButtonProps['variant']>
   className?: string
 }
@@ -21,6 +23,8 @@ export function TeacherEditModeControls({
   disabled = false,
   children,
   editLabel = 'Edit',
+  activeTooltip = 'Hide edit actions',
+  inactiveTooltip = 'Show edit actions',
   variant = 'ghost',
   className,
 }: TeacherEditModeControlsProps) {
@@ -32,7 +36,7 @@ export function TeacherEditModeControls({
         </div>
       ) : null}
 
-      <Tooltip content={active ? 'Hide edit actions' : 'Show edit actions'}>
+      <Tooltip content={active ? activeTooltip : inactiveTooltip}>
         <Button
           type="button"
           variant={variant}
