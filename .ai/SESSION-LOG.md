@@ -7,25 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-06 — Restore Daily class summary placement
-
-**Completed:**
-- Restored the cached class log summary in the deselected Daily state as a full-width panel below the full-width student log table.
-- Kept the selected-student state focused on the split table/history pane, with the class summary hidden until deselection.
-- Added regression coverage so the class summary remains visible in the deselected table state and disappears during student-history selection.
-
-**Validation:**
-- `pnpm exec vitest tests/components/TeacherAttendanceTab.test.tsx tests/api/teacher/log-summary.test.ts`
-- `pnpm lint && pnpm build`
-- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3002:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Targeted Daily class summary screenshots/check:
-  - `/tmp/pika-teacher-summary-restored.png`
-  - `/tmp/pika-teacher-daily-summary-selected.png`
-  - `/tmp/pika-teacher-daily-summary-deselected.png`
-
 ## 2026-05-06 — Fix PR coverage gate
 
 **Completed:**
@@ -348,3 +329,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Visual hover verification on port 3011:
   - `/tmp/pika-classrooms-toggle-active-tooltip.png`
   - `/tmp/pika-classrooms-toggle-archived-tooltip.png`
+
+## 2026-05-08 — Add class log summary controls
+
+**Completed:**
+- Confirmed the Vercel nightly log summary cron remains `0 6 * * *` (06:00 UTC: 1:00am EST / 2:00am EDT).
+- Added a floating attendance action control to show or hide the bottom Class Log Summary card.
+- Added a drag/keyboard resize handle for the visible Class Log Summary card.
+- Kept the log summary data component unchanged and scoped behavior to teacher attendance presentation state.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/log-summary-panel-controls bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherAttendanceTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification on port 3000:
+  - `/tmp/pika-log-summary-teacher-visible.png`
+  - `/tmp/pika-log-summary-teacher-hidden.png`
+  - `/tmp/pika-log-summary-teacher-expanded.png`
+  - `/tmp/pika-log-summary-teacher-populated.png`
+  - `/tmp/pika-log-summary-teacher-mobile.png`
+  - `/tmp/pika-log-summary-student-mobile.png`
