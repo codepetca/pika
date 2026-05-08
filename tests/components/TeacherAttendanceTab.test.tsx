@@ -139,7 +139,53 @@ describe('TeacherAttendanceTab', () => {
     expect(logText).toHaveAttribute('title', longLogText)
     expect(screen.getByText('Class Log Summary')).toBeInTheDocument()
     expect(screen.getByTestId('class-log-summary')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Hide class log summary' })).toBeInTheDocument()
+    expect(screen.getByRole('separator', { name: 'Resize class log summary' })).toBeInTheDocument()
     expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
+  })
+
+  it('hides and shows the class log summary from the floating action cluster', async () => {
+    mockLogsFetch()
+
+    render(<TeacherAttendanceTab classroom={classroom} />)
+
+    expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
+
+    const hideButton = screen.getByRole('button', { name: 'Hide class log summary' })
+    expect(hideButton).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(hideButton)
+
+    expect(screen.queryByTestId('class-log-summary')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Class Log Summary' })).not.toBeInTheDocument()
+
+    const showButton = screen.getByRole('button', { name: 'Show class log summary' })
+    expect(showButton).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(showButton)
+
+    expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Class Log Summary' })).toHaveStyle({ height: '180px' })
+  })
+
+  it('resizes the class log summary card from the handle with keyboard controls', async () => {
+    mockLogsFetch()
+
+    render(<TeacherAttendanceTab classroom={classroom} />)
+
+    const panel = await screen.findByRole('region', { name: 'Class Log Summary' })
+    const separator = screen.getByRole('separator', { name: 'Resize class log summary' })
+
+    expect(panel).toHaveStyle({ height: '180px' })
+    expect(separator).toHaveClass('cursor-ns-resize')
+
+    fireEvent.keyDown(separator, { key: 'ArrowUp' })
+    expect(panel).toHaveStyle({ height: '212px' })
+
+    fireEvent.keyDown(separator, { key: 'ArrowDown' })
+    expect(panel).toHaveStyle({ height: '180px' })
+
+    fireEvent.keyDown(separator, { key: 'ArrowUp' })
+    fireEvent.keyDown(separator, { key: 'Enter' })
+    expect(panel).toHaveStyle({ height: '180px' })
   })
 
   it('returns to the full-width log table after deselecting a selected student', async () => {

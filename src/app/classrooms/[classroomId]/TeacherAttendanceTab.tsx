@@ -8,7 +8,10 @@ import {
   useMemo,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
 } from 'react'
+import { Eye, EyeOff, GripHorizontal } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { CalendarDateNavigator } from '@/components/CalendarActionBar'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
@@ -21,7 +24,7 @@ import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import { entryHasContent, getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
 import { useClassDaysContext } from '@/hooks/useClassDays'
-import { RefreshingIndicator, Tooltip } from '@/ui'
+import { Button, RefreshingIndicator, Tooltip } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import type { AttendanceStatus } from '@/types'
 import {
@@ -42,6 +45,23 @@ import type { Classroom, Entry } from '@/types'
 import { format, parseISO } from 'date-fns'
 
 type SortColumn = 'first_name' | 'last_name' | 'id' | 'status'
+
+const SUMMARY_PANEL_DEFAULT_HEIGHT = 180
+const SUMMARY_PANEL_MIN_HEIGHT = 140
+const SUMMARY_PANEL_MAX_HEIGHT = 420
+const SUMMARY_PANEL_KEYBOARD_STEP = 32
+
+function getSummaryPanelMaxHeight() {
+  if (typeof window === 'undefined') return SUMMARY_PANEL_MAX_HEIGHT
+  return Math.max(
+    SUMMARY_PANEL_MIN_HEIGHT,
+    Math.min(SUMMARY_PANEL_MAX_HEIGHT, Math.floor(window.innerHeight * 0.48))
+  )
+}
+
+function clampSummaryPanelHeight(height: number) {
+  return Math.min(getSummaryPanelMaxHeight(), Math.max(SUMMARY_PANEL_MIN_HEIGHT, Math.round(height)))
+}
 
 interface LogRow {
   student_id: string
@@ -80,6 +100,8 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const selectedWorkspaceRef = useRef<HTMLDivElement | null>(null)
   const hasLoadedOnceRef = useRef(false)
   const [detailPaneWidth, setDetailPaneWidth] = useState(50)
+  const [summaryPanelVisible, setSummaryPanelVisible] = useState(true)
+  const [summaryPanelHeight, setSummaryPanelHeight] = useState(SUMMARY_PANEL_DEFAULT_HEIGHT)
   const showBlockingSpinner = useDelayedBusy(loading && logs.length === 0)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
     column: SortColumn
@@ -305,11 +327,92 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       selectedRow.email_username
     : ''
   const selectedDateLabel = selectedDate ? format(parseISO(selectedDate), 'EEE MMM d') : 'Select date'
+  const summaryToggleLabel = summaryPanelVisible ? 'Hide class log summary' : 'Show class log summary'
+
+  const handleSummaryResizeStart = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      setSummaryPanelVisible(true)
+
+      const startY = event.clientY
+      const startHeight = summaryPanelHeight
+      const previousCursor = document.body.style.cursor
+      const previousUserSelect = document.body.style.userSelect
+      document.body.style.cursor = 'ns-resize'
+      document.body.style.userSelect = 'none'
+
+      const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
+        setSummaryPanelHeight(clampSummaryPanelHeight(startHeight + startY - moveEvent.clientY))
+      }
+
+      const handleResizeEnd = () => {
+        document.body.style.cursor = previousCursor
+        document.body.style.userSelect = previousUserSelect
+        window.removeEventListener('pointermove', handlePointerMove)
+        window.removeEventListener('pointerup', handleResizeEnd)
+        window.removeEventListener('pointercancel', handleResizeEnd)
+        window.removeEventListener('blur', handleResizeEnd)
+      }
+
+      window.addEventListener('pointermove', handlePointerMove)
+      window.addEventListener('pointerup', handleResizeEnd)
+      window.addEventListener('pointercancel', handleResizeEnd)
+      window.addEventListener('blur', handleResizeEnd)
+    },
+    [summaryPanelHeight],
+  )
+
+  const handleSummaryResizeKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        setSummaryPanelVisible(true)
+        setSummaryPanelHeight((height) => clampSummaryPanelHeight(height + SUMMARY_PANEL_KEYBOARD_STEP))
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        setSummaryPanelVisible(true)
+        setSummaryPanelHeight((height) => clampSummaryPanelHeight(height - SUMMARY_PANEL_KEYBOARD_STEP))
+      } else if (event.key === 'Home') {
+        event.preventDefault()
+        setSummaryPanelVisible(true)
+        setSummaryPanelHeight(SUMMARY_PANEL_MIN_HEIGHT)
+      } else if (event.key === 'End') {
+        event.preventDefault()
+        setSummaryPanelVisible(true)
+        setSummaryPanelHeight(getSummaryPanelMaxHeight())
+      } else if (event.key === 'Enter') {
+        event.preventDefault()
+        setSummaryPanelVisible(true)
+        setSummaryPanelHeight(SUMMARY_PANEL_DEFAULT_HEIGHT)
+      }
+    },
+    [],
+  )
+
+  const summaryToggleButton = selectedDate && !selectedRow ? (
+    <Tooltip content={summaryToggleLabel}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-9 w-9 px-0"
+        aria-label={summaryToggleLabel}
+        aria-pressed={summaryPanelVisible}
+        onClick={() => setSummaryPanelVisible((visible) => !visible)}
+      >
+        {summaryPanelVisible ? (
+          <EyeOff className="h-4 w-4" aria-hidden="true" />
+        ) : (
+          <Eye className="h-4 w-4" aria-hidden="true" />
+        )}
+      </Button>
+    </Tooltip>
+  ) : null
 
   const actionBar = (
     <TeacherWorkSurfaceActionBar
       center={
-        <>
+        <div className="flex min-w-0 items-center gap-1">
           <input
             ref={dateInputRef}
             type="date"
@@ -327,7 +430,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             prevAriaLabel="Previous day"
             nextAriaLabel="Next day"
           />
-        </>
+          {summaryToggleButton ? (
+            <>
+              <span className="mx-1 h-6 w-px bg-border" aria-hidden="true" />
+              {summaryToggleButton}
+            </>
+          ) : null}
+        </div>
       }
       centerPlacement="floating"
     />
@@ -543,17 +652,36 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       </div>
     ) : (
       <div className="daily-table-enter flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-        <div className="min-h-[180px] flex-[2_1_0] overflow-auto rounded-lg bg-surface">
+        <div className="min-h-[180px] flex-1 overflow-auto rounded-lg bg-surface">
           {renderStudentTable(true)}
         </div>
-        {selectedDate && (
-          <section className="min-h-[140px] flex-[1_1_0] overflow-hidden rounded-lg bg-surface">
+        {selectedDate && summaryPanelVisible && (
+          <section
+            role="region"
+            aria-labelledby="class-log-summary-heading"
+            className="flex min-h-[140px] shrink-0 flex-col overflow-hidden rounded-lg bg-surface"
+            style={{ height: `${summaryPanelHeight}px` }}
+          >
+            <div
+              role="separator"
+              aria-label="Resize class log summary"
+              aria-orientation="horizontal"
+              aria-valuemin={SUMMARY_PANEL_MIN_HEIGHT}
+              aria-valuemax={SUMMARY_PANEL_MAX_HEIGHT}
+              aria-valuenow={summaryPanelHeight}
+              tabIndex={0}
+              className="flex h-5 shrink-0 cursor-ns-resize items-center justify-center border-b border-border text-text-muted outline-none transition-colors hover:bg-surface-hover focus:bg-info-bg focus:text-text-default"
+              onPointerDown={handleSummaryResizeStart}
+              onKeyDown={handleSummaryResizeKeyDown}
+            >
+              <GripHorizontal className="h-4 w-4" aria-hidden="true" />
+            </div>
             <div className="flex min-h-10 items-center border-b border-border px-3 py-2">
-              <h3 className="truncate text-sm font-semibold text-text-default">
+              <h3 id="class-log-summary-heading" className="truncate text-sm font-semibold text-text-default">
                 Class Log Summary
               </h3>
             </div>
-            <div className="max-h-[min(260px,32vh)] overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto">
               <LogSummary
                 classroomId={classroom.id}
                 date={selectedDate}
