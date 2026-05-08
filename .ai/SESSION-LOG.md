@@ -7,40 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-06 — Fix PR coverage gate
-
-**Completed:**
-- Investigated the failed GitHub CI run on the first PR commit.
-- Found the failure was a per-file coverage threshold miss for `src/app/api/teacher/log-summary/route.ts`.
-- Added route tests for classroom-not-found, entry-stats failure, and entry-count failure to cover the cron-only summary endpoint error branches.
-
-**Validation:**
-- `pnpm run test:coverage`
-- `pnpm lint`
-
-## 2026-05-06 — Restrict nightly log summaries to class days
-
-**Completed:**
-- Tightened `/api/cron/nightly-log-summaries` eligibility so AI summaries only run for unarchived classrooms with entries on yesterday, yesterday inside the classroom semester range, and an explicit `class_days.is_class_day = true` row.
-- Added a per-classroom eligibility recheck before the OpenAI call to keep the guard close to generation.
-- Added cron route tests for outside-semester and non-class-day cases and asserted they do not call OpenAI.
-
-**Validation:**
-- `pnpm vitest run tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm lint`
-- `pnpm test -- tests/api/cron/nightly-log-summaries.test.ts` (ran full suite: 251 files, 2110 tests)
-
-## 2026-05-06 — Fix cron coverage gate
-
-**Completed:**
-- Addressed the latest CI failure for `src/app/api/cron/nightly-log-summaries/route.ts` per-file coverage.
-- Added cron route tests for entry discovery errors, class-day discovery errors, and eligibility recheck skip paths.
-
-**Validation:**
-- `pnpm vitest run tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm run test:coverage`
-- `pnpm lint`
-
 ## 2026-05-07 — Allow late assignment submissions with repo metadata
 
 **Completed:**
@@ -360,6 +326,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-log-summary-teacher-populated.png`
   - `/tmp/pika-log-summary-teacher-mobile.png`
   - `/tmp/pika-log-summary-student-mobile.png`
+
 ## 2026-05-08 — Extract assignment lifecycle invariants
 
 **Completed:**
