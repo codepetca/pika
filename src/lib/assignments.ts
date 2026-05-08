@@ -16,6 +16,50 @@ type AssignmentReturnDoc = {
 }
 
 export type AssignmentRubricState = 'blank' | 'partial' | 'complete'
+export type AssignmentReleaseState = 'draft' | 'scheduled' | 'live'
+export type AssignmentReleaseInput = {
+  is_draft: boolean
+  released_at: string | null
+}
+
+function getComparableTime(date: Date): number {
+  const time = date.getTime()
+  return Number.isNaN(time) ? Date.now() : time
+}
+
+export function getAssignmentReleaseState(
+  input: AssignmentReleaseInput,
+  now: Date = new Date()
+): AssignmentReleaseState {
+  if (input.is_draft) return 'draft'
+  if (!input.released_at) return 'live'
+
+  const releaseTime = new Date(input.released_at).getTime()
+  if (Number.isNaN(releaseTime)) return 'scheduled'
+
+  return releaseTime > getComparableTime(now) ? 'scheduled' : 'live'
+}
+
+export function isAssignmentVisibleToStudents(
+  input: AssignmentReleaseInput,
+  now: Date = new Date()
+): boolean {
+  return getAssignmentReleaseState(input, now) === 'live'
+}
+
+export function isAssignmentScheduledForFuture(
+  input: AssignmentReleaseInput,
+  now: Date = new Date()
+): boolean {
+  return getAssignmentReleaseState(input, now) === 'scheduled'
+}
+
+export function isAssignmentLive(
+  input: AssignmentReleaseInput,
+  now: Date = new Date()
+): boolean {
+  return getAssignmentReleaseState(input, now) === 'live'
+}
 
 export function getAssignmentFullReturnAt(
   doc: Pick<AssignmentReturnDoc, 'teacher_cleared_at' | 'returned_at'>

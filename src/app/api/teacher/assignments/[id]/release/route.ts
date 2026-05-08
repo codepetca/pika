@@ -3,8 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import {
-  ASSIGNMENT_SCHEDULE_DUE_DATE_ERROR,
-  isScheduledReleaseOnOrBeforeDueDate,
+  getFutureScheduledReleaseDueDateError,
 } from '@/lib/assignment-schedule-validation'
 
 export const dynamic = 'force-dynamic'
@@ -75,9 +74,13 @@ export const POST = withErrorHandler('PostTeacherAssignmentRelease', async (requ
         { status: 400 }
       )
     }
-    if (!isScheduledReleaseOnOrBeforeDueDate(parsed, existing.due_at)) {
+    const scheduleDueDateError = getFutureScheduledReleaseDueDateError({
+      releaseAt: parsed,
+      dueAt: existing.due_at,
+    })
+    if (scheduleDueDateError) {
       return NextResponse.json(
-        { error: ASSIGNMENT_SCHEDULE_DUE_DATE_ERROR },
+        { error: scheduleDueDateError },
         { status: 400 }
       )
     }

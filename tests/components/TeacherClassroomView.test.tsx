@@ -278,6 +278,11 @@ vi.mock('@/lib/assignments', () => ({
     if (!doc.is_submitted || !doc.submitted_at) return true
     return new Date(doc.submitted_at).getTime() <= returnedAt
   }),
+  isAssignmentScheduledForFuture: vi.fn((assignment: any) => (
+    !assignment.is_draft &&
+    !!assignment.released_at &&
+    !mockIsVisibleAtNow(assignment.released_at)
+  )),
   getAssignmentStatusIconClass: vi.fn(() => ''),
   getAssignmentStatusLabel: vi.fn(() => 'Submitted'),
   hasDraftSavedGrade: vi.fn(() => false),

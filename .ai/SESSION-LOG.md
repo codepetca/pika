@@ -199,6 +199,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Completed:**
 - Added direct-identifier redaction for nightly student log summary prompts.
 - Built summary redaction maps from the full classroom roster plus entry authors.
+
+## 2026-05-08 — Skill progression evidence review
+
+**Completed:**
+- Reviewed startup guidance, recent session continuity, and the latest merged PRs/review notes to identify repeated engineering friction.
+- Anchored next-skill recommendations to concrete recent patterns: post-PR coverage gate fixes, multi-pass UI verification, UI/API invariant drift, privacy redaction gaps, and migration rollout compatibility work.
+
+**Validation:**
+- Reviewed `.ai/CURRENT.md`, `docs/ai-instructions.md`, `docs/dev-workflow.md`, `.ai/SESSION-LOG.md`
+- Reviewed GitHub PRs `#559` through `#565` plus PR review notes for `#561` and `#563`
 - Sent OpenAI summary requests with `store: false` and removed model-output snippets from parse errors.
 - Added prompt/payload regression coverage for roster names and common direct identifiers.
 
@@ -350,3 +360,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-log-summary-teacher-populated.png`
   - `/tmp/pika-log-summary-teacher-mobile.png`
   - `/tmp/pika-log-summary-student-mobile.png`
+## 2026-05-08 — Extract assignment lifecycle invariants
+
+**Completed:**
+- Added shared assignment release-state helpers for draft/live/scheduled visibility in `src/lib/assignments.ts`.
+- Moved student assignment visibility behind the shared helper while preserving the server import path.
+- Centralized future scheduled-release due-date validation and migrated assignment update/release routes plus scheduling UI callers.
+- Added release-state and future schedule validation tests, including malformed `released_at` fail-closed behavior.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/.codex/worktrees/53f9/pika bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/unit/assignments.test.ts tests/lib/assignment-schedule-validation.test.ts tests/api/assignment-docs/submit.test.ts tests/api/teacher/assignments-id.test.ts tests/api/teacher/assignments-draft.test.ts tests/components/AssignmentModal.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm vitest run tests/components/SortableAssignmentCard.test.tsx tests/components/TeacherClassroomView.test.tsx tests/api/student/assignments.test.ts tests/api/integration/assignment-draft-flow.test.ts tests/api/student/notifications.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`

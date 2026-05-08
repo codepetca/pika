@@ -56,6 +56,10 @@ vi.mock('@/lib/server/classrooms', () => ({
 // Mock assignment status calculation
 vi.mock('@/lib/assignments', () => ({
   calculateAssignmentStatus: vi.fn(() => 'not-started'),
+  isAssignmentVisibleToStudents: vi.fn((assignment) => (
+    !assignment.is_draft &&
+    (!assignment.released_at || new Date(assignment.released_at).getTime() <= Date.now())
+  )),
 }))
 
 describe('Assignment Draft Mode Integration', () => {
