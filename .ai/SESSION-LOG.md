@@ -7,25 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-06 — Restore Daily class summary placement
-
-**Completed:**
-- Restored the cached class log summary in the deselected Daily state as a full-width panel below the full-width student log table.
-- Kept the selected-student state focused on the split table/history pane, with the class summary hidden until deselection.
-- Added regression coverage so the class summary remains visible in the deselected table state and disappears during student-history selection.
-
-**Validation:**
-- `pnpm exec vitest tests/components/TeacherAttendanceTab.test.tsx tests/api/teacher/log-summary.test.ts`
-- `pnpm lint && pnpm build`
-- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3002:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Targeted Daily class summary screenshots/check:
-  - `/tmp/pika-teacher-summary-restored.png`
-  - `/tmp/pika-teacher-daily-summary-selected.png`
-  - `/tmp/pika-teacher-daily-summary-deselected.png`
-
 ## 2026-05-06 — Fix PR coverage gate
 
 **Completed:**
@@ -348,3 +329,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Visual hover verification on port 3011:
   - `/tmp/pika-classrooms-toggle-active-tooltip.png`
   - `/tmp/pika-classrooms-toggle-archived-tooltip.png`
+
+## 2026-05-08 — Add Gradex assignment grading flag
+
+**Completed:**
+- Added server-side Gradex sync grading client and sanitized Pika assignment payload builder.
+- Wired assignment AI grading to use Gradex only when `GRADEX_ASSIGNMENT_GRADING_ENABLED` is enabled, leaving the existing Pika/OpenAI grader as the default.
+- Pseudonymized Pika assignment, submission, and student IDs with a salt; redacted emails, phone-like values, URLs, exact artifact URLs, identity fields, raw history, patches, snapshots, and keystroke data from Gradex payloads.
+- Stored Gradex `pika_assignment_v1` compatibility scores and feedback into the existing assignment grade draft fields, with Gradex failures surfacing through the existing run/error behavior instead of writing partial grades.
+
+**Validation:**
+- `pnpm test tests/lib/gradex-assignment-payload.test.ts tests/lib/gradex-client.test.ts tests/lib/assignment-ai-grading-runs-gradex.test.ts`
+- `pnpm test tests/lib/assignment-ai-grading-runs.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/unit/ai-grading.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
