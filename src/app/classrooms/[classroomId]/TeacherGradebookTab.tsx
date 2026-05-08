@@ -551,7 +551,7 @@ function AssessmentMatrixTable({
                     leadingColumnWidthClass,
                   ].join(' ')}
                 >
-                  Weights
+                  Weight
                 </DataTableHeaderCell>
                 {renderedIdentityColumns.map((column, index) => (
                   <DataTableHeaderCell

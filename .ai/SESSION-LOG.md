@@ -7,27 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-08 — Gradebook weight share labels
-
-**Completed:**
-- Added a secondary percent label under each edit-mode assessment weight input.
-- The percent label shows that assessment's share of the current total assessment weight.
-- Updated the total cell to show both total raw weight and `100%`.
-- Increased the edit-mode weights row height and sticky header offset to keep the row legible.
-
-**Validation:**
-- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3003 pnpm e2e:auth`
-- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3003:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Targeted mocked-data edit-mode captures:
-  - `/tmp/pika-gradebook-weight-share-edit-desktop.png`
-  - `/tmp/pika-gradebook-weight-share-edit-mobile.png`
-
 ## 2026-05-08 — Shared gradebook status icons
 
 **Completed:**
@@ -346,3 +325,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Targeted mocked-data captures for the shared indicator in the gradebook inspector:
   - `/tmp/pika-assessment-status-indicator-gradebook-desktop.png`
   - `/tmp/pika-assessment-status-indicator-gradebook-mobile.png`
+
+## 2026-05-08 — Gradebook edit weight label
+
+**Completed:**
+- Changed the edit-mode gradebook row label from `Weights` to `Weight`.
+- Updated focused gradebook component assertions for the singular label.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/gradebook-assessment-matrix E2E_BASE_URL=http://localhost:3003 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=gradebook&gradebookSection=settings'`
+- Visual captures:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-student.png`
