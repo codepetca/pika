@@ -1,15 +1,15 @@
-# Pika — AI Agent Starting Ritual
+# Pika AI Start
 
-**CRITICAL:** Follow this checklist at the start of **every** AI session.
+Follow this at the start of every AI session.
 
-**Automated alternative:** Run `/session-start` (Claude Code) or paste `.codex/prompts/session-start.md` (Codex).
+Shortcut: run `/session-start` or paste `.codex/prompts/session-start.md`.
 
 ---
 
 ## Quick Checklist
 
 ```
-[ ] Verify worktree: echo $PIKA_WORKTREE (must NOT be $HOME/Repos/pika)
+[ ] Verify worktree: echo $PIKA_WORKTREE (must not be $HOME/Repos/pika)
 [ ] Run: bash "$PIKA_WORKTREE/scripts/verify-env.sh"
 [ ] Check status: git -C "$PIKA_WORKTREE" status
 [ ] Read: .ai/CURRENT.md
@@ -19,35 +19,34 @@
 [ ] Plan before coding: state task, propose approach, wait for approval
 ```
 
-Do not start coding if verification fails.
-Read `.ai/SESSION-LOG.md` only for recent handoff context; `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+Do not code if verification fails. Read `.ai/SESSION-LOG.md` only for recent handoff context; `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
 ---
 
-## Worktree Rules (MANDATORY)
+## Worktree Rules
 
-All agents are bound to exactly ONE worktree via `$PIKA_WORKTREE`.
+Agents are bound to one worktree via `$PIKA_WORKTREE`.
 
-- NEVER assume the shell cwd.
-- ALL git commands MUST use: `git -C "$PIKA_WORKTREE"`.
-- ALL file paths MUST be absolute or prefixed with `$PIKA_WORKTREE`.
+- Never assume shell cwd.
+- Git commands must use: `git -C "$PIKA_WORKTREE"`.
+- File paths must be absolute or prefixed with `$PIKA_WORKTREE`.
 - Never do branch work in `$HOME/Repos/pika/` (the hub).
-- Worktree creation, cleanup, and shared `.env.local` setup live in `docs/dev-workflow.md`.
-- For hub-level git commands (add/remove worktrees): `export PIKA_WORKTREE="$HOME/Repos/pika"`
+- Worktree/shared `.env.local` setup lives in `docs/dev-workflow.md`.
+- For hub-level worktree commands: `export PIKA_WORKTREE="$HOME/Repos/pika"`
 
 ---
 
-## End of Session (MANDATORY)
+## End Of Session
 
 1. Append a concise session entry to `$PIKA_WORKTREE/.ai/SESSION-LOG.md`.
-2. Run `node "$PIKA_WORKTREE/scripts/trim-session-log.mjs"` to keep only the latest 20 entries.
+2. Run `node "$PIKA_WORKTREE/scripts/trim-session-log.mjs"`.
 3. Update `.ai/features.json` if anything changed:
    ```bash
    node "$PIKA_WORKTREE/scripts/features.mjs" pass <feature-id>
    node "$PIKA_WORKTREE/scripts/features.mjs" fail <feature-id>
    ```
 4. Commit and push the session log + feature changes.
-5. If work was merged, clean up:
+5. If merged, clean up:
    ```bash
    export PIKA_WORKTREE="$HOME/Repos/pika"
    git -C "$PIKA_WORKTREE" fetch origin
@@ -58,16 +57,16 @@ All agents are bound to exactly ONE worktree via `$PIKA_WORKTREE`.
 
 ---
 
-## Document Hierarchy (When Conflicts Arise)
+## Source Order
 
 Trust in this order:
-1. `.ai/features.json` — status authority
-2. `.ai/CURRENT.md` — compact current-state context
-3. `docs/core/architecture.md` — architecture and invariants
-4. `docs/core/tests.md` — testing requirements
-5. `docs/core/design.md` — UI/UX rules
-6. `docs/core/project-context.md` — setup and commands
-7. `docs/core/roadmap.md` — phase strategy
-8. `docs/core/decision-log.md` — historical rationale
-9. `.ai/SESSION-LOG.md` — recent handoff history (on demand)
-10. `.ai/JOURNAL-ARCHIVE.md` — historical investigation only
+1. `.ai/features.json`
+2. `.ai/CURRENT.md`
+3. `docs/core/architecture.md`
+4. `docs/core/tests.md`
+5. `docs/core/design.md`
+6. `docs/core/project-context.md`
+7. `docs/core/roadmap.md`
+8. `docs/core/decision-log.md`
+9. `.ai/SESSION-LOG.md`
+10. `.ai/JOURNAL-ARCHIVE.md`

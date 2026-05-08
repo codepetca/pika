@@ -38,6 +38,9 @@ vi.mock('@/lib/server/classrooms', () => ({
     classroom: { id: 'classroom-1', archived_at: null },
   })),
 }))
+vi.mock('@/lib/codepetpal', () => ({
+  enqueueCodePetPalEvent: vi.fn(async () => ({ queued: true })),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -527,6 +530,15 @@ describe('POST /api/student/entries', () => {
         mood: undefined,
         on_time: expect.any(Boolean),
       })
+      const { enqueueCodePetPalEvent } = await import('@/lib/codepetpal')
+      expect(enqueueCodePetPalEvent).toHaveBeenCalledWith(mockSupabaseClient, {
+        classroomId: 'classroom-1',
+        studentId: 'student-1',
+        eventType: 'daily_entry_created',
+        sourceId: 'entry-new-1',
+        occurredAt: expect.any(String),
+        payload: { date: '2024-10-15', source: 'pika' },
+      })
     })
 
     it('should update existing entry when one exists', async () => {
@@ -612,6 +624,8 @@ describe('POST /api/student/entries', () => {
         on_time: expect.any(Boolean),
         version: expect.any(Number),
       })
+      const { enqueueCodePetPalEvent } = await import('@/lib/codepetpal')
+      expect(enqueueCodePetPalEvent).not.toHaveBeenCalled()
     })
 
     it('should calculate on_time status using isOnTime', async () => {

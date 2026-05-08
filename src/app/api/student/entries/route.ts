@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { isOnTime, getTodayInToronto } from '@/lib/timezone'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import { enqueueCodePetPalEvent } from '@/lib/codepetpal'
 import {
   countCharacters,
   extractPlainText,
@@ -298,6 +299,15 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
     }
 
     entry = data
+
+    await enqueueCodePetPalEvent(supabase, {
+      classroomId: classroom_id,
+      studentId: user.id,
+      eventType: 'daily_entry_created',
+      sourceId: data.id,
+      occurredAt: data.created_at || new Date().toISOString(),
+      payload: { date, source: 'pika' },
+    })
   }
 
   return NextResponse.json({ entry })

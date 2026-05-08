@@ -87,6 +87,7 @@ pnpm run lint
 - `ENABLE_MOCK_EMAIL` (`true` to log verification/reset codes)
 - `NEXT_PUBLIC_APP_URL`
 - `CRON_SECRET` (required for protected cron endpoints; Vercel sends `Authorization: Bearer <CRON_SECRET>`; cron schedules are configured in the Vercel dashboard; on the Hobby plan, schedules must run at most once per day)
+- `CODEPETPAL_API_URL`, `CODEPETPAL_API_KEY`, `CODEPETPAL_PSEUDONYM_SECRET` (optional; required only when classroom-level CodePetPal companion opt-in is used)
 
 Legacy anon/service keys are supported but publishable/secret are preferred.
 
@@ -103,6 +104,8 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 4) **Classrooms & Roster**: Create classes, share join code/link, upload roster CSV, manage enrollments.
 
 5) **Assignments**: Create assignments per classroom; students edit with autosave and submit/unsubmit; teachers view stats and read-only docs.
+
+6) **CodePetPal Companion**: Optional classroom-level student companion integration. Pika stores raw IDs locally, queues low-risk events in `integration_event_outbox`, sends HMAC-pseudonymous event data to CodePetPal, and renders a local student widget from the world lookup proxy.
 
 ---
 

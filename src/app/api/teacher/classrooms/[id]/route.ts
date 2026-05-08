@@ -58,6 +58,7 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     actualSiteConfig,
     courseOverviewMarkdown,
     courseOutlineMarkdown,
+    codePetPalEnabled,
   } = body
 
   if (
@@ -71,7 +72,8 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     actualSitePublished === undefined &&
     actualSiteConfig === undefined &&
     courseOverviewMarkdown === undefined &&
-    courseOutlineMarkdown === undefined
+    courseOutlineMarkdown === undefined &&
+    codePetPalEnabled === undefined
   ) {
     return NextResponse.json(
       { error: 'No fields to update' },
@@ -101,7 +103,8 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     actualSitePublished !== undefined ||
     actualSiteConfig !== undefined ||
     courseOverviewMarkdown !== undefined ||
-    courseOutlineMarkdown !== undefined
+    courseOutlineMarkdown !== undefined ||
+    codePetPalEnabled !== undefined
 
   if (hasArchiveToggle && hasOtherUpdates) {
     return NextResponse.json(
@@ -140,6 +143,7 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
   if (actualSiteConfig !== undefined) updates.actual_site_config = normalizeActualCourseSiteConfig(actualSiteConfig)
   if (courseOverviewMarkdown !== undefined) updates.course_overview_markdown = courseOverviewMarkdown
   if (courseOutlineMarkdown !== undefined) updates.course_outline_markdown = courseOutlineMarkdown
+  if (codePetPalEnabled !== undefined) updates.codepetpal_enabled = codePetPalEnabled
   if (hasArchiveToggle) {
     if (archived && isArchived) {
       return NextResponse.json(

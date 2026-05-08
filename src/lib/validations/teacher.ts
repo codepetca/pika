@@ -98,6 +98,7 @@ export const updateClassroomPublishingSchema = z.object({
   actualSiteConfig: actualSiteConfigSchema.optional(),
   courseOverviewMarkdown: z.string().optional(),
   courseOutlineMarkdown: z.string().optional(),
+  codePetPalEnabled: z.boolean().optional(),
 }).superRefine((value, ctx) => {
   if (value.actualSitePublished && value.actualSiteSlug === null) {
     ctx.addIssue({

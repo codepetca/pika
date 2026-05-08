@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppShell } from '@/components/AppShell'
+import { CodePetPalWidget } from '@/components/CodePetPalWidget'
 import { TeacherClassroomView, TeacherAssignmentsMarkdownSidebar, type AssignmentViewMode } from './TeacherClassroomView'
 import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-markdown'
 import { StudentTodayTab } from './StudentTodayTab'
@@ -1407,6 +1408,13 @@ function ClassroomPageContent({
           }}
         />
       ) : null}
+
+      {!isTeacher && (
+        <CodePetPalWidget
+          classroomId={classroom.id}
+          enabled={!!classroom.codepetpal_enabled}
+        />
+      )}
 
     </AppShell>
   )

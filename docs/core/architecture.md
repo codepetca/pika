@@ -114,6 +114,18 @@ tests/                             # Vitest unit + API suites
 - Student editor autosaves via `/api/assignment-docs/[id]` (PATCH), submit/unsubmit via `/submit` and `/unsubmit`.
 - Status helpers live in `src/lib/assignments.ts` (`calculateAssignmentStatus`, badge/label helpers).
 
+### CodePetPal Companion Integration
+- Classroom opt-in is stored on `classrooms.codepetpal_enabled`.
+- Student progress events are emitted only from server mutation routes, not UI-only code.
+- Pika stores delivery work in `integration_event_outbox`; CodePetPal receives only HMAC-pseudonymous student/classroom IDs and low-risk event metadata.
+- Current emitted v1 events:
+  - `daily_entry_created` from first daily entry creation
+  - `assignment_submitted` from assignment submission
+- Delivery drains through `/api/integrations/codepetpal/drain`, protected by `CRON_SECRET`.
+- Student world lookup goes through `/api/integrations/codepetpal/world`; Pika uses server-side CodePetPal credentials and returns `{ enabled: false }` when disabled, unconfigured, or temporarily unavailable.
+- CodePetPal owns XP, levels, achievements, pet state, rules, and asset URLs. Pika owns classroom opt-in, raw identities, outbox retries, and the local student widget shell.
+- Do not send names, emails, grades, scores, raw IDs, rankings, journal text, assignment content, or browsing/editor history to CodePetPal.
+
 ### Route Protection
 - Role check via `requireRole('student' | 'teacher')` in API routes.
 - Classroom ownership/enrollment enforced in route logic and RLS.

@@ -39,6 +39,7 @@ export function TeacherSettingsTab({
   const actualOverviewId = useId()
   const actualOutlineId = useId()
   const showMarkdownId = useId()
+  const codePetPalId = useId()
   const isReadOnly = !!classroom.archived_at
   const { showMarkdown, mounted: markdownMounted, setShowMarkdown } = useMarkdownPreference()
   const [title, setTitle] = useState(classroom.title)
@@ -48,6 +49,9 @@ export function TeacherSettingsTab({
   const [allowEnrollment, setAllowEnrollment] = useState<boolean>(classroom.allow_enrollment)
   const [saving, setSaving] = useState(false)
   const [enrollmentError, setEnrollmentError] = useState<string>('')
+  const [codePetPalEnabled, setCodePetPalEnabled] = useState<boolean>(!!classroom.codepetpal_enabled)
+  const [codePetPalSaving, setCodePetPalSaving] = useState(false)
+  const [codePetPalError, setCodePetPalError] = useState<string>('')
   const [joinCodeError, setJoinCodeError] = useState<string>('')
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
   const [isRegenerating, setIsRegenerating] = useState(false)
@@ -190,6 +194,29 @@ export function TeacherSettingsTab({
       setVisibilityError(err.message || 'Failed to update visibility setting')
     } finally {
       setVisibilitySaving(false)
+    }
+  }
+
+  async function saveCodePetPalEnabled(nextValue: boolean) {
+    if (isReadOnly) return
+    setCodePetPalSaving(true)
+    setCodePetPalError('')
+    try {
+      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codePetPalEnabled: nextValue }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update CodePetPal')
+      }
+      setCodePetPalEnabled(!!data.classroom?.codepetpal_enabled)
+      showMessage({ text: 'CodePetPal setting saved', tone: 'success' })
+    } catch (err: any) {
+      setCodePetPalError(err.message || 'Failed to update CodePetPal')
+    } finally {
+      setCodePetPalSaving(false)
     }
   }
 
@@ -426,6 +453,32 @@ export function TeacherSettingsTab({
                 />
                 Show markdown
               </label>
+            </div>
+
+            <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="text-sm font-semibold text-text-default">CodePetPal Companion</div>
+                <Tooltip content="Student companion world powered by pseudonymous progress events" side="right">
+                  <span className="text-text-muted cursor-help">
+                    <Info size={14} />
+                  </span>
+                </Tooltip>
+              </div>
+
+              <label htmlFor={codePetPalId} className="flex items-center gap-3 text-sm text-text-default">
+                <input
+                  id={codePetPalId}
+                  type="checkbox"
+                  checked={codePetPalEnabled}
+                  onChange={(event) => saveCodePetPalEnabled(event.target.checked)}
+                  disabled={codePetPalSaving || isReadOnly}
+                  className="h-4 w-4"
+                />
+                Enable student companion
+              </label>
+
+              {codePetPalSaving && <div className="text-sm text-text-muted">Saving...</div>}
+              {codePetPalError && <div className="text-sm text-danger">{codePetPalError}</div>}
             </div>
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-4">

@@ -17,6 +17,9 @@ vi.mock('@/lib/server/classrooms', () => ({
 vi.mock('@/lib/authenticity', () => ({
   analyzeAuthenticity: vi.fn(() => ({ score: 0.82, flags: ['steady_revision'] })),
 }))
+vi.mock('@/lib/codepetpal', () => ({
+  enqueueCodePetPalEvent: vi.fn(async () => ({ queued: true })),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -314,6 +317,15 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
       char_count: 13,
       trigger: 'submit',
     }))
+    const { enqueueCodePetPalEvent } = await import('@/lib/codepetpal')
+    expect(enqueueCodePetPalEvent).toHaveBeenCalledWith(mockSupabaseClient, {
+      classroomId: 'class-1',
+      studentId: 'student-1',
+      eventType: 'assignment_submitted',
+      sourceId: 'doc-1',
+      occurredAt: expect.any(String),
+      payload: { source: 'pika' },
+    })
     expect(authenticityUpdate).toHaveBeenCalledWith('id', 'doc-1')
   })
 
