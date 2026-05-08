@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockSupabaseClient } = vi.hoisted(() => ({
   mockSupabaseClient: {
@@ -253,9 +253,20 @@ function buildTickHarness(opts: {
 }
 
 describe('createOrResumeAssignmentAiGradingRun', () => {
+  const originalGradexAssignmentFlag = process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockSupabaseClient.rpc.mockReset()
+    delete process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED
+  })
+
+  afterEach(() => {
+    if (originalGradexAssignmentFlag === undefined) {
+      delete process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED
+    } else {
+      process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED = originalGradexAssignmentFlag
+    }
   })
 
   it('creates the batch through the atomic RPC with queued and skipped item rows', async () => {
@@ -338,6 +349,57 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
             skip_reason: null,
           }),
         ],
+      }),
+    )
+  })
+
+  it('persists the Gradex assignment provider in the run model when the flag is enabled', async () => {
+    process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED = 'true'
+    const runsTable = buildRunsTable()
+    const assignmentDocsTable = buildAssignmentDocsTable([
+      {
+        id: 'doc-gradable',
+        student_id: 'student-gradable',
+        content: JSON.stringify({
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'Final submission' }],
+            },
+          ],
+        }),
+      },
+    ])
+
+    ;(mockSupabaseClient.from as any).mockImplementation((table: string) => {
+      if (table === 'assignment_ai_grading_runs') return runsTable
+      if (table === 'assignment_docs') return assignmentDocsTable
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    mockSupabaseClient.rpc.mockResolvedValue({
+      data: {
+        id: 'run-1',
+        assignment_id: 'assignment-1',
+        status: 'queued',
+        model: 'gradex:pika-assignment-v1',
+        created_at: '2026-04-21T12:00:00.000Z',
+      },
+      error: null,
+    })
+
+    const result = await createOrResumeAssignmentAiGradingRun({
+      assignmentId: 'assignment-1',
+      teacherId: 'teacher-1',
+      studentIds: ['student-gradable'],
+    })
+
+    expect(result.kind).toBe('created')
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'create_assignment_ai_grading_run_atomic',
+      expect.objectContaining({
+        p_model: 'gradex:pika-assignment-v1',
       }),
     )
   })

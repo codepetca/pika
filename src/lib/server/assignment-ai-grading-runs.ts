@@ -7,6 +7,11 @@ import {
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { analyzeAuthenticity } from '@/lib/authenticity'
 import { limitedMarkdownToPlainText } from '@/lib/limited-markdown'
+import {
+  gradePikaAssignmentWithGradex,
+  isGradexAssignmentGradingEnabled,
+} from '@/lib/server/gradex-client'
+import { buildPikaAssignmentGradexPayload } from '@/lib/server/gradex-assignment-payload'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { parseContentField } from '@/lib/tiptap-content'
 import type {
@@ -17,12 +22,16 @@ import type {
   AssignmentAiGradingRunStatus,
   AssignmentAiGradingRunSummary,
   AssignmentDocHistoryEntry,
+  AuthenticityFlag,
 } from '@/types'
 
 const DEFAULT_MODEL = 'gpt-5-nano'
+const GRADEX_ASSIGNMENT_MODEL_ALIAS = 'gradex:pika-assignment-v1'
 const RETRY_BACKOFF_SECONDS = [15, 60, 180]
 const TIMEOUT_RETRY_BACKOFF_SECONDS = [7, 20, 45]
 const MISSING_ASSIGNMENT_GRADE_FEEDBACK = 'Missing'
+
+type AssignmentGraderProvider = 'pika' | 'gradex'
 
 export const ASSIGNMENT_AI_GRADING_RUN_CHUNK_SIZE = 4
 export const ASSIGNMENT_AI_GRADING_ITEM_CONCURRENCY = 2
@@ -42,13 +51,17 @@ type GradeAssignmentDocWithAiOptions = {
   assignment: Assignment
   assignmentDoc: {
     id: string
+    assignment_id?: string
     student_id: string
     content: unknown
     feedback: string | null
+    submitted_at?: string | null
     authenticity_score: number | null
+    authenticity_flags?: AuthenticityFlag[] | null
   }
   gradedBy?: string | null
   requestTimeoutMs?: number
+  graderProvider?: AssignmentGraderProvider
   telemetry?: {
     operation?: string
     requestedStrategy?: string | null
@@ -71,7 +84,20 @@ type SupabaseSchemaError = {
   hint?: string | null
 }
 
-function getModelAlias(): string {
+function getLiveAssignmentGraderProvider(): AssignmentGraderProvider {
+  return isGradexAssignmentGradingEnabled() ? 'gradex' : 'pika'
+}
+
+function getAssignmentGraderProviderFromRunModel(
+  model: string | null | undefined,
+): AssignmentGraderProvider {
+  return model?.startsWith('gradex:') ? 'gradex' : 'pika'
+}
+
+function getModelAlias(provider: AssignmentGraderProvider = getLiveAssignmentGraderProvider()): string {
+  if (provider === 'gradex') {
+    return GRADEX_ASSIGNMENT_MODEL_ALIAS
+  }
   return process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
 }
 
@@ -89,6 +115,34 @@ function getAssignmentInstructionsText(assignment: Assignment): string {
   return limitedMarkdownToPlainText(
     getAssignmentInstructionsMarkdown(assignment).markdown,
   )
+}
+
+function appendPreviousFeedback(feedback: string, previousFeedback?: string | null): string {
+  const previous = previousFeedback?.trim()
+  if (!previous) return feedback
+  return `${previous}\n\n--- Resubmission ---\n\n${feedback}`
+}
+
+function isRetryableGradingError(error: unknown): boolean {
+  if (isRetryableAssignmentAiGradingError(error)) return true
+  return !!(
+    error &&
+    typeof error === 'object' &&
+    'retryable' in error &&
+    (error as { retryable?: unknown }).retryable === true
+  )
+}
+
+function getGradingErrorKind(error: unknown): string {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'kind' in error &&
+    typeof (error as { kind?: unknown }).kind === 'string'
+  ) {
+    return (error as { kind: string }).kind
+  }
+  return 'internal'
 }
 
 function mapErrorSamples(rawSamples: unknown): AssignmentAiGradingRunErrorSample[] {
@@ -316,6 +370,7 @@ export async function gradeAssignmentDocWithAi({
   assignmentDoc,
   gradedBy,
   requestTimeoutMs,
+  graderProvider,
   telemetry,
 }: GradeAssignmentDocWithAiOptions): Promise<void> {
   const studentWork = parseContentField(assignmentDoc.content)
@@ -329,23 +384,42 @@ export async function gradeAssignmentDocWithAi({
     return
   }
 
-  const result = await gradeStudentWork({
-    assignmentTitle: assignment.title,
-    instructions: getAssignmentInstructionsText(assignment),
-    studentWork,
-    previousFeedback: assignmentDoc.feedback,
-    requestTimeoutMs,
-    telemetry: {
-      feature: 'assignment_auto_grade',
-      operation: telemetry?.operation ?? 'single_grade',
-      promptProfile: 'default',
-      requestedStrategy: telemetry?.requestedStrategy ?? 'single',
-      resolvedStrategy: telemetry?.resolvedStrategy ?? 'single',
-      runId: telemetry?.runId ?? null,
-      studentId: telemetry?.studentId ?? assignmentDoc.student_id,
-      attempt: telemetry?.attempt ?? null,
-    },
-  })
+  const resolvedGraderProvider = graderProvider ?? getLiveAssignmentGraderProvider()
+  const result = resolvedGraderProvider === 'gradex'
+    ? await (async () => {
+        const gradexPayload = buildPikaAssignmentGradexPayload({
+          assignment,
+          assignmentDoc,
+          requestTimeoutMs,
+        })
+        const gradexResult = await gradePikaAssignmentWithGradex(gradexPayload, {
+          requestTimeoutMs,
+        })
+        return {
+          score_completion: gradexResult.score_completion,
+          score_thinking: gradexResult.score_thinking,
+          score_workflow: gradexResult.score_workflow,
+          feedback: appendPreviousFeedback(gradexResult.feedback, assignmentDoc.feedback),
+          model: `gradex:${gradexResult.model}`,
+        }
+      })()
+    : await gradeStudentWork({
+        assignmentTitle: assignment.title,
+        instructions: getAssignmentInstructionsText(assignment),
+        studentWork,
+        previousFeedback: assignmentDoc.feedback,
+        requestTimeoutMs,
+        telemetry: {
+          feature: 'assignment_auto_grade',
+          operation: telemetry?.operation ?? 'single_grade',
+          promptProfile: 'default',
+          requestedStrategy: telemetry?.requestedStrategy ?? 'single',
+          resolvedStrategy: telemetry?.resolvedStrategy ?? 'single',
+          runId: telemetry?.runId ?? null,
+          studentId: telemetry?.studentId ?? assignmentDoc.student_id,
+          attempt: telemetry?.attempt ?? null,
+        },
+      })
 
   const now = new Date().toISOString()
   const { error: updateError } = await supabase
@@ -581,7 +655,7 @@ async function processAssignmentAiRunItem(opts: {
 
   const { data: assignmentDoc, error: assignmentDocError } = await supabase
     .from('assignment_docs')
-    .select('id, student_id, content, feedback, authenticity_score')
+    .select('id, assignment_id, student_id, content, feedback, submitted_at, authenticity_score, authenticity_flags')
     .eq('id', item.assignment_doc_id)
     .maybeSingle()
 
@@ -614,6 +688,7 @@ async function processAssignmentAiRunItem(opts: {
       assignmentDoc,
       gradedBy: run.triggered_by,
       requestTimeoutMs: ASSIGNMENT_AI_GRADING_REQUEST_TIMEOUT_MS,
+      graderProvider: getAssignmentGraderProviderFromRunModel(run.model),
       telemetry: {
         operation: 'background_batch_item',
         requestedStrategy: 'background_chunked',
@@ -635,15 +710,15 @@ async function processAssignmentAiRunItem(opts: {
     const message = error instanceof Error ? error.message : 'AI grading failed'
 
     if (
-      isRetryableAssignmentAiGradingError(error) &&
+      isRetryableGradingError(error) &&
       attemptCount < ASSIGNMENT_AI_GRADING_MAX_ATTEMPTS
     ) {
       await updateRunItem(supabase, item.id, {
         status: 'queued',
         attempt_count: attemptCount,
-        last_error_code: error.kind,
+        last_error_code: getGradingErrorKind(error),
         last_error_message: message,
-        next_retry_at: getNextRetryAt(attemptCount, error.kind),
+        next_retry_at: getNextRetryAt(attemptCount, getGradingErrorKind(error)),
       })
       return
     }
@@ -651,10 +726,7 @@ async function processAssignmentAiRunItem(opts: {
     await updateRunItem(supabase, item.id, {
       status: 'failed',
       attempt_count: attemptCount,
-      last_error_code:
-        error instanceof Error && 'kind' in error && typeof error.kind === 'string'
-          ? error.kind
-          : 'internal',
+      last_error_code: getGradingErrorKind(error),
       last_error_message: message,
       completed_at: now,
     })
@@ -775,7 +847,7 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
   const { data: run, error: runError } = await supabase.rpc('create_assignment_ai_grading_run_atomic', {
     p_assignment_id: opts.assignmentId,
     p_teacher_id: opts.teacherId,
-    p_model: getModelAlias(),
+    p_model: getModelAlias(getLiveAssignmentGraderProvider()),
     p_requested_student_ids: normalizedStudentIds,
     p_selection_hash: selectionHash,
     p_gradable_count: gradableCount,
