@@ -49,6 +49,22 @@ vi.mock('@/ui', () => ({
       </div>
     ) : null
   ),
+  ContentDialog: ({ isOpen, title, subtitle, children }: any) => (
+    isOpen ? (
+      <div role="dialog" aria-label={title}>
+        <div>{title}</div>
+        {subtitle ? <div>{subtitle}</div> : null}
+        {children}
+      </div>
+    ) : null
+  ),
+  FormField: ({ label, children }: any) => (
+    <label>
+      <span>{label}</span>
+      {children}
+    </label>
+  ),
+  Input: (props: any) => <input {...props} />,
   SplitButton: ({ label, onPrimaryClick, disabled, primaryButtonProps, options = [] }: any) => (
     <div>
       <button
@@ -120,10 +136,13 @@ vi.mock('@/components/Spinner', () => ({
 }))
 
 vi.mock('@/components/AssignmentModal', () => ({
-  AssignmentModal: ({ isOpen, assignment }: any) => (
+  AssignmentModal: ({ isOpen, assignment, onClose }: any) => (
     isOpen ? (
       <div role="dialog">
         {assignment ? `Editing ${assignment.title}` : 'New Assignment'}
+        <button type="button" onClick={onClose}>
+          Close assignment modal
+        </button>
       </div>
     ) : null
   ),
@@ -441,6 +460,9 @@ describe('TeacherClassroomView', () => {
       if (key === `class-days:${classroom.id}`) {
         return Promise.resolve({ class_days: [] })
       }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
       return fetcher()
     })
     mockInvalidateCachedJSON.mockReset()
@@ -481,7 +503,7 @@ describe('TeacherClassroomView', () => {
 
     expect(screen.getByRole('button', { name: 'New assignment' })).toBeInTheDocument()
     expect(screen.getByTestId('assignment-summary-actionbar-center')).toHaveClass('grid')
-    expect(screen.getByRole('button', { name: 'New assignment' }).parentElement?.parentElement).toHaveClass('fixed')
+    expect(screen.getByRole('button', { name: 'New assignment' }).closest('.fixed')).toHaveClass('fixed')
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
@@ -539,6 +561,35 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment One')
     expect(updateSearchParams).not.toHaveBeenCalled()
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
+  })
+
+  it('exits assignment edit mode when the create assignment modal closes', async () => {
+    const onEditModeChange = vi.fn()
+
+    render(
+      <TeacherClassroomView
+        classroom={classroom}
+        selectedAssignmentId={null}
+        onEditModeChange={onEditModeChange}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'New assignment' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('New Assignment')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'false')
+    })
+    expect(onEditModeChange).toHaveBeenLastCalledWith(false)
   })
 
   it('resets edit mode when the selected assignment workspace changes', async () => {
@@ -612,6 +663,9 @@ describe('TeacherClassroomView', () => {
       if (key === `class-days:${classroom.id}`) {
         return Promise.resolve({ class_days: [] })
       }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
       return fetcher()
     })
     const updateSearchParams = vi.fn()
@@ -631,6 +685,51 @@ describe('TeacherClassroomView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Scheduled Assignment' }))
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing Scheduled Assignment')
     expect(updateSearchParams).not.toHaveBeenCalled()
+  })
+
+  it('clears URL selection after opening an unreleased assignment editor from a route selection', async () => {
+    mockIsVisibleAtNow.mockReturnValue(false)
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return Promise.resolve({
+          assignments: [
+            makeAssignmentSummary('scheduled-assignment', 'Scheduled Assignment', {
+              released_at: '2026-05-10T12:00:00Z',
+            }),
+          ],
+        })
+      }
+      if (key === `class-days:${classroom.id}`) {
+        return Promise.resolve({ class_days: [] })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
+      return fetcher()
+    })
+    const updateSearchParams = vi.fn()
+
+    render(
+      <TeacherClassroomView
+        classroom={classroom}
+        selectedAssignmentId="scheduled-assignment"
+        updateSearchParams={updateSearchParams}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toHaveTextContent('Editing Scheduled Assignment')
+    })
+
+    expect(updateSearchParams).toHaveBeenCalled()
+    const { params, options } = applySearchParamsUpdate(
+      updateSearchParams.mock.calls[0],
+      'tab=calendar&assignmentId=scheduled-assignment&assignmentStudentId=student-1',
+    )
+    expect(options?.replace).toBe(true)
+    expect(params.get('tab')).toBe('assignments')
+    expect(params.get('assignmentId')).toBeNull()
+    expect(params.get('assignmentStudentId')).toBeNull()
   })
 
   it('pushes assignment selection into classroom history', async () => {
@@ -2094,6 +2193,9 @@ describe('TeacherClassroomView', () => {
       }
       if (key === `class-days:${classroom.id}`) {
         return Promise.resolve({ class_days: [] })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
       }
       return fetcher()
     })

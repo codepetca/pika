@@ -81,16 +81,16 @@ describe('NavItems notification dots', () => {
     mockNotifications = baseNotifications({ unviewedAssignmentsCount: 2 })
     renderNav('student', 'assignments')
 
-    const assignmentsLink = screen.getByRole('link', { name: 'Assignments (new activity)' })
+    const assignmentsLink = screen.getByRole('link', { name: 'Classwork (new activity)' })
     expect(assignmentsLink.querySelector('[data-new-activity-dot="true"]')).toBeTruthy()
   })
 
   it('renders teacher assignments as a plain nav item without a dropdown affordance', () => {
     renderNav('teacher', 'assignments')
 
-    const assignmentsLink = screen.getByRole('link', { name: 'Assignments' })
+    const assignmentsLink = screen.getByRole('link', { name: 'Classwork' })
     expect(assignmentsLink).not.toHaveAttribute('aria-expanded')
-    expect(screen.getAllByRole('link', { name: 'Assignments' })).toHaveLength(1)
+    expect(screen.getAllByRole('link', { name: 'Classwork' })).toHaveLength(1)
     expect(screen.queryByRole('button', { name: /assignment/i })).toBeNull()
   })
 
@@ -98,7 +98,7 @@ describe('NavItems notification dots', () => {
     mockNotifications = baseNotifications({ unviewedAssignmentsCount: 2 })
     renderNav('student', 'assignments')
 
-    expect(screen.getAllByRole('link', { name: 'Assignments (new activity)' })).toHaveLength(1)
+    expect(screen.getAllByRole('link', { name: 'Classwork (new activity)' })).toHaveLength(1)
     expect(screen.queryByRole('button', { name: /assignment/i })).toBeNull()
   })
 
@@ -108,7 +108,7 @@ describe('NavItems notification dots', () => {
 
     const announcementsLink = screen.getByRole('link', { name: 'Announcements (new activity)' })
     expect(announcementsLink.querySelector('[data-new-activity-dot="true"]')).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Resources' }).querySelector('[data-new-activity-dot="true"]')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Syllabus' }).querySelector('[data-new-activity-dot="true"]')).toBeNull()
   })
 
   it('does not render notification dots for teacher nav items', () => {

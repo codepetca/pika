@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { StudentQuizResults } from '@/components/StudentQuizResults'
 import type { QuizResultsAggregate } from '@/types'
 
@@ -172,7 +172,7 @@ describe('StudentQuizResults', () => {
     expect(screen.queryByRole('heading', { name: 'Results' })).not.toBeInTheDocument()
   })
 
-  it('highlights incorrect multiple-choice test answers', async () => {
+  it('shows multiple-choice test options in original order with compact gutter markers', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -212,21 +212,73 @@ describe('StudentQuizResults', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Your answer')).toBeInTheDocument()
+      expect(screen.getByRole('list', { name: 'Multiple choice answer options' })).toBeInTheDocument()
     })
 
-    expect(screen.getByText('Your answer')).toBeInTheDocument()
-    expect(screen.getByText('Correct answer')).toBeInTheDocument()
-    expect(screen.getByText('3')).toBeInTheDocument()
-    expect(screen.getByText('4')).toBeInTheDocument()
+    expect(screen.queryByText('Your answer')).not.toBeInTheDocument()
+    expect(screen.queryByText('Correct answer')).not.toBeInTheDocument()
 
-    const incorrectAnswerLabel = screen.getByText('Your answer')
-    const incorrectAnswerText = screen.getByText('3')
-    expect(incorrectAnswerLabel.className).toContain('text-warning')
-    expect(incorrectAnswerText.className).toContain('text-warning')
-    expect(container.querySelector('.bg-warning-bg')).toBeNull()
-    expect(container.querySelector('.border-warning')).toBeNull()
+    const optionList = screen.getByRole('list', { name: 'Multiple choice answer options' })
+    const optionRows = within(optionList).getAllByRole('listitem')
+    expect(optionRows).toHaveLength(2)
+    expect(within(optionRows[0]).getByText('A')).toBeInTheDocument()
+    expect(within(optionRows[0]).getByText('3')).toBeInTheDocument()
+    expect(within(optionRows[1]).getByText('B')).toBeInTheDocument()
+    expect(within(optionRows[1]).getByText('4')).toBeInTheDocument()
+
+    expect(within(optionRows[0]).getByText('✕')).toHaveClass('text-warning')
+    expect(within(optionRows[1]).getByText('✓')).toHaveClass('text-success')
+    expect(optionRows[0]).toHaveClass('bg-warning-bg')
+    expect(optionRows[1]).toHaveClass('bg-success-bg-muted')
     expect(container.querySelector('.border-danger.bg-danger-bg')).toBeNull()
+  })
+
+  it('shows unanswered multiple-choice test questions in the question meta line', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        question_results: [
+          {
+            question_id: 'q1',
+            question_type: 'multiple_choice',
+            question_text: 'What is 2 + 2?',
+            options: ['3', '4'],
+            points: 1,
+            response_max_chars: 5000,
+            correct_option: 1,
+            selected_option: null,
+            response_text: null,
+            score: 0,
+            feedback: null,
+            graded_at: '2026-03-06T10:00:00.000Z',
+            is_correct: false,
+          },
+        ],
+        summary: {
+          earned_points: 0,
+          possible_points: 1,
+          percent: 0,
+        },
+      }),
+    })
+
+    render(
+      <StudentQuizResults
+        quizId="quiz-1"
+        myResponses={{}}
+        assessmentType="test"
+        apiBasePath="/api/student/tests"
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Q1 · 1 pts · No answer')).toBeInTheDocument()
+    })
+
+    const optionList = screen.getByRole('list', { name: 'Multiple choice answer options' })
+    expect(within(optionList).queryByText('✕')).not.toBeInTheDocument()
+    expect(within(optionList).getByText('✓')).toHaveClass('text-success')
   })
 
   it('uses muted bar color for non-selected options', async () => {

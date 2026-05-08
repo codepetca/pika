@@ -117,6 +117,104 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
     expect(response.status).toBe(400)
   })
 
+  it('allows late submission when the saved work is repo metadata only', async () => {
+    const historyInsert = vi.fn(async () => ({ error: null }))
+    const emptyContent = { type: 'doc', content: [] }
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'assign-1',
+                  classroom_id: 'class-1',
+                  is_draft: false,
+                  released_at: '2026-04-01T12:00:00.000Z',
+                  due_at: '2026-04-15T03:59:59.000Z',
+                },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'doc-1',
+                    student_id: 'student-1',
+                    content: emptyContent,
+                    repo_url: 'https://github.com/codepetca/student-work',
+                    github_username: 'student1',
+                  },
+                  error: null,
+                }),
+              })),
+            })),
+          })),
+          update: vi.fn((payload: Record<string, unknown>) => ({
+            eq: vi.fn(() => ({
+              select: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'doc-1',
+                    student_id: 'student-1',
+                    content: emptyContent,
+                    repo_url: 'https://github.com/codepetca/student-work',
+                    github_username: 'student1',
+                    is_submitted: true,
+                    submitted_at: payload.submitted_at,
+                  },
+                  error: null,
+                }),
+              })),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'assignment_doc_history') {
+        return {
+          insert: historyInsert,
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+            })),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await POST(new NextRequest('http://localhost:3000/api/assignment-docs/assign-1/submit', {
+      method: 'POST',
+    }), { params: { id: 'assign-1' } })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.doc).toEqual(expect.objectContaining({
+      id: 'doc-1',
+      is_submitted: true,
+      submitted_at: expect.any(String),
+      repo_url: 'https://github.com/codepetca/student-work',
+    }))
+    expect(historyInsert).toHaveBeenCalledWith(expect.objectContaining({
+      assignment_doc_id: 'doc-1',
+      snapshot: emptyContent,
+      word_count: 0,
+      char_count: 0,
+      trigger: 'submit',
+    }))
+  })
+
   it('submits work, records history, and attaches authenticity results', async () => {
     const historyInsert = vi.fn(async () => ({ error: null }))
     const authenticityUpdate = vi.fn(async () => ({ error: null }))

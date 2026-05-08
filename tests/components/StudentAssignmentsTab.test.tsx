@@ -77,10 +77,15 @@ function makeAssignment(overrides: Partial<AssignmentWithStatus> = {}): Assignme
 }
 
 function mockFetchAssignments(assignments: AssignmentWithStatus[]) {
-  ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-    ok: true,
-    json: async () => ({ assignments }),
-  })
+  ;(global.fetch as ReturnType<typeof vi.fn>)
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ assignments }),
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ materials: [] }),
+    })
 }
 
 describe('StudentAssignmentsTab', () => {

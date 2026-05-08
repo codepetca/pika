@@ -249,7 +249,7 @@ export function TeacherWorkspaceSplit({
   )
 
   if (splitVariant === 'gapped') {
-    const inspectorPaneStyle = inspectorVisible && isDesktop
+    const inspectorPaneStyle = inspectorVisible
       ? {
           '--teacher-workspace-inspector-width': `calc(${constrainedInspectorWidth}% - ${GAPPED_SPLIT_HANDLE_WIDTH_PX / 2}px)`,
         } as CSSProperties
@@ -258,7 +258,7 @@ export function TeacherWorkspaceSplit({
     return (
       <div
         ref={splitRef}
-        className={cn('flex min-h-0 flex-1 flex-col gap-3 bg-page lg:flex-row lg:gap-0', className)}
+        className={cn('flex min-h-0 flex-1 flex-col gap-3 bg-page lg:h-full lg:overflow-hidden lg:flex-row lg:gap-0', className)}
       >
         <div className={cn('min-h-0 min-w-0 flex-1 overflow-hidden', primaryClassName)}>
           {primary}

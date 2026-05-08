@@ -115,7 +115,15 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
     assignments: [
       makeQueryBuilder({
         data: [
-          { id: 'a-1', title: 'Essay', instructions_markdown: 'New instructions', is_draft: false, position: 0 },
+          {
+            id: 'a-1',
+            title: 'Essay',
+            instructions_markdown: 'New instructions',
+            points_possible: 30,
+            include_in_final: true,
+            is_draft: false,
+            position: 0,
+          },
           { id: 'a-2', title: 'Draft Assignment', instructions_markdown: 'Ignore', is_draft: true, position: 1 },
         ],
         error: null,
@@ -124,7 +132,15 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
     quizzes: [
       makeQueryBuilder({
         data: [
-          { id: 'q-1', title: 'Quiz 1', status: 'published', show_results: true, position: 0 },
+          {
+            id: 'q-1',
+            title: 'Quiz 1',
+            status: 'published',
+            show_results: true,
+            points_possible: 10,
+            include_in_final: true,
+            position: 0,
+          },
           { id: 'q-2', title: 'Quiz Draft', status: 'draft', show_results: false, position: 1 },
         ],
         error: null,
@@ -133,7 +149,16 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
     tests: [
       makeQueryBuilder({
         data: [
-          { id: 't-1', title: 'Unit Test', status: 'published', documents: [], show_results: false, position: 0 },
+          {
+            id: 't-1',
+            title: 'Unit Test',
+            status: 'published',
+            documents: [],
+            show_results: false,
+            points_possible: 60,
+            include_in_final: true,
+            position: 0,
+          },
         ],
         error: null,
       }),
@@ -168,6 +193,17 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
       makeQueryBuilder({ data: null, error: null }),
       makeQueryBuilder({ data: { content: { title: 'Quiz 1', questions: [{ id: 'qq-1' }] } }, error: null }),
       makeQueryBuilder({ data: null, error: null }),
+    ],
+    gradebook_settings: [
+      makeQueryBuilder({
+        data: {
+          use_weights: true,
+          assignments_weight: 50,
+          quizzes_weight: 20,
+          tests_weight: 30,
+        },
+        error: null,
+      }),
     ],
   })
 }
@@ -230,6 +266,19 @@ describe('course-sites server helpers', () => {
           assignments: [expect.objectContaining({ title: 'Essay' })],
           quizzes: [expect.objectContaining({ title: 'Quiz 1' })],
           tests: [expect.objectContaining({ title: 'Unit Test' })],
+          grading: expect.objectContaining({
+            mode: 'weighted',
+            categories: expect.arrayContaining([
+              expect.objectContaining({ id: 'assignments', weight_percent: 50 }),
+              expect.objectContaining({ id: 'quizzes', weight_percent: 20 }),
+              expect.objectContaining({ id: 'tests', weight_percent: 30 }),
+            ]),
+            items: expect.arrayContaining([
+              expect.objectContaining({ title: 'Essay', course_weight_percent: 50 }),
+              expect.objectContaining({ title: 'Quiz 1', course_weight_percent: 20 }),
+              expect.objectContaining({ title: 'Unit Test', course_weight_percent: 30 }),
+            ]),
+          }),
           lesson_plans: [expect.objectContaining({ title: 'Lesson 1 (2026-04-16)' })],
           announcements: [expect.objectContaining({ title: 'Visible' })],
         }),

@@ -493,6 +493,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
           ariaLabel="Classroom view"
           value={view}
           onChange={setView}
+          iconOnly={!isEditingClassrooms}
           className="border border-border shadow-sm"
           options={[
             {

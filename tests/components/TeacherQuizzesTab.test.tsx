@@ -166,7 +166,7 @@ describe('TeacherQuizzesTab', () => {
 
     mockQuizzesResponse([makeQuiz()])
 
-    fireEvent.click(screen.getByText('New Quiz'))
+    fireEvent.click(screen.getByRole('button', { name: 'New' }))
     fireEvent.click(screen.getByTestId('mock-quiz-save'))
 
     await waitFor(() => {
@@ -179,7 +179,7 @@ describe('TeacherQuizzesTab', () => {
     renderTab({ assessmentType: 'quiz' })
 
     expect(await screen.findByText('Loops Quiz')).toBeInTheDocument()
-    expect(screen.getByText('New Quiz')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New' })).toBeInTheDocument()
     expect(listFetchCalls(fetchMock)[0][0]).toContain('/api/teacher/quizzes?classroom_id=')
   })
 
@@ -190,7 +190,7 @@ describe('TeacherQuizzesTab', () => {
     fireEvent.click(await screen.findByText('Loops Quiz'))
 
     expect(await screen.findByTestId('mock-quiz-detail')).toHaveTextContent('Detail for Loops Quiz')
-    expect(screen.queryByText('New Quiz')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
     expect(setOpenMock).not.toHaveBeenCalledWith(true)
   })
 

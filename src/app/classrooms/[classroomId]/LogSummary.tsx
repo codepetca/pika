@@ -16,13 +16,18 @@ interface SummaryData {
   generated_at: string
 }
 
+type SummaryStatus = 'ready' | 'pending' | 'no_entries'
+
 export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProps) {
   const [summary, setSummary] = useState<SummaryData | null>(null)
+  const [summaryStatus, setSummaryStatus] = useState<SummaryStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!date) {
+      setSummary(null)
+      setSummaryStatus(null)
       setLoading(false)
       return
     }
@@ -30,6 +35,7 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
     let cancelled = false
     setLoading(true)
     setError(null)
+    setSummaryStatus(null)
 
     async function fetchSummary() {
       try {
@@ -42,6 +48,7 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
         const data = await res.json()
         if (!cancelled) {
           setSummary(data.summary)
+          setSummaryStatus(data.summary_status || (data.summary ? 'ready' : null))
         }
       } catch (err) {
         if (!cancelled) {
@@ -76,10 +83,14 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
   }
 
   if (!summary) {
+    const message = summaryStatus === 'pending'
+      ? 'Summary will be available after the nightly run.'
+      : 'No student logs for this date.'
+
     return (
       <div className="p-4">
         <p className="text-sm text-text-muted">
-          No student logs for this date.
+          {message}
         </p>
       </div>
     )
