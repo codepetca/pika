@@ -375,3 +375,14 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - `pnpm test`
+
+## 2026-05-08 — Open assignment invariant PR
+
+**Completed:**
+- Created branch `codex/assignment-lifecycle-invariants`.
+- Committed assignment lifecycle invariant extraction as `37cd562`.
+- Opened draft PR #570 and added `codex` plus `codex-automation` labels.
+- Posted a self-review comment with no blocking findings.
+
+**Validation:**
+- PR checks showed Vercel skipped by ignored build step, with preview comments passing.
