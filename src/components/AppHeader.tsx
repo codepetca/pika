@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { ClockAlert, LogOut, Maximize, Menu, Minimize } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { ClassroomDropdown } from './ClassroomDropdown'
@@ -33,7 +34,7 @@ interface AppHeaderProps {
     exitsCount: number
     awayTotalSeconds: number
   } | null
-  pageTitle?: string
+  pageTitle?: ReactNode
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -67,6 +68,7 @@ export function AppHeader({
   }, [])
 
   const isExamMode = Boolean(examModeHeader)
+  const isTextPageTitle = typeof pageTitle === 'string'
   const pageTitleClassName =
     pageTitle === 'Classrooms'
       ? 'text-base sm:text-lg'
@@ -151,8 +153,10 @@ export function AppHeader({
               </span>
             </div>
           </div>
-        ) : pageTitle ? (
+        ) : pageTitle && isTextPageTitle ? (
           <h1 className={`truncate font-semibold text-text-default ${pageTitleClassName}`}>{pageTitle}</h1>
+        ) : pageTitle ? (
+          <div className="min-w-0 max-w-full">{pageTitle}</div>
         ) : null}
       </div>
 

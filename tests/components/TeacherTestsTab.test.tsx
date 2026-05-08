@@ -323,7 +323,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     expect(await screen.findByText('Unit Test')).toBeInTheDocument()
-    expect(screen.getByText('New Test')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(screen.queryByText('Choose a test to review settings, questions, and grading details.')).not.toBeInTheDocument()
@@ -495,7 +495,7 @@ describe('TeacherTestsTab', () => {
 
     mockTestsResponse([makeTest({ id: 'created-test-id', title: 'Created Test' })])
 
-    fireEvent.click(screen.getByText('New Test'))
+    fireEvent.click(screen.getByRole('button', { name: 'New' }))
     fireEvent.click(screen.getByTestId('mock-test-save'))
 
     expect(await screen.findByText('Created Test')).toBeInTheDocument()

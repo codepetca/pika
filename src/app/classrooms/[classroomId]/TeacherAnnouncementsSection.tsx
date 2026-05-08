@@ -5,6 +5,7 @@ import { Trash2, Plus, Clock, ChevronDown, Calendar } from 'lucide-react'
 import { Button, ConfirmDialog } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
+import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import type { Announcement, Classroom } from '@/types'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { cn } from '@/ui/utils'
@@ -335,6 +336,25 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
 
   return (
     <div className={cn('space-y-4', className ?? 'max-w-2xl mx-auto')}>
+      {!isReadOnly && (
+        <TeacherWorkSurfaceActionBar
+          testId="announcements-actionbar-center"
+          center={
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => setIsCreating(true)}
+              disabled={isCreating || saving}
+              aria-label="New announcement"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              <span>New</span>
+            </Button>
+          }
+          centerPlacement="floating"
+        />
+      )}
+
       {isReadOnly && (
         <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
           This classroom is archived. Announcements are read-only.
@@ -625,16 +645,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
             </div>
           </div>
         </div>
-      ) : (
-        !isReadOnly && (
-          <div className="flex justify-center pt-2">
-            <Button variant="primary" onClick={() => setIsCreating(true)}>
-              <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
-              New Announcement
-            </Button>
-          </div>
-        )
-      )}
+      ) : null}
 
       {/* Delete confirmation dialog */}
       <ConfirmDialog

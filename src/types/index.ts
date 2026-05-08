@@ -921,6 +921,18 @@ export interface Announcement {
   updated_at: string
 }
 
+export interface ClassworkMaterial {
+  id: string
+  classroom_id: string
+  title: string
+  content: TiptapContent
+  is_draft: boolean
+  released_at: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
 export interface LinkedBlueprintClassroom {
   id: string
   title: string

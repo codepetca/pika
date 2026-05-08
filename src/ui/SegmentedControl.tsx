@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { cn } from './utils'
+import { Tooltip } from './Tooltip'
 
 export interface SegmentedControlOption<TValue extends string> {
   value: TValue
@@ -43,8 +44,7 @@ export function SegmentedControl<TValue extends string>({
     >
       {options.map((option) => {
         const isActive = option.value === value
-
-        return (
+        const button = (
           <button
             key={option.value}
             type="button"
@@ -61,7 +61,6 @@ export function SegmentedControl<TValue extends string>({
             disabled={option.disabled}
             aria-pressed={isActive}
             aria-label={option.label}
-            title={iconOnly ? option.label : undefined}
           >
             {option.icon ? (
               <span className="inline-flex h-4 w-4 items-center justify-center" aria-hidden="true">
@@ -70,6 +69,14 @@ export function SegmentedControl<TValue extends string>({
             ) : null}
             {iconOnly ? <span className="sr-only">{option.label}</span> : <span>{option.label}</span>}
           </button>
+        )
+
+        return iconOnly ? (
+          <Tooltip key={option.value} content={option.label} side="top">
+            {button}
+          </Tooltip>
+        ) : (
+          button
         )
       })}
     </div>

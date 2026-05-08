@@ -29,6 +29,7 @@ import {
   DataTableBody,
   DataTableCell,
   DataTableHead,
+  DataTableHeaderCell,
   DataTableRow,
   EmptyStateRow,
   KeyboardNavigableTable,
@@ -49,6 +50,7 @@ interface LogRow {
   student_last_name: string
   email_username: string
   entry: Entry | null
+  history_preview: Entry[]
 }
 
 interface Props {
@@ -72,10 +74,11 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
+  const selectedWorkspaceRef = useRef<HTMLDivElement | null>(null)
+  const hasLoadedOnceRef = useRef(false)
   const [detailPaneWidth, setDetailPaneWidth] = useState(50)
   const showBlockingSpinner = useDelayedBusy(loading && logs.length === 0)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
@@ -107,7 +110,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       if (!isActive) return
       if (!isClassDayOnDate(classDays, selectedDate)) {
         setLogs([])
-        setHasLoadedOnce(true)
+        hasLoadedOnceRef.current = true
         setSelectedStudentId(null)
         onSelectEntry?.(null, '', null)
         setLoading(false)
@@ -115,7 +118,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         return
       }
 
-      if (hasLoadedOnce) {
+      if (hasLoadedOnceRef.current) {
         setRefreshing(true)
       } else {
         setLoading(true)
@@ -133,7 +136,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         // Clear selection when date changes so summary is visible
         setSelectedStudentId(null)
         onSelectEntry?.(null, '', null)
-        setHasLoadedOnce(true)
+        hasLoadedOnceRef.current = true
       } catch (err) {
         console.error('Error loading logs:', err)
       } finally {
@@ -142,7 +145,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       }
     }
     loadLogs()
-  }, [classroom.id, classDays, selectedDate, onSelectEntry, hasLoadedOnce, isActive])
+  }, [classroom.id, classDays, selectedDate, onSelectEntry, isActive])
 
   const isClassDay = useMemo(() => {
     if (!selectedDate) return true
@@ -221,6 +224,33 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     setSelectedStudentId(null)
     onSelectEntry?.(null, '', null)
   }, [onSelectEntry])
+
+  useEffect(() => {
+    if (!selectedStudentId || !isActive) return
+
+    function handleEscapeKey(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      handleDeselect()
+    }
+
+    window.addEventListener('keydown', handleEscapeKey)
+    return () => window.removeEventListener('keydown', handleEscapeKey)
+  }, [handleDeselect, isActive, selectedStudentId])
+
+  useEffect(() => {
+    if (!selectedStudentId || !isActive) return
+
+    function handlePointerDown(event: PointerEvent) {
+      const selectedWorkspace = selectedWorkspaceRef.current
+      if (!selectedWorkspace) return
+      if (event.target instanceof Node && selectedWorkspace.contains(event.target)) return
+      handleDeselect()
+    }
+
+    window.addEventListener('pointerdown', handlePointerDown)
+    return () => window.removeEventListener('pointerdown', handlePointerDown)
+  }, [handleDeselect, isActive, selectedStudentId])
 
   const selectStudentByRow = useCallback(
     (row: LogRow) => {
@@ -303,17 +333,162 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     />
   )
 
+  function renderStudentTable(showLogColumn: boolean) {
+    const visibleColumnCount = showLogColumn ? 5 : 4
+
+    return (
+      <KeyboardNavigableTable
+        rowKeys={rowKeys}
+        selectedKey={selectedStudentId}
+        onSelectKey={handleKeyboardSelect}
+        onDeselect={handleDeselect}
+      >
+        <TableCard chrome="flush">
+          {refreshing && (
+            <RefreshingIndicator />
+          )}
+          <DataTable className={showLogColumn ? 'table-fixed' : ''}>
+            <DataTableHead>
+              <DataTableRow>
+                <SortableHeaderCell
+                  label="First"
+                  isActive={sortColumn === 'first_name'}
+                  direction={sortDirection}
+                  onClick={() => handleSort('first_name')}
+                  density="tight"
+                  className={showLogColumn ? 'w-24 sm:w-36' : ''}
+                  trailing={isClassDay && rows.length > 0 ? (
+                    <span className={showLogColumn ? 'hidden sm:inline-flex' : 'inline-flex'}>
+                      <StudentCountBadge count={rows.length} variant="neutral" />
+                    </span>
+                  ) : undefined}
+                />
+                <SortableHeaderCell
+                  label="Last"
+                  isActive={sortColumn === 'last_name'}
+                  direction={sortDirection}
+                  onClick={() => handleSort('last_name')}
+                  density="tight"
+                  className={showLogColumn ? 'w-20 sm:w-36' : ''}
+                />
+                <SortableHeaderCell
+                  label="ID"
+                  isActive={sortColumn === 'id'}
+                  direction={sortDirection}
+                  onClick={() => handleSort('id')}
+                  density="tight"
+                  className={showLogColumn ? 'hidden w-32 md:table-cell' : ''}
+                />
+                {showLogColumn && (
+                  <DataTableHeaderCell density="tight" className="min-w-0">
+                    Log
+                  </DataTableHeaderCell>
+                )}
+                <SortableHeaderCell
+                  label={isClassDay ? '' : 'Status'}
+                  isActive={sortColumn === 'status'}
+                  direction={sortDirection}
+                  onClick={() => handleSort('status')}
+                  density="tight"
+                  align="center"
+                  className={showLogColumn ? 'w-[5.5rem]' : ''}
+                  trailing={isClassDay ? (
+                    <div className="flex items-center gap-2">
+                      <CountBadge count={presentCount} tooltip="Present" variant="success" />
+                      <CountBadge count={absentCount} tooltip="Absent" variant="danger" />
+                    </div>
+                  ) : undefined}
+                />
+              </DataTableRow>
+            </DataTableHead>
+            <DataTableBody>
+              {rows.map((row) => {
+                const isSelected = selectedStudentId === row.student_id
+                const hasLog = Boolean(row.entry && entryHasContent(row.entry))
+                const logText = hasLog ? row.entry?.text || '' : ''
+                const status: AttendanceStatus = hasLog
+                  ? 'present'
+                  : selectedDate >= today
+                    ? 'pending'
+                    : 'absent'
+                return (
+                  <DataTableRow
+                    key={row.student_id}
+                    className={[
+                      'cursor-pointer transition-colors',
+                      isSelected
+                        ? 'bg-info-bg hover:bg-info-bg-hover'
+                        : 'hover:bg-surface-hover',
+                    ].join(' ')}
+                    onClick={() => handleRowClick(row)}
+                  >
+                    <DataTableCell density="tight" className={showLogColumn ? 'min-w-0' : ''}>
+                      <span className={showLogColumn ? 'block truncate' : ''}>
+                        {row.student_first_name || '—'}
+                      </span>
+                    </DataTableCell>
+                    <DataTableCell density="tight" className={showLogColumn ? 'min-w-0' : ''}>
+                      <span className={showLogColumn ? 'block truncate' : ''}>
+                        {row.student_last_name || '—'}
+                      </span>
+                    </DataTableCell>
+                    <DataTableCell
+                      density="tight"
+                      className={[
+                        'text-text-muted',
+                        showLogColumn ? 'hidden md:table-cell' : '',
+                      ].join(' ')}
+                    >
+                      {row.email_username}
+                    </DataTableCell>
+                    {showLogColumn && (
+                      <DataTableCell density="tight" className="min-w-0 text-text-muted">
+                        {hasLog ? (
+                          <span className="block truncate" title={logText}>
+                            {logText}
+                          </span>
+                        ) : (
+                          <span aria-label="No log for this date">—</span>
+                        )}
+                      </DataTableCell>
+                    )}
+                    <DataTableCell density="tight" align="center">
+                      {isClassDay ? (
+                        <Tooltip content={getAttendanceLabel(status)}>
+                          <span
+                            className={`inline-block w-3 h-3 rounded-full ${getAttendanceDotClass(status)}`}
+                          />
+                        </Tooltip>
+                      ) : (
+                        <span className="text-text-muted">—</span>
+                      )}
+                    </DataTableCell>
+                  </DataTableRow>
+                )
+              })}
+              {rows.length === 0 && (
+                <EmptyStateRow
+                  colSpan={visibleColumnCount}
+                  message={isClassDay ? 'No students enrolled' : 'Not a class day'}
+                />
+              )}
+            </DataTableBody>
+          </DataTable>
+        </TableCard>
+      </KeyboardNavigableTable>
+    )
+  }
+
   const detailPane = selectedRow ? (
-    <StudentLogHistory studentId={selectedRow.student_id} classroomId={classroom.id} />
-  ) : selectedDate ? (
-    <LogSummary
+    <StudentLogHistory
+      studentId={selectedRow.student_id}
       classroomId={classroom.id}
-      date={selectedDate}
-      onStudentClick={selectStudentByName}
+      selectedEntry={selectedRow.entry}
+      initialEntries={selectedRow.history_preview}
     />
   ) : (
     <div className="p-4 text-sm text-text-muted">
-      Select a date to view the log summary.
+      Select a student to view log history.
     </div>
   )
 
@@ -322,145 +497,73 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       <Spinner size="lg" />
     </div>
   ) : (
-    <TeacherWorkspaceSplit
-      className="flex-1"
-      splitVariant="gapped"
-      primaryClassName="min-h-[200px] rounded-lg bg-surface"
-      inspectorClassName="flex flex-col rounded-lg bg-surface"
-      inspectorCollapsed={false}
-      inspectorWidth={detailPaneWidth}
-      minInspectorPx={280}
-      minPrimaryPx={320}
-      minInspectorPercent={28}
-      maxInspectorPercent={72}
-      defaultInspectorWidth={50}
-      onInspectorWidthChange={setDetailPaneWidth}
-      dividerLabel="Resize Daily panes"
-      primary={
-        // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
-        <div
-          className="h-full"
-          onClick={(e) => {
-            // Deselect when clicking outside the table
-            if (selectedStudentId && (e.target as HTMLElement).closest('table') === null) {
-              handleDeselect()
-            }
-          }}
-        >
-          <KeyboardNavigableTable
-            rowKeys={rowKeys}
-            selectedKey={selectedStudentId}
-            onSelectKey={handleKeyboardSelect}
-            onDeselect={handleDeselect}
-          >
-            <TableCard chrome="flush">
-              {refreshing && (
-                <RefreshingIndicator />
-              )}
-              <DataTable>
-                <DataTableHead>
-                  <DataTableRow>
-                    <SortableHeaderCell
-                      label="First"
-                      isActive={sortColumn === 'first_name'}
-                      direction={sortDirection}
-                      onClick={() => handleSort('first_name')}
-                      density="tight"
-                      trailing={isClassDay && rows.length > 0 ? <StudentCountBadge count={rows.length} variant="neutral" /> : undefined}
-                    />
-                    <SortableHeaderCell
-                      label="Last"
-                      isActive={sortColumn === 'last_name'}
-                      direction={sortDirection}
-                      onClick={() => handleSort('last_name')}
-                      density="tight"
-                    />
-                    <SortableHeaderCell
-                      label="ID"
-                      isActive={sortColumn === 'id'}
-                      direction={sortDirection}
-                      onClick={() => handleSort('id')}
-                      density="tight"
-                    />
-                    <SortableHeaderCell
-                      label={isClassDay ? '' : 'Status'}
-                      isActive={sortColumn === 'status'}
-                      direction={sortDirection}
-                      onClick={() => handleSort('status')}
-                      density="tight"
-                      align="center"
-                      trailing={isClassDay ? (
-                        <div className="flex items-center gap-2">
-                          <CountBadge count={presentCount} tooltip="Present" variant="success" />
-                          <CountBadge count={absentCount} tooltip="Absent" variant="danger" />
-                        </div>
-                      ) : undefined}
-                    />
-                  </DataTableRow>
-                </DataTableHead>
-                <DataTableBody>
-                  {rows.map((row) => {
-                    const isSelected = selectedStudentId === row.student_id
-                    const status: AttendanceStatus = row.entry && entryHasContent(row.entry)
-                      ? 'present'
-                      : selectedDate >= today
-                        ? 'pending'
-                        : 'absent'
-                    return (
-                      <DataTableRow
-                        key={row.student_id}
-                        className={[
-                          'cursor-pointer transition-colors',
-                          isSelected
-                            ? 'bg-info-bg hover:bg-info-bg-hover'
-                            : 'hover:bg-surface-hover',
-                        ].join(' ')}
-                        onClick={() => handleRowClick(row)}
-                      >
-                        <DataTableCell density="tight">{row.student_first_name || '—'}</DataTableCell>
-                        <DataTableCell density="tight">{row.student_last_name || '—'}</DataTableCell>
-                        <DataTableCell density="tight" className="text-text-muted">
-                          {row.email_username}
-                        </DataTableCell>
-                        <DataTableCell density="tight" align="center">
-                          {isClassDay ? (
-                            <Tooltip content={getAttendanceLabel(status)}>
-                              <span
-                                className={`inline-block w-3 h-3 rounded-full ${getAttendanceDotClass(status)}`}
-                              />
-                            </Tooltip>
-                          ) : (
-                            <span className="text-text-muted">—</span>
-                          )}
-                        </DataTableCell>
-                      </DataTableRow>
-                    )
-                  })}
-                  {rows.length === 0 && (
-                    <EmptyStateRow
-                      colSpan={4}
-                      message={isClassDay ? 'No students enrolled' : 'Not a class day'}
-                    />
-                  )}
-                </DataTableBody>
-              </DataTable>
-            </TableCard>
-          </KeyboardNavigableTable>
+    selectedRow ? (
+      <div ref={selectedWorkspaceRef} className="daily-workspace-enter flex min-h-0 flex-1">
+        <TeacherWorkspaceSplit
+          className="flex-1"
+          splitVariant="gapped"
+          primaryClassName="min-h-[200px] rounded-lg bg-surface"
+          inspectorClassName="daily-inspector-enter flex flex-col rounded-lg bg-surface"
+          inspectorCollapsed={false}
+          inspectorWidth={detailPaneWidth}
+          minInspectorPx={280}
+          minPrimaryPx={320}
+          minInspectorPercent={28}
+          maxInspectorPercent={72}
+          defaultInspectorWidth={50}
+          onInspectorWidthChange={setDetailPaneWidth}
+          dividerLabel="Resize Daily panes"
+          primary={
+            // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+            <div
+              className="h-full min-h-0 overflow-auto"
+              onClick={(e) => {
+                // Deselect when clicking outside the table
+                if (selectedStudentId && (e.target as HTMLElement).closest('table') === null) {
+                  handleDeselect()
+                }
+              }}
+            >
+              {renderStudentTable(false)}
+            </div>
+          }
+          inspector={
+            <>
+              <div className="flex min-h-10 items-center border-b border-border px-3 py-2">
+                <span className="truncate text-sm font-semibold text-text-default">
+                  {selectedStudentName}
+                </span>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {detailPane}
+              </div>
+            </>
+          }
+        />
+      </div>
+    ) : (
+      <div className="daily-table-enter flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+        <div className="min-h-[180px] flex-[2_1_0] overflow-auto rounded-lg bg-surface">
+          {renderStudentTable(true)}
         </div>
-      }
-      inspector={
-        <>
-          <div className="flex min-h-10 items-center border-b border-border px-3 py-2">
-            <span className="truncate text-sm font-semibold text-text-default">
-              {selectedRow ? selectedStudentName : 'Log Summary'}
-            </span>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {detailPane}
-          </div>
-        </>
-      }
-    />
+        {selectedDate && (
+          <section className="min-h-[140px] flex-[1_1_0] overflow-hidden rounded-lg bg-surface">
+            <div className="flex min-h-10 items-center border-b border-border px-3 py-2">
+              <h3 className="truncate text-sm font-semibold text-text-default">
+                Class Log Summary
+              </h3>
+            </div>
+            <div className="max-h-[min(260px,32vh)] overflow-y-auto">
+              <LogSummary
+                classroomId={classroom.id}
+                date={selectedDate}
+                onStudentClick={selectStudentByName}
+              />
+            </div>
+          </section>
+        )}
+      </div>
+    )
   )
 
   return (

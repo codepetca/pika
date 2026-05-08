@@ -41,8 +41,16 @@ export function TableCard({
   )
 }
 
-export function DataTable({ children, density }: { children: ReactNode; density?: DataTableDensity }) {
-  const table = <table className="w-full">{children}</table>
+export function DataTable({
+  children,
+  density,
+  className = '',
+}: {
+  children: ReactNode
+  density?: DataTableDensity
+  className?: string
+}) {
+  const table = <table className={['w-full', className].filter(Boolean).join(' ')}>{children}</table>
   return density ? <DensityContext.Provider value={density}>{table}</DensityContext.Provider> : table
 }
 

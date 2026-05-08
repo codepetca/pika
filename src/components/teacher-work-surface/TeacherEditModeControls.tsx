@@ -37,7 +37,10 @@ export function TeacherEditModeControls({
           type="button"
           variant={variant}
           size="sm"
+          aria-label={editLabel}
+          title={editLabel}
           className={cn(
+            'h-9 w-9 px-0',
             active
               ? 'border-primary/40 bg-info-bg text-primary shadow-inner hover:bg-info-bg-hover hover:text-primary'
               : '',
@@ -47,7 +50,6 @@ export function TeacherEditModeControls({
           onClick={() => onActiveChange(!active)}
         >
           <Pencil className="h-4 w-4" aria-hidden="true" />
-          <span>{editLabel}</span>
         </Button>
       </Tooltip>
     </div>

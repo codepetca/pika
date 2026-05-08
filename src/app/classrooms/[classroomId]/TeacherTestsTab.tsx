@@ -1648,7 +1648,7 @@ export function TeacherTestsTab({
           tone="muted"
         />
       ) : (
-        <div className="min-h-0 w-full overflow-hidden rounded-md border border-border bg-surface">
+        <div className="min-h-0 w-full overflow-auto rounded-md border border-border bg-surface">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-surface-hover text-left text-text-muted">
@@ -2051,12 +2051,14 @@ export function TeacherTestsTab({
         type="button"
         variant={studentAttemptEditMode ? 'secondary' : 'ghost'}
         size="sm"
+        className="h-9 w-9 px-0"
+        aria-label="Edit"
+        title="Edit"
         aria-pressed={studentAttemptEditMode}
         disabled={isReadOnly}
         onClick={() => setStudentAttemptEditMode((prev) => !prev)}
       >
         <Pencil className="h-4 w-4" aria-hidden="true" />
-        <span>Edit</span>
       </Button>
       {workspaceModeStatus}
     </div>
@@ -2122,16 +2124,18 @@ export function TeacherTestsTab({
     <TeacherWorkSurfaceActionBar
       center={
         <div className="flex items-center justify-center gap-1.5">
-          <Button
-            onClick={handleNewTest}
-            variant="primary"
-            size="sm"
-            className="gap-1.5"
-            disabled={isReadOnly}
-          >
-            <Plus className="h-4 w-4" />
-            New Test
-          </Button>
+          <Tooltip content="Create a new test">
+            <Button
+              onClick={handleNewTest}
+              variant="primary"
+              size="sm"
+              className="gap-1.5"
+              disabled={isReadOnly}
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              New
+            </Button>
+          </Tooltip>
           <TeacherEditModeControls
             active={testEditMode}
             onActiveChange={setTestEditMode}
@@ -2228,7 +2232,7 @@ export function TeacherTestsTab({
       className="flex-1"
       splitVariant="gapped"
       primary={gradingTable}
-      inspector={gradingInspector ? <div className="h-full overflow-y-auto">{gradingInspector}</div> : undefined}
+      inspector={gradingInspector ? <div className="h-full min-h-0 overflow-y-auto">{gradingInspector}</div> : undefined}
       inspectorWidth={gradingInspectorWidth}
       inspectorCollapsed={false}
       onInspectorWidthChange={setGradingInspectorWidth}

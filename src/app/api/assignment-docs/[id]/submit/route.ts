@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { countCharacters, countWords, isEmpty, parseContentField } from '@/lib/tiptap-content'
+import { countCharacters, countWords, parseContentField } from '@/lib/tiptap-content'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import { analyzeAuthenticity } from '@/lib/authenticity'
 import { withErrorHandler } from '@/lib/api-handler'
+import { hasAssignmentSubmissionContent } from '@/lib/assignments'
 import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -49,7 +50,7 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
   // Check if doc exists
   const { data: existingDoc, error: docError } = await supabase
     .from('assignment_docs')
-    .select('id, student_id, content')
+    .select('id, student_id, content, repo_url, github_username')
     .eq('assignment_id', assignmentId)
     .eq('student_id', user.id)
     .single()
@@ -74,7 +75,7 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     existingDoc.content = parseContentField(existingDoc.content)
   }
 
-  if (!existingDoc || isEmpty(existingDoc.content)) {
+  if (!existingDoc || !hasAssignmentSubmissionContent(existingDoc)) {
     return NextResponse.json(
       { error: 'No work to submit. Please write something first.' },
       { status: 400 }

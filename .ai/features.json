@@ -97,9 +97,9 @@
     {
       "id": "epic-daily-log-summaries",
       "phase": "Phase 7 — AI (Daily Logs)",
-      "description": "Teacher-facing 1-line daily log summaries per student/day (cheap model; separate from assignment summaries)",
+      "description": "Legacy entry_summaries per-entry log snippets. Removed; distinct from active classroom/day log_summaries.",
       "passes": true,
-      "verification": "Removed in #241 — feature was unused. Migration 032 drops entry_summaries table.",
+      "verification": "Removed in #241; migration 032 drops entry_summaries.",
       "issueRefs": ["#241"],
       "blockedBy": [],
       "addedDate": "2025-12-13",

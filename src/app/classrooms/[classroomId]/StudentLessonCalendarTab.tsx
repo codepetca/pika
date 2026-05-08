@@ -85,7 +85,7 @@ export function StudentLessonCalendarTab({
   }, [onNavigateToAnnouncements])
 
   // Prevent navigation beyond max date
-  const handleDateChange = (newDate: Date) => {
+  const handleDateChange = useCallback((newDate: Date) => {
     if (maxDate) {
       const newDateStr = format(startOfWeek(newDate, { weekStartsOn: 0 }), 'yyyy-MM-dd')
       if (newDateStr > maxDate) {
@@ -94,7 +94,27 @@ export function StudentLessonCalendarTab({
       }
     }
     setCurrentDate(newDate)
-  }
+  }, [maxDate])
+
+  const handlePreviousDate = useCallback(() => {
+    if (viewMode === 'week') {
+      handleDateChange(subWeeks(currentDate, 1))
+    } else if (viewMode === 'month') {
+      handleDateChange(subMonths(currentDate, 1))
+    }
+  }, [currentDate, handleDateChange, viewMode])
+
+  const handleNextDate = useCallback(() => {
+    if (viewMode === 'week') {
+      handleDateChange(addWeeks(currentDate, 1))
+    } else if (viewMode === 'month') {
+      handleDateChange(addMonths(currentDate, 1))
+    }
+  }, [currentDate, handleDateChange, viewMode])
+
+  const handleToday = useCallback(() => {
+    handleDateChange(new Date())
+  }, [handleDateChange])
 
   if (loading && lessonPlans.length === 0) {
     return (
@@ -115,24 +135,12 @@ export function StudentLessonCalendarTab({
         currentDate={currentDate}
         rangeStart={classroom.start_date}
         rangeEnd={classroom.end_date}
-        onPrev={() => {
-          if (viewMode === 'week') {
-            handleDateChange(subWeeks(currentDate, 1))
-          } else if (viewMode === 'month') {
-            handleDateChange(subMonths(currentDate, 1))
-          }
-        }}
-        onNext={() => {
-          if (viewMode === 'week') {
-            handleDateChange(addWeeks(currentDate, 1))
-          } else if (viewMode === 'month') {
-            handleDateChange(addMonths(currentDate, 1))
-          }
-        }}
-        onToday={() => handleDateChange(new Date())}
+        onPrev={handlePreviousDate}
+        onNext={handleNextDate}
+        onToday={handleToday}
         onViewModeChange={handleViewModeChange}
       />
-      <PageContent className="pt-2">
+      <PageContent className="pb-24 pt-2">
         <div className="overflow-hidden rounded-lg border border-border bg-surface">
           <LessonCalendar
             classroom={classroom}

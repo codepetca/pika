@@ -5,7 +5,9 @@ import { format } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button, SegmentedControl } from '@/ui'
 import { PageActionBar } from '@/components/PageLayout'
+import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import type { CalendarViewMode } from '@/components/LessonCalendar'
+import { cn } from '@/ui/utils'
 
 interface CalendarActionBarProps {
   viewMode: CalendarViewMode
@@ -32,7 +34,12 @@ interface CalendarDateNavigatorProps {
   className?: string
 }
 
-function getHeaderLabel(viewMode: CalendarViewMode, currentDate: Date, rangeStart?: string | null, rangeEnd?: string | null) {
+export function getCalendarHeaderLabel(
+  viewMode: CalendarViewMode,
+  currentDate: Date,
+  rangeStart?: string | null,
+  rangeEnd?: string | null,
+) {
   if (viewMode === 'week' || viewMode === 'month') {
     return format(currentDate, 'MMMM yyyy')
   }
@@ -74,13 +81,13 @@ export function CalendarDateNavigator({
         <button
           type="button"
           onClick={onLabelClick}
-          className="truncate rounded-control px-2 py-1 text-sm font-semibold text-text-default transition-colors hover:bg-surface-hover sm:text-base"
+          className="min-w-0 truncate rounded-control px-2 py-1 text-sm font-semibold text-text-default transition-colors hover:bg-surface-hover sm:text-base"
           aria-label={labelAriaLabel}
         >
           {label}
         </button>
       ) : (
-        <span className="truncate px-2 py-1 text-sm font-semibold text-text-default sm:text-base">
+        <span className="min-w-0 truncate px-2 py-1 text-sm font-semibold text-text-default sm:text-base">
           {label}
         </span>
       )}
@@ -113,50 +120,45 @@ export function CalendarActionBar({
   trailing,
   className = '',
 }: CalendarActionBarProps) {
-  const headerLabel = getHeaderLabel(viewMode, currentDate, rangeStart, rangeEnd)
+  const headerLabel = getCalendarHeaderLabel(viewMode, currentDate, rangeStart, rangeEnd)
 
   return (
     <PageActionBar
-      className={className}
+      className={cn('pb-14 sm:pb-2', className)}
       primary={
-        <div className="relative flex min-h-9 w-full items-center">
-          <CalendarDateNavigator
-            label={headerLabel}
-            onPrev={onPrev}
-            onNext={onNext}
-            onLabelClick={onToday}
-            showNavigation={viewMode !== 'all'}
-          />
-
-          <SegmentedControl<CalendarViewMode>
-            ariaLabel="Calendar view"
-            value={viewMode}
-            onChange={onViewModeChange}
-            capitalizeLabels
-            className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 sm:flex"
-            options={[
-              { value: 'week', label: 'Week' },
-              { value: 'month', label: 'Month' },
-              { value: 'all', label: 'All' },
-            ]}
-          />
-
-          <div className="ml-auto flex items-center gap-2 sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2">
-            <SegmentedControl<CalendarViewMode>
-              ariaLabel="Calendar view"
-              value={viewMode}
-              onChange={onViewModeChange}
-              capitalizeLabels
-              className="sm:hidden"
-              options={[
-                { value: 'week', label: 'Week' },
-                { value: 'month', label: 'Month' },
-                { value: 'all', label: 'All' },
-              ]}
+        <TeacherWorkSurfaceActionBar
+          label={
+            <CalendarDateNavigator
+              label={headerLabel}
+              onPrev={onPrev}
+              onNext={onNext}
+              onLabelClick={viewMode === 'all' ? undefined : onToday}
+              showNavigation={viewMode !== 'all'}
+              className="max-w-full"
             />
-            {trailing}
-          </div>
-        </div>
+          }
+          labelClassName="w-max"
+          centerClassName="top-[5.75rem] sm:top-[3.25rem]"
+          center={
+            <div className="flex max-w-full flex-col items-center justify-center gap-1.5">
+              <div className="flex max-w-full flex-wrap items-center justify-center gap-1.5">
+                <SegmentedControl<CalendarViewMode>
+                  ariaLabel="Calendar view"
+                  value={viewMode}
+                  onChange={onViewModeChange}
+                  capitalizeLabels
+                  options={[
+                    { value: 'week', label: 'Week' },
+                    { value: 'month', label: 'Month' },
+                    { value: 'all', label: 'All' },
+                  ]}
+                />
+                {trailing}
+              </div>
+            </div>
+          }
+          centerPlacement="floating"
+        />
       }
     />
   )

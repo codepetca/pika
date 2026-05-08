@@ -49,4 +49,60 @@
   .scrollbar-hover:focus-within::-webkit-scrollbar-track {
     background: transparent;
   }
+
+  .daily-table-enter {
+    animation: dailyTableEnter 140ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .daily-workspace-enter {
+    animation: dailyWorkspaceEnter 170ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .daily-inspector-enter {
+    animation: dailyInspectorEnter 190ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@keyframes dailyTableEnter {
+  from {
+    opacity: 0.82;
+    transform: translateY(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dailyWorkspaceEnter {
+  from {
+    opacity: 0.86;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dailyInspectorEnter {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daily-table-enter,
+  .daily-workspace-enter,
+  .daily-inspector-enter {
+    animation: none;
+  }
 }
