@@ -57,6 +57,7 @@ import {
 import {
   calculateAssignmentStatus,
   getAssignmentRubricState,
+  isAssignmentScheduledForFuture,
   isAssignmentAlreadyReturnedWithoutResubmission,
 } from '@/lib/assignments'
 import { useAssignmentGradingLayout } from '@/hooks/use-assignment-grading-layout'
@@ -66,7 +67,6 @@ import {
   parseAssignmentWorkspaceStudentId,
   type AssignmentWorkspaceMode,
 } from '@/lib/assignment-grading-layout'
-import { isVisibleAtNow } from '@/lib/scheduling'
 import type {
   Classroom,
   Assignment,
@@ -123,7 +123,7 @@ interface Props {
 }
 
 function isScheduledAssignment(assignment: Assignment): boolean {
-  return !assignment.is_draft && !!assignment.released_at && !isVisibleAtNow(assignment.released_at)
+  return isAssignmentScheduledForFuture(assignment)
 }
 
 function MetricBar({ value }: { value: number }) {

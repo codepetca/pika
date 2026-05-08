@@ -4,8 +4,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Trash2 } from 'lucide-react'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
-import { formatDueDate } from '@/lib/assignments'
-import { isVisibleAtNow } from '@/lib/scheduling'
+import { formatDueDate, isAssignmentScheduledForFuture } from '@/lib/assignments'
 import { Button, Tooltip } from '@/ui'
 import type { Assignment, AssignmentStats } from '@/types'
 
@@ -61,10 +60,7 @@ export function SortableAssignmentCard({
   }
 
   const isDraft = assignment.is_draft
-  const isScheduled =
-    !assignment.is_draft &&
-    !!assignment.released_at &&
-    !isVisibleAtNow(assignment.released_at)
+  const isScheduled = isAssignmentScheduledForFuture(assignment)
   const scheduledOpenLabel =
     isScheduled && assignment.released_at
       ? formatScheduledRelease(assignment.released_at)

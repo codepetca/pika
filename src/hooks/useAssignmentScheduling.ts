@@ -6,9 +6,9 @@ import {
   DEFAULT_SCHEDULE_TIME,
   getDefaultScheduleDateInSchedulingTimezone,
   isScheduleIsoInFuture,
-  isVisibleAtNow,
   parseScheduleIsoToParts,
 } from '@/lib/scheduling'
+import { isAssignmentLive, isAssignmentScheduledForFuture } from '@/lib/assignments'
 import type { Assignment } from '@/types'
 
 export type CreateSubmitAction = 'post' | 'schedule' | 'draft'
@@ -112,12 +112,8 @@ export function useAssignmentScheduling({
 
   // Derived status flags
   const isDraft = !currentAssignment || currentAssignment.is_draft
-  const isScheduled =
-    !!currentAssignment &&
-    !currentAssignment.is_draft &&
-    !!currentAssignment.released_at &&
-    !isVisibleAtNow(currentAssignment.released_at)
-  const isLive = !!currentAssignment && !currentAssignment.is_draft && !isScheduled
+  const isScheduled = !!currentAssignment && isAssignmentScheduledForFuture(currentAssignment)
+  const isLive = !!currentAssignment && isAssignmentLive(currentAssignment)
   const scheduleIso = scheduleDate ? combineScheduleDateTimeToIso(scheduleDate, scheduleTime) : ''
   const isScheduleValid = scheduleIso ? isScheduleIsoInFuture(scheduleIso) : false
   const effectivePrimaryAction: CreateSubmitAction = isScheduled ? 'schedule' : primaryAction
@@ -148,7 +144,7 @@ export function useAssignmentScheduling({
     setShowCreateScheduleModal(false)
     setReleasing(false)
 
-    if (assignment?.released_at && !isVisibleAtNow(assignment.released_at)) {
+    if (assignment?.released_at && isAssignmentScheduledForFuture(assignment)) {
       const scheduled = parseScheduleIsoToParts(assignment.released_at)
       setScheduleDate(scheduled.date)
       setScheduleTime(scheduled.time)
@@ -175,7 +171,7 @@ export function useAssignmentScheduling({
   }
 
   function syncScheduleInputsFromAssignment() {
-    if (currentAssignment?.released_at && !isVisibleAtNow(currentAssignment.released_at)) {
+    if (currentAssignment?.released_at && isAssignmentScheduledForFuture(currentAssignment)) {
       const parsed = parseScheduleIsoToParts(currentAssignment.released_at)
       setScheduleDate(parsed.date)
       setScheduleTime(parsed.time)

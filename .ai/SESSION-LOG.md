@@ -7,54 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-06 — Fix PR coverage gate
-
-**Completed:**
-- Investigated the failed GitHub CI run on the first PR commit.
-- Found the failure was a per-file coverage threshold miss for `src/app/api/teacher/log-summary/route.ts`.
-- Added route tests for classroom-not-found, entry-stats failure, and entry-count failure to cover the cron-only summary endpoint error branches.
-
-**Validation:**
-- `pnpm run test:coverage`
-- `pnpm lint`
-
-## 2026-05-06 — Restrict nightly log summaries to class days
-
-**Completed:**
-- Tightened `/api/cron/nightly-log-summaries` eligibility so AI summaries only run for unarchived classrooms with entries on yesterday, yesterday inside the classroom semester range, and an explicit `class_days.is_class_day = true` row.
-- Added a per-classroom eligibility recheck before the OpenAI call to keep the guard close to generation.
-- Added cron route tests for outside-semester and non-class-day cases and asserted they do not call OpenAI.
-
-**Validation:**
-- `pnpm vitest run tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm lint`
-- `pnpm test -- tests/api/cron/nightly-log-summaries.test.ts` (ran full suite: 251 files, 2110 tests)
-
-## 2026-05-06 — Fix cron coverage gate
-
-**Completed:**
-- Addressed the latest CI failure for `src/app/api/cron/nightly-log-summaries/route.ts` per-file coverage.
-- Added cron route tests for entry discovery errors, class-day discovery errors, and eligibility recheck skip paths.
-
-**Validation:**
-- `pnpm vitest run tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm run test:coverage`
-- `pnpm lint`
-
-## 2026-05-07 — Allow late assignment submissions with repo metadata
-
-**Completed:**
-- Fixed assignment submit validation so saved repo metadata counts as submittable work, matching the student editor's Submit button rule.
-- Made the student assignment editor flush pending repo URL/GitHub username edits before calling the submit endpoint.
-- Added regression coverage for a past-due repo-only assignment submission.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test -- tests/api/assignment-docs/submit.test.ts` (ran full suite: 251 files, 2119 tests)
-- `pnpm test -- tests/unit/assignments.test.ts` (ran full suite: 251 files, 2119 tests)
-- `pnpm lint`
-- `pnpm build`
-
 ## 2026-05-07 — Compact MC answer review
 
 **Completed:**
@@ -199,6 +151,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Completed:**
 - Added direct-identifier redaction for nightly student log summary prompts.
 - Built summary redaction maps from the full classroom roster plus entry authors.
+
+## 2026-05-08 — Skill progression evidence review
+
+**Completed:**
+- Reviewed startup guidance, recent session continuity, and the latest merged PRs/review notes to identify repeated engineering friction.
+- Anchored next-skill recommendations to concrete recent patterns: post-PR coverage gate fixes, multi-pass UI verification, UI/API invariant drift, privacy redaction gaps, and migration rollout compatibility work.
+
+**Validation:**
+- Reviewed `.ai/CURRENT.md`, `docs/ai-instructions.md`, `docs/dev-workflow.md`, `.ai/SESSION-LOG.md`
+- Reviewed GitHub PRs `#559` through `#565` plus PR review notes for `#561` and `#563`
 - Sent OpenAI summary requests with `store: false` and removed model-output snippets from parse errors.
 - Added prompt/payload regression coverage for roster names and common direct identifiers.
 
@@ -350,3 +312,43 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-log-summary-teacher-populated.png`
   - `/tmp/pika-log-summary-teacher-mobile.png`
   - `/tmp/pika-log-summary-student-mobile.png`
+
+## 2026-05-08 — Extract assignment lifecycle invariants
+
+**Completed:**
+- Added shared assignment release-state helpers for draft/live/scheduled visibility in `src/lib/assignments.ts`.
+- Moved student assignment visibility behind the shared helper while preserving the server import path.
+- Centralized future scheduled-release due-date validation and migrated assignment update/release routes plus scheduling UI callers.
+- Added release-state and future schedule validation tests, including malformed `released_at` fail-closed behavior.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/.codex/worktrees/53f9/pika bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/unit/assignments.test.ts tests/lib/assignment-schedule-validation.test.ts tests/api/assignment-docs/submit.test.ts tests/api/teacher/assignments-id.test.ts tests/api/teacher/assignments-draft.test.ts tests/components/AssignmentModal.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm vitest run tests/components/SortableAssignmentCard.test.tsx tests/components/TeacherClassroomView.test.tsx tests/api/student/assignments.test.ts tests/api/integration/assignment-draft-flow.test.ts tests/api/student/notifications.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+
+## 2026-05-08 — Open assignment invariant PR
+
+**Completed:**
+- Created branch `codex/assignment-lifecycle-invariants`.
+- Committed assignment lifecycle invariant extraction as `37cd562`.
+- Opened draft PR #570 and added `codex` plus `codex-automation` labels.
+- Posted a self-review comment with no blocking findings.
+
+**Validation:**
+- PR checks showed Vercel skipped by ignored build step, with preview comments passing.
+
+## 2026-05-08 — Unblock assignment invariant merge
+
+**Completed:**
+- Rebasing PR #570 onto `origin/main` exposed a CI branch-coverage failure in `src/lib/assignments.ts`.
+- Added focused release-state coverage for malformed comparison dates so the fail-safe `Date.now()` branch is exercised.
+- Kept the assignment lifecycle implementation behavior-preserving.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/.codex/worktrees/53f9/pika bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/unit/assignments.test.ts`
+- `pnpm run test:coverage`
+- `pnpm lint`

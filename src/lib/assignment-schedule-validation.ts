@@ -23,3 +23,18 @@ export function getScheduledReleaseDueDateError(releaseAt: DateLike, dueAt: Date
     ? null
     : ASSIGNMENT_SCHEDULE_DUE_DATE_ERROR
 }
+
+export function getFutureScheduledReleaseDueDateError(input: {
+  releaseAt: DateLike
+  dueAt: DateLike
+  now?: Date
+}): string | null {
+  const releaseTime = toValidTime(input.releaseAt)
+  const dueTime = toValidTime(input.dueAt)
+  const nowTime = toValidTime(input.now ?? new Date())
+
+  if (releaseTime === null || dueTime === null || nowTime === null) return null
+  if (releaseTime <= nowTime) return null
+
+  return releaseTime <= dueTime ? null : ASSIGNMENT_SCHEDULE_DUE_DATE_ERROR
+}
