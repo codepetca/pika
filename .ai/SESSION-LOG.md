@@ -7,20 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-07 — Allow late assignment submissions with repo metadata
-
-**Completed:**
-- Fixed assignment submit validation so saved repo metadata counts as submittable work, matching the student editor's Submit button rule.
-- Made the student assignment editor flush pending repo URL/GitHub username edits before calling the submit endpoint.
-- Added regression coverage for a past-due repo-only assignment submission.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test -- tests/api/assignment-docs/submit.test.ts` (ran full suite: 251 files, 2119 tests)
-- `pnpm test -- tests/unit/assignments.test.ts` (ran full suite: 251 files, 2119 tests)
-- `pnpm lint`
-- `pnpm build`
-
 ## 2026-05-07 — Compact MC answer review
 
 **Completed:**
@@ -353,3 +339,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Validation:**
 - PR checks showed Vercel skipped by ignored build step, with preview comments passing.
+
+## 2026-05-08 — Unblock assignment invariant merge
+
+**Completed:**
+- Rebasing PR #570 onto `origin/main` exposed a CI branch-coverage failure in `src/lib/assignments.ts`.
+- Added focused release-state coverage for malformed comparison dates so the fail-safe `Date.now()` branch is exercised.
+- Kept the assignment lifecycle implementation behavior-preserving.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/.codex/worktrees/53f9/pika bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/unit/assignments.test.ts`
+- `pnpm run test:coverage`
+- `pnpm lint`

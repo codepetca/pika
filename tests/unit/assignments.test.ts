@@ -473,6 +473,16 @@ describe('assignment utilities', () => {
       expect(isAssignmentLive(assignment, now)).toBe(false)
     })
 
+    it('falls back to current time when the comparison date is malformed', () => {
+      vi.setSystemTime(now)
+      const assignment = {
+        is_draft: false,
+        released_at: '2026-03-01T13:00:01.000Z',
+      }
+
+      expect(getAssignmentReleaseState(assignment, new Date('not-a-date'))).toBe('scheduled')
+    })
+
     it('fails closed for non-draft assignments with malformed release dates', () => {
       const assignment = {
         is_draft: false,
