@@ -80,6 +80,7 @@ export interface Classroom {
   actual_site_config: ActualCourseSiteConfig
   course_overview_markdown: string
   course_outline_markdown: string
+  codepetpal_enabled: boolean
   archived_at: string | null
   created_at: string
   updated_at: string

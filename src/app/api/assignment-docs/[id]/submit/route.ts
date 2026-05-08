@@ -6,6 +6,7 @@ import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import { analyzeAuthenticity } from '@/lib/authenticity'
 import { withErrorHandler } from '@/lib/api-handler'
+import { enqueueCodePetPalEvent } from '@/lib/codepetpal'
 import { hasAssignmentSubmissionContent } from '@/lib/assignments'
 import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 
@@ -105,6 +106,15 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
   if (doc) {
     doc.content = parseContentField(doc.content)
   }
+
+  await enqueueCodePetPalEvent(supabase, {
+    classroomId: assignment.classroom_id,
+    studentId: user.id,
+    eventType: 'assignment_submitted',
+    sourceId: existingDoc.id,
+    occurredAt: doc?.submitted_at || new Date().toISOString(),
+    payload: { source: 'pika' },
+  })
 
   try {
     await supabase.from('assignment_doc_history').insert({

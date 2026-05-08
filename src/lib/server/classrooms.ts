@@ -25,6 +25,7 @@ export function hydrateClassroomRecord(row: Record<string, any>): Classroom {
     ),
     course_overview_markdown: row.course_overview_markdown ?? '',
     course_outline_markdown: row.course_outline_markdown ?? '',
+    codepetpal_enabled: !!row.codepetpal_enabled,
   }
 }
 

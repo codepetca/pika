@@ -7,25 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-06 — Restore Daily class summary placement
-
-**Completed:**
-- Restored the cached class log summary in the deselected Daily state as a full-width panel below the full-width student log table.
-- Kept the selected-student state focused on the split table/history pane, with the class summary hidden until deselection.
-- Added regression coverage so the class summary remains visible in the deselected table state and disappears during student-history selection.
-
-**Validation:**
-- `pnpm exec vitest tests/components/TeacherAttendanceTab.test.tsx tests/api/teacher/log-summary.test.ts`
-- `pnpm lint && pnpm build`
-- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3002:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Targeted Daily class summary screenshots/check:
-  - `/tmp/pika-teacher-summary-restored.png`
-  - `/tmp/pika-teacher-daily-summary-selected.png`
-  - `/tmp/pika-teacher-daily-summary-deselected.png`
-
 ## 2026-05-06 — Fix PR coverage gate
 
 **Completed:**
@@ -348,3 +329,27 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Visual hover verification on port 3011:
   - `/tmp/pika-classrooms-toggle-active-tooltip.png`
   - `/tmp/pika-classrooms-toggle-archived-tooltip.png`
+
+## 2026-05-07 — Add CodePetPal v1 integration
+
+**Completed:**
+- Added the CodePetPal classroom opt-in migration and service-role-only delivery outbox.
+- Added server-side event enqueueing for first daily entries and assignment submissions with HMAC-pseudonymous IDs.
+- Added the guarded CodePetPal drain and student world lookup proxy routes.
+- Added the student floating companion widget shell and teacher settings opt-in card.
+- Updated architecture/project docs, feature inventory, and focused API/lib coverage.
+- Tightened `.ai/START-HERE.md` wording to keep the default startup docs under the repo budget after the new feature entry.
+- Migration file is committed for human application; no Supabase migration command was run.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm vitest run tests/lib/codepetpal.test.ts tests/api/student/entries.test.ts tests/api/assignment-docs/submit.test.ts`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `node scripts/features.mjs validate`
+- `pnpm build`
+- `pnpm test`
+- `pnpm e2e:auth`
+- Playwright visual verification on the branch dev server at `127.0.0.1:3000`:
+  - teacher classroom settings shows the CodePetPal opt-in card
+  - student classroom mobile view stays uncluttered while CodePetPal is disabled by default

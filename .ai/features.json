@@ -1,12 +1,12 @@
 {
   "meta": {
     "project": "pika",
-    "lastUpdated": "2026-04-26",
-    "phase": "Infrastructure — AI Effectiveness Layer",
+    "lastUpdated": "2026-05-07",
+    "phase": "Pika + CodePetPal companion integration",
     "DO_NOT_DELETE_FEATURES": "This inventory is APPEND-ONLY. Mark features as passing/failing, add new features, but NEVER DELETE FEATURES FROM THIS FILE. Deletion corrupts project history.",
     "deletionPolicy": "PROHIBITED",
-    "totalFeatures": 10,
-    "passing": 10,
+    "totalFeatures": 11,
+    "passing": 11,
     "failing": 0
   },
   "features": [
@@ -116,6 +116,17 @@
       "blockedBy": [],
       "addedDate": "2026-04-17",
       "completedDate": "2026-04-17"
+    },
+    {
+      "id": "epic-codepetpal-v1",
+      "phase": "Phase 9 — Companion Integration",
+      "description": "Classroom-level CodePetPal opt-in, pseudonymous event outbox, server-side world lookup proxy, and student companion widget",
+      "passes": true,
+      "verification": "Run: pnpm lint && pnpm build && pnpm test tests/lib/codepetpal.test.ts tests/api/student/entries.test.ts tests/api/assignment-docs/submit.test.ts",
+      "issueRefs": [],
+      "blockedBy": [],
+      "addedDate": "2026-05-07",
+      "completedDate": "2026-05-07"
     }
   ]
 }
