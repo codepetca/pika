@@ -7,26 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-08 — Shared gradebook status icons
-
-**Completed:**
-- Swapped gradebook inspector status symbols to the shared `AssessmentStatusIcon` component used by assignments/tests.
-- `Submitted` now uses the shared submitted circle instead of the returned/send symbol.
-- Submitted-late, missing, not-submitted, started, and resubmitted statuses keep compact labels with shared icon states.
-
-**Validation:**
-- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/components/AssessmentStatusIcon.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3003 pnpm e2e:auth`
-- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3003:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Targeted mocked-data captures for shared status icons:
-  - `/tmp/pika-gradebook-shared-status-icons-desktop.png`
-  - `/tmp/pika-gradebook-shared-status-icons-mobile.png`
-
 ## 2026-05-08 — Shared assessment status indicator mapping
 
 **Completed:**
@@ -261,6 +241,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Visual hover verification on port 3011:
   - `/tmp/pika-classrooms-toggle-active-tooltip.png`
   - `/tmp/pika-classrooms-toggle-archived-tooltip.png`
+
+## 2026-05-10 — Add student exam-mode e2e coverage
+
+**Completed:**
+- Added a focused Playwright flow for student test exam mode.
+- Seeds a unique active open-response test through existing teacher APIs against the shared seeded teacher/student classroom.
+- Verifies test start, transient window loss without lock, sustained window loss with content obscuring and interaction blocking, restoration, and open-response draft preservation after reload/restart.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm exec playwright test e2e/student-exam-mode.spec.ts`
+- `pnpm lint`
 
 ## 2026-05-08 — Add class log summary controls
 
