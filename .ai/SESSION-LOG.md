@@ -431,3 +431,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Targeted visual capture:
   - `/tmp/pika-test-action-menu-counts.png`
 - `pnpm build`
+
+## 2026-05-10 — Markdown-only test editor defaults
+
+**Completed:**
+- Made editable markdown-only test editor surfaces enter writable mode by default, including create-test Code view and existing-test Code view.
+- Removed the markdown `Copy` and `Schema` toolbar actions from `QuizDetailPanel`.
+- Removed the now-redundant `startMarkdownEditing` prop plumbing from the tests tab.
+- Updated focused component coverage for default editable markdown-only layout and absent copy/schema actions.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/QuizDetailPanel.test.tsx tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
+- Targeted visual capture:
+  - `/tmp/pika-test-edit-code.png`

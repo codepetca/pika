@@ -295,7 +295,6 @@ export function TeacherTestsTab({
   const [showModal, setShowModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [testEditModalView, setTestEditModalView] = useState<TestEditModalView>('edit')
-  const [startMarkdownEditingTestId, setStartMarkdownEditingTestId] = useState<string | null>(null)
   const [, setTestEditSaveStatus] = useState<TestEditSaveStatus>('saved')
   const [pendingDeleteTest, setPendingDeleteTest] = useState<QuizWithStats | null>(null)
   const [isDeletingTest, setIsDeletingTest] = useState(false)
@@ -1043,7 +1042,6 @@ export function TeacherTestsTab({
   }, [activeTestAiRun, clearBatchSelection, hasActiveTestAiRun, loadGradingRows, onTestGradingDataRefresh, showMessage])
 
   function handleOpenTest(test: QuizWithStats) {
-    setStartMarkdownEditingTestId(null)
     navigateTestWorkspace({ testId: test.id, mode: 'grading', studentId: null })
     setGradingError('')
     setGradingWarning('')
@@ -1054,7 +1052,6 @@ export function TeacherTestsTab({
   function handleEditTest(test: QuizWithStats) {
     handleOpenTest(test)
     setTestEditModalView('edit')
-    setStartMarkdownEditingTestId(null)
     setShowEditModal(true)
   }
 
@@ -1076,7 +1073,6 @@ export function TeacherTestsTab({
   }, [selectedTestId])
 
   function handleNewTest() {
-    setStartMarkdownEditingTestId(null)
     setShowModal(true)
   }
 
@@ -1094,7 +1090,6 @@ export function TeacherTestsTab({
     })
     navigateTestWorkspace({ testId: createdTest.id, mode: 'grading', studentId: null }, { replace: true })
     setTestEditModalView('markdown')
-    setStartMarkdownEditingTestId(createdTest.id)
     setShowEditModal(true)
     window.dispatchEvent(
       new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
@@ -1969,7 +1964,6 @@ export function TeacherTestsTab({
             </span>
           ),
           onSelect: () => {
-            setStartMarkdownEditingTestId(null)
             setTestEditModalView('edit')
             setHasPendingMarkdownImport(false)
             setShowEditModal(true)
@@ -2305,7 +2299,6 @@ export function TeacherTestsTab({
           setShowEditModal(false)
           setTestEditModalView('edit')
           setHasPendingMarkdownImport(false)
-          setStartMarkdownEditingTestId(null)
         }}
         ariaLabelledBy="test-edit-title"
         maxWidth="max-w-6xl"
@@ -2355,7 +2348,6 @@ export function TeacherTestsTab({
               setShowEditModal(false)
               setTestEditModalView('edit')
               setHasPendingMarkdownImport(false)
-              setStartMarkdownEditingTestId(null)
             }}
           >
             Close
@@ -2380,7 +2372,6 @@ export function TeacherTestsTab({
               onRequestTestPreview={handleOpenSavedTestPreview}
               showInlineDeleteAction={false}
               testQuestionLayout={testEditModalView === 'markdown' ? 'markdown-only' : 'editor-only'}
-              startMarkdownEditing={startMarkdownEditingTestId === selectedTestWorkspace.id}
               showPreviewButton={false}
               showResultsTab={false}
             />

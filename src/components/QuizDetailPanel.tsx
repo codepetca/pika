@@ -16,7 +16,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Check, ChevronDown, ChevronUp, Copy, ExternalLink, Plus, RotateCcw, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, ExternalLink, Plus, RotateCcw, X } from 'lucide-react'
 import { Button, EmptyState, SplitButton, Tooltip, cn } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { useRefRect } from '@/hooks/use-element-rect'
@@ -34,7 +34,7 @@ import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
-import { markdownToTest, testToMarkdown, TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown'
+import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
 import type {
   AssessmentEditorSummaryUpdate,
   JsonPatchOperation,
@@ -56,7 +56,6 @@ interface Props {
   onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
   showInlineDeleteAction?: boolean
   testQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only'
-  startMarkdownEditing?: boolean
   showPreviewButton?: boolean
   showResultsTab?: boolean
   previewRequestToken?: number
@@ -126,7 +125,6 @@ export function QuizDetailPanel({
   onSaveStatusChange,
   showInlineDeleteAction = true,
   testQuestionLayout = 'stacked',
-  startMarkdownEditing = false,
   showPreviewButton = true,
   showResultsTab,
   previewRequestToken = 0,
@@ -492,12 +490,12 @@ export function QuizDetailPanel({
   }, [currentTestMarkdown, isTestsView, markdownContent, markdownDirty])
 
   useEffect(() => {
-    if (!startMarkdownEditing || !isTestsView || !isMarkdownSurfaceEnabled || !isEditable) return
+    if (!usesMarkdownOnlyQuestions || !isEditable) return
 
     setIsMarkdownEditing(true)
     setMarkdownError('')
     setMarkdownInfo('')
-  }, [isEditable, isMarkdownSurfaceEnabled, isTestsView, quiz.id, startMarkdownEditing])
+  }, [isEditable, quiz.id, usesMarkdownOnlyQuestions])
 
   useEffect(() => {
     if (isMarkdownSurfaceEnabled) return
@@ -1217,31 +1215,11 @@ export function QuizDetailPanel({
 
   function handleUndoMarkdownChanges() {
     setMarkdownContent(currentTestMarkdown)
-    setIsMarkdownEditing(false)
+    setIsMarkdownEditing(usesMarkdownOnlyQuestions && isEditable)
     setMarkdownDirty(false)
     markdownDirtyRef.current = false
     setMarkdownError('')
     setMarkdownInfo('')
-  }
-
-  async function handleCopyMarkdown() {
-    try {
-      await navigator.clipboard.writeText(markdownContent)
-      setMarkdownError('')
-      setMarkdownInfo('Markdown copied to clipboard')
-    } catch {
-      setMarkdownError('Failed to copy markdown')
-    }
-  }
-
-  async function handleCopyMarkdownSchema() {
-    try {
-      await navigator.clipboard.writeText(TEST_MARKDOWN_AI_SCHEMA)
-      setMarkdownError('')
-      setMarkdownInfo('Markdown schema copied to clipboard')
-    } catch {
-      setMarkdownError('Failed to copy markdown schema')
-    }
   }
 
   async function handleApplyMarkdown() {
@@ -1311,7 +1289,7 @@ export function QuizDetailPanel({
     emitDraftSummaryChange(nextDraft)
     setMarkdownContent(nextDerivedMarkdown)
     savedMarkdownRef.current = nextDerivedMarkdown
-    setIsMarkdownEditing(false)
+    setIsMarkdownEditing(usesMarkdownOnlyQuestions && isEditable)
     setMarkdownDirty(false)
     markdownDirtyRef.current = false
     setMarkdownError('')
@@ -1407,31 +1385,7 @@ export function QuizDetailPanel({
           {markdownHelperStatus}
         </span>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              void handleCopyMarkdown()
-            }}
-            className="gap-1.5"
-          >
-            <Copy className="h-4 w-4" />
-            Copy
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              void handleCopyMarkdownSchema()
-            }}
-            className="gap-1.5"
-          >
-            <Copy className="h-4 w-4" />
-            Schema
-          </Button>
-          {!isMarkdownEditing ? (
+          {!usesMarkdownOnlyQuestions && !isMarkdownEditing ? (
             <Button
               type="button"
               variant="secondary"

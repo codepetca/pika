@@ -52,7 +52,6 @@ vi.mock('@/components/QuizDetailPanel', () => ({
     onRequestTestPreview,
     onDraftSummaryChange,
     onQuizUpdate,
-    startMarkdownEditing,
   }: {
     quiz: QuizWithStats
     testQuestionLayout?: string
@@ -71,7 +70,6 @@ vi.mock('@/components/QuizDetailPanel', () => ({
       show_results: boolean
       questions_count: number
     }) => void
-    startMarkdownEditing?: boolean
   }) => {
     const [pendingMarkdown, setPendingMarkdown] = useState(false)
 
@@ -81,7 +79,6 @@ vi.mock('@/components/QuizDetailPanel', () => ({
         data-question-layout={testQuestionLayout}
         data-show-preview={String(showPreviewButton)}
         data-show-results={String(showResultsTab)}
-        data-start-markdown-editing={String(startMarkdownEditing)}
       >
         Detail for {quiz.title}
         {showPreviewButton ? (
@@ -526,7 +523,6 @@ describe('TeacherTestsTab', () => {
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Created Test')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'markdown-only')
-    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-start-markdown-editing', 'true')
     expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Code' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
