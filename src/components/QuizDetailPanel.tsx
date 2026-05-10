@@ -56,6 +56,7 @@ interface Props {
   onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
   showInlineDeleteAction?: boolean
   testQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only'
+  startMarkdownEditing?: boolean
   showPreviewButton?: boolean
   showResultsTab?: boolean
   previewRequestToken?: number
@@ -125,6 +126,7 @@ export function QuizDetailPanel({
   onSaveStatusChange,
   showInlineDeleteAction = true,
   testQuestionLayout = 'stacked',
+  startMarkdownEditing = false,
   showPreviewButton = true,
   showResultsTab,
   previewRequestToken = 0,
@@ -488,6 +490,14 @@ export function QuizDetailPanel({
     }
     savedMarkdownRef.current = currentTestMarkdown
   }, [currentTestMarkdown, isTestsView, markdownContent, markdownDirty])
+
+  useEffect(() => {
+    if (!startMarkdownEditing || !isTestsView || !isMarkdownSurfaceEnabled || !isEditable) return
+
+    setIsMarkdownEditing(true)
+    setMarkdownError('')
+    setMarkdownInfo('')
+  }, [isEditable, isMarkdownSurfaceEnabled, isTestsView, quiz.id, startMarkdownEditing])
 
   useEffect(() => {
     if (isMarkdownSurfaceEnabled) return

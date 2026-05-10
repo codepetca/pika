@@ -647,7 +647,7 @@ describe('TeacherClassroomView', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'false')
+      expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
     })
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
   })
@@ -1011,11 +1011,69 @@ describe('TeacherClassroomView', () => {
     expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: /Return/i })).toHaveLength(1)
     expect(screen.getByTestId('assignment-workspace-actionbar-center').parentElement).toHaveClass('fixed')
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit assignment' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByRole('button', { name: 'Edit Assignment' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete Assignment' })).toBeInTheDocument()
 
-    expect(screen.getByRole('button', { name: 'Edit assignment' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Assignment' }))
+
+    expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment One')
+  })
+
+  it('deletes a selected assignment from the actions dropdown with confirmation', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1' && init?.method === 'DELETE') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1'),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Assignment' }))
+
+    expect(await screen.findByText('Delete assignment?')).toBeInTheDocument()
+    expect(screen.getByText(/Assignment One/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/teacher/assignments/assignment-1',
+        expect.objectContaining({ method: 'DELETE' }),
+      )
+    })
   })
 
   it('copies the active inspector grade to checked students after confirmation', async () => {

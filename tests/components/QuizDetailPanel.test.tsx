@@ -1639,6 +1639,54 @@ Correct Option: 2
       })
     })
 
+    it('starts the markdown-only layout in editable mode when requested', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Markdown Creation Test',
+                show_results: false,
+                questions: sampleQuestions,
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: {
+              documents: [],
+            },
+          }),
+        })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Markdown Creation Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="markdown-only"
+          startMarkdownEditing
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const textarea = await screen.findByTestId('test-markdown-editor')
+      expect(textarea).toHaveProperty('readOnly', false)
+      expect(screen.getByTestId('markdown-helper-status')).toHaveTextContent('Editing markdown')
+      expect(screen.queryByRole('button', { name: 'Edit Markdown' })).not.toBeInTheDocument()
+    })
+
     it('applies valid markdown and saves through draft endpoint', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       const onQuizUpdate = vi.fn()

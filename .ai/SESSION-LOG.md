@@ -328,3 +328,106 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm vitest run tests/api/student/entries.test.ts tests/components/StudentTodayTabHistory.test.tsx tests/unit/timezone.test.ts`
 - `pnpm test`
+## 2026-05-09 — Test markdown creation defaults
+
+**Completed:**
+- New teacher tests now open directly in the edit dialog's Code view after creation.
+- The created-test Code view starts with markdown editing enabled, so no separate `Edit Markdown` click is required.
+- Draft summary/title changes from markdown now patch the parent tests list state immediately and survive in-flight list refreshes.
+- Added an `Edit Test` option to the selected-test actions dropdown to open the edit modal from the grading workspace.
+- Removed the standalone selected-test pen toggle and later removed the selected-test `Manage Attempts` option plus its row-level attempt-delete mode.
+- Removed the standalone tests-list pen toggle; list reordering now lives behind the tests-list gear FAB, which toggles drag handles and card-level trash buttons.
+- Moved whole-test deletion to the tests-list gear mode as a trash icon on each test card, using the existing confirmation flow.
+- Changed the selected-test actions dropdown delete option to `Delete Selected`, targeting selected student test work only and disabled until one or more student rows are selected.
+- Added a confirmation dialog before selected-test `Open All`/batch-open access updates run.
+- Removed the standalone selected-assignment pen toggle from the grading workspace.
+- Added `Edit Assignment` and `Delete Assignment` to the selected-assignment actions dropdown, with assignment deletion using the existing confirmation flow.
+- Kept the selected-assignment actions dropdown accessible even when no students are selected; only the primary `AI Grade` action is disabled by empty selection.
+- Added focused component coverage for markdown-first creation, editable markdown-only layout startup, title propagation back to the tests list, selected-workspace edit-menu launch, gear-mode card reorder/delete controls, selected-student work deletion, access-open confirmation, and the absence of selected-workspace attempt-management controls.
+- Added focused component coverage for selected-assignment dropdown editing and deletion.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash scripts/verify-env.sh`
+- Visual verification:
+  - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
+  - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=assignments'`
+  - `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-created-test-code-view.png`
+  - `/tmp/pika-applied-title-list.png`
+  - `/tmp/pika-selected-test-actions-edit-test.png`
+  - `/tmp/pika-test-list-actions-reorder.png`
+  - `/tmp/pika-selected-test-actions-no-manage-attempts.png`
+  - `/tmp/pika-open-all-confirm.png`
+  - `/tmp/pika-delete-test-confirm.png`
+  - `/tmp/pika-test-list-settings-gear-delete.png`
+  - `/tmp/pika-selected-test-actions-delete-selected.png`
+  - `/tmp/pika-delete-selected-test-work-confirm.png`
+  - `/tmp/pika-selected-assignment-detail-after-wait.png`
+  - `/tmp/pika-selected-assignment-actions-delete-loaded.png`
+  - `/tmp/pika-delete-assignment-confirm.png`
+
+## 2026-05-09 — Daily log summary collapse
+
+**Completed:**
+- Removed the Daily tab floating action cluster show/hide button for the class log summary.
+- Changed the class log summary from hidden/shown to expanded/collapsed states.
+- Double-clicking the bottom summary panel collapses it to a 40px bar labeled `Log Summary`.
+- Double-clicking the collapsed bar restores the summary to the standard 180px height.
+- Preserved handle resizing, including dragging upward from the collapsed bar to reopen and resize the panel.
+- Added focused component coverage for double-click collapse/restore and drag-reopen behavior.
+
+**Validation:**
+- `pnpm test tests/components/TeacherAttendanceTab.test.tsx`
+- `pnpm lint`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance'`
+- Targeted visual captures:
+  - `/tmp/pika-daily-log-summary-collapsed.png`
+  - `/tmp/pika-daily-log-summary-drag-reopened.png`
+- `pnpm build`
+
+## 2026-05-10 — Submitted-aware test unsubmit action
+
+**Completed:**
+- Confirmed selected-student test-work deletion does not close/open student access; it deletes attempt data only and leaves `test_student_availability` unchanged.
+- Changed the selected-test `Unsubmit Selected` action to enable only when selected rows include submitted work.
+- Filtered batch unsubmit requests so mixed selections submit only the selected students whose work is currently submitted.
+- Added focused component coverage for disabled no-submitted selection and mixed-selection submitted-only unsubmit requests.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
+- Targeted visual captures:
+  - `/tmp/pika-unsubmit-disabled-no-submitted-selected.png`
+  - `/tmp/pika-unsubmit-enabled-submitted-selected.png`
+- `pnpm build`
+
+## 2026-05-10 — Test action menu counts
+
+**Completed:**
+- Added compact count badges to the selected-test dropdown items for `AI Grade`, `Unsubmit Selected`, `Return`, and `Delete Selected`.
+- Counts now reflect the current selected rows and action eligibility: selected rows for AI grading/deletion, submitted selected rows for unsubmit, and closed/returnable selected rows for return.
+- Added focused component assertions for the action menu count labels.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
+- Targeted visual capture:
+  - `/tmp/pika-test-action-menu-counts.png`
+- `pnpm build`
