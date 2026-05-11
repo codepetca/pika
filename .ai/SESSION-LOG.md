@@ -7,25 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-07 — Hide classroom view labels outside edit mode
-
-**Completed:**
-- Made the teacher classroom list Active/Archived segmented toggle icon-only until classroom edit mode is enabled.
-- Preserved accessible button names while the toggle is icon-only.
-- Added focused test coverage for the icon-only versus labeled edit-mode states.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Visual verification on port 3010:
-  - `/tmp/pika-classrooms-toggle-teacher-desktop.png`
-  - `/tmp/pika-classrooms-toggle-teacher-desktop-edit.png`
-  - `/tmp/pika-classrooms-toggle-teacher-mobile.png`
-  - `/tmp/pika-classrooms-toggle-teacher-mobile-edit.png`
-  - `/tmp/pika-classrooms-student-mobile.png`
-
 ## 2026-05-07 — Add classroom view toggle tooltips
 
 **Completed:**
@@ -371,3 +352,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `supabase db lint --local --schema public --fail-on error` (existing unrelated warning: `public.unsubmit_test_attempts_atomic` unused `p_updated_by`)
 - `pnpm build`
+
+## 2026-05-11 — Add Daily quick date buttons
+
+**Completed:**
+- Added icon-only Daily tab quick-jump buttons for `Last class` and `Today` around the existing date picker arrows.
+- Simplified the quick-jump icons to `UndoDot` for `Last class` and `CircleDot` for `Today`.
+- Reused the existing Toronto date and class-day helpers so `Last class` targets the most recent class day before today.
+- Added focused component coverage for moving from the last class date to today and back.
+- Refreshed the Toronto `today` value on focus/visibility/interval and in quick-jump handlers so open tabs do not keep stale quick-jump dates after midnight.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/daily-tab-quick-date-buttons bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherAttendanceTab.test.tsx`
+- `pnpm lint`
+- Added rollover coverage for `Today` and `Last class` quick jumps after the mocked Toronto date changes while the tab remains mounted.
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/daily-tab-quick-date-buttons bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance'`
+- `E2E_BASE_URL=http://localhost:3002 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/daily-tab-quick-date-buttons bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c4536d07-c76a-4a5b-a9c9-6340ed1678a9?tab=attendance'`
+- `E2E_BASE_URL=http://localhost:3003 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/daily-tab-quick-date-buttons bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c4536d07-c76a-4a5b-a9c9-6340ed1678a9?tab=attendance'`
+- Tooltip hover checks:
+  - `/tmp/pika-tooltip-last-class.png`
+  - `/tmp/pika-tooltip-today.png`

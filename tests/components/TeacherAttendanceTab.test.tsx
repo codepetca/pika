@@ -4,11 +4,24 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { TeacherAttendanceTab } from '@/app/classrooms/[classroomId]/TeacherAttendanceTab'
 import type { Classroom, Entry } from '@/types'
 
+const todayMock = vi.hoisted(() => ({
+  today: '2026-05-06',
+}))
+
 vi.mock('@/lib/timezone', () => ({
-  getTodayInToronto: () => '2026-05-06',
+  getTodayInToronto: () => todayMock.today,
 }))
 
 const classDaysMock = vi.hoisted(() => ({
+  defaultClassDays: [
+    {
+      id: 'day-1',
+      classroom_id: 'classroom-1',
+      date: '2026-05-05',
+      prompt_text: null,
+      is_class_day: true,
+    },
+  ],
   classDays: [
     {
       id: 'day-1',
@@ -124,6 +137,9 @@ function mockLogsFetch() {
 describe('TeacherAttendanceTab', () => {
   afterEach(() => {
     cleanup()
+    todayMock.today = '2026-05-06'
+    classDaysMock.classDays = [...classDaysMock.defaultClassDays]
+    classDaysMock.refresh.mockReset()
     vi.unstubAllGlobals()
   })
 
@@ -143,6 +159,72 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.queryByRole('button', { name: 'Show class log summary' })).not.toBeInTheDocument()
     expect(screen.getByRole('separator', { name: 'Resize class log summary' })).toBeInTheDocument()
     expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
+  })
+
+  it('moves quickly between today and the last class day from the date picker cluster', async () => {
+    const fetchMock = mockLogsFetch()
+    const onDateChange = vi.fn()
+
+    render(<TeacherAttendanceTab classroom={classroom} onDateChange={onDateChange} />)
+
+    await screen.findByRole('columnheader', { name: 'Log' })
+
+    const lastClassButton = screen.getByRole('button', { name: 'Go to last class' })
+    const todayButton = screen.getByRole('button', { name: 'Go to today' })
+    expect(lastClassButton).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Select attendance date' })).toHaveTextContent('Tue May 5')
+
+    fireEvent.click(todayButton)
+
+    await waitFor(() => {
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-06')
+    })
+    expect(screen.getByRole('button', { name: 'Select attendance date' })).toHaveTextContent('Wed May 6')
+
+    fireEvent.click(lastClassButton)
+
+    await waitFor(() => {
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-05')
+    })
+    expect(screen.getByRole('button', { name: 'Select attendance date' })).toHaveTextContent('Tue May 5')
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('uses the current Toronto date for quick jumps after a date rollover', async () => {
+    classDaysMock.classDays = [
+      ...classDaysMock.defaultClassDays,
+      {
+        id: 'day-2',
+        classroom_id: 'classroom-1',
+        date: '2026-05-06',
+        prompt_text: null,
+        is_class_day: true,
+      },
+    ]
+    const onDateChange = vi.fn()
+    mockLogsFetch()
+
+    render(<TeacherAttendanceTab classroom={classroom} onDateChange={onDateChange} />)
+
+    await screen.findByRole('columnheader', { name: 'Log' })
+    expect(screen.getByRole('button', { name: 'Select attendance date' })).toHaveTextContent('Tue May 5')
+
+    todayMock.today = '2026-05-07'
+    fireEvent.click(screen.getByRole('button', { name: 'Go to today' }))
+
+    await waitFor(() => {
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-07')
+    })
+    expect(screen.getByRole('button', { name: 'Select attendance date' })).toHaveTextContent('Thu May 7')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go to last class' }))
+
+    await waitFor(() => {
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-06')
+    })
+    expect(screen.getByRole('button', { name: 'Select attendance date' })).toHaveTextContent('Wed May 6')
   })
 
   it('collapses and restores the class log summary from a double click', async () => {
