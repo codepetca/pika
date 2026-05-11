@@ -7,102 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-06 — Simplify Syllabus tab embed
-
-**Completed:**
-- Removed the published-state top Course site/Syllabus card from teacher and student Syllabus tabs.
-- Published Syllabus now opens directly to the embedded in-Pika course syllabus frame.
-- Kept unpublished teacher/student fallback states so teachers can still reach Course Website Settings when there is no published site.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/components/ResourcesTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-
-## 2026-05-06 — Fill Syllabus main content frame
-
-**Completed:**
-- Updated teacher and student Syllabus tabs so the published embed container fills the available main content width and height instead of using a centered max-width wrapper.
-- Preserved stable mobile height for the iframe so the course syllabus remains usable inside the classroom shell.
-
-**Validation:**
-- `pnpm test tests/components/ResourcesTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-
-## 2026-05-07 — Strip Syllabus framing and simplify generated content
-
-**Completed:**
-- Removed the published Syllabus iframe wrapper/card from teacher and student classroom tabs so the iframe renders directly in the main content area.
-- Simplified `/actual/[slug]` by removing the Grading summary, Resources section, and Current Lesson Sequence.
-- Reduced Classwork rows to assignment title plus approximate course weight only.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/components/ResourcesTab.test.tsx tests/lib/server/course-sites.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Standalone syllabus screenshots:
-  - `/tmp/pika-actual-syllabus.png`
-  - `/tmp/pika-actual-syllabus-mobile.png`
-
-## 2026-05-07 — Match actual syllabus to blueprint-style overview
-
-**Completed:**
-- Confirmed the in-Pika course overview comes from `classrooms.course_overview_markdown`, which is seeded from `course_blueprints.overview_markdown` when a classroom is created from a blueprint and then editable per classroom in Settings.
-- Reworked `/actual/[slug]` into a simplified syllabus page with header, Course Overview when present, optional Test Docs, and one Assignments list using A/Q/T labels plus course-weight percentages.
-- Removed the unused Resources publish toggle from Public Syllabus settings and renamed remaining teacher/student-facing course-site labels to syllabus language.
-
-**Validation:**
-- `pnpm test tests/components/ResourcesTab.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/lib/server/course-sites.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms-id.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `git diff --check`
-- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Settings screenshot for Public Syllabus labels:
-  - `/tmp/pika-settings-teacher-full.png`
-
-## 2026-05-07 — Harden student log summary privacy
-
-**Completed:**
-- Added direct-identifier redaction for nightly student log summary prompts.
-- Built summary redaction maps from the full classroom roster plus entry authors.
-
-## 2026-05-08 — Skill progression evidence review
-
-**Completed:**
-- Reviewed startup guidance, recent session continuity, and the latest merged PRs/review notes to identify repeated engineering friction.
-- Anchored next-skill recommendations to concrete recent patterns: post-PR coverage gate fixes, multi-pass UI verification, UI/API invariant drift, privacy redaction gaps, and migration rollout compatibility work.
-
-**Validation:**
-- Reviewed `.ai/CURRENT.md`, `docs/ai-instructions.md`, `docs/dev-workflow.md`, `.ai/SESSION-LOG.md`
-- Reviewed GitHub PRs `#559` through `#565` plus PR review notes for `#561` and `#563`
-- Sent OpenAI summary requests with `store: false` and removed model-output snippets from parse errors.
-- Added prompt/payload regression coverage for roster names and common direct identifiers.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/student-log-summary-privacy bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec vitest tests/unit/log-summary.test.ts tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-05-06 — Center floating action cluster in shell content
 
 **Completed:**
@@ -328,6 +232,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm vitest run tests/api/student/entries.test.ts tests/components/StudentTodayTabHistory.test.tsx tests/unit/timezone.test.ts`
 - `pnpm test`
+
 ## 2026-05-09 — Test markdown creation defaults
 
 **Completed:**
@@ -449,3 +354,11 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
 - Targeted visual capture:
   - `/tmp/pika-test-edit-code.png`
+
+## 2026-05-11 — Trim session log for CI
+
+**Completed:**
+- Trimmed the rolling session log after PR work so it stays within the enforced 20-entry budget.
+
+**Validation:**
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
