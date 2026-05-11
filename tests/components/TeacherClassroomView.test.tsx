@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TeacherClassroomView } from '@/app/classrooms/[classroomId]/TeacherClassroomView'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
-import type { Classroom } from '@/types'
+import type { Classroom, ClassworkMaterial } from '@/types'
 
 const mockFetchJSONWithCache = vi.fn()
 const mockInvalidateCachedJSON = vi.fn()
@@ -34,7 +34,23 @@ vi.mock('@dnd-kit/sortable', () => ({
   arrayMove: vi.fn((items) => items),
   SortableContext: ({ children }: any) => <div>{children}</div>,
   sortableKeyboardCoordinates: vi.fn(),
+  useSortable: vi.fn(() => ({
+    attributes: {},
+    listeners: {},
+    setNodeRef: vi.fn(),
+    transform: null,
+    transition: undefined,
+    isDragging: false,
+  })),
   verticalListSortingStrategy: vi.fn(),
+}))
+
+vi.mock('@dnd-kit/utilities', () => ({
+  CSS: {
+    Transform: {
+      toString: vi.fn(() => undefined),
+    },
+  },
 }))
 
 vi.mock('@/ui', () => ({
@@ -278,6 +294,11 @@ vi.mock('@/lib/assignments', () => ({
     if (!doc.is_submitted || !doc.submitted_at) return true
     return new Date(doc.submitted_at).getTime() <= returnedAt
   }),
+  isAssignmentScheduledForFuture: vi.fn((assignment: any) => (
+    !assignment.is_draft &&
+    !!assignment.released_at &&
+    !mockIsVisibleAtNow(assignment.released_at)
+  )),
   getAssignmentStatusIconClass: vi.fn(() => ''),
   getAssignmentStatusLabel: vi.fn(() => 'Submitted'),
   hasDraftSavedGrade: vi.fn(() => false),
@@ -363,6 +384,22 @@ function makeAssignmentSummary(id: string, title: string, overrides: Record<stri
     created_at: '2026-04-01T12:00:00Z',
     updated_at: '2026-04-01T12:00:00Z',
     stats: { total_students: 1, submitted: 1, late: 0 },
+    ...overrides,
+  }
+}
+
+function makeMaterialSummary(id: string, title: string, overrides: Partial<ClassworkMaterial> = {}): ClassworkMaterial {
+  return {
+    id,
+    classroom_id: classroom.id,
+    title,
+    content: { type: 'doc', content: [] },
+    is_draft: false,
+    released_at: '2026-04-10T12:00:00Z',
+    position: 0,
+    created_by: 'teacher-1',
+    created_at: '2026-04-01T12:00:00Z',
+    updated_at: '2026-04-01T12:00:00Z',
     ...overrides,
   }
 }
@@ -563,6 +600,42 @@ describe('TeacherClassroomView', () => {
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
   })
 
+  it('renders materials and assignments in shared order and gives materials a drag handle in edit mode', async () => {
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return Promise.resolve({
+          assignments: [
+            makeAssignmentSummary('assignment-1', 'Assignment One', { position: 2 }),
+          ],
+        })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({
+          materials: [
+            makeMaterialSummary('material-1', 'Opening Reading', { position: 1 }),
+          ],
+        })
+      }
+      if (key === `class-days:${classroom.id}`) {
+        return Promise.resolve({ class_days: [] })
+      }
+      return fetcher()
+    })
+
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+
+    const materialButton = await screen.findByRole('button', { name: 'Open Opening Reading' })
+    const assignmentButton = screen.getByRole('button', { name: 'Assignment One' })
+    expect(
+      materialButton.compareDocumentPosition(assignmentButton) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByRole('button', { name: 'Drag to reorder material' })).toBeInTheDocument()
+    expect(materialButton.querySelector('.border-l-2')).not.toBeInTheDocument()
+    expect(materialButton.closest('.bg-info-bg')).not.toHaveClass('border-primary/40')
+  })
+
   it('exits assignment edit mode when the create assignment modal closes', async () => {
     const onEditModeChange = vi.fn()
 
@@ -642,7 +715,7 @@ describe('TeacherClassroomView', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'false')
+      expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
     })
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
   })
@@ -1006,11 +1079,69 @@ describe('TeacherClassroomView', () => {
     expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: /Return/i })).toHaveLength(1)
     expect(screen.getByTestId('assignment-workspace-actionbar-center').parentElement).toHaveClass('fixed')
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit assignment' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByRole('button', { name: 'Edit Assignment' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete Assignment' })).toBeInTheDocument()
 
-    expect(screen.getByRole('button', { name: 'Edit assignment' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Assignment' }))
+
+    expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment One')
+  })
+
+  it('deletes a selected assignment from the actions dropdown with confirmation', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1' && init?.method === 'DELETE') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1'),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Assignment' }))
+
+    expect(await screen.findByText('Delete assignment?')).toBeInTheDocument()
+    expect(screen.getByText(/Assignment One/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/teacher/assignments/assignment-1',
+        expect.objectContaining({ method: 'DELETE' }),
+      )
+    })
   })
 
   it('copies the active inspector grade to checked students after confirmation', async () => {

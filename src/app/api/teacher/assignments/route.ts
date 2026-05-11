@@ -10,6 +10,16 @@ import { isMissingAssignmentTeacherClearedAtColumnError } from '@/lib/server/ass
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+function isMissingClassworkMaterialPositionError(error: any) {
+  const message = String(error?.message || '')
+  return (
+    error?.code === 'PGRST205' ||
+    error?.code === 'PGRST204' ||
+    message.includes('classwork_materials') ||
+    (message.includes('position') && message.includes('schema cache'))
+  )
+}
+
 // GET /api/teacher/assignments?classroom_id=xxx - List assignments for a classroom
 export const GET = withErrorHandler('GetTeacherAssignments', async (request, context) => {
   const user = await requireRole('teacher')
@@ -132,16 +142,41 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
 
   const supabase = getServiceRoleClient()
 
-  const lastAssignmentResult = await supabase
-    .from('assignments')
-    .select('position')
-    .eq('classroom_id', classroom_id)
-    .order('position', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const [lastAssignmentResult, lastMaterialResult] = await Promise.all([
+    supabase
+      .from('assignments')
+      .select('position')
+      .eq('classroom_id', classroom_id)
+      .order('position', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('classwork_materials')
+      .select('position')
+      .eq('classroom_id', classroom_id)
+      .order('position', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
 
-  const nextPosition =
-    typeof lastAssignmentResult.data?.position === 'number' ? lastAssignmentResult.data.position + 1 : 0
+  const lastAssignmentPosition =
+    typeof lastAssignmentResult.data?.position === 'number' ? lastAssignmentResult.data.position : -1
+  const lastMaterialPosition =
+    !lastMaterialResult.error && typeof lastMaterialResult.data?.position === 'number'
+      ? lastMaterialResult.data.position
+      : -1
+
+  if (lastAssignmentResult.error) {
+    console.error('Error fetching last assignment position:', lastAssignmentResult.error)
+    return NextResponse.json({ error: 'Failed to create assignment' }, { status: 500 })
+  }
+
+  if (lastMaterialResult.error && !isMissingClassworkMaterialPositionError(lastMaterialResult.error)) {
+    console.error('Error fetching last material position:', lastMaterialResult.error)
+    return NextResponse.json({ error: 'Failed to create assignment' }, { status: 500 })
+  }
+
+  const nextPosition = Math.max(lastAssignmentPosition, lastMaterialPosition) + 1
 
   const instructionFields = buildAssignmentInstructionFields(
     typeof instructions_markdown === 'string'
@@ -163,7 +198,9 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
     track_authenticity: true,
   }
 
-  if (!lastAssignmentResult.error) {
+  if (isMissingClassworkMaterialPositionError(lastMaterialResult.error)) {
+    insertBody.position = lastAssignmentPosition + 1
+  } else {
     insertBody.position = nextPosition
   }
 

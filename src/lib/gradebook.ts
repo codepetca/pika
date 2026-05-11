@@ -1,6 +1,7 @@
 export interface GradebookCategoryInput {
   earned: number
   possible: number
+  weight?: number
 }
 
 export interface GradebookCalculationInput {
@@ -28,9 +29,23 @@ function toPercent(rows: GradebookCategoryInput[]): number | null {
   const valid = rows.filter((row) => row.possible > 0 && row.earned >= 0)
   if (valid.length === 0) return null
 
+  const weightTotal = valid.reduce((sum, row) => {
+    const weight = row.weight == null ? row.possible : row.weight
+    return sum + (Number.isFinite(weight) && weight > 0 ? weight : 0)
+  }, 0)
+
+  if (weightTotal > 0) {
+    const weighted = valid.reduce((sum, row) => {
+      const weight = row.weight == null ? row.possible : row.weight
+      if (!Number.isFinite(weight) || weight <= 0) return sum
+      return sum + (row.earned / row.possible) * 100 * weight
+    }, 0)
+
+    return round2(weighted / weightTotal)
+  }
+
   const earned = valid.reduce((sum, row) => sum + row.earned, 0)
   const possible = valid.reduce((sum, row) => sum + row.possible, 0)
-
   if (possible <= 0) return null
   return round2((earned / possible) * 100)
 }

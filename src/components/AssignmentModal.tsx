@@ -12,9 +12,10 @@ import { format, isValid, parse } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
 import { useAssignmentDateValidation } from '@/hooks/useAssignmentDateValidation'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
-import { DEFAULT_SCHEDULE_TIME, getDefaultScheduleDateInSchedulingTimezone, getTodayInSchedulingTimezone, isVisibleAtNow, parseScheduleIsoToParts } from '@/lib/scheduling'
+import { DEFAULT_SCHEDULE_TIME, getDefaultScheduleDateInSchedulingTimezone, getTodayInSchedulingTimezone, parseScheduleIsoToParts } from '@/lib/scheduling'
 import { useAssignmentScheduling, type CreateSubmitAction } from '@/hooks/useAssignmentScheduling'
-import { getScheduledReleaseDueDateError } from '@/lib/assignment-schedule-validation'
+import { getFutureScheduledReleaseDueDateError } from '@/lib/assignment-schedule-validation'
+import { isAssignmentScheduledForFuture } from '@/lib/assignments'
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
@@ -49,11 +50,11 @@ function getScheduledAssignmentDueDateValidationMessage(
 ): string | null {
   if (!assignment || assignment.is_draft || !assignment.released_at || !dueAt) return null
 
-  const releaseDate = new Date(assignment.released_at)
-  if (Number.isNaN(releaseDate.getTime()) || releaseDate <= new Date()) return null
-
   try {
-    return getScheduledReleaseDueDateError(releaseDate, toTorontoEndOfDayIso(dueAt))
+    return getFutureScheduledReleaseDueDateError({
+      releaseAt: assignment.released_at,
+      dueAt: toTorontoEndOfDayIso(dueAt),
+    })
   } catch {
     return null
   }
@@ -71,7 +72,10 @@ function getScheduleDueDateValidationMessage(scheduleIso: string, dueAt: string,
   if (!scheduleIso || !dueAt || !isScheduleValid) return null
 
   try {
-    return getScheduledReleaseDueDateError(scheduleIso, toTorontoEndOfDayIso(dueAt))
+    return getFutureScheduledReleaseDueDateError({
+      releaseAt: scheduleIso,
+      dueAt: toTorontoEndOfDayIso(dueAt),
+    })
   } catch {
     return null
   }
@@ -191,7 +195,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           : null
       )
       setDueAt(nextDueAt)
-      if (assignment.released_at && !isVisibleAtNow(assignment.released_at)) {
+      if (assignment.released_at && isAssignmentScheduledForFuture(assignment)) {
         const scheduled = parseScheduleIsoToParts(assignment.released_at)
         setScheduleDate(scheduled.date)
         setScheduleTime(scheduled.time)

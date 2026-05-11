@@ -4,11 +4,24 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { TeacherAttendanceTab } from '@/app/classrooms/[classroomId]/TeacherAttendanceTab'
 import type { Classroom, Entry } from '@/types'
 
+const todayMock = vi.hoisted(() => ({
+  today: '2026-05-06',
+}))
+
 vi.mock('@/lib/timezone', () => ({
-  getTodayInToronto: () => '2026-05-06',
+  getTodayInToronto: () => todayMock.today,
 }))
 
 const classDaysMock = vi.hoisted(() => ({
+  defaultClassDays: [
+    {
+      id: 'day-1',
+      classroom_id: 'classroom-1',
+      date: '2026-05-05',
+      prompt_text: null,
+      is_class_day: true,
+    },
+  ],
   classDays: [
     {
       id: 'day-1',
@@ -124,6 +137,9 @@ function mockLogsFetch() {
 describe('TeacherAttendanceTab', () => {
   afterEach(() => {
     cleanup()
+    todayMock.today = '2026-05-06'
+    classDaysMock.classDays = [...classDaysMock.defaultClassDays]
+    classDaysMock.refresh.mockReset()
     vi.unstubAllGlobals()
   })
 
@@ -139,7 +155,145 @@ describe('TeacherAttendanceTab', () => {
     expect(logText).toHaveAttribute('title', longLogText)
     expect(screen.getByText('Class Log Summary')).toBeInTheDocument()
     expect(screen.getByTestId('class-log-summary')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Hide class log summary' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Show class log summary' })).not.toBeInTheDocument()
+    expect(screen.getByRole('separator', { name: 'Resize class log summary' })).toBeInTheDocument()
     expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
+  })
+
+  it('moves quickly between today and the last class day from the date picker cluster', async () => {
+    const fetchMock = mockLogsFetch()
+    const onDateChange = vi.fn()
+
+    render(<TeacherAttendanceTab classroom={classroom} onDateChange={onDateChange} />)
+
+    await screen.findByRole('columnheader', { name: 'Log' })
+
+    const lastClassButton = screen.getByRole('button', { name: 'Go to last class' })
+    const todayButton = screen.getByRole('button', { name: 'Go to today' })
+    expect(lastClassButton).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Select attendance date' })).toHaveTextContent('Tue May 5')
+
+    fireEvent.click(todayButton)
+
+    await waitFor(() => {
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-06')
+    })
+    expect(screen.getByRole('button', { name: 'Select attendance date' })).toHaveTextContent('Wed May 6')
+
+    fireEvent.click(lastClassButton)
+
+    await waitFor(() => {
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-05')
+    })
+    expect(screen.getByRole('button', { name: 'Select attendance date' })).toHaveTextContent('Tue May 5')
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('uses the current Toronto date for quick jumps after a date rollover', async () => {
+    classDaysMock.classDays = [
+      ...classDaysMock.defaultClassDays,
+      {
+        id: 'day-2',
+        classroom_id: 'classroom-1',
+        date: '2026-05-06',
+        prompt_text: null,
+        is_class_day: true,
+      },
+    ]
+    const onDateChange = vi.fn()
+    mockLogsFetch()
+
+    render(<TeacherAttendanceTab classroom={classroom} onDateChange={onDateChange} />)
+
+    await screen.findByRole('columnheader', { name: 'Log' })
+    expect(screen.getByRole('button', { name: 'Select attendance date' })).toHaveTextContent('Tue May 5')
+
+    todayMock.today = '2026-05-07'
+    fireEvent.click(screen.getByRole('button', { name: 'Go to today' }))
+
+    await waitFor(() => {
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-07')
+    })
+    expect(screen.getByRole('button', { name: 'Select attendance date' })).toHaveTextContent('Thu May 7')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go to last class' }))
+
+    await waitFor(() => {
+      expect(onDateChange).toHaveBeenLastCalledWith('2026-05-06')
+    })
+    expect(screen.getByRole('button', { name: 'Select attendance date' })).toHaveTextContent('Wed May 6')
+  })
+
+  it('collapses and restores the class log summary from a double click', async () => {
+    mockLogsFetch()
+
+    render(<TeacherAttendanceTab classroom={classroom} />)
+
+    const panel = await screen.findByRole('region', { name: 'Class Log Summary' })
+    expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
+    expect(panel).toHaveStyle({ height: '180px' })
+    expect(panel).toHaveAttribute('data-state', 'expanded')
+
+    fireEvent.doubleClick(panel)
+
+    expect(screen.queryByTestId('class-log-summary')).not.toBeInTheDocument()
+    expect(panel).toHaveStyle({ height: '40px' })
+    expect(panel).toHaveAttribute('data-state', 'collapsed')
+    expect(screen.getByText('Log Summary')).toBeInTheDocument()
+
+    fireEvent.doubleClick(panel)
+
+    expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
+    expect(panel).toHaveStyle({ height: '180px' })
+    expect(panel).toHaveAttribute('data-state', 'expanded')
+  })
+
+  it('resizes the class log summary card from the handle with keyboard controls', async () => {
+    mockLogsFetch()
+
+    render(<TeacherAttendanceTab classroom={classroom} />)
+
+    const panel = await screen.findByRole('region', { name: 'Class Log Summary' })
+    const separator = screen.getByRole('separator', { name: 'Resize class log summary' })
+
+    expect(panel).toHaveStyle({ height: '180px' })
+    expect(separator).toHaveClass('cursor-ns-resize')
+
+    fireEvent.keyDown(separator, { key: 'ArrowUp' })
+    expect(panel).toHaveStyle({ height: '212px' })
+
+    fireEvent.keyDown(separator, { key: 'ArrowDown' })
+    expect(panel).toHaveStyle({ height: '180px' })
+
+    fireEvent.keyDown(separator, { key: 'ArrowUp' })
+    fireEvent.keyDown(separator, { key: 'Enter' })
+    expect(panel).toHaveStyle({ height: '180px' })
+  })
+
+  it('reopens the collapsed class log summary by dragging the handle upward', async () => {
+    mockLogsFetch()
+
+    render(<TeacherAttendanceTab classroom={classroom} />)
+
+    const panel = await screen.findByRole('region', { name: 'Class Log Summary' })
+
+    fireEvent.doubleClick(panel)
+    expect(panel).toHaveStyle({ height: '40px' })
+    expect(panel).toHaveAttribute('data-state', 'collapsed')
+
+    fireEvent(
+      screen.getByRole('separator', { name: 'Resize class log summary' }),
+      new MouseEvent('pointerdown', { clientY: 300, bubbles: true })
+    )
+    window.dispatchEvent(new MouseEvent('pointermove', { clientY: 90, bubbles: true }))
+    window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }))
+
+    expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
+    expect(panel).toHaveStyle({ height: '250px' })
+    expect(panel).toHaveAttribute('data-state', 'expanded')
   })
 
   it('returns to the full-width log table after deselecting a selected student', async () => {

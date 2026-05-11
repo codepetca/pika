@@ -275,6 +275,20 @@ describe('POST /api/teacher/assignments', () => {
         }
       }
 
+      if (table === 'classwork_materials') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: { position: 2 }, error: null }),
+                })),
+              })),
+            })),
+          })),
+        }
+      }
+
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -289,5 +303,55 @@ describe('POST /api/teacher/assignments', () => {
 
     const response = await POST(request)
     expect(response.status).toBe(201)
+  })
+
+  it('fails assignment creation when mixed order lookup has an unexpected error', async () => {
+    const insert = vi.fn()
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: { position: 1 }, error: null }),
+                })),
+              })),
+            })),
+          })),
+          insert,
+        }
+      }
+
+      if (table === 'classwork_materials') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: { message: 'database unavailable' } }),
+                })),
+              })),
+            })),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments', {
+      method: 'POST',
+      body: JSON.stringify({
+        classroom_id: 'c1',
+        title: 'Essay Draft',
+        due_at: '2026-03-20T23:59:59.000Z',
+      }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(500)
+    expect(insert).not.toHaveBeenCalled()
   })
 })

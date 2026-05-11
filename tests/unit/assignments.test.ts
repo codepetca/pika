@@ -12,9 +12,13 @@ import {
   getAssignmentStatusIconClass,
   getAssignmentRubricState,
   getAssignmentFullReturnAt,
+  getAssignmentReleaseState,
   hasDraftSavedGrade,
   isAssignmentAlreadyReturnedWithoutResubmission,
+  isAssignmentLive,
   isAssignmentReturnable,
+  isAssignmentScheduledForFuture,
+  isAssignmentVisibleToStudents,
   hasAssignmentSubmissionContent,
   formatDueDate,
   isPastDue,
@@ -415,6 +419,80 @@ describe('assignment utilities', () => {
         repo_url: '   ',
         github_username: null,
       })).toBe(false)
+    })
+  })
+
+  describe('assignment release state', () => {
+    const now = new Date('2026-03-01T13:00:00.000Z')
+
+    it('treats draft assignments as hidden regardless of release date', () => {
+      const assignment = {
+        is_draft: true,
+        released_at: '2026-03-02T13:00:00.000Z',
+      }
+
+      expect(getAssignmentReleaseState(assignment, now)).toBe('draft')
+      expect(isAssignmentVisibleToStudents(assignment, now)).toBe(false)
+      expect(isAssignmentScheduledForFuture(assignment, now)).toBe(false)
+      expect(isAssignmentLive(assignment, now)).toBe(false)
+    })
+
+    it('treats non-draft assignments with no release date as live', () => {
+      const assignment = {
+        is_draft: false,
+        released_at: null,
+      }
+
+      expect(getAssignmentReleaseState(assignment, now)).toBe('live')
+      expect(isAssignmentVisibleToStudents(assignment, now)).toBe(true)
+      expect(isAssignmentScheduledForFuture(assignment, now)).toBe(false)
+      expect(isAssignmentLive(assignment, now)).toBe(true)
+    })
+
+    it('treats non-draft assignments with a past release date as live', () => {
+      const assignment = {
+        is_draft: false,
+        released_at: '2026-03-01T12:59:59.000Z',
+      }
+
+      expect(getAssignmentReleaseState(assignment, now)).toBe('live')
+      expect(isAssignmentVisibleToStudents(assignment, now)).toBe(true)
+      expect(isAssignmentScheduledForFuture(assignment, now)).toBe(false)
+      expect(isAssignmentLive(assignment, now)).toBe(true)
+    })
+
+    it('treats non-draft assignments with a future release date as scheduled', () => {
+      const assignment = {
+        is_draft: false,
+        released_at: '2026-03-01T13:00:01.000Z',
+      }
+
+      expect(getAssignmentReleaseState(assignment, now)).toBe('scheduled')
+      expect(isAssignmentVisibleToStudents(assignment, now)).toBe(false)
+      expect(isAssignmentScheduledForFuture(assignment, now)).toBe(true)
+      expect(isAssignmentLive(assignment, now)).toBe(false)
+    })
+
+    it('falls back to current time when the comparison date is malformed', () => {
+      vi.setSystemTime(now)
+      const assignment = {
+        is_draft: false,
+        released_at: '2026-03-01T13:00:01.000Z',
+      }
+
+      expect(getAssignmentReleaseState(assignment, new Date('not-a-date'))).toBe('scheduled')
+    })
+
+    it('fails closed for non-draft assignments with malformed release dates', () => {
+      const assignment = {
+        is_draft: false,
+        released_at: 'not-a-date',
+      }
+
+      expect(getAssignmentReleaseState(assignment, now)).toBe('scheduled')
+      expect(isAssignmentVisibleToStudents(assignment, now)).toBe(false)
+      expect(isAssignmentScheduledForFuture(assignment, now)).toBe(true)
+      expect(isAssignmentLive(assignment, now)).toBe(false)
     })
   })
 

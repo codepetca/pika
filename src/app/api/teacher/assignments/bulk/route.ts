@@ -19,6 +19,16 @@ interface BulkAssignmentInput {
 
 const MAX_ASSIGNMENTS = 50
 
+function isMissingClassworkMaterialPositionError(error: any) {
+  const message = String(error?.message || '')
+  return (
+    error?.code === 'PGRST205' ||
+    error?.code === 'PGRST204' ||
+    message.includes('classwork_materials') ||
+    (message.includes('position') && message.includes('schema cache'))
+  )
+}
+
 function isLiveAssignment(
   assignment: { is_draft: boolean; released_at: string | null },
   now: Date = new Date()
@@ -37,6 +47,25 @@ function isLiveAssignment(
   }
 
   return releaseDate <= now
+}
+
+function buildAssignmentPositions(
+  inputAssignments: BulkAssignmentInput[],
+  reservedMaterialPositions: number[],
+) {
+  const reserved = new Set(reservedMaterialPositions)
+  const positions = new Map<BulkAssignmentInput, number>()
+  let nextPosition = 0
+
+  for (const assignment of inputAssignments) {
+    while (reserved.has(nextPosition)) {
+      nextPosition++
+    }
+    positions.set(assignment, nextPosition)
+    nextPosition++
+  }
+
+  return positions
 }
 
 /**
@@ -159,6 +188,27 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
     return NextResponse.json({ errors }, { status: 400 })
   }
 
+  const materialPositionsResult = await supabase
+    .from('classwork_materials')
+    .select('position')
+    .eq('classroom_id', classroom_id)
+
+  if (
+    materialPositionsResult.error &&
+    !isMissingClassworkMaterialPositionError(materialPositionsResult.error)
+  ) {
+    console.error('Error fetching classwork material positions:', materialPositionsResult.error)
+    return NextResponse.json(
+      { error: 'Failed to save assignments' },
+      { status: 500 }
+    )
+  }
+
+  const materialPositions = (materialPositionsResult.data || [])
+    .map((material: { position?: number | null }) => material.position)
+    .filter((position: unknown): position is number => typeof position === 'number' && Number.isFinite(position))
+  const assignmentPositions = buildAssignmentPositions(inputAssignments, materialPositions)
+
   // Process assignments: separate creates and updates
   const toCreate: BulkAssignmentInput[] = []
   const toUpdate: BulkAssignmentInput[] = []
@@ -186,7 +236,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
         description: instructionFields.description,
         rich_instructions: instructionFields.rich_instructions,
         due_at: a.due_at,
-        position: a.position,
+        position: assignmentPositions.get(a) ?? a.position,
         is_draft: true, // New assignments are always drafts
         created_by: user.id,
       }
@@ -225,7 +275,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
       description: instructionFields.description,
       rich_instructions: instructionFields.rich_instructions,
       due_at: a.due_at,
-      position: a.position,
+      position: assignmentPositions.get(a) ?? a.position,
       is_draft: a.is_draft,
     }
 

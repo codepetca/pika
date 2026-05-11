@@ -8,7 +8,10 @@ import {
   useMemo,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
 } from 'react'
+import { CircleDot, GripHorizontal, UndoDot } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { CalendarDateNavigator } from '@/components/CalendarActionBar'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
@@ -21,7 +24,7 @@ import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import { entryHasContent, getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
 import { useClassDaysContext } from '@/hooks/useClassDays'
-import { RefreshingIndicator, Tooltip } from '@/ui'
+import { Button, RefreshingIndicator, Tooltip } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import type { AttendanceStatus } from '@/types'
 import {
@@ -42,6 +45,24 @@ import type { Classroom, Entry } from '@/types'
 import { format, parseISO } from 'date-fns'
 
 type SortColumn = 'first_name' | 'last_name' | 'id' | 'status'
+
+const SUMMARY_PANEL_DEFAULT_HEIGHT = 180
+const SUMMARY_PANEL_COLLAPSED_HEIGHT = 40
+const SUMMARY_PANEL_MIN_HEIGHT = 140
+const SUMMARY_PANEL_MAX_HEIGHT = 420
+const SUMMARY_PANEL_KEYBOARD_STEP = 32
+
+function getSummaryPanelMaxHeight() {
+  if (typeof window === 'undefined') return SUMMARY_PANEL_MAX_HEIGHT
+  return Math.max(
+    SUMMARY_PANEL_MIN_HEIGHT,
+    Math.min(SUMMARY_PANEL_MAX_HEIGHT, Math.floor(window.innerHeight * 0.48))
+  )
+}
+
+function clampSummaryPanelHeight(height: number) {
+  return Math.min(getSummaryPanelMaxHeight(), Math.max(SUMMARY_PANEL_MIN_HEIGHT, Math.round(height)))
+}
 
 interface LogRow {
   student_id: string
@@ -80,7 +101,19 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const selectedWorkspaceRef = useRef<HTMLDivElement | null>(null)
   const hasLoadedOnceRef = useRef(false)
   const [detailPaneWidth, setDetailPaneWidth] = useState(50)
+  const [summaryPanelCollapsed, setSummaryPanelCollapsed] = useState(false)
+  const [summaryPanelHeight, setSummaryPanelHeight] = useState(SUMMARY_PANEL_DEFAULT_HEIGHT)
   const showBlockingSpinner = useDelayedBusy(loading && logs.length === 0)
+  const [today, setToday] = useState(() => getTodayInToronto())
+  const refreshToday = useCallback(() => {
+    const currentToday = getTodayInToronto()
+    setToday(currentToday)
+    return currentToday
+  }, [])
+  const lastClassDate = useMemo(
+    () => getMostRecentClassDayBefore(classDays, today),
+    [classDays, today]
+  )
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
     column: SortColumn
     direction: 'asc' | 'desc'
@@ -90,11 +123,27 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   useEffect(() => {
     if (classDaysLoading) return
     if (selectedDate) return // Already initialized
-    const today = getTodayInToronto()
-    const previousClassDay = getMostRecentClassDayBefore(classDays, today)
-    setSelectedDate(previousClassDay || addDaysToDateString(today, -1))
+    setSelectedDate(lastClassDate || addDaysToDateString(today, -1))
     // Do NOT setLoading(false) here — the logs fetch (Effect 3) handles it
-  }, [classDaysLoading, classDays, selectedDate])
+  }, [classDaysLoading, lastClassDate, selectedDate, today])
+
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        refreshToday()
+      }
+    }
+
+    window.addEventListener('focus', refreshToday)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    const intervalId = window.setInterval(refreshToday, 60 * 1000)
+
+    return () => {
+      window.removeEventListener('focus', refreshToday)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.clearInterval(intervalId)
+    }
+  }, [refreshToday])
 
   // Notify parent of date changes
   useEffect(() => {
@@ -152,8 +201,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     return isClassDayOnDate(classDays, selectedDate)
   }, [classDays, selectedDate])
 
-  const today = useMemo(() => getTodayInToronto(), [])
-
   const rows = useMemo(() => {
     return [...logs].sort((a, b) => {
       if (sortColumn === 'status') {
@@ -206,6 +253,17 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       const base = prev || getTodayInToronto()
       return addDaysToDateString(base, deltaDays)
     })
+  }
+
+  function goToLastClass() {
+    const currentToday = refreshToday()
+    const currentLastClassDate = getMostRecentClassDayBefore(classDays, currentToday)
+    if (!currentLastClassDate) return
+    setSelectedDate(currentLastClassDate)
+  }
+
+  function goToToday() {
+    setSelectedDate(refreshToday())
   }
 
   function handleRowClick(row: LogRow) {
@@ -306,10 +364,86 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     : ''
   const selectedDateLabel = selectedDate ? format(parseISO(selectedDate), 'EEE MMM d') : 'Select date'
 
+  const handleSummaryPanelDoubleClick = useCallback(() => {
+    setSummaryPanelCollapsed((collapsed) => {
+      if (collapsed) {
+        setSummaryPanelHeight(SUMMARY_PANEL_DEFAULT_HEIGHT)
+      }
+      return !collapsed
+    })
+  }, [])
+
+  const handleSummaryResizeStart = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      event.preventDefault()
+
+      const startY = event.clientY
+      const collapsedAtStart = summaryPanelCollapsed
+      const startHeight = collapsedAtStart ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight
+      const previousCursor = document.body.style.cursor
+      const previousUserSelect = document.body.style.userSelect
+      document.body.style.cursor = 'ns-resize'
+      document.body.style.userSelect = 'none'
+
+      const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
+        if (collapsedAtStart && moveEvent.clientY >= startY) return
+        setSummaryPanelCollapsed(false)
+        setSummaryPanelHeight(clampSummaryPanelHeight(startHeight + startY - moveEvent.clientY))
+      }
+
+      const handleResizeEnd = () => {
+        document.body.style.cursor = previousCursor
+        document.body.style.userSelect = previousUserSelect
+        window.removeEventListener('pointermove', handlePointerMove)
+        window.removeEventListener('pointerup', handleResizeEnd)
+        window.removeEventListener('pointercancel', handleResizeEnd)
+        window.removeEventListener('blur', handleResizeEnd)
+      }
+
+      window.addEventListener('pointermove', handlePointerMove)
+      window.addEventListener('pointerup', handleResizeEnd)
+      window.addEventListener('pointercancel', handleResizeEnd)
+      window.addEventListener('blur', handleResizeEnd)
+    },
+    [summaryPanelCollapsed, summaryPanelHeight],
+  )
+
+  const handleSummaryResizeKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        setSummaryPanelCollapsed(false)
+        setSummaryPanelHeight((height) =>
+          clampSummaryPanelHeight(
+            (summaryPanelCollapsed ? SUMMARY_PANEL_MIN_HEIGHT : height) + SUMMARY_PANEL_KEYBOARD_STEP
+          )
+        )
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        if (!summaryPanelCollapsed) {
+          setSummaryPanelHeight((height) => clampSummaryPanelHeight(height - SUMMARY_PANEL_KEYBOARD_STEP))
+        }
+      } else if (event.key === 'Home') {
+        event.preventDefault()
+        setSummaryPanelCollapsed(false)
+        setSummaryPanelHeight(SUMMARY_PANEL_MIN_HEIGHT)
+      } else if (event.key === 'End') {
+        event.preventDefault()
+        setSummaryPanelCollapsed(false)
+        setSummaryPanelHeight(getSummaryPanelMaxHeight())
+      } else if (event.key === 'Enter') {
+        event.preventDefault()
+        setSummaryPanelCollapsed(false)
+        setSummaryPanelHeight(SUMMARY_PANEL_DEFAULT_HEIGHT)
+      }
+    },
+    [summaryPanelCollapsed],
+  )
+
   const actionBar = (
     <TeacherWorkSurfaceActionBar
       center={
-        <>
+        <div className="flex min-w-0 items-center gap-1">
           <input
             ref={dateInputRef}
             type="date"
@@ -318,6 +452,19 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             className="sr-only"
             tabIndex={-1}
           />
+          <Tooltip content="Last class">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-9 w-9 px-0"
+              onClick={goToLastClass}
+              disabled={!lastClassDate}
+              aria-label="Go to last class"
+            >
+              <UndoDot className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </Tooltip>
           <CalendarDateNavigator
             label={selectedDateLabel}
             onLabelClick={() => dateInputRef.current?.showPicker()}
@@ -327,7 +474,19 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             prevAriaLabel="Previous day"
             nextAriaLabel="Next day"
           />
-        </>
+          <Tooltip content="Today">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-9 w-9 px-0"
+              onClick={goToToday}
+              aria-label="Go to today"
+            >
+              <CircleDot className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </Tooltip>
+        </div>
       }
       centerPlacement="floating"
     />
@@ -543,23 +702,57 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       </div>
     ) : (
       <div className="daily-table-enter flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-        <div className="min-h-[180px] flex-[2_1_0] overflow-auto rounded-lg bg-surface">
+        <div className="min-h-[180px] flex-1 overflow-auto rounded-lg bg-surface">
           {renderStudentTable(true)}
         </div>
         {selectedDate && (
-          <section className="min-h-[140px] flex-[1_1_0] overflow-hidden rounded-lg bg-surface">
-            <div className="flex min-h-10 items-center border-b border-border px-3 py-2">
-              <h3 className="truncate text-sm font-semibold text-text-default">
-                Class Log Summary
-              </h3>
+          <section
+            role="region"
+            aria-label="Class Log Summary"
+            data-state={summaryPanelCollapsed ? 'collapsed' : 'expanded'}
+            className={
+              summaryPanelCollapsed
+                ? 'flex h-10 min-h-10 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-surface'
+                : 'flex min-h-[140px] shrink-0 flex-col overflow-hidden rounded-lg bg-surface'
+            }
+            style={{ height: `${summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight}px` }}
+            onDoubleClick={handleSummaryPanelDoubleClick}
+          >
+            <div
+              role="separator"
+              aria-label="Resize class log summary"
+              aria-orientation="horizontal"
+              aria-valuemin={summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : SUMMARY_PANEL_MIN_HEIGHT}
+              aria-valuemax={SUMMARY_PANEL_MAX_HEIGHT}
+              aria-valuenow={summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight}
+              tabIndex={0}
+              className={
+                summaryPanelCollapsed
+                  ? 'flex h-10 shrink-0 cursor-ns-resize items-center justify-center gap-2 px-3 text-sm font-semibold text-text-default outline-none transition-colors hover:bg-surface-hover focus:bg-info-bg'
+                  : 'flex h-5 shrink-0 cursor-ns-resize items-center justify-center border-b border-border text-text-muted outline-none transition-colors hover:bg-surface-hover focus:bg-info-bg focus:text-text-default'
+              }
+              onPointerDown={handleSummaryResizeStart}
+              onKeyDown={handleSummaryResizeKeyDown}
+            >
+              <GripHorizontal className="h-4 w-4" aria-hidden="true" />
+              {summaryPanelCollapsed ? <span>Log Summary</span> : null}
             </div>
-            <div className="max-h-[min(260px,32vh)] overflow-y-auto">
-              <LogSummary
-                classroomId={classroom.id}
-                date={selectedDate}
-                onStudentClick={selectStudentByName}
-              />
-            </div>
+            {!summaryPanelCollapsed && (
+              <>
+                <div className="flex min-h-10 items-center border-b border-border px-3 py-2">
+                  <h3 className="truncate text-sm font-semibold text-text-default">
+                    Class Log Summary
+                  </h3>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <LogSummary
+                    classroomId={classroom.id}
+                    date={selectedDate}
+                    onStudentClick={selectStudentByName}
+                  />
+                </div>
+              </>
+            )}
           </section>
         )}
       </div>

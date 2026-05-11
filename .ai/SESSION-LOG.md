@@ -7,333 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-06 — Restore Daily class summary placement
-
-**Completed:**
-- Restored the cached class log summary in the deselected Daily state as a full-width panel below the full-width student log table.
-- Kept the selected-student state focused on the split table/history pane, with the class summary hidden until deselection.
-- Added regression coverage so the class summary remains visible in the deselected table state and disappears during student-history selection.
-
-**Validation:**
-- `pnpm exec vitest tests/components/TeacherAttendanceTab.test.tsx tests/api/teacher/log-summary.test.ts`
-- `pnpm lint && pnpm build`
-- Pika UI verification script for `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance` on port 3002:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Targeted Daily class summary screenshots/check:
-  - `/tmp/pika-teacher-summary-restored.png`
-  - `/tmp/pika-teacher-daily-summary-selected.png`
-  - `/tmp/pika-teacher-daily-summary-deselected.png`
-
-## 2026-05-06 — Fix PR coverage gate
-
-**Completed:**
-- Investigated the failed GitHub CI run on the first PR commit.
-- Found the failure was a per-file coverage threshold miss for `src/app/api/teacher/log-summary/route.ts`.
-- Added route tests for classroom-not-found, entry-stats failure, and entry-count failure to cover the cron-only summary endpoint error branches.
-
-**Validation:**
-- `pnpm run test:coverage`
-- `pnpm lint`
-
-## 2026-05-06 — Restrict nightly log summaries to class days
-
-**Completed:**
-- Tightened `/api/cron/nightly-log-summaries` eligibility so AI summaries only run for unarchived classrooms with entries on yesterday, yesterday inside the classroom semester range, and an explicit `class_days.is_class_day = true` row.
-- Added a per-classroom eligibility recheck before the OpenAI call to keep the guard close to generation.
-- Added cron route tests for outside-semester and non-class-day cases and asserted they do not call OpenAI.
-
-**Validation:**
-- `pnpm vitest run tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm lint`
-- `pnpm test -- tests/api/cron/nightly-log-summaries.test.ts` (ran full suite: 251 files, 2110 tests)
-
-## 2026-05-06 — Fix cron coverage gate
-
-**Completed:**
-- Addressed the latest CI failure for `src/app/api/cron/nightly-log-summaries/route.ts` per-file coverage.
-- Added cron route tests for entry discovery errors, class-day discovery errors, and eligibility recheck skip paths.
-
-**Validation:**
-- `pnpm vitest run tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm run test:coverage`
-- `pnpm lint`
-
-## 2026-05-07 — Allow late assignment submissions with repo metadata
-
-**Completed:**
-- Fixed assignment submit validation so saved repo metadata counts as submittable work, matching the student editor's Submit button rule.
-- Made the student assignment editor flush pending repo URL/GitHub username edits before calling the submit endpoint.
-- Added regression coverage for a past-due repo-only assignment submission.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test -- tests/api/assignment-docs/submit.test.ts` (ran full suite: 251 files, 2119 tests)
-- `pnpm test -- tests/unit/assignments.test.ts` (ran full suite: 251 files, 2119 tests)
-- `pnpm lint`
-- `pnpm build`
-
-## 2026-05-07 — Compact MC answer review
-
-**Completed:**
-- Added a shared compact multiple-choice option review component that preserves original option order and uses a fixed check/X gutter.
-- Replaced the separate student/correct answer blocks in returned student test results and teacher test grading with the compact full-option list.
-- Put unanswered MC state in the short question meta line as `No answer`.
-
-**Validation:**
-- `pnpm vitest run tests/components/StudentQuizResults.test.tsx tests/components/TestStudentGradingPanel.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Visual screenshots on port 3003:
-  - `/tmp/pika-compact-mc-teacher.png`
-  - `/tmp/pika-compact-mc-teacher-mobile.png`
-  - `/tmp/pika-compact-mc-student-mobile.png`
-- `pnpm test`
-
-## 2026-05-06 — Separate Materials and Syllabus branch
-
-**Completed:**
-- Created isolated branch/worktree `codex/materials-syllabus` from `origin/main`, separate from the existing `codex/classwork-tab` exploration.
-- Renamed visible Assignments navigation to Classwork and Resources navigation to Syllabus while keeping existing query-tab compatibility.
-- Added ungraded Classwork Materials with teacher CRUD APIs/UI, student read UI/API, and a `classwork_materials` migration.
-- Replaced the Resources tab surface with a syllabus/course-site entry point that opens a published course site or points teachers to Course Website Settings.
-- Renamed teacher-facing "Actual Course Website" copy to "Course Website" in Settings.
-- Added a simplified public syllabus grading summary to `/actual/[slug]`, including category weights and per-item approximate course weights from gradebook settings plus point values.
-- Embedded the published syllabus inside the Pika Syllabus tab for teachers and students, with an `Open External` action for the standalone `/actual/<slug>` page.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/api/teacher/materials.test.ts tests/api/student/materials.test.ts tests/components/ResourcesTab.test.tsx tests/components/NavItems.test.tsx tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm test`
-- Pika UI verification for Classwork and Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea`:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Focused Playwright screenshots:
-  - `/tmp/pika-classwork-new-menu.png`
-  - `/tmp/pika-material-dialog.png`
-  - `/tmp/pika-course-website-settings.png`
-  - `/tmp/pika-actual-syllabus-grading.png`
-  - `/tmp/pika-actual-syllabus-grading-mobile.png`
-  - Re-ran Syllabus tab visual verification after embedding the preview:
-    - `/tmp/pika-teacher.png`
-    - `/tmp/pika-student.png`
-    - `/tmp/pika-teacher-mobile.png`
-
-## 2026-05-06 — Rebase materials branch and align Announcements action
-
-**Completed:**
-- Rebasing `codex/materials-syllabus` onto `origin/main` completed cleanly, leaving the branch at `0 0` ahead/behind.
-- Resequenced the new classwork materials migration from `064_classwork_materials.sql` to `065_classwork_materials.sql` after `origin/main` added `064_teacher_log_history_preview_rpc.sql`.
-- Moved the Announcements teacher create action into the shared centered floating work-surface action cluster and removed the old bottom `New Announcement` button.
-
-**Validation:**
-- `pnpm lint`
-- `pnpm test tests/api/teacher/announcements.test.ts tests/api/teacher/announcements-id.test.ts tests/api/student/announcements.test.ts`
-- `pnpm build`
-- `git diff --check`
-- Duplicate migration prefix check
-- Pika UI verification for Announcements on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=announcements`:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-
-## 2026-05-06 — Simplify Syllabus tab embed
-
-**Completed:**
-- Removed the published-state top Course site/Syllabus card from teacher and student Syllabus tabs.
-- Published Syllabus now opens directly to the embedded in-Pika course syllabus frame.
-- Kept unpublished teacher/student fallback states so teachers can still reach Course Website Settings when there is no published site.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/components/ResourcesTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-
-## 2026-05-06 — Fill Syllabus main content frame
-
-**Completed:**
-- Updated teacher and student Syllabus tabs so the published embed container fills the available main content width and height instead of using a centered max-width wrapper.
-- Preserved stable mobile height for the iframe so the course syllabus remains usable inside the classroom shell.
-
-**Validation:**
-- `pnpm test tests/components/ResourcesTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-
-## 2026-05-07 — Strip Syllabus framing and simplify generated content
-
-**Completed:**
-- Removed the published Syllabus iframe wrapper/card from teacher and student classroom tabs so the iframe renders directly in the main content area.
-- Simplified `/actual/[slug]` by removing the Grading summary, Resources section, and Current Lesson Sequence.
-- Reduced Classwork rows to assignment title plus approximate course weight only.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/components/ResourcesTab.test.tsx tests/lib/server/course-sites.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Standalone syllabus screenshots:
-  - `/tmp/pika-actual-syllabus.png`
-  - `/tmp/pika-actual-syllabus-mobile.png`
-
-## 2026-05-07 — Match actual syllabus to blueprint-style overview
-
-**Completed:**
-- Confirmed the in-Pika course overview comes from `classrooms.course_overview_markdown`, which is seeded from `course_blueprints.overview_markdown` when a classroom is created from a blueprint and then editable per classroom in Settings.
-- Reworked `/actual/[slug]` into a simplified syllabus page with header, Course Overview when present, optional Test Docs, and one Assignments list using A/Q/T labels plus course-weight percentages.
-- Removed the unused Resources publish toggle from Public Syllabus settings and renamed remaining teacher/student-facing course-site labels to syllabus language.
-
-**Validation:**
-- `pnpm test tests/components/ResourcesTab.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/lib/server/course-sites.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms-id.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `git diff --check`
-- Pika UI verification for Syllabus on `/classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=resources`:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Settings screenshot for Public Syllabus labels:
-  - `/tmp/pika-settings-teacher-full.png`
-
-## 2026-05-07 — Harden student log summary privacy
-
-**Completed:**
-- Added direct-identifier redaction for nightly student log summary prompts.
-- Built summary redaction maps from the full classroom roster plus entry authors.
-- Sent OpenAI summary requests with `store: false` and removed model-output snippets from parse errors.
-- Added prompt/payload regression coverage for roster names and common direct identifiers.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/student-log-summary-privacy bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec vitest tests/unit/log-summary.test.ts tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-
-## 2026-05-06 — Center floating action cluster in shell content
-
-**Completed:**
-- Added a shared shell CSS variable for the main content center based on current left and right panel widths.
-- Updated the teacher work-surface floating action cluster to center on that shell variable on desktop and animate with the shell timing.
-- Added focused coverage for the desktop centering contract.
-
-**Validation:**
-- `pnpm test tests/components/TeacherWorkSurfaceActionBar.test.tsx tests/components/ThreePanelProvider.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Pika UI verification on port 3001:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student-today.png`
-  - `/tmp/pika-teacher-mobile.png`
-  - `/tmp/pika-teacher-expanded.png`
-
-## 2026-05-06 — Keep calendar date in action bar
-
-**Completed:**
-- Removed the pinned app-header title labels from teacher classroom tabs.
-- Kept the calendar date navigator in the PageActionBar left slot and removed the obsolete calendar titlebar docking path.
-- Left non-calendar teacher action bars without static tab labels.
-- Added mobile-only spacing so the fixed calendar control cluster does not overlap the left-side date navigator.
-
-**Validation:**
-- `pnpm test tests/components/TeacherWorkSurfaceActionBar.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherAttendanceTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Pika UI verification on port 3001:
-  - `/tmp/pika-teacher-calendar-desktop.png`
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-  - `/tmp/pika-teacher-attendance-labels.png`
-
-## 2026-05-07 — Make edit controls icon-only
-
-**Completed:**
-- Removed visible `Edit` text from shared teacher edit-mode controls and the selected-test workspace edit toggle.
-- Kept accessible names and titles on the icon-only pencil buttons.
-- Added focused coverage that the shared edit toggle remains named `Edit` without visible button text.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/fab-rail-centering bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherEditModeControls.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherAttendanceTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Visual verification on port 3001:
-  - `/tmp/pika-teacher-tests-edit-icon.png`
-  - `/tmp/pika-teacher-selected-test-edit-icon.png`
-  - `/tmp/pika-teacher-classrooms-edit-icon.png`
-
-## 2026-05-07 — Shorten assessment new labels
-
-**Completed:**
-- Changed teacher quiz and test summary action labels from `New Quiz` and `New Test` to `New`.
-- Kept the plus icon visible so the action reads as `+ New`.
-- Updated focused quiz/test component coverage for the shorter accessible button name.
-
-**Validation:**
-- `pnpm test tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Visual verification on port 3001:
-  - `/tmp/pika-teacher-tests-new-label.png`
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-
-## 2026-05-07 — Add create action tooltips
-
-**Completed:**
-- Added contextual tooltips to the compact teacher summary `+ New` buttons for assignments, quizzes, and tests.
-- Kept the visible button labels unchanged and preserved the assignment button's accessible name.
-- Updated the assignment action-bar test to assert the fixed floating cluster without depending on the tooltip-adjusted DOM parent chain.
-
-**Validation:**
-- `pnpm test tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Pika UI verification on port 3001 for assignments, quizzes, and tests.
-- Hover screenshots:
-  - `/tmp/pika-teacher-assignments-new-tooltip.png`
-  - `/tmp/pika-teacher-quizzes-new-tooltip.png`
-  - `/tmp/pika-teacher-tests-new-tooltip.png`
-
-## 2026-05-07 — Hide classroom view labels outside edit mode
-
-**Completed:**
-- Made the teacher classroom list Active/Archived segmented toggle icon-only until classroom edit mode is enabled.
-- Preserved accessible button names while the toggle is icon-only.
-- Added focused test coverage for the icon-only versus labeled edit-mode states.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Visual verification on port 3010:
-  - `/tmp/pika-classrooms-toggle-teacher-desktop.png`
-  - `/tmp/pika-classrooms-toggle-teacher-desktop-edit.png`
-  - `/tmp/pika-classrooms-toggle-teacher-mobile.png`
-  - `/tmp/pika-classrooms-toggle-teacher-mobile-edit.png`
-  - `/tmp/pika-classrooms-student-mobile.png`
-
 ## 2026-05-07 — Add classroom view toggle tooltips
 
 **Completed:**
@@ -348,3 +21,355 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Visual hover verification on port 3011:
   - `/tmp/pika-classrooms-toggle-active-tooltip.png`
   - `/tmp/pika-classrooms-toggle-archived-tooltip.png`
+
+## 2026-05-10 — Add student exam-mode e2e coverage
+
+**Completed:**
+- Added a focused Playwright flow for student test exam mode.
+- Seeds a unique active open-response test through existing teacher APIs against the shared seeded teacher/student classroom.
+- Verifies test start, transient window loss without lock, sustained window loss with content obscuring and interaction blocking, restoration, and open-response draft preservation after reload/restart.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm exec playwright test e2e/student-exam-mode.spec.ts`
+- `pnpm lint`
+
+## 2026-05-08 — Add class log summary controls
+
+**Completed:**
+- Confirmed the Vercel nightly log summary cron remains `0 6 * * *` (06:00 UTC: 1:00am EST / 2:00am EDT).
+- Added a floating attendance action control to show or hide the bottom Class Log Summary card.
+- Added a drag/keyboard resize handle for the visible Class Log Summary card.
+- Kept the log summary data component unchanged and scoped behavior to teacher attendance presentation state.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/log-summary-panel-controls bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherAttendanceTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification on port 3000:
+  - `/tmp/pika-log-summary-teacher-visible.png`
+  - `/tmp/pika-log-summary-teacher-hidden.png`
+  - `/tmp/pika-log-summary-teacher-expanded.png`
+  - `/tmp/pika-log-summary-teacher-populated.png`
+  - `/tmp/pika-log-summary-teacher-mobile.png`
+  - `/tmp/pika-log-summary-student-mobile.png`
+
+## 2026-05-08 — Extract assignment lifecycle invariants
+
+**Completed:**
+- Added shared assignment release-state helpers for draft/live/scheduled visibility in `src/lib/assignments.ts`.
+- Moved student assignment visibility behind the shared helper while preserving the server import path.
+- Centralized future scheduled-release due-date validation and migrated assignment update/release routes plus scheduling UI callers.
+- Added release-state and future schedule validation tests, including malformed `released_at` fail-closed behavior.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/.codex/worktrees/53f9/pika bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/unit/assignments.test.ts tests/lib/assignment-schedule-validation.test.ts tests/api/assignment-docs/submit.test.ts tests/api/teacher/assignments-id.test.ts tests/api/teacher/assignments-draft.test.ts tests/components/AssignmentModal.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm vitest run tests/components/SortableAssignmentCard.test.tsx tests/components/TeacherClassroomView.test.tsx tests/api/student/assignments.test.ts tests/api/integration/assignment-draft-flow.test.ts tests/api/student/notifications.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+
+## 2026-05-08 — Open assignment invariant PR
+
+**Completed:**
+- Created branch `codex/assignment-lifecycle-invariants`.
+- Committed assignment lifecycle invariant extraction as `37cd562`.
+- Opened draft PR #570 and added `codex` plus `codex-automation` labels.
+- Posted a self-review comment with no blocking findings.
+
+**Validation:**
+- PR checks showed Vercel skipped by ignored build step, with preview comments passing.
+
+## 2026-05-08 — Unblock assignment invariant merge
+
+**Completed:**
+- Rebasing PR #570 onto `origin/main` exposed a CI branch-coverage failure in `src/lib/assignments.ts`.
+- Added focused release-state coverage for malformed comparison dates so the fail-safe `Date.now()` branch is exercised.
+- Kept the assignment lifecycle implementation behavior-preserving.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/.codex/worktrees/53f9/pika bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/unit/assignments.test.ts`
+- `pnpm run test:coverage`
+- `pnpm lint`
+- Targeted mocked-data captures for the shared indicator in the gradebook inspector:
+  - `/tmp/pika-assessment-status-indicator-gradebook-desktop.png`
+  - `/tmp/pika-assessment-status-indicator-gradebook-mobile.png`
+
+## 2026-05-08 — Gradebook edit weight label
+
+**Completed:**
+- Changed the edit-mode gradebook row label from `Weights` to `Weight`.
+- Updated focused gradebook component assertions for the singular label.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/gradebook-assessment-matrix E2E_BASE_URL=http://localhost:3003 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=gradebook&gradebookSection=settings'`
+- Visual captures:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-student.png`
+
+## 2026-05-11 — Fix stale student log date
+
+**Completed:**
+- Fixed Student Today autosave so a stale mounted tab rechecks the current Toronto date before building the save payload.
+- Cleared stale entry identity/version state when the mounted date rolls over, preventing first/new saves from targeting an old day.
+- Added a regression test for a tab mounted on May 6 that saves after today advances to May 11.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm vitest run tests/components/StudentTodayTabHistory.test.tsx`
+- `pnpm lint`
+- `pnpm vitest run tests/api/student/entries.test.ts tests/components/StudentTodayTabHistory.test.tsx tests/unit/timezone.test.ts`
+- `pnpm test`
+
+## 2026-05-09 — Test markdown creation defaults
+
+**Completed:**
+- New teacher tests now open directly in the edit dialog's Code view after creation.
+- The created-test Code view starts with markdown editing enabled, so no separate `Edit Markdown` click is required.
+- Draft summary/title changes from markdown now patch the parent tests list state immediately and survive in-flight list refreshes.
+- Added an `Edit Test` option to the selected-test actions dropdown to open the edit modal from the grading workspace.
+- Removed the standalone selected-test pen toggle and later removed the selected-test `Manage Attempts` option plus its row-level attempt-delete mode.
+- Removed the standalone tests-list pen toggle; list reordering now lives behind the tests-list gear FAB, which toggles drag handles and card-level trash buttons.
+- Moved whole-test deletion to the tests-list gear mode as a trash icon on each test card, using the existing confirmation flow.
+- Changed the selected-test actions dropdown delete option to `Delete Selected`, targeting selected student test work only and disabled until one or more student rows are selected.
+- Added a confirmation dialog before selected-test `Open All`/batch-open access updates run.
+- Removed the standalone selected-assignment pen toggle from the grading workspace.
+- Added `Edit Assignment` and `Delete Assignment` to the selected-assignment actions dropdown, with assignment deletion using the existing confirmation flow.
+- Kept the selected-assignment actions dropdown accessible even when no students are selected; only the primary `AI Grade` action is disabled by empty selection.
+- Added focused component coverage for markdown-first creation, editable markdown-only layout startup, title propagation back to the tests list, selected-workspace edit-menu launch, gear-mode card reorder/delete controls, selected-student work deletion, access-open confirmation, and the absence of selected-workspace attempt-management controls.
+- Added focused component coverage for selected-assignment dropdown editing and deletion.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash scripts/verify-env.sh`
+- Visual verification:
+  - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
+  - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=assignments'`
+  - `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-created-test-code-view.png`
+  - `/tmp/pika-applied-title-list.png`
+  - `/tmp/pika-selected-test-actions-edit-test.png`
+  - `/tmp/pika-test-list-actions-reorder.png`
+  - `/tmp/pika-selected-test-actions-no-manage-attempts.png`
+  - `/tmp/pika-open-all-confirm.png`
+  - `/tmp/pika-delete-test-confirm.png`
+  - `/tmp/pika-test-list-settings-gear-delete.png`
+  - `/tmp/pika-selected-test-actions-delete-selected.png`
+  - `/tmp/pika-delete-selected-test-work-confirm.png`
+  - `/tmp/pika-selected-assignment-detail-after-wait.png`
+  - `/tmp/pika-selected-assignment-actions-delete-loaded.png`
+  - `/tmp/pika-delete-assignment-confirm.png`
+
+## 2026-05-09 — Daily log summary collapse
+
+**Completed:**
+- Removed the Daily tab floating action cluster show/hide button for the class log summary.
+- Changed the class log summary from hidden/shown to expanded/collapsed states.
+- Double-clicking the bottom summary panel collapses it to a 40px bar labeled `Log Summary`.
+- Double-clicking the collapsed bar restores the summary to the standard 180px height.
+- Preserved handle resizing, including dragging upward from the collapsed bar to reopen and resize the panel.
+- Added focused component coverage for double-click collapse/restore and drag-reopen behavior.
+
+**Validation:**
+- `pnpm test tests/components/TeacherAttendanceTab.test.tsx`
+- `pnpm lint`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance'`
+- Targeted visual captures:
+  - `/tmp/pika-daily-log-summary-collapsed.png`
+  - `/tmp/pika-daily-log-summary-drag-reopened.png`
+- `pnpm build`
+
+## 2026-05-10 — Submitted-aware test unsubmit action
+
+**Completed:**
+- Confirmed selected-student test-work deletion does not close/open student access; it deletes attempt data only and leaves `test_student_availability` unchanged.
+- Changed the selected-test `Unsubmit Selected` action to enable only when selected rows include submitted work.
+- Filtered batch unsubmit requests so mixed selections submit only the selected students whose work is currently submitted.
+- Added focused component coverage for disabled no-submitted selection and mixed-selection submitted-only unsubmit requests.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
+- Targeted visual captures:
+  - `/tmp/pika-unsubmit-disabled-no-submitted-selected.png`
+  - `/tmp/pika-unsubmit-enabled-submitted-selected.png`
+- `pnpm build`
+
+## 2026-05-10 — Test action menu counts
+
+**Completed:**
+- Added compact count badges to the selected-test dropdown items for `AI Grade`, `Unsubmit Selected`, `Return`, and `Delete Selected`.
+- Counts now reflect the current selected rows and action eligibility: selected rows for AI grading/deletion, submitted selected rows for unsubmit, and closed/returnable selected rows for return.
+- Added focused component assertions for the action menu count labels.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
+- Targeted visual capture:
+  - `/tmp/pika-test-action-menu-counts.png`
+- `pnpm build`
+
+## 2026-05-10 — Markdown-only test editor defaults
+
+**Completed:**
+- Made editable markdown-only test editor surfaces enter writable mode by default, including create-test Code view and existing-test Code view.
+- Removed the markdown `Copy` and `Schema` toolbar actions from `QuizDetailPanel`.
+- Removed the now-redundant `startMarkdownEditing` prop plumbing from the tests tab.
+- Updated focused component coverage for default editable markdown-only layout and absent copy/schema actions.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/QuizDetailPanel.test.tsx tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
+- Targeted visual capture:
+  - `/tmp/pika-test-edit-code.png`
+
+## 2026-05-11 — Trim session log for CI
+
+**Completed:**
+- Trimmed the rolling session log after PR work so it stays within the enforced 20-entry budget.
+
+**Validation:**
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+
+## 2026-05-11 — Mixed classwork material ordering
+
+**Completed:**
+- Added material `position` migration and mixed assignment/material classwork ordering.
+- Added teacher classwork reorder API for `{ type, id }` item lists.
+- Moved classwork reorder persistence into transaction-backed Postgres RPC functions.
+- Hardened classwork reorder requests to reject stale partial lists while preserving assignment-only reorder around material position slots.
+- Made assignment/material create routes fail closed on unexpected mixed-order position lookup errors.
+- Preserved existing material positions when the assignment Markdown bulk-save path rewrites assignment positions.
+- Updated teacher classwork summary so materials are visually distinct and draggable in edit mode.
+- Updated student classwork summary to render the same mixed order with distinct material cards.
+- Refined material cards to use tint plus a left accent rail instead of an icon, keeping the Syllabus icon reserved for Syllabus.
+- Documented the material card/order behavior in assignment UX guidance.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/classwork-material-order bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/lib/classwork-order.test.ts tests/api/teacher/classwork-reorder.test.ts tests/api/teacher/materials.test.ts tests/api/student/materials.test.ts tests/api/teacher/assignments.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- Post-iconless refinement:
+  - `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
+  - `pnpm lint`
+- Final pre-push validation:
+  - `pnpm test tests/api/teacher/classwork-reorder.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
+  - `pnpm lint`
+  - `pnpm test`
+  - `pnpm build`
+- Transactional reorder fix:
+  - `pnpm test tests/api/teacher/classwork-reorder.test.ts tests/api/teacher/assignments-reorder.test.ts tests/api/teacher/assignments-bulk.test.ts tests/api/teacher/assignments.test.ts tests/api/teacher/materials.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
+  - `pnpm lint`
+  - `pnpm build`
+  - `supabase db lint --local --schema public --fail-on error` (existing unrelated warning: `public.unsubmit_test_attempts_atomic` unused `p_updated_by`)
+  - `pnpm test`
+- Visual verification:
+  - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=assignments'`
+  - `/tmp/pika-teacher-material.png`
+  - `/tmp/pika-student-material.png`
+  - `/tmp/pika-teacher-material-dark.png`
+  - `/tmp/pika-student-material-dark.png`
+  - `/tmp/pika-teacher-material-tinted.png`
+  - `/tmp/pika-student-material-tinted.png`
+  - `/tmp/pika-student-material-tinted-dark.png`
+
+## 2026-05-11 — Classwork migration filename resequence
+
+**Completed:**
+- Renamed the mixed classwork material ordering migration from a timestamped filename to the next numeric-leading Pika migration slot, `067_classwork_mixed_ordering.sql`.
+
+**Validation:**
+- `bash scripts/verify-env.sh` exposed an unrelated session-log length failure before trimming.
+- `node scripts/trim-session-log.mjs`
+
+## 2026-05-11 — Remove material card outline highlight
+
+**Completed:**
+- Removed the primary outline and left accent rail from teacher and student material cards while keeping the soft tint and `Material` label.
+- Added component assertions to keep material cards on neutral borders without the primary rail.
+- Updated assignment UX guidance to describe tint-based material differentiation.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=assignments'` captured the route but local DB state returned "Classroom not found".
+- Supplemental CSS visual harness:
+  - `/tmp/pika-material-no-outline-harness.png`
+  - `/tmp/pika-material-no-outline-harness-dark.png`
+
+## 2026-05-11 — Smooth material drag treatment
+
+**Completed:**
+- Removed the material card's hover transition while it is actively dragging so dnd-kit owns transform movement like assignment cards.
+- Added a neutral drag-border option to the shared teacher work item frame and used it for material cards.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkItemPrimitives.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verify captured the target route but local DB state still returned "Classroom not found".
+- Supplemental drag-state harness:
+  - `/tmp/pika-material-drag-state-harness.png`
+
+## 2026-05-11 — Restrict classwork reorder RPC execution
+
+**Completed:**
+- Added explicit `revoke all` from `public`, `anon`, and `authenticated` for the new classwork reorder RPCs.
+- Granted both reorder RPCs only to `service_role`, matching the API route authorization boundary.
+- Added a static migration regression test for the RPC grant contract.
+
+**Validation:**
+- `pnpm test tests/unit/classwork-migration-rpc-grants.test.ts tests/api/teacher/classwork-reorder.test.ts tests/api/teacher/assignments-reorder.test.ts`
+- `pnpm lint`
+- `supabase db lint --local --schema public --fail-on error` (existing unrelated warning: `public.unsubmit_test_attempts_atomic` unused `p_updated_by`)
+- `pnpm build`
+
+## 2026-05-11 — Add Daily quick date buttons
+
+**Completed:**
+- Added icon-only Daily tab quick-jump buttons for `Last class` and `Today` around the existing date picker arrows.
+- Simplified the quick-jump icons to `UndoDot` for `Last class` and `CircleDot` for `Today`.
+- Reused the existing Toronto date and class-day helpers so `Last class` targets the most recent class day before today.
+- Added focused component coverage for moving from the last class date to today and back.
+- Refreshed the Toronto `today` value on focus/visibility/interval and in quick-jump handlers so open tabs do not keep stale quick-jump dates after midnight.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/daily-tab-quick-date-buttons bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherAttendanceTab.test.tsx`
+- `pnpm lint`
+- Added rollover coverage for `Today` and `Last class` quick jumps after the mocked Toronto date changes while the tab remains mounted.
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/daily-tab-quick-date-buttons bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance'`
+- `E2E_BASE_URL=http://localhost:3002 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/daily-tab-quick-date-buttons bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c4536d07-c76a-4a5b-a9c9-6340ed1678a9?tab=attendance'`
+- `E2E_BASE_URL=http://localhost:3003 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/daily-tab-quick-date-buttons bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c4536d07-c76a-4a5b-a9c9-6340ed1678a9?tab=attendance'`
+- Tooltip hover checks:
+  - `/tmp/pika-tooltip-last-class.png`
+  - `/tmp/pika-tooltip-today.png`
