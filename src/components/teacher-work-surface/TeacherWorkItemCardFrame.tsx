@@ -11,6 +11,7 @@ interface TeacherWorkItemCardFrameProps extends HTMLAttributes<HTMLDivElement> {
   tone?: TeacherWorkItemCardTone
   interactive?: boolean
   dragging?: boolean
+  dragTone?: 'primary' | 'neutral'
   className?: string
   style?: CSSProperties
 }
@@ -21,6 +22,7 @@ export const TeacherWorkItemCardFrame = forwardRef(function TeacherWorkItemCardF
     tone = 'default',
     interactive = true,
     dragging = false,
+    dragTone = 'primary',
     className,
     ...props
   }: TeacherWorkItemCardFrameProps,
@@ -39,7 +41,10 @@ export const TeacherWorkItemCardFrame = forwardRef(function TeacherWorkItemCardF
               ? 'border-border-strong bg-surface-2'
               : 'border-border bg-surface-panel',
         dragging
-          ? 'z-50 scale-[1.02] border-primary opacity-95 shadow-panel'
+          ? [
+              'z-50 scale-[1.02] opacity-95 shadow-panel',
+              dragTone === 'neutral' ? 'border-border' : 'border-primary',
+            ].join(' ')
           : interactive && tone === 'scheduled'
             ? 'transition hover:border-warning hover:bg-warning-bg'
             : interactive && tone === 'muted'

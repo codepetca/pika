@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, Pencil } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 import { Button, Card, ContentDialog, EmptyState, RefreshingIndicator } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout, PageStack } from '@/components/PageLayout'
@@ -17,6 +17,7 @@ import { RichTextViewer } from '@/components/editor'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { fetchJSONWithCache } from '@/lib/request-cache'
+import { buildOrderedClassworkItems } from '@/lib/classwork-order'
 
 interface Props {
   classroom: Classroom
@@ -109,6 +110,11 @@ export function StudentAssignmentsTab({
     if (!selectedMaterialId) return null
     return materials.find((material) => material.id === selectedMaterialId) ?? null
   }, [materials, selectedMaterialId])
+
+  const classworkItems = useMemo(
+    () => buildOrderedClassworkItems(assignments, materials),
+    [assignments, materials],
+  )
 
   const view: StudentAssignmentsView = useMemo(() => {
     if (selectedMaterialId && selectedMaterial) return 'material'
@@ -268,58 +274,64 @@ export function StudentAssignmentsTab({
                 />
               ) : (
                 <PageStack>
-                  {materials.map((material) => (
-                    <button
-                      key={material.id}
-                      type="button"
-                      data-testid="material-card"
-                      onClick={() => navigate({ materialId: material.id })}
-                      className="block w-full rounded-card border border-border bg-surface-panel px-5 py-4 text-left transition-[background-color,border-color,box-shadow,transform] hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <h3 className="truncate text-base font-semibold text-text-default">
-                            {material.title}
-                          </h3>
-                          <p className="mt-1 inline-flex items-center gap-1 text-sm text-text-muted">
-                            <BookOpen className="h-4 w-4" aria-hidden="true" />
-                            Material
-                          </p>
-                        </div>
-                        <span className="rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-primary">
-                          Posted
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                  {assignments.map((assignment) => (
-                    <button
-                      key={assignment.id}
-                      type="button"
-                      data-testid="assignment-card"
-                      onClick={() => navigate({ assignmentId: assignment.id })}
-                      className="block w-full rounded-card border border-border bg-surface-panel px-5 py-4 text-left transition-[background-color,border-color,box-shadow,transform] hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <h3 className="truncate text-base font-semibold text-text-default">
-                            {assignment.title}
-                          </h3>
-                          <p className="mt-1 text-sm text-text-muted">
-                            {formatDueDate(assignment.due_at)}
-                          </p>
-                          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-text-muted">
-                            {formatRelativeDueDate(assignment.due_at)}
-                          </p>
-                        </div>
-                        <span
-                          className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getAssignmentStatusBadgeClass(assignment.status)}`}
+                  {classworkItems.map((item) => {
+                    if (item.type === 'material') {
+                      const material = item.material
+                      return (
+                        <button
+                          key={material.id}
+                          type="button"
+                          data-testid="material-card"
+                          onClick={() => navigate({ materialId: material.id })}
+                          className="block w-full rounded-card border border-border bg-info-bg px-5 py-4 text-left transition-[background-color,box-shadow,transform] hover:-translate-y-px hover:bg-info-bg-hover hover:shadow-panel"
                         >
-                          {getAssignmentStatusLabel(assignment.status)}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <h3 className="truncate text-base font-semibold text-text-default">
+                                {material.title}
+                              </h3>
+                              <p className="mt-1 text-sm text-primary">
+                                Material
+                              </p>
+                            </div>
+                            <span className="rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-primary">
+                              Posted
+                            </span>
+                          </div>
+                        </button>
+                      )
+                    }
+
+                    const assignment = item.assignment
+                    return (
+                      <button
+                        key={assignment.id}
+                        type="button"
+                        data-testid="assignment-card"
+                        onClick={() => navigate({ assignmentId: assignment.id })}
+                        className="block w-full rounded-card border border-border bg-surface-panel px-5 py-4 text-left transition-[background-color,border-color,box-shadow,transform] hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <h3 className="truncate text-base font-semibold text-text-default">
+                              {assignment.title}
+                            </h3>
+                            <p className="mt-1 text-sm text-text-muted">
+                              {formatDueDate(assignment.due_at)}
+                            </p>
+                            <p className="mt-1 text-xs uppercase tracking-[0.16em] text-text-muted">
+                              {formatRelativeDueDate(assignment.due_at)}
+                            </p>
+                          </div>
+                          <span
+                            className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getAssignmentStatusBadgeClass(assignment.status)}`}
+                          >
+                            {getAssignmentStatusLabel(assignment.status)}
+                          </span>
+                        </div>
+                      </button>
+                    )
+                  })}
                 </PageStack>
               )
             ) : view === 'material' && selectedMaterial ? (

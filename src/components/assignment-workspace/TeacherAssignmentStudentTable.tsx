@@ -3,9 +3,10 @@
 import type { ReactNode, Ref } from 'react'
 import { AssignmentArtifactsCell } from '@/components/AssignmentArtifactsCell'
 import {
-  AssessmentStatusIcon,
-  type AssessmentStatusIconState,
-} from '@/components/AssessmentStatusIcon'
+  AssessmentStatusIndicator,
+  getAssignmentWorkStatusDisplay,
+  type AssessmentWorkStatusDisplay,
+} from '@/components/AssessmentStatusIndicator'
 import {
   DataTable,
   DataTableBody,
@@ -21,7 +22,6 @@ import {
 import { Spinner } from '@/components/Spinner'
 import { Tooltip } from '@/ui'
 import {
-  getAssignmentStatusLabel,
   hasDraftSavedGrade,
 } from '@/lib/assignments'
 import type { AssignmentStatus } from '@/types'
@@ -78,72 +78,25 @@ function getRowClassName(isSelected: boolean): string {
   return 'cursor-pointer hover:bg-surface-hover'
 }
 
-function StatusIcon({
-  status,
-  wasLate,
-  hasDraftGrade = false,
-}: {
-  status: AssignmentStatus
-  wasLate?: boolean
-  hasDraftGrade?: boolean
-}) {
-  const showLate =
-    status === 'in_progress_late' ||
-    status === 'submitted_late' ||
-    ((status === 'graded' || status === 'returned' || status === 'resubmitted') && wasLate)
+function StatusIcon({ display }: { display: AssessmentWorkStatusDisplay }) {
+  const icon = <AssessmentStatusIndicator display={display} showLabel={false} />
 
-  let iconState: AssessmentStatusIconState
-  switch (status) {
-    case 'not_started':
-      iconState = 'not_started'
-      break
-    case 'in_progress':
-    case 'in_progress_late':
-      iconState = 'in_progress'
-      break
-    case 'submitted_on_time':
-    case 'submitted_late':
-      iconState = hasDraftGrade ? 'draft_graded' : 'submitted'
-      break
-    case 'graded':
-      iconState = 'graded'
-      break
-    case 'returned':
-      iconState = 'returned'
-      break
-    case 'resubmitted':
-      iconState = 'resubmitted'
-      break
-    default:
-      iconState = 'not_started'
-  }
-
-  const icon = <AssessmentStatusIcon state={iconState} late={showLate} />
-
-  if (status === 'resubmitted') {
+  if (display.shortLabel) {
     return (
       <span
-        className="inline-flex items-center gap-1 rounded-badge border border-warning bg-warning-bg px-1.5 py-0.5 text-[11px] font-semibold leading-none text-warning"
+        className={[
+          'inline-flex items-center gap-1 rounded-badge px-1.5 py-0.5 text-[11px] font-semibold leading-none',
+          display.chipClassName,
+        ].filter(Boolean).join(' ')}
         data-testid="assignment-status-resubmitted-chip"
       >
         {icon}
-        <span>Resub</span>
+        <span>{display.shortLabel}</span>
       </span>
     )
   }
 
   return icon
-}
-
-function getTeacherAssignmentStatusTooltipLabel(status: AssignmentStatus, wasLate: boolean): string {
-  const baseLabel = getAssignmentStatusLabel(status)
-  if (!wasLate) return baseLabel
-
-  if (status === 'graded' || status === 'returned' || status === 'resubmitted') {
-    return `${baseLabel} (late)`
-  }
-
-  return baseLabel
 }
 
 export function TeacherAssignmentStudentTable({
@@ -245,7 +198,11 @@ export function TeacherAssignmentStudentTable({
                       dueAtMs &&
                       new Date(student.doc.submitted_at).getTime() > dueAtMs
                     )
-                    const statusLabel = getTeacherAssignmentStatusTooltipLabel(student.status, wasLate)
+                    const statusDisplay = getAssignmentWorkStatusDisplay(student.status, {
+                      wasLate,
+                      hasDraftGrade,
+                    })
+                    const statusLabel = statusDisplay.label
 
                     return (
                       <DataTableRow
@@ -280,11 +237,7 @@ export function TeacherAssignmentStudentTable({
                         <DataTableCell className="w-[5.75rem]">
                           <Tooltip content={statusLabel}>
                             <span className="inline-flex" role="img" aria-label={statusLabel}>
-                              <StatusIcon
-                                status={student.status}
-                                wasLate={wasLate}
-                                hasDraftGrade={hasDraftGrade}
-                              />
+                              <StatusIcon display={statusDisplay} />
                             </span>
                           </Tooltip>
                         </DataTableCell>

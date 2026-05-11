@@ -11,6 +11,11 @@ function isMissingMaterialsTableError(error: any) {
   return error?.code === 'PGRST205' || String(error?.message || '').includes('classwork_materials')
 }
 
+function isMissingMaterialsPositionError(error: any) {
+  const message = String(error?.message || '')
+  return error?.code === 'PGRST204' || (message.includes('position') && message.includes('classwork_materials'))
+}
+
 export const GET = withErrorHandler('GetStudentClassworkMaterials', async (_request, context) => {
   const user = await requireRole('student')
   const { id: classroomId } = await context.params
@@ -21,12 +26,27 @@ export const GET = withErrorHandler('GetStudentClassworkMaterials', async (_requ
   }
 
   const supabase = getServiceRoleClient()
-  const { data: materials, error } = await supabase
+  const ordered = await supabase
     .from('classwork_materials')
     .select('*')
     .eq('classroom_id', classroomId)
     .eq('is_draft', false)
-    .order('released_at', { ascending: false })
+    .order('position', { ascending: true })
+    .order('released_at', { ascending: true })
+
+  let materials = ordered.data
+  let error = ordered.error
+
+  if (error && isMissingMaterialsPositionError(error)) {
+    const fallback = await supabase
+      .from('classwork_materials')
+      .select('*')
+      .eq('classroom_id', classroomId)
+      .eq('is_draft', false)
+      .order('released_at', { ascending: false })
+    materials = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     if (isMissingMaterialsTableError(error)) {

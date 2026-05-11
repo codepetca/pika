@@ -33,6 +33,10 @@ vi.mock('@/lib/assignments', () => ({
     if (doc) return 'in-progress'
     return 'not-started'
   }),
+  isAssignmentVisibleToStudents: vi.fn((assignment) => (
+    !assignment.is_draft &&
+    (!assignment.released_at || new Date(assignment.released_at).getTime() <= Date.now())
+  )),
   sanitizeDocForStudent: vi.fn((doc) => doc),
 }))
 

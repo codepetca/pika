@@ -17,9 +17,12 @@ describe('GET /api/teacher/classrooms/[id]/materials', () => {
     vi.clearAllMocks()
   })
 
-  it('returns teacher materials newest first', async () => {
-    const materials = [{ id: 'mat-1', title: 'Reference', content: doc, is_draft: false }]
-    const order = vi.fn().mockResolvedValue({ data: materials, error: null })
+  it('returns teacher materials in classwork order', async () => {
+    const materials = [{ id: 'mat-1', title: 'Reference', content: doc, is_draft: false, position: 1 }]
+    const order = vi
+      .fn()
+      .mockImplementationOnce(() => ({ order }))
+      .mockResolvedValue({ data: materials, error: null })
     const eq = vi.fn(() => ({ order }))
     const select = vi.fn(() => ({ eq }))
     ;(mockSupabaseClient.from as any) = vi.fn(() => ({ select }))
@@ -30,15 +33,19 @@ describe('GET /api/teacher/classrooms/[id]/materials', () => {
     expect(response.status).toBe(200)
     expect(mockSupabaseClient.from).toHaveBeenCalledWith('classwork_materials')
     expect(eq).toHaveBeenCalledWith('classroom_id', 'c-1')
-    expect(order).toHaveBeenCalledWith('created_at', { ascending: false })
+    expect(order).toHaveBeenNthCalledWith(1, 'position', { ascending: true })
+    expect(order).toHaveBeenNthCalledWith(2, 'created_at', { ascending: true })
     await expect(response.json()).resolves.toEqual({ materials })
   })
 
   it('returns an empty list before the materials migration is applied', async () => {
-    const order = vi.fn().mockResolvedValue({
-      data: null,
-      error: { code: 'PGRST205', message: "Could not find the table 'public.classwork_materials'" },
-    })
+    const order = vi
+      .fn()
+      .mockImplementationOnce(() => ({ order }))
+      .mockResolvedValue({
+        data: null,
+        error: { code: 'PGRST205', message: "Could not find the table 'public.classwork_materials'" },
+      })
     const eq = vi.fn(() => ({ order }))
     const select = vi.fn(() => ({ eq }))
     ;(mockSupabaseClient.from as any) = vi.fn(() => ({ select }))
@@ -64,6 +71,7 @@ describe('POST /api/teacher/classrooms/[id]/materials', () => {
       content: doc,
       is_draft: false,
       released_at: '2026-05-06T14:00:00.000Z',
+      position: 4,
       created_by: 'teacher-1',
     }
     const insert = vi.fn(() => ({
@@ -71,7 +79,36 @@ describe('POST /api/teacher/classrooms/[id]/materials', () => {
         single: vi.fn().mockResolvedValue({ data: material, error: null }),
       })),
     }))
-    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ insert }))
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: { position: 2 }, error: null }),
+                })),
+              })),
+            })),
+          })),
+        }
+      }
+      if (table === 'classwork_materials') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: { position: 3 }, error: null }),
+                })),
+              })),
+            })),
+          })),
+          insert,
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/materials', {
       method: 'POST',
@@ -86,9 +123,53 @@ describe('POST /api/teacher/classrooms/[id]/materials', () => {
       content: doc,
       is_draft: false,
       released_at: expect.any(String),
+      position: 4,
       created_by: 'teacher-1',
     }))
     await expect(response.json()).resolves.toEqual({ material })
+  })
+
+  it('fails material creation when mixed order lookup has an unexpected error', async () => {
+    const insert = vi.fn()
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: { message: 'database unavailable' } }),
+                })),
+              })),
+            })),
+          })),
+        }
+      }
+      if (table === 'classwork_materials') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: { position: 3 }, error: null }),
+                })),
+              })),
+            })),
+          })),
+          insert,
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/materials', {
+      method: 'POST',
+      body: JSON.stringify({ title: 'Reference', content: doc, is_draft: false }),
+    })
+    const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })
+
+    expect(response.status).toBe(500)
+    expect(insert).not.toHaveBeenCalled()
   })
 
   it('rejects missing titles', async () => {

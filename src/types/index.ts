@@ -194,6 +194,7 @@ export interface Assignment {
   track_authenticity: boolean
   points_possible?: number
   include_in_final?: boolean
+  gradebook_weight?: number
   created_by: string
   created_at: string
   updated_at: string
@@ -744,6 +745,7 @@ export interface Quiz {
   position: number
   points_possible?: number
   include_in_final?: boolean
+  gradebook_weight?: number
   created_by: string
   created_at: string
   updated_at: string
@@ -928,6 +930,7 @@ export interface ClassworkMaterial {
   content: TiptapContent
   is_draft: boolean
   released_at: string | null
+  position: number
   created_by: string
   created_at: string
   updated_at: string
@@ -989,9 +992,44 @@ export interface GradebookSettings {
   tests_weight: number
 }
 
+export type GradebookAssessmentType = 'assignment' | 'quiz' | 'test'
+export type GradebookAssessmentStatus =
+  | 'missing'
+  | 'late'
+  | 'not_submitted'
+  | 'started'
+  | 'submitted'
+  | 'submitted_late'
+  | 'resubmitted'
+
+export interface GradebookAssessmentColumn {
+  assessment_id: string
+  assessment_type: GradebookAssessmentType
+  code: string
+  title: string
+  possible: number
+  weight: number
+  include_in_final: boolean
+  due_at?: string
+  is_draft?: boolean
+  status?: 'draft' | 'active' | 'closed' | null
+}
+
+export interface GradebookAssessmentCell {
+  assessment_id: string
+  assessment_type: GradebookAssessmentType
+  earned: number | null
+  possible: number
+  percent: number | null
+  is_graded: boolean
+  is_manual_override?: boolean
+  status?: GradebookAssessmentStatus | null
+}
+
 export interface GradebookStudentSummary {
   student_id: string
   student_email: string
+  student_number: string | null
   student_first_name: string | null
   student_last_name: string | null
   assignments_earned: number | null
@@ -1004,6 +1042,7 @@ export interface GradebookStudentSummary {
   tests_possible: number | null
   tests_percent: number | null
   final_percent: number | null
+  assessment_scores?: GradebookAssessmentCell[]
 }
 
 export interface GradebookAssignmentDetail {

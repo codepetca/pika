@@ -17,6 +17,7 @@ function makeStudentSummary(): GradebookStudentSummary {
   return {
     student_id: 'student-1',
     student_email: 'student1@example.com',
+    student_number: '1001',
     student_first_name: 'Student',
     student_last_name: 'One',
     assignments_earned: 7,

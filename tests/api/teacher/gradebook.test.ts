@@ -9,7 +9,7 @@ const mockSupabaseClient = { from: vi.fn() }
 
 type GradebookFixture = {
   enrollments?: Array<{ student_id: string; users: { email: string } }>
-  profiles?: Array<{ user_id: string; first_name: string | null; last_name: string | null }>
+  profiles?: Array<{ user_id: string; student_number?: string | null; first_name: string | null; last_name: string | null }>
   assignments?: Array<any>
   docs?: Array<any>
   quizzes?: Array<any>
@@ -75,7 +75,7 @@ function buildMockFrom(fixture: GradebookFixture) {
           in: vi.fn().mockResolvedValue({
             data:
               fixture.profiles ?? [
-                { user_id: 'student-1', first_name: 'Student', last_name: 'One' },
+                { user_id: 'student-1', student_number: '1001', first_name: 'Student', last_name: 'One' },
               ],
             error: null,
           }),
@@ -274,6 +274,49 @@ describe('GET /api/teacher/gradebook', () => {
     const body = await response.json()
 
     expect(response.status).toBe(200)
+    expect(body.assessment_columns).toEqual([
+      {
+        assessment_id: 'a1',
+        assessment_type: 'assignment',
+        code: 'A1',
+        title: 'Essay',
+        possible: 30,
+        weight: 10,
+        due_at: '2025-01-01T12:00:00.000Z',
+        is_draft: false,
+        include_in_final: true,
+      },
+      {
+        assessment_id: 'q1',
+        assessment_type: 'quiz',
+        code: 'Q1',
+        title: 'Quiz 1',
+        possible: 10,
+        weight: 10,
+        status: 'closed',
+        include_in_final: true,
+      },
+    ])
+    expect(body.students[0].student_number).toBe('1001')
+    expect(body.students[0].assessment_scores).toEqual([
+      {
+        assessment_id: 'a1',
+        assessment_type: 'assignment',
+        earned: 24,
+        possible: 30,
+        percent: 80,
+        is_graded: true,
+      },
+      {
+        assessment_id: 'q1',
+        assessment_type: 'quiz',
+        earned: 10,
+        possible: 10,
+        percent: 100,
+        is_graded: true,
+        is_manual_override: false,
+      },
+    ])
     expect(body.selected_student).toBeTruthy()
     expect(body.selected_student.assignments).toEqual([
       {
@@ -343,6 +386,143 @@ describe('GET /api/teacher/gradebook', () => {
       },
     ])
     expect(body.totals.tests).toBe(1)
+  })
+
+  it('adds sparse per-student assessment statuses for the inspector', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      assignments: [
+        { id: 'a-missing', title: 'Missing Assignment', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true },
+        { id: 'a-submitted', title: 'Submitted Assignment', due_at: '2099-01-01T12:00:00.000Z', position: 2, is_draft: false, points_possible: 30, include_in_final: true },
+      ],
+      docs: [
+        {
+          assignment_id: 'a-submitted',
+          student_id: 'student-1',
+          score_completion: null,
+          score_thinking: null,
+          score_workflow: null,
+          is_submitted: true,
+          submitted_at: '2026-01-01T12:00:00.000Z',
+        },
+      ],
+      quizzes: [{ id: 'q-closed', title: 'Closed Quiz', status: 'closed', points_possible: 10, include_in_final: true }],
+      quizQuestions: [{ id: 'qq1', quiz_id: 'q-closed', correct_option: 1 }],
+      quizResponses: [],
+      tests: [{ id: 't-submitted', title: 'Submitted Test', status: 'active', include_in_final: true }],
+      testQuestions: [{ id: 'tq1', test_id: 't-submitted', points: 5 }],
+      testResponses: [],
+      testAttempts: [{ test_id: 't-submitted', student_id: 'student-1', is_submitted: true, submitted_at: '2026-01-01T12:00:00.000Z' }],
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.students[0].assessment_scores).toEqual([
+      expect.objectContaining({ assessment_id: 'a-missing', status: 'missing' }),
+      expect.objectContaining({ assessment_id: 'a-submitted', status: 'submitted' }),
+      expect.objectContaining({ assessment_id: 'q-closed', status: 'not_submitted' }),
+      expect.objectContaining({ assessment_id: 't-submitted', status: 'submitted' }),
+    ])
+  })
+
+  it('uses assessment weights separately from points possible in final calculations', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      assignments: [
+        {
+          id: 'a-heavy-points',
+          title: 'Large Raw Scale',
+          due_at: '2025-01-01T12:00:00.000Z',
+          position: 1,
+          is_draft: false,
+          points_possible: 100,
+          include_in_final: true,
+          gradebook_weight: 10,
+        },
+        {
+          id: 'a-small-points',
+          title: 'Small Raw Scale',
+          due_at: '2025-01-02T12:00:00.000Z',
+          position: 2,
+          is_draft: false,
+          points_possible: 10,
+          include_in_final: true,
+          gradebook_weight: 10,
+        },
+      ],
+      docs: [
+        { assignment_id: 'a-heavy-points', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 },
+        { assignment_id: 'a-small-points', student_id: 'student-1', score_completion: 0, score_thinking: 0, score_workflow: 0 },
+      ],
+      quizzes: [],
+      quizQuestions: [],
+      quizResponses: [],
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.assessment_columns).toEqual([
+      expect.objectContaining({
+        assessment_id: 'a-heavy-points',
+        possible: 100,
+        weight: 10,
+      }),
+      expect.objectContaining({
+        assessment_id: 'a-small-points',
+        possible: 10,
+        weight: 10,
+      }),
+    ])
+    expect(body.students[0].assignments_earned).toBe(100)
+    expect(body.students[0].assignments_possible).toBe(110)
+    expect(body.students[0].assignments_percent).toBe(50)
+    expect(body.students[0].final_percent).toBe(50)
+  })
+
+  it('ignores legacy category weights and uses assessment weights for final calculations', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      settings: { use_weights: true, assignments_weight: 100, quizzes_weight: 0, tests_weight: 0 },
+      assignments: [
+        {
+          id: 'a1',
+          title: 'Assignment 1',
+          due_at: '2025-01-01T12:00:00.000Z',
+          position: 1,
+          is_draft: false,
+          points_possible: 10,
+          include_in_final: true,
+          gradebook_weight: 10,
+        },
+      ],
+      docs: [
+        { assignment_id: 'a1', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 },
+      ],
+      quizzes: [
+        {
+          id: 'q1',
+          title: 'Quiz 1',
+          status: 'closed',
+          points_possible: 1,
+          include_in_final: true,
+          gradebook_weight: 10,
+        },
+      ],
+      quizQuestions: [{ id: 'qq1', quiz_id: 'q1', correct_option: 0 }],
+      quizResponses: [{ quiz_id: 'q1', question_id: 'qq1', student_id: 'student-1', selected_option: 1 }],
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.students[0].assignments_percent).toBe(100)
+    expect(body.students[0].quizzes_percent).toBe(0)
+    expect(body.students[0].final_percent).toBe(50)
   })
 
   it('returns 500 when gradebook settings cannot be loaded', async () => {
@@ -713,6 +893,60 @@ describe('PATCH /api/teacher/gradebook', () => {
       assignments_weight: 10,
       quizzes_weight: 20,
       tests_weight: 30,
+    })
+  })
+
+  it('updates an individual assessment weight', async () => {
+    const update = vi.fn(() => ({
+      eq: vi.fn().mockReturnThis(),
+      select: vi.fn(() => ({
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: { id: 'a1', gradebook_weight: 20 },
+          error: null,
+        }),
+      })),
+    }))
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'c1', teacher_id: 'teacher-1', archived_at: null },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'assignments') {
+        return { update }
+      }
+
+      throw new Error(`Unexpected table in test: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        classroom_id: 'c1',
+        assessment_type: 'assignment',
+        assessment_id: 'a1',
+        gradebook_weight: 20,
+      }),
+    })
+
+    const response = await PATCH(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(update).toHaveBeenCalledWith({ gradebook_weight: 20 })
+    expect(body.assessment).toEqual({
+      assessment_id: 'a1',
+      assessment_type: 'assignment',
+      weight: 20,
     })
   })
 })

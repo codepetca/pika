@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { calculateAssignmentStatus } from '@/lib/assignments'
+import {
+  calculateAssignmentStatus,
+  isAssignmentLive,
+  isAssignmentScheduledForFuture,
+} from '@/lib/assignments'
 import { extractAssignmentArtifacts } from '@/lib/assignment-artifacts'
 import { buildAssignmentInstructionFields, getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getActiveAssignmentAiGradingRunSummary } from '@/lib/server/assignment-ai-grading-runs'
 import {
   ASSIGNMENT_SCHEDULE_DUE_DATE_ERROR,
-  isScheduledReleaseOnOrBeforeDueDate,
+  getFutureScheduledReleaseDueDateError,
 } from '@/lib/assignment-schedule-validation'
 
 export const dynamic = 'force-dynamic'
@@ -246,9 +250,8 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
   if (due_at !== undefined) updates.due_at = due_at
 
   const now = new Date()
-  const existingReleaseDate = existing.released_at ? new Date(existing.released_at) : null
-  const existingIsLive = !existing.is_draft && (!existingReleaseDate || existingReleaseDate <= now)
-  const existingIsScheduled = !existing.is_draft && !!existingReleaseDate && existingReleaseDate > now
+  const existingIsLive = isAssignmentLive(existing, now)
+  const existingIsScheduled = isAssignmentScheduledForFuture(existing, now)
 
   let parsedReleasedAt: string | null | undefined
   if (released_at !== undefined) {
@@ -301,17 +304,19 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
 
   const effectiveDueAt = due_at ?? existing.due_at
   const effectiveReleaseAt = updates.released_at ?? existing.released_at
-  const effectiveReleaseDate = effectiveReleaseAt ? new Date(effectiveReleaseAt) : null
-  const isFutureScheduledRelease =
-    updates.is_draft !== true &&
-    !!effectiveReleaseDate &&
-    !Number.isNaN(effectiveReleaseDate.getTime()) &&
-    effectiveReleaseDate > now
+  const effectiveIsScheduled = isAssignmentScheduledForFuture({
+    is_draft: updates.is_draft ?? existing.is_draft,
+    released_at: effectiveReleaseAt,
+  }, now)
+  const scheduleDueDateError = effectiveIsScheduled
+    ? getFutureScheduledReleaseDueDateError({
+        releaseAt: effectiveReleaseAt,
+        dueAt: effectiveDueAt,
+        now,
+      })
+    : null
 
-  if (
-    isFutureScheduledRelease &&
-    !isScheduledReleaseOnOrBeforeDueDate(effectiveReleaseDate, effectiveDueAt)
-  ) {
+  if (scheduleDueDateError) {
     return NextResponse.json(
       { error: ASSIGNMENT_SCHEDULE_DUE_DATE_ERROR },
       { status: 400 }
