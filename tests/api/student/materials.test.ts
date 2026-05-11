@@ -15,9 +15,12 @@ describe('GET /api/student/classrooms/[id]/materials', () => {
     vi.clearAllMocks()
   })
 
-  it('returns only published materials for enrolled students', async () => {
-    const materials = [{ id: 'mat-1', title: 'Reference', is_draft: false }]
-    const order = vi.fn().mockResolvedValue({ data: materials, error: null })
+  it('returns only published materials for enrolled students in classwork order', async () => {
+    const materials = [{ id: 'mat-1', title: 'Reference', is_draft: false, position: 1 }]
+    const order = vi
+      .fn()
+      .mockImplementationOnce(() => ({ order }))
+      .mockResolvedValue({ data: materials, error: null })
     const eqDraft = vi.fn(() => ({ order }))
     const eqClassroom = vi.fn(() => ({ eq: eqDraft }))
     const select = vi.fn(() => ({ eq: eqClassroom }))
@@ -30,15 +33,19 @@ describe('GET /api/student/classrooms/[id]/materials', () => {
     expect(mockSupabaseClient.from).toHaveBeenCalledWith('classwork_materials')
     expect(eqClassroom).toHaveBeenCalledWith('classroom_id', 'c-1')
     expect(eqDraft).toHaveBeenCalledWith('is_draft', false)
-    expect(order).toHaveBeenCalledWith('released_at', { ascending: false })
+    expect(order).toHaveBeenNthCalledWith(1, 'position', { ascending: true })
+    expect(order).toHaveBeenNthCalledWith(2, 'released_at', { ascending: true })
     await expect(response.json()).resolves.toEqual({ materials })
   })
 
   it('returns an empty list before the materials migration is applied', async () => {
-    const order = vi.fn().mockResolvedValue({
-      data: null,
-      error: { code: 'PGRST205', message: "Could not find the table 'public.classwork_materials'" },
-    })
+    const order = vi
+      .fn()
+      .mockImplementationOnce(() => ({ order }))
+      .mockResolvedValue({
+        data: null,
+        error: { code: 'PGRST205', message: "Could not find the table 'public.classwork_materials'" },
+      })
     const eqDraft = vi.fn(() => ({ order }))
     const eqClassroom = vi.fn(() => ({ eq: eqDraft }))
     const select = vi.fn(() => ({ eq: eqClassroom }))

@@ -14,14 +14,17 @@ import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
+  useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import {
   BarChart3,
   Check,
   ChevronLeft,
   ChevronRight,
   Copy,
+  GripVertical,
   LoaderCircle,
   MessageSquare,
   Pencil,
@@ -67,6 +70,7 @@ import {
   parseAssignmentWorkspaceStudentId,
   type AssignmentWorkspaceMode,
 } from '@/lib/assignment-grading-layout'
+import { buildOrderedClassworkItems } from '@/lib/classwork-order'
 import type {
   Classroom,
   Assignment,
@@ -142,29 +146,77 @@ function TeacherMaterialCard({
   material,
   isReadOnly,
   editMode,
+  isDragDisabled,
   onOpen,
   onDelete,
 }: {
   material: ClassworkMaterial
   isReadOnly: boolean
   editMode: boolean
+  isDragDisabled: boolean
   onOpen: () => void
   onDelete: () => void
 }) {
   const showEditActions = editMode && !isReadOnly
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: material.id, disabled: isReadOnly || isDragDisabled || !editMode })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: isDragging ? undefined : transition,
+  }
 
   return (
     <TeacherWorkItemCardFrame
+      ref={setNodeRef}
+      style={style}
       onClick={onOpen}
       tone={material.is_draft ? 'muted' : 'default'}
-      className="cursor-pointer"
+      interactive={material.is_draft}
+      dragging={isDragging}
+      dragTone="neutral"
+      className={[
+        'cursor-pointer',
+        material.is_draft
+          ? ''
+          : isDragging
+            ? 'bg-info-bg'
+            : 'bg-info-bg transition hover:-translate-y-px hover:bg-info-bg-hover hover:shadow-panel',
+      ].join(' ')}
     >
       <div
         className={[
           'grid items-center gap-3',
-          showEditActions ? 'grid-cols-[minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)]',
+          showEditActions
+            ? 'grid-cols-[auto_minmax(0,1fr)_auto]'
+            : 'grid-cols-[minmax(0,1fr)]',
         ].join(' ')}
       >
+        {showEditActions && (
+          <button
+            type="button"
+            className={[
+              'p-1 -ml-1 touch-none transition-colors',
+              isDragDisabled
+                ? 'text-text-muted cursor-default'
+                : 'text-text-muted hover:text-text-default cursor-grab active:cursor-grabbing',
+            ].join(' ')}
+            {...attributes}
+            {...listeners}
+            aria-label="Drag to reorder material"
+            disabled={isDragDisabled}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <GripVertical className="h-5 w-5" aria-hidden="true" />
+          </button>
+        )}
+
         <button
           type="button"
           onClick={(event) => {
@@ -175,15 +227,17 @@ function TeacherMaterialCard({
           aria-label={`Open ${material.title}`}
         >
           <span className="min-w-0">
-            <span
-              className={[
-                'block truncate font-medium',
-                material.is_draft ? 'text-text-muted' : 'text-text-default',
-              ].join(' ')}
-            >
-              {material.title}
+            <span className="min-w-0">
+              <span
+                className={[
+                  'block truncate font-medium',
+                  material.is_draft ? 'text-text-muted' : 'text-text-default',
+                ].join(' ')}
+              >
+                {material.title}
+              </span>
+              <span className="block text-xs text-primary">Material</span>
             </span>
-            <span className="block text-xs text-text-muted">Material</span>
           </span>
 
           <span className="whitespace-nowrap px-2 text-center">
@@ -612,14 +666,9 @@ export function TeacherClassroomView({
     invalidateCachedJSON(`student-materials:${classroom.id}`)
     setMaterials((current) => {
       const exists = current.some((item) => item.id === material.id)
-      const next = exists
+      return exists
         ? current.map((item) => (item.id === material.id ? material : item))
         : [material, ...current]
-      return next.sort((a, b) => {
-        const aTime = new Date(a.created_at).getTime()
-        const bTime = new Date(b.created_at).getTime()
-        return bTime - aTime
-      })
     })
     setEditMaterial(null)
     setIsMaterialModalOpen(false)
@@ -668,30 +717,56 @@ export function TeacherClassroomView({
     return () => observer.disconnect()
   }, [selection.mode, leftPaneView, selectedStudentId])
 
+  const classworkItems = useMemo(
+    () => buildOrderedClassworkItems(assignments, materials),
+    [assignments, materials],
+  )
+
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
       const { active, over } = event
       if (!over || active.id === over.id || isReordering || isReadOnly || !assignmentEditMode) return
 
-      const oldIndex = assignments.findIndex((a) => a.id === active.id)
-      const newIndex = assignments.findIndex((a) => a.id === over.id)
+      const oldIndex = classworkItems.findIndex((item) => item.id === active.id)
+      const newIndex = classworkItems.findIndex((item) => item.id === over.id)
 
       if (oldIndex === -1 || newIndex === -1) return
 
       // Optimistically update local state
-      const reordered = arrayMove(assignments, oldIndex, newIndex)
-      setAssignments(reordered)
+      const reordered = arrayMove(classworkItems, oldIndex, newIndex)
+      setAssignments(
+        reordered.flatMap((item, position) => (
+          item.type === 'assignment'
+            ? [{ ...item.assignment, position }]
+            : []
+        )),
+      )
+      setMaterials(
+        reordered.flatMap((item, position) => (
+          item.type === 'material'
+            ? [{ ...item.material, position }]
+            : []
+        )),
+      )
 
       // Persist to server
       setIsReordering(true)
       try {
-        const orderedIds = reordered.map((a) => a.id)
-        await fetch('/api/teacher/assignments/reorder', {
+        const response = await fetch(`/api/teacher/classrooms/${classroom.id}/classwork/reorder`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ classroom_id: classroom.id, assignment_ids: orderedIds }),
+          body: JSON.stringify({
+            items: reordered.map((item) => ({ type: item.type, id: item.id })),
+          }),
         })
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}))
+          throw new Error(data.error || 'Failed to save classwork order')
+        }
         invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
+        invalidateCachedJSON(`teacher-materials:${classroom.id}`)
+        invalidateCachedJSON(`student-assignments:${classroom.id}`)
+        invalidateCachedJSON(`student-materials:${classroom.id}`)
         // Notify sidebar to refresh
         window.dispatchEvent(
           new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
@@ -699,15 +774,15 @@ export function TeacherClassroomView({
           })
         )
       } catch (err) {
-        console.error('Failed to reorder assignments:', err)
-        setError('Failed to save assignment order. Please try again.')
+        console.error('Failed to reorder classwork:', err)
+        setError('Failed to save classwork order. Please try again.')
         // Reload to restore server state on error
         loadAssignments()
       } finally {
         setIsReordering(false)
       }
     },
-    [assignmentEditMode, assignments, classroom.id, isReordering, isReadOnly, loadAssignments]
+    [assignmentEditMode, classroom.id, classworkItems, isReordering, isReadOnly, loadAssignments]
   )
 
   useEffect(() => {
@@ -2015,30 +2090,36 @@ export function TeacherClassroomView({
     </div>
   ) : (
     <TeacherWorkItemList>
-      {materials.map((material) => (
-        <TeacherMaterialCard
-          key={material.id}
-          material={material}
-          isReadOnly={isReadOnly}
-          editMode={assignmentEditMode}
-          onOpen={() => {
-            setEditMaterial(material)
-            setIsMaterialModalOpen(true)
-          }}
-          onDelete={() => setPendingMaterialDelete(material)}
-        />
-      ))}
-      {assignments.length > 0 ? (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={classworkItems.map((item) => item.id)}
+          strategy={verticalListSortingStrategy}
         >
-          <SortableContext
-            items={assignments.map((assignment) => assignment.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            {assignments.map((assignment) => (
+          {classworkItems.map((item) => {
+            if (item.type === 'material') {
+              const material = item.material
+              return (
+                <TeacherMaterialCard
+                  key={material.id}
+                  material={material}
+                  isReadOnly={isReadOnly}
+                  isDragDisabled={isReordering}
+                  editMode={assignmentEditMode}
+                  onOpen={() => {
+                    setEditMaterial(material)
+                    setIsMaterialModalOpen(true)
+                  }}
+                  onDelete={() => setPendingMaterialDelete(material)}
+                />
+              )
+            }
+
+            const assignment = item.assignment
+            return (
               <SortableAssignmentCard
                 key={assignment.id}
                 assignment={assignment}
@@ -2055,10 +2136,10 @@ export function TeacherClassroomView({
                 onEdit={() => setEditAssignment(assignment)}
                 onDelete={() => setPendingDelete({ id: assignment.id, title: assignment.title })}
               />
-            ))}
-          </SortableContext>
-        </DndContext>
-      ) : null}
+            )
+          })}
+        </SortableContext>
+      </DndContext>
     </TeacherWorkItemList>
   )
 

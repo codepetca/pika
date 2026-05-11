@@ -7,6 +7,25 @@ import { withErrorHandler } from '@/lib/api-handler'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+function getKnownAssignmentReorderError(error: any) {
+  const message = String(error?.message || '')
+
+  if (message === 'Assignment list changed. Refresh and try again.') {
+    return { status: 409, message }
+  }
+
+  if (
+    message === 'assignment_ids must be an array' ||
+    message === 'assignment_ids must include strings' ||
+    message === 'assignment_ids must be unique' ||
+    message === 'One or more assignments not found in classroom'
+  ) {
+    return { status: 400, message }
+  }
+
+  return null
+}
+
 // POST /api/teacher/assignments/reorder
 // body: { classroom_id: string, assignment_ids: string[] }
 export const POST = withErrorHandler('PostTeacherAssignmentsReorder', async (request, context) => {
@@ -33,31 +52,17 @@ export const POST = withErrorHandler('PostTeacherAssignmentsReorder', async (req
 
   const supabase = getServiceRoleClient()
 
-  // Verify all IDs belong to the classroom
-  const { data: assignments, error: assignmentsError } = await supabase
-    .from('assignments')
-    .select('id')
-    .eq('classroom_id', classroom_id)
-    .in('id', uniqueIds)
+  const { error } = await supabase.rpc('reorder_assignments_preserve_materials', {
+    p_classroom_id: classroom_id,
+    p_assignment_ids: uniqueIds,
+  })
 
-  if (assignmentsError) {
-    console.error('Error verifying assignments:', assignmentsError)
-    return NextResponse.json({ error: 'Failed to verify assignments' }, { status: 500 })
-  }
-
-  if ((assignments || []).length !== uniqueIds.length) {
-    return NextResponse.json({ error: 'One or more assignments not found in classroom' }, { status: 400 })
-  }
-
-  const results = await Promise.all(
-    uniqueIds.map((id, index) =>
-      supabase.from('assignments').update({ position: index }).eq('id', id)
-    )
-  )
-  const updateError = results.find((r) => r.error)?.error ?? null
-
-  if (updateError) {
-    console.error('Error reordering assignments:', updateError)
+  if (error) {
+    const knownError = getKnownAssignmentReorderError(error)
+    if (knownError) {
+      return NextResponse.json({ error: knownError.message }, { status: knownError.status })
+    }
+    console.error('Error reordering assignments:', error)
     return NextResponse.json({ error: 'Failed to reorder assignments' }, { status: 500 })
   }
 

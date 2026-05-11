@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TeacherClassroomView } from '@/app/classrooms/[classroomId]/TeacherClassroomView'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
-import type { Classroom } from '@/types'
+import type { Classroom, ClassworkMaterial } from '@/types'
 
 const mockFetchJSONWithCache = vi.fn()
 const mockInvalidateCachedJSON = vi.fn()
@@ -34,7 +34,23 @@ vi.mock('@dnd-kit/sortable', () => ({
   arrayMove: vi.fn((items) => items),
   SortableContext: ({ children }: any) => <div>{children}</div>,
   sortableKeyboardCoordinates: vi.fn(),
+  useSortable: vi.fn(() => ({
+    attributes: {},
+    listeners: {},
+    setNodeRef: vi.fn(),
+    transform: null,
+    transition: undefined,
+    isDragging: false,
+  })),
   verticalListSortingStrategy: vi.fn(),
+}))
+
+vi.mock('@dnd-kit/utilities', () => ({
+  CSS: {
+    Transform: {
+      toString: vi.fn(() => undefined),
+    },
+  },
 }))
 
 vi.mock('@/ui', () => ({
@@ -372,6 +388,22 @@ function makeAssignmentSummary(id: string, title: string, overrides: Record<stri
   }
 }
 
+function makeMaterialSummary(id: string, title: string, overrides: Partial<ClassworkMaterial> = {}): ClassworkMaterial {
+  return {
+    id,
+    classroom_id: classroom.id,
+    title,
+    content: { type: 'doc', content: [] },
+    is_draft: false,
+    released_at: '2026-04-10T12:00:00Z',
+    position: 0,
+    created_by: 'teacher-1',
+    created_at: '2026-04-01T12:00:00Z',
+    updated_at: '2026-04-01T12:00:00Z',
+    ...overrides,
+  }
+}
+
 function makeAssignmentDetails(
   assignmentId: string,
   title: string,
@@ -566,6 +598,42 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment One')
     expect(updateSearchParams).not.toHaveBeenCalled()
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
+  })
+
+  it('renders materials and assignments in shared order and gives materials a drag handle in edit mode', async () => {
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return Promise.resolve({
+          assignments: [
+            makeAssignmentSummary('assignment-1', 'Assignment One', { position: 2 }),
+          ],
+        })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({
+          materials: [
+            makeMaterialSummary('material-1', 'Opening Reading', { position: 1 }),
+          ],
+        })
+      }
+      if (key === `class-days:${classroom.id}`) {
+        return Promise.resolve({ class_days: [] })
+      }
+      return fetcher()
+    })
+
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+
+    const materialButton = await screen.findByRole('button', { name: 'Open Opening Reading' })
+    const assignmentButton = screen.getByRole('button', { name: 'Assignment One' })
+    expect(
+      materialButton.compareDocumentPosition(assignmentButton) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByRole('button', { name: 'Drag to reorder material' })).toBeInTheDocument()
+    expect(materialButton.querySelector('.border-l-2')).not.toBeInTheDocument()
+    expect(materialButton.closest('.bg-info-bg')).not.toHaveClass('border-primary/40')
   })
 
   it('exits assignment edit mode when the create assignment modal closes', async () => {

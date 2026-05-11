@@ -16,12 +16,12 @@ vi.mock('@/lib/server/classrooms', () => ({
 import { POST } from '@/app/api/teacher/assignments/reorder/route'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { rpc: vi.fn() }
 
 describe('POST /api/teacher/assignments/reorder', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSupabaseClient.from.mockReset()
+    mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: null })
   })
 
   it('rejects missing params and duplicate assignment ids', async () => {
@@ -51,15 +51,13 @@ describe('POST /api/teacher/assignments/reorder', () => {
     }))
 
     expect(response.status).toBe(403)
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
   })
 
   it('rejects ids that do not all belong to the classroom', async () => {
-    mockSupabaseClient.from.mockReturnValue({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          in: vi.fn(async () => ({ data: [{ id: 'a-1' }], error: null })),
-        })),
-      })),
+    mockSupabaseClient.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'One or more assignments not found in classroom' },
     })
 
     const response = await POST(new NextRequest('http://localhost/api/teacher/assignments/reorder', {
@@ -70,67 +68,45 @@ describe('POST /api/teacher/assignments/reorder', () => {
     expect(response.status).toBe(400)
   })
 
-  it('persists each assignment position in submitted order', async () => {
-    const updates: unknown[] = []
-    mockSupabaseClient.from.mockImplementation((table: string) => {
-      if (table !== 'assignments') throw new Error(`Unexpected table: ${table}`)
-      return {
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            in: vi.fn(async () => ({
-              data: [{ id: 'a-2' }, { id: 'a-1' }],
-              error: null,
-            })),
-          })),
-        })),
-        update: vi.fn((payload: unknown) => {
-          updates.push(payload)
-          return {
-            eq: vi.fn(async () => ({ error: null })),
-          }
-        }),
-      }
-    })
-
+  it('persists each assignment position through the material-aware reorder RPC', async () => {
     const response = await POST(new NextRequest('http://localhost/api/teacher/assignments/reorder', {
       method: 'POST',
       body: JSON.stringify({ classroom_id: 'classroom-1', assignment_ids: ['a-2', 'a-1'] }),
     }))
 
     expect(response.status).toBe(200)
-    expect(updates).toEqual([{ position: 0 }, { position: 1 }])
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('reorder_assignments_preserve_materials', {
+      p_classroom_id: 'classroom-1',
+      p_assignment_ids: ['a-2', 'a-1'],
+    })
   })
 
-  it('returns 500 when verifying or updating assignments fails', async () => {
-    mockSupabaseClient.from.mockReturnValueOnce({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          in: vi.fn(async () => ({ data: null, error: { message: 'verify failed' } })),
-        })),
-      })),
+  it('returns 409 for stale assignment lists', async () => {
+    mockSupabaseClient.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'Assignment list changed. Refresh and try again.' },
     })
 
-    const verifyFailure = await POST(new NextRequest('http://localhost/api/teacher/assignments/reorder', {
+    const response = await POST(new NextRequest('http://localhost/api/teacher/assignments/reorder', {
       method: 'POST',
       body: JSON.stringify({ classroom_id: 'classroom-1', assignment_ids: ['a-1'] }),
     }))
-    expect(verifyFailure.status).toBe(500)
 
-    mockSupabaseClient.from.mockReturnValue({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          in: vi.fn(async () => ({ data: [{ id: 'a-1' }], error: null })),
-        })),
-      })),
-      update: vi.fn(() => ({
-        eq: vi.fn(async () => ({ error: { message: 'update failed' } })),
-      })),
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toEqual({ error: 'Assignment list changed. Refresh and try again.' })
+  })
+
+  it('returns 500 when the material-aware reorder RPC fails unexpectedly', async () => {
+    mockSupabaseClient.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'database unavailable' },
     })
 
-    const updateFailure = await POST(new NextRequest('http://localhost/api/teacher/assignments/reorder', {
+    const response = await POST(new NextRequest('http://localhost/api/teacher/assignments/reorder', {
       method: 'POST',
       body: JSON.stringify({ classroom_id: 'classroom-1', assignment_ids: ['a-1'] }),
     }))
-    expect(updateFailure.status).toBe(500)
+
+    expect(response.status).toBe(500)
   })
 })

@@ -291,6 +291,71 @@ describe('POST /api/teacher/assignments/bulk', () => {
     expect(data.created).toBe(0)
   })
 
+  it('should preserve material positions when saving assignment markdown', async () => {
+    const updates: Array<{ id: string; payload: Record<string, any> }> = []
+
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              in: vi.fn().mockResolvedValue({
+                data: [
+                  { id: 'a-1', title: 'First', is_draft: true, released_at: null },
+                  { id: 'a-2', title: 'Second', is_draft: true, released_at: null },
+                ],
+                error: null,
+              }),
+            })),
+          })),
+          update: vi.fn((payload: Record<string, any>) => ({
+            eq: vi.fn((_column: string, id: string) => ({
+              select: vi.fn(async () => {
+                updates.push({ id, payload })
+                return { data: [{ id, ...payload }], error: null }
+              }),
+            })),
+          })),
+          insert: vi.fn(),
+        }
+      }
+
+      if (table === 'classwork_materials') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [{ position: 1 }],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const assignments = [
+      { id: 'a-2', title: 'Second', due_at: '2025-01-20T23:59:00Z', instructions: 'Second', is_draft: true, position: 0 },
+      { id: 'a-1', title: 'First', due_at: '2025-01-21T23:59:00Z', instructions: 'First', is_draft: true, position: 1 },
+    ]
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/assignments/bulk',
+      {
+        method: 'POST',
+        body: JSON.stringify({ classroom_id: 'c-1', assignments }),
+      }
+    )
+    const response = await POST(request)
+
+    expect(response.status).toBe(200)
+    expect(updates.map((update) => ({ id: update.id, position: update.payload.position }))).toEqual([
+      { id: 'a-2', position: 0 },
+      { id: 'a-1', position: 2 },
+    ])
+  })
+
   it('should allow releasing a draft assignment', async () => {
     // Mock: existing draft assignment via select().eq().in()
     const mockIn = vi.fn().mockResolvedValue({

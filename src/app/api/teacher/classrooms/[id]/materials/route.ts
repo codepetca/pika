@@ -16,6 +16,11 @@ function isMissingMaterialsTableError(error: any) {
   return error?.code === 'PGRST205' || String(error?.message || '').includes('classwork_materials')
 }
 
+function isMissingMaterialsPositionError(error: any) {
+  const message = String(error?.message || '')
+  return error?.code === 'PGRST204' || (message.includes('position') && message.includes('classwork_materials'))
+}
+
 export const GET = withErrorHandler('GetTeacherClassworkMaterials', async (_request, context) => {
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
@@ -26,11 +31,25 @@ export const GET = withErrorHandler('GetTeacherClassworkMaterials', async (_requ
   }
 
   const supabase = getServiceRoleClient()
-  const { data: materials, error } = await supabase
+  const ordered = await supabase
     .from('classwork_materials')
     .select('*')
     .eq('classroom_id', classroomId)
-    .order('created_at', { ascending: false })
+    .order('position', { ascending: true })
+    .order('created_at', { ascending: true })
+
+  let materials = ordered.data
+  let error = ordered.error
+
+  if (error && isMissingMaterialsPositionError(error)) {
+    const fallback = await supabase
+      .from('classwork_materials')
+      .select('*')
+      .eq('classroom_id', classroomId)
+      .order('created_at', { ascending: false })
+    materials = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     if (isMissingMaterialsTableError(error)) {
@@ -68,16 +87,56 @@ export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (requ
   }
 
   const supabase = getServiceRoleClient()
+  const [lastAssignmentResult, lastMaterialResult] = await Promise.all([
+    supabase
+      .from('assignments')
+      .select('position')
+      .eq('classroom_id', classroomId)
+      .order('position', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('classwork_materials')
+      .select('position')
+      .eq('classroom_id', classroomId)
+      .order('position', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
+  const lastAssignmentPosition = typeof lastAssignmentResult.data?.position === 'number'
+    ? lastAssignmentResult.data.position
+    : -1
+  const lastMaterialPosition = !lastMaterialResult.error && typeof lastMaterialResult.data?.position === 'number'
+    ? lastMaterialResult.data.position
+    : -1
+
+  if (lastAssignmentResult.error) {
+    console.error('Error fetching last assignment position:', lastAssignmentResult.error)
+    return NextResponse.json({ error: 'Failed to create material' }, { status: 500 })
+  }
+
+  if (lastMaterialResult.error && !isMissingMaterialsPositionError(lastMaterialResult.error)) {
+    console.error('Error fetching last material position:', lastMaterialResult.error)
+    return NextResponse.json({ error: 'Failed to create material' }, { status: 500 })
+  }
+
+  const nextPosition = Math.max(lastAssignmentPosition, lastMaterialPosition) + 1
+  const insertBody: Record<string, unknown> = {
+    classroom_id: classroomId,
+    title: cleanTitle,
+    content,
+    is_draft: !!isDraft,
+    released_at: isDraft ? null : new Date().toISOString(),
+    created_by: user.id,
+  }
+
+  if (!isMissingMaterialsPositionError(lastMaterialResult.error)) {
+    insertBody.position = nextPosition
+  }
+
   const { data: material, error } = await supabase
     .from('classwork_materials')
-    .insert({
-      classroom_id: classroomId,
-      title: cleanTitle,
-      content,
-      is_draft: !!isDraft,
-      released_at: isDraft ? null : new Date().toISOString(),
-      created_by: user.id,
-    })
+    .insert(insertBody)
     .select()
     .single()
 
