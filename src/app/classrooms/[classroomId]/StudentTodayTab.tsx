@@ -84,12 +84,14 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
   const pendingContentRef = useRef<TiptapContent | null>(null)
   const entryIdRef = useRef<string | null>(null)
   const entryVersionRef = useRef(1)
+  const todayRef = useRef('')
 
   useEffect(() => {
     async function load() {
       setLoading(true)
       try {
         const todayDate = getTodayInToronto()
+        todayRef.current = todayDate
         setToday(todayDate)
 
         const historyCacheKey = getStudentEntryHistoryCacheKey({
@@ -182,7 +184,18 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
     newContent: TiptapContent,
     options?: { forceFull?: boolean }
   ) => {
-    if (!today) return
+    const currentToday = getTodayInToronto()
+    const entryDate = currentToday || todayRef.current
+    if (!entryDate) return
+
+    if (todayRef.current !== entryDate) {
+      todayRef.current = entryDate
+      setToday(entryDate)
+      entryIdRef.current = null
+      entryVersionRef.current = 1
+      lastSavedContentRef.current = JSON.stringify(EMPTY_DOC)
+      setConflictEntry(null)
+    }
 
     // Don't create a new DB record for empty content (e.g. TipTap mount normalization)
     const newContentStr = JSON.stringify(newContent)
@@ -224,7 +237,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
       patch?: JsonPatchOperation[]
     } = {
       classroom_id: classroom.id,
-      date: today,
+      date: entryDate,
       entry_id: entryIdRef.current ?? undefined,
       version: entryVersionRef.current,
     }
@@ -284,7 +297,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
       setSaveStatus('unsaved')
       setSaveError(err.message || 'Failed to save')
     }
-  }, [MAX_CHARS, classroom.id, today, updateHistoryEntries, notifications])
+  }, [MAX_CHARS, classroom.id, updateHistoryEntries, notifications])
 
   const scheduleSave = useCallback((
     newContent: TiptapContent,
