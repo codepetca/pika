@@ -139,31 +139,34 @@ describe('TeacherAttendanceTab', () => {
     expect(logText).toHaveAttribute('title', longLogText)
     expect(screen.getByText('Class Log Summary')).toBeInTheDocument()
     expect(screen.getByTestId('class-log-summary')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Hide class log summary' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Hide class log summary' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Show class log summary' })).not.toBeInTheDocument()
     expect(screen.getByRole('separator', { name: 'Resize class log summary' })).toBeInTheDocument()
     expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
   })
 
-  it('hides and shows the class log summary from the floating action cluster', async () => {
+  it('collapses and restores the class log summary from a double click', async () => {
     mockLogsFetch()
 
     render(<TeacherAttendanceTab classroom={classroom} />)
 
+    const panel = await screen.findByRole('region', { name: 'Class Log Summary' })
     expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
+    expect(panel).toHaveStyle({ height: '180px' })
+    expect(panel).toHaveAttribute('data-state', 'expanded')
 
-    const hideButton = screen.getByRole('button', { name: 'Hide class log summary' })
-    expect(hideButton).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(hideButton)
+    fireEvent.doubleClick(panel)
 
     expect(screen.queryByTestId('class-log-summary')).not.toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: 'Class Log Summary' })).not.toBeInTheDocument()
+    expect(panel).toHaveStyle({ height: '40px' })
+    expect(panel).toHaveAttribute('data-state', 'collapsed')
+    expect(screen.getByText('Log Summary')).toBeInTheDocument()
 
-    const showButton = screen.getByRole('button', { name: 'Show class log summary' })
-    expect(showButton).toHaveAttribute('aria-pressed', 'false')
-    fireEvent.click(showButton)
+    fireEvent.doubleClick(panel)
 
     expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Class Log Summary' })).toHaveStyle({ height: '180px' })
+    expect(panel).toHaveStyle({ height: '180px' })
+    expect(panel).toHaveAttribute('data-state', 'expanded')
   })
 
   it('resizes the class log summary card from the handle with keyboard controls', async () => {
@@ -186,6 +189,29 @@ describe('TeacherAttendanceTab', () => {
     fireEvent.keyDown(separator, { key: 'ArrowUp' })
     fireEvent.keyDown(separator, { key: 'Enter' })
     expect(panel).toHaveStyle({ height: '180px' })
+  })
+
+  it('reopens the collapsed class log summary by dragging the handle upward', async () => {
+    mockLogsFetch()
+
+    render(<TeacherAttendanceTab classroom={classroom} />)
+
+    const panel = await screen.findByRole('region', { name: 'Class Log Summary' })
+
+    fireEvent.doubleClick(panel)
+    expect(panel).toHaveStyle({ height: '40px' })
+    expect(panel).toHaveAttribute('data-state', 'collapsed')
+
+    fireEvent(
+      screen.getByRole('separator', { name: 'Resize class log summary' }),
+      new MouseEvent('pointerdown', { clientY: 300, bubbles: true })
+    )
+    window.dispatchEvent(new MouseEvent('pointermove', { clientY: 90, bubbles: true }))
+    window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }))
+
+    expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
+    expect(panel).toHaveStyle({ height: '250px' })
+    expect(panel).toHaveAttribute('data-state', 'expanded')
   })
 
   it('returns to the full-width log table after deselecting a selected student', async () => {

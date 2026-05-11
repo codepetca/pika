@@ -13,6 +13,7 @@ interface TeacherTestCardProps {
   isReadOnly: boolean
   isDragDisabled?: boolean
   editMode: boolean
+  showDeleteAction?: boolean
   onSelect: () => void
   onRequestPreview: () => void
   onRequestDelete: () => void
@@ -23,11 +24,13 @@ export function TeacherTestCard({
   isReadOnly,
   isDragDisabled = false,
   editMode,
+  showDeleteAction = true,
   onSelect,
   onRequestPreview,
   onRequestDelete,
 }: TeacherTestCardProps) {
   const showEditActions = editMode && !isReadOnly
+  const showDeleteButton = showEditActions && showDeleteAction
   const {
     attributes,
     listeners,
@@ -89,7 +92,7 @@ export function TeacherTestCard({
           type="button"
           onClick={onSelect}
           className="min-w-0 text-left"
-          aria-label={editMode ? `Edit ${test.title}` : test.title}
+          aria-label={editMode ? `Open ${test.title}` : test.title}
         >
           <h3 className={['truncate font-medium', isDraft ? 'text-text-muted' : 'text-text-default'].join(' ')}>
             {test.title}
@@ -131,7 +134,7 @@ export function TeacherTestCard({
               <span>Preview</span>
             </Button>
           </Tooltip>
-          {showEditActions ? (
+          {showDeleteButton ? (
             <Tooltip content="Delete test">
               <Button
                 variant="ghost"

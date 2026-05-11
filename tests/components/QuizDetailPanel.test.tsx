@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
-import { TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown'
 import { TooltipProvider } from '@/ui'
 import { createMockQuiz, createMockQuizQuestion } from '../helpers/mocks'
 import type { QuizWithStats, QuizQuestion, QuizResultsAggregate } from '@/types'
@@ -482,9 +481,9 @@ describe('QuizDetailPanel', () => {
       expect(await screen.findByTestId('test-markdown-only-layout')).toBeInTheDocument()
       const markdownEditor = screen.getByTestId('test-markdown-editor') as HTMLTextAreaElement
       expect(markdownEditor.value).toContain('Explain the runtime complexity of your solution.')
-      expect(markdownEditor).toHaveProperty('readOnly', true)
-      expect(screen.getByTestId('markdown-helper-status')).toHaveTextContent('Markdown mirror')
-      expect(screen.getByRole('button', { name: 'Edit Markdown' })).toBeInTheDocument()
+      expect(markdownEditor).toHaveProperty('readOnly', false)
+      expect(screen.getByTestId('markdown-helper-status')).toHaveTextContent('Editing markdown')
+      expect(screen.queryByRole('button', { name: 'Edit Markdown' })).not.toBeInTheDocument()
       expect(screen.queryByTestId('test-editor-only-layout')).not.toBeInTheDocument()
       expect(screen.queryByTestId('test-question-editor-pane')).not.toBeInTheDocument()
       expect(screen.queryByText('Questions (2)')).not.toBeInTheDocument()
@@ -1639,6 +1638,53 @@ Correct Option: 2
       })
     })
 
+    it('starts the markdown-only layout in editable mode by default', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Markdown Creation Test',
+                show_results: false,
+                questions: sampleQuestions,
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: {
+              documents: [],
+            },
+          }),
+        })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Markdown Creation Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="markdown-only"
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const textarea = await screen.findByTestId('test-markdown-editor')
+      expect(textarea).toHaveProperty('readOnly', false)
+      expect(screen.getByTestId('markdown-helper-status')).toHaveTextContent('Editing markdown')
+      expect(screen.queryByRole('button', { name: 'Edit Markdown' })).not.toBeInTheDocument()
+    })
+
     it('applies valid markdown and saves through draft endpoint', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       const onQuizUpdate = vi.fn()
@@ -1848,7 +1894,7 @@ Prompt:
       expect(patchCalls).toHaveLength(0)
     })
 
-    it('copies markdown schema to clipboard', async () => {
+    it('does not show markdown copy or schema actions', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock
         .mockResolvedValueOnce({
@@ -1873,12 +1919,6 @@ Prompt:
           }),
         })
 
-      const clipboardWriteText = vi.fn().mockResolvedValue(undefined)
-      Object.defineProperty(globalThis.navigator, 'clipboard', {
-        value: { writeText: clipboardWriteText },
-        configurable: true,
-      })
-
       const testQuiz = makeQuizWithStats({
         assessment_type: 'test',
         title: 'Markdown Test',
@@ -1899,12 +1939,9 @@ Prompt:
       })
 
       fireEvent.click(screen.getByText('Markdown'))
-      fireEvent.click(screen.getByRole('button', { name: 'Schema' }))
 
-      await waitFor(() => {
-        expect(clipboardWriteText).toHaveBeenCalledWith(TEST_MARKDOWN_AI_SCHEMA)
-      })
-      expect(screen.getByText('Markdown schema copied to clipboard')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Copy' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Schema' })).not.toBeInTheDocument()
     })
   })
 

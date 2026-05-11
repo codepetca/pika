@@ -1765,6 +1765,39 @@ export function TeacherClassroomView({
         }}
         options={[
           {
+            id: 'edit-assignment',
+            label: (
+              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+                <span>Edit Assignment</span>
+              </span>
+            ),
+            onSelect: () => {
+              if (activeSelectedAssignmentData) {
+                setEditAssignment(activeSelectedAssignmentData.assignment)
+              }
+            },
+            disabled: !canEditAssignment,
+          },
+          {
+            id: 'delete-assignment',
+            label: (
+              <span className="inline-flex items-center gap-2 whitespace-nowrap text-danger">
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                <span>Delete Assignment</span>
+              </span>
+            ),
+            onSelect: () => {
+              if (activeSelectedAssignmentData) {
+                setPendingDelete({
+                  id: activeSelectedAssignmentData.assignment.id,
+                  title: activeSelectedAssignmentData.assignment.title,
+                })
+              }
+            },
+            disabled: !activeSelectedAssignmentData || selectedAssignmentLoading || isReadOnly || isDeleting,
+          },
+          {
             id: 'grade-selected',
             label: (
               <span className="inline-flex items-center gap-2 whitespace-nowrap">
@@ -1821,12 +1854,12 @@ export function TeacherClassroomView({
             disabled: isReturnDisabled,
           },
         ]}
-        disabled={isAutoGrading || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
         className="inline-flex"
-        toggleAriaLabel={`More grading actions${workspaceActionLabelSuffix}`}
+        toggleAriaLabel={`More assignment actions${workspaceActionLabelSuffix}`}
         menuPlacement="down"
         primaryButtonProps={{
           'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
+          disabled: isAutoGrading || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
         }}
       />
     </Tooltip>
@@ -1878,34 +1911,6 @@ export function TeacherClassroomView({
     </div>
   ) : null
 
-  const editSelectedAssignmentAction = selection.mode === 'assignment' ? (
-    <Tooltip content="Edit assignment">
-      <button
-        type="button"
-        className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
-        onClick={() => {
-          if (activeSelectedAssignmentData) {
-            setEditAssignment(activeSelectedAssignmentData.assignment)
-          }
-        }}
-        disabled={!canEditAssignment}
-        aria-label="Edit assignment"
-        title="Edit assignment"
-      >
-        <Pencil className="h-4 w-4" aria-hidden="true" />
-      </button>
-    </Tooltip>
-  ) : null
-
-  const assignmentEditControls = (
-    <TeacherEditModeControls
-      active={assignmentEditMode}
-      onActiveChange={setAssignmentEditMode}
-      disabled={isReadOnly}
-    >
-      {editSelectedAssignmentAction}
-    </TeacherEditModeControls>
-  )
   const assignmentSummaryEditControls = (
     <TeacherEditModeControls
       active={assignmentEditMode}
@@ -1936,7 +1941,6 @@ export function TeacherClassroomView({
         ]}
       />
       {classPaneActions}
-      {assignmentEditControls}
       {workspaceStatus}
     </div>
   ) : null

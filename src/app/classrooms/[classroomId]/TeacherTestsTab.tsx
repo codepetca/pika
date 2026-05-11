@@ -16,7 +16,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Check, ClockAlert, Code, ExternalLink, Lock, LogOut, Pencil, Plus, RotateCcw, Send, Trash2, Unlock } from 'lucide-react'
+import { Check, ClockAlert, Code, ExternalLink, Lock, LogOut, Pencil, Plus, RotateCcw, Send, Settings, Trash2, Unlock } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { QuizModal } from '@/components/QuizModal'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
@@ -27,7 +27,6 @@ import {
 } from '@/components/AssessmentStatusIndicator'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
-import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
@@ -221,6 +220,40 @@ function formatTestAiGradingRunMessage(run: TestAiGradingRunSummary): {
   }
 }
 
+function withDefaultTestStats(test: Quiz): QuizWithStats {
+  return {
+    ...test,
+    assessment_type: 'test',
+    documents: test.documents,
+    stats: {
+      total_students: 0,
+      responded: 0,
+      submitted: 0,
+      open_access: 0,
+      closed_access: 0,
+      questions_count: 0,
+      ...((test as Partial<QuizWithStats>).stats ?? {}),
+    },
+  }
+}
+
+function applyTestSummaryPatchToTest(
+  test: QuizWithStats,
+  update: AssessmentWorkspaceSummaryPatch
+): QuizWithStats {
+  return {
+    ...test,
+    title: typeof update.title === 'string' ? update.title : test.title,
+    show_results: typeof update.show_results === 'boolean' ? update.show_results : test.show_results,
+    status: update.status ?? test.status,
+    stats: {
+      ...test.stats,
+      questions_count:
+        typeof update.questions_count === 'number' ? update.questions_count : test.stats.questions_count,
+    },
+  }
+}
+
 export function TeacherTestsTab({
   classroom,
   testsTabClickToken = 0,
@@ -247,6 +280,8 @@ export function TeacherTestsTab({
   })
   const latestGradingRequestIdRef = useRef(0)
   const handledCompletedRunKeysRef = useRef<Set<string>>(new Set())
+  const selectedTestIdRef = useRef<string | null>(null)
+  const selectedTestDraftSummaryRef = useRef<AssessmentEditorSummaryUpdate | null>(null)
 
   const [tests, setTests] = useState<QuizWithStats[]>([])
   const { showMessage } = useAppMessage()
@@ -307,10 +342,9 @@ export function TeacherTestsTab({
   const [pendingOpenAccessStudent, setPendingOpenAccessStudent] = useState<TestGradingStudentRow | null>(null)
   const [pendingCloseAccessStudent, setPendingCloseAccessStudent] = useState<TestGradingStudentRow | null>(null)
   const [showCloseAccessConfirm, setShowCloseAccessConfirm] = useState(false)
+  const [pendingOpenAccessStudentIds, setPendingOpenAccessStudentIds] = useState<string[] | null>(null)
   const [pendingCloseAccessStudentIds, setPendingCloseAccessStudentIds] = useState<string[] | null>(null)
   const [showBatchGradeModal, setShowBatchGradeModal] = useState(false)
-  const [studentAttemptEditMode, setStudentAttemptEditMode] = useState(false)
-  const [pendingDeleteStudentAttempt, setPendingDeleteStudentAttempt] = useState<TestGradingStudentRow | null>(null)
   const [pendingDeleteStudentAttemptIds, setPendingDeleteStudentAttemptIds] = useState<string[] | null>(null)
   const [isDeletingStudentAttempt, setIsDeletingStudentAttempt] = useState(false)
 
@@ -400,6 +434,15 @@ export function TeacherTestsTab({
     () => batchSelectedStudents.map((student) => student.student_id),
     [batchSelectedStudents]
   )
+  const batchSelectedSubmittedStudents = useMemo(
+    () => batchSelectedStudents.filter((student) => student.status === 'submitted'),
+    [batchSelectedStudents]
+  )
+  const batchSelectedSubmittedStudentIds = useMemo(
+    () => batchSelectedSubmittedStudents.map((student) => student.student_id),
+    [batchSelectedSubmittedStudents]
+  )
+  const batchSelectedSubmittedCount = batchSelectedSubmittedStudents.length
 
   const setSelectedStudentId = useCallback((nextStudentId: string | null) => {
     setInternalSelectedStudentId(nextStudentId)
@@ -478,21 +521,7 @@ export function TeacherTestsTab({
 
   const applyTestSummaryPatch = useCallback((testId: string, update: AssessmentWorkspaceSummaryPatch) => {
     setTests((prev) =>
-      prev.map((test) => {
-        if (test.id !== testId) return test
-
-        return {
-          ...test,
-          title: typeof update.title === 'string' ? update.title : test.title,
-          show_results: typeof update.show_results === 'boolean' ? update.show_results : test.show_results,
-          status: update.status ?? test.status,
-          stats: {
-            ...test.stats,
-            questions_count:
-              typeof update.questions_count === 'number' ? update.questions_count : test.stats.questions_count,
-          },
-        }
-      })
+      prev.map((test) => (test.id === testId ? applyTestSummaryPatchToTest(test, update) : test))
     )
   }, [])
 
@@ -500,14 +529,19 @@ export function TeacherTestsTab({
     (update: AssessmentEditorSummaryUpdate) => {
       if (!selectedTestId) return
 
+      selectedTestDraftSummaryRef.current = update
       setSelectedTestDraftSummary(update)
       applyTestSummaryPatch(selectedTestId, update)
     },
     [applyTestSummaryPatch, selectedTestId]
   )
   const handleSelectedTestDraftSummaryChange = useCallback((update: AssessmentEditorSummaryUpdate) => {
+    if (selectedTestId) {
+      applyTestSummaryPatch(selectedTestId, update)
+    }
+    selectedTestDraftSummaryRef.current = update
     setSelectedTestDraftSummary(update)
-  }, [])
+  }, [applyTestSummaryPatch, selectedTestId])
 
   const loadTests = useCallback(async () => {
     setLoading(true)
@@ -515,13 +549,32 @@ export function TeacherTestsTab({
       const query = new URLSearchParams({ classroom_id: classroom.id })
       const response = await fetch(`${apiBasePath}?${query.toString()}`)
       const data = await response.json()
-      setTests(data.tests || data.quizzes || [])
+      const loadedTests = (data.tests || data.quizzes || []) as QuizWithStats[]
+      const currentSelectedTestId = selectedTestIdRef.current
+      const currentDraftSummary = selectedTestDraftSummaryRef.current
+      setTests(
+        currentSelectedTestId && currentDraftSummary
+          ? loadedTests.map((test) =>
+              test.id === currentSelectedTestId
+                ? applyTestSummaryPatchToTest(test, currentDraftSummary)
+                : test
+            )
+          : loadedTests
+      )
     } catch (error) {
       console.error('Error loading tests:', error)
     } finally {
       setLoading(false)
     }
   }, [classroom.id])
+
+  useEffect(() => {
+    selectedTestIdRef.current = selectedTestId
+  }, [selectedTestId])
+
+  useEffect(() => {
+    selectedTestDraftSummaryRef.current = selectedTestDraftSummary
+  }, [selectedTestDraftSummary])
 
   const loadGradingRows = useCallback(async (options?: { preserveRows?: boolean }) => {
     if (!selectedTestId) {
@@ -636,14 +689,14 @@ export function TeacherTestsTab({
   }, [clearBatchSelection, clearTestWorkspace, loading, selectedTestId, tests])
 
   useEffect(() => {
+    selectedTestDraftSummaryRef.current = null
     setSelectedTestDraftSummary(null)
-    setStudentAttemptEditMode(false)
-    setPendingDeleteStudentAttempt(null)
     setPendingUnsubmitStudent(null)
     setPendingOpenAccessStudent(null)
     setPendingCloseAccessStudent(null)
     setShowUnsubmitConfirm(false)
     setShowCloseAccessConfirm(false)
+    setPendingOpenAccessStudentIds(null)
     setPendingCloseAccessStudentIds(null)
     setPendingDeleteStudentAttemptIds(null)
   }, [selectedTestId])
@@ -681,7 +734,7 @@ export function TeacherTestsTab({
 
   useEffect(() => {
     if (workspaceState !== 'selected' || selectedWorkspaceTab !== 'grading') return
-    if (!studentAttemptEditMode && batchSelectedCount === 0 && !selectedStudentId) return
+    if (batchSelectedCount === 0 && !selectedStudentId) return
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key !== 'Escape' || event.defaultPrevented) return
@@ -701,7 +754,6 @@ export function TeacherTestsTab({
       }
 
       event.preventDefault()
-      setStudentAttemptEditMode(false)
       clearBatchSelection()
       if (selectedStudentId) {
         selectGradingStudent(null)
@@ -716,7 +768,6 @@ export function TeacherTestsTab({
     selectGradingStudent,
     selectedStudentId,
     selectedWorkspaceTab,
-    studentAttemptEditMode,
     workspaceState,
   ])
 
@@ -1025,10 +1076,21 @@ export function TeacherTestsTab({
     setShowModal(true)
   }
 
-  function handleTestCreated(_test: Quiz) {
+  function handleTestCreated(test: Quiz) {
+    const createdTest = withDefaultTestStats(test)
+
     setShowModal(false)
     setTestEditMode(false)
-    clearTestWorkspace({ replace: true })
+    setHasPendingMarkdownImport(false)
+    selectedTestDraftSummaryRef.current = null
+    setSelectedTestDraftSummary(null)
+    setTests((prev) => {
+      const next = prev.filter((existing) => existing.id !== createdTest.id)
+      return [createdTest, ...next]
+    })
+    navigateTestWorkspace({ testId: createdTest.id, mode: 'grading', studentId: null }, { replace: true })
+    setTestEditModalView('markdown')
+    setShowEditModal(true)
     window.dispatchEvent(
       new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
     )
@@ -1241,6 +1303,7 @@ export function TeacherTestsTab({
       clearBatchSelection()
       setShowCloseAccessConfirm(false)
       setPendingOpenAccessStudent(null)
+      setPendingOpenAccessStudentIds(null)
       setPendingCloseAccessStudent(null)
       setPendingCloseAccessStudentIds(null)
       await loadGradingRows()
@@ -1255,7 +1318,7 @@ export function TeacherTestsTab({
   async function handleBatchUnsubmit() {
     const targetStudentIds = pendingUnsubmitStudent
       ? [pendingUnsubmitStudent.student_id]
-      : batchSelectedStudentIds
+      : batchSelectedSubmittedStudentIds
     if (!selectedTestId || targetStudentIds.length === 0) return
 
     setIsBatchUnsubmitting(true)
@@ -1292,56 +1355,16 @@ export function TeacherTestsTab({
     }
   }
 
-  async function handleDeleteStudentAttempt() {
-    if (!selectedTestId || !pendingDeleteStudentAttempt) return
-
-    const student = pendingDeleteStudentAttempt
-    setIsDeletingStudentAttempt(true)
-    setGradingError('')
-    setGradingInfo('')
-    try {
-      const response = await fetch(`${apiBasePath}/${selectedTestId}/students/${student.student_id}/attempt`, {
-        method: 'DELETE',
-      })
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Delete failed')
-      }
-
-      const deletedAttempts = Number(data.deleted_attempts ?? 0)
-      const deletedResponses = Number(data.deleted_responses ?? 0)
-      const studentLabel = student.name || student.email || 'student'
-      showMessage({
-        text: deletedAttempts > 0 || deletedResponses > 0
-          ? `Deleted ${studentLabel}'s test work`
-          : `No test work found for ${studentLabel}`,
-        tone: 'info',
-      })
-
-      if (selectedStudentId === student.student_id) {
-        selectGradingStudent(null)
-      }
-      clearBatchSelection()
-      setPendingDeleteStudentAttempt(null)
-      await loadGradingRows()
-      setTestGradingPanelRefreshToken((prev) => prev + 1)
-      onTestGradingDataRefresh?.()
-    } catch (error: any) {
-      setGradingError(error.message || 'Delete failed')
-    } finally {
-      setIsDeletingStudentAttempt(false)
-    }
-  }
-
   async function handleDeleteSelectedStudentAttempts() {
     if (!selectedTestId || !pendingDeleteStudentAttemptIds || pendingDeleteStudentAttemptIds.length === 0) return
 
+    const targetStudentIds = pendingDeleteStudentAttemptIds
     setIsDeletingStudentAttempt(true)
     setGradingError('')
     setGradingInfo('')
     try {
       let deletedCount = 0
-      for (const studentId of pendingDeleteStudentAttemptIds) {
+      for (const studentId of targetStudentIds) {
         const response = await fetch(`${apiBasePath}/${selectedTestId}/students/${studentId}/attempt`, {
           method: 'DELETE',
         })
@@ -1349,6 +1372,7 @@ export function TeacherTestsTab({
         if (!response.ok) {
           throw new Error(data.error || 'Delete failed')
         }
+
         const deletedAttempts = Number(data.deleted_attempts ?? 0)
         const deletedResponses = Number(data.deleted_responses ?? 0)
         if (deletedAttempts > 0 || deletedResponses > 0) {
@@ -1356,12 +1380,8 @@ export function TeacherTestsTab({
         }
       }
 
-      showMessage({
-        text: `Deleted test work for ${deletedCount} student${deletedCount === 1 ? '' : 's'}`,
-        tone: 'info',
-      })
-
-      if (selectedStudentId && pendingDeleteStudentAttemptIds.includes(selectedStudentId)) {
+      setGradingInfo(`Deleted test work for ${deletedCount} student${deletedCount === 1 ? '' : 's'}`)
+      if (selectedStudentId && targetStudentIds.includes(selectedStudentId)) {
         selectGradingStudent(null)
       }
       clearBatchSelection()
@@ -1489,6 +1509,10 @@ export function TeacherTestsTab({
     [sortedGradingStudents]
   )
   const selectedClosedAccessCount = batchSelectedCount - selectedOpenAccessCount
+  const selectedReturnableCount = batchSelectedStudents.filter((student) => {
+    const hasWork = student.status !== 'not_started'
+    return hasWork && getEffectiveStudentAccess(student) === 'closed' && student.ungraded_open_responses === 0
+  }).length
   const shouldOpenSelectedAccess = batchSelectedCount > 0 && selectedClosedAccessCount >= selectedOpenAccessCount
   const accessPrimaryState: 'open' | 'closed' =
     batchSelectedCount > 0
@@ -1497,12 +1521,13 @@ export function TeacherTestsTab({
   const accessPrimaryCount = batchSelectedCount > 0 ? batchSelectedCount : allStudentIds.length
   const accessPrimaryScope = batchSelectedCount > 0 ? 'Selected' : 'All'
   const accessAlternateState: 'open' | 'closed' = accessPrimaryState === 'open' ? 'closed' : 'open'
+  const openAccessConfirmCount = pendingOpenAccessStudentIds?.length ?? batchSelectedCount
   const closeAccessConfirmCount = pendingCloseAccessStudentIds?.length ?? batchSelectedCount
   const pendingCloseAccessStudentLabel =
     pendingCloseAccessStudent?.name || pendingCloseAccessStudent?.email || null
   const unsubmitConfirmTitle = pendingUnsubmitStudent
     ? `Mark ${pendingUnsubmitStudent.name || pendingUnsubmitStudent.email || 'this student'} unsubmitted?`
-    : `Mark ${batchSelectedCount} selected attempt${batchSelectedCount === 1 ? '' : 's'} unsubmitted?`
+    : `Mark ${batchSelectedSubmittedCount} selected attempt${batchSelectedSubmittedCount === 1 ? '' : 's'} unsubmitted?`
   const isAccessActionDisabled =
     !selectedTestWorkspace ||
     isReadOnly ||
@@ -1514,6 +1539,35 @@ export function TeacherTestsTab({
       selectedTestWorkspace.status === 'draft' &&
       (!selectedActivation.valid || checkingActivation || statusUpdating || hasPendingMarkdownImport)) ||
     (accessPrimaryState === 'closed' && allStudentIds.length === 0)
+
+  function renderCountedActionLabel({
+    icon,
+    label,
+    count,
+    danger = false,
+  }: {
+    icon: JSX.Element
+    label: string
+    count: number
+    danger?: boolean
+  }) {
+    return (
+      <span className={['inline-flex w-full items-center justify-between gap-3 whitespace-nowrap', danger ? 'text-danger' : ''].join(' ')}>
+        <span className="inline-flex min-w-0 items-center gap-2">
+          {icon}
+          <span>{label}</span>
+        </span>
+        <span
+          className={[
+            'ml-2 inline-flex min-w-5 justify-center rounded-badge px-1.5 py-0.5 text-xs font-semibold',
+            danger ? 'bg-danger-bg text-danger' : 'bg-surface-2 text-text-muted',
+          ].join(' ')}
+        >
+          {count}
+        </span>
+      </span>
+    )
+  }
 
   function getAccessActionLabel(state: 'open' | 'closed', scope: 'All' | 'Selected', count: number): string {
     const verb = state === 'open' ? 'Open' : 'Close'
@@ -1535,7 +1589,9 @@ export function TeacherTestsTab({
         void handleRequestSelectedTestActivate()
         return
       }
-      void handleBatchStudentAccess('open', { studentIds: targetStudentIds })
+      if (targetStudentIds.length === 0) return
+      setPendingOpenAccessStudent(null)
+      setPendingOpenAccessStudentIds(targetStudentIds)
       return
     }
 
@@ -1703,11 +1759,6 @@ export function TeacherTestsTab({
                     </span>
                   </Tooltip>
                 </th>
-                {studentAttemptEditMode ? (
-                  <th className="w-11 px-2 py-2 font-medium">
-                    <span className="sr-only">Delete student test</span>
-                  </th>
-                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -1873,24 +1924,6 @@ export function TeacherTestsTab({
                         </span>
                       </Tooltip>
                     </td>
-                    {studentAttemptEditMode ? (
-                      <td className="px-2 py-2 text-right">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 px-0 text-danger"
-                          aria-label={`Delete ${student.name || student.email || 'student'} test`}
-                          disabled={isReadOnly || isCombinedTestActionsBusy || isDeletingStudentAttempt}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            setPendingDeleteStudentAttempt(student)
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden="true" />
-                        </Button>
-                      </td>
-                    ) : null}
                   </tr>
                 )
               })}
@@ -1914,7 +1947,7 @@ export function TeacherTestsTab({
         {
           id: `${accessAlternateState}-${accessPrimaryScope.toLowerCase()}`,
           label: (
-            <span className="inline-flex items-center gap-2">
+            <span className="inline-flex items-center gap-2 whitespace-nowrap">
               {getAccessActionIcon(accessAlternateState)}
               <span>{accessAlternateLabel}</span>
             </span>
@@ -1923,13 +1956,27 @@ export function TeacherTestsTab({
           disabled: accessAlternateDisabled,
         },
         {
-          id: 'ai-grade',
+          id: 'edit-test',
           label: (
-            <span className="inline-flex items-center gap-2">
-              <Check className="h-4 w-4" aria-hidden="true" />
-              <span>AI Grade</span>
+            <span className="inline-flex items-center gap-2 whitespace-nowrap">
+              <Pencil className="h-4 w-4" aria-hidden="true" />
+              <span>Edit Test</span>
             </span>
           ),
+          onSelect: () => {
+            setTestEditModalView('edit')
+            setHasPendingMarkdownImport(false)
+            setShowEditModal(true)
+          },
+          disabled: isReadOnly,
+        },
+        {
+          id: 'ai-grade',
+          label: renderCountedActionLabel({
+            icon: <Check className="h-4 w-4" aria-hidden="true" />,
+            label: 'AI Grade',
+            count: batchSelectedCount,
+          }),
           onSelect: () => {
             setShowBatchGradeModal(true)
           },
@@ -1939,32 +1986,30 @@ export function TeacherTestsTab({
         },
         {
           id: 'unsubmit-selected',
-          label: (
-            <span className="inline-flex items-center gap-2">
-              <RotateCcw className="h-4 w-4" aria-hidden="true" />
-              <span>Unsubmit Selected</span>
-            </span>
-          ),
+          label: renderCountedActionLabel({
+            icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
+            label: 'Unsubmit Selected',
+            count: batchSelectedSubmittedCount,
+          }),
           onSelect: () => {
-            if (batchSelectedCount === 0) {
-              setGradingWarning('Select students to unsubmit')
+            if (batchSelectedSubmittedCount === 0) {
+              setGradingWarning('Select submitted students to unsubmit')
               return
             }
             setPendingUnsubmitStudent(null)
             setShowUnsubmitConfirm(true)
           },
           disabled:
-            batchSelectedCount === 0 ||
+            batchSelectedSubmittedCount === 0 ||
             isCombinedTestActionsBusy,
         },
         {
           id: 'return',
-          label: (
-            <span className="inline-flex items-center gap-2">
-              <Send className="h-4 w-4" aria-hidden="true" />
-              <span>Return</span>
-            </span>
-          ),
+          label: renderCountedActionLabel({
+            icon: <Send className="h-4 w-4" aria-hidden="true" />,
+            label: 'Return',
+            count: selectedReturnableCount,
+          }),
           onSelect: () => {
             if (batchSelectedCount === 0) {
               setGradingWarning('Select students to return')
@@ -1980,29 +2025,25 @@ export function TeacherTestsTab({
             batchSelectedCount === 0 ||
             isCombinedTestActionsBusy,
         },
-        ...(studentAttemptEditMode
-          ? [
-              {
-                id: 'delete-selected',
-                label: (
-                  <span className="inline-flex items-center gap-2 text-danger">
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    <span>Delete Selected</span>
-                  </span>
-                ),
-                onSelect: () => {
-                  if (batchSelectedCount === 0) {
-                    setGradingWarning('Select students to delete')
-                    return
-                  }
-                  setPendingDeleteStudentAttemptIds(batchSelectedStudentIds)
-                },
-                disabled:
-                  batchSelectedCount === 0 ||
-                  isCombinedTestActionsBusy,
-              },
-            ]
-          : []),
+        {
+          id: 'delete-selected',
+          label: renderCountedActionLabel({
+            icon: <Trash2 className="h-4 w-4" aria-hidden="true" />,
+            label: 'Delete Selected',
+            count: batchSelectedCount,
+            danger: true,
+          }),
+          onSelect: () => {
+            if (batchSelectedCount === 0) {
+              setGradingWarning('Select students to delete')
+              return
+            }
+            setPendingDeleteStudentAttemptIds(batchSelectedStudentIds)
+          },
+          disabled:
+            batchSelectedCount === 0 ||
+            isCombinedTestActionsBusy,
+        },
       ]}
       variant="secondary"
       size="sm"
@@ -2039,19 +2080,6 @@ export function TeacherTestsTab({
   const selectedWorkspaceControls = workspaceState === 'selected' ? (
     <div className="flex min-w-0 flex-wrap items-center justify-center gap-2 sm:gap-3">
       {selectedTestActions}
-      <Button
-        type="button"
-        variant={studentAttemptEditMode ? 'secondary' : 'ghost'}
-        size="sm"
-        className="h-9 w-9 px-0"
-        aria-label="Edit"
-        title="Edit"
-        aria-pressed={studentAttemptEditMode}
-        disabled={isReadOnly}
-        onClick={() => setStudentAttemptEditMode((prev) => !prev)}
-      >
-        <Pencil className="h-4 w-4" aria-hidden="true" />
-      </Button>
       {workspaceModeStatus}
     </div>
   ) : null
@@ -2116,24 +2144,37 @@ export function TeacherTestsTab({
     <TeacherWorkSurfaceActionBar
       center={
         <div className="flex items-center justify-center gap-1.5">
-          <Tooltip content="Create a new test">
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            className="gap-1.5"
+            onClick={handleNewTest}
+            disabled={isReadOnly}
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            <span>New</span>
+          </Button>
+          <Tooltip content={testEditMode ? 'Hide test list controls' : 'Show test list controls'}>
             <Button
-              onClick={handleNewTest}
-              variant="primary"
+              type="button"
+              variant="ghost"
               size="sm"
-              className="gap-1.5"
+              aria-label="Test list settings"
+              title="Test list settings"
+              aria-pressed={testEditMode}
+              className={[
+                'h-9 w-9 px-0',
+                testEditMode
+                  ? 'border-primary/40 bg-info-bg text-primary shadow-inner hover:bg-info-bg-hover hover:text-primary'
+                  : '',
+              ].join(' ')}
+              onClick={() => setTestEditMode((prev) => !prev)}
               disabled={isReadOnly}
             >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              New
+              <Settings className="h-4 w-4" aria-hidden="true" />
             </Button>
           </Tooltip>
-          <TeacherEditModeControls
-            active={testEditMode}
-            onActiveChange={setTestEditMode}
-            disabled={isReadOnly}
-            variant="secondary"
-          />
         </div>
       }
       centerPlacement="floating"
@@ -2189,13 +2230,7 @@ export function TeacherTestsTab({
               isReadOnly={isReadOnly}
               isDragDisabled={isReorderingTests}
               editMode={testEditMode}
-              onSelect={() => {
-                if (testEditMode) {
-                  handleEditTest(test)
-                  return
-                }
-                handleOpenTest(test)
-              }}
+              onSelect={() => handleOpenTest(test)}
               onRequestPreview={() => handleOpenSavedTestPreview({ testId: test.id, title: test.title })}
               onRequestDelete={() => setPendingDeleteTest(test)}
             />
@@ -2469,6 +2504,22 @@ export function TeacherTestsTab({
       />
 
       <ConfirmDialog
+        isOpen={!!pendingOpenAccessStudentIds}
+        title={`Open access for ${openAccessConfirmCount} student(s)?`}
+        description="Allows students to start or continue. Submission state is unchanged."
+        confirmLabel={isBatchUpdatingAccess ? 'Opening...' : 'Open Access'}
+        cancelLabel="Cancel"
+        isConfirmDisabled={isBatchUpdatingAccess}
+        isCancelDisabled={isBatchUpdatingAccess}
+        onCancel={() => setPendingOpenAccessStudentIds(null)}
+        onConfirm={() => {
+          void handleBatchStudentAccess('open', {
+            studentIds: pendingOpenAccessStudentIds ?? Array.from(batchSelectedIds),
+          })
+        }}
+      />
+
+      <ConfirmDialog
         isOpen={showUnsubmitConfirm}
         title={unsubmitConfirmTitle}
         description="Keeps draft answers. Clears submitted/returned state and finalized grades. Access is unchanged."
@@ -2482,21 +2533,6 @@ export function TeacherTestsTab({
         }}
         onConfirm={() => {
           void handleBatchUnsubmit()
-        }}
-      />
-
-      <ConfirmDialog
-        isOpen={!!pendingDeleteStudentAttempt}
-        title={`Delete ${pendingDeleteStudentAttempt?.name || pendingDeleteStudentAttempt?.email || 'this student'}'s test work?`}
-        description="Deletes answers, grades, and focus history for this student. Access is unchanged."
-        confirmLabel={isDeletingStudentAttempt ? 'Deleting...' : 'Delete Work'}
-        confirmVariant="danger"
-        cancelLabel="Cancel"
-        isConfirmDisabled={isDeletingStudentAttempt}
-        isCancelDisabled={isDeletingStudentAttempt}
-        onCancel={() => setPendingDeleteStudentAttempt(null)}
-        onConfirm={() => {
-          void handleDeleteStudentAttempt()
         }}
       />
 
