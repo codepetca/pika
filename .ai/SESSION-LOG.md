@@ -7,24 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-08 — Shared assessment status indicator mapping
-
-**Completed:**
-- Added `AssessmentStatusIndicator` with centralized student-work status display mappings for assignments, test grading rows, and gradebook assessment details.
-- Replaced local status/icon switches in the assignment student table, teacher test grading table, and gradebook student inspector.
-- Preserved the assignment resubmitted chip and submitted-test unsubmit button while routing both through the shared status mapping.
-
-**Validation:**
-- `pnpm test tests/components/AssessmentStatusIndicator.test.tsx tests/components/AssessmentStatusIcon.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3003 pnpm e2e:auth`
-- `git diff --check`
-- Pika UI verification script for `/classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=gradebook` on port 3003:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-
 ## 2026-05-06 — Simplify Syllabus tab embed
 
 **Completed:**
@@ -332,3 +314,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-teacher-mobile.png`
   - `/tmp/pika-student.png`
+
+## 2026-05-11 — Fix stale student log date
+
+**Completed:**
+- Fixed Student Today autosave so a stale mounted tab rechecks the current Toronto date before building the save payload.
+- Cleared stale entry identity/version state when the mounted date rolls over, preventing first/new saves from targeting an old day.
+- Added a regression test for a tab mounted on May 6 that saves after today advances to May 11.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm vitest run tests/components/StudentTodayTabHistory.test.tsx`
+- `pnpm lint`
+- `pnpm vitest run tests/api/student/entries.test.ts tests/components/StudentTodayTabHistory.test.tsx tests/unit/timezone.test.ts`
+- `pnpm test`
