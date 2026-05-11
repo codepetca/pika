@@ -34,5 +34,11 @@ describe('TeacherWorkItem primitives', () => {
       <TeacherWorkItemCardFrame tone="selected">Selected card</TeacherWorkItemCardFrame>,
     )
     expect(screen.getByText('Selected card')).toHaveClass('bg-surface-selected')
+
+    rerender(
+      <TeacherWorkItemCardFrame dragging dragTone="neutral">Neutral drag card</TeacherWorkItemCardFrame>,
+    )
+    expect(screen.getByText('Neutral drag card')).toHaveClass('border-border')
+    expect(screen.getByText('Neutral drag card')).not.toHaveClass('border-primary')
   })
 })

@@ -7,93 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-06 — Center floating action cluster in shell content
-
-**Completed:**
-- Added a shared shell CSS variable for the main content center based on current left and right panel widths.
-- Updated the teacher work-surface floating action cluster to center on that shell variable on desktop and animate with the shell timing.
-- Added focused coverage for the desktop centering contract.
-
-**Validation:**
-- `pnpm test tests/components/TeacherWorkSurfaceActionBar.test.tsx tests/components/ThreePanelProvider.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Pika UI verification on port 3001:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student-today.png`
-  - `/tmp/pika-teacher-mobile.png`
-  - `/tmp/pika-teacher-expanded.png`
-
-## 2026-05-06 — Keep calendar date in action bar
-
-**Completed:**
-- Removed the pinned app-header title labels from teacher classroom tabs.
-- Kept the calendar date navigator in the PageActionBar left slot and removed the obsolete calendar titlebar docking path.
-- Left non-calendar teacher action bars without static tab labels.
-- Added mobile-only spacing so the fixed calendar control cluster does not overlap the left-side date navigator.
-
-**Validation:**
-- `pnpm test tests/components/TeacherWorkSurfaceActionBar.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherAttendanceTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Pika UI verification on port 3001:
-  - `/tmp/pika-teacher-calendar-desktop.png`
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-  - `/tmp/pika-teacher-attendance-labels.png`
-
-## 2026-05-07 — Make edit controls icon-only
-
-**Completed:**
-- Removed visible `Edit` text from shared teacher edit-mode controls and the selected-test workspace edit toggle.
-- Kept accessible names and titles on the icon-only pencil buttons.
-- Added focused coverage that the shared edit toggle remains named `Edit` without visible button text.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/fab-rail-centering bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherEditModeControls.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherAttendanceTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Visual verification on port 3001:
-  - `/tmp/pika-teacher-tests-edit-icon.png`
-  - `/tmp/pika-teacher-selected-test-edit-icon.png`
-  - `/tmp/pika-teacher-classrooms-edit-icon.png`
-
-## 2026-05-07 — Shorten assessment new labels
-
-**Completed:**
-- Changed teacher quiz and test summary action labels from `New Quiz` and `New Test` to `New`.
-- Kept the plus icon visible so the action reads as `+ New`.
-- Updated focused quiz/test component coverage for the shorter accessible button name.
-
-**Validation:**
-- `pnpm test tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Visual verification on port 3001:
-  - `/tmp/pika-teacher-tests-new-label.png`
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-
-## 2026-05-07 — Add create action tooltips
-
-**Completed:**
-- Added contextual tooltips to the compact teacher summary `+ New` buttons for assignments, quizzes, and tests.
-- Kept the visible button labels unchanged and preserved the assignment button's accessible name.
-- Updated the assignment action-bar test to assert the fixed floating cluster without depending on the tooltip-adjusted DOM parent chain.
-
-**Validation:**
-- `pnpm test tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Pika UI verification on port 3001 for assignments, quizzes, and tests.
-- Hover screenshots:
-  - `/tmp/pika-teacher-assignments-new-tooltip.png`
-  - `/tmp/pika-teacher-quizzes-new-tooltip.png`
-  - `/tmp/pika-teacher-tests-new-tooltip.png`
-
 ## 2026-05-07 — Hide classroom view labels outside edit mode
 
 **Completed:**
@@ -362,3 +275,99 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Validation:**
 - `pnpm test tests/unit/ai-startup-docs.test.ts`
+
+## 2026-05-11 — Mixed classwork material ordering
+
+**Completed:**
+- Added material `position` migration and mixed assignment/material classwork ordering.
+- Added teacher classwork reorder API for `{ type, id }` item lists.
+- Moved classwork reorder persistence into transaction-backed Postgres RPC functions.
+- Hardened classwork reorder requests to reject stale partial lists while preserving assignment-only reorder around material position slots.
+- Made assignment/material create routes fail closed on unexpected mixed-order position lookup errors.
+- Preserved existing material positions when the assignment Markdown bulk-save path rewrites assignment positions.
+- Updated teacher classwork summary so materials are visually distinct and draggable in edit mode.
+- Updated student classwork summary to render the same mixed order with distinct material cards.
+- Refined material cards to use tint plus a left accent rail instead of an icon, keeping the Syllabus icon reserved for Syllabus.
+- Documented the material card/order behavior in assignment UX guidance.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/classwork-material-order bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/lib/classwork-order.test.ts tests/api/teacher/classwork-reorder.test.ts tests/api/teacher/materials.test.ts tests/api/student/materials.test.ts tests/api/teacher/assignments.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- Post-iconless refinement:
+  - `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
+  - `pnpm lint`
+- Final pre-push validation:
+  - `pnpm test tests/api/teacher/classwork-reorder.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
+  - `pnpm lint`
+  - `pnpm test`
+  - `pnpm build`
+- Transactional reorder fix:
+  - `pnpm test tests/api/teacher/classwork-reorder.test.ts tests/api/teacher/assignments-reorder.test.ts tests/api/teacher/assignments-bulk.test.ts tests/api/teacher/assignments.test.ts tests/api/teacher/materials.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
+  - `pnpm lint`
+  - `pnpm build`
+  - `supabase db lint --local --schema public --fail-on error` (existing unrelated warning: `public.unsubmit_test_attempts_atomic` unused `p_updated_by`)
+  - `pnpm test`
+- Visual verification:
+  - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=assignments'`
+  - `/tmp/pika-teacher-material.png`
+  - `/tmp/pika-student-material.png`
+  - `/tmp/pika-teacher-material-dark.png`
+  - `/tmp/pika-student-material-dark.png`
+  - `/tmp/pika-teacher-material-tinted.png`
+  - `/tmp/pika-student-material-tinted.png`
+  - `/tmp/pika-student-material-tinted-dark.png`
+
+## 2026-05-11 — Classwork migration filename resequence
+
+**Completed:**
+- Renamed the mixed classwork material ordering migration from a timestamped filename to the next numeric-leading Pika migration slot, `067_classwork_mixed_ordering.sql`.
+
+**Validation:**
+- `bash scripts/verify-env.sh` exposed an unrelated session-log length failure before trimming.
+- `node scripts/trim-session-log.mjs`
+
+## 2026-05-11 — Remove material card outline highlight
+
+**Completed:**
+- Removed the primary outline and left accent rail from teacher and student material cards while keeping the soft tint and `Material` label.
+- Added component assertions to keep material cards on neutral borders without the primary rail.
+- Updated assignment UX guidance to describe tint-based material differentiation.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=assignments'` captured the route but local DB state returned "Classroom not found".
+- Supplemental CSS visual harness:
+  - `/tmp/pika-material-no-outline-harness.png`
+  - `/tmp/pika-material-no-outline-harness-dark.png`
+
+## 2026-05-11 — Smooth material drag treatment
+
+**Completed:**
+- Removed the material card's hover transition while it is actively dragging so dnd-kit owns transform movement like assignment cards.
+- Added a neutral drag-border option to the shared teacher work item frame and used it for material cards.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkItemPrimitives.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verify captured the target route but local DB state still returned "Classroom not found".
+- Supplemental drag-state harness:
+  - `/tmp/pika-material-drag-state-harness.png`
+
+## 2026-05-11 — Restrict classwork reorder RPC execution
+
+**Completed:**
+- Added explicit `revoke all` from `public`, `anon`, and `authenticated` for the new classwork reorder RPCs.
+- Granted both reorder RPCs only to `service_role`, matching the API route authorization boundary.
+- Added a static migration regression test for the RPC grant contract.
+
+**Validation:**
+- `pnpm test tests/unit/classwork-migration-rpc-grants.test.ts tests/api/teacher/classwork-reorder.test.ts tests/api/teacher/assignments-reorder.test.ts`
+- `pnpm lint`
+- `supabase db lint --local --schema public --fail-on error` (existing unrelated warning: `public.unsubmit_test_attempts_atomic` unused `p_updated_by`)
+- `pnpm build`

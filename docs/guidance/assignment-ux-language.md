@@ -209,6 +209,15 @@ What matters:
 - status is compact
 - actions do not dominate the row
 
+### Classwork materials
+
+Materials share the assignment summary stream but remain visually distinct:
+
+- materials can be interleaved with assignments and reordered in edit mode
+- material cards use the same compact card rhythm, plus a soft tint and `Material` label
+- material cards do not show due-date, submission, grading, or gradebook metadata
+- assignment and material domain behavior stays separate even when the list order is shared
+
 ### Student card structure
 
 The student assignment card is simpler:

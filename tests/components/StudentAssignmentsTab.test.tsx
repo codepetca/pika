@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { forwardRef, useEffect, useImperativeHandle } from 'react'
 import { StudentAssignmentsTab } from '@/app/classrooms/[classroomId]/StudentAssignmentsTab'
-import type { Classroom, AssignmentWithStatus } from '@/types'
+import type { Classroom, AssignmentWithStatus, ClassworkMaterial } from '@/types'
 
 // --- Mocks ---
 
@@ -68,6 +68,11 @@ function makeAssignment(overrides: Partial<AssignmentWithStatus> = {}): Assignme
     instructions_markdown: 'Write an essay',
     rich_instructions: null,
     due_at: '2025-06-01T00:00:00Z',
+    position: 0,
+    is_draft: false,
+    released_at: '2025-05-01T00:00:00Z',
+    track_authenticity: true,
+    created_by: 'teacher-1',
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
     status: 'not_started',
@@ -76,7 +81,23 @@ function makeAssignment(overrides: Partial<AssignmentWithStatus> = {}): Assignme
   } as AssignmentWithStatus
 }
 
-function mockFetchAssignments(assignments: AssignmentWithStatus[]) {
+function makeMaterial(overrides: Partial<ClassworkMaterial> = {}): ClassworkMaterial {
+  return {
+    id: 'mat-1',
+    classroom_id: 'cls-1',
+    title: 'Reference Material',
+    content: { type: 'doc', content: [] },
+    is_draft: false,
+    released_at: '2025-05-01T00:00:00Z',
+    position: 0,
+    created_by: 'teacher-1',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+    ...overrides,
+  }
+}
+
+function mockFetchClasswork(assignments: AssignmentWithStatus[], materials: ClassworkMaterial[] = []) {
   ;(global.fetch as ReturnType<typeof vi.fn>)
     .mockResolvedValueOnce({
       ok: true,
@@ -84,9 +105,11 @@ function mockFetchAssignments(assignments: AssignmentWithStatus[]) {
     })
     .mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ materials: [] }),
+      json: async () => ({ materials }),
     })
 }
+
+const mockFetchAssignments = mockFetchClasswork
 
 describe('StudentAssignmentsTab', () => {
   beforeEach(() => {
@@ -217,5 +240,33 @@ describe('StudentAssignmentsTab', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Repo' })).toBeInTheDocument()
     })
+  })
+
+  it('renders materials and assignments in shared classwork order', async () => {
+    const mixedClassroom = { ...classroom, id: 'cls-mixed' }
+    mockFetchClasswork(
+      [makeAssignment({ id: 'asgn-1', classroom_id: mixedClassroom.id, title: 'Essay Assignment', position: 2 })],
+      [makeMaterial({ id: 'mat-1', classroom_id: mixedClassroom.id, title: 'Opening Reading', position: 1 })],
+    )
+
+    render(<StudentAssignmentsTab classroom={mixedClassroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Opening Reading')).toBeInTheDocument()
+    })
+
+    const cards = [
+      ...screen.getAllByTestId('material-card'),
+      ...screen.getAllByTestId('assignment-card'),
+    ].sort((left, right) => {
+      const position = left.compareDocumentPosition(right)
+      return position & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
+    })
+
+    expect(cards[0]).toHaveTextContent('Opening Reading')
+    expect(cards[1]).toHaveTextContent('Essay Assignment')
+    expect(cards[0]).toHaveClass('border-border')
+    expect(cards[0]).not.toHaveClass('border-primary/40')
+    expect(cards[0].querySelector('.border-l-2')).not.toBeInTheDocument()
   })
 })

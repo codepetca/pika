@@ -930,6 +930,7 @@ export interface ClassworkMaterial {
   content: TiptapContent
   is_draft: boolean
   released_at: string | null
+  position: number
   created_by: string
   created_at: string
   updated_at: string
