@@ -11,7 +11,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import { GripHorizontal } from 'lucide-react'
+import { CircleDot, GripHorizontal, UndoDot } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { CalendarDateNavigator } from '@/components/CalendarActionBar'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
@@ -24,7 +24,7 @@ import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import { entryHasContent, getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
 import { useClassDaysContext } from '@/hooks/useClassDays'
-import { RefreshingIndicator, Tooltip } from '@/ui'
+import { Button, RefreshingIndicator, Tooltip } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import type { AttendanceStatus } from '@/types'
 import {
@@ -104,6 +104,16 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [summaryPanelCollapsed, setSummaryPanelCollapsed] = useState(false)
   const [summaryPanelHeight, setSummaryPanelHeight] = useState(SUMMARY_PANEL_DEFAULT_HEIGHT)
   const showBlockingSpinner = useDelayedBusy(loading && logs.length === 0)
+  const [today, setToday] = useState(() => getTodayInToronto())
+  const refreshToday = useCallback(() => {
+    const currentToday = getTodayInToronto()
+    setToday(currentToday)
+    return currentToday
+  }, [])
+  const lastClassDate = useMemo(
+    () => getMostRecentClassDayBefore(classDays, today),
+    [classDays, today]
+  )
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
     column: SortColumn
     direction: 'asc' | 'desc'
@@ -113,11 +123,27 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   useEffect(() => {
     if (classDaysLoading) return
     if (selectedDate) return // Already initialized
-    const today = getTodayInToronto()
-    const previousClassDay = getMostRecentClassDayBefore(classDays, today)
-    setSelectedDate(previousClassDay || addDaysToDateString(today, -1))
+    setSelectedDate(lastClassDate || addDaysToDateString(today, -1))
     // Do NOT setLoading(false) here — the logs fetch (Effect 3) handles it
-  }, [classDaysLoading, classDays, selectedDate])
+  }, [classDaysLoading, lastClassDate, selectedDate, today])
+
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        refreshToday()
+      }
+    }
+
+    window.addEventListener('focus', refreshToday)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    const intervalId = window.setInterval(refreshToday, 60 * 1000)
+
+    return () => {
+      window.removeEventListener('focus', refreshToday)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.clearInterval(intervalId)
+    }
+  }, [refreshToday])
 
   // Notify parent of date changes
   useEffect(() => {
@@ -175,8 +201,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     return isClassDayOnDate(classDays, selectedDate)
   }, [classDays, selectedDate])
 
-  const today = useMemo(() => getTodayInToronto(), [])
-
   const rows = useMemo(() => {
     return [...logs].sort((a, b) => {
       if (sortColumn === 'status') {
@@ -229,6 +253,17 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       const base = prev || getTodayInToronto()
       return addDaysToDateString(base, deltaDays)
     })
+  }
+
+  function goToLastClass() {
+    const currentToday = refreshToday()
+    const currentLastClassDate = getMostRecentClassDayBefore(classDays, currentToday)
+    if (!currentLastClassDate) return
+    setSelectedDate(currentLastClassDate)
+  }
+
+  function goToToday() {
+    setSelectedDate(refreshToday())
   }
 
   function handleRowClick(row: LogRow) {
@@ -417,6 +452,19 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             className="sr-only"
             tabIndex={-1}
           />
+          <Tooltip content="Last class">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-9 w-9 px-0"
+              onClick={goToLastClass}
+              disabled={!lastClassDate}
+              aria-label="Go to last class"
+            >
+              <UndoDot className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </Tooltip>
           <CalendarDateNavigator
             label={selectedDateLabel}
             onLabelClick={() => dateInputRef.current?.showPicker()}
@@ -426,6 +474,18 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             prevAriaLabel="Previous day"
             nextAriaLabel="Next day"
           />
+          <Tooltip content="Today">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-9 w-9 px-0"
+              onClick={goToToday}
+              aria-label="Go to today"
+            >
+              <CircleDot className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </Tooltip>
         </div>
       }
       centerPlacement="floating"
