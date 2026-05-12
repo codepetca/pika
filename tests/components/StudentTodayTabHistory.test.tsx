@@ -98,7 +98,7 @@ const entries: Entry[] = [
     student_id: 's1',
     classroom_id: 'c1',
     date: '2025-12-15',
-    text: 'Had trouble focusing but completed the reading.',
+    text: 'Had trouble focusing but completed the reading. I wrote a longer reflection about the confusing parts, the examples I reviewed, and the questions I want to ask next class so that the entry needs more than a single short preview line.',
     rich_content: null,
     version: 1,
     minutes_reported: null,
@@ -125,10 +125,10 @@ describe('StudentTodayTab history section', () => {
     cleanup()
   })
 
-  it('toggles history without refetching', async () => {
+  it('shows past logs by default and expands each entry without refetching', async () => {
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=5`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
         return mockJson({ entries })
       }
       if (url.includes('/lesson-plans')) {
@@ -140,16 +140,31 @@ describe('StudentTodayTab history section', () => {
 
     render(<StudentTodayTab classroom={classroom} />)
 
-    await screen.findAllByText('Tue Dec 16')
-    await screen.findByRole('button', { name: /history/i })
+    await screen.findByText('Past logs')
 
-    expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()
+    expect(screen.queryByText('Tue Dec 16')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /hide history/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /show history/i })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /hide/i }))
-    expect(screen.queryByText('Mon Dec 15')).not.toBeInTheDocument()
+    const logButton = screen.getByRole('button', { name: 'Expand log from Mon Dec 15' })
+    const logText = screen.getByText(entries[1].text)
 
-    fireEvent.click(screen.getByRole('button', { name: /show/i }))
-    expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()
+    expect(logButton).toHaveAttribute('aria-expanded', 'false')
+    expect(logText).toHaveClass('line-clamp-2')
+
+    fireEvent.click(logButton)
+    expect(screen.getByRole('button', { name: 'Collapse log from Mon Dec 15' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    )
+    expect(logText).not.toHaveClass('line-clamp-2')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse log from Mon Dec 15' }))
+    expect(screen.getByRole('button', { name: 'Expand log from Mon Dec 15' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    )
+    expect(logText).toHaveClass('line-clamp-2')
 
     const entryFetchCalls = fetchMock.mock.calls.filter(([arg]) =>
       String(arg).includes('/api/student/entries?')
@@ -157,11 +172,11 @@ describe('StudentTodayTab history section', () => {
     expect(entryFetchCalls).toHaveLength(1)
   })
 
-  it('persists toggle state via cookie', async () => {
+  it('shows an empty past-log state when only today has an entry', async () => {
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=5`)) {
-        return mockJson({ entries })
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+        return mockJson({ entries: [entries[0]] })
       }
       if (url.includes('/lesson-plans')) {
         return mockJson({ lessonPlans: [] })
@@ -170,23 +185,14 @@ describe('StudentTodayTab history section', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const { unmount } = render(<StudentTodayTab classroom={classroom} />)
-    await screen.findByRole('button', { name: /history/i })
-
-    fireEvent.click(screen.getByRole('button', { name: /hide/i }))
-    expect(document.cookie).toMatch(/pika_student_today_history=0/)
-
-    unmount()
-
     render(<StudentTodayTab classroom={classroom} />)
-    await screen.findByRole('button', { name: /history/i })
 
-    expect(screen.getByRole('button', { name: /show/i })).toBeInTheDocument()
-    expect(screen.queryByText('Mon Dec 15')).not.toBeInTheDocument()
+    expect(await screen.findByText('No past logs yet')).toBeInTheDocument()
+    expect(screen.queryByText('Tue Dec 16')).not.toBeInTheDocument()
   })
 
   it('uses sessionStorage cache for entries', async () => {
-    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 5 })
+    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 12 })
     window.sessionStorage.setItem(cacheKey, JSON.stringify(entries))
 
     const fetchMock = vi.fn((input: RequestInfo) => {
@@ -202,7 +208,7 @@ describe('StudentTodayTab history section', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     render(<StudentTodayTab classroom={classroom} />)
-    await screen.findByRole('button', { name: /history/i })
+    await screen.findByText('Past logs')
     expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()
 
     await waitFor(() => {
@@ -218,7 +224,7 @@ describe('StudentTodayTab history section', () => {
 
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
-      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=5`)) {
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {

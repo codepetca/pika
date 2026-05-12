@@ -26,6 +26,7 @@ import { entryHasContent, getAttendanceDotClass, getAttendanceLabel } from '@/li
 import { useClassDaysContext } from '@/hooks/useClassDays'
 import { Button, RefreshingIndicator, Tooltip } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
+import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 import type { AttendanceStatus } from '@/types'
 import {
   DataTable,
@@ -244,6 +245,20 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     return { presentCount: present, absentCount: absent }
   }, [rows, selectedDate, today])
 
+  const {
+    scrollRef: studentTableScrollRef,
+    preserveScrollPosition: preserveStudentTableScrollPosition,
+  } = useScrollPositionMemory<HTMLDivElement>({
+    key: selectedDate ? `${classroom.id}:${selectedDate}` : null,
+    enabled: !showBlockingSpinner,
+    restoreToken: [
+      selectedStudentId ?? 'none',
+      rows.length,
+      loading ? 'loading' : 'ready',
+      refreshing ? 'refreshing' : 'idle',
+    ].join(':'),
+  })
+
   function handleSort(column: SortColumn) {
     setSortState((prev) => toggleSort(prev, column))
   }
@@ -267,6 +282,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   }
 
   function handleRowClick(row: LogRow) {
+    preserveStudentTableScrollPosition()
     const newSelectedId = selectedStudentId === row.student_id ? null : row.student_id
     setSelectedStudentId(newSelectedId)
 
@@ -279,9 +295,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   }
 
   const handleDeselect = useCallback(() => {
+    preserveStudentTableScrollPosition()
     setSelectedStudentId(null)
     onSelectEntry?.(null, '', null)
-  }, [onSelectEntry])
+  }, [onSelectEntry, preserveStudentTableScrollPosition])
 
   useEffect(() => {
     if (!selectedStudentId || !isActive) return
@@ -312,13 +329,14 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
   const selectStudentByRow = useCallback(
     (row: LogRow) => {
+      preserveStudentTableScrollPosition()
       setSelectedStudentId(row.student_id)
       const studentName =
         [row.student_first_name, row.student_last_name].filter(Boolean).join(' ') ||
         row.email_username
       onSelectEntry?.(row.entry, studentName, row.student_id)
     },
-    [onSelectEntry]
+    [onSelectEntry, preserveStudentTableScrollPosition]
   )
 
   const selectStudentByName = useCallback(
@@ -675,7 +693,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           primary={
             // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
             <div
+              ref={studentTableScrollRef}
               className="h-full min-h-0 overflow-auto"
+              data-testid="daily-student-scroll-pane"
+              onScroll={preserveStudentTableScrollPosition}
               onClick={(e) => {
                 // Deselect when clicking outside the table
                 if (selectedStudentId && (e.target as HTMLElement).closest('table') === null) {
@@ -702,7 +723,12 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       </div>
     ) : (
       <div className="daily-table-enter flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-        <div className="min-h-[180px] flex-1 overflow-auto rounded-lg bg-surface">
+        <div
+          ref={studentTableScrollRef}
+          className="min-h-[180px] flex-1 overflow-auto rounded-lg bg-surface"
+          data-testid="daily-student-scroll-pane"
+          onScroll={preserveStudentTableScrollPosition}
+        >
           {renderStudentTable(true)}
         </div>
         {selectedDate && (

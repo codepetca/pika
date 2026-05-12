@@ -172,13 +172,6 @@ describe('StudentAssignmentsTab', () => {
       expect(screen.getByRole('button', { name: 'Instructions' })).toBeInTheDocument()
     })
 
-    // Modal can be opened by default; close it first.
-    const closeButton = screen.getByRole('button', { name: 'Close' })
-    fireEvent.click(closeButton)
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Instructions' })).not.toBeInTheDocument()
-    })
-
     // Click the Instructions button
     fireEvent.click(screen.getByRole('button', { name: 'Instructions' }))
 

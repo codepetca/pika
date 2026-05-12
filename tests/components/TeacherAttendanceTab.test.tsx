@@ -1,6 +1,6 @@
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { TeacherAttendanceTab } from '@/app/classrooms/[classroomId]/TeacherAttendanceTab'
 import type { Classroom, Entry } from '@/types'
 
@@ -126,6 +126,31 @@ function mockLogsFetch() {
             history_preview: [],
           },
         ],
+      })
+    }
+    throw new Error(`Unhandled fetch: ${url}`)
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  return fetchMock
+}
+
+function mockManyLogsFetch(count = 30) {
+  const fetchMock = vi.fn((input: RequestInfo | URL) => {
+    const url = String(input)
+    if (url.startsWith('/api/teacher/logs?')) {
+      return mockJson({
+        logs: Array.from({ length: count }, (_, index) => {
+          const number = String(index + 1).padStart(2, '0')
+          const studentId = `student-${number}`
+          return {
+            student_id: studentId,
+            student_email: `${studentId}@example.com`,
+            student_first_name: `Student${number}`,
+            student_last_name: 'Test',
+            entry: index % 2 === 0 ? entry({ id: `entry-${number}`, student_id: studentId }) : null,
+            history_preview: [],
+          }
+        }),
       })
     }
     throw new Error(`Unhandled fetch: ${url}`)
@@ -316,6 +341,36 @@ describe('TeacherAttendanceTab', () => {
     })
     expect(screen.getByRole('columnheader', { name: 'Log' })).toBeInTheDocument()
     expect(screen.getByTestId('class-log-summary')).toBeInTheDocument()
+  })
+
+  it('restores the student table scroll position after opening a selected Daily workspace', async () => {
+    let latestAnimationFrame: FrameRequestCallback | null = null
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      latestAnimationFrame = callback
+      return 1
+    })
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
+    mockManyLogsFetch()
+
+    render(<TeacherAttendanceTab classroom={classroom} />)
+
+    await screen.findByRole('cell', { name: 'Student25', exact: true })
+
+    const scrollPane = screen.getByTestId('daily-student-scroll-pane') as HTMLDivElement
+    scrollPane.scrollTop = 520
+    fireEvent.scroll(scrollPane)
+
+    fireEvent.click(screen.getByRole('cell', { name: 'Student25', exact: true }))
+
+    expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-25')
+
+    const selectedScrollPane = screen.getByTestId('daily-student-scroll-pane') as HTMLDivElement
+    selectedScrollPane.scrollTop = 0
+    act(() => {
+      latestAnimationFrame?.(0)
+    })
+
+    expect(selectedScrollPane.scrollTop).toBe(520)
   })
 
   it('deselects the selected student when Escape is pressed', async () => {
