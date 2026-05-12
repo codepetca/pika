@@ -316,61 +316,62 @@ async function clearAndSeed() {
 
   const todayToronto = getTodayInToronto()
   const pastDates = dates.filter(d => d <= todayToronto)
-  const entryDates = (pastDates.length >= 3 ? pastDates.slice(-3) : dates.slice(0, 3)).filter(Boolean)
+  const desiredEntryCount = 12
+  const entryDates = (
+    pastDates.length >= desiredEntryCount
+      ? pastDates.slice(-desiredEntryCount)
+      : dates.slice(0, desiredEntryCount)
+  ).filter(Boolean)
 
-  if (entryDates.length < 3) {
+  if (entryDates.length < 6) {
     throw new Error('Seed calendar did not produce enough dates for sample entries')
   }
 
-  const sampleEntries = [
-    // Student 1 - Good attendance (mostly on time)
-    {
-      student_id: students[0]!.id,
-      classroom_id: createdClassroom.id,
-      date: entryDates[0],
-      text: 'Today I learned about functions in JavaScript. I practiced writing arrow functions and understood the difference between function declarations and expressions.',
-      minutes_reported: 90,
-      mood: '😊',
-      on_time: true,
-    },
-    {
-      student_id: students[0]!.id,
-      classroom_id: createdClassroom.id,
-      date: entryDates[1],
-      text: 'Worked on array methods like map, filter, and reduce. These are really powerful! I created a small project to practice these concepts.',
-      minutes_reported: 120,
-      mood: '😊',
-      on_time: true,
-    },
-    {
-      student_id: students[0]!.id,
-      classroom_id: createdClassroom.id,
-      date: entryDates[2],
-      text: 'Started learning about async/await and promises. This is challenging but I\'m making progress.',
-      minutes_reported: 75,
-      mood: '🙂',
-      on_time: true,
-    },
+  const studentOneLogTexts = [
+    'Set up the course notebook, checked the classroom resources, and made sure my development tools were ready for the term.',
+    'Practiced variables, conditionals, and trace tables. The trace table helped me slow down and catch a mistake before I ran the code.',
+    'Built a small checklist page and connected the buttons to state. I still need to clean up the naming, but the interaction works now.',
+    'Today I wrote a longer reflection on debugging. I started with a layout bug that looked like a CSS problem, but it turned out the data I expected was never reaching the component. I used console output first, then narrowed the issue by checking one function at a time. The important part was writing down what I expected before changing code. I also helped compare two approaches for the same task: one with repeated conditionals and one with a small helper function. The helper version was easier to read because it named the decision directly. My next step is to practice explaining the cause of a bug in one sentence before I fix it, because that makes the fix less random.',
+    'Reviewed array methods with map, filter, and reduce. Reduce is still the trickiest because I have to track the accumulator carefully.',
+    'Worked on an async example that fetches data and shows loading, success, and error states. I had to test the error state twice to make sure it actually appeared.',
+    'I spent most of class revising a project log after peer feedback. The first version only listed what I did, so I rewrote it to explain what changed, why it changed, and what evidence showed the change worked. I included the bug where my empty state showed at the wrong time, then described how I traced it to a stale boolean. This was a useful reminder that a log is more helpful when it captures a decision, not just a task list. I also added a short note about what I would do differently next time: write the empty, loading, and loaded states before styling the page.',
+    'Finished the lesson on functions and parameters. I can explain the difference between passing a value and returning a value more clearly now.',
+    'Started planning the final mini-project. I sketched the main screen, wrote down the data I need, and picked one feature to build first instead of trying everything at once.',
+    'Today was a heavy writing day. I documented the project plan, including the problem, the users, the minimum version, and the stretch ideas. The hardest part was cutting the plan down to something realistic. I originally listed five features, but after checking the time left I moved two of them into a later section. I also wrote acceptance checks for the first feature: the user can add an item, edit it, mark it done, and still see it after refresh. Having those checks made the task feel less vague. I want to keep using that format because it gives me a clear way to know when something is actually finished. I also wrote a risk list for the parts that could take longer than expected. The biggest risks are saving data, handling empty states, and making the layout work on a phone. For each one I wrote a fallback plan so I do not get stuck: save to local state first, show a simple empty message, and keep the mobile layout stacked if the split view feels too tight. This entry is intentionally long because I want to test how the history list handles a student writing several connected thoughts instead of a short sentence.',
+    'Tested the project in a smaller browser width and found two text wrapping problems. I fixed one and wrote a note for the other.',
+    'Submitted today with a short demo of the working feature. I am happy with the progress, but I still want to refactor one repeated block tomorrow.',
+  ]
 
-    // Student 2 - Mixed attendance
-    {
-      student_id: students[1]!.id,
+  const studentTwoLogTexts = [
+    'Joined late but reviewed the starter files and got the local project running.',
+    'Completed the variables practice and wrote down two questions about naming conventions.',
+    'Had trouble with array methods today. I understand map when the example is small, but I get lost when the callback has more than one step. I tried rewriting the callback as a regular function first, which made it easier to read. I also compared my output to the sample output after each change instead of waiting until the end. That helped me find one place where I returned the wrong property. I need more practice, but I can at least explain what each method is supposed to do now.',
+    'Worked with a partner on the layout challenge. We divided the work so one person handled structure and one handled spacing.',
+    'Read through feedback on my last entry and added more detail about the problem I was solving.',
+    'Missed part of the demonstration because of connection problems. I caught up by reading the notes and rebuilding the example slowly.',
+    'This was a long catch-up session. I went back through three older tasks, compared them to the checklist, and marked what was actually complete. One task looked finished visually but did not handle an empty list, so I added an empty message and tested it. Another task saved the right data but used confusing variable names, so I renamed them after checking that the behavior stayed the same. The main thing I learned is that catching up is easier when I separate missing code, unclear code, and untested code instead of treating everything as one big problem.',
+    'Prepared questions for next class about project scope and how to decide when a helper function is worth adding.',
+  ]
+
+  const sampleEntries = [
+    ...entryDates.map((date, index) => ({
+      student_id: students[0]!.id,
       classroom_id: createdClassroom.id,
-      date: entryDates[0],
-      text: 'Introduction to the course. Reviewed the syllabus and set up my development environment.',
-      minutes_reported: 60,
-      mood: '🙂',
+      date,
+      text: studentOneLogTexts[index % studentOneLogTexts.length],
+      minutes_reported: 60 + ((index % 5) * 15),
+      mood: (index % 4 === 3 ? '😐' : index % 2 === 0 ? '😊' : '🙂'),
       on_time: true,
-    },
-    {
+    })),
+    ...entryDates.slice(-studentTwoLogTexts.length).map((date, index) => ({
       student_id: students[1]!.id,
       classroom_id: createdClassroom.id,
-      date: entryDates[1],
-      text: 'Sorry for the late submission. Had some technical issues but completed the reading.',
-      minutes_reported: 45,
-      mood: '😐',
-      on_time: false,
-    },
+      date,
+      text: studentTwoLogTexts[index],
+      minutes_reported: 45 + ((index % 4) * 15),
+      mood: (index % 3 === 2 ? '😐' : '🙂'),
+      on_time: index !== 0 && index !== 5,
+    })),
   ]
 
   const entriesWithTimestamps = sampleEntries.map(entry => {
@@ -395,9 +396,16 @@ async function clearAndSeed() {
   // 6. Create sample lesson plans
   console.log('Creating sample lesson plans...')
 
-  // Get the next few class days for lesson plans
+  // Include last class plus the next few class days for lesson plans.
+  const lastClassLessonPlanDate = pastDates.filter(d => d < todayToronto).slice(-1)[0]
   const futureDates = dates.filter(d => d >= todayToronto).slice(0, 5)
-  const lessonPlanDates = futureDates.length >= 3 ? futureDates : dates.slice(0, 5)
+  const lessonPlanCandidates = [lastClassLessonPlanDate, ...futureDates].filter(
+    (date): date is string => Boolean(date)
+  )
+  const lessonPlanDates =
+    lessonPlanCandidates.length >= 3
+      ? Array.from(new Set(lessonPlanCandidates)).slice(0, 5)
+      : dates.slice(0, 5)
 
   const sampleLessonPlans = lessonPlanDates.map((date, index) => ({
     classroom_id: createdClassroom.id,

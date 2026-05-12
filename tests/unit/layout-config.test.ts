@@ -39,6 +39,13 @@ describe('getLayoutConfig', () => {
     expect(config.rightSidebar.enabled).toBe(false)
   })
 
+  it('should use an integrated split workspace for student today', () => {
+    const config = getLayoutConfig('today')
+    expect(config.rightSidebar.enabled).toBe(false)
+    expect(config.rightSidebar.defaultOpen).toBe(false)
+    expect(config.mainContent.maxWidth).toBe('full')
+  })
+
   it('should return 50% default width for assignments-teacher-viewing (dynamically set to 70% for student work)', () => {
     const config = getLayoutConfig('assignments-teacher-viewing')
     expect(config.rightSidebar.defaultWidth).toBe('50%')
