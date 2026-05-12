@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type Ref } from 'react'
 import { X } from 'lucide-react'
 import type {
   GradebookAssessmentCell,
@@ -35,6 +35,7 @@ import {
 } from '@/lib/request-cache'
 import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
+import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 
 type GradebookSection = 'grades' | 'settings'
 type ScoreDisplayMode = 'percent' | 'raw'
@@ -430,6 +431,8 @@ function AssessmentMatrixTable({
   sortColumn,
   sortDirection,
   handleSort,
+  scrollContainerRef,
+  onScrollContainerScroll,
 }: {
   students: GradebookStudentSummary[]
   columns: GradebookAssessmentColumn[]
@@ -455,6 +458,8 @@ function AssessmentMatrixTable({
   sortColumn: GradebookSortColumn
   sortDirection: 'asc' | 'desc'
   handleSort: (column: GradebookSortColumn) => void
+  scrollContainerRef?: Ref<HTMLDivElement>
+  onScrollContainerScroll?: () => void
 }) {
   const visibleIdentityCount = IDENTITY_COLUMN_DEFS.filter((column) => visibleColumns[column.key]).length
   const renderedIdentityColumns = editMode
@@ -481,7 +486,12 @@ function AssessmentMatrixTable({
   const renderMedianRow = editMode || visibleSummaryRows.median
 
   return (
-    <div className="h-full min-h-0 overflow-auto">
+    <div
+      ref={scrollContainerRef}
+      className="h-full min-h-0 overflow-auto"
+      data-testid="gradebook-student-scroll-pane"
+      onScroll={onScrollContainerScroll}
+    >
       <TableCard chrome="flush">
         <DataTable density="tight" className="min-w-max">
           <DataTableHead>
@@ -1023,6 +1033,19 @@ export function TeacherGradebookTab({
   )
   const rowKeys = useMemo(() => sortedStudents.map((student) => student.student_id), [sortedStudents])
   const { selectedIds, toggleSelect, toggleSelectAll, allSelected } = useStudentSelection(rowKeys)
+  const {
+    scrollRef: gradebookTableScrollRef,
+    preserveScrollPosition: preserveGradebookTableScrollPosition,
+  } = useScrollPositionMemory<HTMLDivElement>({
+    key: `${classroom.id}:gradebook`,
+    enabled: !columnEditorOpen,
+    restoreToken: [
+      selectedStudentId ?? 'none',
+      sortedStudents.length,
+      loading ? 'loading' : 'ready',
+      columnEditorOpen ? 'settings' : 'grades',
+    ].join(':'),
+  })
 
   function handleSort(column: GradebookSortColumn) {
     setSortState((previous) => toggleSort(previous, column))
@@ -1088,6 +1111,7 @@ export function TeacherGradebookTab({
   }
 
   function handleStudentSelect(student: GradebookStudentSummary) {
+    preserveGradebookTableScrollPosition()
     setSelectedStudentId((previous) => (
       previous === student.student_id ? null : student.student_id
     ))
@@ -1241,6 +1265,8 @@ export function TeacherGradebookTab({
         sortColumn={sortColumn}
         sortDirection={sortDirection}
         handleSort={handleSort}
+        scrollContainerRef={gradebookTableScrollRef}
+        onScrollContainerScroll={preserveGradebookTableScrollPosition}
       />
     </div>
   )

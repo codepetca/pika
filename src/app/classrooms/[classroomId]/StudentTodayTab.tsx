@@ -1,23 +1,19 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Button, Tooltip } from '@/ui'
+import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
-import { ACTIONBAR_ICON_BUTTON_CLASSNAME, PageContent, PageLayout, PageStack } from '@/components/PageLayout'
+import { PageContent, PageLayout, PageStack } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'
 import { useClassDaysContext } from '@/hooks/useClassDays'
 import { format, parseISO } from 'date-fns'
-import { ChevronDown } from 'lucide-react'
 import {
-  readBooleanCookie,
   safeSessionGetJson,
   safeSessionSetJson,
-  writeCookie,
 } from '@/lib/client-storage'
 import {
-  getEntryPreview,
   getStudentEntryHistoryCacheKey,
   upsertEntryIntoHistory,
 } from '@/lib/student-entry-history'
@@ -50,16 +46,16 @@ function resolveEntryContent(entry: Entry | null): TiptapContent {
 
 interface StudentTodayTabProps {
   classroom: Classroom
+  layout?: 'page' | 'pane'
   onLessonPlanLoad?: (plan: LessonPlan | null) => void
 }
 
-export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTabProps) {
+export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }: StudentTodayTabProps) {
   const notifications = useStudentNotifications()
   const { classDays } = useClassDaysContext()
 
   // Constants
-  const historyLimit = 5
-  const historyCookieName = 'pika_student_today_history'
+  const historyLimit = 12
   const AUTOSAVE_DEBOUNCE_MS = 5000
   const AUTOSAVE_MIN_INTERVAL_MS = 15000
   const MAX_CHARS = 2000
@@ -69,9 +65,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
   const [today, setToday] = useState('')
   const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
   const [historyEntries, setHistoryEntries] = useState<Entry[]>([])
-  const [historyVisible, setHistoryVisible] = useState<boolean>(() =>
-    readBooleanCookie(historyCookieName, true)
-  )
+  const [expandedHistoryIds, setExpandedHistoryIds] = useState<Set<string>>(() => new Set())
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [saveError, setSaveError] = useState('')
   const [conflictEntry, setConflictEntry] = useState<Entry | null>(null)
@@ -383,11 +377,6 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
 
   const isClassDay = today ? isClassDayOnDate(classDays, today) : true
 
-  function setHistoryVisibility(next: boolean) {
-    setHistoryVisible(next)
-    writeCookie(historyCookieName, next ? '1' : '0')
-  }
-
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -396,107 +385,130 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
     )
   }
 
-  const historyListId = `student-today-history-${classroom.id}`
+  const pastHistoryEntries = historyEntries.filter(entry => entry.date !== today)
+
+  function toggleHistoryEntry(entryId: string) {
+    setExpandedHistoryIds(prev => {
+      const next = new Set(prev)
+      if (next.has(entryId)) {
+        next.delete(entryId)
+      } else {
+        next.add(entryId)
+      }
+      return next
+    })
+  }
+
+  const todayContent = (
+    <PageStack>
+      <div className="bg-surface rounded-lg border border-border p-6">
+        {!isClassDay ? (
+          <div className="bg-page border border-border rounded-lg p-4 text-center">
+            <p className="text-text-muted">No class today</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-text-muted">
+                What did you do today?
+              </label>
+              <span
+                className={
+                  'text-sm ' +
+                  (saveStatus === 'saved'
+                    ? 'text-success'
+                    : saveStatus === 'saving'
+                      ? 'text-text-muted'
+                      : 'text-warning')
+                }
+              >
+                {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
+              </span>
+            </div>
+            <RichTextEditor
+              content={content}
+              onChange={handleContentChange}
+              onBlur={flushAutosave}
+              placeholder="Write something..."
+              editable={true}
+              showToolbar={false}
+              className="min-h-[200px] [&_.tiptap.ProseMirror]:!p-0"
+            />
+
+            {saveError && (
+              <div className="space-y-2">
+                <p className="text-sm text-danger">{saveError}</p>
+                {conflictEntry && (
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" size="sm" variant="secondary" onClick={resolveConflict}>
+                      Reload latest
+                    </Button>
+                    <Button type="button" size="sm" onClick={retryAfterConflict}>
+                      Retry save
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-surface border border-border rounded-lg">
+        <div className="px-4 py-3 border-b border-border">
+          <h2 className="text-sm font-semibold text-text-default">Past logs</h2>
+        </div>
+        <div className="divide-y divide-border">
+          {pastHistoryEntries.length === 0 ? (
+            <div className="px-4 py-6 text-sm text-text-muted">
+              No past logs yet
+            </div>
+          ) : (
+            pastHistoryEntries.map(entry => {
+              const isExpanded = expandedHistoryIds.has(entry.id)
+              const entryDateLabel = format(parseISO(entry.date), 'EEE MMM d')
+
+              return (
+                <button
+                  key={entry.id}
+                  type="button"
+                  className="block w-full px-4 py-3 text-left transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+                  aria-expanded={isExpanded}
+                  aria-label={`${isExpanded ? 'Collapse' : 'Expand'} log from ${entryDateLabel}`}
+                  onClick={() => toggleHistoryEntry(entry.id)}
+                >
+                  <p className="text-sm font-medium text-text-default">
+                    {entryDateLabel}
+                  </p>
+                  <p
+                    className={[
+                      'mt-1 text-sm text-text-muted whitespace-pre-wrap',
+                      isExpanded ? '' : 'line-clamp-2',
+                    ].join(' ')}
+                  >
+                    {entry.text || ''}
+                  </p>
+                </button>
+              )
+            })
+          )}
+        </div>
+      </div>
+    </PageStack>
+  )
+
+  if (layout === 'pane') {
+    return (
+      <div className="h-full min-h-0 overflow-y-auto">
+        {todayContent}
+      </div>
+    )
+  }
 
   return (
     <PageLayout>
       <PageContent>
-        <PageStack>
-          <div className="bg-surface rounded-lg border border-border p-6">
-            {!isClassDay ? (
-              <div className="bg-page border border-border rounded-lg p-4 text-center">
-                <p className="text-text-muted">No class today</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-text-muted">
-                    What did you do today?
-                  </label>
-                  <span
-                    className={
-                      'text-sm ' +
-                      (saveStatus === 'saved'
-                        ? 'text-success'
-                        : saveStatus === 'saving'
-                          ? 'text-text-muted'
-                          : 'text-warning')
-                    }
-                  >
-                    {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
-                  </span>
-                </div>
-                <RichTextEditor
-                  content={content}
-                  onChange={handleContentChange}
-                  onBlur={flushAutosave}
-                  placeholder="Write something..."
-                  editable={true}
-                  showToolbar={false}
-                  className="min-h-[200px] [&_.tiptap.ProseMirror]:!p-0"
-                />
-
-                {saveError && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-danger">{saveError}</p>
-                    {conflictEntry && (
-                      <div className="flex flex-wrap gap-2">
-                        <Button type="button" size="sm" variant="secondary" onClick={resolveConflict}>
-                          Reload latest
-                        </Button>
-                        <Button type="button" size="sm" onClick={retryAfterConflict}>
-                          Retry save
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="bg-surface border border-border rounded-lg">
-            <div className="px-4 py-3 border-b border-border flex items-center justify-end">
-              <Tooltip content="History">
-                <button
-                  type="button"
-                  className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
-                  aria-expanded={historyVisible}
-                  aria-controls={historyListId}
-                  aria-label={historyVisible ? 'Hide history' : 'Show history'}
-                  onClick={() => setHistoryVisibility(!historyVisible)}
-                >
-                  <ChevronDown
-                    className={[
-                      'h-5 w-5 transition-transform',
-                      historyVisible ? 'rotate-180' : 'rotate-0',
-                    ].join(' ')}
-                  />
-                </button>
-              </Tooltip>
-            </div>
-            {historyVisible && (
-              <div id={historyListId} className="divide-y divide-border">
-                {historyEntries.length === 0 ? (
-                  <div className="px-4 py-6 text-sm text-text-muted">
-                    No logs yet
-                  </div>
-                ) : (
-                  historyEntries.map(entry => (
-                    <div key={entry.id} className="px-4 py-2">
-                      <p className="text-sm font-medium text-text-default">
-                        {format(parseISO(entry.date), 'EEE MMM d')}
-                      </p>
-                      <p className="text-sm text-text-muted">
-                        {getEntryPreview(entry.text, 150)}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        </PageStack>
+        {todayContent}
       </PageContent>
     </PageLayout>
   )

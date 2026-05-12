@@ -7,81 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-07 — Add classroom view toggle tooltips
-
-**Completed:**
-- Added styled app tooltips to icon-only segmented controls.
-- Placed icon-only segmented control tooltips above the trigger so the bottom classroom view toggle remains visible on hover.
-- Removed the native title fallback from segmented buttons.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Visual hover verification on port 3011:
-  - `/tmp/pika-classrooms-toggle-active-tooltip.png`
-  - `/tmp/pika-classrooms-toggle-archived-tooltip.png`
-
-## 2026-05-10 — Add student exam-mode e2e coverage
-
-**Completed:**
-- Added a focused Playwright flow for student test exam mode.
-- Seeds a unique active open-response test through existing teacher APIs against the shared seeded teacher/student classroom.
-- Verifies test start, transient window loss without lock, sustained window loss with content obscuring and interaction blocking, restoration, and open-response draft preservation after reload/restart.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm exec playwright test e2e/student-exam-mode.spec.ts`
-- `pnpm lint`
-
-## 2026-05-08 — Add class log summary controls
-
-**Completed:**
-- Confirmed the Vercel nightly log summary cron remains `0 6 * * *` (06:00 UTC: 1:00am EST / 2:00am EDT).
-- Added a floating attendance action control to show or hide the bottom Class Log Summary card.
-- Added a drag/keyboard resize handle for the visible Class Log Summary card.
-- Kept the log summary data component unchanged and scoped behavior to teacher attendance presentation state.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/log-summary-panel-controls bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherAttendanceTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Visual verification on port 3000:
-  - `/tmp/pika-log-summary-teacher-visible.png`
-  - `/tmp/pika-log-summary-teacher-hidden.png`
-  - `/tmp/pika-log-summary-teacher-expanded.png`
-  - `/tmp/pika-log-summary-teacher-populated.png`
-  - `/tmp/pika-log-summary-teacher-mobile.png`
-  - `/tmp/pika-log-summary-student-mobile.png`
-
-## 2026-05-08 — Extract assignment lifecycle invariants
-
-**Completed:**
-- Added shared assignment release-state helpers for draft/live/scheduled visibility in `src/lib/assignments.ts`.
-- Moved student assignment visibility behind the shared helper while preserving the server import path.
-- Centralized future scheduled-release due-date validation and migrated assignment update/release routes plus scheduling UI callers.
-- Added release-state and future schedule validation tests, including malformed `released_at` fail-closed behavior.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/.codex/worktrees/53f9/pika bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/unit/assignments.test.ts tests/lib/assignment-schedule-validation.test.ts tests/api/assignment-docs/submit.test.ts tests/api/teacher/assignments-id.test.ts tests/api/teacher/assignments-draft.test.ts tests/components/AssignmentModal.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
-- `pnpm vitest run tests/components/SortableAssignmentCard.test.tsx tests/components/TeacherClassroomView.test.tsx tests/api/student/assignments.test.ts tests/api/integration/assignment-draft-flow.test.ts tests/api/student/notifications.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-
-## 2026-05-08 — Open assignment invariant PR
-
-**Completed:**
-- Created branch `codex/assignment-lifecycle-invariants`.
-- Committed assignment lifecycle invariant extraction as `37cd562`.
-- Opened draft PR #570 and added `codex` plus `codex-automation` labels.
-- Posted a self-review comment with no blocking findings.
-
-**Validation:**
-- PR checks showed Vercel skipped by ignored build step, with preview comments passing.
-
 ## 2026-05-08 — Unblock assignment invariant merge
 
 **Completed:**
@@ -373,3 +298,90 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Tooltip hover checks:
   - `/tmp/pika-tooltip-last-class.png`
   - `/tmp/pika-tooltip-today.png`
+
+## 2026-05-12 — Preserve teacher assignment student-list scroll
+
+**Completed:**
+- Preserved the teacher assignment workspace class-pane scroll position while selecting students from the left student table.
+- Added regression coverage that remounts the left pane on student selection and verifies the stored scroll offset is restored.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/teacher-assignments-scroll bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/teacher-assignments-scroll E2E_BASE_URL=http://localhost:3000 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c4536d07-c76a-4a5b-a9c9-6340ed1678a9?tab=assignments&assignmentId=f2e7f53a-8399-42f7-9739-36a91fd837c1&assignmentStudentId=20d7927e-6c8d-4fe0-a31b-b3a4bd097f5e'`
+
+## 2026-05-12 — Continue teacher assignment scroll handoff
+
+**Completed:**
+- Audited the dirty `codex/teacher-assignments-scroll` worktree after the prior Codex session died.
+- Confirmed the assignment scroll fix preserves the class-pane scroll position before student selection and restores it after remount.
+- Seeded local Supabase and refreshed Playwright auth so UI verification used a live local classroom instead of a stale missing-classroom route.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/teacher-assignments-scroll bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherAttendanceTab.test.tsx tests/components/TeacherGradebookTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/teacher-assignments-scroll E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/61164fb0-26d2-4862-abfe-5517ccdc685a?tab=assignments&assignmentId=9ff41b8e-bb7a-485b-a553-fb11dfd98545&assignmentStudentId=852830be-50b4-48fe-9b03-67e4d1d49a37'`
+- Delayed loaded-state teacher desktop screenshot: `/tmp/pika-teacher-loaded.png`
+
+## 2026-05-12 — Student Today past log expansion
+
+**Completed:**
+- Removed the parent collapse control from the student Today past-log section.
+- Changed the section to always show past logs, excluding the current Today entry.
+- Added per-log expand/collapse behavior: collapsed entries use a two-line clamp with ellipsis and clicking the log reveals the full text.
+- Split the student Today right pane into `Today` and `Last Class` lesson-plan sections, with the previous class day loaded from shared class-day state.
+- Updated focused Today history component coverage for default visibility, per-entry toggling, empty past-log state, and sessionStorage caching.
+- Added page-client coverage for the student Today sidebar showing both current and last-class lesson-plan content.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/today-log-history-expand bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/StudentTodayTabHistory.test.tsx`
+- `pnpm test tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/StudentTodayTabHistory.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Visual verification via temporary local harness after standard auth/seed path was blocked by local Supabase being down because Docker was not running:
+  - `/tmp/pika-student-today-mobile.png`
+  - `/tmp/pika-student-today-mobile-expanded.png`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/today-log-history-expand bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/90c4fdd7-28c0-4474-998e-650eee270d57?tab=today'`
+- Additional desktop student pane capture:
+  - `/tmp/pika-student-today-desktop.png`
+
+## 2026-05-12 — Student Today split pane and richer seed logs
+
+**Completed:**
+- Moved the student Today lesson-plan panel out of the global right sidebar and into a teacher-style gapped split workspace.
+- Kept the Today and Last Class lesson-plan sections in a rounded right pane and rendered lesson-plan rich text flush, without the nested viewer border/padding.
+- Disabled the external Today right sidebar route config and expanded the student Today history fetch/cache limit to 12 entries.
+- Updated `seed` and `seed:fresh` to create 20 sample student logs across recent class days, including several long entries, and to seed lesson plans for both today and the last class.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/StudentTodayTabHistory.test.tsx tests/unit/layout-config.test.ts`
+- `pnpm lint`
+- `pnpm seed:fresh`
+- `pnpm e2e:auth`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/today-log-history-expand bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/bdd3df5f-3596-4b8e-8acf-65004c9b2d66?tab=today'`
+- Additional desktop student split capture: `/tmp/pika-student-today-desktop-split-final.png`
+- `git diff --check`
+- `pnpm build`
+
+## 2026-05-12 — Student Today previous-day heading
+
+**Completed:**
+- Changed the student Today right-pane previous-class heading to show `Yesterday` when the previous class date is yesterday.
+- Moved the formatted date next to the heading instead of pinning it to the far right of the pane.
+- Kept the fallback copy as `Last class` for non-yesterday previous class days.
+
+**Validation:**
+- `pnpm test tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/StudentTodayTabHistory.test.tsx tests/unit/layout-config.test.ts`
+- `pnpm lint`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3010 pnpm e2e:auth`
+- `E2E_BASE_URL=http://localhost:3010 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/today-log-history-expand bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/bdd3df5f-3596-4b8e-8acf-65004c9b2d66?tab=today'`
+- Additional desktop student split capture: `/tmp/pika-student-today-yesterday-desktop.png`
+- `pnpm build`

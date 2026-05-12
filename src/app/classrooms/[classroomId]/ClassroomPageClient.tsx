@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { AppShell } from '@/components/AppShell'
 import { TeacherClassroomView, TeacherAssignmentsMarkdownSidebar, type AssignmentViewMode } from './TeacherClassroomView'
 import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-markdown'
@@ -20,7 +21,8 @@ import { TeacherQuizzesTab } from './TeacherQuizzesTab'
 import { TeacherTestsTab } from './TeacherTestsTab'
 import { StudentQuizzesTab } from './StudentQuizzesTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
-import { ClassDaysProvider } from '@/hooks/useClassDays'
+import { ClassDaysProvider, useClassDaysContext } from '@/hooks/useClassDays'
+import { getMostRecentClassDayBefore } from '@/lib/class-days'
 import {
   ThreePanelProvider,
   ThreePanelShell,
@@ -42,11 +44,13 @@ import {
   TEACHER_QUIZZES_UPDATED_EVENT,
 } from '@/lib/events'
 import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
+import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import { ConfirmDialog, TabContentTransition } from '@/ui'
 import { PageDensityProvider } from '@/components/PageLayout'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { fetchJSONWithCache, prefetchJSON } from '@/lib/request-cache'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
+import { getTodayInToronto } from '@/lib/timezone'
 import type {
   Classroom,
   LessonPlan,
@@ -202,6 +206,136 @@ export function ClassroomPageClient({
   )
 }
 
+function hasLessonPlanContent(plan: LessonPlan | null) {
+  return Boolean(
+    plan?.content &&
+    plan.content.content &&
+    plan.content.content.length > 0
+  )
+}
+
+function getLastClassHeading(lastClassDate: string | null) {
+  if (!lastClassDate) return 'Last class'
+
+  const daysAgo = differenceInCalendarDays(
+    parseISO(getTodayInToronto()),
+    parseISO(lastClassDate)
+  )
+
+  return daysAgo === 1 ? 'Yesterday' : 'Last class'
+}
+
+function StudentTodayPlanSidebar({
+  todayLessonPlan,
+  lastClassLessonPlan,
+  lastClassDate,
+  lastClassLoading,
+}: {
+  todayLessonPlan: LessonPlan | null
+  lastClassLessonPlan: LessonPlan | null
+  lastClassDate: string | null
+  lastClassLoading: boolean
+}) {
+  const viewerClassName = 'min-h-0 flex-1 overflow-y-auto [&_.simple-viewer-content_.tiptap.ProseMirror.simple-editor]:!p-0'
+  const lastClassHeading = getLastClassHeading(lastClassDate)
+  const missingLessonPlanLabel = lastClassHeading === 'Yesterday' ? 'yesterday' : 'last class'
+
+  return (
+    <div className="flex h-full min-h-0 flex-col divide-y divide-border">
+      <section className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+        <h3 className="text-sm font-semibold text-text-default">Today</h3>
+        {hasLessonPlanContent(todayLessonPlan) ? (
+          <div className={viewerClassName}>
+            <RichTextViewer content={todayLessonPlan!.content} chrome="flush" />
+          </div>
+        ) : (
+          <p className="text-sm text-text-muted">
+            No lesson plan for today.
+          </p>
+        )}
+      </section>
+
+      <section className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-sm font-semibold text-text-default">{lastClassHeading}</h3>
+          {lastClassDate ? (
+            <span className="text-xs text-text-muted">
+              {format(parseISO(lastClassDate), 'EEE MMM d')}
+            </span>
+          ) : null}
+        </div>
+        {!lastClassDate ? (
+          <p className="text-sm text-text-muted">
+            No previous class day yet.
+          </p>
+        ) : lastClassLoading ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center">
+            <Spinner />
+          </div>
+        ) : hasLessonPlanContent(lastClassLessonPlan) ? (
+          <div className={viewerClassName}>
+            <RichTextViewer content={lastClassLessonPlan!.content} chrome="flush" />
+          </div>
+        ) : (
+          <p className="text-sm text-text-muted">
+            No lesson plan for {missingLessonPlanLabel}.
+          </p>
+        )}
+      </section>
+    </div>
+  )
+}
+
+function StudentTodayWorkspace({
+  classroom,
+  todayLessonPlan,
+  lastClassLessonPlan,
+  lastClassDate,
+  lastClassLoading,
+  onLessonPlanLoad,
+}: {
+  classroom: Classroom
+  todayLessonPlan: LessonPlan | null
+  lastClassLessonPlan: LessonPlan | null
+  lastClassDate: string | null
+  lastClassLoading: boolean
+  onLessonPlanLoad: (plan: LessonPlan | null) => void
+}) {
+  const [planPaneWidth, setPlanPaneWidth] = useState(34)
+
+  return (
+    <TeacherWorkspaceSplit
+      className="flex-1 pt-2"
+      splitVariant="gapped"
+      primaryClassName="min-h-0"
+      inspectorClassName="min-h-0 rounded-lg border border-border bg-surface"
+      inspectorCollapsed={false}
+      inspectorWidth={planPaneWidth}
+      minInspectorPx={300}
+      minPrimaryPx={480}
+      minInspectorPercent={28}
+      maxInspectorPercent={46}
+      onInspectorWidthChange={setPlanPaneWidth}
+      dividerLabel="Resize today and plan panes"
+      primary={
+        <StudentTodayTab
+          classroom={classroom}
+          layout="pane"
+          onLessonPlanLoad={onLessonPlanLoad}
+        />
+      }
+      inspector={
+        <StudentTodayPlanSidebar
+          todayLessonPlan={todayLessonPlan}
+          lastClassLessonPlan={lastClassLessonPlan}
+          lastClassDate={lastClassDate}
+          lastClassLoading={lastClassLoading}
+        />
+      }
+    />
+  )
+}
+
 // Separate component to access ThreePanelProvider context
 function ClassroomPageContent({
   classroom,
@@ -222,6 +356,7 @@ function ClassroomPageContent({
 }) {
   const { openLeft, openRight, close: closeMobileDrawer } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
+  const { classDays } = useClassDaysContext()
   const { showMarkdown } = useMarkdownPreference()
   const isTeacher = user.role === 'teacher'
   const assignmentIdParam = searchParams.get('assignmentId')
@@ -420,6 +555,9 @@ function ClassroomPageContent({
 
   // State for today's lesson plan (student today tab)
   const [todayLessonPlan, setTodayLessonPlan] = useState<LessonPlan | null>(null)
+  const [lastClassLessonPlan, setLastClassLessonPlan] = useState<LessonPlan | null>(null)
+  const [lastClassLessonPlanDate, setLastClassLessonPlanDate] = useState<string | null>(null)
+  const [lastClassLessonPlanLoading, setLastClassLessonPlanLoading] = useState(false)
 
   // State for calendar sidebar (teacher calendar tab)
   const [calendarSidebarState, setCalendarSidebarState] = useState<CalendarSidebarState | null>(null)
@@ -486,6 +624,50 @@ function ClassroomPageContent({
   const handleSetLessonPlan = useCallback((plan: LessonPlan | null) => {
     setTodayLessonPlan(plan)
   }, [])
+
+  useEffect(() => {
+    if (isTeacher || activeTab !== 'today') return
+
+    const todayDate = getTodayInToronto()
+    const lastClassDate = getMostRecentClassDayBefore(classDays, todayDate)
+    setLastClassLessonPlanDate(lastClassDate)
+
+    if (!lastClassDate) {
+      setLastClassLessonPlan(null)
+      setLastClassLessonPlanLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setLastClassLessonPlanLoading(true)
+    fetchJSONWithCache<{ lesson_plans?: LessonPlan[]; lessonPlans?: LessonPlan[] }>(
+      `student-today:last-class-plan:${classroom.id}:${lastClassDate}`,
+      async () => {
+        const response = await fetch(
+          `/api/student/classrooms/${classroom.id}/lesson-plans?start=${lastClassDate}&end=${lastClassDate}`
+        )
+        if (!response.ok) throw new Error('Failed to load last class lesson plan')
+        return response.json()
+      },
+      30_000
+    )
+      .then((data) => {
+        if (cancelled) return
+        const plans = data.lesson_plans || data.lessonPlans || []
+        setLastClassLessonPlan(plans.find(plan => plan.date === lastClassDate) || null)
+        setLastClassLessonPlanLoading(false)
+      })
+      .catch((error) => {
+        if (cancelled) return
+        console.error('Error loading last class lesson plan:', error)
+        setLastClassLessonPlan(null)
+        setLastClassLessonPlanLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab, classDays, classroom.id, isTeacher])
 
   const handleViewModeChange = useCallback((mode: AssignmentViewMode) => {
     setAssignmentViewMode(mode)
@@ -938,6 +1120,8 @@ function ClassroomPageContent({
       (activeTab === 'assignments' && !!assignmentIdParam && !!assignmentStudentIdParam) ||
       (activeTab === 'tests' && !!testIdParam && testModeParam === 'grading' && !!testStudentIdParam)
     )
+  const hasConstrainedWorkspace =
+    hasActiveTeacherSplitPanes || (!isTeacher && activeTab === 'today')
 
   async function handleRequestAssessmentDelete() {
     if (!selectedQuiz) return
@@ -1024,7 +1208,7 @@ function ClassroomPageContent({
       onNavigateHome={handleHomeNavigationAttempt}
       onNavigateClassroom={handleClassroomNavigationAttempt}
       mainClassName="max-w-none px-0 py-0"
-      constrainToViewport={hasActiveTeacherSplitPanes}
+      constrainToViewport={hasConstrainedWorkspace}
       examModeHeader={examHeaderData}
       pageTitle={undefined}
     >
@@ -1187,8 +1371,12 @@ function ClassroomPageContent({
                 <>
                   {mountedTabs.today && (
                     <TabContentTransition isActive={activeTab === 'today'}>
-                      <StudentTodayTab
+                      <StudentTodayWorkspace
                         classroom={classroom}
+                        todayLessonPlan={todayLessonPlan}
+                        lastClassLessonPlan={lastClassLessonPlan}
+                        lastClassDate={lastClassLessonPlanDate}
+                        lastClassLoading={lastClassLessonPlanLoading}
                         onLessonPlanLoad={handleSetLessonPlan}
                       />
                     </TabContentTransition>
@@ -1257,6 +1445,7 @@ function ClassroomPageContent({
           </PageDensityProvider>
         </MainContent>
 
+        {!isTeacher && activeTab === 'today' ? null : (
         <RightSidebar
           hideDesktopHeader={false}
           minimalMobileHeader={false}
@@ -1271,8 +1460,6 @@ function ClassroomPageContent({
               ? ''
               : activeTab === 'assignments'
               ? (selectedAssignment?.title || 'Instructions')
-              : activeTab === 'today'
-              ? "Today's Plan"
               : 'Details'
           }
           headerActions={
@@ -1357,24 +1544,13 @@ function ClassroomPageContent({
                 </p>
               )}
             </div>
-          ) : activeTab === 'today' ? (
-            <div className="p-4">
-              {todayLessonPlan?.content &&
-              todayLessonPlan.content.content &&
-              todayLessonPlan.content.content.length > 0 ? (
-                <RichTextViewer content={todayLessonPlan.content} />
-              ) : (
-                <p className="text-sm text-text-muted">
-                  No lesson plan for today.
-                </p>
-              )}
-            </div>
           ) : (
             <div className="p-4 text-sm text-text-muted">
               Inspector panel content will be added in a future update.
             </div>
           )}
         </RightSidebar>
+        )}
       </ThreePanelShell>
 
       <ConfirmDialog

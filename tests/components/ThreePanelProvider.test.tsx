@@ -51,9 +51,9 @@ describe('ThreePanelProvider right sidebar sync on routeKey change', () => {
     expect(screen.getByTestId('enabled').textContent).toBe('false')
     expect(screen.getByTestId('open').textContent).toBe('false')
 
-    // Switch to today: enabled=true, defaultOpen=true
+    // Switch to teacher assignment viewing: enabled=true, defaultOpen=true
     act(() => {
-      screen.getByText('go-today').click()
+      screen.getByText('go-teacher-viewing').click()
     })
 
     expect(screen.getByTestId('enabled').textContent).toBe('true')
@@ -61,9 +61,9 @@ describe('ThreePanelProvider right sidebar sync on routeKey change', () => {
   })
 
   it('closes sidebar when switching to a tab with enabled: false', () => {
-    render(<TestHarness initialRouteKey="today" />)
+    render(<TestHarness initialRouteKey="assignments-teacher-viewing" />)
 
-    // today: enabled=true, defaultOpen=true
+    // assignments-teacher-viewing: enabled=true, defaultOpen=true
     expect(screen.getByTestId('open').textContent).toBe('true')
 
     // Switch to assignments-student: enabled=false
@@ -75,8 +75,8 @@ describe('ThreePanelProvider right sidebar sync on routeKey change', () => {
     expect(screen.getByTestId('open').textContent).toBe('false')
   })
 
-  it('reopens sidebar when returning to today after visiting disabled tab', () => {
-    render(<TestHarness initialRouteKey="today" />)
+  it('reopens sidebar when returning to a default-open tab after visiting disabled tab', () => {
+    render(<TestHarness initialRouteKey="assignments-teacher-viewing" />)
 
     expect(screen.getByTestId('open').textContent).toBe('true')
 
@@ -86,9 +86,9 @@ describe('ThreePanelProvider right sidebar sync on routeKey change', () => {
     })
     expect(screen.getByTestId('open').textContent).toBe('false')
 
-    // Return to today — this is the core bug scenario
+    // Return to a default-open route — this is the core bug scenario
     act(() => {
-      screen.getByText('go-today').click()
+      screen.getByText('go-teacher-viewing').click()
     })
     expect(screen.getByTestId('open').textContent).toBe('true')
   })
@@ -111,7 +111,7 @@ describe('ThreePanelProvider right sidebar sync on routeKey change', () => {
   })
 
   it('keeps the external sidebar disabled for teacher quizzes', () => {
-    render(<TestHarness initialRouteKey="today" />)
+    render(<TestHarness initialRouteKey="assignments-teacher-viewing" />)
 
     expect(screen.getByTestId('open').textContent).toBe('true')
 
@@ -123,10 +123,10 @@ describe('ThreePanelProvider right sidebar sync on routeKey change', () => {
     expect(screen.getByTestId('open').textContent).toBe('false')
   })
 
-  it('closes sidebar when switching from today to an enabled tab with defaultOpen: false', () => {
-    render(<TestHarness initialRouteKey="today" />)
+  it('closes sidebar when switching from a default-open tab to an enabled tab with defaultOpen: false', () => {
+    render(<TestHarness initialRouteKey="assignments-teacher-viewing" />)
 
-    // today: enabled=true, defaultOpen=true
+    // assignments-teacher-viewing: enabled=true, defaultOpen=true
     expect(screen.getByTestId('open').textContent).toBe('true')
 
     // Switch to roster: enabled=true, defaultOpen=false
@@ -135,6 +135,19 @@ describe('ThreePanelProvider right sidebar sync on routeKey change', () => {
     })
 
     expect(screen.getByTestId('enabled').textContent).toBe('true')
+    expect(screen.getByTestId('open').textContent).toBe('false')
+  })
+
+  it('keeps the Today external sidebar disabled', () => {
+    render(<TestHarness initialRouteKey="assignments-teacher-viewing" />)
+
+    expect(screen.getByTestId('open').textContent).toBe('true')
+
+    act(() => {
+      screen.getByText('go-today').click()
+    })
+
+    expect(screen.getByTestId('enabled').textContent).toBe('false')
     expect(screen.getByTestId('open').textContent).toBe('false')
   })
 })

@@ -237,7 +237,7 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
             Mock resize split
           </button>
           <div>{`overview:${assignmentId}:${studentId}`}</div>
-          <div data-testid="assignment-left-pane">
+          <div key={studentId} data-testid="assignment-left-pane">
             {leftHeader}
             {leftPaneView === 'class' ? classPane : <div>{`work:${assignmentId}:${studentId}`}</div>}
           </div>
@@ -404,6 +404,29 @@ function makeMaterialSummary(id: string, title: string, overrides: Partial<Class
   }
 }
 
+function makeStudentSubmissionRow(studentId: string, overrides: Record<string, unknown> = {}) {
+  return {
+    student_id: studentId,
+    student_email: `${studentId}@example.com`,
+    student_first_name: studentId,
+    student_last_name: 'Student',
+    status: 'submitted_on_time',
+    student_updated_at: '2026-04-10T12:00:00Z',
+    artifacts: [],
+    doc: {
+      submitted_at: '2026-04-10T12:00:00Z',
+      updated_at: '2026-04-10T12:00:00Z',
+      score_completion: null,
+      score_thinking: null,
+      score_workflow: null,
+      graded_at: null,
+      returned_at: null,
+      feedback_returned_at: null,
+    },
+    ...overrides,
+  }
+}
+
 function makeAssignmentDetails(
   assignmentId: string,
   title: string,
@@ -427,25 +450,7 @@ function makeAssignmentDetails(
       updated_at: '2026-04-01T12:00:00Z',
     },
     students: [
-      {
-        student_id: studentId,
-        student_email: `${studentId}@example.com`,
-        student_first_name: studentId,
-        student_last_name: 'Student',
-        status: 'submitted_on_time',
-        student_updated_at: '2026-04-10T12:00:00Z',
-        artifacts: [],
-        doc: {
-          submitted_at: '2026-04-10T12:00:00Z',
-          updated_at: '2026-04-10T12:00:00Z',
-          score_completion: null,
-          score_thinking: null,
-          score_workflow: null,
-          graded_at: null,
-          returned_at: null,
-          feedback_returned_at: null,
-        },
-      },
+      makeStudentSubmissionRow(studentId),
     ],
     active_ai_grading_run: activeAiGradingRun,
   }
@@ -1615,6 +1620,57 @@ describe('TeacherClassroomView', () => {
     const leftPaneControls = within(screen.getByRole('group', { name: 'Assignment workspace view' }))
     expect(leftPaneControls.getByRole('button', { name: 'Class' })).toHaveAttribute('aria-pressed', 'true')
     expect(leftPaneControls.getByRole('button', { name: 'Individual' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('restores the class-pane scroll position after selecting a lower student row', async () => {
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            assignment: makeAssignmentDetails('assignment-1', 'Assignment One', 'student-01').assignment,
+            students: Array.from({ length: 30 }, (_, index) =>
+              makeStudentSubmissionRow(`student-${String(index + 1).padStart(2, '0')}`),
+            ),
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-01')
+    })
+
+    const scrollPane = screen.getByTestId('assignment-student-scroll-pane') as HTMLDivElement
+    scrollPane.scrollTop = 520
+    fireEvent.scroll(scrollPane)
+
+    fireEvent.click(screen.getAllByText('student-25')[0])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-25')
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('assignment-student-scroll-pane')).toHaveProperty('scrollTop', 520)
+    })
   })
 
   it('keeps the active student selected when Escape is pressed in class mode', async () => {
