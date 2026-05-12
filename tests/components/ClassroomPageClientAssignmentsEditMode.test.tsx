@@ -6,6 +6,10 @@ import type { Classroom } from '@/types'
 
 const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
 const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
+const mockClassDays = vi.hoisted(() => [
+  { id: 'day-today', classroom_id: 'classroom-1', date: '2026-05-12', is_class_day: true, prompt_text: null },
+  { id: 'day-last', classroom_id: 'classroom-1', date: '2026-05-11', is_class_day: true, prompt_text: null },
+])
 
 vi.mock('@/app/classrooms/[classroomId]/TeacherClassroomView', () => ({
   TeacherClassroomView: ({ onEditModeChange, onSelectAssignment, onViewModeChange }: any) => (
@@ -54,8 +58,8 @@ vi.mock('@/components/layout', async () => {
   }
 
   return {
-    ThreePanelProvider: ({ children }: any) => {
-      const [isRightOpen, setRightOpen] = React.useState(false)
+    ThreePanelProvider: ({ children, routeKey }: any) => {
+      const [isRightOpen, setRightOpen] = React.useState(routeKey === 'today')
       const [rightWidth, setRightWidth] = React.useState(320)
       const value = React.useMemo(
         () => ({
@@ -115,6 +119,15 @@ vi.mock('@/components/StudentNotificationsProvider', () => ({
 
 vi.mock('@/hooks/useClassDays', () => ({
   ClassDaysProvider: ({ children }: any) => <>{children}</>,
+  useClassDaysContext: () => ({
+    classDays: mockClassDays,
+    isLoading: false,
+    refresh: vi.fn(),
+  }),
+}))
+
+vi.mock('@/lib/timezone', () => ({
+  getTodayInToronto: () => '2026-05-12',
 }))
 
 vi.mock('@/ui', () => ({
@@ -138,7 +151,11 @@ vi.mock('@/lib/classroom-ux-metrics', () => ({
 }))
 
 vi.mock('@/components/editor', () => ({
-  RichTextViewer: () => <div>Rich text</div>,
+  RichTextViewer: ({ content }: any) => (
+    <div>
+      {content?.content?.[0]?.content?.[0]?.text ?? 'Rich text'}
+    </div>
+  ),
 }))
 
 vi.mock('@/components/Spinner', () => ({
@@ -149,9 +166,35 @@ vi.mock('@/components/TeacherTestPreviewPage', () => ({
   TeacherTestPreviewPage: () => null,
 }))
 
-vi.mock('@/app/classrooms/[classroomId]/StudentTodayTab', () => ({
-  StudentTodayTab: () => <div />,
-}))
+vi.mock('@/app/classrooms/[classroomId]/StudentTodayTab', async () => {
+  const React = await import('react')
+
+  return {
+    StudentTodayTab: ({ onLessonPlanLoad }: any) => {
+      React.useEffect(() => {
+        onLessonPlanLoad?.({
+          id: 'today-plan',
+          classroom_id: 'classroom-1',
+          date: '2026-05-12',
+          content: {
+            type: 'doc',
+            content: [
+              {
+                type: 'paragraph',
+                content: [{ type: 'text', text: 'Today calendar entry' }],
+              },
+            ],
+          },
+          content_markdown: null,
+          created_at: '2026-05-12T00:00:00Z',
+          updated_at: '2026-05-12T00:00:00Z',
+        })
+      }, [onLessonPlanLoad])
+
+      return <div />
+    },
+  }
+})
 vi.mock('@/app/classrooms/[classroomId]/StudentAssignmentsTab', () => ({
   StudentAssignmentsTab: () => <div />,
 }))
@@ -261,6 +304,23 @@ function renderClient(options?: { initialTab?: string; initialSearchParams?: Rec
   )
 }
 
+function renderStudentClient(options?: { initialTab?: string; initialSearchParams?: Record<string, string | undefined> }) {
+  const initialTab = options?.initialTab ?? 'today'
+  const initialSearchParams = options?.initialSearchParams ?? { tab: initialTab }
+
+  return render(
+    <MarkdownPreferenceProvider>
+      <ClassroomPageClient
+        classroom={classroom}
+        user={{ id: 'student-1', email: 'student1@example.com', role: 'student' }}
+        teacherClassrooms={[]}
+        initialTab={initialTab}
+        initialSearchParams={initialSearchParams}
+      />
+    </MarkdownPreferenceProvider>,
+  )
+}
+
 describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
   beforeEach(() => {
     window.localStorage.clear()
@@ -335,6 +395,45 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     renderClient({ initialTab: 'attendance', initialSearchParams: { tab: 'attendance' } })
 
     expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
+  })
+
+  it('shows today and last class lesson plans in the student today sidebar', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key.startsWith('student-today:last-class-plan:')) {
+        return Promise.resolve({
+          lesson_plans: [
+            {
+              id: 'last-class-plan',
+              classroom_id: 'classroom-1',
+              date: '2026-05-11',
+              content: {
+                type: 'doc',
+                content: [
+                  {
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: 'Last class calendar entry' }],
+                  },
+                ],
+              },
+              content_markdown: null,
+              created_at: '2026-05-11T00:00:00Z',
+              updated_at: '2026-05-11T00:00:00Z',
+            },
+          ],
+        })
+      }
+
+      return Promise.resolve({ assignments: [] })
+    })
+
+    renderStudentClient({ initialTab: 'today', initialSearchParams: { tab: 'today' } })
+
+    expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument()
+    expect(screen.getByText('Today calendar entry')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Yesterday' })).toBeInTheDocument()
+    expect(screen.getByText('Mon May 11')).toBeInTheDocument()
+    expect(await screen.findByText('Last class calendar entry')).toBeInTheDocument()
   })
 
   it('does not pin the quizzes summary label in the app shell title slot', () => {

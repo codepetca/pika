@@ -375,3 +375,60 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
 - `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/teacher-assignments-scroll E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/61164fb0-26d2-4862-abfe-5517ccdc685a?tab=assignments&assignmentId=9ff41b8e-bb7a-485b-a553-fb11dfd98545&assignmentStudentId=852830be-50b4-48fe-9b03-67e4d1d49a37'`
 - Delayed loaded-state teacher desktop screenshot: `/tmp/pika-teacher-loaded.png`
+## 2026-05-12 — Student Today past log expansion
+
+**Completed:**
+- Removed the parent collapse control from the student Today past-log section.
+- Changed the section to always show past logs, excluding the current Today entry.
+- Added per-log expand/collapse behavior: collapsed entries use a two-line clamp with ellipsis and clicking the log reveals the full text.
+- Split the student Today right pane into `Today` and `Last Class` lesson-plan sections, with the previous class day loaded from shared class-day state.
+- Updated focused Today history component coverage for default visibility, per-entry toggling, empty past-log state, and sessionStorage caching.
+- Added page-client coverage for the student Today sidebar showing both current and last-class lesson-plan content.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/today-log-history-expand bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/StudentTodayTabHistory.test.tsx`
+- `pnpm test tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/StudentTodayTabHistory.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Visual verification via temporary local harness after standard auth/seed path was blocked by local Supabase being down because Docker was not running:
+  - `/tmp/pika-student-today-mobile.png`
+  - `/tmp/pika-student-today-mobile-expanded.png`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/today-log-history-expand bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/90c4fdd7-28c0-4474-998e-650eee270d57?tab=today'`
+- Additional desktop student pane capture:
+  - `/tmp/pika-student-today-desktop.png`
+
+## 2026-05-12 — Student Today split pane and richer seed logs
+
+**Completed:**
+- Moved the student Today lesson-plan panel out of the global right sidebar and into a teacher-style gapped split workspace.
+- Kept the Today and Last Class lesson-plan sections in a rounded right pane and rendered lesson-plan rich text flush, without the nested viewer border/padding.
+- Disabled the external Today right sidebar route config and expanded the student Today history fetch/cache limit to 12 entries.
+- Updated `seed` and `seed:fresh` to create 20 sample student logs across recent class days, including several long entries, and to seed lesson plans for both today and the last class.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/StudentTodayTabHistory.test.tsx tests/unit/layout-config.test.ts`
+- `pnpm lint`
+- `pnpm seed:fresh`
+- `pnpm e2e:auth`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/today-log-history-expand bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/bdd3df5f-3596-4b8e-8acf-65004c9b2d66?tab=today'`
+- Additional desktop student split capture: `/tmp/pika-student-today-desktop-split-final.png`
+- `git diff --check`
+- `pnpm build`
+
+## 2026-05-12 — Student Today previous-day heading
+
+**Completed:**
+- Changed the student Today right-pane previous-class heading to show `Yesterday` when the previous class date is yesterday.
+- Moved the formatted date next to the heading instead of pinning it to the far right of the pane.
+- Kept the fallback copy as `Last class` for non-yesterday previous class days.
+
+**Validation:**
+- `pnpm test tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/StudentTodayTabHistory.test.tsx tests/unit/layout-config.test.ts`
+- `pnpm lint`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3010 pnpm e2e:auth`
+- `E2E_BASE_URL=http://localhost:3010 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/today-log-history-expand bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/bdd3df5f-3596-4b8e-8acf-65004c9b2d66?tab=today'`
+- Additional desktop student split capture: `/tmp/pika-student-today-yesterday-desktop.png`
+- `pnpm build`
