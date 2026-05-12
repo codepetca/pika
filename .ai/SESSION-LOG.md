@@ -7,33 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-07 — Add classroom view toggle tooltips
-
-**Completed:**
-- Added styled app tooltips to icon-only segmented controls.
-- Placed icon-only segmented control tooltips above the trigger so the bottom classroom view toggle remains visible on hover.
-- Removed the native title fallback from segmented buttons.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Visual hover verification on port 3011:
-  - `/tmp/pika-classrooms-toggle-active-tooltip.png`
-  - `/tmp/pika-classrooms-toggle-archived-tooltip.png`
-
-## 2026-05-10 — Add student exam-mode e2e coverage
-
-**Completed:**
-- Added a focused Playwright flow for student test exam mode.
-- Seeds a unique active open-response test through existing teacher APIs against the shared seeded teacher/student classroom.
-- Verifies test start, transient window loss without lock, sustained window loss with content obscuring and interaction blocking, restoration, and open-response draft preservation after reload/restart.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm exec playwright test e2e/student-exam-mode.spec.ts`
-- `pnpm lint`
-
 ## 2026-05-08 — Add class log summary controls
 
 **Completed:**
@@ -373,3 +346,32 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Tooltip hover checks:
   - `/tmp/pika-tooltip-last-class.png`
   - `/tmp/pika-tooltip-today.png`
+
+## 2026-05-12 — Preserve teacher assignment student-list scroll
+
+**Completed:**
+- Preserved the teacher assignment workspace class-pane scroll position while selecting students from the left student table.
+- Added regression coverage that remounts the left pane on student selection and verifies the stored scroll offset is restored.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/teacher-assignments-scroll bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/teacher-assignments-scroll E2E_BASE_URL=http://localhost:3000 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c4536d07-c76a-4a5b-a9c9-6340ed1678a9?tab=assignments&assignmentId=f2e7f53a-8399-42f7-9739-36a91fd837c1&assignmentStudentId=20d7927e-6c8d-4fe0-a31b-b3a4bd097f5e'`
+
+## 2026-05-12 — Continue teacher assignment scroll handoff
+
+**Completed:**
+- Audited the dirty `codex/teacher-assignments-scroll` worktree after the prior Codex session died.
+- Confirmed the assignment scroll fix preserves the class-pane scroll position before student selection and restores it after remount.
+- Seeded local Supabase and refreshed Playwright auth so UI verification used a live local classroom instead of a stale missing-classroom route.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/teacher-assignments-scroll bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherAttendanceTab.test.tsx tests/components/TeacherGradebookTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/teacher-assignments-scroll E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/61164fb0-26d2-4862-abfe-5517ccdc685a?tab=assignments&assignmentId=9ff41b8e-bb7a-485b-a553-fb11dfd98545&assignmentStudentId=852830be-50b4-48fe-9b03-67e4d1d49a37'`
+- Delayed loaded-state teacher desktop screenshot: `/tmp/pika-teacher-loaded.png`

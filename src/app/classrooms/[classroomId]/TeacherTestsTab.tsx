@@ -39,6 +39,7 @@ import { getQuizExitCount } from '@/lib/quizzes'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { compareByNameFields } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
+import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 import { Button, ConfirmDialog, DialogPanel, EmptyState, RefreshingIndicator, Select, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
@@ -482,7 +483,24 @@ export function TeacherTestsTab({
     navigateTestWorkspace({ testId: null, mode: null, studentId: null }, options)
   }, [navigateTestWorkspace])
 
+  const {
+    scrollRef: gradingStudentTableScrollRef,
+    preserveScrollPosition: preserveGradingStudentTableScrollPosition,
+  } = useScrollPositionMemory<HTMLDivElement>({
+    key: selectedTestId && selectedWorkspaceTab === 'grading'
+      ? `${classroom.id}:${selectedTestId}:grading`
+      : null,
+    enabled: selectedWorkspaceTab === 'grading',
+    restoreToken: [
+      selectedStudentId ?? 'none',
+      sortedGradingStudents.length,
+      gradingLoading ? 'loading' : 'ready',
+      gradingRefreshing ? 'refreshing' : 'idle',
+    ].join(':'),
+  })
+
   const selectGradingStudent = useCallback((studentId: string | null) => {
+    preserveGradingStudentTableScrollPosition()
     setInternalSelectedStudentId(studentId)
     if (!selectedTestId || selectedWorkspaceTab !== 'grading') return
     navigateTestWorkspace({
@@ -490,7 +508,12 @@ export function TeacherTestsTab({
       mode: 'grading',
       studentId,
     })
-  }, [navigateTestWorkspace, selectedTestId, selectedWorkspaceTab])
+  }, [
+    navigateTestWorkspace,
+    preserveGradingStudentTableScrollPosition,
+    selectedTestId,
+    selectedWorkspaceTab,
+  ])
 
   const batchAutoGradePreflight = useMemo(() => {
     const selectedCount = batchSelectedStudents.length
@@ -1696,7 +1719,12 @@ export function TeacherTestsTab({
           tone="muted"
         />
       ) : (
-        <div className="min-h-0 w-full overflow-auto rounded-md border border-border bg-surface">
+        <div
+          ref={gradingStudentTableScrollRef}
+          className="min-h-0 w-full overflow-auto rounded-md border border-border bg-surface"
+          data-testid="test-grading-student-scroll-pane"
+          onScroll={preserveGradingStudentTableScrollPosition}
+        >
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-surface-hover text-left text-text-muted">

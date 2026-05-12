@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { Button, ConfirmDialog, SplitButton, type SplitButtonOption, useAppMessage } from '@/ui'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
@@ -25,6 +25,7 @@ import { Check, Pencil, X } from 'lucide-react'
 import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { compareByNameFields, toggleSort } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
+import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 
 type Role = 'student' | 'teacher'
 
@@ -198,6 +199,22 @@ export function TeacherRosterTab({ classroom }: Props) {
   const selectedStudentEmails = selectedRows.map((r) => r.email)
   const selectedCounselorEmails = selectedRows.map((r) => r.counselor_email).filter(Boolean) as string[]
   const selectedRosterRow = sortedRoster.find((row) => row.id === selectedRosterId) ?? null
+  const {
+    scrollRef: rosterTableScrollRef,
+    preserveScrollPosition: preserveRosterTableScrollPosition,
+  } = useScrollPositionMemory<HTMLDivElement>({
+    key: `${classroom.id}:roster`,
+    enabled: !loading,
+    restoreToken: [
+      selectedRosterId ?? 'none',
+      sortedRoster.length,
+      loading ? 'loading' : 'ready',
+    ].join(':'),
+  })
+  const selectRosterId = useCallback((nextRosterId: string | null) => {
+    preserveRosterTableScrollPosition()
+    setSelectedRosterId(nextRosterId)
+  }, [preserveRosterTableScrollPosition])
 
   useEffect(() => {
     if (selectedRosterId && !roster.some((row) => row.id === selectedRosterId)) {
@@ -488,7 +505,12 @@ export function TeacherRosterTab({ classroom }: Props) {
       onInspectorWidthChange={setDetailPaneWidth}
       dividerLabel="Resize Roster panes"
       primary={
-        <div className="h-full min-h-0 overflow-auto">
+        <div
+          ref={rosterTableScrollRef}
+          className="h-full min-h-0 overflow-auto"
+          data-testid="roster-student-scroll-pane"
+          onScroll={preserveRosterTableScrollPosition}
+        >
           <TableCard chrome="flush" overflowX>
             {error && (
               <div className="p-3 border-b border-border">
@@ -501,8 +523,8 @@ export function TeacherRosterTab({ classroom }: Props) {
             <KeyboardNavigableTable
               rowKeys={rosterIds}
               selectedKey={selectedRosterId}
-              onSelectKey={setSelectedRosterId}
-              onDeselect={() => setSelectedRosterId(null)}
+              onSelectKey={selectRosterId}
+              onDeselect={() => selectRosterId(null)}
             >
               <DataTable density="tight">
                 <DataTableHead>
@@ -551,7 +573,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                         ].join(' ')}
                         onClick={(event) => {
                           if ((event.target as HTMLElement).closest('button,input,a')) return
-                          setSelectedRosterId(isSelected ? null : row.id)
+                          selectRosterId(isSelected ? null : row.id)
                         }}
                       >
                         <DataTableCell>

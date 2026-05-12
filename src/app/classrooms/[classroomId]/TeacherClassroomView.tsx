@@ -64,6 +64,7 @@ import {
   isAssignmentAlreadyReturnedWithoutResubmission,
 } from '@/lib/assignments'
 import { useAssignmentGradingLayout } from '@/hooks/use-assignment-grading-layout'
+import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 import {
   ASSIGNMENT_GRADING_LAYOUT,
   getAssignmentWorkspaceStudentCookieName,
@@ -1519,6 +1520,20 @@ export function TeacherClassroomView({
     return currentStudentRows.find((student) => student.student_id === selectedStudentId) ?? null
   }, [currentStudentRows, selectedStudentId])
   const activeSelectedStudentId = selectedStudentRow?.student_id ?? null
+  const selectedAssignmentId = selection.mode === 'assignment' ? selection.assignmentId : null
+
+  const {
+    scrollRef: classPaneScrollRef,
+    preserveScrollPosition: preserveClassPaneScrollPosition,
+  } = useScrollPositionMemory<HTMLDivElement>({
+    key: selectedAssignmentId,
+    enabled: leftPaneView === 'class',
+    restoreToken: [
+      activeSelectedStudentId ?? 'none',
+      currentStudentRows.length,
+      selectedAssignmentLoading ? 'loading' : 'ready',
+    ].join(':'),
+  })
 
   const handleGoPrevStudent = useCallback(() => {
     if (selectedStudentIndex <= 0) return
@@ -1800,6 +1815,7 @@ export function TeacherClassroomView({
       rows={currentStudentRows}
       selectedStudentId={activeSelectedStudentId}
       onSelectStudent={(studentId) => {
+        preserveClassPaneScrollPosition()
         setIndividualHeaderMeta(null)
         setSelectedStudentAndNavigate(studentId)
       }}
@@ -1821,7 +1837,12 @@ export function TeacherClassroomView({
   )
 
   const classPane = (
-    <div className="h-full min-h-0 overflow-auto">
+    <div
+      ref={classPaneScrollRef}
+      className="h-full min-h-0 overflow-auto"
+      data-testid="assignment-student-scroll-pane"
+      onScroll={preserveClassPaneScrollPosition}
+    >
       {studentTable}
     </div>
   )
@@ -2067,8 +2088,6 @@ export function TeacherClassroomView({
         centerPlacement="floating"
       />
     )
-
-  const selectedAssignmentId = selection.mode === 'assignment' ? selection.assignmentId : null
 
   const feedback = (
     <>
