@@ -7,54 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-08 — Add class log summary controls
-
-**Completed:**
-- Confirmed the Vercel nightly log summary cron remains `0 6 * * *` (06:00 UTC: 1:00am EST / 2:00am EDT).
-- Added a floating attendance action control to show or hide the bottom Class Log Summary card.
-- Added a drag/keyboard resize handle for the visible Class Log Summary card.
-- Kept the log summary data component unchanged and scoped behavior to teacher attendance presentation state.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/log-summary-panel-controls bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherAttendanceTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Visual verification on port 3000:
-  - `/tmp/pika-log-summary-teacher-visible.png`
-  - `/tmp/pika-log-summary-teacher-hidden.png`
-  - `/tmp/pika-log-summary-teacher-expanded.png`
-  - `/tmp/pika-log-summary-teacher-populated.png`
-  - `/tmp/pika-log-summary-teacher-mobile.png`
-  - `/tmp/pika-log-summary-student-mobile.png`
-
-## 2026-05-08 — Extract assignment lifecycle invariants
-
-**Completed:**
-- Added shared assignment release-state helpers for draft/live/scheduled visibility in `src/lib/assignments.ts`.
-- Moved student assignment visibility behind the shared helper while preserving the server import path.
-- Centralized future scheduled-release due-date validation and migrated assignment update/release routes plus scheduling UI callers.
-- Added release-state and future schedule validation tests, including malformed `released_at` fail-closed behavior.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/.codex/worktrees/53f9/pika bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/unit/assignments.test.ts tests/lib/assignment-schedule-validation.test.ts tests/api/assignment-docs/submit.test.ts tests/api/teacher/assignments-id.test.ts tests/api/teacher/assignments-draft.test.ts tests/components/AssignmentModal.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
-- `pnpm vitest run tests/components/SortableAssignmentCard.test.tsx tests/components/TeacherClassroomView.test.tsx tests/api/student/assignments.test.ts tests/api/integration/assignment-draft-flow.test.ts tests/api/student/notifications.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-
-## 2026-05-08 — Open assignment invariant PR
-
-**Completed:**
-- Created branch `codex/assignment-lifecycle-invariants`.
-- Committed assignment lifecycle invariant extraction as `37cd562`.
-- Opened draft PR #570 and added `codex` plus `codex-automation` labels.
-- Posted a self-review comment with no blocking findings.
-
-**Validation:**
-- PR checks showed Vercel skipped by ignored build step, with preview comments passing.
-
 ## 2026-05-08 — Unblock assignment invariant merge
 
 **Completed:**
@@ -375,6 +327,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
 - `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/teacher-assignments-scroll E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/61164fb0-26d2-4862-abfe-5517ccdc685a?tab=assignments&assignmentId=9ff41b8e-bb7a-485b-a553-fb11dfd98545&assignmentStudentId=852830be-50b4-48fe-9b03-67e4d1d49a37'`
 - Delayed loaded-state teacher desktop screenshot: `/tmp/pika-teacher-loaded.png`
+
 ## 2026-05-12 — Student Today past log expansion
 
 **Completed:**
