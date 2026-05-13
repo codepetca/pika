@@ -340,3 +340,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/chrome-ui-guidance bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/ui-guidance-candidate-script.test.ts`
+## 2026-05-13 — Classroom list edit control placement
+
+**Completed:**
+- Moved the teacher classroom list edit pen from the top floating cluster into the bottom controls beside the Active/Archived segmented toggle.
+- Removed the no-longer-needed top padding on the classroom list and updated the focused component test to assert the new bottom placement.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/classroom-list-edit-pen bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
+- `pnpm lint`
+- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/classroom-list-edit-pen bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Extra teacher edit-mode captures: `/tmp/pika-teacher-edit.png`, `/tmp/pika-teacher-mobile-edit.png`

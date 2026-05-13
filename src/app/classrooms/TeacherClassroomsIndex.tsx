@@ -21,7 +21,6 @@ import {
 import { useRouter, usePathname } from 'next/navigation'
 import { Archive, CircleDot, LoaderCircle, Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
-import { TeacherWorkSurfaceFloatingActionCluster } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
 import { Button, ConfirmDialog, SegmentedControl } from '@/ui'
 import { Spinner } from '@/components/Spinner'
@@ -313,23 +312,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
   return (
     <PageLayout className="mx-auto max-w-2xl">
-      <TeacherWorkSurfaceFloatingActionCluster>
-        <div className="flex flex-wrap items-center justify-center gap-1.5">
-          <TeacherEditModeControls
-            active={isEditingClassrooms}
-            onActiveChange={(active) => {
-              setIsEditingClassrooms(active)
-              if (!active) {
-                setDraggingClassroomId(null)
-              }
-            }}
-            disabled={openingClassroomId !== null}
-            variant="secondary"
-          />
-        </div>
-      </TeacherWorkSurfaceFloatingActionCluster>
-
-      <PageContent className="pb-24 pt-16">
+      <PageContent className="pb-24">
         {error && (
           <div className="mb-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
             {error}
@@ -488,26 +471,41 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         ) : null}
       </PageContent>
 
-      <div className="fixed bottom-4 left-1/2 z-40 w-max max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-lg bg-surface/95 p-1 shadow-elevated backdrop-blur">
-        <SegmentedControl<ViewMode>
-          ariaLabel="Classroom view"
-          value={view}
-          onChange={setView}
-          iconOnly={!isEditingClassrooms}
-          className="border border-border shadow-sm"
-          options={[
-            {
-              value: 'active',
-              label: 'Active',
-              icon: <CircleDot className="h-3.5 w-3.5" />,
-            },
-            {
-              value: 'archived',
-              label: 'Archived',
-              icon: <Archive className="h-3.5 w-3.5" />,
-            },
-          ]}
-        />
+      <div
+        data-testid="classroom-bottom-controls"
+        className="fixed bottom-4 left-1/2 z-40 w-max max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-lg bg-surface/95 p-1 shadow-elevated backdrop-blur"
+      >
+        <div className="flex items-center gap-1">
+          <SegmentedControl<ViewMode>
+            ariaLabel="Classroom view"
+            value={view}
+            onChange={setView}
+            iconOnly={!isEditingClassrooms}
+            className="border border-border shadow-sm"
+            options={[
+              {
+                value: 'active',
+                label: 'Active',
+                icon: <CircleDot className="h-3.5 w-3.5" />,
+              },
+              {
+                value: 'archived',
+                label: 'Archived',
+                icon: <Archive className="h-3.5 w-3.5" />,
+              },
+            ]}
+          />
+          <TeacherEditModeControls
+            active={isEditingClassrooms}
+            onActiveChange={(active) => {
+              setIsEditingClassrooms(active)
+              if (!active) {
+                setDraggingClassroomId(null)
+              }
+            }}
+            disabled={openingClassroomId !== null}
+          />
+        </div>
       </div>
 
       <CreateClassroomModal
