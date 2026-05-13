@@ -7,57 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-09 — Test markdown creation defaults
-
-**Completed:**
-- New teacher tests now open directly in the edit dialog's Code view after creation.
-- The created-test Code view starts with markdown editing enabled, so no separate `Edit Markdown` click is required.
-- Draft summary/title changes from markdown now patch the parent tests list state immediately and survive in-flight list refreshes.
-- Added an `Edit Test` option to the selected-test actions dropdown to open the edit modal from the grading workspace.
-- Removed the standalone selected-test pen toggle and later removed the selected-test `Manage Attempts` option plus its row-level attempt-delete mode.
-- Removed the standalone tests-list pen toggle; list reordering now lives behind the tests-list gear FAB, which toggles drag handles and card-level trash buttons.
-- Moved whole-test deletion to the tests-list gear mode as a trash icon on each test card, using the existing confirmation flow.
-- Changed the selected-test actions dropdown delete option to `Delete Selected`, targeting selected student test work only and disabled until one or more student rows are selected.
-- Added a confirmation dialog before selected-test `Open All`/batch-open access updates run.
-- Removed the standalone selected-assignment pen toggle from the grading workspace.
-- Added `Edit Assignment` and `Delete Assignment` to the selected-assignment actions dropdown, with assignment deletion using the existing confirmation flow.
-- Kept the selected-assignment actions dropdown accessible even when no students are selected; only the primary `AI Grade` action is disabled by empty selection.
-- Added focused component coverage for markdown-first creation, editable markdown-only layout startup, title propagation back to the tests list, selected-workspace edit-menu launch, gear-mode card reorder/delete controls, selected-student work deletion, access-open confirmation, and the absence of selected-workspace attempt-management controls.
-- Added focused component coverage for selected-assignment dropdown editing and deletion.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `pnpm test tests/components/TeacherClassroomView.test.tsx`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash scripts/verify-env.sh`
-- Visual verification:
-  - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
-  - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=assignments'`
-  - `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-  - `/tmp/pika-created-test-code-view.png`
-  - `/tmp/pika-applied-title-list.png`
-  - `/tmp/pika-selected-test-actions-edit-test.png`
-  - `/tmp/pika-test-list-actions-reorder.png`
-  - `/tmp/pika-selected-test-actions-no-manage-attempts.png`
-  - `/tmp/pika-open-all-confirm.png`
-  - `/tmp/pika-delete-test-confirm.png`
-  - `/tmp/pika-test-list-settings-gear-delete.png`
-  - `/tmp/pika-selected-test-actions-delete-selected.png`
-  - `/tmp/pika-delete-selected-test-work-confirm.png`
-  - `/tmp/pika-selected-assignment-detail-after-wait.png`
-  - `/tmp/pika-selected-assignment-actions-delete-loaded.png`
-  - `/tmp/pika-delete-assignment-confirm.png`
-
 ## 2026-05-09 — Daily log summary collapse
 
 **Completed:**
@@ -382,4 +331,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/close-test-refresh-notice E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests'`
 - Closed selected test workspace browser check after 16.5s: no `Refreshing grades` status and no console errors; screenshots `/tmp/pika-teacher-closed-test-workspace.png` and `/tmp/pika-teacher-closed-test-selected-student.png`
+- `pnpm test`
+
+## 2026-05-13 — Selected test pane scrolling
+
+**Completed:**
+- Updated the selected teacher test grading workspace to frame the grading table and response inspector with the same full-height pane pattern used by assignment workspaces.
+- Made the student grading table fill the left pane and keep its own scroll container.
+- Made the selected student response inspector keep its own right-pane scroll container.
+- Added regression coverage for the selected test grading pane scroll containers.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-pane-scroll bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-pane-scroll bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests&testId=92120fed-7145-4118-a8ad-117e7962d679&testMode=grading&testStudentId=23977f0b-efb8-4408-98cb-2e6887c4fd7e'`
+- DOM scroll check: window stayed at `scrollY=0`, left table pane filled the workspace, right inspector reported `overflow-y: auto` with independent scroll.
+- Temporary sample tests were seeded for the visual capture and removed afterward; the shared classroom test list returned to empty.
 - `pnpm test`
