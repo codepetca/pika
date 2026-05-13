@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { isMissingSurveysTableError } from '@/lib/server/surveys'
 import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -87,7 +88,7 @@ export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (requ
   }
 
   const supabase = getServiceRoleClient()
-  const [lastAssignmentResult, lastMaterialResult] = await Promise.all([
+  const [lastAssignmentResult, lastMaterialResult, lastSurveyResult] = await Promise.all([
     supabase
       .from('assignments')
       .select('position')
@@ -102,12 +103,22 @@ export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (requ
       .order('position', { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from('surveys')
+      .select('position')
+      .eq('classroom_id', classroomId)
+      .order('position', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
   const lastAssignmentPosition = typeof lastAssignmentResult.data?.position === 'number'
     ? lastAssignmentResult.data.position
     : -1
   const lastMaterialPosition = !lastMaterialResult.error && typeof lastMaterialResult.data?.position === 'number'
     ? lastMaterialResult.data.position
+    : -1
+  const lastSurveyPosition = !lastSurveyResult.error && typeof lastSurveyResult.data?.position === 'number'
+    ? lastSurveyResult.data.position
     : -1
 
   if (lastAssignmentResult.error) {
@@ -120,7 +131,12 @@ export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (requ
     return NextResponse.json({ error: 'Failed to create material' }, { status: 500 })
   }
 
-  const nextPosition = Math.max(lastAssignmentPosition, lastMaterialPosition) + 1
+  if (lastSurveyResult.error && !isMissingSurveysTableError(lastSurveyResult.error)) {
+    console.error('Error fetching last survey position:', lastSurveyResult.error)
+    return NextResponse.json({ error: 'Failed to create material' }, { status: 500 })
+  }
+
+  const nextPosition = Math.max(lastAssignmentPosition, lastMaterialPosition, lastSurveyPosition) + 1
   const insertBody: Record<string, unknown> = {
     classroom_id: classroomId,
     title: cleanTitle,

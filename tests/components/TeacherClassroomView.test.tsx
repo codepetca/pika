@@ -74,6 +74,13 @@ vi.mock('@/ui', () => ({
       </div>
     ) : null
   ),
+  DialogPanel: ({ isOpen, children }: any) => (
+    isOpen ? (
+      <div role="dialog">
+        {children}
+      </div>
+    ) : null
+  ),
   FormField: ({ label, children }: any) => (
     <label>
       <span>{label}</span>

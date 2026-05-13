@@ -361,6 +361,7 @@ function ClassroomPageContent({
   const isTeacher = user.role === 'teacher'
   const assignmentIdParam = searchParams.get('assignmentId')
   const materialIdParam = activeTab === 'assignments' ? searchParams.get('materialId') : null
+  const surveyIdParam = activeTab === 'assignments' ? searchParams.get('surveyId') : null
   const assignmentStudentIdParam = searchParams.get('assignmentStudentId')
   const quizIdParam = activeTab === 'quizzes' ? searchParams.get('quizId') : null
   const testIdParam = activeTab === 'tests' ? searchParams.get('testId') : null
@@ -1049,6 +1050,7 @@ function ClassroomPageContent({
         if (tab !== 'assignments') {
           params.delete('assignmentId')
           params.delete('materialId')
+          params.delete('surveyId')
           params.delete('assignmentStudentId')
         }
         if (tab !== 'settings') {
@@ -1272,6 +1274,7 @@ function ClassroomPageContent({
                         isActive={activeTab === 'assignments'}
                         selectedAssignmentId={assignmentIdParam}
                         selectedMaterialId={materialIdParam}
+                        selectedSurveyId={surveyIdParam}
                         selectedAssignmentStudentId={assignmentStudentIdParam}
                         updateSearchParams={navigateInClassroom}
                       />
@@ -1323,6 +1326,7 @@ function ClassroomPageContent({
                             }
                             params.delete('assignmentStudentId')
                             params.delete('materialId')
+                            params.delete('surveyId')
                           })
                         }
                         onNavigateToAnnouncements={() =>
@@ -1331,6 +1335,7 @@ function ClassroomPageContent({
                             params.delete('section')
                             params.delete('assignmentId')
                             params.delete('materialId')
+                            params.delete('surveyId')
                             params.delete('assignmentStudentId')
                           })
                         }
@@ -1387,6 +1392,7 @@ function ClassroomPageContent({
                         classroom={classroom}
                         selectedAssignmentId={assignmentIdParam}
                         selectedMaterialId={materialIdParam}
+                        selectedSurveyId={surveyIdParam}
                         isActive={activeTab === 'assignments'}
                         updateSearchParams={navigateInClassroom}
                       />
@@ -1416,6 +1422,7 @@ function ClassroomPageContent({
                             }
                             params.delete('assignmentStudentId')
                             params.delete('materialId')
+                            params.delete('surveyId')
                           })
                         }
                         onNavigateToAnnouncements={() =>
@@ -1424,6 +1431,7 @@ function ClassroomPageContent({
                             params.delete('section')
                             params.delete('assignmentId')
                             params.delete('materialId')
+                            params.delete('surveyId')
                           })
                         }
                       />

@@ -107,6 +107,19 @@ describe('POST /api/teacher/classrooms/[id]/materials', () => {
           insert,
         }
       }
+      if (table === 'surveys') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                })),
+              })),
+            })),
+          })),
+        }
+      }
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -157,6 +170,19 @@ describe('POST /api/teacher/classrooms/[id]/materials', () => {
             })),
           })),
           insert,
+        }
+      }
+      if (table === 'surveys') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                })),
+              })),
+            })),
+          })),
         }
       }
       throw new Error(`Unexpected table: ${table}`)

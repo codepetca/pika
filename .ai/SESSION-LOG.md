@@ -352,3 +352,36 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/classroom-list-edit-pen bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Extra teacher edit-mode captures: `/tmp/pika-teacher-edit.png`, `/tmp/pika-teacher-mobile-edit.png`
+## 2026-05-13 — Classwork surveys
+
+**Completed:**
+- Added surveys as ungraded Classwork items with draft/active/closed status, classwork ordering, and teacher/student API routes.
+- Added survey question types for multiple choice, short text, and link responses, including response validation and link normalization.
+- Added a dynamic responses toggle so students can update answers while an active survey remains open.
+- Fixed the responded-student status priority so dynamic surveys remain updateable even when class results are visible.
+- Added teacher survey creation/settings, question editing, class results, survey cards, and student survey cards/response form/results support.
+- Added the Supabase migration `068_surveys_classwork.sql` for surveys, questions, responses, RLS, and mixed classwork ordering RPC support.
+- Kept Classwork assignment/material loading resilient if the surveys endpoint is unavailable before the migration is applied.
+- Rebased the worktree onto `origin/main` and resequenced the survey migration after `067_classwork_mixed_ordering.sql`.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/unit/surveys.test.ts tests/lib/classwork-order.test.ts tests/unit/classwork-migration-rpc-grants.test.ts`
+- `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/unit/surveys.test.ts`
+- `pnpm test tests/unit/surveys.test.ts tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm test -- --maxWorkers=4`
+- `pnpm build`
+- `git rev-list --left-right --count origin/main...HEAD` -> `0 0`
+- Migration prefix duplicate check returned no duplicates.
+- `E2E_BASE_URL=http://localhost:3000 pnpm e2e:auth`
+- Standard UI verify for live teacher/student Classwork pages:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Mocked survey UI verification for migration-independent teacher/student survey states:
+  - `/tmp/pika-survey-teacher-classwork.png`
+  - `/tmp/pika-survey-teacher-modal.png`
+  - `/tmp/pika-survey-teacher-workspace.png`
+  - `/tmp/pika-survey-student-classwork.png`
+  - `/tmp/pika-survey-student-form.png`

@@ -1,19 +1,19 @@
 {
   "meta": {
     "project": "pika",
-    "lastUpdated": "2026-04-26",
+    "lastUpdated": "2026-05-13",
     "phase": "Infrastructure — AI Effectiveness Layer",
-    "DO_NOT_DELETE_FEATURES": "This inventory is APPEND-ONLY. Mark features as passing/failing, add new features, but NEVER DELETE FEATURES FROM THIS FILE. Deletion corrupts project history.",
+    "DO_NOT_DELETE_FEATURES": "APPEND-ONLY. Never delete entries.",
     "deletionPolicy": "PROHIBITED",
-    "totalFeatures": 10,
-    "passing": 10,
+    "totalFeatures": 11,
+    "passing": 11,
     "failing": 0
   },
   "features": [
     {
       "id": "epic-setup",
       "phase": "Phase 0 — Setup",
-      "description": "Project bootstrapped (Next.js + TypeScript + Tailwind + Supabase wiring)",
+      "description": "Next.js, TypeScript, Tailwind, and Supabase bootstrap",
       "passes": true,
       "verification": "Run: pnpm test",
       "issueRefs": [],
@@ -23,7 +23,7 @@
     {
       "id": "epic-auth",
       "phase": "Phase 1 — Auth",
-      "description": "Email verification + password auth with secure sessions (iron-session), lockout, and role routing",
+      "description": "Email-code auth, password login, secure sessions, lockout, and role routing",
       "passes": true,
       "verification": "Run: pnpm test. Manual smoke: signup → verify → create password → login → logout → reset password",
       "issueRefs": [],
@@ -33,7 +33,7 @@
     {
       "id": "epic-student-experience",
       "phase": "Phase 2 — Student Experience",
-      "description": "Student journal/attendance flows per classroom (Toronto timezone rules), plus student dashboards",
+      "description": "Student journal, attendance, and dashboard flows per classroom",
       "passes": true,
       "verification": "Run: pnpm test. Manual smoke: student submits entry for today and sees history update",
       "issueRefs": [],
@@ -53,7 +53,7 @@
     {
       "id": "epic-classrooms-rosters",
       "phase": "Phase 4 — Classrooms & Rosters",
-      "description": "Classroom CRUD, join codes/links, enrollments, roster CSV upload, and per-classroom class days",
+      "description": "Classrooms, join codes/links, enrollments, roster CSV, and class days",
       "passes": true,
       "verification": "Run: pnpm test. Manual smoke: teacher creates classroom and uploads roster; student joins by code",
       "issueRefs": [],
@@ -63,7 +63,7 @@
     {
       "id": "epic-assignments",
       "phase": "Phase 5 — Assignments",
-      "description": "Assignments per classroom with student editor (autosave + submit/unsubmit + late detection) and teacher read-only views",
+      "description": "Classroom assignments with autosave, submit/unsubmit, late detection, and teacher views",
       "passes": true,
       "verification": "Run: pnpm test. Manual smoke: student edits + submits; teacher views submission status",
       "issueRefs": [],
@@ -116,6 +116,17 @@
       "blockedBy": [],
       "addedDate": "2026-04-17",
       "completedDate": "2026-04-17"
+    },
+    {
+      "id": "epic-classwork-surveys",
+      "phase": "Phase 9 — Classwork Engagement",
+      "description": "Ungraded Classwork surveys with MC/text/link, dynamic updates, and results",
+      "passes": true,
+      "verification": "Run: pnpm lint && pnpm test -- --maxWorkers=4 && pnpm build; smoke survey flow.",
+      "issueRefs": [],
+      "blockedBy": [],
+      "addedDate": "2026-05-13",
+      "completedDate": "2026-05-13"
     }
   ]
 }
