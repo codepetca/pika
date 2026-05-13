@@ -140,6 +140,13 @@ function getSortableNameParts(student: TestGradingStudentRow): { firstName: stri
   return splitDisplayName(student.name)
 }
 
+function getEffectiveTestAccess(
+  student: Pick<TestGradingStudentRow, 'effective_access'>,
+  testStatus: Quiz['status'] | null | undefined,
+): 'open' | 'closed' {
+  return student.effective_access || (testStatus === 'active' ? 'open' : 'closed')
+}
+
 function formatTorontoTime(iso: string | null): { value: string; isPm: boolean } {
   if (!iso) return { value: '—', isPm: false }
 
@@ -444,6 +451,13 @@ export function TeacherTestsTab({
     [batchSelectedSubmittedStudents]
   )
   const batchSelectedSubmittedCount = batchSelectedSubmittedStudents.length
+  const hasOpenGradingAccess = useMemo(
+    () =>
+      sortedGradingStudents.some(
+        (student) => getEffectiveTestAccess(student, selectedTestWorkspace?.status) === 'open'
+      ),
+    [selectedTestWorkspace?.status, sortedGradingStudents]
+  )
 
   const setSelectedStudentId = useCallback((nextStudentId: string | null) => {
     setInternalSelectedStudentId(nextStudentId)
@@ -845,7 +859,8 @@ export function TeacherTestsTab({
       selectedWorkspaceTab !== 'grading' ||
       !selectedTestId ||
       gradingServerTestId !== selectedTestId ||
-      gradingServerTestStatus !== 'active'
+      gradingServerTestStatus !== 'active' ||
+      !hasOpenGradingAccess
     ) {
       return
     }
@@ -901,7 +916,15 @@ export function TeacherTestsTab({
       window.removeEventListener('focus', handlePollingStateChange)
       window.removeEventListener('blur', handlePollingStateChange)
     }
-  }, [gradingServerTestId, gradingServerTestStatus, loadGradingRows, selectedTestId, selectedWorkspaceTab, workspaceState])
+  }, [
+    gradingServerTestId,
+    gradingServerTestStatus,
+    hasOpenGradingAccess,
+    loadGradingRows,
+    selectedTestId,
+    selectedWorkspaceTab,
+    workspaceState,
+  ])
 
   useEffect(() => {
     function handleGradingRowUpdate(event: Event) {
@@ -1555,7 +1578,7 @@ export function TeacherTestsTab({
     : { valid: false }
   const isSelectedWorkspace = workspaceState === 'selected'
   const getEffectiveStudentAccess = useCallback((student: TestGradingStudentRow): 'open' | 'closed' => {
-    return student.effective_access || (selectedTestWorkspace?.status === 'active' ? 'open' : 'closed')
+    return getEffectiveTestAccess(student, selectedTestWorkspace?.status)
   }, [selectedTestWorkspace?.status])
   const selectedOpenAccessCount = batchSelectedStudents.filter((student) => {
     return getEffectiveStudentAccess(student) === 'open'
@@ -1842,8 +1865,7 @@ export function TeacherTestsTab({
                 const windowUnmaximizeAttempts = student.focus_summary?.window_unmaximize_attempts ?? 0
                 const exitsCount = getQuizExitCount(student.focus_summary)
                 const formattedLastActivity = formatTorontoTime(student.last_activity_at)
-                const effectiveAccess =
-                  student.effective_access || (selectedTestWorkspace?.status === 'active' ? 'open' : 'closed')
+                const effectiveAccess = getEffectiveTestAccess(student, selectedTestWorkspace?.status)
                 const accessSource = student.access_source || 'test'
                 const accessLabel = effectiveAccess === 'open' ? 'Open' : 'Closed'
                 const AccessIcon = effectiveAccess === 'open' ? Unlock : Lock

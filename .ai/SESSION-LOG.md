@@ -7,20 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-11 — Fix stale student log date
-
-**Completed:**
-- Fixed Student Today autosave so a stale mounted tab rechecks the current Toronto date before building the save payload.
-- Cleared stale entry identity/version state when the mounted date rolls over, preventing first/new saves from targeting an old day.
-- Added a regression test for a tab mounted on May 6 that saves after today advances to May 11.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm vitest run tests/components/StudentTodayTabHistory.test.tsx`
-- `pnpm lint`
-- `pnpm vitest run tests/api/student/entries.test.ts tests/components/StudentTodayTabHistory.test.tsx tests/unit/timezone.test.ts`
-- `pnpm test`
-
 ## 2026-05-09 — Test markdown creation defaults
 
 **Completed:**
@@ -382,3 +368,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/quizzes.test.ts tests/components/TeacherTestsTab.test.tsx`
 - `pnpm lint`
 - `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/fix-test-open-badge E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests'`
+
+## 2026-05-13 — Teacher test grading closed-access refresh
+
+**Completed:**
+- Stopped the teacher tests grading workspace from starting the background grade poll when every student has closed effective access.
+- Reused the same effective-access helper for polling decisions, batch action counts, and row access icons.
+- Added regression coverage for an active test whose access is closed for all students so the `Refreshing grades` status does not appear.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/close-test-refresh-notice bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/close-test-refresh-notice E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests'`
+- Closed selected test workspace browser check after 16.5s: no `Refreshing grades` status and no console errors; screenshots `/tmp/pika-teacher-closed-test-workspace.png` and `/tmp/pika-teacher-closed-test-selected-student.png`
+- `pnpm test`
