@@ -1301,6 +1301,14 @@ export function TeacherTestsTab({
   async function handleBatchStudentAccess(state: 'open' | 'closed', options?: { studentIds?: string[] }) {
     const targetStudentIds = options?.studentIds || Array.from(batchSelectedIds)
     if (!selectedTestId || targetStudentIds.length === 0) return
+    const previousAccessByStudentId = new Map(
+      gradingStudents
+        .filter((student) => targetStudentIds.includes(student.student_id))
+        .map((student) => [
+          student.student_id,
+          student.effective_access || (selectedTestWorkspace?.status === 'active' ? 'open' : 'closed'),
+        ] as const)
+    )
 
     setIsBatchUpdatingAccess(true)
     setGradingError('')
@@ -1322,6 +1330,34 @@ export function TeacherTestsTab({
       setGradingInfo(
         `${state === 'open' ? 'Opened' : 'Closed'} access for ${updatedCount} student${updatedCount === 1 ? '' : 's'}${skippedCount > 0 ? ` • ${skippedCount} skipped` : ''}`
       )
+      if (updatedCount > 0) {
+        setTests((prev) =>
+          prev.map((test) => {
+            if (test.id !== selectedTestId) return test
+
+            const totalStudents = test.stats.total_students || gradingStudents.length || 0
+            const fallbackOpenAccess = test.status === 'active' ? totalStudents : 0
+            let openAccessCount =
+              typeof test.stats.open_access === 'number' ? test.stats.open_access : fallbackOpenAccess
+
+            for (const studentId of targetStudentIds) {
+              const previousAccess = previousAccessByStudentId.get(studentId)
+              if (!previousAccess || previousAccess === state) continue
+              openAccessCount += state === 'open' ? 1 : -1
+            }
+
+            const clampedOpenAccessCount = Math.min(Math.max(openAccessCount, 0), totalStudents)
+            return {
+              ...test,
+              stats: {
+                ...test.stats,
+                open_access: clampedOpenAccessCount,
+                closed_access: Math.max(totalStudents - clampedOpenAccessCount, 0),
+              },
+            }
+          })
+        )
+      }
 
       clearBatchSelection()
       setShowCloseAccessConfirm(false)

@@ -7,21 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-08 — Gradebook edit weight label
-
-**Completed:**
-- Changed the edit-mode gradebook row label from `Weights` to `Weight`.
-- Updated focused gradebook component assertions for the singular label.
-
-**Validation:**
-- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm lint`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/gradebook-assessment-matrix E2E_BASE_URL=http://localhost:3003 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=gradebook&gradebookSection=settings'`
-- Visual captures:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-teacher-mobile.png`
-  - `/tmp/pika-student.png`
-
 ## 2026-05-11 — Fix stale student log date
 
 **Completed:**
@@ -384,3 +369,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash scripts/verify-env.sh`
 - `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/announcements-markdown E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=announcements'`
 - Additional loaded desktop teacher capture: `/tmp/pika-teacher-ready.png`
+
+## 2026-05-13 — Teacher test list closed-access badge
+
+**Completed:**
+- Fixed teacher test list cards so an active test with access closed for every enrolled student displays a `Closed` badge instead of `Open`.
+- Kept the underlying test lifecycle status unchanged and updated list access counts locally after open/close-all actions.
+- Added focused utility and component coverage for the all-students-closed display case.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/fix-test-open-badge bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/quizzes.test.ts tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/fix-test-open-badge E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests'`

@@ -803,6 +803,30 @@ describe('TeacherTestsTab', () => {
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 
+  it('shows a closed badge when an active test is closed for all students', async () => {
+    mockTestsResponse([
+      makeTest({
+        id: 'test-1',
+        title: 'Unit Test',
+        status: 'active',
+        stats: {
+          total_students: 2,
+          responded: 1,
+          submitted: 1,
+          open_access: 0,
+          closed_access: 2,
+          questions_count: 3,
+        },
+      }),
+    ])
+
+    renderTab()
+
+    expect(await screen.findByText('Unit Test')).toBeInTheDocument()
+    expect(screen.getByText('Closed')).toBeInTheDocument()
+    expect(screen.queryByText('Open')).not.toBeInTheDocument()
+  })
+
   it('shows card reorder controls from the list actions menu and resets reorder mode when tests is revisited', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
     const view = renderTab({ testsTabClickToken: 0 })

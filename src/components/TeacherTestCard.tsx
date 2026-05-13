@@ -4,7 +4,11 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ExternalLink, GripVertical, Lock, Trash2, Unlock } from 'lucide-react'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
-import { getAssessmentStatusLabel, getQuizStatusBadgeClass } from '@/lib/quizzes'
+import {
+  getAssessmentStatusLabel,
+  getQuizStatusBadgeClass,
+  getTeacherTestListDisplayStatus,
+} from '@/lib/quizzes'
 import { Button, Tooltip } from '@/ui'
 import type { QuizWithStats } from '@/types'
 
@@ -46,8 +50,9 @@ export function TeacherTestCard({
   }
 
   const isDraft = test.status === 'draft'
-  const statusLabel = getAssessmentStatusLabel(test.status, 'test')
-  const statusBadgeClass = getQuizStatusBadgeClass(test.status)
+  const displayStatus = getTeacherTestListDisplayStatus(test)
+  const statusLabel = getAssessmentStatusLabel(displayStatus, 'test')
+  const statusBadgeClass = getQuizStatusBadgeClass(displayStatus)
   const totalStudents = test.stats.total_students || 0
   const submittedCount = test.stats.submitted ?? test.stats.responded ?? 0
   const openAccessCount = test.stats.open_access ?? (test.status === 'active' ? totalStudents : 0)
