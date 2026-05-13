@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -113,6 +113,16 @@ type TestEditSaveStatus = 'saved' | 'saving' | 'unsaved'
 type TestGradingSortColumn = 'first_name' | 'last_name'
 
 const GRADING_POLL_INTERVAL_MS = 15_000
+
+function TestWorkspacePaneFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        {children}
+      </div>
+    </div>
+  )
+}
 
 function splitDisplayName(name: string | null): { firstName: string | null; lastName: string | null } {
   const trimmed = (name || '').trim()
@@ -1761,7 +1771,7 @@ export function TeacherTestsTab({
 
   const gradingTable = (
     <div
-      className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
+      className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden"
       onPointerDownCapture={handleGradingTablePointerDown}
     >
       {gradingRefreshing ? (
@@ -1780,7 +1790,7 @@ export function TeacherTestsTab({
       ) : (
         <div
           ref={gradingStudentTableScrollRef}
-          className="min-h-0 w-full overflow-auto rounded-md border border-border bg-surface"
+          className="min-h-0 w-full flex-1 overflow-auto rounded-md border border-border bg-surface"
           data-testid="test-grading-student-scroll-pane"
           onScroll={preserveGradingStudentTableScrollPosition}
         >
@@ -2344,14 +2354,27 @@ export function TeacherTestsTab({
     <TeacherWorkspaceSplit
       className="flex-1"
       splitVariant="gapped"
-      primary={gradingTable}
-      inspector={gradingInspector ? <div className="h-full min-h-0 overflow-y-auto">{gradingInspector}</div> : undefined}
+      primary={
+        <TestWorkspacePaneFrame>
+          {gradingTable}
+        </TestWorkspacePaneFrame>
+      }
+      inspector={gradingInspector ? (
+        <TestWorkspacePaneFrame>
+          <div
+            className="h-full min-h-0 overflow-y-auto"
+            data-testid="test-grading-inspector-scroll-pane"
+          >
+            {gradingInspector}
+          </div>
+        </TestWorkspacePaneFrame>
+      ) : undefined}
       inspectorWidth={gradingInspectorWidth}
       inspectorCollapsed={false}
       onInspectorWidthChange={setGradingInspectorWidth}
       dividerLabel="Resize grading and student response panes"
-      primaryClassName="min-h-[200px] rounded-lg bg-surface"
-      inspectorClassName="rounded-lg bg-surface"
+      primaryClassName="flex min-h-0 flex-col rounded-lg bg-surface"
+      inspectorClassName="flex min-h-0 flex-col rounded-lg bg-surface"
       minPrimaryPx={420}
       minInspectorPx={360}
     />
