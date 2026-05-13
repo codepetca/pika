@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { AssessmentSetupDialog } from '@/components/assessment/AssessmentSetupDialog'
-import { Button, FormField, Input } from '@/ui'
+import { AssessmentSetupCheckbox, AssessmentSetupForm } from '@/components/assessment/AssessmentSetupForm'
 import type { Quiz, QuizAssessmentType } from '@/types'
 
 interface QuizModalProps {
@@ -111,53 +111,28 @@ export function QuizModal({
       closeLabel={`Close ${assessmentLabel.toLowerCase()} modal`}
       closeDisabled={saving}
     >
-      <form
+      <AssessmentSetupForm
+        isCompact={isEditMode}
+        title={title}
+        titlePlaceholder={`Enter ${assessmentLabel.toLowerCase()} title`}
+        titleError={error}
+        titleInputRef={titleInputRef}
+        saving={saving}
+        submitLabel={isEditMode ? 'Save' : 'Create'}
+        onTitleChange={setTitle}
+        onCancel={onClose}
         onSubmit={handleSubmit}
-        className={
-          isEditMode
-            ? 'space-y-4 flex-1 min-h-0 overflow-y-auto'
-            : 'flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4'
-        }
       >
-        <FormField label="Title" error={error}>
-          <Input
-            ref={titleInputRef}
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={`Enter ${assessmentLabel.toLowerCase()} title`}
-            disabled={saving}
-          />
-        </FormField>
-
         {isEditMode && (
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showResults}
-              onChange={(e) => setShowResults(e.target.checked)}
-              disabled={saving}
-              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-            />
-            <span className="text-sm text-text-default">Show results to students after responding</span>
-          </label>
-        )}
-
-        <div className={isEditMode ? 'flex gap-3 pt-2' : 'mt-auto flex justify-end gap-3 border-t border-border pt-4'}>
-          <Button
-            type="button"
-            variant="secondary"
-            className={isEditMode ? 'flex-1' : 'min-w-28'}
-            onClick={onClose}
+          <AssessmentSetupCheckbox
+            checked={showResults}
             disabled={saving}
+            onChange={setShowResults}
           >
-            Cancel
-          </Button>
-          <Button type="submit" variant="primary" className={isEditMode ? 'flex-1' : 'min-w-28'} disabled={saving}>
-            {saving ? 'Saving...' : isEditMode ? 'Save' : 'Create'}
-          </Button>
-        </div>
-      </form>
+            Show results to students after responding
+          </AssessmentSetupCheckbox>
+        )}
+      </AssessmentSetupForm>
     </AssessmentSetupDialog>
   )
 }

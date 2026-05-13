@@ -7,14 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-11 — Trim session log for CI
-
-**Completed:**
-- Trimmed the rolling session log after PR work so it stays within the enforced 20-entry budget.
-
-**Validation:**
-- `pnpm test tests/unit/ai-startup-docs.test.ts`
-
 ## 2026-05-11 — Mixed classwork material ordering
 
 **Completed:**
@@ -407,3 +399,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Additional survey modal screenshots:
   - `/tmp/pika-survey-modal-desktop.png`
   - `/tmp/pika-survey-modal-mobile.png`
+
+## 2026-05-13 — Survey setup form parity
+
+**Completed:**
+- Extracted the shared quiz/test setup body into `AssessmentSetupForm` with the common title field, footer actions, and checkbox control.
+- Routed both `QuizModal` and `SurveyModal` through the shared setup form so survey creation matches quiz/test creation structure.
+- Removed the survey-specific settings box from creation; survey options now sit in the same plain form rhythm as the quiz/test controls.
+
+**Validation:**
+- `pnpm test tests/components/QuizModal.test.tsx tests/components/SurveyModal.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/surveys-classwork E2E_BASE_URL=http://localhost:3002 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional survey creation screenshots:
+  - `/tmp/pika-survey-create-shared-desktop.png`
+  - `/tmp/pika-survey-create-shared-mobile.png`

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { AssessmentSetupDialog } from '@/components/assessment/AssessmentSetupDialog'
-import { Button, FormField, Input } from '@/ui'
+import { AssessmentSetupCheckbox, AssessmentSetupForm } from '@/components/assessment/AssessmentSetupForm'
 import type { Survey } from '@/types'
 
 interface SurveyModalProps {
@@ -88,66 +88,36 @@ export function SurveyModal({
       closeLabel="Close survey modal"
       closeDisabled={saving}
     >
-      <form
+      <AssessmentSetupForm
+        isCompact={isEditMode}
+        title={title}
+        titlePlaceholder="Enter survey title"
+        titleError={error}
+        titleInputRef={titleInputRef}
+        saving={saving}
+        submitLabel={isEditMode ? 'Save' : 'Create'}
+        onTitleChange={setTitle}
+        onCancel={onClose}
         onSubmit={handleSubmit}
-        className={
-          isEditMode
-            ? 'space-y-4 flex-1 min-h-0 overflow-y-auto'
-            : 'flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4'
-        }
       >
-        <FormField label="Title" error={error}>
-          <Input
-            ref={titleInputRef}
-            type="text"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Enter survey title"
+        <div className="space-y-3">
+          <AssessmentSetupCheckbox
+            checked={showResults}
             disabled={saving}
-          />
-        </FormField>
-
-        <div className={isEditMode ? 'space-y-3' : 'rounded-lg border border-border bg-surface-2 p-4'}>
-          <div className="space-y-3">
-            <label className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                checked={showResults}
-                onChange={(event) => setShowResults(event.target.checked)}
-                disabled={saving}
-                className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
-              />
-              <span className="text-sm text-text-default">Show class results to students after they respond</span>
-            </label>
-
-            <label className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                checked={dynamicResponses}
-                onChange={(event) => setDynamicResponses(event.target.checked)}
-                disabled={saving}
-                className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
-              />
-              <span className="text-sm text-text-default">Dynamic responses: students can update answers while open</span>
-            </label>
-          </div>
-        </div>
-
-        <div className={isEditMode ? 'flex gap-3 pt-2' : 'mt-auto flex justify-end gap-3 border-t border-border pt-4'}>
-          <Button
-            type="button"
-            variant="secondary"
-            className={isEditMode ? 'flex-1' : 'min-w-28'}
-            onClick={onClose}
-            disabled={saving}
+            onChange={setShowResults}
           >
-            Cancel
-          </Button>
-          <Button type="submit" variant="primary" className={isEditMode ? 'flex-1' : 'min-w-28'} disabled={saving}>
-            {saving ? 'Saving...' : isEditMode ? 'Save' : 'Create'}
-          </Button>
+            Show class results to students after they respond
+          </AssessmentSetupCheckbox>
+
+          <AssessmentSetupCheckbox
+            checked={dynamicResponses}
+            disabled={saving}
+            onChange={setDynamicResponses}
+          >
+            Dynamic responses: students can update answers while open
+          </AssessmentSetupCheckbox>
         </div>
-      </form>
+      </AssessmentSetupForm>
     </AssessmentSetupDialog>
   )
 }
