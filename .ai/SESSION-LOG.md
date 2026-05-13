@@ -7,24 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-10 — Submitted-aware test unsubmit action
-
-**Completed:**
-- Confirmed selected-student test-work deletion does not close/open student access; it deletes attempt data only and leaves `test_student_availability` unchanged.
-- Changed the selected-test `Unsubmit Selected` action to enable only when selected rows include submitted work.
-- Filtered batch unsubmit requests so mixed selections submit only the selected students whose work is currently submitted.
-- Added focused component coverage for disabled no-submitted selection and mixed-selection submitted-only unsubmit requests.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
-- Targeted visual captures:
-  - `/tmp/pika-unsubmit-disabled-no-submitted-selected.png`
-  - `/tmp/pika-unsubmit-enabled-submitted-selected.png`
-- `pnpm build`
-
 ## 2026-05-10 — Test action menu counts
 
 **Completed:**
@@ -347,3 +329,14 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Temporary verification test `88a8b3b5-7559-417e-8d16-c53175a3d692` was deleted after screenshots and browser checks.
 - `pnpm build`
 - `pnpm test`
+
+## 2026-05-13 — Chrome plugin UI verification guidance
+
+**Completed:**
+- Documented Playwright as the required final path for E2E tests, UI verification scripts, and screenshot artifacts.
+- Clarified that Chrome plugin checks are supplemental for exploratory debugging, browser-profile behavior, remote auth, extension, cookie, and interactive inspection cases.
+- Updated the AI routing doc, UI testing guide, testing strategy, and Codex UI verification prompt.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/chrome-ui-guidance bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/ui-guidance-candidate-script.test.ts`
