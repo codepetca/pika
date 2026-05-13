@@ -5,6 +5,7 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, 
 import { toZonedTime } from 'date-fns-tz'
 import { ChevronLeft, ChevronRight, PanelRight, PanelRightClose } from 'lucide-react'
 import { LessonDayCell } from './LessonDayCell'
+import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
@@ -653,12 +654,11 @@ export function LessonCalendar({
                   </h3>
                   <div className="mt-4 space-y-4">
                     {presentedDayDetails.announcements.map((announcement) => (
-                      <p
+                      <AnnouncementContent
                         key={announcement.id}
-                        className="text-xl leading-relaxed text-text-default sm:text-2xl"
-                      >
-                        {announcement.content}
-                      </p>
+                        content={announcement.content}
+                        size="lg"
+                      />
                     ))}
                   </div>
                 </div>
