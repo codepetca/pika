@@ -1320,6 +1320,68 @@ describe('TeacherTestsTab', () => {
     expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
   })
 
+  it('does not poll grades when every student has closed access', async () => {
+    let visibilityState: DocumentVisibilityState = 'visible'
+    let hasFocus = true
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => visibilityState,
+    })
+    vi.spyOn(document, 'hasFocus').mockImplementation(() => hasFocus)
+    const setIntervalSpy = vi
+      .spyOn(window, 'setInterval')
+      .mockImplementation((() => 1) as typeof window.setInterval)
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValue(
+        makeResultsResponse({
+          students: [
+            {
+              student_id: 'student-1',
+              name: 'Alice Zephyr',
+              first_name: 'Alice',
+              last_name: 'Zephyr',
+              email: 'alice@example.com',
+              status: 'closed',
+              submitted_at: null,
+              last_activity_at: '2026-04-17T18:15:00.000Z',
+              points_earned: 3,
+              points_possible: 5,
+              percent: 60,
+              graded_open_responses: 0,
+              ungraded_open_responses: 1,
+              access_state: 'closed',
+              effective_access: 'closed',
+              access_source: 'student',
+              focus_summary: null,
+            },
+          ],
+        })
+      )
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
+    expect(setIntervalSpy).not.toHaveBeenCalledWith(expect.any(Function), 15_000)
+
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'))
+      document.dispatchEvent(new Event('visibilitychange'))
+      await Promise.resolve()
+    })
+
+    expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
   it('starts polling when the server reports the test is active even if the list was stale', async () => {
     let visibilityState: DocumentVisibilityState = 'visible'
     let hasFocus = true
