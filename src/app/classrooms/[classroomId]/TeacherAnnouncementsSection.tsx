@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useRef } from 'react'
 import { Trash2, Plus, Clock, ChevronDown, Calendar } from 'lucide-react'
 import { Button, ConfirmDialog } from '@/ui'
 import { Spinner } from '@/components/Spinner'
+import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import type { Announcement, Classroom } from '@/types'
@@ -498,7 +499,10 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                   <div className="flex items-start justify-between gap-3">
                     <div
                       className={`min-w-0 flex-1 ${!isReadOnly ? 'cursor-pointer' : ''}`}
-                      onClick={() => startEditing(announcement)}
+                      onClick={(event) => {
+                        if ((event.target as HTMLElement).closest('a')) return
+                        startEditing(announcement)
+                      }}
                     >
                       {scheduled ? (
                         <div className="flex items-center gap-2 mb-2">
@@ -513,9 +517,10 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                           {announcement.updated_at !== announcement.created_at && ' (edited)'}
                         </p>
                       )}
-                      <p className={`text-sm whitespace-pre-wrap ${scheduled ? 'text-text-muted' : 'text-text-default'}`}>
-                        {announcement.content}
-                      </p>
+                      <AnnouncementContent
+                        content={announcement.content}
+                        tone={scheduled ? 'muted' : 'default'}
+                      />
                     </div>
                     {!isReadOnly && (
                       <Button
