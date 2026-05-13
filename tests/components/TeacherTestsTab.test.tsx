@@ -964,6 +964,31 @@ describe('TeacherTestsTab', () => {
     })
   })
 
+  it('uses independent scroll containers for the selected test grading panes', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    const studentScrollPane = await screen.findByTestId('test-grading-student-scroll-pane')
+    expect(studentScrollPane).toHaveClass('flex-1')
+    expect(studentScrollPane).toHaveClass('overflow-auto')
+
+    fireEvent.click(screen.getByText('Alice Zephyr'))
+
+    const inspectorScrollPane = await screen.findByTestId('test-grading-inspector-scroll-pane')
+    expect(inspectorScrollPane).toHaveClass('h-full')
+    expect(inspectorScrollPane).toHaveClass('min-h-0')
+    expect(inspectorScrollPane).toHaveClass('overflow-y-auto')
+    expect(within(inspectorScrollPane).getByTestId('mock-test-grading-panel')).toBeInTheDocument()
+  })
+
   it('clears the selected grading row with Escape', async () => {
     fetchMock
       .mockResolvedValueOnce({
