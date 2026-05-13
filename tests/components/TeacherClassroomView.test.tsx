@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TeacherClassroomView } from '@/app/classrooms/[classroomId]/TeacherClassroomView'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
-import type { Classroom, ClassworkMaterial } from '@/types'
+import type { Classroom, ClassworkMaterial, SurveyWithStats } from '@/types'
 
 const mockFetchJSONWithCache = vi.fn()
 const mockInvalidateCachedJSON = vi.fn()
@@ -185,6 +185,17 @@ vi.mock('@/components/SortableAssignmentCard', () => ({
           Delete
         </button>
       ) : null}
+    </div>
+  ),
+}))
+
+vi.mock('@/components/surveys/TeacherSurveyWorkspace', () => ({
+  TeacherSurveyWorkspace: ({ surveyId, onBack }: any) => (
+    <div data-testid="mock-survey-workspace">
+      Survey workspace {surveyId}
+      <button type="button" onClick={onBack}>
+        Close survey workspace
+      </button>
     </div>
   ),
 }))
@@ -407,6 +418,24 @@ function makeMaterialSummary(id: string, title: string, overrides: Partial<Class
     created_by: 'teacher-1',
     created_at: '2026-04-01T12:00:00Z',
     updated_at: '2026-04-01T12:00:00Z',
+    ...overrides,
+  }
+}
+
+function makeSurveySummary(id: string, title: string, overrides: Partial<SurveyWithStats> = {}): SurveyWithStats {
+  return {
+    id,
+    classroom_id: classroom.id,
+    title,
+    status: 'draft',
+    opens_at: null,
+    show_results: true,
+    dynamic_responses: false,
+    position: 0,
+    created_by: 'teacher-1',
+    created_at: '2026-04-01T12:00:00Z',
+    updated_at: '2026-04-01T12:00:00Z',
+    stats: { total_students: 2, responded: 0, questions_count: 0 },
     ...overrides,
   }
 }
@@ -646,6 +675,89 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('button', { name: 'Drag to reorder material' })).toBeInTheDocument()
     expect(materialButton.querySelector('.border-l-2')).not.toBeInTheDocument()
     expect(materialButton.closest('.bg-info-bg')).not.toHaveClass('border-primary/40')
+  })
+
+  it('opens a survey in a modal instead of replacing the classwork pane', async () => {
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return Promise.resolve({
+          assignments: [
+            makeAssignmentSummary('assignment-1', 'Assignment One', { position: 1 }),
+          ],
+        })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({
+          surveys: [
+            makeSurveySummary('survey-1', 'Game Jam Links', { position: 2 }),
+          ],
+        })
+      }
+      if (key === `class-days:${classroom.id}`) {
+        return Promise.resolve({ class_days: [] })
+      }
+      return fetcher()
+    })
+    const updateSearchParams = vi.fn()
+
+    render(
+      <TeacherClassroomView
+        classroom={classroom}
+        selectedAssignmentId={null}
+        updateSearchParams={updateSearchParams}
+      />,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Game Jam Links' }))
+
+    expect(screen.getByRole('dialog')).toHaveTextContent('Survey workspace survey-1')
+    expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
+
+    const { params } = applySearchParamsUpdate(updateSearchParams.mock.calls[0])
+    expect(params.get('tab')).toBe('assignments')
+    expect(params.get('surveyId')).toBe('survey-1')
+    expect(params.get('assignmentId')).toBeNull()
+  })
+
+  it('opens a routed survey selection as a modal over the classwork summary', async () => {
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return Promise.resolve({
+          assignments: [
+            makeAssignmentSummary('assignment-1', 'Assignment One'),
+          ],
+        })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({
+          surveys: [
+            makeSurveySummary('survey-1', 'Game Jam Links'),
+          ],
+        })
+      }
+      if (key === `class-days:${classroom.id}`) {
+        return Promise.resolve({ class_days: [] })
+      }
+      return fetcher()
+    })
+
+    render(
+      <TeacherClassroomView
+        classroom={classroom}
+        selectedSurveyId="survey-1"
+      />,
+    )
+
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Survey workspace survey-1')
+    expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
   })
 
   it('exits assignment edit mode when the create assignment modal closes', async () => {

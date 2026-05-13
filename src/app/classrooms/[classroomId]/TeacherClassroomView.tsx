@@ -34,7 +34,7 @@ import {
   User,
   Users,
 } from 'lucide-react'
-import { Button, ConfirmDialog, ContentDialog, FormField, Input, SegmentedControl, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, SegmentedControl, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
@@ -103,9 +103,6 @@ interface AssignmentWithStats extends Assignment {
 }
 
 type TeacherAssignmentSelection = { mode: 'summary' } | { mode: 'assignment'; assignmentId: string }
-type TeacherClassworkSelection =
-  | TeacherAssignmentSelection
-  | { mode: 'survey'; surveyId: string }
 
 type StudentSubmissionRow = TeacherAssignmentStudentRow
 type GradeSelectedUpdatedDoc = NonNullable<StudentSubmissionRow['doc']> & {
@@ -553,7 +550,8 @@ export function TeacherClassroomView({
   const [isDeletingMaterial, setIsDeletingMaterial] = useState(false)
   const [pendingSurveyDelete, setPendingSurveyDelete] = useState<SurveyWithStats | null>(null)
   const [isDeletingSurvey, setIsDeletingSurvey] = useState(false)
-  const [selection, setSelection] = useState<TeacherClassworkSelection>({ mode: 'summary' })
+  const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
+  const [surveyModalId, setSurveyModalId] = useState<string | null>(null)
   const [createdSurveyEditorIntent, setCreatedSurveyEditorIntent] = useState<{
     surveyId: string
     editMode: 'edit' | 'markdown'
@@ -724,8 +722,9 @@ export function TeacherClassroomView({
     })
     setIsSurveyModalOpen(false)
     setCreatedSurveyEditorIntent({ surveyId: survey.id, editMode: 'markdown' })
-    writeCookie(`teacherAssignmentsSelection:${classroom.id}`, `survey:${survey.id}`)
-    setSelection({ mode: 'survey', surveyId: survey.id })
+    setSurveyModalId(survey.id)
+    writeCookie(`teacherAssignmentsSelection:${classroom.id}`, 'summary')
+    setSelection({ mode: 'summary' })
     updateSearchParams?.((params) => {
       params.set('tab', 'assignments')
       params.delete('assignmentId')
@@ -734,6 +733,27 @@ export function TeacherClassroomView({
     }, { replace: true })
     void loadAssignments({ preserveContent: true })
   }, [classroom.id, loadAssignments, updateSearchParams])
+
+  const openSurveyModal = useCallback((surveyId: string, options?: { replace?: boolean }) => {
+    setSurveyModalId(surveyId)
+    writeCookie(`teacherAssignmentsSelection:${classroom.id}`, 'summary')
+    setSelection({ mode: 'summary' })
+    updateSearchParams?.((params) => {
+      params.set('tab', 'assignments')
+      params.delete('assignmentId')
+      params.set('surveyId', surveyId)
+      params.delete('assignmentStudentId')
+    }, { replace: options?.replace })
+  }, [classroom.id, updateSearchParams])
+
+  const closeSurveyModal = useCallback((options?: { replace?: boolean }) => {
+    setSurveyModalId(null)
+    setCreatedSurveyEditorIntent(null)
+    updateSearchParams?.((params) => {
+      params.set('tab', 'assignments')
+      params.delete('surveyId')
+    }, { replace: options?.replace })
+  }, [updateSearchParams])
 
   const deleteMaterial = useCallback(async () => {
     if (!pendingMaterialDelete) return
@@ -770,13 +790,8 @@ export function TeacherClassroomView({
       invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
       invalidateCachedJSON(`student-surveys:${classroom.id}`)
       setSurveys((current) => current.filter((survey) => survey.id !== pendingSurveyDelete.id))
-      if (selection.mode === 'survey' && selection.surveyId === pendingSurveyDelete.id) {
-        writeCookie(`teacherAssignmentsSelection:${classroom.id}`, 'summary')
-        setSelection({ mode: 'summary' })
-        updateSearchParams?.((params) => {
-          params.set('tab', 'assignments')
-          params.delete('surveyId')
-        }, { replace: true })
+      if (surveyModalId === pendingSurveyDelete.id) {
+        closeSurveyModal({ replace: true })
       }
       setPendingSurveyDelete(null)
       showMessage({ text: 'Survey deleted.', tone: 'success' })
@@ -785,7 +800,7 @@ export function TeacherClassroomView({
     } finally {
       setIsDeletingSurvey(false)
     }
-  }, [classroom.id, pendingSurveyDelete, selection, showMessage, updateSearchParams])
+  }, [classroom.id, closeSurveyModal, pendingSurveyDelete, showMessage, surveyModalId])
 
   useEffect(() => {
     if (isActive && !wasActiveRef.current && hasLoadedOnce) {
@@ -894,9 +909,8 @@ export function TeacherClassroomView({
       return
     }
     if (value.startsWith('survey:')) {
-      const surveyId = value.slice('survey:'.length)
-      const survey = surveys.find((item) => item.id === surveyId)
-      setSelection(survey ? { mode: 'survey', surveyId } : { mode: 'summary' })
+      writeCookie(cookieName, 'summary')
+      setSelection({ mode: 'summary' })
       return
     }
     const assignment = assignments.find((a) => a.id === value)
@@ -921,14 +935,18 @@ export function TeacherClassroomView({
     if (selectedSurveyIdProp) {
       const survey = surveys.find((item) => item.id === selectedSurveyIdProp)
       if (survey) {
-        writeCookie(cookieName, `survey:${selectedSurveyIdProp}`)
-        setSelection({ mode: 'survey', surveyId: selectedSurveyIdProp })
+        writeCookie(cookieName, 'summary')
+        setSelection({ mode: 'summary' })
+        setSurveyModalId(selectedSurveyIdProp)
       } else {
         writeCookie(cookieName, 'summary')
         setSelection({ mode: 'summary' })
+        setSurveyModalId(null)
       }
       return
     }
+
+    setSurveyModalId(null)
 
     const value = selectedAssignmentIdProp
     if (!value || value === 'summary') {
@@ -1105,9 +1123,7 @@ export function TeacherClassroomView({
   const assignmentEditModeResetKey =
     selection.mode === 'assignment'
       ? selection.assignmentId
-      : selection.mode === 'survey'
-        ? `survey:${selection.surveyId}`
-        : 'summary'
+      : 'summary'
 
   useEffect(() => {
     setAssignmentEditMode(false)
@@ -1174,16 +1190,14 @@ export function TeacherClassroomView({
   }, [])
 
   const setSelectionAndPersist = useCallback((
-    next: TeacherClassworkSelection,
+    next: TeacherAssignmentSelection,
     options: { updateUrl?: boolean; replace?: boolean } = {},
   ) => {
     const cookieName = `teacherAssignmentsSelection:${classroom.id}`
     const cookieValue =
       next.mode === 'summary'
         ? 'summary'
-        : next.mode === 'survey'
-          ? `survey:${next.surveyId}`
-          : next.assignmentId
+        : next.assignmentId
     writeCookie(cookieName, cookieValue)
     setSelection(next)
     if (options.updateUrl === false || !updateSearchParams) return
@@ -1195,11 +1209,7 @@ export function TeacherClassroomView({
       } else {
         params.delete('assignmentId')
       }
-      if (next.mode === 'survey') {
-        params.set('surveyId', next.surveyId)
-      } else {
-        params.delete('surveyId')
-      }
+      params.delete('surveyId')
       params.delete('assignmentStudentId')
     }, { replace: options.replace })
   }, [classroom.id, updateSearchParams])
@@ -1652,7 +1662,6 @@ export function TeacherClassroomView({
   }, [currentStudentRows, selectedStudentId])
   const activeSelectedStudentId = selectedStudentRow?.student_id ?? null
   const selectedAssignmentId = selection.mode === 'assignment' ? selection.assignmentId : null
-  const selectedSurveyId = selection.mode === 'survey' ? selection.surveyId : null
 
   const {
     scrollRef: classPaneScrollRef,
@@ -2285,7 +2294,7 @@ export function TeacherClassroomView({
                   isReadOnly={isReadOnly}
                   isDragDisabled={isReordering}
                   editMode={assignmentEditMode}
-                  onOpen={() => setSelectionAndPersist({ mode: 'survey', surveyId: survey.id })}
+                  onOpen={() => openSurveyModal(survey.id)}
                   onDelete={() => setPendingSurveyDelete(survey)}
                 />
               )
@@ -2318,34 +2327,7 @@ export function TeacherClassroomView({
 
   const leftPaneHeader = leftPaneView === 'individual' ? selectedStudentControls : null
 
-  const workspaceContent = selectedSurveyId ? (
-    <TeacherSurveyWorkspace
-      classroomId={classroom.id}
-      surveyId={selectedSurveyId}
-      isReadOnly={isReadOnly}
-      initialEditMode={
-        createdSurveyEditorIntent?.surveyId === selectedSurveyId
-          ? createdSurveyEditorIntent.editMode
-          : undefined
-      }
-      onInitialEditModeConsumed={() => setCreatedSurveyEditorIntent(null)}
-      onBack={() => setSelectionAndPersist({ mode: 'summary' })}
-      onSurveyUpdated={(updatedSurvey) => {
-        setSurveys((current) =>
-          current.map((survey) =>
-            survey.id === updatedSurvey.id ? { ...survey, ...updatedSurvey } : survey
-          )
-        )
-        invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
-        invalidateCachedJSON(`student-surveys:${classroom.id}`)
-      }}
-      onSurveyDeleted={(surveyId) => {
-        setSurveys((current) => current.filter((survey) => survey.id !== surveyId))
-        invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
-        invalidateCachedJSON(`student-surveys:${classroom.id}`)
-      }}
-    />
-  ) : selectedAssignmentId == null ? null : activeSelectedStudentId ? (
+  const workspaceContent = selectedAssignmentId == null ? null : activeSelectedStudentId ? (
     <TeacherStudentWorkPanel
       classroomId={classroom.id}
       assignmentId={selectedAssignmentId}
@@ -2505,6 +2487,47 @@ export function TeacherClassroomView({
         onSaved={handleMaterialSaved}
         onRequestDelete={setPendingMaterialDelete}
       />
+
+      <DialogPanel
+        isOpen={!!surveyModalId}
+        onClose={() => closeSurveyModal()}
+        ariaLabelledBy="survey-workspace-dialog-title"
+        maxWidth="max-w-6xl"
+        className="h-[85vh] overflow-hidden p-0"
+      >
+        <h2 id="survey-workspace-dialog-title" className="sr-only">
+          Survey
+        </h2>
+        {surveyModalId ? (
+          <TeacherSurveyWorkspace
+            classroomId={classroom.id}
+            surveyId={surveyModalId}
+            isReadOnly={isReadOnly}
+            initialEditMode={
+              createdSurveyEditorIntent?.surveyId === surveyModalId
+                ? createdSurveyEditorIntent.editMode
+                : undefined
+            }
+            onInitialEditModeConsumed={() => setCreatedSurveyEditorIntent(null)}
+            onBack={() => closeSurveyModal()}
+            onSurveyUpdated={(updatedSurvey) => {
+              setSurveys((current) =>
+                current.map((survey) =>
+                  survey.id === updatedSurvey.id ? { ...survey, ...updatedSurvey } : survey
+                )
+              )
+              invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+              invalidateCachedJSON(`student-surveys:${classroom.id}`)
+            }}
+            onSurveyDeleted={(surveyId) => {
+              setSurveys((current) => current.filter((survey) => survey.id !== surveyId))
+              invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+              invalidateCachedJSON(`student-surveys:${classroom.id}`)
+              closeSurveyModal({ replace: true })
+            }}
+          />
+        ) : null}
+      </DialogPanel>
 
       <SurveyModal
         isOpen={isSurveyModalOpen}

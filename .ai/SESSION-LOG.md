@@ -7,24 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-10 — Markdown-only test editor defaults
-
-**Completed:**
-- Made editable markdown-only test editor surfaces enter writable mode by default, including create-test Code view and existing-test Code view.
-- Removed the markdown `Copy` and `Schema` toolbar actions from `QuizDetailPanel`.
-- Removed the now-redundant `startMarkdownEditing` prop plumbing from the tests tab.
-- Updated focused component coverage for default editable markdown-only layout and absent copy/schema actions.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/QuizDetailPanel.test.tsx tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
-- Targeted visual capture:
-  - `/tmp/pika-test-edit-code.png`
-
 ## 2026-05-11 — Trim session log for CI
 
 **Completed:**
@@ -408,3 +390,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-survey-create-modal.png`
   - `/tmp/pika-survey-create-modal-mobile.png`
   - `/tmp/pika-survey-created-code.png`
+
+## 2026-05-13 — Survey workspace modal routing
+
+**Completed:**
+- Changed teacher survey cards and `surveyId` routes to open `TeacherSurveyWorkspace` in a dialog over the Classwork summary instead of replacing the main content pane.
+- Kept survey creation handoff to Code mode while returning the pane selection/cookie to the Classwork summary.
+- Added regression coverage for card-opened and routed survey modals preserving the classwork list behind the dialog.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/SurveyModal.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/surveys-classwork E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional survey modal screenshots:
+  - `/tmp/pika-survey-modal-desktop.png`
+  - `/tmp/pika-survey-modal-mobile.png`
