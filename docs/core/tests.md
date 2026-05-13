@@ -136,7 +136,7 @@ Focus on **critical user flows**:
    - Create assignment and see student statuses update after submit/unsubmit
    - Export CSV
 
-**Tools**: Consider Playwright for 1-2 E2E tests (optional).
+**Tools**: Consider Playwright for 1-2 E2E tests (optional). Keep Playwright as the canonical E2E tool because tests need to be reproducible locally and in CI.
 
 ### UI Snapshot Runs (Playwright)
 
@@ -147,7 +147,7 @@ For visual review (spacing/aesthetics), we also support a **manual** Playwright 
 
 ### AI-Assisted UI Testing (Playwright CLI)
 
-For visual UI verification during development, AI agents can use the Playwright CLI to take screenshots.
+For visual UI verification during development, AI agents use the Playwright CLI to take screenshots. Chrome plugin checks may supplement this for exploratory debugging or browser-profile-specific issues, but they do not replace Playwright screenshots, verification scripts, or E2E tests.
 
 **Quick Start:**
 
