@@ -6,6 +6,7 @@ import {
   normalizeSurveyQuestionInput,
   validateSurveyResponses,
 } from '@/lib/surveys'
+import { markdownToSurvey, surveyToMarkdown } from '@/lib/survey-markdown'
 import type { Survey, SurveyQuestion, SurveyResponse } from '@/types'
 
 function makeSurvey(overrides: Partial<Survey> = {}): Survey {
@@ -143,5 +144,90 @@ describe('survey utilities', () => {
     expect(results[0].counts).toEqual([1, 1])
     expect(results[1].responses).toHaveLength(1)
     expect(results[1].responses[0].response_text).toBe('I found a resource')
+  })
+
+  it('serializes survey markdown with multiple-choice, text, and link questions', () => {
+    const markdown = surveyToMarkdown({
+      survey: makeSurvey({ title: 'Project links', show_results: true, dynamic_responses: true }),
+      questions: [
+        makeQuestion({ id: 'mc', question_type: 'multiple_choice', question_text: 'Pick one', options: ['A', 'B'] }),
+        makeQuestion({
+          id: 'link',
+          question_type: 'link',
+          question_text: 'Share your game',
+          options: [],
+          response_max_chars: 2048,
+        }),
+      ],
+    })
+
+    expect(markdown).toContain('Title: Project links')
+    expect(markdown).toContain('Dynamic Responses: true')
+    expect(markdown).toContain('Type: multiple_choice')
+    expect(markdown).toContain('Type: link')
+    expect(markdown).toContain('Max Chars: 2048')
+  })
+
+  it('parses survey markdown into editable survey content', () => {
+    const result = markdownToSurvey(`# Survey
+Title: Project links
+Show Results: true
+Dynamic Responses: true
+
+## Questions
+### Question 1
+ID: existing-mc
+Type: multiple choice
+Prompt:
+Which engine did you use?
+Options:
+- Godot
+- Unity
+
+### Question 2
+Type: link
+Prompt:
+Share your game.
+Max Chars: 2048
+`)
+
+    expect(result.errors).toEqual([])
+    expect(result.content).toEqual({
+      title: 'Project links',
+      show_results: true,
+      dynamic_responses: true,
+      questions: [
+        {
+          id: 'existing-mc',
+          question_type: 'multiple_choice',
+          question_text: 'Which engine did you use?',
+          options: ['Godot', 'Unity'],
+          response_max_chars: 500,
+        },
+        {
+          question_type: 'link',
+          question_text: 'Share your game.',
+          options: [],
+          response_max_chars: 2048,
+        },
+      ],
+    })
+  })
+
+  it('returns survey markdown validation errors', () => {
+    const result = markdownToSurvey(`# Survey
+Title:
+
+## Questions
+### Question 1
+Type: multiple_choice
+Prompt:
+Options:
+- Only one
+`)
+
+    expect(result.content).toBeNull()
+    expect(result.errors).toContain('Title is required')
+    expect(result.errors).toContain('Question 1: Question text is required')
   })
 })

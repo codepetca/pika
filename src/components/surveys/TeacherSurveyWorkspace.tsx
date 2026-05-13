@@ -9,7 +9,7 @@ import {
   useState,
   type TextareaHTMLAttributes,
 } from 'react'
-import { ArrowLeft, BarChart3, ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, BarChart3, Code, ExternalLink, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { Button, Card, ConfirmDialog, FormField, Input, Select } from '@/ui'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { Spinner } from '@/components/Spinner'
@@ -20,6 +20,7 @@ import {
   getSurveyStatusBadgeClass,
   getSurveyStatusLabel,
 } from '@/lib/surveys'
+import { markdownToSurvey, surveyToMarkdown } from '@/lib/survey-markdown'
 import type { Survey, SurveyQuestion, SurveyQuestionResult, SurveyQuestionType } from '@/types'
 
 interface TeacherSurveyWorkspaceProps {
@@ -292,6 +293,12 @@ export function TeacherSurveyWorkspace({
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [statusChanging, setStatusChanging] = useState(false)
+  const [surveyEditMode, setSurveyEditMode] = useState<'edit' | 'markdown'>('edit')
+  const [surveyMarkdown, setSurveyMarkdown] = useState('')
+  const [surveyMarkdownDirty, setSurveyMarkdownDirty] = useState(false)
+  const [surveyMarkdownSaving, setSurveyMarkdownSaving] = useState(false)
+  const [surveyMarkdownError, setSurveyMarkdownError] = useState('')
+  const [surveyMarkdownInfo, setSurveyMarkdownInfo] = useState('')
   const onSurveyUpdatedRef = useRef(onSurveyUpdated)
 
   useEffect(() => {
@@ -299,8 +306,12 @@ export function TeacherSurveyWorkspace({
   }, [onSurveyUpdated])
 
   const survey = detail?.survey ?? null
-  const questions = detail?.questions ?? []
+  const questions = useMemo(() => detail?.questions ?? [], [detail?.questions])
   const statusClassName = survey ? getSurveyStatusBadgeClass(survey.status) : ''
+  const currentSurveyMarkdown = useMemo(
+    () => (survey ? surveyToMarkdown({ survey, questions }) : ''),
+    [questions, survey],
+  )
 
   const loadSurvey = useCallback(async () => {
     setLoading(true)
@@ -335,6 +346,14 @@ export function TeacherSurveyWorkspace({
     void loadSurvey()
     void loadResults()
   }, [loadResults, loadSurvey])
+
+  useEffect(() => {
+    if (!survey) return
+    if (surveyMarkdownDirty) return
+    if (surveyMarkdown !== currentSurveyMarkdown) {
+      setSurveyMarkdown(currentSurveyMarkdown)
+    }
+  }, [currentSurveyMarkdown, survey, surveyMarkdown, surveyMarkdownDirty])
 
   const canOpen = useMemo(() => survey?.status === 'draft' && questions.length > 0, [questions.length, survey?.status])
 
@@ -386,6 +405,123 @@ export function TeacherSurveyWorkspace({
       setError(err instanceof Error ? err.message : 'Failed to add question')
     } finally {
       setAddingQuestion(false)
+    }
+  }
+
+  function handleSurveyMarkdownChange(content: string) {
+    setSurveyMarkdown(content)
+    setSurveyMarkdownDirty(true)
+    setSurveyMarkdownError('')
+    setSurveyMarkdownInfo('')
+  }
+
+  function handleUndoSurveyMarkdownChanges() {
+    setSurveyMarkdown(currentSurveyMarkdown)
+    setSurveyMarkdownDirty(false)
+    setSurveyMarkdownError('')
+    setSurveyMarkdownInfo('')
+  }
+
+  async function applySurveyMarkdown() {
+    if (!survey) return
+    if (isReadOnly) {
+      setSurveyMarkdownError('This survey is read-only.')
+      return
+    }
+
+    setSurveyMarkdownSaving(true)
+    setSurveyMarkdownError('')
+    setSurveyMarkdownInfo('')
+
+    const parsed = markdownToSurvey(surveyMarkdown, {
+      defaultShowResults: survey.show_results,
+      defaultDynamicResponses: survey.dynamic_responses,
+      existingQuestions: questions.map((question) => ({ id: question.id })),
+    })
+
+    if (parsed.errors.length > 0 || !parsed.content) {
+      setSurveyMarkdownError(parsed.errors.join('\n') || 'Invalid markdown')
+      setSurveyMarkdownSaving(false)
+      return
+    }
+
+    try {
+      let nextSurvey = survey
+      const surveyUpdate: Record<string, unknown> = {}
+      if (parsed.content.title !== survey.title) surveyUpdate.title = parsed.content.title
+      if (parsed.content.show_results !== survey.show_results) {
+        surveyUpdate.show_results = parsed.content.show_results
+      }
+      if (parsed.content.dynamic_responses !== survey.dynamic_responses) {
+        surveyUpdate.dynamic_responses = parsed.content.dynamic_responses
+      }
+
+      if (Object.keys(surveyUpdate).length > 0) {
+        const response = await fetch(`/api/teacher/surveys/${surveyId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(surveyUpdate),
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to update survey')
+        nextSurvey = data.survey
+      }
+
+      const existingById = new Map(questions.map((question) => [question.id, question]))
+      const retainedQuestionIds = new Set<string>()
+      const savedQuestions: SurveyQuestion[] = []
+
+      for (let index = 0; index < parsed.content.questions.length; index += 1) {
+        const question = parsed.content.questions[index]
+        const body = {
+          question_type: question.question_type,
+          question_text: question.question_text,
+          options: question.options,
+          response_max_chars: question.response_max_chars,
+          position: index,
+        }
+        const existingQuestion = question.id ? existingById.get(question.id) : undefined
+        const response = await fetch(
+          existingQuestion
+            ? `/api/teacher/surveys/${surveyId}/questions/${encodeURIComponent(existingQuestion.id)}`
+            : `/api/teacher/surveys/${surveyId}/questions`,
+          {
+            method: existingQuestion ? 'PATCH' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          },
+        )
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to save question')
+        retainedQuestionIds.add(data.question.id)
+        savedQuestions.push(data.question)
+      }
+
+      for (const existingQuestion of questions) {
+        if (retainedQuestionIds.has(existingQuestion.id)) continue
+        const response = await fetch(
+          `/api/teacher/surveys/${surveyId}/questions/${encodeURIComponent(existingQuestion.id)}`,
+          { method: 'DELETE' },
+        )
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data.error || 'Failed to delete removed question')
+      }
+
+      const nextQuestions = savedQuestions
+        .slice()
+        .sort((left, right) => left.position - right.position)
+      setDetail({ survey: nextSurvey, questions: nextQuestions })
+      onSurveyUpdated(nextSurvey)
+      await loadResults()
+
+      const nextMarkdown = surveyToMarkdown({ survey: nextSurvey, questions: nextQuestions })
+      setSurveyMarkdown(nextMarkdown)
+      setSurveyMarkdownDirty(false)
+      setSurveyMarkdownInfo('Markdown applied')
+    } catch (err) {
+      setSurveyMarkdownError(err instanceof Error ? err.message : 'Failed to apply markdown')
+    } finally {
+      setSurveyMarkdownSaving(false)
     }
   }
 
@@ -450,6 +586,19 @@ export function TeacherSurveyWorkspace({
             </div>
 
             <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant={surveyEditMode === 'markdown' ? 'subtle' : 'secondary'}
+                aria-pressed={surveyEditMode === 'markdown'}
+                onClick={() => {
+                  setSurveyEditMode((current) => (current === 'markdown' ? 'edit' : 'markdown'))
+                  setSurveyMarkdownError('')
+                  setSurveyMarkdownInfo('')
+                }}
+              >
+                <Code className="mr-1 h-4 w-4" aria-hidden="true" />
+                Code
+              </Button>
               <Button size="sm" variant="secondary" onClick={() => setSettingsOpen(true)}>
                 <Pencil className="mr-1 h-4 w-4" aria-hidden="true" />
                 Settings
@@ -499,104 +648,174 @@ export function TeacherSurveyWorkspace({
               {error}
             </div>
           )}
+          {surveyMarkdownDirty && surveyEditMode === 'markdown' ? (
+            <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+              Markdown edits not applied
+            </div>
+          ) : null}
         </Card>
 
-        <Card tone="panel" padding="md" className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-base font-semibold text-text-default">Questions</h3>
-            <span className="text-sm text-text-muted">{questions.length} total</span>
-          </div>
+        {surveyEditMode === 'markdown' ? (
+          <Card tone="panel" padding="md" className="flex min-h-[560px] flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold text-text-default">Code</h3>
+                <p className="text-sm text-text-muted">{questions.length} question{questions.length === 1 ? '' : 's'}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {surveyMarkdownDirty ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Undo markdown edits"
+                    title="Undo markdown edits"
+                    onClick={handleUndoSurveyMarkdownChanges}
+                    disabled={surveyMarkdownSaving}
+                    className="h-8 w-8 p-0"
+                  >
+                    <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    void applySurveyMarkdown()
+                  }}
+                  disabled={isReadOnly || surveyMarkdownSaving || !surveyMarkdownDirty}
+                >
+                  {surveyMarkdownSaving ? 'Applying...' : 'Apply Markdown'}
+                </Button>
+              </div>
+            </div>
 
-          <div className="grid gap-3 rounded-lg border border-border bg-surface-2 p-3 lg:grid-cols-[12rem_minmax(0,1fr)]">
-            <FormField label="Type">
-              <Select
-                value={newQuestionType}
-                onChange={(event) => setNewQuestionType(event.target.value as SurveyQuestionType)}
-                options={QUESTION_TYPE_OPTIONS}
-                disabled={isReadOnly || addingQuestion}
-              />
-            </FormField>
-            <FormField label="New question">
-              <Input
-                value={newQuestionText}
-                onChange={(event) => setNewQuestionText(event.target.value)}
-                placeholder="Ask students a question"
-                disabled={isReadOnly || addingQuestion}
-              />
-            </FormField>
-            {newQuestionType === 'multiple_choice' && (
-              <div className="lg:col-span-2">
-                <FormField label="Options">
-                  <SurveyTextarea
-                    value={newOptionsText}
-                    onChange={(event) => setNewOptionsText(event.target.value)}
-                    rows={3}
+            {surveyMarkdownInfo ? (
+              <div className="rounded-md border border-success bg-success-bg px-3 py-2 text-sm text-success">
+                {surveyMarkdownInfo}
+              </div>
+            ) : null}
+            {surveyMarkdownError ? (
+              <div className="whitespace-pre-wrap rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+                {surveyMarkdownError}
+              </div>
+            ) : null}
+
+            <textarea
+              data-testid="survey-markdown-editor"
+              value={surveyMarkdown}
+              onChange={(event) => handleSurveyMarkdownChange(event.target.value)}
+              onKeyDown={(event) => {
+                if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's' && surveyMarkdownDirty) {
+                  event.preventDefault()
+                  void applySurveyMarkdown()
+                }
+              }}
+              readOnly={isReadOnly || surveyMarkdownSaving}
+              className="min-h-[460px] flex-1 rounded-md border border-border bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
+              spellCheck={false}
+            />
+          </Card>
+        ) : (
+          <>
+            <Card tone="panel" padding="md" className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-base font-semibold text-text-default">Questions</h3>
+                <span className="text-sm text-text-muted">{questions.length} total</span>
+              </div>
+
+              <div className="grid gap-3 rounded-lg border border-border bg-surface-2 p-3 lg:grid-cols-[12rem_minmax(0,1fr)]">
+                <FormField label="Type">
+                  <Select
+                    value={newQuestionType}
+                    onChange={(event) => setNewQuestionType(event.target.value as SurveyQuestionType)}
+                    options={QUESTION_TYPE_OPTIONS}
                     disabled={isReadOnly || addingQuestion}
-                    className="w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
                   />
                 </FormField>
+                <FormField label="New question">
+                  <Input
+                    value={newQuestionText}
+                    onChange={(event) => setNewQuestionText(event.target.value)}
+                    placeholder="Ask students a question"
+                    disabled={isReadOnly || addingQuestion}
+                  />
+                </FormField>
+                {newQuestionType === 'multiple_choice' && (
+                  <div className="lg:col-span-2">
+                    <FormField label="Options">
+                      <SurveyTextarea
+                        value={newOptionsText}
+                        onChange={(event) => setNewOptionsText(event.target.value)}
+                        rows={3}
+                        disabled={isReadOnly || addingQuestion}
+                        className="w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
+                      />
+                    </FormField>
+                  </div>
+                )}
+                <div className="lg:col-span-2 flex justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={addQuestion}
+                    disabled={isReadOnly || addingQuestion || !newQuestionText.trim()}
+                  >
+                    <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
+                    {addingQuestion ? 'Adding...' : 'Add question'}
+                  </Button>
+                </div>
               </div>
-            )}
-            <div className="lg:col-span-2 flex justify-end">
-              <Button
-                type="button"
-                size="sm"
-                onClick={addQuestion}
-                disabled={isReadOnly || addingQuestion || !newQuestionText.trim()}
-              >
-                <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
-                {addingQuestion ? 'Adding...' : 'Add question'}
-              </Button>
-            </div>
-          </div>
 
-          <div className="space-y-3">
-            {questions.length === 0 ? (
-              <p className="rounded-lg border border-border bg-surface px-3 py-4 text-center text-sm text-text-muted">
-                Add at least one question before opening the survey.
-              </p>
-            ) : (
-              questions.map((question) => (
-                <QuestionEditor
-                  key={question.id}
-                  question={question}
-                  disabled={isReadOnly}
-                  onSaved={(updatedQuestion) => {
-                    setDetail((current) =>
-                      current
-                        ? {
-                            ...current,
-                            questions: current.questions.map((item) =>
-                              item.id === updatedQuestion.id ? updatedQuestion : item
-                            ),
-                          }
-                        : current
-                    )
-                  }}
-                  onDeleted={(questionId) => {
-                    setDetail((current) =>
-                      current
-                        ? {
-                            ...current,
-                            questions: current.questions.filter((item) => item.id !== questionId),
-                          }
-                        : current
-                    )
-                    void loadResults()
-                  }}
-                />
-              ))
-            )}
-          </div>
-        </Card>
+              <div className="space-y-3">
+                {questions.length === 0 ? (
+                  <p className="rounded-lg border border-border bg-surface px-3 py-4 text-center text-sm text-text-muted">
+                    Add at least one question before opening the survey.
+                  </p>
+                ) : (
+                  questions.map((question) => (
+                    <QuestionEditor
+                      key={question.id}
+                      question={question}
+                      disabled={isReadOnly}
+                      onSaved={(updatedQuestion) => {
+                        setDetail((current) =>
+                          current
+                            ? {
+                                ...current,
+                                questions: current.questions.map((item) =>
+                                  item.id === updatedQuestion.id ? updatedQuestion : item
+                                ),
+                              }
+                            : current
+                        )
+                      }}
+                      onDeleted={(questionId) => {
+                        setDetail((current) =>
+                          current
+                            ? {
+                                ...current,
+                                questions: current.questions.filter((item) => item.id !== questionId),
+                              }
+                            : current
+                        )
+                        void loadResults()
+                      }}
+                    />
+                  ))
+                )}
+              </div>
+            </Card>
 
-        <Card tone="panel" padding="md" className="space-y-4">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-text-muted" aria-hidden="true" />
-            <h3 className="text-base font-semibold text-text-default">Results</h3>
-          </div>
-          <ResultsView payload={results} />
-        </Card>
+            <Card tone="panel" padding="md" className="space-y-4">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-text-muted" aria-hidden="true" />
+                <h3 className="text-base font-semibold text-text-default">Results</h3>
+              </div>
+              <ResultsView payload={results} />
+            </Card>
+          </>
+        )}
       </div>
 
       <SurveyModal

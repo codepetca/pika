@@ -33,13 +33,17 @@ export const POST = withErrorHandler('PostTeacherSurveyQuestion', async (request
     .maybeSingle()
 
   const nextPosition = typeof lastQuestion?.position === 'number' ? lastQuestion.position + 1 : 0
+  const requestedPosition =
+    typeof body.position === 'number' && Number.isFinite(body.position)
+      ? Math.max(0, Math.floor(body.position))
+      : nextPosition
 
   const { data: question, error } = await supabase
     .from('survey_questions')
     .insert({
       survey_id: surveyId,
       ...normalized.question,
-      position: nextPosition,
+      position: requestedPosition,
     })
     .select()
     .single()

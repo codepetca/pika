@@ -40,9 +40,14 @@ export const PATCH = withErrorHandler('PatchTeacherSurveyQuestion', async (reque
     return NextResponse.json({ error: normalized.error }, { status: 400 })
   }
 
+  const updates: Record<string, unknown> = { ...normalized.question }
+  if (typeof body.position === 'number' && Number.isFinite(body.position)) {
+    updates.position = Math.max(0, Math.floor(body.position))
+  }
+
   const { data: question, error } = await supabase
     .from('survey_questions')
-    .update(normalized.question)
+    .update(updates)
     .eq('id', questionId)
     .select()
     .single()

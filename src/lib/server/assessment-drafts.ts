@@ -33,6 +33,8 @@ export type QuizDraftContent = {
   title: string
   show_results: boolean
   questions: QuizDraftQuestion[]
+  source_format?: 'markdown'
+  source_markdown?: string
 }
 
 export type TestDraftContent = {

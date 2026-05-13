@@ -7,6 +7,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-05-10 — Submitted-aware test unsubmit action
+
+**Completed:**
+- Confirmed selected-student test-work deletion does not close/open student access; it deletes attempt data only and leaves `test_student_availability` unchanged.
+- Changed the selected-test `Unsubmit Selected` action to enable only when selected rows include submitted work.
+- Filtered batch unsubmit requests so mixed selections submit only the selected students whose work is currently submitted.
+- Added focused component coverage for disabled no-submitted selection and mixed-selection submitted-only unsubmit requests.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
+- Targeted visual captures:
+  - `/tmp/pika-unsubmit-disabled-no-submitted-selected.png`
+  - `/tmp/pika-unsubmit-enabled-submitted-selected.png`
+- `pnpm build`
+
 ## 2026-05-10 — Test action menu counts
 
 **Completed:**
@@ -385,3 +403,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-survey-teacher-workspace.png`
   - `/tmp/pika-survey-student-classwork.png`
   - `/tmp/pika-survey-student-form.png`
+
+## 2026-05-13 — Quiz and survey source editors
+
+**Completed:**
+- Generalized the test editor-only/markdown-only authoring layout so quizzes can use the same modal Code toggle flow without test documents.
+- Added quiz markdown source serialization/parsing and draft source persistence for AI-friendly quiz authoring.
+- Added a survey Code view with markdown serialization/parsing for multiple-choice, short-text, and link questions, including title/results/dynamic settings.
+- Let survey question POST/PATCH accept explicit `position` so markdown apply preserves source order.
+- Added route, parser, and component coverage for the new quiz/survey source authoring paths.
+
+**Validation:**
+- `pnpm test tests/lib/quiz-markdown.test.ts tests/unit/surveys.test.ts tests/components/QuizDetailPanel.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/api/teacher/surveys-questions-route.test.ts tests/api/teacher/surveys-questions-id.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/surveys-classwork bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional teacher screenshots:
+  - `/tmp/pika-quiz-edit-modal.png`
+  - `/tmp/pika-quiz-code-modal.png`
+  - `/tmp/pika-survey-code.png`
