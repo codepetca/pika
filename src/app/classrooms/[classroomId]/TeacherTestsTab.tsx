@@ -1802,7 +1802,6 @@ export function TeacherTestsTab({
           rowKeys={gradingRowIds}
           selectedKey={selectedStudentId}
           onSelectKey={selectGradingStudent}
-          onDeselect={() => selectGradingStudent(null)}
           className="min-h-0 w-full flex-1 overflow-auto rounded-md border border-border bg-surface"
           data-testid="test-grading-student-scroll-pane"
           onScroll={preserveGradingStudentTableScrollPosition}

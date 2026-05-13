@@ -1060,6 +1060,33 @@ describe('TeacherTestsTab', () => {
     })
   })
 
+  it('clears batch selection and the active grading student with Escape from the student table', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    fireEvent.click(await screen.findByLabelText('Select Alice Zephyr'))
+    fireEvent.click(await screen.findByText('Alice Zephyr'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test-grading-panel')).toBeInTheDocument()
+    })
+    expect(screen.getByLabelText('Select Alice Zephyr')).toBeChecked()
+
+    fireEvent.keyDown(screen.getByTestId('test-grading-student-scroll-pane'), { key: 'Escape' })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('mock-test-grading-panel')).not.toBeInTheDocument()
+    })
+    expect(screen.getByLabelText('Select Alice Zephyr')).not.toBeChecked()
+  })
+
   it('clears the selected grading row when clicking table chrome outside the highlighted row', async () => {
     fetchMock
       .mockResolvedValueOnce({
