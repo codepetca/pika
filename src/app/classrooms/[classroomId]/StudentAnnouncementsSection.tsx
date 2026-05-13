@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/ui'
+import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { Spinner } from '@/components/Spinner'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import type { Announcement, Classroom } from '@/types'
@@ -103,9 +104,7 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
             {formatDate(announcement.created_at)}
             {announcement.updated_at !== announcement.created_at && ' (edited)'}
           </p>
-          <p className="text-sm text-text-default whitespace-pre-wrap">
-            {announcement.content}
-          </p>
+          <AnnouncementContent content={announcement.content} />
         </div>
       ))}
 

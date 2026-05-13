@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest'
 import {
   getQuizStatusLabel,
   getAssessmentStatusLabel,
+  getTeacherTestListDisplayStatus,
   getQuizStatusBadgeClass,
   canStudentRespond,
   canStudentViewResults,
@@ -49,6 +50,53 @@ describe('quiz utilities', () => {
 
     it('should keep "Active" for active quizzes', () => {
       expect(getAssessmentStatusLabel('active', 'quiz')).toBe('Active')
+    })
+  })
+
+  describe('getTeacherTestListDisplayStatus', () => {
+    it('shows active tests as closed when access is closed for every student', () => {
+      expect(
+        getTeacherTestListDisplayStatus({
+          status: 'active',
+          stats: {
+            total_students: 2,
+            responded: 1,
+            questions_count: 3,
+            open_access: 0,
+            closed_access: 2,
+          },
+        })
+      ).toBe('closed')
+    })
+
+    it('keeps active tests open when at least one student still has access', () => {
+      expect(
+        getTeacherTestListDisplayStatus({
+          status: 'active',
+          stats: {
+            total_students: 2,
+            responded: 1,
+            questions_count: 3,
+            open_access: 1,
+            closed_access: 1,
+          },
+        })
+      ).toBe('active')
+    })
+
+    it('keeps active tests open when there are no enrolled students', () => {
+      expect(
+        getTeacherTestListDisplayStatus({
+          status: 'active',
+          stats: {
+            total_students: 0,
+            responded: 0,
+            questions_count: 3,
+            open_access: 0,
+            closed_access: 0,
+          },
+        })
+      ).toBe('active')
     })
   })
 
