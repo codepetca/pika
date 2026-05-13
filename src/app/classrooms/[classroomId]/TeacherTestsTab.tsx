@@ -25,6 +25,15 @@ import {
   AssessmentStatusIndicator,
   getTestGradingWorkStatusDisplay,
 } from '@/components/AssessmentStatusIndicator'
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderCell,
+  DataTableRow,
+  KeyboardNavigableTable,
+} from '@/components/DataTable'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
@@ -1788,16 +1797,19 @@ export function TeacherTestsTab({
           tone="muted"
         />
       ) : (
-        <div
+        <KeyboardNavigableTable
           ref={gradingStudentTableScrollRef}
+          rowKeys={gradingRowIds}
+          selectedKey={selectedStudentId}
+          onSelectKey={selectGradingStudent}
           className="min-h-0 w-full flex-1 overflow-auto rounded-md border border-border bg-surface"
           data-testid="test-grading-student-scroll-pane"
           onScroll={preserveGradingStudentTableScrollPosition}
         >
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-surface-hover text-left text-text-muted">
-                <th className="w-10 px-3 py-2 font-medium">
+          <DataTable density="tight" className="text-sm">
+            <DataTableHead>
+              <DataTableRow>
+                <DataTableHeaderCell className="w-10 px-3 py-2">
                   <input
                     type="checkbox"
                     checked={batchAllSelected}
@@ -1805,8 +1817,8 @@ export function TeacherTestsTab({
                     className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                     aria-label="Select all students"
                   />
-                </th>
-                <th className="px-3 py-2 font-medium">
+                </DataTableHeaderCell>
+                <DataTableHeaderCell className="px-3 py-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -1824,16 +1836,16 @@ export function TeacherTestsTab({
                       {gradingSortColumn === 'last_name' ? 'Last' : 'First'}
                     </span>
                   </button>
-                </th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Access</th>
-                <th className="px-3 py-2 font-medium">Score</th>
-                <th className="px-3 py-2 font-medium">
+                </DataTableHeaderCell>
+                <DataTableHeaderCell className="px-3 py-2">Status</DataTableHeaderCell>
+                <DataTableHeaderCell className="px-3 py-2">Access</DataTableHeaderCell>
+                <DataTableHeaderCell className="px-3 py-2">Score</DataTableHeaderCell>
+                <DataTableHeaderCell className="px-3 py-2">
                   <Tooltip content="Most recent recorded in-test activity time (Toronto).">
                     <span className="cursor-help">Last</span>
                   </Tooltip>
-                </th>
-                <th className="px-3 py-2 font-medium">
+                </DataTableHeaderCell>
+                <DataTableHeaderCell className="px-3 py-2">
                   <Tooltip
                     content={
                       <div className="space-y-0.5">
@@ -1848,17 +1860,17 @@ export function TeacherTestsTab({
                       <LogOut className="h-4 w-4" />
                     </span>
                   </Tooltip>
-                </th>
-                <th className="px-3 py-2 font-medium">
+                </DataTableHeaderCell>
+                <DataTableHeaderCell className="px-3 py-2">
                   <Tooltip content="Total time this student was away from the test route.">
                     <span className="inline-flex cursor-help items-center" aria-label="Away column">
                       <ClockAlert className="h-4 w-4" />
                     </span>
                   </Tooltip>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+                </DataTableHeaderCell>
+              </DataTableRow>
+            </DataTableHead>
+            <DataTableBody>
               {sortedGradingStudents.map((student) => {
                 const isSelected = student.student_id === selectedStudentId
                 const scoreLabel =
@@ -1907,16 +1919,17 @@ export function TeacherTestsTab({
                   student.status === 'submitted' && !isReadOnly && !isCombinedTestActionsBusy
 
                 return (
-                  <tr
+                  <DataTableRow
                     key={student.student_id}
                     data-test-grading-student-row=""
+                    aria-selected={isSelected}
                     className={[
-                      'cursor-pointer border-t border-border transition-colors hover:bg-surface-hover',
-                      isSelected ? 'bg-surface-selected' : '',
+                      'cursor-pointer transition-colors',
+                      isSelected ? 'border-l-2 border-l-primary bg-surface-selected shadow-sm' : 'hover:bg-surface-hover',
                     ].join(' ')}
                     onClick={() => selectGradingStudent(student.student_id)}
                   >
-                    <td className="px-3 py-2">
+                    <DataTableCell className="px-3 py-2">
                       <input
                         type="checkbox"
                         checked={batchSelectedIds.has(student.student_id)}
@@ -1925,11 +1938,11 @@ export function TeacherTestsTab({
                         className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                         aria-label={`Select ${student.name || 'student'}`}
                       />
-                    </td>
-                    <td className="px-3 py-2">
+                    </DataTableCell>
+                    <DataTableCell className="px-3 py-2">
                       <div className="font-medium text-text-default">{student.name || 'Student'}</div>
-                    </td>
-                    <td className="px-3 py-2">
+                    </DataTableCell>
+                    <DataTableCell className="px-3 py-2">
                       {student.status === 'submitted' ? (
                         <Tooltip content={canUnsubmitStudent ? `${statusMeta.label}. Click to mark ${studentLabel} unsubmitted.` : statusMeta.label}>
                           <button
@@ -1956,8 +1969,8 @@ export function TeacherTestsTab({
                           </span>
                         </Tooltip>
                       )}
-                    </td>
-                    <td className="px-3 py-2">
+                    </DataTableCell>
+                    <DataTableCell className="px-3 py-2">
                       <Tooltip content={`${accessTooltip}. ${accessActionTooltip}`}>
                         <button
                           type="button"
@@ -1972,9 +1985,9 @@ export function TeacherTestsTab({
                           <AccessIcon className={`h-4 w-4 ${accessIconClass}`} aria-hidden="true" />
                         </button>
                       </Tooltip>
-                    </td>
-                    <td className="px-3 py-2 text-text-default">{scoreLabel}</td>
-                    <td
+                    </DataTableCell>
+                    <DataTableCell className="px-3 py-2 text-text-default">{scoreLabel}</DataTableCell>
+                    <DataTableCell
                       className={[
                         'px-3 py-2 tabular-nums',
                         formattedLastActivity.isPm ? 'font-semibold text-text-default' : 'text-text-muted',
@@ -1990,8 +2003,8 @@ export function TeacherTestsTab({
                           {formattedLastActivity.value}
                         </span>
                       </Tooltip>
-                    </td>
-                    <td className="px-3 py-2 text-xs text-text-muted tabular-nums">
+                    </DataTableCell>
+                    <DataTableCell className="px-3 py-2 text-xs text-text-muted tabular-nums">
                       <Tooltip
                         content={
                           <div className="space-y-0.5">
@@ -2009,8 +2022,8 @@ export function TeacherTestsTab({
                           {exitsCount}
                         </span>
                       </Tooltip>
-                    </td>
-                    <td className="px-3 py-2 text-xs text-text-muted tabular-nums">
+                    </DataTableCell>
+                    <DataTableCell className="px-3 py-2 text-xs text-text-muted tabular-nums">
                       <Tooltip content={`Away from test route for ${awayLabel} total.`}>
                         <span
                           className="cursor-help"
@@ -2019,13 +2032,13 @@ export function TeacherTestsTab({
                           {awayLabel}
                         </span>
                       </Tooltip>
-                    </td>
-                  </tr>
+                    </DataTableCell>
+                  </DataTableRow>
                 )
               })}
-            </tbody>
-          </table>
-        </div>
+            </DataTableBody>
+          </DataTable>
+        </KeyboardNavigableTable>
       )}
     </div>
   )
