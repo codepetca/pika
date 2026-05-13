@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { LessonCalendar } from '@/components/LessonCalendar'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { TooltipProvider } from '@/ui'
-import type { Assignment, Classroom, LessonPlan, TiptapContent } from '@/types'
+import type { Announcement, Assignment, Classroom, LessonPlan, TiptapContent } from '@/types'
 import type { ReactNode } from 'react'
 
 // Mock the keyboard shortcut hook
@@ -54,6 +54,16 @@ const allModeLessonPlan: LessonPlan = {
   content_markdown: 'All mode lesson',
   created_at: '2026-03-01T00:00:00.000Z',
   updated_at: '2026-03-01T00:00:00.000Z',
+}
+
+const markdownAnnouncement: Announcement = {
+  id: 'announcement-1',
+  classroom_id: 'cls-123',
+  content: 'Read the [course outline](https://example.com/outline) before class.',
+  created_by: 't1',
+  scheduled_for: null,
+  created_at: '2026-03-16T14:00:00.000Z',
+  updated_at: '2026-03-16T14:00:00.000Z',
 }
 
 function Wrapper({ children }: { children: ReactNode }) {
@@ -186,6 +196,30 @@ describe('LessonCalendar', () => {
 
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByText('Week 11 quiz')).toBeInTheDocument()
+  })
+
+  it('renders announcement markdown in the focused day dialog', () => {
+    render(
+      <LessonCalendar
+        classroom={mockClassroom}
+        lessonPlans={[]}
+        announcements={[markdownAnnouncement]}
+        viewMode="week"
+        currentDate={new Date('2026-03-16T12:00:00')}
+        editable={false}
+        onDateChange={vi.fn()}
+        onViewModeChange={vi.fn()}
+      />,
+      { wrapper: Wrapper }
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /open monday, march 16, 2026/i }))
+
+    const dialog = screen.getByRole('dialog', { name: /monday, march 16, 2026/i })
+    expect(within(dialog).getByRole('link', { name: 'course outline' })).toHaveAttribute(
+      'href',
+      'https://example.com/outline',
+    )
   })
 
   it('allows inline editing in all view', () => {

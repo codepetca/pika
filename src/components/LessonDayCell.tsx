@@ -2,6 +2,7 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
+import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
@@ -16,11 +17,13 @@ function isScheduled(announcement: Announcement): boolean {
 
 function AnnouncementTooltipContent({ announcements }: { announcements: Announcement[] }) {
   return (
-    <div className="w-[min(14rem,calc(100vw-2rem))] text-left text-sm leading-5 whitespace-pre-wrap break-words">
+    <div className="w-[min(14rem,calc(100vw-2rem))] text-left text-sm leading-5 break-words">
       {announcements.map((announcement, index) => (
-        <p key={announcement.id} className={index > 0 ? 'mt-3' : undefined}>
-          {announcement.content}
-        </p>
+        <AnnouncementContent
+          key={announcement.id}
+          content={announcement.content}
+          className={index > 0 ? 'mt-3' : undefined}
+        />
       ))}
     </div>
   )

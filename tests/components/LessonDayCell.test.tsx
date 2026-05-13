@@ -37,6 +37,12 @@ const multiLineAnnouncement: Announcement = {
   content: `${'This announcement keeps going so the tooltip has enough text to wrap onto multiple lines in a narrower tooltip. '.repeat(3)}Final sentence should still be visible.`,
 }
 
+const markdownAnnouncement: Announcement = {
+  ...longAnnouncement,
+  id: 'announcement-3',
+  content: 'Read the [course outline](https://example.com/outline) before class.',
+}
+
 function renderWithTooltip(ui: ReactElement) {
   return render(<TooltipProvider>{ui}</TooltipProvider>)
 }
@@ -221,5 +227,28 @@ describe('LessonDayCell', () => {
 
     expect(tooltipText).toContain('Final sentence should still be visible.')
     expect(tooltipText).not.toContain('...')
+  })
+
+  it('renders markdown links in announcement tooltips', async () => {
+    renderWithTooltip(
+      <LessonDayCell
+        date="2026-03-13"
+        day={new Date('2026-03-13T12:00:00.000Z')}
+        lessonPlan={null}
+        announcements={[markdownAnnouncement]}
+        isWeekend={false}
+        isToday={false}
+        editable={false}
+        compact={false}
+      />
+    )
+
+    fireEvent.focus(screen.getByRole('button', { name: 'Announcement' }))
+
+    const tooltip = await screen.findByRole('tooltip')
+    expect(within(tooltip).getByRole('link', { name: 'course outline' })).toHaveAttribute(
+      'href',
+      'https://example.com/outline',
+    )
   })
 })

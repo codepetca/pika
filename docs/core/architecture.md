@@ -176,8 +176,8 @@ logic in the app layer:
 - **Scheduling**: `combineScheduleDateTimeToIso()` / `isScheduleIsoInFuture()` from `@/lib/scheduling`
 - **AI grading** (tests only): `src/lib/ai-test-grading.ts` — reference answer SHA-256 cached per question
 
-### Content Fields (Tiptap JSON)
-Assignment docs, quiz/test questions, announcements, and lesson plans store content as Tiptap JSON.
+### Content Fields
+Assignment docs, quiz/test questions, and lesson plans store content as Tiptap JSON.
 Always parse content using the shared utility:
 
 ```ts
@@ -187,6 +187,9 @@ const content = parseContentField(doc.content)  // handles string or object
 ```
 
 **Never define a local `parseContentField` function in a route file.**
+
+Announcement content is stored as markdown text in `announcements.content` and rendered through
+`LimitedMarkdown` via `AnnouncementContent`.
 
 ### Migration Shims
 When a DB migration is applied in stages (some environments may not have it yet), code uses
@@ -365,7 +368,7 @@ Existing indexes (migration 038):
 - `assessment_drafts` — `assessment_id`, `assessment_type`, `content` (JSONB), `version`, `created_by`; used for collaborative editing with JSON Patch
 
 ### Content
-- `announcements` — `classroom_id`, `title`, `content` (Tiptap JSON), `created_by`, timestamps
+- `announcements` — `classroom_id`, `content` (markdown text), `created_by`, timestamps
 - `resources` — `classroom_id`, `title`, `url`, `description`, timestamps
 - `lesson_plans` — `classroom_id`, `class_day_id`, `content` (Tiptap JSON)
 

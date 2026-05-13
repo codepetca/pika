@@ -9,6 +9,7 @@ import type {
   QuizFocusSummary,
   QuizQuestion,
   QuizResponse,
+  QuizWithStats,
   QuizStatus,
   StudentQuizStatus,
   QuizResultsAggregate,
@@ -32,6 +33,36 @@ export function getAssessmentStatusLabel(
 ): string {
   if (assessmentType === 'test' && status === 'active') return 'Open'
   return getQuizStatusLabel(status)
+}
+
+export function getTeacherTestListDisplayStatus(
+  test: Pick<Quiz, 'status'> & {
+    stats?: Partial<QuizWithStats['stats']> | null
+  }
+): QuizStatus {
+  if (test.status !== 'active') return test.status
+
+  const totalStudents = toNonNegativeCount(test.stats?.total_students)
+  const openAccess = toNonNegativeCount(test.stats?.open_access)
+  const closedAccess = toNonNegativeCount(test.stats?.closed_access)
+
+  if (
+    openAccess === 0 &&
+    closedAccess !== null &&
+    totalStudents !== null &&
+    totalStudents > 0 &&
+    closedAccess >= totalStudents
+  ) {
+    return 'closed'
+  }
+
+  return 'active'
+}
+
+function toNonNegativeCount(value: unknown): number | null {
+  const count = Number(value)
+  if (!Number.isFinite(count)) return null
+  return Math.max(0, Math.trunc(count))
 }
 
 /**
