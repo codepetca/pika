@@ -7,25 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-09 — Daily log summary collapse
-
-**Completed:**
-- Removed the Daily tab floating action cluster show/hide button for the class log summary.
-- Changed the class log summary from hidden/shown to expanded/collapsed states.
-- Double-clicking the bottom summary panel collapses it to a 40px bar labeled `Log Summary`.
-- Double-clicking the collapsed bar restores the summary to the standard 180px height.
-- Preserved handle resizing, including dragging upward from the collapsed bar to reopen and resize the panel.
-- Added focused component coverage for double-click collapse/restore and drag-reopen behavior.
-
-**Validation:**
-- `pnpm test tests/components/TeacherAttendanceTab.test.tsx`
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance'`
-- Targeted visual captures:
-  - `/tmp/pika-daily-log-summary-collapsed.png`
-  - `/tmp/pika-daily-log-summary-drag-reopened.png`
-- `pnpm build`
-
 ## 2026-05-10 — Submitted-aware test unsubmit action
 
 **Completed:**
@@ -348,4 +329,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-pane-scroll bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests&testId=92120fed-7145-4118-a8ad-117e7962d679&testMode=grading&testStudentId=23977f0b-efb8-4408-98cb-2e6887c4fd7e'`
 - DOM scroll check: window stayed at `scrollY=0`, left table pane filled the workspace, right inspector reported `overflow-y: auto` with independent scroll.
 - Temporary sample tests were seeded for the visual capture and removed afterward; the shared classroom test list returned to empty.
+- `pnpm test`
+
+## 2026-05-13 — Teacher test student arrow navigation
+
+**Completed:**
+- Put the selected teacher test grading student list on the shared `KeyboardNavigableTable` and `DataTable` primitives used by assignment student tables.
+- Extended `KeyboardNavigableTable` so it can own scroll-pane props like `className`, `data-testid`, and `onScroll` while preserving its arrow-key selection behavior.
+- Added regression coverage for moving the selected test student with ArrowDown and ArrowUp.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-arrow-key-navigation bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/DataTable.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx`
+- `pnpm lint`
+- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-arrow-key-navigation bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests&testId=88a8b3b5-7559-417e-8d16-c53175a3d692&testMode=grading&testStudentId=23977f0b-efb8-4408-98cb-2e6887c4fd7e'`
+- Browser smoke check: clicked the selected student row, pressed ArrowDown, and confirmed the URL, selected row, and grading inspector moved from Student1 to Student2.
+- Temporary verification test `88a8b3b5-7559-417e-8d16-c53175a3d692` was deleted after screenshots and browser checks.
+- `pnpm build`
 - `pnpm test`
