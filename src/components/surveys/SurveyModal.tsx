@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { X } from 'lucide-react'
-import { Button, DialogPanel, FormField, Input } from '@/ui'
+import { AssessmentSetupDialog } from '@/components/assessment/AssessmentSetupDialog'
+import { Button, FormField, Input } from '@/ui'
 import type { Survey } from '@/types'
 
 interface SurveyModalProps {
@@ -78,32 +78,24 @@ export function SurveyModal({
   }
 
   return (
-    <DialogPanel
+    <AssessmentSetupDialog
       isOpen={isOpen}
       onClose={onClose}
-      maxWidth="max-w-md"
-      className="p-6"
-      ariaLabelledBy="survey-modal-title"
+      isCompact={isEditMode}
+      compactMaxWidth="max-w-md"
+      title={isEditMode ? 'Edit Survey' : 'New Survey'}
+      titleId="survey-modal-title"
+      closeLabel="Close survey modal"
+      closeDisabled={saving}
     >
-      <div className="mb-4 flex items-start gap-3">
-        <h2 id="survey-modal-title" className="min-w-0 flex-1 truncate text-xl font-bold text-text-default">
-          {isEditMode ? 'Edit Survey' : 'New Survey'}
-        </h2>
-        <Button
-          type="button"
-          variant="surface"
-          size="sm"
-          className="h-10 w-10 flex-shrink-0 px-0"
-          onClick={onClose}
-          disabled={saving}
-          aria-label="Close survey modal"
-          title="Close"
-        >
-          <X className="h-5 w-5" aria-hidden="true" />
-        </Button>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form
+        onSubmit={handleSubmit}
+        className={
+          isEditMode
+            ? 'space-y-4 flex-1 min-h-0 overflow-y-auto'
+            : 'flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4'
+        }
+      >
         <FormField label="Title" error={error}>
           <Input
             ref={titleInputRef}
@@ -115,43 +107,47 @@ export function SurveyModal({
           />
         </FormField>
 
-        <label className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            checked={showResults}
-            onChange={(event) => setShowResults(event.target.checked)}
-            disabled={saving}
-            className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
-          />
-          <span className="text-sm text-text-default">Show class results to students after they respond</span>
-        </label>
+        <div className={isEditMode ? 'space-y-3' : 'rounded-lg border border-border bg-surface-2 p-4'}>
+          <div className="space-y-3">
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={showResults}
+                onChange={(event) => setShowResults(event.target.checked)}
+                disabled={saving}
+                className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              />
+              <span className="text-sm text-text-default">Show class results to students after they respond</span>
+            </label>
 
-        <label className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            checked={dynamicResponses}
-            onChange={(event) => setDynamicResponses(event.target.checked)}
-            disabled={saving}
-            className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
-          />
-          <span className="text-sm text-text-default">Dynamic responses: students can update answers while open</span>
-        </label>
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={dynamicResponses}
+                onChange={(event) => setDynamicResponses(event.target.checked)}
+                disabled={saving}
+                className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              />
+              <span className="text-sm text-text-default">Dynamic responses: students can update answers while open</span>
+            </label>
+          </div>
+        </div>
 
-        <div className="flex gap-3 pt-2">
+        <div className={isEditMode ? 'flex gap-3 pt-2' : 'mt-auto flex justify-end gap-3 border-t border-border pt-4'}>
           <Button
             type="button"
             variant="secondary"
-            className="flex-1"
+            className={isEditMode ? 'flex-1' : 'min-w-28'}
             onClick={onClose}
             disabled={saving}
           >
             Cancel
           </Button>
-          <Button type="submit" variant="primary" className="flex-1" disabled={saving}>
+          <Button type="submit" variant="primary" className={isEditMode ? 'flex-1' : 'min-w-28'} disabled={saving}>
             {saving ? 'Saving...' : isEditMode ? 'Save' : 'Create'}
           </Button>
         </div>
       </form>
-    </DialogPanel>
+    </AssessmentSetupDialog>
   )
 }

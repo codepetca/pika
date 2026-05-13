@@ -7,40 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-10 — Submitted-aware test unsubmit action
-
-**Completed:**
-- Confirmed selected-student test-work deletion does not close/open student access; it deletes attempt data only and leaves `test_student_availability` unchanged.
-- Changed the selected-test `Unsubmit Selected` action to enable only when selected rows include submitted work.
-- Filtered batch unsubmit requests so mixed selections submit only the selected students whose work is currently submitted.
-- Added focused component coverage for disabled no-submitted selection and mixed-selection submitted-only unsubmit requests.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
-- Targeted visual captures:
-  - `/tmp/pika-unsubmit-disabled-no-submitted-selected.png`
-  - `/tmp/pika-unsubmit-enabled-submitted-selected.png`
-- `pnpm build`
-
-## 2026-05-10 — Test action menu counts
-
-**Completed:**
-- Added compact count badges to the selected-test dropdown items for `AI Grade`, `Unsubmit Selected`, `Return`, and `Delete Selected`.
-- Counts now reflect the current selected rows and action eligibility: selected rows for AI grading/deletion, submitted selected rows for unsubmit, and closed/returnable selected rows for return.
-- Added focused component assertions for the action menu count labels.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
-- Targeted visual capture:
-  - `/tmp/pika-test-action-menu-counts.png`
-- `pnpm build`
-
 ## 2026-05-10 — Markdown-only test editor defaults
 
 **Completed:**
@@ -423,3 +389,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-quiz-edit-modal.png`
   - `/tmp/pika-quiz-code-modal.png`
   - `/tmp/pika-survey-code.png`
+
+## 2026-05-13 — Survey setup parity
+
+**Completed:**
+- Extracted a shared assessment setup dialog shell and routed quiz/test setup plus survey setup through it.
+- Updated new survey creation to use the same full-screen assessment setup frame as quiz/test creation.
+- After creating a survey, route the teacher directly into the new survey workspace with Code authoring selected.
+- Added component coverage for survey setup chrome and the created-survey Code-mode handoff.
+
+**Validation:**
+- `pnpm test tests/components/QuizModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/surveys-classwork E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional teacher screenshots:
+  - `/tmp/pika-survey-create-modal.png`
+  - `/tmp/pika-survey-create-modal-mobile.png`
+  - `/tmp/pika-survey-created-code.png`

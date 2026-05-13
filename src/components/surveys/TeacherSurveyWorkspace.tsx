@@ -27,6 +27,8 @@ interface TeacherSurveyWorkspaceProps {
   classroomId: string
   surveyId: string
   isReadOnly?: boolean
+  initialEditMode?: 'edit' | 'markdown'
+  onInitialEditModeConsumed?: () => void
   onBack: () => void
   onSurveyUpdated: (survey: Survey) => void
   onSurveyDeleted: (surveyId: string) => void
@@ -278,6 +280,8 @@ export function TeacherSurveyWorkspace({
   classroomId,
   surveyId,
   isReadOnly = false,
+  initialEditMode,
+  onInitialEditModeConsumed,
   onBack,
   onSurveyUpdated,
   onSurveyDeleted,
@@ -300,6 +304,7 @@ export function TeacherSurveyWorkspace({
   const [surveyMarkdownError, setSurveyMarkdownError] = useState('')
   const [surveyMarkdownInfo, setSurveyMarkdownInfo] = useState('')
   const onSurveyUpdatedRef = useRef(onSurveyUpdated)
+  const consumedInitialEditModeRef = useRef<string | null>(null)
 
   useEffect(() => {
     onSurveyUpdatedRef.current = onSurveyUpdated
@@ -354,6 +359,18 @@ export function TeacherSurveyWorkspace({
       setSurveyMarkdown(currentSurveyMarkdown)
     }
   }, [currentSurveyMarkdown, survey, surveyMarkdown, surveyMarkdownDirty])
+
+  useEffect(() => {
+    if (!survey || !initialEditMode) return
+    const initialEditModeKey = `${survey.id}:${initialEditMode}`
+    if (consumedInitialEditModeRef.current === initialEditModeKey) return
+
+    consumedInitialEditModeRef.current = initialEditModeKey
+    setSurveyEditMode(initialEditMode)
+    setSurveyMarkdownError('')
+    setSurveyMarkdownInfo('')
+    onInitialEditModeConsumed?.()
+  }, [initialEditMode, onInitialEditModeConsumed, survey])
 
   const canOpen = useMemo(() => survey?.status === 'draft' && questions.length > 0, [questions.length, survey?.status])
 

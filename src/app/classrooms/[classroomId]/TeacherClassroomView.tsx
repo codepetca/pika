@@ -554,6 +554,10 @@ export function TeacherClassroomView({
   const [pendingSurveyDelete, setPendingSurveyDelete] = useState<SurveyWithStats | null>(null)
   const [isDeletingSurvey, setIsDeletingSurvey] = useState(false)
   const [selection, setSelection] = useState<TeacherClassworkSelection>({ mode: 'summary' })
+  const [createdSurveyEditorIntent, setCreatedSurveyEditorIntent] = useState<{
+    surveyId: string
+    editMode: 'edit' | 'markdown'
+  } | null>(null)
   const [isReordering, setIsReordering] = useState(false)
   const [assignmentEditMode, setAssignmentEditMode] = useState(false)
 
@@ -719,8 +723,17 @@ export function TeacherClassroomView({
           ]
     })
     setIsSurveyModalOpen(false)
+    setCreatedSurveyEditorIntent({ surveyId: survey.id, editMode: 'markdown' })
+    writeCookie(`teacherAssignmentsSelection:${classroom.id}`, `survey:${survey.id}`)
+    setSelection({ mode: 'survey', surveyId: survey.id })
+    updateSearchParams?.((params) => {
+      params.set('tab', 'assignments')
+      params.delete('assignmentId')
+      params.set('surveyId', survey.id)
+      params.delete('assignmentStudentId')
+    }, { replace: true })
     void loadAssignments({ preserveContent: true })
-  }, [classroom.id, loadAssignments])
+  }, [classroom.id, loadAssignments, updateSearchParams])
 
   const deleteMaterial = useCallback(async () => {
     if (!pendingMaterialDelete) return
@@ -2310,6 +2323,12 @@ export function TeacherClassroomView({
       classroomId={classroom.id}
       surveyId={selectedSurveyId}
       isReadOnly={isReadOnly}
+      initialEditMode={
+        createdSurveyEditorIntent?.surveyId === selectedSurveyId
+          ? createdSurveyEditorIntent.editMode
+          : undefined
+      }
+      onInitialEditModeConsumed={() => setCreatedSurveyEditorIntent(null)}
       onBack={() => setSelectionAndPersist({ mode: 'summary' })}
       onSurveyUpdated={(updatedSurvey) => {
         setSurveys((current) =>
