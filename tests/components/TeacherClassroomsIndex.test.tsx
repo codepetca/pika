@@ -73,7 +73,10 @@ describe('TeacherClassroomsIndex', () => {
     const editButton = screen.getByRole('button', { name: 'Edit' })
     const card = screen.getByTestId('classroom-card')
 
-    expect(editButton.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(
+      within(screen.getByTestId('classroom-bottom-controls')).getByRole('button', { name: 'Edit' })
+    ).toBe(editButton)
+    expect(card.compareDocumentPosition(editButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
 
     fireEvent.click(editButton)
