@@ -10,6 +10,7 @@ import type {
   Survey,
   SurveyQuestion,
   SurveyQuestionResult,
+  SurveyTextResponseResult,
   SurveyResponseValue,
 } from '@/types'
 
@@ -26,8 +27,12 @@ type SurveyDetailPayload = {
   student_status: StudentSurveyStatus
 }
 
+type StudentSurveyQuestionResult = Omit<SurveyQuestionResult, 'responses'> & {
+  responses: Array<Omit<SurveyTextResponseResult, 'student_id' | 'name' | 'email'>>
+}
+
 type SurveyResultsPayload = {
-  results: SurveyQuestionResult[]
+  results: StudentSurveyQuestionResult[]
 }
 
 function selectedOptionFromResponse(response: SurveyResponseValue | undefined): number | null {

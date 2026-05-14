@@ -7,50 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-11 — Mixed classwork material ordering
-
-**Completed:**
-- Added material `position` migration and mixed assignment/material classwork ordering.
-- Added teacher classwork reorder API for `{ type, id }` item lists.
-- Moved classwork reorder persistence into transaction-backed Postgres RPC functions.
-- Hardened classwork reorder requests to reject stale partial lists while preserving assignment-only reorder around material position slots.
-- Made assignment/material create routes fail closed on unexpected mixed-order position lookup errors.
-- Preserved existing material positions when the assignment Markdown bulk-save path rewrites assignment positions.
-- Updated teacher classwork summary so materials are visually distinct and draggable in edit mode.
-- Updated student classwork summary to render the same mixed order with distinct material cards.
-- Refined material cards to use tint plus a left accent rail instead of an icon, keeping the Syllabus icon reserved for Syllabus.
-- Documented the material card/order behavior in assignment UX guidance.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/classwork-material-order bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/lib/classwork-order.test.ts tests/api/teacher/classwork-reorder.test.ts tests/api/teacher/materials.test.ts tests/api/student/materials.test.ts tests/api/teacher/assignments.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- Post-iconless refinement:
-  - `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
-  - `pnpm lint`
-- Final pre-push validation:
-  - `pnpm test tests/api/teacher/classwork-reorder.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
-  - `pnpm lint`
-  - `pnpm test`
-  - `pnpm build`
-- Transactional reorder fix:
-  - `pnpm test tests/api/teacher/classwork-reorder.test.ts tests/api/teacher/assignments-reorder.test.ts tests/api/teacher/assignments-bulk.test.ts tests/api/teacher/assignments.test.ts tests/api/teacher/materials.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
-  - `pnpm lint`
-  - `pnpm build`
-  - `supabase db lint --local --schema public --fail-on error` (existing unrelated warning: `public.unsubmit_test_attempts_atomic` unused `p_updated_by`)
-  - `pnpm test`
-- Visual verification:
-  - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=assignments'`
-  - `/tmp/pika-teacher-material.png`
-  - `/tmp/pika-student-material.png`
-  - `/tmp/pika-teacher-material-dark.png`
-  - `/tmp/pika-student-material-dark.png`
-  - `/tmp/pika-teacher-material-tinted.png`
-  - `/tmp/pika-student-material-tinted.png`
-  - `/tmp/pika-student-material-tinted-dark.png`
-
 ## 2026-05-11 — Classwork migration filename resequence
 
 **Completed:**
@@ -416,3 +372,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Additional survey creation screenshots:
   - `/tmp/pika-survey-create-shared-desktop.png`
   - `/tmp/pika-survey-create-shared-mobile.png`
+
+## 2026-05-13 — Student survey review fixes
+
+**Completed:**
+- Preserved saved link responses as `question_type: 'link'` in the student survey detail payload.
+- Removed classmate `student_id` values from student-visible survey result responses.
+- Added API regression coverage for link response discriminants and student result payload privacy.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/api/student/surveys-route.test.ts`
+- `pnpm lint`

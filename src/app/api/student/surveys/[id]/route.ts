@@ -51,19 +51,25 @@ export const GET = withErrorHandler('GetStudentSurvey', async (_request, context
     return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
   }
 
+  const questionTypeById = new Map(
+    (questions || []).map((question) => [question.id, question.question_type])
+  )
   const studentResponses = Object.fromEntries(
-    (responseRows || []).map((response) => [
-      response.question_id,
-      response.selected_option !== null
-        ? {
-            question_type: 'multiple_choice' as const,
-            selected_option: response.selected_option,
-          }
-        : {
-            question_type: 'short_text' as const,
-            response_text: response.response_text || '',
-          },
-    ])
+    (responseRows || []).map((response) => {
+      const questionType = questionTypeById.get(response.question_id)
+      return [
+        response.question_id,
+        response.selected_option !== null
+          ? {
+              question_type: 'multiple_choice' as const,
+              selected_option: response.selected_option,
+            }
+          : {
+              question_type: questionType === 'link' ? 'link' as const : 'short_text' as const,
+              response_text: response.response_text || '',
+            },
+      ]
+    })
   )
 
   const studentStatus = getStudentSurveyStatus(survey, hasResponded)

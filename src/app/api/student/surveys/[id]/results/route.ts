@@ -63,7 +63,6 @@ export const GET = withErrorHandler('GetStudentSurveyResults', async (_request, 
     ...result,
     responses: result.responses.map((response) => ({
       response_id: response.response_id,
-      student_id: response.student_id,
       response_text: response.response_text,
       submitted_at: response.submitted_at,
       updated_at: response.updated_at,
