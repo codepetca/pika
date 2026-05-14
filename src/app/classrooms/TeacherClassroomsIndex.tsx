@@ -178,6 +178,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     function clearEditMode() {
       setIsEditingClassrooms(false)
       setDraggingClassroomId(null)
+      setView('active')
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -303,7 +304,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     : 'Confirm'
 
   const dialogVariant = pendingAction?.mode === 'delete' ? 'danger' : 'default'
-  const showCreateClassroomButton = activeClassrooms.length === 0 || isEditingClassrooms
+  const showCreateClassroomButton = view === 'active' && (activeClassrooms.length === 0 || isEditingClassrooms)
 
   const openClassroom = useCallback((classroom: Classroom) => {
     setOpeningClassroomId(classroom.id)
@@ -473,37 +474,42 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
       <div
         data-testid="classroom-bottom-controls"
-        className="fixed bottom-4 left-1/2 z-40 w-max max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-lg bg-surface/95 p-1 shadow-elevated backdrop-blur"
+        className="fixed bottom-4 left-1/2 z-40 w-[calc(100vw-3.5rem)] max-w-[40.5rem] -translate-x-1/2 rounded-card bg-surface/95 py-2 pl-3 pr-1 shadow-elevated backdrop-blur"
       >
-        <div className="flex items-center gap-1">
-          <SegmentedControl<ViewMode>
-            ariaLabel="Classroom view"
-            value={view}
-            onChange={setView}
-            iconOnly={!isEditingClassrooms}
-            className="border border-border shadow-sm"
-            options={[
-              {
-                value: 'active',
-                label: 'Active',
-                icon: <CircleDot className="h-3.5 w-3.5" />,
-              },
-              {
-                value: 'archived',
-                label: 'Archived',
-                icon: <Archive className="h-3.5 w-3.5" />,
-              },
-            ]}
-          />
+        <div className="relative min-h-9">
+          {isEditingClassrooms ? (
+            <div className="absolute left-1/2 -translate-x-1/2">
+              <SegmentedControl<ViewMode>
+                ariaLabel="Classroom view"
+                value={view}
+                onChange={setView}
+                className="border border-border shadow-sm"
+                options={[
+                  {
+                    value: 'active',
+                    label: 'Active',
+                    icon: <CircleDot className="h-3.5 w-3.5" />,
+                  },
+                  {
+                    value: 'archived',
+                    label: 'Archived',
+                    icon: <Archive className="h-3.5 w-3.5" />,
+                  },
+                ]}
+              />
+            </div>
+          ) : null}
           <TeacherEditModeControls
             active={isEditingClassrooms}
             onActiveChange={(active) => {
               setIsEditingClassrooms(active)
               if (!active) {
                 setDraggingClassroomId(null)
+                setView('active')
               }
             }}
             disabled={openingClassroomId !== null}
+            className="absolute right-0 top-1/2 -translate-y-1/2"
           />
         </div>
       </div>
