@@ -7,58 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-11 — Classwork migration filename resequence
-
-**Completed:**
-- Renamed the mixed classwork material ordering migration from a timestamped filename to the next numeric-leading Pika migration slot, `067_classwork_mixed_ordering.sql`.
-
-**Validation:**
-- `bash scripts/verify-env.sh` exposed an unrelated session-log length failure before trimming.
-- `node scripts/trim-session-log.mjs`
-
-## 2026-05-11 — Remove material card outline highlight
-
-**Completed:**
-- Removed the primary outline and left accent rail from teacher and student material cards while keeping the soft tint and `Material` label.
-- Added component assertions to keep material cards on neutral borders without the primary rail.
-- Updated assignment UX guidance to describe tint-based material differentiation.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=assignments'` captured the route but local DB state returned "Classroom not found".
-- Supplemental CSS visual harness:
-  - `/tmp/pika-material-no-outline-harness.png`
-  - `/tmp/pika-material-no-outline-harness-dark.png`
-
-## 2026-05-11 — Smooth material drag treatment
-
-**Completed:**
-- Removed the material card's hover transition while it is actively dragging so dnd-kit owns transform movement like assignment cards.
-- Added a neutral drag-border option to the shared teacher work item frame and used it for material cards.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkItemPrimitives.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Pika UI verify captured the target route but local DB state still returned "Classroom not found".
-- Supplemental drag-state harness:
-  - `/tmp/pika-material-drag-state-harness.png`
-
-## 2026-05-11 — Restrict classwork reorder RPC execution
-
-**Completed:**
-- Added explicit `revoke all` from `public`, `anon`, and `authenticated` for the new classwork reorder RPCs.
-- Granted both reorder RPCs only to `service_role`, matching the API route authorization boundary.
-- Added a static migration regression test for the RPC grant contract.
-
-**Validation:**
-- `pnpm test tests/unit/classwork-migration-rpc-grants.test.ts tests/api/teacher/classwork-reorder.test.ts tests/api/teacher/assignments-reorder.test.ts`
-- `pnpm lint`
-- `supabase db lint --local --schema public --fail-on error` (existing unrelated warning: `public.unsubmit_test_attempts_atomic` unused `p_updated_by`)
-- `pnpm build`
-
 ## 2026-05-11 — Add Daily quick date buttons
 
 **Completed:**
@@ -254,6 +202,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/chrome-ui-guidance bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/ui-guidance-candidate-script.test.ts`
+
 ## 2026-05-13 — Classroom list edit control placement
 
 **Completed:**
@@ -266,6 +215,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/classroom-list-edit-pen bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Extra teacher edit-mode captures: `/tmp/pika-teacher-edit.png`, `/tmp/pika-teacher-mobile-edit.png`
+
 ## 2026-05-13 — Classwork surveys
 
 **Completed:**
@@ -384,3 +334,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash scripts/verify-env.sh`
 - `pnpm test tests/api/student/surveys-route.test.ts`
 - `pnpm lint`
+
+## 2026-05-14 — Survey review follow-up fixes
+
+**Completed:**
+- Trimmed the rolling session log and shortened the new survey feature entry to restore startup-budget tests.
+- Reserved survey positions when assignment markdown bulk-save recomputes assignment positions.
+- Replaced the assignment-preserve reorder RPC in the survey migration so it skips both material and survey positions.
+
+**Validation:**
+- `pnpm test tests/unit/ai-startup-docs.test.ts tests/api/teacher/assignments-bulk.test.ts tests/api/teacher/assignments-reorder.test.ts tests/unit/classwork-migration-rpc-grants.test.ts`
+- `bash scripts/verify-env.sh`
+- `pnpm lint`
+- `pnpm build`

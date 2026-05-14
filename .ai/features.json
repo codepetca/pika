@@ -119,10 +119,10 @@
     },
     {
       "id": "epic-classwork-surveys",
-      "phase": "Phase 9 — Classwork Engagement",
-      "description": "Ungraded Classwork surveys with MC/text/link, dynamic updates, and results",
+      "phase": "Phase 9 — Surveys",
+      "description": "Classwork surveys: MC/text/link, updates, results",
       "passes": true,
-      "verification": "Run: pnpm lint && pnpm test -- --maxWorkers=4 && pnpm build; smoke survey flow.",
+      "verification": "pnpm lint && pnpm test && pnpm build",
       "issueRefs": [],
       "blockedBy": [],
       "addedDate": "2026-05-13",

@@ -368,6 +368,135 @@ $$ language plpgsql;
 revoke all on function public.reorder_classwork_items(uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.reorder_classwork_items(uuid, jsonb) to service_role;
 
+create or replace function public.reorder_assignments_preserve_materials(
+  p_classroom_id uuid,
+  p_assignment_ids jsonb
+)
+returns void as $$
+declare
+  submitted_count integer;
+  current_count integer;
+  next_position integer := 0;
+  submitted_assignment record;
+begin
+  if p_assignment_ids is null or jsonb_typeof(p_assignment_ids) <> 'array' then
+    raise exception 'assignment_ids must be an array' using errcode = '22023';
+  end if;
+
+  with submitted as (
+    select
+      (entry.ordinality - 1)::integer as submitted_position,
+      entry.value #>> '{}' as assignment_id,
+      jsonb_typeof(entry.value) as value_type
+    from jsonb_array_elements(p_assignment_ids) with ordinality as entry(value, ordinality)
+  )
+  select count(*) into submitted_count
+  from submitted;
+
+  if exists (
+    with submitted as (
+      select
+        entry.value #>> '{}' as assignment_id,
+        jsonb_typeof(entry.value) as value_type
+      from jsonb_array_elements(p_assignment_ids) with ordinality as entry(value, ordinality)
+    )
+    select 1
+    from submitted
+    where value_type <> 'string'
+      or assignment_id is null
+      or assignment_id = ''
+  ) then
+    raise exception 'assignment_ids must include strings' using errcode = '22023';
+  end if;
+
+  if exists (
+    with submitted as (
+      select entry.value #>> '{}' as assignment_id
+      from jsonb_array_elements(p_assignment_ids) with ordinality as entry(value, ordinality)
+    )
+    select 1
+    from submitted
+    group by assignment_id
+    having count(*) > 1
+  ) then
+    raise exception 'assignment_ids must be unique' using errcode = '22023';
+  end if;
+
+  select count(*) into current_count
+  from public.assignments assignment
+  where assignment.classroom_id = p_classroom_id;
+
+  if submitted_count <> current_count then
+    raise exception 'Assignment list changed. Refresh and try again.' using errcode = 'P0001';
+  end if;
+
+  if exists (
+    with submitted as (
+      select entry.value #>> '{}' as assignment_id
+      from jsonb_array_elements(p_assignment_ids) with ordinality as entry(value, ordinality)
+    )
+    select 1
+    from submitted
+    where not exists (
+      select 1
+      from public.assignments assignment
+      where assignment.classroom_id = p_classroom_id
+        and assignment.id::text = submitted.assignment_id
+    )
+  ) then
+    raise exception 'One or more assignments not found in classroom' using errcode = 'P0001';
+  end if;
+
+  if exists (
+    with submitted as (
+      select entry.value #>> '{}' as assignment_id
+      from jsonb_array_elements(p_assignment_ids) with ordinality as entry(value, ordinality)
+    )
+    select 1
+    from public.assignments assignment
+    where assignment.classroom_id = p_classroom_id
+      and not exists (
+        select 1
+        from submitted
+        where submitted.assignment_id = assignment.id::text
+      )
+  ) then
+    raise exception 'Assignment list changed. Refresh and try again.' using errcode = 'P0001';
+  end if;
+
+  for submitted_assignment in
+    select
+      entry.value #>> '{}' as assignment_id
+    from jsonb_array_elements(p_assignment_ids) with ordinality as entry(value, ordinality)
+    order by entry.ordinality
+  loop
+    while exists (
+      select 1
+      from public.classwork_materials material
+      where material.classroom_id = p_classroom_id
+        and material.position = next_position
+    ) or exists (
+      select 1
+      from public.surveys survey
+      where survey.classroom_id = p_classroom_id
+        and survey.position = next_position
+    ) loop
+      next_position := next_position + 1;
+    end loop;
+
+    update public.assignments assignment
+    set position = next_position
+    where assignment.classroom_id = p_classroom_id
+      and assignment.id::text = submitted_assignment.assignment_id;
+
+    next_position := next_position + 1;
+  end loop;
+end;
+$$ language plpgsql;
+
+revoke all on function public.reorder_assignments_preserve_materials(uuid, jsonb) from public, anon, authenticated;
+grant execute on function public.reorder_assignments_preserve_materials(uuid, jsonb) to service_role;
+
 alter table public.surveys enable row level security;
 alter table public.survey_questions enable row level security;
 alter table public.survey_responses enable row level security;

@@ -18,8 +18,7 @@ describe('classwork mixed ordering migration', () => {
       'reorder_classwork_items',
       'reorder_assignments_preserve_materials',
     ]) {
-      const migrationText =
-        functionName === 'reorder_classwork_items' ? `${migration}\n${surveyMigration}` : migration
+      const migrationText = `${migration}\n${surveyMigration}`
 
       expect(migrationText).toContain(
         `revoke all on function public.${functionName}(uuid, jsonb) from public, anon, authenticated;`,
@@ -36,5 +35,7 @@ describe('classwork mixed ordering migration', () => {
     expect(migration).toContain("item_type not in ('assignment', 'material', 'survey')")
     expect(migration).toContain("select 'survey'::text as item_type")
     expect(migration).toContain('update public.surveys survey')
+    expect(migration).toContain('create or replace function public.reorder_assignments_preserve_materials')
+    expect(migration).toContain('survey.position = next_position')
   })
 })
