@@ -490,6 +490,131 @@ describe('QuizDetailPanel', () => {
       expect(screen.queryByText('Markdown')).not.toBeInTheDocument()
     })
 
+    it('renders quizzes in editor-only mode without test documents', async () => {
+      mockFetchForQuiz(sampleQuestions)
+      const quiz = makeQuizWithStats({
+        title: 'Quiz Editor Modal',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={quiz}
+          classroomId="classroom-1"
+          onQuizUpdate={vi.fn()}
+          assessmentQuestionLayout="editor-only"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      expect(await screen.findByTestId('quiz-editor-only-layout')).toBeInTheDocument()
+      const editorPane = screen.getByTestId('quiz-question-editor-pane')
+      expect(editorPane).toBeInTheDocument()
+      expect(screen.queryByTestId('test-documents-card')).not.toBeInTheDocument()
+      expect(within(editorPane).getByText('2 questions')).toBeInTheDocument()
+      expect(within(editorPane).getByRole('button', { name: 'Add Question' })).toBeInTheDocument()
+    })
+
+    it('renders quizzes in markdown-only mode and saves through the quiz draft endpoint', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Quiz Markdown Modal',
+                show_results: false,
+                questions: sampleQuestions,
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 2,
+              content: {
+                title: 'Quiz Markdown Modal Updated',
+                show_results: true,
+                questions: [
+                  {
+                    id: '33333333-3333-4333-8333-333333333333',
+                    question_text: 'Updated quiz prompt?',
+                    options: ['A', 'B'],
+                  },
+                ],
+                source_format: 'markdown',
+              },
+            },
+          }),
+        })
+
+      const quiz = makeQuizWithStats({
+        id: 'quiz-markdown-modal-id',
+        title: 'Quiz Markdown Modal',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={quiz}
+          classroomId="classroom-1"
+          onQuizUpdate={vi.fn()}
+          assessmentQuestionLayout="markdown-only"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      expect(await screen.findByTestId('quiz-markdown-only-layout')).toBeInTheDocument()
+      const markdownEditor = screen.getByTestId('quiz-markdown-editor') as HTMLTextAreaElement
+      expect(markdownEditor.value).toContain('Quiz Markdown Modal')
+      expect(markdownEditor).toHaveProperty('readOnly', false)
+
+      fireEvent.change(markdownEditor, {
+        target: {
+          value: `# Quiz
+Title: Quiz Markdown Modal Updated
+Show Results: true
+
+## Questions
+### Question 1
+Prompt:
+Updated quiz prompt?
+Options:
+- A
+- B
+`,
+        },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Markdown' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Markdown applied')).toBeInTheDocument()
+      })
+
+      const patchCall = fetchMock.mock.calls.find(
+        (call: any[]) =>
+          typeof call[0] === 'string' &&
+          call[0].includes('/api/teacher/quizzes/quiz-markdown-modal-id/draft') &&
+          call[1]?.method === 'PATCH'
+      )
+      expect(patchCall).toBeTruthy()
+      const body = JSON.parse(patchCall?.[1]?.body ?? '{}')
+      expect(body.content.title).toBe('Quiz Markdown Modal Updated')
+      expect(body.content.show_results).toBe(true)
+      expect(body.content.questions).toHaveLength(1)
+      expect(body.content.source_format).toBe('markdown')
+      expect(body.content.source_markdown).toContain('Updated quiz prompt?')
+      expect(body.documents).toBeUndefined()
+    })
+
     it('cleans up interrupted summary-detail drags and resets on double click', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({

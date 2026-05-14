@@ -7,144 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-10 — Test action menu counts
-
-**Completed:**
-- Added compact count badges to the selected-test dropdown items for `AI Grade`, `Unsubmit Selected`, `Return`, and `Delete Selected`.
-- Counts now reflect the current selected rows and action eligibility: selected rows for AI grading/deletion, submitted selected rows for unsubmit, and closed/returnable selected rows for return.
-- Added focused component assertions for the action menu count labels.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
-- Targeted visual capture:
-  - `/tmp/pika-test-action-menu-counts.png`
-- `pnpm build`
-
-## 2026-05-10 — Markdown-only test editor defaults
-
-**Completed:**
-- Made editable markdown-only test editor surfaces enter writable mode by default, including create-test Code view and existing-test Code view.
-- Removed the markdown `Copy` and `Schema` toolbar actions from `QuizDetailPanel`.
-- Removed the now-redundant `startMarkdownEditing` prop plumbing from the tests tab.
-- Updated focused component coverage for default editable markdown-only layout and absent copy/schema actions.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/QuizDetailPanel.test.tsx tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-markdown-editor-default bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=tests'`
-- Targeted visual capture:
-  - `/tmp/pika-test-edit-code.png`
-
-## 2026-05-11 — Trim session log for CI
-
-**Completed:**
-- Trimmed the rolling session log after PR work so it stays within the enforced 20-entry budget.
-
-**Validation:**
-- `pnpm test tests/unit/ai-startup-docs.test.ts`
-
-## 2026-05-11 — Mixed classwork material ordering
-
-**Completed:**
-- Added material `position` migration and mixed assignment/material classwork ordering.
-- Added teacher classwork reorder API for `{ type, id }` item lists.
-- Moved classwork reorder persistence into transaction-backed Postgres RPC functions.
-- Hardened classwork reorder requests to reject stale partial lists while preserving assignment-only reorder around material position slots.
-- Made assignment/material create routes fail closed on unexpected mixed-order position lookup errors.
-- Preserved existing material positions when the assignment Markdown bulk-save path rewrites assignment positions.
-- Updated teacher classwork summary so materials are visually distinct and draggable in edit mode.
-- Updated student classwork summary to render the same mixed order with distinct material cards.
-- Refined material cards to use tint plus a left accent rail instead of an icon, keeping the Syllabus icon reserved for Syllabus.
-- Documented the material card/order behavior in assignment UX guidance.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/classwork-material-order bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/lib/classwork-order.test.ts tests/api/teacher/classwork-reorder.test.ts tests/api/teacher/materials.test.ts tests/api/student/materials.test.ts tests/api/teacher/assignments.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- Post-iconless refinement:
-  - `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
-  - `pnpm lint`
-- Final pre-push validation:
-  - `pnpm test tests/api/teacher/classwork-reorder.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
-  - `pnpm lint`
-  - `pnpm test`
-  - `pnpm build`
-- Transactional reorder fix:
-  - `pnpm test tests/api/teacher/classwork-reorder.test.ts tests/api/teacher/assignments-reorder.test.ts tests/api/teacher/assignments-bulk.test.ts tests/api/teacher/assignments.test.ts tests/api/teacher/materials.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
-  - `pnpm lint`
-  - `pnpm build`
-  - `supabase db lint --local --schema public --fail-on error` (existing unrelated warning: `public.unsubmit_test_attempts_atomic` unused `p_updated_by`)
-  - `pnpm test`
-- Visual verification:
-  - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=assignments'`
-  - `/tmp/pika-teacher-material.png`
-  - `/tmp/pika-student-material.png`
-  - `/tmp/pika-teacher-material-dark.png`
-  - `/tmp/pika-student-material-dark.png`
-  - `/tmp/pika-teacher-material-tinted.png`
-  - `/tmp/pika-student-material-tinted.png`
-  - `/tmp/pika-student-material-tinted-dark.png`
-
-## 2026-05-11 — Classwork migration filename resequence
-
-**Completed:**
-- Renamed the mixed classwork material ordering migration from a timestamped filename to the next numeric-leading Pika migration slot, `067_classwork_mixed_ordering.sql`.
-
-**Validation:**
-- `bash scripts/verify-env.sh` exposed an unrelated session-log length failure before trimming.
-- `node scripts/trim-session-log.mjs`
-
-## 2026-05-11 — Remove material card outline highlight
-
-**Completed:**
-- Removed the primary outline and left accent rail from teacher and student material cards while keeping the soft tint and `Material` label.
-- Added component assertions to keep material cards on neutral borders without the primary rail.
-- Updated assignment UX guidance to describe tint-based material differentiation.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/491562df-96cd-4d21-8dc5-cff996396d41?tab=assignments'` captured the route but local DB state returned "Classroom not found".
-- Supplemental CSS visual harness:
-  - `/tmp/pika-material-no-outline-harness.png`
-  - `/tmp/pika-material-no-outline-harness-dark.png`
-
-## 2026-05-11 — Smooth material drag treatment
-
-**Completed:**
-- Removed the material card's hover transition while it is actively dragging so dnd-kit owns transform movement like assignment cards.
-- Added a neutral drag-border option to the shared teacher work item frame and used it for material cards.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkItemPrimitives.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Pika UI verify captured the target route but local DB state still returned "Classroom not found".
-- Supplemental drag-state harness:
-  - `/tmp/pika-material-drag-state-harness.png`
-
-## 2026-05-11 — Restrict classwork reorder RPC execution
-
-**Completed:**
-- Added explicit `revoke all` from `public`, `anon`, and `authenticated` for the new classwork reorder RPCs.
-- Granted both reorder RPCs only to `service_role`, matching the API route authorization boundary.
-- Added a static migration regression test for the RPC grant contract.
-
-**Validation:**
-- `pnpm test tests/unit/classwork-migration-rpc-grants.test.ts tests/api/teacher/classwork-reorder.test.ts tests/api/teacher/assignments-reorder.test.ts`
-- `pnpm lint`
-- `supabase db lint --local --schema public --fail-on error` (existing unrelated warning: `public.unsubmit_test_attempts_atomic` unused `p_updated_by`)
-- `pnpm build`
-
 ## 2026-05-11 — Add Daily quick date buttons
 
 **Completed:**
@@ -340,6 +202,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/chrome-ui-guidance bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/ui-guidance-candidate-script.test.ts`
+
 ## 2026-05-13 — Classroom list edit control placement
 
 **Completed:**
@@ -352,3 +215,135 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/classroom-list-edit-pen bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Extra teacher edit-mode captures: `/tmp/pika-teacher-edit.png`, `/tmp/pika-teacher-mobile-edit.png`
+
+## 2026-05-13 — Classwork surveys
+
+**Completed:**
+- Added surveys as ungraded Classwork items with draft/active/closed status, classwork ordering, and teacher/student API routes.
+- Added survey question types for multiple choice, short text, and link responses, including response validation and link normalization.
+- Added a dynamic responses toggle so students can update answers while an active survey remains open.
+- Fixed the responded-student status priority so dynamic surveys remain updateable even when class results are visible.
+- Added teacher survey creation/settings, question editing, class results, survey cards, and student survey cards/response form/results support.
+- Added the Supabase migration `068_surveys_classwork.sql` for surveys, questions, responses, RLS, and mixed classwork ordering RPC support.
+- Kept Classwork assignment/material loading resilient if the surveys endpoint is unavailable before the migration is applied.
+- Rebased the worktree onto `origin/main` and resequenced the survey migration after `067_classwork_mixed_ordering.sql`.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/unit/surveys.test.ts tests/lib/classwork-order.test.ts tests/unit/classwork-migration-rpc-grants.test.ts`
+- `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/unit/surveys.test.ts`
+- `pnpm test tests/unit/surveys.test.ts tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm test -- --maxWorkers=4`
+- `pnpm build`
+- `git rev-list --left-right --count origin/main...HEAD` -> `0 0`
+- Migration prefix duplicate check returned no duplicates.
+- `E2E_BASE_URL=http://localhost:3000 pnpm e2e:auth`
+- Standard UI verify for live teacher/student Classwork pages:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Mocked survey UI verification for migration-independent teacher/student survey states:
+  - `/tmp/pika-survey-teacher-classwork.png`
+  - `/tmp/pika-survey-teacher-modal.png`
+  - `/tmp/pika-survey-teacher-workspace.png`
+  - `/tmp/pika-survey-student-classwork.png`
+  - `/tmp/pika-survey-student-form.png`
+
+## 2026-05-13 — Quiz and survey source editors
+
+**Completed:**
+- Generalized the test editor-only/markdown-only authoring layout so quizzes can use the same modal Code toggle flow without test documents.
+- Added quiz markdown source serialization/parsing and draft source persistence for AI-friendly quiz authoring.
+- Added a survey Code view with markdown serialization/parsing for multiple-choice, short-text, and link questions, including title/results/dynamic settings.
+- Let survey question POST/PATCH accept explicit `position` so markdown apply preserves source order.
+- Added route, parser, and component coverage for the new quiz/survey source authoring paths.
+
+**Validation:**
+- `pnpm test tests/lib/quiz-markdown.test.ts tests/unit/surveys.test.ts tests/components/QuizDetailPanel.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/api/teacher/surveys-questions-route.test.ts tests/api/teacher/surveys-questions-id.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/surveys-classwork bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional teacher screenshots:
+  - `/tmp/pika-quiz-edit-modal.png`
+  - `/tmp/pika-quiz-code-modal.png`
+  - `/tmp/pika-survey-code.png`
+
+## 2026-05-13 — Survey setup parity
+
+**Completed:**
+- Extracted a shared assessment setup dialog shell and routed quiz/test setup plus survey setup through it.
+- Updated new survey creation to use the same full-screen assessment setup frame as quiz/test creation.
+- After creating a survey, route the teacher directly into the new survey workspace with Code authoring selected.
+- Added component coverage for survey setup chrome and the created-survey Code-mode handoff.
+
+**Validation:**
+- `pnpm test tests/components/QuizModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/surveys-classwork E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional teacher screenshots:
+  - `/tmp/pika-survey-create-modal.png`
+  - `/tmp/pika-survey-create-modal-mobile.png`
+  - `/tmp/pika-survey-created-code.png`
+
+## 2026-05-13 — Survey workspace modal routing
+
+**Completed:**
+- Changed teacher survey cards and `surveyId` routes to open `TeacherSurveyWorkspace` in a dialog over the Classwork summary instead of replacing the main content pane.
+- Kept survey creation handoff to Code mode while returning the pane selection/cookie to the Classwork summary.
+- Added regression coverage for card-opened and routed survey modals preserving the classwork list behind the dialog.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/SurveyModal.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/surveys-classwork E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional survey modal screenshots:
+  - `/tmp/pika-survey-modal-desktop.png`
+  - `/tmp/pika-survey-modal-mobile.png`
+
+## 2026-05-13 — Survey setup form parity
+
+**Completed:**
+- Extracted the shared quiz/test setup body into `AssessmentSetupForm` with the common title field, footer actions, and checkbox control.
+- Routed both `QuizModal` and `SurveyModal` through the shared setup form so survey creation matches quiz/test creation structure.
+- Removed the survey-specific settings box from creation; survey options now sit in the same plain form rhythm as the quiz/test controls.
+
+**Validation:**
+- `pnpm test tests/components/QuizModal.test.tsx tests/components/SurveyModal.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/surveys-classwork E2E_BASE_URL=http://localhost:3002 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional survey creation screenshots:
+  - `/tmp/pika-survey-create-shared-desktop.png`
+  - `/tmp/pika-survey-create-shared-mobile.png`
+
+## 2026-05-13 — Student survey review fixes
+
+**Completed:**
+- Preserved saved link responses as `question_type: 'link'` in the student survey detail payload.
+- Removed classmate `student_id` values from student-visible survey result responses.
+- Added API regression coverage for link response discriminants and student result payload privacy.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/api/student/surveys-route.test.ts`
+- `pnpm lint`
+
+## 2026-05-14 — Survey review follow-up fixes
+
+**Completed:**
+- Trimmed the rolling session log and shortened the new survey feature entry to restore startup-budget tests.
+- Reserved survey positions when assignment markdown bulk-save recomputes assignment positions.
+- Replaced the assignment-preserve reorder RPC in the survey migration so it skips both material and survey positions.
+
+**Validation:**
+- `pnpm test tests/unit/ai-startup-docs.test.ts tests/api/teacher/assignments-bulk.test.ts tests/api/teacher/assignments-reorder.test.ts tests/unit/classwork-migration-rpc-grants.test.ts`
+- `bash scripts/verify-env.sh`
+- `pnpm lint`
+- `pnpm build`

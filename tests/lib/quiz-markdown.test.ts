@@ -40,7 +40,7 @@ Options:
     const result = markdownToQuiz(markdown)
 
     expect(result.errors).toEqual([])
-    expect(result.draftContent).toEqual({
+    expect(result.draftContent).toMatchObject({
       title: 'Intro Quiz',
       show_results: true,
       questions: [
@@ -51,6 +51,8 @@ Options:
         },
       ],
     })
+    expect(result.draftContent?.source_format).toBe('markdown')
+    expect(result.draftContent?.source_markdown).toContain('Title: Intro Quiz')
   })
 
   it('returns actionable errors for invalid markdown', () => {
@@ -67,7 +69,7 @@ Options:
 
     expect(result.draftContent).toBeNull()
     expect(result.errors).toContain('Question 1: Prompt is required')
-    expect(result.errors).toContain('Question 1: At least 2 options are required')
+    expect(result.errors).toContain('Question 1: At least 2 options required')
     expect(result.errors).toContain('Title is required')
   })
 })
