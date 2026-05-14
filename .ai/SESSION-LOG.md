@@ -7,21 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-13 — Announcement markdown rendering
-
-**Completed:**
-- Added shared announcement markdown rendering with safe links, headings, lists, bold, italic, and inline code via the existing limited markdown parser.
-- Updated teacher/student announcement tabs and calendar announcement previews/tooltips to render markdown without changing the database schema or API payload shape.
-- Kept teacher announcement link clicks from entering edit mode.
-- Updated architecture docs to record announcements as markdown text rather than Tiptap JSON.
-
-**Validation:**
-- `pnpm test tests/components/AnnouncementContent.test.tsx tests/components/AnnouncementsMarkdown.test.tsx tests/components/LessonDayCell.test.tsx tests/components/LessonCalendar.test.tsx`
-- `pnpm lint`
-- `bash scripts/verify-env.sh`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/announcements-markdown E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=announcements'`
-- Additional loaded desktop teacher capture: `/tmp/pika-teacher-ready.png`
-
 ## 2026-05-13 — Teacher test list closed-access badge
 
 **Completed:**
@@ -338,3 +323,29 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Targeted composer screenshots:
   - `/tmp/pika-announcement-composer-top-splitbutton.png`
   - `/tmp/pika-announcement-composer-top-splitbutton-mobile.png`
+
+## 2026-05-14 — Classroom list footer cleanup
+
+**Completed:**
+- Removed the classroom `New` action from archived view, including edit mode and the empty archived state.
+- Hid the Active/Archived classroom view segmented control outside classroom edit mode.
+- Restyled the fixed classroom footer as a classroom-card-width card with the view control centered and the edit icon anchored to the right edge.
+- Removed the footer card outline while preserving the floating surface and shadow.
+- Reset the classroom list back to Active whenever classroom edit mode is turned off from Archived view.
+- Updated classroom index component tests for the new edit-mode-only view toggle behavior.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx`
+- `pnpm lint`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/classroom-list-footer-edit-mode E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/classroom-list-footer-edit-mode E2E_BASE_URL=http://localhost:3010 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- `npx playwright screenshot http://localhost:3010/classrooms /tmp/pika-teacher-footer-no-outline.png --load-storage .auth/teacher.json --viewport-size 1440,900 --wait-for-timeout 3000`
+- Targeted Playwright flow: Edit → Archived → Edit off, confirmed `groupVisible=false` and `activeClassroomVisible=true`.
+- Additional Playwright screenshots:
+  - `/tmp/pika-teacher-edit.png`
+  - `/tmp/pika-teacher-archived-edit.png`
+  - `/tmp/pika-teacher-archived-view.png`
+  - `/tmp/pika-teacher-edit-right.png`
+  - `/tmp/pika-teacher-footer-no-outline.png`
+  - `/tmp/pika-teacher-archived-exit-active.png`
