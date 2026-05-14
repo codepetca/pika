@@ -335,10 +335,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added debounced automatic saving for edited survey question type, prompt, and options, with blur flushing for immediate persistence.
 - Kept failed autosave attempts retryable instead of suppressing the same payload after a transient error.
 - Moved the per-question delete action inline with the prompt row.
+- Updated selected-survey controls to use test-style green unlock/red lock icons for poll state and green/red color for visible/hidden results.
 
 **Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
 - `pnpm test tests/components/TeacherSurveyWorkspace.test.tsx`
 - `pnpm lint`
 - `pnpm build`
 - `E2E_BASE_URL=http://localhost:3024 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=619428d0-644e-4f13-9681-bb0954e266b1'`
 - Targeted Playwright screenshots/assertions: `/tmp/pika-survey-question-autosave-delete-inline.png`, `/tmp/pika-survey-question-autosaved.png`; confirmed `saveButtonCount: 0`, observed question PATCH on blur, and deleted the temporary survey fixture afterward.
+- `E2E_BASE_URL=http://localhost:3027 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=a7b4279f-d18e-4277-b4de-b1950e24e892'`
+- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-locked-controls.png`, `/tmp/pika-survey-hidden-results-control.png`; restored the seeded active survey to `show_results: true`.

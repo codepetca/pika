@@ -778,8 +778,10 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByTestId('mock-survey-results-pane')).toHaveTextContent('Survey results survey-1')
     expect(screen.getByTestId('survey-workspace-actionbar-center').parentElement).toHaveClass('fixed')
     expect(screen.getByRole('button', { name: 'Edit survey' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Close poll' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Hide results' })).toBeInTheDocument()
+    const closePollButton = screen.getByRole('button', { name: 'Close poll' })
+    const hideResultsButton = screen.getByRole('button', { name: 'Hide results' })
+    expect(closePollButton).toHaveClass('bg-success-bg', 'text-success')
+    expect(hideResultsButton).toHaveClass('bg-success-bg', 'text-success')
     expect(screen.queryByRole('button', { name: 'Lock responses' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete survey' })).not.toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -800,6 +802,9 @@ describe('TeacherClassroomView', () => {
           body: JSON.stringify({ show_results: false }),
         }),
       )
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Show results' })).toHaveClass('bg-danger-bg', 'text-danger')
     })
 
     const { params } = applySearchParamsUpdate(updateSearchParams.mock.calls[0])
@@ -841,6 +846,9 @@ describe('TeacherClassroomView', () => {
     )
 
     expect(await screen.findByTestId('mock-survey-results-pane')).toHaveTextContent('Survey results survey-1')
+    const openPollButton = screen.getByRole('button', { name: 'Open poll' })
+    expect(openPollButton).toBeDisabled()
+    expect(openPollButton).toHaveClass('bg-danger-bg', 'text-danger')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
   })

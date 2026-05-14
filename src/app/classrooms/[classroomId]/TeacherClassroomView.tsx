@@ -28,14 +28,14 @@ import {
   FileText,
   GripVertical,
   LoaderCircle,
+  Lock,
   MessageSquare,
   Pencil,
-  Play,
   Plus,
   Send,
-  Square,
   Table,
   Trash2,
+  Unlock,
 } from 'lucide-react'
 import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
@@ -198,6 +198,15 @@ function HiddenResultsIcon() {
       <span className="absolute h-0.5 w-5 rotate-45 rounded-full bg-current" />
     </span>
   )
+}
+
+function surveyStateButtonClassName(isOn: boolean) {
+  return [
+    'h-10 w-10 p-0',
+    isOn
+      ? 'border-success bg-success-bg text-success hover:bg-success-bg-hover'
+      : 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover',
+  ].join(' ')
 }
 
 function TeacherMaterialCard({
@@ -2396,8 +2405,8 @@ export function TeacherClassroomView({
           <Button
             type="button"
             size="sm"
-            variant={selectedSurvey.status === 'active' ? 'danger' : 'primary'}
-            className="h-10 w-10 p-0"
+            variant="secondary"
+            className={surveyStateButtonClassName(selectedSurvey.status === 'active')}
             aria-label={selectedSurvey.status === 'active' ? 'Close poll' : 'Open poll'}
             aria-pressed={selectedSurvey.status === 'active'}
             onClick={() => {
@@ -2413,9 +2422,9 @@ export function TeacherClassroomView({
             }
           >
             {selectedSurvey.status === 'active' ? (
-              <Square className="h-4 w-4 fill-current" aria-hidden="true" />
+              <Unlock className="h-4 w-4" aria-hidden="true" />
             ) : (
-              <Play className="h-4 w-4 fill-current" aria-hidden="true" />
+              <Lock className="h-4 w-4" aria-hidden="true" />
             )}
           </Button>
         </span>
@@ -2426,7 +2435,7 @@ export function TeacherClassroomView({
             type="button"
             size="sm"
             variant="secondary"
-            className="h-10 w-10 p-0"
+            className={surveyStateButtonClassName(selectedSurvey.show_results)}
             aria-label={selectedSurvey.show_results ? 'Hide results' : 'Show results'}
             aria-pressed={selectedSurvey.show_results}
             onClick={() => {
