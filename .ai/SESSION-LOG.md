@@ -7,19 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-13 — Teacher test list closed-access badge
-
-**Completed:**
-- Fixed teacher test list cards so an active test with access closed for every enrolled student displays a `Closed` badge instead of `Open`.
-- Kept the underlying test lifecycle status unchanged and updated list access counts locally after open/close-all actions.
-- Added focused utility and component coverage for the all-students-closed display case.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/fix-test-open-badge bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/quizzes.test.ts tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/fix-test-open-badge E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests'`
-
 ## 2026-05-13 — Teacher test grading closed-access refresh
 
 **Completed:**
@@ -349,3 +336,43 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-teacher-edit-right.png`
   - `/tmp/pika-teacher-footer-no-outline.png`
   - `/tmp/pika-teacher-archived-exit-active.png`
+
+## 2026-05-14 — Assignment workspace split-pane toggle
+
+**Completed:**
+- Replaced the assignment workspace class/individual segmented control with one cycling split-pane button for Students + grading, Content + grading, and Students + content.
+- Updated the cycle button to show a compact numbered view indicator: `1` + grade icon, `2` + content icon, and `3` + table icon.
+- Persisted the selected assignment pane view in browser session storage while keeping pane resizing on the shared teacher workspace split primitive.
+- Added regression coverage for view cycling, session restore, and the updated panel composition.
+
+**Validation:**
+- `pnpm test tests/unit/assignment-grading-layout.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/unit/assignment-grading-layout.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3100 pnpm e2e:auth`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/student-assignment-split-views E2E_BASE_URL=http://localhost:3100 bash /Users/stew/Repos/.worktrees/pika/student-assignment-split-views/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional selected-workspace screenshots:
+  - `/tmp/pika-assignment-view-1-students-grading.png`
+  - `/tmp/pika-assignment-view-2-content-grading.png`
+  - `/tmp/pika-assignment-view-3-students-content.png`
+  - `/tmp/pika-assignment-mobile-view-1.png`
+  - `/tmp/pika-assignment-mobile-view-2.png`
+  - `/tmp/pika-assignment-desktop-1-students-grading-icons.png`
+  - `/tmp/pika-assignment-desktop-2-content-grading-icons.png`
+  - `/tmp/pika-assignment-desktop-3-students-content-icons.png`
+  - `/tmp/pika-assignment-mobile-1-students-grading-icons.png`
+  - `/tmp/pika-assignment-mobile-2-content-grading-icons.png`
+  - `/tmp/pika-assignment-mobile-3-students-content-icons.png`
+  - `/tmp/pika-assignment-desktop-1-students-grading-simple-icons-loaded.png`
+  - `/tmp/pika-assignment-desktop-2-content-grading-simple-icons-loaded.png`
+  - `/tmp/pika-assignment-desktop-3-students-content-simple-icons-loaded.png`
+  - `/tmp/pika-assignment-mobile-1-students-grading-simple-icons-loaded.png`
+  - `/tmp/pika-assignment-mobile-2-content-grading-simple-icons-loaded.png`
+  - `/tmp/pika-assignment-mobile-3-students-content-simple-icons-loaded.png`
+  - `/tmp/pika-assignment-desktop-1-students-grading-numbered-indicator.png`
+  - `/tmp/pika-assignment-desktop-2-content-grading-numbered-indicator.png`
+  - `/tmp/pika-assignment-desktop-3-students-content-numbered-indicator.png`
+  - `/tmp/pika-assignment-mobile-1-students-grading-numbered-indicator.png`
+  - `/tmp/pika-assignment-mobile-2-content-grading-numbered-indicator.png`
+  - `/tmp/pika-assignment-mobile-3-students-content-numbered-indicator.png`

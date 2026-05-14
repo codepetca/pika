@@ -210,8 +210,8 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
     studentId,
     mode,
     classPane,
-    leftPaneView = 'class',
-    leftHeader,
+    splitPaneView = 'students-grading',
+    studentHeader,
     inspectorWidth,
     onLayoutChange,
     onDetailsMetaChange,
@@ -220,15 +220,15 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
   }: any) => {
     useEffect(() => {
       onDetailsMetaChange?.(
-        mode === 'details' || mode === 'workspace'
+        mode === 'details' || (mode === 'workspace' && splitPaneView !== 'students-grading')
           ? { studentName: `${studentId} Student`, characterCount: 17 }
           : null,
       )
-    }, [leftPaneView, mode, onDetailsMetaChange, studentId])
+    }, [mode, onDetailsMetaChange, splitPaneView, studentId])
 
     useEffect(() => {
       onGradeTemplateChange?.(
-        mode === 'overview' || mode === 'workspace'
+        mode === 'overview' || (mode === 'workspace' && splitPaneView !== 'students-content')
           ? {
               studentId,
               scoreCompletion: '7',
@@ -239,7 +239,7 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
             }
           : null,
       )
-    }, [mode, onGradeTemplateChange, studentId])
+    }, [mode, onGradeTemplateChange, splitPaneView, studentId])
 
     if (mode === 'workspace') {
       return (
@@ -247,6 +247,7 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
           data-testid="teacher-work-panel"
           data-highlighted-sections={highlightedInspectorSections.join(',')}
         >
+          <div data-testid="assignment-split-pane-view">{splitPaneView}</div>
           <div data-testid="assignment-workspace-inspector-width">{inspectorWidth}</div>
           <button
             type="button"
@@ -256,11 +257,24 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
           </button>
           <div>{`overview:${assignmentId}:${studentId}`}</div>
           <div key={studentId} data-testid="assignment-left-pane">
-            {leftHeader}
-            {leftPaneView === 'class' ? classPane : <div>{`work:${assignmentId}:${studentId}`}</div>}
+            {splitPaneView === 'content-grading' ? (
+              <>
+                {studentHeader}
+                <div>{`work:${assignmentId}:${studentId}`}</div>
+              </>
+            ) : (
+              classPane
+            )}
           </div>
           <div data-testid="assignment-right-pane">
-            <div>{`grading:${assignmentId}:${studentId}`}</div>
+            {splitPaneView === 'students-content' ? (
+              <>
+                {studentHeader}
+                <div>{`work:${assignmentId}:${studentId}`}</div>
+              </>
+            ) : (
+              <div>{`grading:${assignmentId}:${studentId}`}</div>
+            )}
           </div>
         </div>
       )
@@ -496,6 +510,29 @@ function clearSelectionCookie() {
   document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=; Path=/; Max-Age=0; SameSite=Lax`
 }
 
+function expectAssignmentSplitPaneIndicator({
+  index,
+  icon,
+  iconClass,
+}: {
+  index: string
+  icon: string
+  iconClass: string
+}) {
+  const indicator = screen.getByTestId('assignment-split-pane-indicator')
+  const iconNode = screen.getByTestId('assignment-split-pane-icon')
+  const svg = iconNode.querySelector('svg')
+
+  if (!svg) {
+    throw new Error('Expected assignment split-pane toggle icon to render an SVG')
+  }
+
+  expect(indicator).toHaveAttribute('data-view-index', index)
+  expect(indicator).toHaveAttribute('data-view-icon', icon)
+  expect(screen.getByTestId('assignment-split-pane-index')).toHaveTextContent(index)
+  expect(svg).toHaveClass(iconClass)
+}
+
 function applySearchParamsUpdate(
   call: [(params: URLSearchParams) => void, { replace?: boolean } | undefined],
   initial = 'tab=assignments',
@@ -525,6 +562,7 @@ describe('TeacherClassroomView', () => {
     mockStudentSelectionState.selectedIds = new Set<string>()
     mockStudentSelectionState.allSelected = false
     mockStudentSelectionState.selectedCount = 0
+    window.sessionStorage.clear()
     clearSelectionCookie()
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {
@@ -549,6 +587,7 @@ describe('TeacherClassroomView', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+    window.sessionStorage.clear()
     clearSelectionCookie()
   })
 
@@ -1162,7 +1201,7 @@ describe('TeacherClassroomView', () => {
     })
   })
 
-  it('renders the class-individual switch and grading split button in the selected-assignment action bar', async () => {
+  it('renders the split-pane cycle button and grading split button in the selected-assignment action bar', async () => {
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input)
 
@@ -1194,11 +1233,18 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    const workspaceControls = within(screen.getByRole('group', { name: 'Assignment workspace view' }))
-    expect(workspaceControls.getByRole('button', { name: 'Class' })).toHaveAttribute('aria-pressed', 'true')
-    expect(workspaceControls.getByRole('button', { name: 'Individual' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', {
+      name: 'Assignment panes: Students + grading. Switch to Content + grading.',
+    })).toBeInTheDocument()
+    expectAssignmentSplitPaneIndicator({
+      index: '1',
+      icon: 'grading',
+      iconClass: 'lucide-file-check',
+    })
+    expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-grading')
     expect(screen.queryByRole('group', { name: 'Left pane view' })).not.toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Right pane view' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Assignment workspace view' })).not.toBeInTheDocument()
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: /Return/i })).toHaveLength(1)
@@ -1574,7 +1620,7 @@ describe('TeacherClassroomView', () => {
     expect(mockClearSelection).not.toHaveBeenCalled()
   })
 
-  it('switches to individual mode with student controls in the action bar', async () => {
+  it('cycles to content and grading with student controls in the content pane', async () => {
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input)
 
@@ -1606,12 +1652,18 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(within(screen.getByRole('group', { name: 'Assignment workspace view' })).getByRole('button', { name: 'Individual' }))
+    fireEvent.click(screen.getByRole('button', {
+      name: 'Assignment panes: Students + grading. Switch to Content + grading.',
+    }))
 
     await waitFor(() => {
+      expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('content-grading')
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('work:assignment-1:student-1')
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
+    expect(JSON.parse(
+      window.sessionStorage.getItem(`pika_assignment_split_pane_view:${classroom.id}:assignment-1`) ?? 'null',
+    )).toBe('content-grading')
 
     expect(screen.getByTestId('assignment-workspace-inspector-width')).toHaveTextContent('64')
     fireEvent.click(screen.getByRole('button', { name: 'Mock resize split' }))
@@ -1620,7 +1672,14 @@ describe('TeacherClassroomView', () => {
       inspectorCollapsed: false,
       inspectorWidth: 61,
     })
-    expect(within(screen.getByRole('group', { name: 'Assignment workspace view' })).getByRole('button', { name: 'Individual' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', {
+      name: 'Assignment panes: Content + grading. Switch to Students + content.',
+    })).toBeInTheDocument()
+    expectAssignmentSplitPaneIndicator({
+      index: '2',
+      icon: 'content',
+      iconClass: 'lucide-file-text',
+    })
     expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
     expect(screen.queryByRole('button', { name: /Send/i })).not.toBeInTheDocument()
     expect(screen.getByText('student-1 Student')).toBeInTheDocument()
@@ -1631,7 +1690,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('button', { name: 'Next student' })).toBeInTheDocument()
   })
 
-  it('keeps the right pane on grading when switching the action bar view control', async () => {
+  it('cycles through all three requested split-pane views', async () => {
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input)
 
@@ -1663,18 +1722,97 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(within(screen.getByRole('group', { name: 'Assignment workspace view' })).getByRole('button', { name: 'Individual' }))
+    fireEvent.click(screen.getByRole('button', { name: /Assignment panes:/ }))
 
     await waitFor(() => {
+      expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('content-grading')
+      expectAssignmentSplitPaneIndicator({
+        index: '2',
+        icon: 'content',
+        iconClass: 'lucide-file-text',
+      })
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('work:assignment-1:student-1')
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    expect(within(screen.getByRole('group', { name: 'Assignment workspace view' })).getByRole('button', { name: 'Individual' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByText('student-1 Student')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Assignment panes:/ }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-content')
+      expectAssignmentSplitPaneIndicator({
+        index: '3',
+        icon: 'students',
+        iconClass: 'lucide-table',
+      })
+      expect(screen.getByTestId('assignment-left-pane')).toHaveTextContent('student-1')
+      expect(screen.getByTestId('assignment-right-pane')).toHaveTextContent('work:assignment-1:student-1')
+      expect(screen.getByTestId('assignment-right-pane')).not.toHaveTextContent('grading:assignment-1:student-1')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Assignment panes:/ }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-grading')
+      expectAssignmentSplitPaneIndicator({
+        index: '1',
+        icon: 'grading',
+        iconClass: 'lucide-file-check',
+      })
+      expect(screen.getByTestId('assignment-left-pane')).toHaveTextContent('student-1')
+      expect(screen.getByTestId('assignment-right-pane')).toHaveTextContent('grading:assignment-1:student-1')
+      expect(screen.getByTestId('assignment-right-pane')).not.toHaveTextContent('work:assignment-1:student-1')
+    })
   })
 
-  it('keeps class mode active when clicking a student row', async () => {
+  it('restores the assignment split-pane view from browser session storage', async () => {
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1'),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+    window.sessionStorage.setItem(
+      `pika_assignment_split_pane_view:${classroom.id}:assignment-1`,
+      JSON.stringify('students-content'),
+    )
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-content')
+      expectAssignmentSplitPaneIndicator({
+        index: '3',
+        icon: 'students',
+        iconClass: 'lucide-table',
+      })
+      expect(screen.getByTestId('assignment-left-pane')).toHaveTextContent('student-1')
+      expect(screen.getByTestId('assignment-right-pane')).toHaveTextContent('work:assignment-1:student-1')
+      expect(screen.getByTestId('assignment-right-pane')).not.toHaveTextContent('grading:assignment-1:student-1')
+    })
+    expect(screen.getByRole('button', {
+      name: 'Assignment panes: Students + content. Switch to Students + grading.',
+    })).toBeInTheDocument()
+  })
+
+  it('keeps the students and grading view active when clicking a student row', async () => {
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input)
 
@@ -1736,9 +1874,10 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-2')
     })
 
-    const leftPaneControls = within(screen.getByRole('group', { name: 'Assignment workspace view' }))
-    expect(leftPaneControls.getByRole('button', { name: 'Class' })).toHaveAttribute('aria-pressed', 'true')
-    expect(leftPaneControls.getByRole('button', { name: 'Individual' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-grading')
+    expect(screen.getByRole('button', {
+      name: 'Assignment panes: Students + grading. Switch to Content + grading.',
+    })).toBeInTheDocument()
   })
 
   it('restores the class-pane scroll position after selecting a lower student row', async () => {

@@ -24,17 +24,18 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  FileCheck,
+  FileText,
   GripVertical,
   LoaderCircle,
   MessageSquare,
   Pencil,
   Plus,
   Send,
+  Table,
   Trash2,
-  User,
-  Users,
 } from 'lucide-react'
-import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, SegmentedControl, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
@@ -70,8 +71,13 @@ import { useAssignmentGradingLayout } from '@/hooks/use-assignment-grading-layou
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 import {
   ASSIGNMENT_GRADING_LAYOUT,
+  getAssignmentSplitPaneViewSessionKey,
   getAssignmentWorkspaceStudentCookieName,
+  getDefaultAssignmentSplitPaneView,
+  getNextAssignmentSplitPaneView,
+  parseAssignmentSplitPaneView,
   parseAssignmentWorkspaceStudentId,
+  type AssignmentSplitPaneView,
   type AssignmentWorkspaceMode,
 } from '@/lib/assignment-grading-layout'
 import { buildOrderedClassworkItems } from '@/lib/classwork-order'
@@ -97,6 +103,7 @@ import { applyDirection, compareByNameFields, toggleSort as toggleSortState } fr
 import type { SortDirection } from '@/lib/table-sort'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { readCookie, writeCookie } from '@/lib/cookies'
+import { safeSessionGetJson, safeSessionSetJson } from '@/lib/client-storage'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
@@ -110,7 +117,6 @@ type GradeSelectedUpdatedDoc = NonNullable<StudentSubmissionRow['doc']> & {
   updated_at?: string | null
 }
 type GradeSelectedApplyTarget = 'grade' | 'comments'
-type AssignmentLeftPaneView = 'class' | 'individual'
 type UpdateSearchParamsFn = (
   updater: (params: URLSearchParams) => void,
   options?: { replace?: boolean },
@@ -119,6 +125,21 @@ type UpdateSearchParamsFn = (
 export type AssignmentViewMode = 'summary' | 'assignment'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
+
+const ASSIGNMENT_SPLIT_PANE_VIEW_LABELS: Record<AssignmentSplitPaneView, string> = {
+  'students-grading': 'Students + grading',
+  'content-grading': 'Content + grading',
+  'students-content': 'Students + content',
+}
+
+const ASSIGNMENT_SPLIT_PANE_VIEW_INDICATORS: Record<
+  AssignmentSplitPaneView,
+  { index: 1 | 2 | 3; icon: 'students' | 'grading' | 'content' }
+> = {
+  'students-grading': { index: 1, icon: 'grading' },
+  'content-grading': { index: 2, icon: 'content' },
+  'students-content': { index: 3, icon: 'students' },
+}
 
 interface Props {
   classroom: Classroom
@@ -147,6 +168,22 @@ function MetricBar({ value }: { value: number }) {
       />
     </div>
   )
+}
+
+function AssignmentSplitPaneIcon({
+  pane,
+}: {
+  pane: 'students' | 'grading' | 'content'
+}) {
+  if (pane === 'students') {
+    return <Table className="h-4 w-4" aria-hidden="true" />
+  }
+
+  if (pane === 'grading') {
+    return <FileCheck className="h-4 w-4" aria-hidden="true" />
+  }
+
+  return <FileText className="h-4 w-4" aria-hidden="true" />
 }
 
 function TeacherMaterialCard({
@@ -590,7 +627,13 @@ export function TeacherClassroomView({
     studentName: string
     characterCount: number
   } | null>(null)
-  const [leftPaneView, setLeftPaneView] = useState<AssignmentLeftPaneView>('class')
+  const [splitPaneViewState, setSplitPaneViewState] = useState<{
+    key: string | null
+    view: AssignmentSplitPaneView
+  }>({
+    key: null,
+    view: getDefaultAssignmentSplitPaneView(),
+  })
   const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
@@ -820,7 +863,7 @@ export function TeacherClassroomView({
 
     observer.observe(node)
     return () => observer.disconnect()
-  }, [selection.mode, leftPaneView, selectedStudentId])
+  }, [selection.mode, selectedStudentId, splitPaneViewState.view])
 
   const classworkItems = useMemo(
     () => buildOrderedClassworkItems(assignments, materials, surveys),
@@ -1056,7 +1099,6 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (selection.mode !== 'assignment') {
-      setLeftPaneView('class')
       setSelectedStudentId(null)
       setWorkspaceLoading(false)
       return
@@ -1293,7 +1335,6 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (selection.mode !== 'assignment') return
-    setLeftPaneView('class')
     setSelectedStudentId(null)
     setWorkspaceLoading(false)
     batchClearSelection()
@@ -1662,13 +1703,51 @@ export function TeacherClassroomView({
   }, [currentStudentRows, selectedStudentId])
   const activeSelectedStudentId = selectedStudentRow?.student_id ?? null
   const selectedAssignmentId = selection.mode === 'assignment' ? selection.assignmentId : null
+  const splitPaneViewSessionKey = selectedAssignmentId
+    ? getAssignmentSplitPaneViewSessionKey(classroom.id, selectedAssignmentId)
+    : null
+  const splitPaneView = splitPaneViewState.key === splitPaneViewSessionKey
+    ? splitPaneViewState.view
+    : getDefaultAssignmentSplitPaneView()
+
+  useEffect(() => {
+    const nextView = splitPaneViewSessionKey
+      ? parseAssignmentSplitPaneView(safeSessionGetJson<unknown>(splitPaneViewSessionKey))
+      : getDefaultAssignmentSplitPaneView()
+    setSplitPaneViewState({
+      key: splitPaneViewSessionKey,
+      view: nextView,
+    })
+  }, [splitPaneViewSessionKey])
+
+  const setPersistedSplitPaneView = useCallback((
+    next:
+      | AssignmentSplitPaneView
+      | ((current: AssignmentSplitPaneView) => AssignmentSplitPaneView),
+  ) => {
+    setSplitPaneViewState((current) => {
+      const currentView = current.key === splitPaneViewSessionKey
+        ? current.view
+        : getDefaultAssignmentSplitPaneView()
+      const nextView = typeof next === 'function' ? next(currentView) : next
+
+      if (splitPaneViewSessionKey) {
+        safeSessionSetJson(splitPaneViewSessionKey, nextView)
+      }
+
+      return {
+        key: splitPaneViewSessionKey,
+        view: nextView,
+      }
+    })
+  }, [splitPaneViewSessionKey])
 
   const {
     scrollRef: classPaneScrollRef,
     preserveScrollPosition: preserveClassPaneScrollPosition,
   } = useScrollPositionMemory<HTMLDivElement>({
     key: selectedAssignmentId,
-    enabled: leftPaneView === 'class',
+    enabled: splitPaneView !== 'content-grading',
     restoreToken: [
       activeSelectedStudentId ?? 'none',
       currentStudentRows.length,
@@ -1759,21 +1838,22 @@ export function TeacherClassroomView({
     return currentStudentRows[0]?.student_id ?? null
   }, [classroom.id, currentStudentRows, selectedStudentId, selection])
 
-  const handleSwitchLeftPaneView = useCallback((nextView: AssignmentLeftPaneView) => {
-    if (nextView === leftPaneView) return
+  const handleCycleSplitPaneView = useCallback(() => {
+    const nextView = getNextAssignmentSplitPaneView(splitPaneView)
 
-    if (nextView === 'individual') {
+    if (nextView !== 'students-grading') {
       const nextStudentId = resolveDetailsStudentId()
       if (!nextStudentId) return
       setIndividualHeaderMeta(null)
       setSelectedStudentAndNavigate(nextStudentId, { replace: true })
     }
 
-    setLeftPaneView(nextView)
+    setPersistedSplitPaneView(nextView)
   }, [
-    leftPaneView,
     resolveDetailsStudentId,
+    setPersistedSplitPaneView,
     setSelectedStudentAndNavigate,
+    splitPaneView,
   ])
 
   useEffect(() => {
@@ -1882,7 +1962,7 @@ export function TeacherClassroomView({
         ? `${individualHeaderMeta.characterCount} chars`
         : 'Loading…'
       : null
-  const activeWorkspaceMode: AssignmentWorkspaceMode = leftPaneView === 'individual' ? 'details' : 'overview'
+  const activeWorkspaceMode: AssignmentWorkspaceMode = splitPaneView === 'content-grading' ? 'details' : 'overview'
   const activeWorkspaceLayout = assignmentGradingLayout[activeWorkspaceMode]
   const highlightedInspectorSections =
     highlightedApplyTarget === 'grade'
@@ -1890,7 +1970,7 @@ export function TeacherClassroomView({
       : highlightedApplyTarget === 'comments'
         ? (['comments'] as const)
         : undefined
-  const canOpenIndividual =
+  const canCycleSplitPaneView =
     selection.mode === 'assignment' &&
     !selectedAssignmentLoading &&
     currentStudentRows.length > 0
@@ -1990,115 +2070,117 @@ export function TeacherClassroomView({
 
   const classPaneActions = (
     <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
-      <SplitButton
-        label={
-          <span className="inline-flex items-center gap-2">
-            <Check className="h-4 w-4" aria-hidden="true" />
-            <span>AI Grade</span>
-          </span>
-        }
-        onPrimaryClick={() => {
-          void handleBatchAutoGrade()
-        }}
-        options={[
-          {
-            id: 'edit-assignment',
-            label: (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                <Pencil className="h-4 w-4" aria-hidden="true" />
-                <span>Edit Assignment</span>
-              </span>
-            ),
-            onSelect: () => {
-              if (activeSelectedAssignmentData) {
-                setEditAssignment(activeSelectedAssignmentData.assignment)
-              }
+      <span className="inline-flex">
+        <SplitButton
+          label={
+            <span className="inline-flex items-center gap-2">
+              <Check className="h-4 w-4" aria-hidden="true" />
+              <span>AI Grade</span>
+            </span>
+          }
+          onPrimaryClick={() => {
+            void handleBatchAutoGrade()
+          }}
+          options={[
+            {
+              id: 'edit-assignment',
+              label: (
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                  <Pencil className="h-4 w-4" aria-hidden="true" />
+                  <span>Edit Assignment</span>
+                </span>
+              ),
+              onSelect: () => {
+                if (activeSelectedAssignmentData) {
+                  setEditAssignment(activeSelectedAssignmentData.assignment)
+                }
+              },
+              disabled: !canEditAssignment,
             },
-            disabled: !canEditAssignment,
-          },
-          {
-            id: 'delete-assignment',
-            label: (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap text-danger">
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-                <span>Delete Assignment</span>
-              </span>
-            ),
-            onSelect: () => {
-              if (activeSelectedAssignmentData) {
-                setPendingDelete({
-                  id: activeSelectedAssignmentData.assignment.id,
-                  title: activeSelectedAssignmentData.assignment.title,
-                })
-              }
+            {
+              id: 'delete-assignment',
+              label: (
+                <span className="inline-flex items-center gap-2 whitespace-nowrap text-danger">
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  <span>Delete Assignment</span>
+                </span>
+              ),
+              onSelect: () => {
+                if (activeSelectedAssignmentData) {
+                  setPendingDelete({
+                    id: activeSelectedAssignmentData.assignment.id,
+                    title: activeSelectedAssignmentData.assignment.title,
+                  })
+                }
+              },
+              disabled: !activeSelectedAssignmentData || selectedAssignmentLoading || isReadOnly || isDeleting,
             },
-            disabled: !activeSelectedAssignmentData || selectedAssignmentLoading || isReadOnly || isDeleting,
-          },
-          {
-            id: 'grade-selected',
-            label: (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                <Copy className="h-4 w-4" aria-hidden="true" />
-                <span>Apply Grade to Selected Students</span>
-              </span>
-            ),
-            onHoverChange: (active) => setHighlightedApplyTarget(active ? 'grade' : null),
-            onSelect: () => {
-              setHighlightedApplyTarget(null)
-              setGradeSelectedConfirmTarget('grade')
+            {
+              id: 'grade-selected',
+              label: (
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                  <Copy className="h-4 w-4" aria-hidden="true" />
+                  <span>Apply Grade to Selected Students</span>
+                </span>
+              ),
+              onHoverChange: (active) => setHighlightedApplyTarget(active ? 'grade' : null),
+              onSelect: () => {
+                setHighlightedApplyTarget(null)
+                setGradeSelectedConfirmTarget('grade')
+              },
+              disabled: isApplyGradeSelectedDisabled,
             },
-            disabled: isApplyGradeSelectedDisabled,
-          },
-          {
-            id: 'comments-selected',
-            label: (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                <MessageSquare className="h-4 w-4" aria-hidden="true" />
-                <span>Apply Comments to Selected Students</span>
-              </span>
-            ),
-            onHoverChange: (active) => setHighlightedApplyTarget(active ? 'comments' : null),
-            onSelect: () => {
-              setHighlightedApplyTarget(null)
-              setGradeSelectedConfirmTarget('comments')
+            {
+              id: 'comments-selected',
+              label: (
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                  <MessageSquare className="h-4 w-4" aria-hidden="true" />
+                  <span>Apply Comments to Selected Students</span>
+                </span>
+              ),
+              onHoverChange: (active) => setHighlightedApplyTarget(active ? 'comments' : null),
+              onSelect: () => {
+                setHighlightedApplyTarget(null)
+                setGradeSelectedConfirmTarget('comments')
+              },
+              disabled: isApplyCommentsSelectedDisabled,
             },
-            disabled: isApplyCommentsSelectedDisabled,
-          },
-          {
-            id: 'repo-analysis',
-            label: (
-              <span className="inline-flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                <span>Repo analysis</span>
-              </span>
-            ),
-            onSelect: () => {
-              void handleBatchArtifactRepoAnalyze()
+            {
+              id: 'repo-analysis',
+              label: (
+                <span className="inline-flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                  <span>Repo analysis</span>
+                </span>
+              ),
+              onSelect: () => {
+                void handleBatchArtifactRepoAnalyze()
+              },
+              disabled: isArtifactRepoAnalyzing || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
             },
-            disabled: isArtifactRepoAnalyzing || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
-          },
-          {
-            id: 'return',
-            label: (
-              <span className="inline-flex items-center gap-2">
-                <Send className="h-4 w-4" aria-hidden="true" />
-                <span>Return</span>
-              </span>
-            ),
-            onSelect: () => {
-              setShowReturnConfirm(true)
+            {
+              id: 'return',
+              label: (
+                <span className="inline-flex items-center gap-2">
+                  <Send className="h-4 w-4" aria-hidden="true" />
+                  <span>Return</span>
+                </span>
+              ),
+              onSelect: () => {
+                setShowReturnConfirm(true)
+              },
+              disabled: isReturnDisabled,
             },
-            disabled: isReturnDisabled,
-          },
-        ]}
-        className="inline-flex"
-        toggleAriaLabel={`More assignment actions${workspaceActionLabelSuffix}`}
-        menuPlacement="down"
-        primaryButtonProps={{
-          'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
-          disabled: isAutoGrading || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
-        }}
-      />
+          ]}
+          className="inline-flex"
+          toggleAriaLabel={`More assignment actions${workspaceActionLabelSuffix}`}
+          menuPlacement="down"
+          primaryButtonProps={{
+            'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
+            disabled: isAutoGrading || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
+          }}
+        />
+      </span>
     </Tooltip>
   )
 
@@ -2157,26 +2239,57 @@ export function TeacherClassroomView({
     />
   )
 
+  const splitPaneViewLabel = ASSIGNMENT_SPLIT_PANE_VIEW_LABELS[splitPaneView]
+  const nextSplitPaneView = getNextAssignmentSplitPaneView(splitPaneView)
+  const nextSplitPaneViewLabel = ASSIGNMENT_SPLIT_PANE_VIEW_LABELS[nextSplitPaneView]
+  const splitPaneViewIndicator = ASSIGNMENT_SPLIT_PANE_VIEW_INDICATORS[splitPaneView]
+
   const assignmentWorkspaceControls = selection.mode === 'assignment' ? (
     <div
       data-testid="assignment-workspace-actionbar-center"
       className="relative flex min-w-0 items-center justify-center gap-2"
     >
-      <SegmentedControl<AssignmentLeftPaneView>
-        ariaLabel="Assignment workspace view"
-        value={leftPaneView}
-        onChange={handleSwitchLeftPaneView}
-        iconOnly
-        options={[
-          { value: 'class', label: 'Class', icon: <Users className="h-4 w-4" /> },
-          {
-            value: 'individual',
-            label: 'Individual',
-            icon: <User className="h-4 w-4" />,
-            disabled: !canOpenIndividual,
-          },
-        ]}
-      />
+      <Tooltip
+        content={
+          canCycleSplitPaneView
+            ? `Current: ${splitPaneViewLabel}. Next: ${nextSplitPaneViewLabel}.`
+            : 'No students available for split views yet.'
+        }
+      >
+        <span className="inline-flex">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="inline-flex min-w-0 items-center gap-1.5"
+            onClick={handleCycleSplitPaneView}
+            disabled={!canCycleSplitPaneView}
+            aria-label={`Assignment panes: ${splitPaneViewLabel}. Switch to ${nextSplitPaneViewLabel}.`}
+          >
+            <span
+              className="inline-flex items-center gap-1.5"
+              data-testid="assignment-split-pane-indicator"
+              data-view-index={splitPaneViewIndicator.index}
+              data-view-icon={splitPaneViewIndicator.icon}
+            >
+              <span
+                className="min-w-3 text-center text-xs font-semibold tabular-nums"
+                data-testid="assignment-split-pane-index"
+                aria-hidden="true"
+              >
+                {splitPaneViewIndicator.index}
+              </span>
+              <span
+                className="inline-flex"
+                data-testid="assignment-split-pane-icon"
+              >
+                <AssignmentSplitPaneIcon pane={splitPaneViewIndicator.icon} />
+              </span>
+            </span>
+            <span className="sr-only">{splitPaneViewLabel}</span>
+          </Button>
+        </span>
+      </Tooltip>
       {classPaneActions}
       {workspaceStatus}
     </div>
@@ -2325,8 +2438,6 @@ export function TeacherClassroomView({
     </TeacherWorkItemList>
   )
 
-  const leftPaneHeader = leftPaneView === 'individual' ? selectedStudentControls : null
-
   const workspaceContent = selectedAssignmentId == null ? null : activeSelectedStudentId ? (
     <TeacherStudentWorkPanel
       classroomId={classroom.id}
@@ -2334,8 +2445,8 @@ export function TeacherClassroomView({
       studentId={activeSelectedStudentId}
       mode="workspace"
       classPane={classPane}
-      leftPaneView={leftPaneView}
-      leftHeader={leftPaneHeader}
+      splitPaneView={splitPaneView}
+      studentHeader={selectedStudentControls}
       inspectorCollapsed={false}
       inspectorWidth={activeWorkspaceLayout.inspectorWidth}
       refreshKey={gradeSelectedRefreshCounter}
