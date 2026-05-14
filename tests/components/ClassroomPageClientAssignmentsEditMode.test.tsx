@@ -235,18 +235,6 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherAnnouncementsTab', () => ({
 vi.mock('@/app/classrooms/[classroomId]/StudentAnnouncementsTab', () => ({
   StudentAnnouncementsTab: () => <div />,
 }))
-vi.mock('@/app/classrooms/[classroomId]/TeacherQuizzesTab', () => ({
-  TeacherQuizzesTab: ({ onSelectQuiz }: any) => (
-    <div>
-      <button
-        type="button"
-        onClick={() => onSelectQuiz?.({ id: 'quiz-1', title: 'Quiz One' })}
-      >
-        Select quiz workspace
-      </button>
-    </div>
-  ),
-}))
 vi.mock('@/app/classrooms/[classroomId]/TeacherTestsTab', () => ({
   TeacherTestsTab: ({ onSelectTest }: any) => (
     <div>
@@ -436,15 +424,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(await screen.findByText('Last class calendar entry')).toBeInTheDocument()
   })
 
-  it('does not pin the quizzes summary label in the app shell title slot', () => {
-    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=quizzes')
-
-    renderClient({ initialTab: 'quizzes', initialSearchParams: { tab: 'quizzes' } })
-
-    expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
-  })
-
-  it('does not pin the selected quiz title in the app shell title slot', () => {
+  it('falls back from the legacy quizzes tab to the default teacher tab', async () => {
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=quizzes&quizId=quiz-1')
 
     renderClient({
@@ -452,8 +432,11 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       initialSearchParams: { tab: 'quizzes', quizId: 'quiz-1' },
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select quiz workspace' }))
-
+    await waitFor(() => {
+      const params = new URLSearchParams(window.location.search)
+      expect(params.get('tab')).toBe('attendance')
+      expect(params.has('quizId')).toBe(false)
+    })
     expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
   })
 

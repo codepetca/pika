@@ -7,263 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-13 — Teacher test grading closed-access refresh
-
-**Completed:**
-- Stopped the teacher tests grading workspace from starting the background grade poll when every student has closed effective access.
-- Reused the same effective-access helper for polling decisions, batch action counts, and row access icons.
-- Added regression coverage for an active test whose access is closed for all students so the `Refreshing grades` status does not appear.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/close-test-refresh-notice bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/close-test-refresh-notice E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests'`
-- Closed selected test workspace browser check after 16.5s: no `Refreshing grades` status and no console errors; screenshots `/tmp/pika-teacher-closed-test-workspace.png` and `/tmp/pika-teacher-closed-test-selected-student.png`
-- `pnpm test`
-
-## 2026-05-13 — Selected test pane scrolling
-
-**Completed:**
-- Updated the selected teacher test grading workspace to frame the grading table and response inspector with the same full-height pane pattern used by assignment workspaces.
-- Made the student grading table fill the left pane and keep its own scroll container.
-- Made the selected student response inspector keep its own right-pane scroll container.
-- Added regression coverage for the selected test grading pane scroll containers.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-pane-scroll bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-pane-scroll bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests&testId=92120fed-7145-4118-a8ad-117e7962d679&testMode=grading&testStudentId=23977f0b-efb8-4408-98cb-2e6887c4fd7e'`
-- DOM scroll check: window stayed at `scrollY=0`, left table pane filled the workspace, right inspector reported `overflow-y: auto` with independent scroll.
-- Temporary sample tests were seeded for the visual capture and removed afterward; the shared classroom test list returned to empty.
-- `pnpm test`
-
-## 2026-05-13 — Teacher test student arrow navigation
-
-**Completed:**
-- Put the selected teacher test grading student list on the shared `KeyboardNavigableTable` and `DataTable` primitives used by assignment student tables.
-- Extended `KeyboardNavigableTable` so it can own scroll-pane props like `className`, `data-testid`, and `onScroll` while preserving its arrow-key selection behavior.
-- Added regression coverage for moving the selected test student with ArrowDown and ArrowUp.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-arrow-key-navigation bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/DataTable.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx`
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-arrow-key-navigation bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests&testId=88a8b3b5-7559-417e-8d16-c53175a3d692&testMode=grading&testStudentId=23977f0b-efb8-4408-98cb-2e6887c4fd7e'`
-- Browser smoke check: clicked the selected student row, pressed ArrowDown, and confirmed the URL, selected row, and grading inspector moved from Student1 to Student2.
-- Temporary verification test `88a8b3b5-7559-417e-8d16-c53175a3d692` was deleted after screenshots and browser checks.
-- `pnpm build`
-- `pnpm test`
-
-## 2026-05-13 — Chrome plugin UI verification guidance
-
-**Completed:**
-- Documented Playwright as the required final path for E2E tests, UI verification scripts, and screenshot artifacts.
-- Clarified that Chrome plugin checks are supplemental for exploratory debugging, browser-profile behavior, remote auth, extension, cookie, and interactive inspection cases.
-- Updated the AI routing doc, UI testing guide, testing strategy, and Codex UI verification prompt.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/chrome-ui-guidance bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/ui-guidance-candidate-script.test.ts`
-
-## 2026-05-13 — Classroom list edit control placement
-
-**Completed:**
-- Moved the teacher classroom list edit pen from the top floating cluster into the bottom controls beside the Active/Archived segmented toggle.
-- Removed the no-longer-needed top padding on the classroom list and updated the focused component test to assert the new bottom placement.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/classroom-list-edit-pen bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/classroom-list-edit-pen bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- Extra teacher edit-mode captures: `/tmp/pika-teacher-edit.png`, `/tmp/pika-teacher-mobile-edit.png`
-
-## 2026-05-13 — Classwork surveys
-
-**Completed:**
-- Added surveys as ungraded Classwork items with draft/active/closed status, classwork ordering, and teacher/student API routes.
-- Added survey question types for multiple choice, short text, and link responses, including response validation and link normalization.
-- Added a dynamic responses toggle so students can update answers while an active survey remains open.
-- Fixed the responded-student status priority so dynamic surveys remain updateable even when class results are visible.
-- Added teacher survey creation/settings, question editing, class results, survey cards, and student survey cards/response form/results support.
-- Added the Supabase migration `068_surveys_classwork.sql` for surveys, questions, responses, RLS, and mixed classwork ordering RPC support.
-- Kept Classwork assignment/material loading resilient if the surveys endpoint is unavailable before the migration is applied.
-- Rebased the worktree onto `origin/main` and resequenced the survey migration after `067_classwork_mixed_ordering.sql`.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/unit/surveys.test.ts tests/lib/classwork-order.test.ts tests/unit/classwork-migration-rpc-grants.test.ts`
-- `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/unit/surveys.test.ts`
-- `pnpm test tests/unit/surveys.test.ts tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- `pnpm test -- --maxWorkers=4`
-- `pnpm build`
-- `git rev-list --left-right --count origin/main...HEAD` -> `0 0`
-- Migration prefix duplicate check returned no duplicates.
-- `E2E_BASE_URL=http://localhost:3000 pnpm e2e:auth`
-- Standard UI verify for live teacher/student Classwork pages:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Mocked survey UI verification for migration-independent teacher/student survey states:
-  - `/tmp/pika-survey-teacher-classwork.png`
-  - `/tmp/pika-survey-teacher-modal.png`
-  - `/tmp/pika-survey-teacher-workspace.png`
-  - `/tmp/pika-survey-student-classwork.png`
-  - `/tmp/pika-survey-student-form.png`
-
-## 2026-05-13 — Quiz and survey source editors
-
-**Completed:**
-- Generalized the test editor-only/markdown-only authoring layout so quizzes can use the same modal Code toggle flow without test documents.
-- Added quiz markdown source serialization/parsing and draft source persistence for AI-friendly quiz authoring.
-- Added a survey Code view with markdown serialization/parsing for multiple-choice, short-text, and link questions, including title/results/dynamic settings.
-- Let survey question POST/PATCH accept explicit `position` so markdown apply preserves source order.
-- Added route, parser, and component coverage for the new quiz/survey source authoring paths.
-
-**Validation:**
-- `pnpm test tests/lib/quiz-markdown.test.ts tests/unit/surveys.test.ts tests/components/QuizDetailPanel.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/api/teacher/surveys-questions-route.test.ts tests/api/teacher/surveys-questions-id.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/surveys-classwork bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Additional teacher screenshots:
-  - `/tmp/pika-quiz-edit-modal.png`
-  - `/tmp/pika-quiz-code-modal.png`
-  - `/tmp/pika-survey-code.png`
-
-## 2026-05-13 — Survey setup parity
-
-**Completed:**
-- Extracted a shared assessment setup dialog shell and routed quiz/test setup plus survey setup through it.
-- Updated new survey creation to use the same full-screen assessment setup frame as quiz/test creation.
-- After creating a survey, route the teacher directly into the new survey workspace with Code authoring selected.
-- Added component coverage for survey setup chrome and the created-survey Code-mode handoff.
-
-**Validation:**
-- `pnpm test tests/components/QuizModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/surveys-classwork E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Additional teacher screenshots:
-  - `/tmp/pika-survey-create-modal.png`
-  - `/tmp/pika-survey-create-modal-mobile.png`
-  - `/tmp/pika-survey-created-code.png`
-
-## 2026-05-13 — Survey workspace modal routing
-
-**Completed:**
-- Changed teacher survey cards and `surveyId` routes to open `TeacherSurveyWorkspace` in a dialog over the Classwork summary instead of replacing the main content pane.
-- Kept survey creation handoff to Code mode while returning the pane selection/cookie to the Classwork summary.
-- Added regression coverage for card-opened and routed survey modals preserving the classwork list behind the dialog.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/SurveyModal.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/surveys-classwork E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Additional survey modal screenshots:
-  - `/tmp/pika-survey-modal-desktop.png`
-  - `/tmp/pika-survey-modal-mobile.png`
-
-## 2026-05-13 — Survey setup form parity
-
-**Completed:**
-- Extracted the shared quiz/test setup body into `AssessmentSetupForm` with the common title field, footer actions, and checkbox control.
-- Routed both `QuizModal` and `SurveyModal` through the shared setup form so survey creation matches quiz/test creation structure.
-- Removed the survey-specific settings box from creation; survey options now sit in the same plain form rhythm as the quiz/test controls.
-
-**Validation:**
-- `pnpm test tests/components/QuizModal.test.tsx tests/components/SurveyModal.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/surveys-classwork E2E_BASE_URL=http://localhost:3002 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Additional survey creation screenshots:
-  - `/tmp/pika-survey-create-shared-desktop.png`
-  - `/tmp/pika-survey-create-shared-mobile.png`
-
-## 2026-05-13 — Student survey review fixes
-
-**Completed:**
-- Preserved saved link responses as `question_type: 'link'` in the student survey detail payload.
-- Removed classmate `student_id` values from student-visible survey result responses.
-- Added API regression coverage for link response discriminants and student result payload privacy.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/api/student/surveys-route.test.ts`
-- `pnpm lint`
-
-## 2026-05-14 — Survey review follow-up fixes
-
-**Completed:**
-- Trimmed the rolling session log and shortened the new survey feature entry to restore startup-budget tests.
-- Reserved survey positions when assignment markdown bulk-save recomputes assignment positions.
-- Replaced the assignment-preserve reorder RPC in the survey migration so it skips both material and survey positions.
-
-**Validation:**
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/api/teacher/assignments-bulk.test.ts tests/api/teacher/assignments-reorder.test.ts tests/unit/classwork-migration-rpc-grants.test.ts`
-- `bash scripts/verify-env.sh`
-- `pnpm lint`
-- `pnpm build`
-
-## 2026-05-14 — Announcement calendar titles
-
-**Completed:**
-- Added nullable announcement titles with shared normalization and a 60-character limit.
-- Wired title create/edit through teacher announcement APIs and UI, and displayed titles on teacher/student announcement cards.
-- Updated calendar announcement pills and focused-day presentation to use titles with truncation, falling back to `Announcement` or `Scheduled`.
-
-**Validation:**
-- `pnpm test tests/unit/announcements.test.ts tests/api/teacher/announcements.test.ts tests/api/teacher/announcements-id.test.ts tests/components/LessonDayCell.test.tsx tests/components/AnnouncementsMarkdown.test.tsx tests/components/LessonCalendar.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/announcement-calendar-title bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=calendar'`
-- Additional screenshots:
-  - `/tmp/pika-teacher-titled-announcement.png`
-  - `/tmp/pika-student-titled-announcement.png`
-  - `/tmp/pika-teacher-announcement-title-form.png`
-
-## 2026-05-14 — Interactive announcement calendar popups
-
-**Completed:**
-- Added an opt-in interactive mode to the shared tooltip wrapper so hoverable/clickable content is available without changing normal tooltip behavior.
-- Enabled interactive popup behavior for calendar announcement tooltips, including weekend announcement indicators.
-- Verified markdown links inside announcement popups remain reachable when moving the pointer from the calendar pill into the popup.
-
-**Validation:**
-- `pnpm test tests/components/LessonDayCell.test.tsx`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm test tests/components/LessonCalendar.test.tsx tests/components/AnnouncementsMarkdown.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/announcement-calendar-title bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=calendar'`
-- Targeted Playwright hover/click-actionability check with screenshot:
-  - `/tmp/pika-announcement-popup-link-hover.png`
-
-## 2026-05-14 — Announcement composer sizing
-
-**Completed:**
-- Increased teacher announcement create/edit textareas from 3 to 6 rows with a 10rem minimum height.
-- Enabled vertical resize and autogrow behavior from textarea scroll height for longer announcement drafts.
-- Added component coverage for the larger resizable creation textarea.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/announcement-calendar-title bash /Users/stew/Repos/pika/.codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/AnnouncementsMarkdown.test.tsx tests/api/teacher/announcements.test.ts tests/api/teacher/announcements-id.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/announcement-calendar-title bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=announcements'`
-- Additional screenshots:
-  - `/tmp/pika-announcement-create-textarea.png`
-  - `/tmp/pika-announcement-create-textarea-mobile.png`
-
 ## 2026-05-14 — Announcement newest-first ordering
 
 **Completed:**
@@ -376,3 +119,226 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-assignment-mobile-1-students-grading-numbered-indicator.png`
   - `/tmp/pika-assignment-mobile-2-content-grading-numbered-indicator.png`
   - `/tmp/pika-assignment-mobile-3-students-content-numbered-indicator.png`
+
+## 2026-05-14 — Survey experience cleanup
+
+**Completed:**
+- Removed the back-to-Classwork link from student and teacher survey detail surfaces.
+- Removed dynamic-survey labels from student cards/detail and teacher cards/detail, and renamed the teacher settings checkbox without the dynamic wording.
+- Covered the earlier submit-gated survey results behavior before the follow-up timing split below.
+- Aligned survey creation with test creation by making `New Survey` title-only in the shared full-screen assessment setup modal; survey options remain in compact edit/settings.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/api/student/surveys-route.test.ts tests/components/SurveyModal.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm test tests/components/SurveyModal.test.tsx tests/components/QuizModal.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=c1341f92-b133-4d8a-bfcf-a1409e3ef0ba'` (temporary local survey removed after screenshots)
+- Extra settings screenshot: `/tmp/pika-teacher-survey-settings.png`
+- Creation parity screenshots: `/tmp/pika-new-test-modal.png`, `/tmp/pika-new-survey-modal.png`
+
+## 2026-05-14 — Hide quiz classroom feature
+
+**Completed:**
+- Removed the Quizzes item from teacher/student classroom nav, UI gallery links, snapshot coverage, and assessment parity capture.
+- Made legacy `tab=quizzes` classroom URLs fall back to the role default tab and clear stale `quizId` params.
+- Hid quiz publishing/blueprint choices from settings and blueprint editor UI; normalized published/planned site configs to keep quizzes unpublished.
+
+**Validation:**
+- `pnpm test tests/components/NavItems.test.tsx tests/unit/layout-config.test.ts tests/components/ThreePanelProvider.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/lib/course-site-publishing.test.ts tests/components/TeacherBlueprintsPage.test.tsx tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test tests/components/SurveyModal.test.tsx tests/api/student/surveys-route.test.ts tests/components/TeacherSurveyWorkspace.test.tsx tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/StudentQuizzesTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/lib/course-blueprint-package.test.ts tests/lib/server/course-sites.test.ts tests/lib/server/course-blueprints.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Extra screenshots/assertions: `/tmp/pika-student-desktop.png`, `/tmp/pika-teacher-settings-no-quiz.png`; Playwright confirmed `Quizzes` links are absent for both roles and legacy quiz URLs redirect to `attendance`/`today`.
+
+## 2026-05-14 — Survey poll/results timing split
+
+**Completed:**
+- Added independent selected-survey controls for poll visibility (`Poll hidden/open/closed`) and result visibility (`Results hidden/visible`).
+- Allowed enrolled students to view survey class results before submitting when results are visible and the survey is open or closed; drafts and hidden/future polls stay unavailable.
+- Kept open surveys answerable for unsubmitted students even when class results are already visible.
+
+**Validation:**
+- `pnpm test tests/api/student/surveys-route.test.ts tests/components/TeacherSurveyWorkspace.test.tsx tests/components/StudentSurveyPanel.test.tsx tests/components/StudentAssignmentsTab.test.tsx tests/unit/surveys.test.ts`
+- `pnpm test tests/components/SurveyModal.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Targeted screenshots/assertions: `/tmp/pika-survey-teacher-controls.png`, `/tmp/pika-survey-student-results-before-submit.png`, `/tmp/pika-survey-teacher-mobile-controls.png`.
+
+## 2026-05-14 — Direct survey draft creation
+
+**Completed:**
+- Changed `New > Survey` to create an untitled draft immediately and open the selected-survey workspace directly.
+- Defaulted newly created surveys to visual question editing instead of markdown/code mode.
+- Added inline title editing from the selected survey header; generated backend titles display as `Untitled` until the teacher enters a title.
+- Let the teacher survey POST endpoint generate `Untitled yyyy-MM-dd HH:mm:ss` when the title is blank or omitted.
+
+**Validation:**
+- `pnpm test tests/api/teacher/surveys-route.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/SurveyModal.test.tsx tests/api/student/surveys-route.test.ts tests/components/StudentSurveyPanel.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test` (known unrelated full-suite issue: `tests/components/TeacherGradebookTab.test.tsx` timed out/failed under load; isolated file passes)
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `E2E_BASE_URL=http://localhost:3003 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Targeted screenshots/assertions: `/tmp/pika-direct-survey-create-desktop.png`, `/tmp/pika-direct-survey-create-mobile.png`.
+
+## 2026-05-14 — Shared test/survey editable title creation
+
+**Completed:**
+- Changed `New Test` to create an untitled draft immediately and open the visual test authoring modal, removing the title-only modal step.
+- Added shared untitled-title helpers and a shared editable assessment title control used by both test and survey authoring.
+- Saved test title edits into the assessment draft so activation preserves the teacher-entered title.
+- Kept generated backend titles displayed as `Untitled` in both survey and test creation surfaces until the teacher enters a title.
+
+**Validation:**
+- `pnpm test tests/api/teacher/tests-route.test.ts tests/api/teacher/surveys-route.test.ts tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3005 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests'`
+- Targeted screenshots/assertions: `/tmp/pika-direct-test-create-desktop.png`, `/tmp/pika-direct-test-create-mobile.png`, `/tmp/pika-shared-survey-title-desktop.png`, `/tmp/pika-shared-survey-title-mobile.png`.
+
+## 2026-05-14 — Survey response length field removal
+
+**Completed:**
+- Removed the visible `Max characters` control from the survey question edit card for short-text and link questions.
+- Kept the existing/default `response_max_chars` value in save payloads so existing survey response limits remain compatible.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/TeacherSurveyWorkspace.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Targeted Playwright screenshot/assertion: `/tmp/pika-survey-no-max-characters.png`.
+
+## 2026-05-14 — Test modal header title placement
+
+**Completed:**
+- Moved the editable test title into the test creation/edit modal header where the fixed `Test` label was.
+- Display generated untitled test drafts as `Untitled Test` in the editable test title control.
+- Kept the same draft-backed title save path by portaling the existing `QuizDetailPanel` title editor into the modal header.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3005 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests'`
+- Targeted screenshots/assertions: `/tmp/pika-test-title-header-desktop.png`, `/tmp/pika-test-title-header-mobile.png`.
+
+## 2026-05-14 — Survey selected-card results pane
+
+**Completed:**
+- Moved teacher survey results out of the authoring modal and into the selected survey Pika pane.
+- Moved teacher survey settings/actions into the selected-survey floating action bar: edit, code, poll visibility, results visibility, response editing, delete.
+- Changed survey cards to select the survey results pane instead of opening the authoring modal directly.
+- Updated student survey behavior so visible results render first, unsubmitted students can still open the response form, and submitted students get an edit-response FAB when response editing is allowed.
+- Fixed URL-selected survey modal state so the teacher action-bar edit/code buttons can open the authoring modal without being immediately cleared by the URL selection effect.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/StudentSurveyPanel.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3005 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Targeted Playwright screenshots/assertions: `/tmp/pika-teacher-survey-results-pane.png`, `/tmp/pika-teacher-survey-authoring-no-results.png`, `/tmp/pika-student-survey-results-respond.png`, `/tmp/pika-student-survey-results-edit.png`, `/tmp/pika-student-survey-edit-form.png`.
+
+## 2026-05-14 — Survey cleanup resumed validation
+
+**Completed:**
+- Resumed the survey cleanup worktree after an interrupted startup verification run.
+- Confirmed the real worktree branch remained `codex/survey-experience-cleanup`.
+- Loaded startup and UI guidance context without making further code changes.
+
+**Validation:**
+- `pnpm test` — 268 test files and 2235 tests passed.
+- `git diff --check`
+
+## 2026-05-14 — Rebased survey cleanup onto origin/main
+
+**Completed:**
+- Stashed dirty work, fetched `origin/main`, and rebased `codex/survey-experience-cleanup`.
+- Re-applied local changes and resolved the single conflict in `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`.
+- Kept upstream assignment split-pane behavior and branch survey results/action-bar behavior together.
+- Confirmed no branch-added Supabase migrations needed resequencing.
+- Dropped the temporary `pre-rebase-main-20260514-131209` stash after validation.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/StudentSurveyPanel.test.tsx tests/components/StudentAssignmentsTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm build`
+- `git diff --check`
+
+## 2026-05-14 — Survey creation modal title focus
+
+**Completed:**
+- Fixed routed classroom state so creating a survey keeps the new survey authoring modal open instead of immediately clearing it.
+- Added an auto-edit path for newly created survey titles.
+- Displayed generated survey titles as `Untitled Survey` in authoring and selected the full title text on creation so teachers can replace it immediately.
+- Kept unchanged generated title blur from saving a literal `Untitled Survey`.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3006 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Targeted Playwright screenshot/assertion: `/tmp/pika-survey-create-modal-title-selected.png`.
+
+## 2026-05-14 — Teacher selected-survey split actions
+
+**Completed:**
+- Replaced the selected-survey teacher floating controls with a compact `SplitButton`.
+- Kept `Edit survey` as the primary action and moved poll open/close, results visibility, response editing, and delete into the action menu.
+- Added optional per-option styling to `SplitButton` so destructive menu actions can be shown distinctly.
+- Updated the teacher classroom test coverage to assert the new selected-survey action menu behavior and PATCH flow.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3021 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=167609a8-2111-482f-8be2-7bb74a8f548f'`
+- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-teacher-final.png`, `/tmp/pika-survey-actions-open.png`; temporary survey fixture was deleted afterward.
+
+## 2026-05-14 — Teacher selected-survey icon controls
+
+**Completed:**
+- Replaced the selected-survey split button with direct icon buttons for poll open/close, results visibility, and edit survey.
+- Made the poll state action prominent with play/stop icons and primary/danger treatment.
+- Removed the selected-survey response-editing action and moved `Editable responses` into the survey authoring modal.
+- Updated tests for the direct icon controls and the editable-response setting PATCH flow.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3022 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=47927a72-ffe7-45d8-a51d-9f60bd9696d6'`
+- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-icon-controls.png`, `/tmp/pika-survey-edit-modal-settings.png`; temporary survey fixture was deleted afterward.
+
+## 2026-05-14 — Survey hidden-results and live-change copy
+
+**Completed:**
+- Replaced the hidden-results selected-survey icon with a slashed graph icon instead of an eye-off icon.
+- Renamed the survey response-editing setting to `Allow live changes`.
+- Moved `Allow live changes` onto the same survey authoring modal header row as the title, Code, and Delete controls.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3023 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=b04fcfbf-1071-4d14-af9f-592c35a9f02a'`
+- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-hidden-results-icon.png`, `/tmp/pika-survey-edit-modal-live-changes-row.png`; temporary survey fixture was deleted afterward.
+
+## 2026-05-14 — Survey question autosave controls
+
+**Completed:**
+- Removed the per-question `Save` button from survey authoring.
+- Added debounced automatic saving for edited survey question type, prompt, and options, with blur flushing for immediate persistence.
+- Kept failed autosave attempts retryable instead of suppressing the same payload after a transient error.
+- Moved the per-question delete action inline with the prompt row.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSurveyWorkspace.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3024 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=619428d0-644e-4f13-9681-bb0954e266b1'`
+- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-question-autosave-delete-inline.png`, `/tmp/pika-survey-question-autosaved.png`; confirmed `saveButtonCount: 0`, observed question PATCH on blur, and deleted the temporary survey fixture afterward.

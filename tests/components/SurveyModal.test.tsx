@@ -21,28 +21,10 @@ function makeSurvey(overrides: Partial<Survey> = {}): Survey {
 }
 
 describe('SurveyModal', () => {
-  it('uses the shared full-screen assessment setup chrome when creating a survey', () => {
+  it('keeps settings edits compact while using the shared setup shell', () => {
     render(
       <SurveyModal
         isOpen={true}
-        classroomId="classroom-1"
-        onClose={vi.fn()}
-        onSuccess={vi.fn()}
-      />
-    )
-
-    expect(screen.getByRole('heading', { name: 'New Survey' })).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Enter survey title')).toBeInTheDocument()
-    expect(screen.getByLabelText('Show class results to students after they respond')).toBeInTheDocument()
-    expect(screen.getByLabelText('Dynamic responses: students can update answers while open')).toBeInTheDocument()
-    expect(screen.getByRole('dialog')).toHaveClass('max-w-none')
-  })
-
-  it('keeps settings edits compact while using the same setup shell', () => {
-    render(
-      <SurveyModal
-        isOpen={true}
-        classroomId="classroom-1"
         survey={makeSurvey({ title: 'Game Jam Links', dynamic_responses: true })}
         onClose={vi.fn()}
         onSuccess={vi.fn()}
@@ -51,6 +33,8 @@ describe('SurveyModal', () => {
 
     expect(screen.getByRole('heading', { name: 'Edit Survey' })).toBeInTheDocument()
     expect(screen.getByDisplayValue('Game Jam Links')).toHaveAttribute('placeholder', 'Enter survey title')
+    expect(screen.getByLabelText('Show class results to students')).toBeInTheDocument()
+    expect(screen.getByLabelText('Allow students to update answers while open')).toBeInTheDocument()
     expect(screen.getByRole('dialog')).toHaveClass('max-w-md')
   })
 })

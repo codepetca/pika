@@ -57,14 +57,25 @@ export function canStudentRespondToSurvey(
   return survey.dynamic_responses
 }
 
+export function canStudentViewSurveyResults(
+  survey: Pick<Survey, 'status' | 'opens_at' | 'show_results'>,
+  now: Date = new Date()
+): boolean {
+  if (!survey.show_results) return false
+  if (survey.status === 'closed') return true
+  if (survey.status === 'active') return isSurveyVisibleToStudents(survey, now)
+  return false
+}
+
 export function getStudentSurveyStatus(
   survey: Pick<Survey, 'status' | 'opens_at' | 'show_results' | 'dynamic_responses'>,
   hasResponded: boolean,
   now: Date = new Date()
 ): StudentSurveyStatus {
-  if (!hasResponded) return 'not_started'
+  const canViewResults = canStudentViewSurveyResults(survey, now)
+  if (!hasResponded) return canViewResults ? 'can_view_results' : 'not_started'
   if (canStudentRespondToSurvey(survey, hasResponded, now)) return 'can_update'
-  if (survey.show_results) return 'can_view_results'
+  if (canViewResults) return 'can_view_results'
   return 'responded'
 }
 

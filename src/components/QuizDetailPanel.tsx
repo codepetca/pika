@@ -16,7 +16,9 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Check, ChevronDown, ChevronUp, ExternalLink, Plus, RotateCcw, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, ExternalLink, Plus, RotateCcw } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { EditableAssessmentTitle } from '@/components/assessment/EditableAssessmentTitle'
 import { Button, EmptyState, SplitButton, Tooltip, cn } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { useRefRect } from '@/hooks/use-element-rect'
@@ -33,6 +35,7 @@ import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspace
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
+import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import { markdownToQuiz, quizToMarkdown } from '@/lib/quiz-markdown'
 import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
@@ -61,6 +64,8 @@ interface Props {
   showPreviewButton?: boolean
   showResultsTab?: boolean
   previewRequestToken?: number
+  titlePortalTarget?: HTMLElement | null
+  generatedTitleLabel?: string
 }
 
 type AssessmentEditorDraft = {
@@ -131,6 +136,8 @@ export function QuizDetailPanel({
   showPreviewButton = true,
   showResultsTab,
   previewRequestToken = 0,
+  titlePortalTarget = null,
+  generatedTitleLabel,
 }: Props) {
   const AUTOSAVE_DEBOUNCE_MS = 3000
   const AUTOSAVE_MIN_INTERVAL_MS = 10_000
@@ -170,11 +177,7 @@ export function QuizDetailPanel({
     content: { title: string; show_results: boolean; questions: QuizQuestion[] }
   } | null>(null)
 
-  // Inline title editing
-  const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editTitle, setEditTitle] = useState(quiz.title)
-  const [savingTitle, setSavingTitle] = useState(false)
-  const titleInputRef = useRef<HTMLInputElement>(null)
   const draftVersionRef = useRef(1)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -198,10 +201,12 @@ export function QuizDetailPanel({
   const previousQuestionIdsRef = useRef<string[]>([])
   const summaryDetailWorkspaceRef = useRef<HTMLDivElement>(null)
   const summaryDetailResizeCleanupRef = useRef<(() => void) | null>(null)
+  const quizDefaultsRef = useRef({ title: quiz.title, show_results: quiz.show_results })
   const [summaryDetailMarkdownWidthPercent, setSummaryDetailMarkdownWidthPercent] = useState<number>(
     TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth
   )
   const loadedDraftQuizIdRef = useRef<string | null>(null)
+  quizDefaultsRef.current = { title: quiz.title, show_results: quiz.show_results }
 
   const updateSaveStatus = useCallback((status: 'saved' | 'saving' | 'unsaved') => {
     saveStatusRef.current = status
@@ -333,9 +338,10 @@ export function QuizDetailPanel({
     } | null) => {
       if (!draft?.content) return
 
-      const nextTitle = typeof draft.content.title === 'string' ? draft.content.title : quiz.title
+      const quizDefaults = quizDefaultsRef.current
+      const nextTitle = typeof draft.content.title === 'string' ? draft.content.title : quizDefaults.title
       const nextShowResults =
-        typeof draft.content.show_results === 'boolean' ? draft.content.show_results : quiz.show_results
+        typeof draft.content.show_results === 'boolean' ? draft.content.show_results : quizDefaults.show_results
       const nextQuestions = normalizeDraftQuestions(draft.content.questions || [])
       const nextSourceMarkdown =
         typeof draft.content.source_markdown === 'string'
@@ -380,22 +386,22 @@ export function QuizDetailPanel({
       setError('')
       setConflictDraft(null)
     },
-    [isTestsView, normalizeDraftQuestions, quiz.id, quiz.show_results, quiz.title, updateSaveStatus]
+    [isTestsView, normalizeDraftQuestions, quiz.id, updateSaveStatus]
   )
 
-  // Sync editTitle when quiz changes
+  // Reset local draft state only when the selected quiz/test changes.
   useEffect(() => {
+    const quizDefaults = quizDefaultsRef.current
     loadedDraftQuizIdRef.current = null
-    setEditTitle(quiz.title)
-    setDraftShowResults(quiz.show_results)
-    setIsEditingTitle(false)
+    setEditTitle(quizDefaults.title)
+    setDraftShowResults(quizDefaults.show_results)
     setConflictDraft(null)
     setIsMarkdownEditing(false)
     setMarkdownDirty(false)
     markdownDirtyRef.current = false
     setMarkdownError('')
     setMarkdownInfo('')
-  }, [quiz.id, quiz.show_results, quiz.title])
+  }, [quiz.id])
 
   useEffect(() => {
     setDocuments(normalizeTestDocuments((quiz as { documents?: unknown }).documents))
@@ -540,14 +546,6 @@ export function QuizDetailPanel({
       onPendingMarkdownImportChange?.(false)
     }
   }, [hasPendingMarkdownImport, onPendingMarkdownImportChange])
-
-  // Focus input when entering edit mode
-  useEffect(() => {
-    if (isEditingTitle) {
-      titleInputRef.current?.focus()
-      titleInputRef.current?.select()
-    }
-  }, [isEditingTitle])
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -795,8 +793,8 @@ export function QuizDetailPanel({
         : {
             version: 1,
             content: {
-              title: quiz.title,
-              show_results: quiz.show_results,
+              title: quizDefaultsRef.current.title,
+              show_results: quizDefaultsRef.current.show_results,
               questions: Array.isArray(draftData?.questions) ? draftData.questions : [],
             },
           }
@@ -824,7 +822,7 @@ export function QuizDetailPanel({
     } finally {
       setLoading(false)
     }
-  }, [apiBasePath, applyServerDraft, hasResponses, isTestsView, quiz.id, quiz.show_results, quiz.title])
+  }, [apiBasePath, applyServerDraft, hasResponses, isTestsView, quiz.id])
 
   useEffect(() => {
     loadQuizDetails()
@@ -939,32 +937,45 @@ export function QuizDetailPanel({
     }
   }, [])
 
-  async function handleTitleSave() {
-    const trimmed = editTitle.trim()
-    const fallbackTitle =
-      (pendingDraftRef.current?.title || (() => {
+  function getCurrentDraftTitleFallback() {
+    return (
+      pendingDraftRef.current?.title ||
+      (() => {
         try {
           const parsed = JSON.parse(lastSavedDraftRef.current) as { title?: string }
           return parsed?.title
         } catch {
-          return quiz.title
+          return quizDefaultsRef.current.title
         }
-      })()) || quiz.title
+      })() ||
+      quizDefaultsRef.current.title
+    )
+  }
 
-    if (!trimmed) {
+  async function handleTitleSave(nextTitle: string) {
+    const trimmed = nextTitle.trim()
+    const fallbackTitle = getCurrentDraftTitleFallback()
+    const generatedPlaceholderTitle = generatedTitleLabel ?? (isTestsView ? 'Untitled Test' : 'Untitled')
+
+    if (
+      !trimmed ||
+      (isGeneratedAssessmentTitle(fallbackTitle) &&
+        (trimmed === 'Untitled' || trimmed === generatedPlaceholderTitle))
+    ) {
       setEditTitle(fallbackTitle)
-      setIsEditingTitle(false)
+      emitDraftSummaryChange({
+        title: fallbackTitle,
+        show_results: draftShowResults,
+        questions,
+      })
       return
     }
 
-    setSavingTitle(true)
-    setIsEditingTitle(false)
-    const nextTitle = trimmed
-    setEditTitle(nextTitle)
-    setSavingTitle(false)
+    const cleanTitle = trimmed
+    setEditTitle(cleanTitle)
 
     const nextDraft = {
-      title: nextTitle,
+      title: cleanTitle,
       show_results: draftShowResults,
       questions,
     }
@@ -974,15 +985,24 @@ export function QuizDetailPanel({
     scheduleSave(nextDraft, { force: true })
   }
 
-  function handleTitleCancel() {
-    const fallbackTitle = pendingDraftRef.current?.title || quiz.title
-    setEditTitle(fallbackTitle)
-    setIsEditingTitle(false)
+  function handleTitleDraftChange(nextTitle: string) {
+    setEditTitle(nextTitle)
+    emitDraftSummaryChange({
+      title: nextTitle,
+      show_results: draftShowResults,
+      questions,
+    })
   }
 
-  function handleTitleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') handleTitleSave()
-    if (e.key === 'Escape') handleTitleCancel()
+  function handleTitleCancel() {
+    const fallbackTitle =
+      pendingDraftRef.current?.title || quizDefaultsRef.current.title
+    setEditTitle(fallbackTitle)
+    emitDraftSummaryChange({
+      title: fallbackTitle,
+      show_results: draftShowResults,
+      questions,
+    })
   }
 
   function handleAddQuestion(questionType: 'multiple_choice' | 'open_response' = 'multiple_choice') {
@@ -1672,6 +1692,59 @@ export function QuizDetailPanel({
     </div>
   )
 
+  const titleLabel = isTestsView ? 'Test' : 'Quiz'
+  const titleGeneratedLabel = generatedTitleLabel ?? (isTestsView ? 'Untitled Test' : 'Untitled')
+  const renderEditableTitle = ({
+    className,
+    rowClassName,
+    textClassName,
+    inputClassName,
+    buttonClassName,
+  }: {
+    className?: string
+    rowClassName?: string
+    textClassName?: string
+    inputClassName?: string
+    buttonClassName?: string
+  } = {}) => (
+    <EditableAssessmentTitle
+      title={editTitle}
+      inputLabel={`${titleLabel} title`}
+      editLabel={`Edit ${titleLabel.toLowerCase()} title`}
+      onDraftChange={handleTitleDraftChange}
+      onSave={handleTitleSave}
+      onCancel={handleTitleCancel}
+      generatedTitleLabel={titleGeneratedLabel}
+      className={className}
+      rowClassName={rowClassName}
+      textClassName={textClassName}
+      inputClassName={inputClassName}
+      buttonClassName={buttonClassName}
+    />
+  )
+  const editableTitle = renderEditableTitle({
+    textClassName: 'text-lg',
+    inputClassName: 'h-9 text-lg',
+  })
+
+  const editorOnlyTitleHeader = titlePortalTarget ? null : (
+    <div className="shrink-0 border-b border-border bg-surface px-4 py-3">
+      {renderEditableTitle()}
+    </div>
+  )
+  const titlePortal = titlePortalTarget
+    ? createPortal(
+        renderEditableTitle({
+          className: 'w-full',
+          rowClassName: 'flex-nowrap',
+          textClassName: 'text-base sm:text-lg',
+          inputClassName: 'h-9 min-w-0 w-full text-base sm:text-lg',
+          buttonClassName: 'max-w-full',
+        }),
+        titlePortalTarget
+      )
+    : null
+
   const testQuestionEditorPane = (
     <div
       data-testid={isTestsView ? 'test-question-editor-pane' : 'quiz-question-editor-pane'}
@@ -1822,6 +1895,7 @@ export function QuizDetailPanel({
 
   return (
     <div className="flex h-full w-full min-w-0 flex-col">
+      {titlePortal}
       {/* Tabs */}
       {!usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions && (
         <div className="flex border-b border-border shrink-0">
@@ -1943,9 +2017,12 @@ export function QuizDetailPanel({
         {usesEditorOnlyQuestions ? (
           <div
             data-testid={isTestsView ? 'test-editor-only-layout' : 'quiz-editor-only-layout'}
-            className="h-full min-h-0 bg-surface-2"
+            className="flex h-full min-h-0 flex-col bg-surface-2"
           >
-            {testQuestionEditorPane}
+            {editorOnlyTitleHeader}
+            <div className="min-h-0 flex-1">
+              {testQuestionEditorPane}
+            </div>
           </div>
         ) : usesMarkdownOnlyQuestions ? (
           <div
@@ -1958,61 +2035,7 @@ export function QuizDetailPanel({
           testsSummaryDetailPanel
         ) : viewMode === 'questions' ? (
           <div className="space-y-3">
-            {/* Inline editable title */}
-            {isEditingTitle ? (
-              <div className="flex items-center gap-1">
-                <input
-                  ref={titleInputRef}
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => {
-                    const nextTitle = e.target.value
-                    setEditTitle(nextTitle)
-                    emitDraftSummaryChange({
-                      title: nextTitle,
-                      show_results: draftShowResults,
-                      questions,
-                    })
-                  }}
-                  onKeyDown={handleTitleKeyDown}
-                  onBlur={handleTitleSave}
-                  disabled={savingTitle}
-                  className="flex-1 text-lg font-semibold text-text-default bg-transparent border-b-2 border-primary outline-none py-0.5"
-                />
-                <Tooltip content="Save">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="p-1 text-success"
-                    onClick={handleTitleSave}
-                    disabled={savingTitle}
-                    aria-label="Save title"
-                  >
-                    <Check className="h-4 w-4" />
-                  </Button>
-                </Tooltip>
-                <Tooltip content="Cancel">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="p-1"
-                    onClick={handleTitleCancel}
-                    disabled={savingTitle}
-                    aria-label="Cancel editing"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </Tooltip>
-              </div>
-            ) : (
-              <h3
-                className="text-lg font-semibold text-text-default cursor-pointer hover:text-primary transition-colors"
-                onClick={() => setIsEditingTitle(true)}
-                title="Click to rename"
-              >
-                {editTitle}
-              </h3>
-            )}
+            {editableTitle}
             <div className="text-xs text-text-muted">
               {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'unsaved' ? 'Unsaved changes' : 'Saved'}
             </div>

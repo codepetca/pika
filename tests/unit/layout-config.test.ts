@@ -81,18 +81,13 @@ describe('getLayoutConfig', () => {
     expect(studentAnnouncementsConfig.mainContent.maxWidth).toBe('full')
   })
 
-  it('should not reserve external sidebars for teacher gradebook, quizzes, and tests', () => {
+  it('should not reserve external sidebars for teacher gradebook and tests', () => {
     const gradebookConfig = getLayoutConfig('gradebook')
-    const quizzesConfig = getLayoutConfig('quizzes-teacher')
     const testsConfig = getLayoutConfig('tests-teacher')
 
     expect(gradebookConfig.rightSidebar.enabled).toBe(false)
     expect(gradebookConfig.rightSidebar.defaultOpen).toBe(false)
     expect(gradebookConfig.mainContent.maxWidth).toBe('full')
-
-    expect(quizzesConfig.rightSidebar.enabled).toBe(false)
-    expect(quizzesConfig.rightSidebar.defaultOpen).toBe(false)
-    expect(quizzesConfig.mainContent.maxWidth).toBe('full')
 
     expect(testsConfig.rightSidebar.enabled).toBe(false)
     expect(testsConfig.rightSidebar.defaultOpen).toBe(false)
@@ -202,6 +197,11 @@ describe('getRouteKeyFromTab', () => {
     expect(getRouteKeyFromTab('tests', 'student')).toBe('tests-student')
   })
 
+  it('should treat the legacy quizzes tab as hidden and fall back by role', () => {
+    expect(getRouteKeyFromTab('quizzes', 'teacher')).toBe('attendance')
+    expect(getRouteKeyFromTab('quizzes', 'student')).toBe('today')
+  })
+
   it('should return default for unknown tabs', () => {
     expect(getRouteKeyFromTab('unknown', 'teacher')).toBe('attendance')
     expect(getRouteKeyFromTab('unknown', 'student')).toBe('today')
@@ -220,8 +220,6 @@ describe('ROUTE_CONFIGS', () => {
       'assignments-student',
       'assignments-teacher-list',
       'assignments-teacher-viewing',
-      'quizzes-teacher',
-      'quizzes-student',
       'tests-teacher',
       'tests-student',
       'calendar-teacher',

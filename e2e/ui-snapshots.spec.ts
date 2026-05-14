@@ -220,11 +220,6 @@ test.describe('teacher screens - light mode', () => {
     await expect(page).toHaveScreenshot('teacher-classroom-assignments.png', { fullPage: true })
   })
 
-  test('classroom quizzes tab', async ({ page }) => {
-    await openClassroomTab(page, 'Quizzes')
-    await expect(page).toHaveScreenshot('teacher-classroom-quizzes.png', { fullPage: true })
-  })
-
   test('classroom tests tab', async ({ page }) => {
     await openClassroomTab(page, 'Tests')
     await expect(page).toHaveScreenshot('teacher-classroom-tests.png', { fullPage: true })
@@ -281,11 +276,6 @@ test.describe('student screens - light mode', () => {
   test('classroom assignments tab', async ({ page }) => {
     await openClassroomTab(page, 'Assignments')
     await expect(page).toHaveScreenshot('student-classroom-assignments.png', { fullPage: true })
-  })
-
-  test('classroom quizzes tab', async ({ page }) => {
-    await openClassroomTab(page, 'Quizzes')
-    await expect(page).toHaveScreenshot('student-classroom-quizzes.png', { fullPage: true })
   })
 
   test('classroom tests tab', async ({ page }) => {
@@ -394,11 +384,6 @@ test.describe('teacher screens - dark mode', () => {
     await expect(page).toHaveScreenshot('teacher-classroom-assignments-dark.png', { fullPage: true })
   })
 
-  test('classroom quizzes tab', async ({ page }) => {
-    await openClassroomTab(page, 'Quizzes', { dark: true })
-    await expect(page).toHaveScreenshot('teacher-classroom-quizzes-dark.png', { fullPage: true })
-  })
-
   test('classroom tests tab', async ({ page }) => {
     await openClassroomTab(page, 'Tests', { dark: true })
     await expect(page).toHaveScreenshot('teacher-classroom-tests-dark.png', { fullPage: true })
@@ -467,11 +452,6 @@ test.describe('student screens - dark mode', () => {
     await enableDarkMode(page)
 
     await expect(page).toHaveScreenshot('student-classroom-assignments-dark.png', { fullPage: true })
-  })
-
-  test('classroom quizzes tab', async ({ page }) => {
-    await openClassroomTab(page, 'Quizzes', { dark: true })
-    await expect(page).toHaveScreenshot('student-classroom-quizzes-dark.png', { fullPage: true })
   })
 
   test('classroom tests tab', async ({ page }) => {

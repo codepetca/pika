@@ -9,8 +9,8 @@ import {
 } from '@/lib/course-site-publishing'
 
 describe('course-site-publishing', () => {
-  it('fills missing planned site flags with defaults', () => {
-    expect(normalizePlannedCourseSiteConfig({ overview: false, quizzes: false })).toEqual({
+  it('fills missing planned site flags with defaults and keeps quizzes hidden', () => {
+    expect(normalizePlannedCourseSiteConfig({ overview: false, quizzes: true })).toEqual({
       ...DEFAULT_PLANNED_COURSE_SITE_CONFIG,
       overview: false,
       quizzes: false,

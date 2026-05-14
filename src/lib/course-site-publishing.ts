@@ -9,7 +9,7 @@ export const DEFAULT_PLANNED_COURSE_SITE_CONFIG: PlannedCourseSiteConfig = {
   outline: true,
   resources: true,
   assignments: true,
-  quizzes: true,
+  quizzes: false,
   tests: true,
   lesson_plans: true,
 }
@@ -44,7 +44,7 @@ export function normalizePlannedCourseSiteConfig(value: unknown): PlannedCourseS
     outline: asBoolean(record.outline, DEFAULT_PLANNED_COURSE_SITE_CONFIG.outline),
     resources: asBoolean(record.resources, DEFAULT_PLANNED_COURSE_SITE_CONFIG.resources),
     assignments: asBoolean(record.assignments, DEFAULT_PLANNED_COURSE_SITE_CONFIG.assignments),
-    quizzes: asBoolean(record.quizzes, DEFAULT_PLANNED_COURSE_SITE_CONFIG.quizzes),
+    quizzes: false,
     tests: asBoolean(record.tests, DEFAULT_PLANNED_COURSE_SITE_CONFIG.tests),
     lesson_plans: asBoolean(record.lesson_plans, DEFAULT_PLANNED_COURSE_SITE_CONFIG.lesson_plans),
   }

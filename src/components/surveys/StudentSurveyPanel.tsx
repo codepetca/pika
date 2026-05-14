@@ -1,10 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ExternalLink } from 'lucide-react'
+import { ExternalLink, Pencil } from 'lucide-react'
 import { Button, Card, Input } from '@/ui'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { Spinner } from '@/components/Spinner'
+import { canStudentViewSurveyResults } from '@/lib/surveys'
 import type {
   StudentSurveyStatus,
   Survey,
@@ -16,7 +17,6 @@ import type {
 
 interface StudentSurveyPanelProps {
   surveyId: string
-  onBack: () => void
   onCompleted?: () => void
 }
 
@@ -25,6 +25,7 @@ type SurveyDetailPayload = {
   questions: SurveyQuestion[]
   student_responses: Record<string, SurveyResponseValue>
   student_status: StudentSurveyStatus
+  has_submitted?: boolean
 }
 
 type StudentSurveyQuestionResult = Omit<SurveyQuestionResult, 'responses'> & {
@@ -113,7 +114,6 @@ function StudentSurveyResults({ payload }: { payload: SurveyResultsPayload | nul
 
 export function StudentSurveyPanel({
   surveyId,
-  onBack,
   onCompleted,
 }: StudentSurveyPanelProps) {
   const [detail, setDetail] = useState<SurveyDetailPayload | null>(null)
@@ -121,6 +121,7 @@ export function StudentSurveyPanel({
   const [results, setResults] = useState<SurveyResultsPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [isEditingResponse, setIsEditingResponse] = useState(false)
   const [error, setError] = useState('')
 
   const loadSurvey = useCallback(async () => {
@@ -156,17 +157,24 @@ export function StudentSurveyPanel({
   }, [loadSurvey])
 
   useEffect(() => {
-    if (detail?.survey.show_results && detail.student_status !== 'not_started') {
+    if (detail?.survey && canStudentViewSurveyResults(detail.survey)) {
       void loadResults()
     } else {
       setResults(null)
     }
-  }, [detail?.student_status, detail?.survey.show_results, loadResults])
+  }, [detail?.survey, loadResults])
+
+  useEffect(() => {
+    const survey = detail?.survey
+    if (!survey) return
+    setIsEditingResponse(!canStudentViewSurveyResults(survey))
+  }, [detail?.survey])
 
   const canRespond = useMemo(() => {
     if (!detail) return false
     if (detail.survey.status !== 'active') return false
-    return detail.student_status === 'not_started' || detail.student_status === 'can_update'
+    const hasSubmitted = detail.has_submitted ?? Object.keys(detail.student_responses || {}).length > 0
+    return !hasSubmitted || detail.survey.dynamic_responses
   }, [detail])
 
   const allAnswered = useMemo(() => {
@@ -195,7 +203,8 @@ export function StudentSurveyPanel({
       if (!response.ok) throw new Error(data.error || 'Failed to submit responses')
       onCompleted?.()
       await loadSurvey()
-      if (detail.survey.show_results) await loadResults()
+      if (canStudentViewSurveyResults(detail.survey)) await loadResults()
+      if (canStudentViewSurveyResults(detail.survey)) setIsEditingResponse(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit responses')
     } finally {
@@ -216,160 +225,171 @@ export function StudentSurveyPanel({
   if (!detail) {
     return (
       <Card tone="panel" padding="lg">
-        <Button size="sm" variant="secondary" onClick={onBack}>
-          <ArrowLeft className="mr-1 h-4 w-4" aria-hidden="true" />
-          Back
-        </Button>
-        <p className="mt-4 text-sm text-danger">{error || 'Survey unavailable'}</p>
+        <p className="text-sm text-danger">{error || 'Survey unavailable'}</p>
       </Card>
     )
   }
 
-  const { survey, questions, student_status: studentStatus } = detail
-  const hasSubmitted = studentStatus !== 'not_started'
+  const { survey, questions } = detail
+  const hasSubmitted = detail.has_submitted ?? Object.keys(detail.student_responses || {}).length > 0
+  const canViewResults = canStudentViewSurveyResults(survey)
+  const showResponseForm = isEditingResponse || !canViewResults
+  const showResults = canViewResults
+  const surveyActionFab = canViewResults && canRespond ? (
+    <div className="fixed left-1/2 top-[3.25rem] z-40 w-max max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-lg bg-surface/95 p-1 shadow-elevated backdrop-blur">
+      <Button
+        type="button"
+        size="sm"
+        variant={isEditingResponse ? 'subtle' : 'primary'}
+        onClick={() => setIsEditingResponse((current) => !current)}
+      >
+        <Pencil className="mr-1 h-4 w-4" aria-hidden="true" />
+        {isEditingResponse ? 'View results' : hasSubmitted ? 'Edit response' : 'Respond'}
+      </Button>
+    </div>
+  ) : null
 
   return (
-    <div className="space-y-4">
-      <Card tone="panel" padding="lg" className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <button
-              type="button"
-              onClick={onBack}
-              className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-text-muted hover:text-text-default"
-            >
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              Classwork
-            </button>
-            <h2 className="text-xl font-semibold text-text-default">{survey.title}</h2>
-            <p className="mt-1 text-sm text-text-muted">
-              {survey.dynamic_responses
-                ? 'Dynamic survey'
-                : 'Survey'}
-            </p>
+    <div className={['space-y-4', surveyActionFab ? 'pt-8' : ''].filter(Boolean).join(' ')}>
+      {surveyActionFab}
+
+      {showResponseForm ? (
+        <Card tone="panel" padding="lg" className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-xl font-semibold text-text-default">{survey.title}</h2>
+              <p className="mt-1 text-sm text-text-muted">Survey</p>
+            </div>
+            {hasSubmitted && (
+              <span className="rounded-badge bg-success-bg px-2.5 py-1 text-xs font-semibold text-success">
+                Submitted
+              </span>
+            )}
           </div>
-          {hasSubmitted && (
-            <span className="rounded-badge bg-success-bg px-2.5 py-1 text-xs font-semibold text-success">
-              Submitted
-            </span>
+
+          {error && (
+            <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+              {error}
+            </div>
           )}
-        </div>
 
-        {error && (
-          <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-            {error}
-          </div>
-        )}
+          <div className="space-y-5">
+            {questions.map((question, index) => {
+              const selectedOption = selectedOptionFromResponse(responses[question.id])
+              const textValue = textFromResponse(responses[question.id])
+              return (
+                <div key={question.id} className="space-y-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Q{index + 1}</p>
+                    <QuestionMarkdown content={question.question_text} />
+                  </div>
 
-        <div className="space-y-5">
-          {questions.map((question, index) => {
-            const selectedOption = selectedOptionFromResponse(responses[question.id])
-            const textValue = textFromResponse(responses[question.id])
-            return (
-              <div key={question.id} className="space-y-2">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Q{index + 1}</p>
-                  <QuestionMarkdown content={question.question_text} />
-                </div>
-
-                {question.question_type === 'multiple_choice' ? (
-                  <div className="space-y-2">
-                    {question.options.map((option, optionIndex) => {
-                      const isSelected = selectedOption === optionIndex
-                      return (
-                        <button
-                          key={optionIndex}
-                          type="button"
-                          disabled={!canRespond || submitting}
-                          onClick={() => {
-                            setResponses((current) => ({
-                              ...current,
-                              [question.id]: {
-                                question_type: 'multiple_choice',
-                                selected_option: optionIndex,
-                              },
-                            }))
-                          }}
-                          className={[
-                            'flex w-full items-center gap-3 rounded-lg border p-3 text-left text-sm transition-colors',
-                            isSelected
-                              ? 'border-primary bg-primary/5 text-text-default'
-                              : 'border-border bg-surface hover:bg-surface-hover text-text-default',
-                            !canRespond ? 'cursor-not-allowed opacity-70' : '',
-                          ].join(' ')}
-                        >
-                          <span
-                            aria-hidden="true"
+                  {question.question_type === 'multiple_choice' ? (
+                    <div className="space-y-2">
+                      {question.options.map((option, optionIndex) => {
+                        const isSelected = selectedOption === optionIndex
+                        return (
+                          <button
+                            key={optionIndex}
+                            type="button"
+                            disabled={!canRespond || submitting}
+                            onClick={() => {
+                              setResponses((current) => ({
+                                ...current,
+                                [question.id]: {
+                                  question_type: 'multiple_choice',
+                                  selected_option: optionIndex,
+                                },
+                              }))
+                            }}
                             className={[
-                              'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
-                              isSelected ? 'border-primary' : 'border-border',
+                              'flex w-full items-center gap-3 rounded-lg border p-3 text-left text-sm transition-colors',
+                              isSelected
+                                ? 'border-primary bg-primary/5 text-text-default'
+                                : 'border-border bg-surface hover:bg-surface-hover text-text-default',
+                              !canRespond ? 'cursor-not-allowed opacity-70' : '',
                             ].join(' ')}
                           >
-                            {isSelected && <span className="h-2.5 w-2.5 rounded-full bg-primary" />}
-                          </span>
-                          <span>{option}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                ) : question.question_type === 'link' ? (
-                  <Input
-                    type="url"
-                    value={textValue}
-                    onChange={(event) =>
-                      setResponses((current) => ({
-                        ...current,
-                        [question.id]: {
-                          question_type: 'link',
-                          response_text: event.target.value,
-                        },
-                      }))
-                    }
-                    disabled={!canRespond || submitting}
-                    placeholder="https://example.com"
-                  />
-                ) : (
-                  <textarea
-                    value={textValue}
-                    onChange={(event) =>
-                      setResponses((current) => ({
-                        ...current,
-                        [question.id]: {
-                          question_type: 'short_text',
-                          response_text: event.target.value,
-                        },
-                      }))
-                    }
-                    rows={4}
-                    maxLength={question.response_max_chars}
-                    disabled={!canRespond || submitting}
-                    className="w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
-                    placeholder="Write your response..."
-                  />
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        {canRespond ? (
-          <div className="flex justify-end border-t border-border pt-4">
-            <Button onClick={submitResponses} disabled={!allAnswered || submitting}>
-              {submitting ? 'Saving...' : hasSubmitted ? 'Update responses' : 'Submit'}
-            </Button>
+                            <span
+                              aria-hidden="true"
+                              className={[
+                                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
+                                isSelected ? 'border-primary' : 'border-border',
+                              ].join(' ')}
+                            >
+                              {isSelected && <span className="h-2.5 w-2.5 rounded-full bg-primary" />}
+                            </span>
+                            <span>{option}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : question.question_type === 'link' ? (
+                    <Input
+                      type="url"
+                      value={textValue}
+                      onChange={(event) =>
+                        setResponses((current) => ({
+                          ...current,
+                          [question.id]: {
+                            question_type: 'link',
+                            response_text: event.target.value,
+                          },
+                        }))
+                      }
+                      disabled={!canRespond || submitting}
+                      placeholder="https://example.com"
+                    />
+                  ) : (
+                    <textarea
+                      value={textValue}
+                      onChange={(event) =>
+                        setResponses((current) => ({
+                          ...current,
+                          [question.id]: {
+                            question_type: 'short_text',
+                            response_text: event.target.value,
+                          },
+                        }))
+                      }
+                      rows={4}
+                      maxLength={question.response_max_chars}
+                      disabled={!canRespond || submitting}
+                      className="w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
+                      placeholder="Write your response..."
+                    />
+                  )}
+                </div>
+              )
+            })}
           </div>
-        ) : hasSubmitted ? (
-          <p className="border-t border-border pt-4 text-sm text-text-muted">
-            {survey.dynamic_responses && survey.status === 'closed'
-              ? 'This survey is closed.'
-              : 'Your response is locked.'}
-          </p>
-        ) : null}
-      </Card>
 
-      {survey.show_results && hasSubmitted && (
+          {canRespond ? (
+            <div className="flex justify-end border-t border-border pt-4">
+              <Button onClick={submitResponses} disabled={!allAnswered || submitting}>
+                {submitting ? 'Saving...' : hasSubmitted ? 'Update responses' : 'Submit'}
+              </Button>
+            </div>
+          ) : hasSubmitted ? (
+            <p className="border-t border-border pt-4 text-sm text-text-muted">
+              {survey.dynamic_responses && survey.status === 'closed'
+                ? 'This survey is closed.'
+                : 'Your response is locked.'}
+            </p>
+          ) : canViewResults ? (
+            <p className="border-t border-border pt-4 text-sm text-text-muted">
+              This survey is closed.
+            </p>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {showResults && (
         <Card tone="panel" padding="lg" className="space-y-4">
-          <h3 className="text-base font-semibold text-text-default">Class results</h3>
+          <div>
+            <h2 className="text-xl font-semibold text-text-default">{survey.title}</h2>
+            <h3 className="mt-4 text-base font-semibold text-text-default">Class results</h3>
+          </div>
           <StudentSurveyResults payload={results} />
         </Card>
       )}

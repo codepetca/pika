@@ -9,11 +9,13 @@ import {
   useState,
   type TextareaHTMLAttributes,
 } from 'react'
-import { ArrowLeft, BarChart3, Code, ExternalLink, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { Code, ExternalLink, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { Button, Card, ConfirmDialog, FormField, Input, Select } from '@/ui'
+import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetupForm'
+import { EditableAssessmentTitle } from '@/components/assessment/EditableAssessmentTitle'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { Spinner } from '@/components/Spinner'
-import { SurveyModal } from '@/components/surveys/SurveyModal'
+import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import {
   DEFAULT_SURVEY_LINK_MAX_CHARS,
   DEFAULT_SURVEY_TEXT_MAX_CHARS,
@@ -28,6 +30,7 @@ interface TeacherSurveyWorkspaceProps {
   surveyId: string
   isReadOnly?: boolean
   initialEditMode?: 'edit' | 'markdown'
+  autoEditTitle?: boolean
   onInitialEditModeConsumed?: () => void
   onBack: () => void
   onSurveyUpdated: (survey: Survey) => void
@@ -67,6 +70,20 @@ function defaultMaxChars(questionType: SurveyQuestionType) {
   return questionType === 'link' ? DEFAULT_SURVEY_LINK_MAX_CHARS : DEFAULT_SURVEY_TEXT_MAX_CHARS
 }
 
+function buildQuestionSavePayload(
+  questionType: SurveyQuestionType,
+  questionText: string,
+  optionsText: string,
+  responseMaxChars: string,
+) {
+  return {
+    question_type: questionType,
+    question_text: questionText,
+    options: questionType === 'multiple_choice' ? optionsText.split('\n') : [],
+    response_max_chars: Number(responseMaxChars) || defaultMaxChars(questionType),
+  }
+}
+
 function QuestionEditor({
   question,
   disabled,
@@ -84,38 +101,84 @@ function QuestionEditor({
   const [responseMaxChars, setResponseMaxChars] = useState(String(question.response_max_chars))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const lastSavedPayloadRef = useRef('')
+  const lastAttemptedPayloadRef = useRef('')
 
   useEffect(() => {
     setQuestionType(question.question_type)
     setQuestionText(question.question_text)
     setOptionsText(question.options.join('\n'))
     setResponseMaxChars(String(question.response_max_chars))
+    const nextPayload = buildQuestionSavePayload(
+      question.question_type,
+      question.question_text,
+      question.options.join('\n'),
+      String(question.response_max_chars),
+    )
+    const nextPayloadKey = JSON.stringify(nextPayload)
+    lastSavedPayloadRef.current = nextPayloadKey
+    lastAttemptedPayloadRef.current = nextPayloadKey
     setError('')
   }, [question])
 
-  async function saveQuestion() {
+  const saveQuestion = useCallback(async (
+    payload: ReturnType<typeof buildQuestionSavePayload>,
+    payloadKey: string,
+  ) => {
+    lastAttemptedPayloadRef.current = payloadKey
     setSaving(true)
     setError('')
     try {
       const response = await fetch(`/api/teacher/surveys/${question.survey_id}/questions/${question.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question_type: questionType,
-          question_text: questionText,
-          options: questionType === 'multiple_choice' ? optionsText.split('\n') : [],
-          response_max_chars: Number(responseMaxChars) || defaultMaxChars(questionType),
-        }),
+        body: JSON.stringify(payload),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to save question')
+      lastSavedPayloadRef.current = payloadKey
       onSaved(data.question)
     } catch (err) {
+      lastAttemptedPayloadRef.current = lastSavedPayloadRef.current
       setError(err instanceof Error ? err.message : 'Failed to save question')
     } finally {
       setSaving(false)
     }
-  }
+  }, [onSaved, question.id, question.survey_id])
+
+  const saveCurrentQuestion = useCallback(() => {
+    if (disabled || saving) return
+
+    const payload = buildQuestionSavePayload(questionType, questionText, optionsText, responseMaxChars)
+    const payloadKey = JSON.stringify(payload)
+    if (
+      payloadKey === lastSavedPayloadRef.current ||
+      payloadKey === lastAttemptedPayloadRef.current
+    ) {
+      return
+    }
+
+    void saveQuestion(payload, payloadKey)
+  }, [disabled, optionsText, questionText, questionType, responseMaxChars, saveQuestion, saving])
+
+  useEffect(() => {
+    if (disabled || saving) return
+
+    const payload = buildQuestionSavePayload(questionType, questionText, optionsText, responseMaxChars)
+    const payloadKey = JSON.stringify(payload)
+    if (
+      payloadKey === lastSavedPayloadRef.current ||
+      payloadKey === lastAttemptedPayloadRef.current
+    ) {
+      return
+    }
+
+    const timeout = window.setTimeout(() => {
+      saveCurrentQuestion()
+    }, 600)
+
+    return () => window.clearTimeout(timeout)
+  }, [disabled, optionsText, questionText, questionType, responseMaxChars, saveCurrentQuestion, saving])
 
   async function deleteQuestion() {
     setSaving(true)
@@ -136,7 +199,7 @@ function QuestionEditor({
 
   return (
     <Card tone="panel" padding="md" className="space-y-3">
-      <div className="grid gap-3 lg:grid-cols-[12rem_minmax(0,1fr)]">
+      <div className="grid gap-3 lg:grid-cols-[12rem_minmax(0,1fr)_auto] lg:items-start">
         <FormField label="Type">
           <Select
             value={questionType}
@@ -147,61 +210,49 @@ function QuestionEditor({
             }}
             options={QUESTION_TYPE_OPTIONS}
             disabled={disabled || saving}
+            onBlur={saveCurrentQuestion}
           />
         </FormField>
         <FormField label="Prompt" error={error}>
           <Input
             value={questionText}
             onChange={(event) => setQuestionText(event.target.value)}
+            onBlur={saveCurrentQuestion}
             disabled={disabled || saving}
           />
         </FormField>
+        <div className="flex items-end lg:pt-6">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="text-danger hover:bg-danger-bg"
+            onClick={deleteQuestion}
+            disabled={disabled || saving}
+          >
+            <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />
+            Delete
+          </Button>
+        </div>
       </div>
 
-      {questionType === 'multiple_choice' ? (
+      {questionType === 'multiple_choice' && (
         <FormField label="Options">
           <SurveyTextarea
             value={optionsText}
             onChange={(event) => setOptionsText(event.target.value)}
+            onBlur={saveCurrentQuestion}
             disabled={disabled || saving}
             rows={4}
             className="w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
           />
         </FormField>
-      ) : (
-        <FormField label="Max characters">
-          <Input
-            type="number"
-            min={1}
-            max={5000}
-            value={responseMaxChars}
-            onChange={(event) => setResponseMaxChars(event.target.value)}
-            disabled={disabled || saving}
-          />
-        </FormField>
       )}
-
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="text-danger hover:bg-danger-bg"
-          onClick={deleteQuestion}
-          disabled={disabled || saving}
-        >
-          <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />
-          Delete
-        </Button>
-        <Button type="button" size="sm" onClick={saveQuestion} disabled={disabled || saving}>
-          {saving ? 'Saving...' : 'Save'}
-        </Button>
-      </div>
     </Card>
   )
 }
 
-function ResultsView({ payload }: { payload: SurveyResultsPayload | null }) {
+export function TeacherSurveyResultsView({ payload }: { payload: SurveyResultsPayload | null }) {
   if (!payload) {
     return (
       <div className="flex justify-center py-6">
@@ -277,26 +328,27 @@ function ResultsView({ payload }: { payload: SurveyResultsPayload | null }) {
 }
 
 export function TeacherSurveyWorkspace({
-  classroomId,
   surveyId,
   isReadOnly = false,
   initialEditMode,
+  autoEditTitle = false,
   onInitialEditModeConsumed,
   onBack,
   onSurveyUpdated,
   onSurveyDeleted,
 }: TeacherSurveyWorkspaceProps) {
   const [detail, setDetail] = useState<SurveyDetailPayload | null>(null)
-  const [results, setResults] = useState<SurveyResultsPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [newQuestionType, setNewQuestionType] = useState<SurveyQuestionType>('multiple_choice')
   const [newQuestionText, setNewQuestionText] = useState('')
   const [newOptionsText, setNewOptionsText] = useState('Option 1\nOption 2')
   const [addingQuestion, setAddingQuestion] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [statusChanging, setStatusChanging] = useState(false)
+  const [titleSaving, setTitleSaving] = useState(false)
+  const [responseSettingSaving, setResponseSettingSaving] = useState(false)
+  const [titleError, setTitleError] = useState('')
   const [surveyEditMode, setSurveyEditMode] = useState<'edit' | 'markdown'>('edit')
   const [surveyMarkdown, setSurveyMarkdown] = useState('')
   const [surveyMarkdownDirty, setSurveyMarkdownDirty] = useState(false)
@@ -335,22 +387,9 @@ export function TeacherSurveyWorkspace({
     }
   }, [surveyId])
 
-  const loadResults = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/teacher/surveys/${surveyId}/results`)
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Failed to load survey results')
-      setResults(data)
-    } catch (err) {
-      console.error('Error loading survey results:', err)
-      setResults({ results: [], stats: { responded: 0, total_students: 0 } })
-    }
-  }, [surveyId])
-
   useEffect(() => {
     void loadSurvey()
-    void loadResults()
-  }, [loadResults, loadSurvey])
+  }, [loadSurvey])
 
   useEffect(() => {
     if (!survey) return
@@ -372,26 +411,62 @@ export function TeacherSurveyWorkspace({
     onInitialEditModeConsumed?.()
   }, [initialEditMode, onInitialEditModeConsumed, survey])
 
-  const canOpen = useMemo(() => survey?.status === 'draft' && questions.length > 0, [questions.length, survey?.status])
+  async function saveTitle(title: string) {
+    if (!survey) return
 
-  async function patchSurvey(update: Record<string, unknown>) {
-    setStatusChanging(true)
+    const cleanTitle = title.trim()
+    if (
+      !cleanTitle ||
+      ((cleanTitle === 'Untitled' || cleanTitle === 'Untitled Survey') &&
+        isGeneratedAssessmentTitle(survey.title))
+    ) {
+      setTitleError('')
+      return
+    }
+
+    if (cleanTitle === survey.title) {
+      setTitleError('')
+      return
+    }
+
+    setTitleSaving(true)
+    setTitleError('')
+    try {
+      const response = await fetch(`/api/teacher/surveys/${surveyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: cleanTitle }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to update survey title')
+      setDetail((current) => current ? { ...current, survey: data.survey } : current)
+      onSurveyUpdated(data.survey)
+    } catch (err) {
+      setTitleError(err instanceof Error ? err.message : 'Failed to update survey title')
+    } finally {
+      setTitleSaving(false)
+    }
+  }
+
+  async function saveResponseEditing(nextDynamicResponses: boolean) {
+    if (!survey || nextDynamicResponses === survey.dynamic_responses) return
+
+    setResponseSettingSaving(true)
     setError('')
     try {
       const response = await fetch(`/api/teacher/surveys/${surveyId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(update),
+        body: JSON.stringify({ dynamic_responses: nextDynamicResponses }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to update survey')
       setDetail((current) => current ? { ...current, survey: data.survey } : current)
       onSurveyUpdated(data.survey)
-      void loadResults()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update survey')
     } finally {
-      setStatusChanging(false)
+      setResponseSettingSaving(false)
     }
   }
 
@@ -529,7 +604,6 @@ export function TeacherSurveyWorkspace({
         .sort((left, right) => left.position - right.position)
       setDetail({ survey: nextSurvey, questions: nextQuestions })
       onSurveyUpdated(nextSurvey)
-      await loadResults()
 
       const nextMarkdown = surveyToMarkdown({ survey: nextSurvey, questions: nextQuestions })
       setSurveyMarkdown(nextMarkdown)
@@ -580,29 +654,33 @@ export function TeacherSurveyWorkspace({
       <div className="mx-auto flex max-w-5xl flex-col gap-4">
         <Card tone="panel" padding="md" className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <button
-                type="button"
-                onClick={onBack}
-                className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-text-muted hover:text-text-default"
-              >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                Classwork
-              </button>
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <h2 className="min-w-0 text-xl font-semibold text-text-default">{survey.title}</h2>
+            <EditableAssessmentTitle
+              title={survey.title}
+              inputLabel="Survey title"
+              editLabel="Edit survey title"
+              disabled={isReadOnly || titleSaving}
+              saving={titleSaving}
+              error={titleError}
+              generatedTitleLabel="Untitled Survey"
+              autoEdit={autoEditTitle}
+              onSave={saveTitle}
+              trailing={
                 <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${statusClassName}`}>
                   {getSurveyStatusLabel(survey.status)}
                 </span>
-                {survey.dynamic_responses && (
-                  <span className="rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-primary">
-                    Dynamic
-                  </span>
-                )}
-              </div>
-            </div>
+              }
+            />
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+              <AssessmentSetupCheckbox
+                checked={survey.dynamic_responses}
+                disabled={isReadOnly || responseSettingSaving}
+                onChange={(checked) => {
+                  void saveResponseEditing(checked)
+                }}
+              >
+                Allow live changes
+              </AssessmentSetupCheckbox>
               <Button
                 size="sm"
                 variant={surveyEditMode === 'markdown' ? 'subtle' : 'secondary'}
@@ -616,37 +694,6 @@ export function TeacherSurveyWorkspace({
                 <Code className="mr-1 h-4 w-4" aria-hidden="true" />
                 Code
               </Button>
-              <Button size="sm" variant="secondary" onClick={() => setSettingsOpen(true)}>
-                <Pencil className="mr-1 h-4 w-4" aria-hidden="true" />
-                Settings
-              </Button>
-              {survey.status === 'draft' ? (
-                <Button
-                  size="sm"
-                  onClick={() => patchSurvey({ status: 'active' })}
-                  disabled={isReadOnly || statusChanging || !canOpen}
-                >
-                  Open
-                </Button>
-              ) : survey.status === 'active' ? (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => patchSurvey({ status: 'closed' })}
-                  disabled={isReadOnly || statusChanging}
-                >
-                  Close
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => patchSurvey({ status: 'active' })}
-                  disabled={isReadOnly || statusChanging}
-                >
-                  Reopen
-                </Button>
-              )}
               <Button
                 size="sm"
                 variant="ghost"
@@ -816,7 +863,6 @@ export function TeacherSurveyWorkspace({
                               }
                             : current
                         )
-                        void loadResults()
                       }}
                     />
                   ))
@@ -824,27 +870,9 @@ export function TeacherSurveyWorkspace({
               </div>
             </Card>
 
-            <Card tone="panel" padding="md" className="space-y-4">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-text-muted" aria-hidden="true" />
-                <h3 className="text-base font-semibold text-text-default">Results</h3>
-              </div>
-              <ResultsView payload={results} />
-            </Card>
           </>
         )}
       </div>
-
-      <SurveyModal
-        isOpen={settingsOpen}
-        classroomId={classroomId}
-        survey={survey}
-        onClose={() => setSettingsOpen(false)}
-        onSuccess={(updatedSurvey) => {
-          setDetail((current) => current ? { ...current, survey: updatedSurvey } : current)
-          onSurveyUpdated(updatedSurvey)
-        }}
-      />
 
       <ConfirmDialog
         isOpen={deleteConfirmOpen}

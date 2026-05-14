@@ -142,5 +142,6 @@ describe('TeacherBlueprintsPage', () => {
     expect(screen.getByText('Course blueprint saved from Semester 2. Review it here, then use it for another classroom or export the course package.')).toBeInTheDocument()
     expect(screen.getByText('Portable Course Package')).toBeInTheDocument()
     expect(screen.getByText(/Exports a .course-package.tar file with manifest.json and editable Markdown files./)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Quizzes' })).toBeNull()
   })
 })

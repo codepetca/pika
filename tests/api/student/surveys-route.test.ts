@@ -4,6 +4,26 @@ import { GET as GET_SURVEY } from '@/app/api/student/surveys/[id]/route'
 import { GET as GET_SURVEY_RESULTS } from '@/app/api/student/surveys/[id]/results/route'
 
 const mockSupabaseClient = { from: vi.fn() }
+const mockSurveyState = vi.hoisted(() => ({
+  survey: {
+    id: 'survey-1',
+    classroom_id: 'classroom-1',
+    title: 'Game Jam Links',
+    status: 'active',
+    opens_at: null,
+    show_results: true,
+    dynamic_responses: true,
+    position: 0,
+    created_by: 'teacher-1',
+    created_at: '2026-01-01T00:00:00.000Z',
+    updated_at: '2026-01-01T00:00:00.000Z',
+    classrooms: {
+      id: 'classroom-1',
+      teacher_id: 'teacher-1',
+      archived_at: null,
+    },
+  },
+}))
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -20,30 +40,20 @@ vi.mock('@/lib/auth', () => ({
 vi.mock('@/lib/server/surveys', () => ({
   assertStudentCanAccessSurvey: vi.fn(async () => ({
     ok: true,
-    survey: {
-      id: 'survey-1',
-      classroom_id: 'classroom-1',
-      title: 'Game Jam Links',
-      status: 'active',
-      opens_at: null,
-      show_results: true,
-      dynamic_responses: true,
-      position: 0,
-      created_by: 'teacher-1',
-      created_at: '2026-01-01T00:00:00.000Z',
-      updated_at: '2026-01-01T00:00:00.000Z',
-      classrooms: {
-        id: 'classroom-1',
-        teacher_id: 'teacher-1',
-        archived_at: null,
-      },
-    },
+    survey: mockSurveyState.survey,
   })),
 }))
 
 describe('GET /api/student/surveys/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSurveyState.survey = {
+      ...mockSurveyState.survey,
+      status: 'active',
+      opens_at: null,
+      show_results: true,
+      dynamic_responses: true,
+    }
   })
 
   it('preserves link response discriminants in the student response map', async () => {
@@ -125,6 +135,67 @@ describe('GET /api/student/surveys/[id]', () => {
 describe('GET /api/student/surveys/[id]/results', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSurveyState.survey = {
+      ...mockSurveyState.survey,
+      status: 'active',
+      opens_at: null,
+      show_results: true,
+      dynamic_responses: true,
+    }
+  })
+
+  it('allows students to view class results before submitting when results are visible', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'survey_questions') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+
+      if (table === 'survey_responses') {
+        return {
+          select: vi.fn((columns: string) => {
+            if (columns !== '*') throw new Error(`Unexpected survey_responses columns: ${columns}`)
+            return {
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET_SURVEY_RESULTS(
+      new NextRequest('http://localhost:3000/api/student/surveys/survey-1/results'),
+      { params: Promise.resolve({ id: 'survey-1' }) },
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.results).toEqual([])
+  })
+
+  it('does not expose draft survey results even when show_results is enabled', async () => {
+    mockSurveyState.survey = {
+      ...mockSurveyState.survey,
+      status: 'draft',
+      show_results: true,
+    }
+    ;(mockSupabaseClient.from as any) = vi.fn()
+
+    const response = await GET_SURVEY_RESULTS(
+      new NextRequest('http://localhost:3000/api/student/surveys/survey-1/results'),
+      { params: Promise.resolve({ id: 'survey-1' }) },
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(data).toEqual({ error: 'Results are not available' })
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 
   it('omits classmate student ids from text and link result payloads', async () => {

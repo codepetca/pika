@@ -20,6 +20,13 @@ function generateJoinCode() {
 
 type SettingsSection = 'general' | 'class-days'
 
+function visibleActualSiteConfig(config: ActualCourseSiteConfig | null | undefined): ActualCourseSiteConfig {
+  return {
+    ...(config || DEFAULT_ACTUAL_COURSE_SITE_CONFIG),
+    quizzes: false,
+  }
+}
+
 interface Props {
   classroom: Classroom
   sectionParam?: string | null
@@ -60,7 +67,7 @@ export function TeacherSettingsTab({
   const [actualSiteSlug, setActualSiteSlug] = useState(classroom.actual_site_slug || '')
   const [actualSitePublished, setActualSitePublished] = useState(!!classroom.actual_site_published)
   const [actualSiteConfig, setActualSiteConfig] = useState<ActualCourseSiteConfig>(
-    classroom.actual_site_config || DEFAULT_ACTUAL_COURSE_SITE_CONFIG
+    visibleActualSiteConfig(classroom.actual_site_config)
   )
   const [courseOverviewMarkdown, setCourseOverviewMarkdown] = useState(classroom.course_overview_markdown || '')
   const [courseOutlineMarkdown, setCourseOutlineMarkdown] = useState(classroom.course_outline_markdown || '')
@@ -204,7 +211,7 @@ export function TeacherSettingsTab({
         body: JSON.stringify({
           actualSiteSlug: actualSiteSlug || null,
           actualSitePublished,
-          actualSiteConfig,
+          actualSiteConfig: visibleActualSiteConfig(actualSiteConfig),
           courseOverviewMarkdown,
           courseOutlineMarkdown,
         }),
@@ -215,7 +222,7 @@ export function TeacherSettingsTab({
       }
       setActualSiteSlug(data.classroom?.actual_site_slug || '')
       setActualSitePublished(!!data.classroom?.actual_site_published)
-      setActualSiteConfig(data.classroom?.actual_site_config || actualSiteConfig)
+      setActualSiteConfig(visibleActualSiteConfig(data.classroom?.actual_site_config || actualSiteConfig))
       setCourseOverviewMarkdown(data.classroom?.course_overview_markdown || courseOverviewMarkdown)
       setCourseOutlineMarkdown(data.classroom?.course_outline_markdown || courseOutlineMarkdown)
       showMessage({ text: 'Syllabus settings saved', tone: 'success' })
@@ -480,7 +487,6 @@ export function TeacherSettingsTab({
                     ['overview', 'Overview'],
                     ['outline', 'Outline'],
                     ['assignments', 'Assignments'],
-                    ['quizzes', 'Quizzes'],
                     ['tests', 'Tests'],
                     ['lesson_plans', 'Lesson plans'],
                     ['announcements', 'Announcements'],
@@ -591,7 +597,7 @@ export function TeacherSettingsTab({
               </div>
 
               <p className="text-sm text-text-muted">
-                Save the classroom overview, outline, resources, assignments, quizzes, tests, and lesson plans as a reusable course blueprint. Students, submissions, grades, and attendance stay out of the blueprint.
+                Save the classroom overview, outline, resources, assignments, tests, and lesson plans as a reusable course blueprint. Students, submissions, grades, and attendance stay out of the blueprint.
               </p>
 
               <div className="flex flex-wrap gap-3">

@@ -17,7 +17,6 @@ import { TeacherResourcesTab } from './TeacherResourcesTab'
 import { StudentResourcesTab } from './StudentResourcesTab'
 import { TeacherAnnouncementsTab } from './TeacherAnnouncementsTab'
 import { StudentAnnouncementsTab } from './StudentAnnouncementsTab'
-import { TeacherQuizzesTab } from './TeacherQuizzesTab'
 import { TeacherTestsTab } from './TeacherTestsTab'
 import { StudentQuizzesTab } from './StudentQuizzesTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
@@ -121,8 +120,8 @@ export function ClassroomPageClient({
   const validTabs = useMemo(
     () =>
       isTeacher
-        ? (['attendance', 'gradebook', 'assignments', 'quizzes', 'tests', 'calendar', 'resources', 'announcements', 'roster', 'settings'] as const)
-        : (['today', 'assignments', 'quizzes', 'tests', 'calendar', 'resources', 'announcements'] as const),
+        ? (['attendance', 'gradebook', 'assignments', 'tests', 'calendar', 'resources', 'announcements', 'roster', 'settings'] as const)
+        : (['today', 'assignments', 'tests', 'calendar', 'resources', 'announcements'] as const),
     [isTeacher]
   )
 
@@ -180,6 +179,16 @@ export function ClassroomPageClient({
     if ((validTabs as readonly string[]).includes(tab ?? '')) return
     updateSearchParams((params) => {
       params.set('tab', defaultTab)
+      params.delete('assignmentId')
+      params.delete('materialId')
+      params.delete('surveyId')
+      params.delete('assignmentStudentId')
+      params.delete('quizId')
+      params.delete('testId')
+      params.delete('testMode')
+      params.delete('testStudentId')
+      params.delete('section')
+      params.delete('gradebookSection')
     }, { replace: true })
   }, [defaultTab, tab, updateSearchParams, validTabs])
 
@@ -363,7 +372,6 @@ function ClassroomPageContent({
   const materialIdParam = activeTab === 'assignments' ? searchParams.get('materialId') : null
   const surveyIdParam = activeTab === 'assignments' ? searchParams.get('surveyId') : null
   const assignmentStudentIdParam = searchParams.get('assignmentStudentId')
-  const quizIdParam = activeTab === 'quizzes' ? searchParams.get('quizId') : null
   const testIdParam = activeTab === 'tests' ? searchParams.get('testId') : null
   const rawTestModeParam = searchParams.get('testMode')
   const testModeParam =
@@ -563,7 +571,7 @@ function ClassroomPageContent({
   // State for calendar sidebar (teacher calendar tab)
   const [calendarSidebarState, setCalendarSidebarState] = useState<CalendarSidebarState | null>(null)
 
-  // State for selected quiz (teacher quizzes tab)
+  // State for selected assessment (teacher tests tab)
   const [selectedQuiz, setSelectedQuiz] = useState<QuizWithStats | null>(null)
   const [pendingAssessmentDelete, setPendingAssessmentDelete] = useState<{
     quiz: QuizWithStats
@@ -581,7 +589,7 @@ function ClassroomPageContent({
   }, [])
 
   useEffect(() => {
-    if (activeTab === 'quizzes' || activeTab === 'tests') {
+    if (activeTab === 'tests') {
       setSelectedQuiz(null)
     }
   }, [activeTab])
@@ -1061,9 +1069,7 @@ function ClassroomPageContent({
           params.delete('testMode')
           params.delete('testStudentId')
         }
-        if (tab !== 'quizzes' || activeTab === 'quizzes') {
-          params.delete('quizId')
-        }
+        params.delete('quizId')
       })
       window.requestAnimationFrame(() => {
         markClassroomTabSwitchReady(tab)
@@ -1079,10 +1085,10 @@ function ClassroomPageContent({
     return () => window.cancelAnimationFrame(rafId)
   }, [activeTab])
 
-  const isAssessmentTab = activeTab === 'quizzes' || activeTab === 'tests'
-  const assessmentLabel = activeTab === 'tests' ? 'test' : 'quiz'
-  const assessmentApiBasePath = activeTab === 'tests' ? '/api/teacher/tests' : '/api/teacher/quizzes'
-  const pendingAssessmentLabel = pendingAssessmentDelete?.quiz.assessment_type === 'test' ? 'test' : 'quiz'
+  const isAssessmentTab = activeTab === 'tests'
+  const assessmentLabel = 'test'
+  const assessmentApiBasePath = '/api/teacher/tests'
+  const pendingAssessmentLabel = 'test'
   const examHeaderData = useMemo(() => {
     if (
       isTeacher ||
@@ -1153,9 +1159,8 @@ function ClassroomPageContent({
   async function handleConfirmAssessmentDelete() {
     if (!pendingAssessmentDelete) return
 
-    const deleteIsTest = pendingAssessmentDelete.quiz.assessment_type === 'test'
-    const deleteApiBasePath = deleteIsTest ? '/api/teacher/tests' : '/api/teacher/quizzes'
-    const deleteLabel = deleteIsTest ? 'test' : 'quiz'
+    const deleteApiBasePath = '/api/teacher/tests'
+    const deleteLabel = 'test'
 
     setIsDeletingAssessment(true)
     try {
@@ -1167,13 +1172,10 @@ function ClassroomPageContent({
 
       setSelectedQuiz(null)
       navigateInClassroom((params) => {
-        if (deleteIsTest) {
-          params.delete('testId')
-          params.delete('testMode')
-          params.delete('testStudentId')
-        } else {
-          params.delete('quizId')
-        }
+        params.delete('testId')
+        params.delete('testMode')
+        params.delete('testStudentId')
+        params.delete('quizId')
       }, { replace: true })
       window.dispatchEvent(
         new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
@@ -1280,20 +1282,6 @@ function ClassroomPageContent({
                       />
                     </TabContentTransition>
                   )}
-                  {mountedTabs.quizzes && (
-                    <TabContentTransition isActive={activeTab === 'quizzes'}>
-                      <TeacherQuizzesTab
-                        classroom={classroom}
-                        assessmentType="quiz"
-                        selectedQuizId={quizIdParam}
-                        updateSearchParams={navigateInClassroom}
-                        onSelectQuiz={handleSelectQuiz}
-                        onRequestDelete={() => {
-                          void handleRequestAssessmentDelete()
-                        }}
-                      />
-                    </TabContentTransition>
-                  )}
                   {mountedTabs.tests && (
                     <TabContentTransition isActive={activeTab === 'tests'}>
                       <TeacherTestsTab
@@ -1396,11 +1384,6 @@ function ClassroomPageContent({
                         isActive={activeTab === 'assignments'}
                         updateSearchParams={navigateInClassroom}
                       />
-                    </TabContentTransition>
-                  )}
-                  {mountedTabs.quizzes && (
-                    <TabContentTransition isActive={activeTab === 'quizzes'}>
-                      <StudentQuizzesTab classroom={classroom} assessmentType="quiz" isActive={activeTab === 'quizzes'} />
                     </TabContentTransition>
                   )}
                   {mountedTabs.tests && (

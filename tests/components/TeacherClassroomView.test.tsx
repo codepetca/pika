@@ -88,6 +88,15 @@ vi.mock('@/ui', () => ({
     </label>
   ),
   Input: (props: any) => <input {...props} />,
+  Select: ({ options = [], ...props }: any) => (
+    <select {...props}>
+      {options.map((option: any) => (
+        <option key={option.value} value={option.value} disabled={option.disabled}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  ),
   SplitButton: ({ label, onPrimaryClick, disabled, primaryButtonProps, options = [] }: any) => (
     <div>
       <button
@@ -190,12 +199,22 @@ vi.mock('@/components/SortableAssignmentCard', () => ({
 }))
 
 vi.mock('@/components/surveys/TeacherSurveyWorkspace', () => ({
-  TeacherSurveyWorkspace: ({ surveyId, onBack }: any) => (
+  TeacherSurveyWorkspace: ({ surveyId, initialEditMode, autoEditTitle, onBack }: any) => (
     <div data-testid="mock-survey-workspace">
       Survey workspace {surveyId}
+      {initialEditMode ? ` mode ${initialEditMode}` : ''}
+      {autoEditTitle ? ' auto title' : ''}
       <button type="button" onClick={onBack}>
         Close survey workspace
       </button>
+    </div>
+  ),
+}))
+
+vi.mock('@/components/surveys/TeacherSurveyResultsPane', () => ({
+  TeacherSurveyResultsPane: ({ survey }: any) => (
+    <div data-testid="mock-survey-results-pane">
+      Survey results {survey.id}
     </div>
   ),
 }))
@@ -663,8 +682,8 @@ describe('TeacherClassroomView', () => {
     render(
       <TeacherClassroomView
         classroom={classroom}
-        selectedAssignmentId={null}
         updateSearchParams={updateSearchParams}
+        selectedSurveyId={null}
       />,
     )
 
@@ -716,7 +735,7 @@ describe('TeacherClassroomView', () => {
     expect(materialButton.closest('.bg-info-bg')).not.toHaveClass('border-primary/40')
   })
 
-  it('opens a survey in a modal instead of replacing the classwork pane', async () => {
+  it('opens a survey card in the selected results pane with action controls', async () => {
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {
         return Promise.resolve({
@@ -731,7 +750,12 @@ describe('TeacherClassroomView', () => {
       if (key === `teacher-surveys:${classroom.id}`) {
         return Promise.resolve({
           surveys: [
-            makeSurveySummary('survey-1', 'Game Jam Links', { position: 2 }),
+            makeSurveySummary('survey-1', 'Game Jam Links', {
+              position: 2,
+              status: 'active',
+              dynamic_responses: true,
+              stats: { total_students: 2, responded: 0, questions_count: 1 },
+            }),
           ],
         })
       }
@@ -745,16 +769,38 @@ describe('TeacherClassroomView', () => {
     render(
       <TeacherClassroomView
         classroom={classroom}
-        selectedAssignmentId={null}
         updateSearchParams={updateSearchParams}
       />,
     )
 
     fireEvent.click(await screen.findByRole('button', { name: 'Game Jam Links' }))
 
-    expect(screen.getByRole('dialog')).toHaveTextContent('Survey workspace survey-1')
-    expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    expect(screen.getByTestId('mock-survey-results-pane')).toHaveTextContent('Survey results survey-1')
+    expect(screen.getByTestId('survey-workspace-actionbar-center').parentElement).toHaveClass('fixed')
+    expect(screen.getByRole('button', { name: 'Edit survey' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close poll' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Hide results' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Lock responses' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete survey' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        survey: makeSurveySummary('survey-1', 'Game Jam Links', { show_results: false }),
+      }),
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Hide results' }))
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/teacher/surveys/survey-1',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ show_results: false }),
+        }),
+      )
+    })
 
     const { params } = applySearchParamsUpdate(updateSearchParams.mock.calls[0])
     expect(params.get('tab')).toBe('assignments')
@@ -762,7 +808,7 @@ describe('TeacherClassroomView', () => {
     expect(params.get('assignmentId')).toBeNull()
   })
 
-  it('opens a routed survey selection as a modal over the classwork summary', async () => {
+  it('opens a routed survey selection in the selected results pane', async () => {
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {
         return Promise.resolve({
@@ -794,9 +840,63 @@ describe('TeacherClassroomView', () => {
       />,
     )
 
-    expect(await screen.findByRole('dialog')).toHaveTextContent('Survey workspace survey-1')
-    expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    expect(await screen.findByTestId('mock-survey-results-pane')).toHaveTextContent('Survey results survey-1')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
+  })
+
+  it('creates a draft survey directly from the New menu and opens visual editing', async () => {
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return Promise.resolve({
+          assignments: [
+            makeAssignmentSummary('assignment-1', 'Assignment One'),
+          ],
+        })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
+      if (key === `class-days:${classroom.id}`) {
+        return Promise.resolve({ class_days: [] })
+      }
+      return fetcher()
+    })
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        survey: makeSurveySummary('survey-new', 'Untitled 2026-05-14 10:15:30'),
+      }),
+    })
+    const updateSearchParams = vi.fn()
+
+    render(
+      <TeacherClassroomView
+        classroom={classroom}
+        updateSearchParams={updateSearchParams}
+      />,
+    )
+
+    await screen.findByRole('button', { name: 'Assignment One' })
+    fireEvent.click(screen.getByRole('button', { name: 'Survey' }))
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/teacher/surveys',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ classroom_id: classroom.id }),
+        }),
+      )
+    })
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Survey workspace survey-new mode edit auto title')
+
+    const { params } = applySearchParamsUpdate(updateSearchParams.mock.calls[0])
+    expect(params.get('surveyId')).toBeNull()
+    expect(params.get('assignmentId')).toBeNull()
   })
 
   it('exits assignment edit mode when the create assignment modal closes', async () => {

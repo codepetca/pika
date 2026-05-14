@@ -58,6 +58,26 @@ const TAB_LABELS: Record<EditorTab, string> = {
   sync: 'Classroom Updates',
 }
 
+const VISIBLE_EDITOR_TABS = (Object.keys(TAB_LABELS) as EditorTab[]).filter(
+  (tab) => tab !== 'quizzes'
+)
+
+const PLANNED_SITE_CONFIG_OPTIONS: Array<[keyof PlannedCourseSiteConfig, string]> = [
+  ['overview', 'overview'],
+  ['outline', 'outline'],
+  ['resources', 'resources'],
+  ['assignments', 'assignments'],
+  ['tests', 'tests'],
+  ['lesson_plans', 'lesson plans'],
+]
+
+function visiblePlannedSiteConfig(config: PlannedCourseSiteConfig | null | undefined): PlannedCourseSiteConfig {
+  return {
+    ...(config || DEFAULT_PLANNED_COURSE_SITE_CONFIG),
+    quizzes: false,
+  }
+}
+
 type DraftState = Record<Exclude<EditorTab, 'copilot' | 'publish' | 'sync'>, string>
 
 function emptyDraftState(): DraftState {
@@ -175,7 +195,7 @@ export default function TeacherBlueprintsPage() {
       setPlannedSite({
         slug: blueprint.planned_site_slug || '',
         published: blueprint.planned_site_published,
-        config: blueprint.planned_site_config || DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+        config: visiblePlannedSiteConfig(blueprint.planned_site_config),
       })
       setDrafts({
         overview: blueprint.overview_markdown || '',
@@ -319,7 +339,7 @@ export default function TeacherBlueprintsPage() {
         body: JSON.stringify({
           planned_site_slug: plannedSite.slug || null,
           planned_site_published: plannedSite.published,
-          planned_site_config: plannedSite.config,
+          planned_site_config: visiblePlannedSiteConfig(plannedSite.config),
         }),
       })
       const data = await response.json().catch(() => ({}))
@@ -623,7 +643,7 @@ export default function TeacherBlueprintsPage() {
                   </Button>
                   {counts ? (
                     <div className="text-xs text-text-muted">
-                      {counts.assignments} assignments • {counts.quizzes} quizzes • {counts.tests} tests • {counts.lesson_templates} lesson templates
+                      {counts.assignments} assignments • {counts.tests} tests • {counts.lesson_templates} lesson templates
                     </div>
                   ) : null}
                 </div>
@@ -642,7 +662,7 @@ export default function TeacherBlueprintsPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {(Object.keys(TAB_LABELS) as EditorTab[]).map((tab) => (
+                  {VISIBLE_EDITOR_TABS.map((tab) => (
                     <button
                       key={tab}
                       type="button"
@@ -701,21 +721,21 @@ export default function TeacherBlueprintsPage() {
                     <div className="rounded-card border border-border bg-surface-2 p-4">
                       <div className="text-sm font-semibold text-text-default">Published Sections</div>
                       <div className="mt-3 grid gap-3 md:grid-cols-2">
-                        {(Object.entries(plannedSite.config) as Array<[keyof PlannedCourseSiteConfig, boolean]>).map(
-                          ([key, enabled]) => (
+                        {PLANNED_SITE_CONFIG_OPTIONS.map(
+                          ([key, label]) => (
                             <label key={key} className="flex items-center gap-3 text-sm text-text-default">
                               <input
                                 type="checkbox"
-                                checked={enabled}
+                                checked={plannedSite.config[key]}
                                 onChange={(e) =>
                                   setPlannedSite((current) => ({
                                     ...current,
-                                    config: { ...current.config, [key]: e.target.checked },
+                                    config: visiblePlannedSiteConfig({ ...current.config, [key]: e.target.checked }),
                                   }))
                                 }
                                 className="h-4 w-4"
                               />
-                              {key.replace('_', ' ')}
+                              {label}
                             </label>
                           )
                         )}
@@ -839,7 +859,6 @@ export default function TeacherBlueprintsPage() {
                           <option value="outline">Outline</option>
                           <option value="resources">Resources</option>
                           <option value="assignments">Assignments</option>
-                          <option value="quizzes">Quizzes</option>
                           <option value="tests">Tests</option>
                           <option value="lesson-plans">Lesson Plans</option>
                         </select>

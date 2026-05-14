@@ -75,6 +75,7 @@ describe('NavItems notification dots', () => {
     const todayLink = screen.getByRole('link', { name: 'Today' })
     expect(todayLink.querySelector('[data-new-activity-dot="true"]')).toBeNull()
     expect(screen.queryByRole('link', { name: 'Today (new activity)' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Quizzes' })).toBeNull()
   })
 
   it('uses dot path for student assignments nav item', () => {
@@ -122,6 +123,7 @@ describe('NavItems notification dots', () => {
     const { container } = renderNav('teacher', 'attendance')
 
     expect(screen.getByRole('link', { name: 'Daily' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Quizzes' })).toBeNull()
     expect(container.querySelector('[data-new-activity-dot="true"]')).toBeNull()
     expect(screen.queryByRole('link', { name: /new activity/i })).toBeNull()
   })

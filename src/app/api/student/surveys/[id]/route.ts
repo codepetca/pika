@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertStudentCanAccessSurvey } from '@/lib/server/surveys'
 import {
+  canStudentViewSurveyResults,
   getStudentSurveyStatus,
   isSurveyVisibleToStudents,
 } from '@/lib/surveys'
@@ -29,14 +30,15 @@ export const GET = withErrorHandler('GetStudentSurvey', async (_request, context
     .eq('student_id', user.id)
 
   const hasResponded = (responseRows?.length || 0) > 0
+  const canViewResults = canStudentViewSurveyResults(survey)
 
   if (survey.status === 'draft') {
     return NextResponse.json({ error: 'Survey not found' }, { status: 404 })
   }
-  if (survey.status === 'active' && !isSurveyVisibleToStudents(survey)) {
+  if (survey.status === 'active' && !isSurveyVisibleToStudents(survey) && !canViewResults && !hasResponded) {
     return NextResponse.json({ error: 'Survey not found' }, { status: 404 })
   }
-  if (survey.status === 'closed' && !hasResponded) {
+  if (survey.status === 'closed' && !hasResponded && !canViewResults) {
     return NextResponse.json({ error: 'Survey not found' }, { status: 404 })
   }
 
@@ -90,6 +92,7 @@ export const GET = withErrorHandler('GetStudentSurvey', async (_request, context
     },
     questions: questions || [],
     student_status: studentStatus,
+    has_submitted: hasResponded,
     student_responses: studentResponses,
   })
 })

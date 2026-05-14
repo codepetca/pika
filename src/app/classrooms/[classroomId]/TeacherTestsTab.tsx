@@ -18,7 +18,6 @@ import {
 } from '@dnd-kit/sortable'
 import { Check, ClockAlert, Code, ExternalLink, Lock, LogOut, Pencil, Plus, RotateCcw, Send, Settings, Trash2, Unlock } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
-import { QuizModal } from '@/components/QuizModal'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
 import {
@@ -44,6 +43,7 @@ import {
   TEACHER_TEST_GRADING_ROW_UPDATED_EVENT,
   type TeacherTestGradingRowUpdatedEventDetail,
 } from '@/lib/events'
+import { getDisplayAssessmentTitle } from '@/lib/assessment-titles'
 import { getQuizExitCount } from '@/lib/quizzes'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { compareByNameFields } from '@/lib/table-sort'
@@ -319,9 +319,10 @@ export function TeacherTestsTab({
   const [isReorderingTests, setIsReorderingTests] = useState(false)
   const [selectedTestDraftSummary, setSelectedTestDraftSummary] = useState<AssessmentEditorSummaryUpdate | null>(null)
   const [hasPendingMarkdownImport, setHasPendingMarkdownImport] = useState(false)
-  const [showModal, setShowModal] = useState(false)
+  const [isCreatingTest, setIsCreatingTest] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [testEditModalView, setTestEditModalView] = useState<TestEditModalView>('edit')
+  const [testEditTitlePortalTarget, setTestEditTitlePortalTarget] = useState<HTMLDivElement | null>(null)
   const [, setTestEditSaveStatus] = useState<TestEditSaveStatus>('saved')
   const [pendingDeleteTest, setPendingDeleteTest] = useState<QuizWithStats | null>(null)
   const [isDeletingTest, setIsDeletingTest] = useState(false)
@@ -1137,14 +1138,31 @@ export function TeacherTestsTab({
     setTestEditSaveStatus('saved')
   }, [selectedTestId])
 
-  function handleNewTest() {
-    setShowModal(true)
+  async function handleNewTest() {
+    if (isCreatingTest || isReadOnly || loading) return
+
+    setIsCreatingTest(true)
+    try {
+      const response = await fetch(apiBasePath, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classroom_id: classroom.id }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create test')
+      }
+      handleTestCreated(data.quiz as Quiz)
+    } catch (error: any) {
+      showMessage({ text: error?.message || 'Failed to create test', tone: 'warning' })
+    } finally {
+      setIsCreatingTest(false)
+    }
   }
 
   function handleTestCreated(test: Quiz) {
     const createdTest = withDefaultTestStats(test)
 
-    setShowModal(false)
     setTestEditMode(false)
     setHasPendingMarkdownImport(false)
     selectedTestDraftSummaryRef.current = null
@@ -1154,7 +1172,7 @@ export function TeacherTestsTab({
       return [createdTest, ...next]
     })
     navigateTestWorkspace({ testId: createdTest.id, mode: 'grading', studentId: null }, { replace: true })
-    setTestEditModalView('markdown')
+    setTestEditModalView('edit')
     setShowEditModal(true)
     window.dispatchEvent(
       new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
@@ -2259,10 +2277,10 @@ export function TeacherTestsTab({
             size="sm"
             className="gap-1.5"
             onClick={handleNewTest}
-            disabled={isReadOnly}
+            disabled={isReadOnly || isCreatingTest || loading}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
-            <span>New</span>
+            <span>{isCreatingTest ? 'Creating...' : 'New'}</span>
           </Button>
           <Tooltip content={testEditMode ? 'Hide test list controls' : 'Show test list controls'}>
             <Button
@@ -2405,16 +2423,6 @@ export function TeacherTestsTab({
         workspaceFrameClassName="min-h-[360px] border-0 bg-page"
       />
 
-      <QuizModal
-        isOpen={showModal}
-        classroomId={classroom.id}
-        assessmentType="test"
-        apiBasePath={apiBasePath}
-        quiz={null}
-        onClose={() => setShowModal(false)}
-        onSuccess={handleTestCreated}
-      />
-
       <DialogPanel
         isOpen={showEditModal && !!selectedTestWorkspace}
         onClose={() => {
@@ -2427,9 +2435,15 @@ export function TeacherTestsTab({
         className="h-[85vh] overflow-hidden p-0"
       >
         <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border px-4 py-3">
-          <h2 id="test-edit-title" className="min-w-0 basis-full truncate text-base font-semibold text-text-default sm:basis-auto sm:flex-1">
-            {selectedTestWorkspace ? `Edit ${selectedTestWorkspace.title}` : 'Edit test'}
-          </h2>
+          <div
+            id="test-edit-title"
+            ref={setTestEditTitlePortalTarget}
+            className="min-w-0 basis-full text-base font-semibold text-text-default sm:basis-auto sm:flex-1"
+          >
+            {!testEditTitlePortalTarget && selectedTestWorkspace
+              ? getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')
+              : null}
+          </div>
           <Tooltip content="Markdown view">
             <Button
               type="button"
@@ -2496,6 +2510,8 @@ export function TeacherTestsTab({
               testQuestionLayout={testEditModalView === 'markdown' ? 'markdown-only' : 'editor-only'}
               showPreviewButton={false}
               showResultsTab={false}
+              titlePortalTarget={testEditTitlePortalTarget}
+              generatedTitleLabel="Untitled Test"
             />
           ) : null}
         </div>

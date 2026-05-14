@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { useEffect, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
@@ -15,32 +16,6 @@ vi.mock('@/components/layout', () => ({
   useRightSidebar: () => ({ setOpen: setOpenMock }),
 }))
 
-vi.mock('@/components/QuizModal', () => ({
-  QuizModal: ({
-    isOpen,
-    onSuccess,
-  }: {
-    isOpen: boolean
-    onSuccess: (quiz: QuizWithStats) => void
-  }) =>
-    isOpen ? (
-      <button
-        data-testid="mock-test-save"
-        onClick={() =>
-          onSuccess(
-            createMockQuiz({
-              id: 'created-test-id',
-              title: 'Created Test',
-              assessment_type: 'test',
-            }) as QuizWithStats
-          )
-        }
-      >
-        Save Test
-      </button>
-    ) : null,
-}))
-
 vi.mock('@/components/QuizDetailPanel', () => ({
   QuizDetailPanel: ({
     quiz,
@@ -52,6 +27,8 @@ vi.mock('@/components/QuizDetailPanel', () => ({
     onRequestTestPreview,
     onDraftSummaryChange,
     onQuizUpdate,
+    titlePortalTarget,
+    generatedTitleLabel,
   }: {
     quiz: QuizWithStats
     testQuestionLayout?: string
@@ -70,75 +47,90 @@ vi.mock('@/components/QuizDetailPanel', () => ({
       show_results: boolean
       questions_count: number
     }) => void
+    titlePortalTarget?: HTMLElement | null
+    generatedTitleLabel?: string
   }) => {
     const [pendingMarkdown, setPendingMarkdown] = useState(false)
+    const displayedTitle = /^Untitled(?:\s+\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}:\d{2})?)?$/.test(quiz.title)
+      ? generatedTitleLabel || 'Untitled'
+      : quiz.title
 
     return (
-      <div
-        data-testid="mock-test-detail"
-        data-question-layout={testQuestionLayout}
-        data-show-preview={String(showPreviewButton)}
-        data-show-results={String(showResultsTab)}
-      >
-        Detail for {quiz.title}
-        {showPreviewButton ? (
+      <>
+        {titlePortalTarget
+          ? createPortal(
+              <button type="button" aria-label="Edit test title">
+                {displayedTitle}
+              </button>,
+              titlePortalTarget
+            )
+          : null}
+        <div
+          data-testid="mock-test-detail"
+          data-question-layout={testQuestionLayout}
+          data-show-preview={String(showPreviewButton)}
+          data-show-results={String(showResultsTab)}
+        >
+          Detail for {quiz.title}
+          {showPreviewButton ? (
+            <button
+              type="button"
+              disabled={pendingMarkdown}
+              onClick={() => onRequestTestPreview?.({ testId: quiz.id, title: quiz.title })}
+            >
+              Preview
+            </button>
+          ) : null}
           <button
             type="button"
-            disabled={pendingMarkdown}
-            onClick={() => onRequestTestPreview?.({ testId: quiz.id, title: quiz.title })}
+            onClick={() => {
+              setPendingMarkdown(true)
+              onPendingMarkdownImportChange?.(true)
+            }}
           >
-            Preview
+            Mark pending markdown
           </button>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => {
-            setPendingMarkdown(true)
-            onPendingMarkdownImportChange?.(true)
-          }}
-        >
-          Mark pending markdown
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setPendingMarkdown(false)
-            onPendingMarkdownImportChange?.(false)
-          }}
-        >
-          Clear pending markdown
-        </button>
-        <button type="button" onClick={() => onSaveStatusChange?.('unsaved')}>
-          Mark editor unsaved
-        </button>
-        <button type="button" onClick={() => onSaveStatusChange?.('saved')}>
-          Mark editor saved
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            onDraftSummaryChange?.({
-              title: `${quiz.title} Draft`,
-              show_results: false,
-              questions_count: 0,
-            })
-          }
-        >
-          Simulate draft change
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            onQuizUpdate?.({
-              title: `${quiz.title} Updated`,
-              show_results: false,
-              questions_count: 0,
-            })
-          }
-        >
-          Simulate autosave update
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => {
+              setPendingMarkdown(false)
+              onPendingMarkdownImportChange?.(false)
+            }}
+          >
+            Clear pending markdown
+          </button>
+          <button type="button" onClick={() => onSaveStatusChange?.('unsaved')}>
+            Mark editor unsaved
+          </button>
+          <button type="button" onClick={() => onSaveStatusChange?.('saved')}>
+            Mark editor saved
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onDraftSummaryChange?.({
+                title: `${quiz.title} Draft`,
+                show_results: false,
+                questions_count: 0,
+              })
+            }
+          >
+            Simulate draft change
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onQuizUpdate?.({
+                title: `${quiz.title} Updated`,
+                show_results: false,
+                questions_count: 0,
+              })
+            }
+          >
+            Simulate autosave update
+          </button>
+        </div>
+      </>
     )
   },
 }))
@@ -507,26 +499,49 @@ describe('TeacherTestsTab', () => {
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 
-  it('opens a created test in editable code view', async () => {
+  it('creates a draft test directly and opens visual editing', async () => {
     mockTestsResponse([])
     renderTab()
 
     expect(await screen.findByText('No tests yet')).toBeInTheDocument()
 
-    mockTestsResponse([makeTest({ id: 'created-test-id', title: 'Created Test' })])
-    fetchMock.mockResolvedValueOnce(makeResultsResponse({
-      quizId: 'created-test-id',
-      quizTitle: 'Created Test',
-      quizStatus: 'draft',
-      students: [],
-    }))
+    const createdTest = makeTest({ id: 'created-test-id', title: 'Untitled 2026-05-14 10:45:00' })
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/teacher/tests' && init?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ quiz: createdTest }),
+        })
+      }
+      if (typeof url === 'string' && url.includes('/api/teacher/tests?classroom_id=')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ tests: [createdTest] }),
+        })
+      }
+      if (url === '/api/teacher/tests/created-test-id/results') {
+        return Promise.resolve(makeResultsResponse({
+          quizId: 'created-test-id',
+          quizTitle: 'Untitled 2026-05-14 10:45:00',
+          quizStatus: 'draft',
+          students: [],
+        }))
+      }
+      return Promise.reject(new Error(`Unexpected fetch ${String(url)}`))
+    })
 
     fireEvent.click(screen.getByRole('button', { name: 'New' }))
-    fireEvent.click(screen.getByTestId('mock-test-save'))
 
-    expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Created Test')
-    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'markdown-only')
-    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Code' })).toHaveAttribute('aria-pressed', 'true')
+    expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Untitled 2026-05-14 10:45:00')
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('button', { name: 'Edit test title' })).toHaveTextContent('Untitled Test')
+    expect(within(dialog).queryByRole('heading', { name: 'Test' })).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ classroom_id: classroom.id }),
+    }))
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Code' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
   })
