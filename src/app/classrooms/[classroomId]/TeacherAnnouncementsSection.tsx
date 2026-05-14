@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useState, useRef } from 'react'
-import { Trash2, Plus, Clock, ChevronDown, Calendar } from 'lucide-react'
-import { Button, ConfirmDialog } from '@/ui'
+import { Trash2, Plus, Clock, Calendar } from 'lucide-react'
+import { Button, ConfirmDialog, FormField, Input, SplitButton } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
@@ -10,6 +10,11 @@ import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/T
 import type { Announcement, Classroom } from '@/types'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { cn } from '@/ui/utils'
+import {
+  ANNOUNCEMENT_TITLE_MAX_LENGTH,
+  normalizeAnnouncementTitle,
+  sortAnnouncementsNewestFirst,
+} from '@/lib/announcements'
 import {
   combineScheduleDateTimeToIso,
   DEFAULT_SCHEDULE_TIME,
@@ -21,6 +26,18 @@ import {
 interface Props {
   classroom: Classroom
   className?: string
+}
+
+const ANNOUNCEMENT_TEXTAREA_MIN_HEIGHT_PX = 160
+
+function autoResizeAnnouncementTextarea(textarea: HTMLTextAreaElement | null) {
+  if (!textarea) return
+  textarea.style.height = `${ANNOUNCEMENT_TEXTAREA_MIN_HEIGHT_PX}px`
+  const measuredHeight = textarea.scrollHeight
+  const nextHeight = measuredHeight > ANNOUNCEMENT_TEXTAREA_MIN_HEIGHT_PX
+    ? measuredHeight
+    : ANNOUNCEMENT_TEXTAREA_MIN_HEIGHT_PX
+  textarea.style.height = `${nextHeight}px`
 }
 
 // Helper to check if announcement is scheduled (not yet published)
@@ -59,11 +76,14 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   const [loading, setLoading] = useState(true)
   const [showAll, setShowAll] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [originalTitle, setOriginalTitle] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [originalContent, setOriginalContent] = useState('')
   const [editScheduleDateTime, setEditScheduleDateTime] = useState('')
   const [originalScheduledFor, setOriginalScheduledFor] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
+  const [newTitle, setNewTitle] = useState('')
   const [newContent, setNewContent] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null)
@@ -116,12 +136,22 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     }
   }, [editingId])
 
+  useEffect(() => {
+    if (!editingId) return
+    autoResizeAnnouncementTextarea(editTextareaRef.current)
+  }, [editingId, editContent])
+
   // Focus textarea when creating
   useEffect(() => {
     if (isCreating && newTextareaRef.current) {
       newTextareaRef.current.focus()
     }
   }, [isCreating])
+
+  useEffect(() => {
+    if (!isCreating) return
+    autoResizeAnnouncementTextarea(newTextareaRef.current)
+  }, [isCreating, newContent])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -152,6 +182,8 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   function startEditing(announcement: Announcement) {
     if (isReadOnly || saving) return
     setEditingId(announcement.id)
+    setEditTitle(announcement.title ?? '')
+    setOriginalTitle(announcement.title ?? null)
     setEditContent(announcement.content)
     setOriginalContent(announcement.content)
     // Convert ISO to local datetime-local format if scheduled
@@ -166,6 +198,8 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
 
   function cancelEditing() {
     setEditingId(null)
+    setEditTitle('')
+    setOriginalTitle(null)
     setEditContent('')
     setOriginalContent('')
     setEditScheduleDateTime('')
@@ -177,12 +211,14 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     if (!editingId || !editContent.trim() || saving) return
 
     // Check if anything changed
+    const normalizedEditTitle = normalizeAnnouncementTitle(editTitle)
     const contentChanged = editContent.trim() !== originalContent.trim()
+    const titleChanged = normalizedEditTitle !== normalizeAnnouncementTitle(originalTitle)
     const newScheduledFor = editScheduleDateTime ? new Date(editScheduleDateTime).toISOString() : null
     const scheduleChanged = newScheduledFor !== originalScheduledFor
 
     // Don't save if nothing changed
-    if (!contentChanged && !scheduleChanged) {
+    if (!contentChanged && !titleChanged && !scheduleChanged) {
       cancelEditing()
       return
     }
@@ -195,6 +231,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
         a.id === editingId
           ? {
               ...a,
+              title: normalizedEditTitle,
               content: editContent.trim(),
               scheduled_for: optimisticScheduledFor,
               updated_at: new Date().toISOString(),
@@ -203,7 +240,10 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
       ),
     )
     try {
-      const body: { content?: string; scheduled_for?: string | null } = {}
+      const body: { content?: string; scheduled_for?: string | null; title?: string | null } = {}
+      if (titleChanged) {
+        body.title = normalizedEditTitle
+      }
       if (contentChanged) {
         body.content = editContent.trim()
       }
@@ -239,11 +279,13 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     if (!newContent.trim() || saving) return
 
     setSaving(true)
+    const normalizedNewTitle = normalizeAnnouncementTitle(newTitle)
     const tempId = `temp-${Date.now()}`
     const now = new Date().toISOString()
     const optimisticAnnouncement: Announcement = {
       id: tempId,
       classroom_id: classroom.id,
+      title: normalizedNewTitle,
       content: newContent.trim(),
       created_by: classroom.teacher_id,
       scheduled_for: scheduledFor ? new Date(scheduledFor).toISOString() : null,
@@ -252,7 +294,10 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     }
     setAnnouncements((prev) => [optimisticAnnouncement, ...prev])
     try {
-      const body: { content: string; scheduled_for?: string } = { content: newContent.trim() }
+      const body: { content: string; scheduled_for?: string; title?: string } = { content: newContent.trim() }
+      if (normalizedNewTitle) {
+        body.title = normalizedNewTitle
+      }
       if (scheduledFor) {
         body.scheduled_for = new Date(scheduledFor).toISOString()
       }
@@ -270,6 +315,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
       invalidateCachedJSON(`teacher-announcements:${classroom.id}`)
       invalidateCachedJSON(`student-announcements:${classroom.id}`)
       setIsCreating(false)
+      setNewTitle('')
       setNewContent('')
       setScheduleDateTime('')
       setShowScheduleDropdown(false)
@@ -323,8 +369,21 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   function handleNewKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Escape') {
       setIsCreating(false)
+      setNewTitle('')
       setNewContent('')
     }
+  }
+
+  function openCreateSchedulePicker() {
+    setPendingScheduleDate(getTodayDate())
+    setPendingScheduleTime(DEFAULT_SCHEDULE_TIME)
+    setShowScheduleDropdown(true)
+  }
+
+  function openEditSchedulePicker() {
+    setPendingEditScheduleDate(getTodayDate())
+    setPendingEditScheduleTime(DEFAULT_SCHEDULE_TIME)
+    setShowEditScheduleDropdown(true)
   }
 
   if (loading) {
@@ -362,6 +421,119 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
         </div>
       )}
 
+      {/* New announcement form */}
+      {isCreating ? (
+        <div className="bg-surface rounded-lg border border-border p-4">
+          <FormField label="Title" className="mb-3" hideLabel>
+            <Input
+              value={newTitle}
+              onChange={(event) => setNewTitle(event.target.value)}
+              disabled={saving}
+              maxLength={ANNOUNCEMENT_TITLE_MAX_LENGTH}
+              placeholder="Title (optional)"
+            />
+          </FormField>
+          <textarea
+            ref={newTextareaRef}
+            value={newContent}
+            onChange={(e) => setNewContent(e.target.value)}
+            onKeyDown={handleNewKeyDown}
+            disabled={saving}
+            rows={6}
+            className="max-h-[50vh] min-h-[10rem] w-full resize-y overflow-y-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+            placeholder="Write an announcement..."
+          />
+          {scheduleDateTime && (
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const { date, time } = parseDateTime(scheduleDateTime)
+                  setPendingScheduleDate(date)
+                  setPendingScheduleTime(time)
+                  setShowScheduleDropdown(true)
+                }}
+                className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700"
+              >
+                <Calendar className="h-4 w-4 flex-shrink-0" />
+                <span>{formatDate(scheduleDateTime)}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setScheduleDateTime('')}
+                className="text-xs text-text-muted hover:text-text-default"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+          <div className="mt-2 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => {
+                setIsCreating(false)
+                setNewTitle('')
+                setNewContent('')
+                setScheduleDateTime('')
+                setShowScheduleDropdown(false)
+              }}
+              className="text-sm text-text-muted hover:text-text-default"
+            >
+              Cancel
+            </button>
+            <div className="relative flex items-center" ref={dropdownRef}>
+              {scheduleDateTime ? (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => createAnnouncement(scheduleDateTime)}
+                  disabled={saving || !newContent.trim()}
+                >
+                  {saving ? 'Scheduling...' : 'Schedule'}
+                </Button>
+              ) : (
+                <SplitButton
+                  label={saving ? 'Posting...' : 'Post'}
+                  onPrimaryClick={() => createAnnouncement()}
+                  disabled={saving || !newContent.trim()}
+                  options={[
+                    {
+                      id: 'schedule',
+                      label: 'Schedule...',
+                      onSelect: openCreateSchedulePicker,
+                    },
+                  ]}
+                  toggleAriaLabel="Choose announcement action"
+                  primaryButtonProps={{
+                    onMouseDown: (e) => e.preventDefault(),
+                  }}
+                />
+              )}
+
+              {showScheduleDropdown && (
+                <ScheduleDateTimePicker
+                  className="absolute right-0 top-full z-10 mt-1 min-w-[220px]"
+                  date={pendingScheduleDate}
+                  time={pendingScheduleTime}
+                  minDate={getTodayDate()}
+                  isFutureValid={!pendingScheduleDate ? false : isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)}
+                  onDateChange={setPendingScheduleDate}
+                  onTimeChange={setPendingScheduleTime}
+                  onCancel={() => setShowScheduleDropdown(false)}
+                  onConfirm={() => {
+                    if (pendingScheduleDate && isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)) {
+                      setScheduleDateTime(combineDateTime(pendingScheduleDate, pendingScheduleTime))
+                      setShowScheduleDropdown(false)
+                    }
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Empty state */}
       {announcements.length === 0 && !isCreating && (
         <div className="rounded-lg border border-border bg-surface-2 p-4">
@@ -373,23 +545,14 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
 
       {/* Announcements list */}
       {announcements.length > 0 && (() => {
-        // Sort: scheduled announcements first (by scheduled_for), then published (by created_at)
-        const sortedAnnouncements = [...announcements].sort((a, b) => {
-          const aScheduled = isScheduled(a)
-          const bScheduled = isScheduled(b)
-          if (aScheduled && !bScheduled) return -1
-          if (!aScheduled && bScheduled) return 1
-          if (aScheduled && bScheduled) {
-            return new Date(a.scheduled_for!).getTime() - new Date(b.scheduled_for!).getTime()
-          }
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        })
+        const sortedAnnouncements = sortAnnouncementsNewestFirst(announcements)
         const displayedAnnouncements = showAll ? sortedAnnouncements : sortedAnnouncements.slice(0, 5)
 
         return (
         <div className="space-y-3">
           {displayedAnnouncements.map((announcement) => {
             const scheduled = isScheduled(announcement)
+            const title = normalizeAnnouncementTitle(announcement.title)
 
             return (
               <div
@@ -400,19 +563,28 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
               >
                 {editingId === announcement.id ? (
                   // Editing mode
-                  <div>
+                  <div className="space-y-3">
+                    <FormField label="Title" hideLabel>
+                      <Input
+                        value={editTitle}
+                        onChange={(event) => setEditTitle(event.target.value)}
+                        disabled={saving}
+                        maxLength={ANNOUNCEMENT_TITLE_MAX_LENGTH}
+                        placeholder="Title (optional)"
+                      />
+                    </FormField>
                     <textarea
                       ref={editTextareaRef}
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
                       onKeyDown={handleEditKeyDown}
                       disabled={saving}
-                      rows={3}
-                      className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
+                      rows={6}
+                      className="max-h-[50vh] min-h-[10rem] w-full resize-y overflow-y-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                     />
                     {/* Show scheduled date if set */}
                     {editScheduleDateTime && (
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => {
@@ -437,7 +609,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                         </button>
                       </div>
                     )}
-                    <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center justify-between">
                       <button
                         type="button"
                         onClick={cancelEditing}
@@ -446,30 +618,33 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                         Cancel
                       </button>
                       <div className="relative flex items-center" ref={editDropdownRef}>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => saveEdit()}
-                          disabled={saving || !editContent.trim()}
-                          className={editScheduleDateTime ? '' : 'rounded-r-none'}
-                        >
-                          {saving ? 'Saving...' : (editScheduleDateTime ? 'Save' : 'Post')}
-                        </Button>
-                        {!editScheduleDateTime && (
-                          <button
-                            type="button"
+                        {editScheduleDateTime ? (
+                          <Button
+                            variant="primary"
+                            size="sm"
                             onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => {
-                              setPendingEditScheduleDate(getTodayDate())
-                              setPendingEditScheduleTime(DEFAULT_SCHEDULE_TIME)
-                              setShowEditScheduleDropdown(!showEditScheduleDropdown)
-                            }}
+                            onClick={() => saveEdit()}
                             disabled={saving || !editContent.trim()}
-                            className="inline-flex items-center justify-center h-8 px-2 bg-primary text-white rounded-r-md border-l border-primary-hover hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            <ChevronDown className="h-4 w-4" />
-                          </button>
+                            {saving ? 'Saving...' : 'Save'}
+                          </Button>
+                        ) : (
+                          <SplitButton
+                            label={saving ? 'Saving...' : 'Post'}
+                            onPrimaryClick={() => saveEdit()}
+                            disabled={saving || !editContent.trim()}
+                            options={[
+                              {
+                                id: 'schedule',
+                                label: 'Schedule...',
+                                onSelect: openEditSchedulePicker,
+                              },
+                            ]}
+                            toggleAriaLabel="Choose announcement action"
+                            primaryButtonProps={{
+                              onMouseDown: (e) => e.preventDefault(),
+                            }}
+                          />
                         )}
 
                         {/* Schedule dropdown */}
@@ -517,6 +692,11 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                           {announcement.updated_at !== announcement.created_at && ' (edited)'}
                         </p>
                       )}
+                      {title && (
+                        <h3 className="mb-2 truncate text-sm font-semibold text-text-default">
+                          {title}
+                        </h3>
+                      )}
                       <AnnouncementContent
                         content={announcement.content}
                         tone={scheduled ? 'muted' : 'default'}
@@ -551,106 +731,6 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
         </div>
         )
       })()}
-
-      {/* New announcement form */}
-      {isCreating ? (
-        <div className="bg-surface rounded-lg border border-border p-4">
-          <textarea
-            ref={newTextareaRef}
-            value={newContent}
-            onChange={(e) => setNewContent(e.target.value)}
-            onKeyDown={handleNewKeyDown}
-            disabled={saving}
-            rows={3}
-            className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
-            placeholder="Write an announcement..."
-          />
-          {scheduleDateTime && (
-            <div className="mt-2 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const { date, time } = parseDateTime(scheduleDateTime)
-                  setPendingScheduleDate(date)
-                  setPendingScheduleTime(time)
-                  setShowScheduleDropdown(true)
-                }}
-                className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700"
-              >
-                <Calendar className="h-4 w-4 flex-shrink-0" />
-                <span>{formatDate(scheduleDateTime)}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setScheduleDateTime('')}
-                className="text-xs text-text-muted hover:text-text-default"
-              >
-                Clear
-              </button>
-            </div>
-          )}
-          <div className="mt-2 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => {
-                setIsCreating(false)
-                setNewContent('')
-                setScheduleDateTime('')
-                setShowScheduleDropdown(false)
-              }}
-              className="text-sm text-text-muted hover:text-text-default"
-            >
-              Cancel
-            </button>
-            <div className="relative flex items-center" ref={dropdownRef}>
-              <Button
-                variant="primary"
-                size="sm"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => createAnnouncement(scheduleDateTime || undefined)}
-                disabled={saving || !newContent.trim()}
-                className={scheduleDateTime ? '' : 'rounded-r-none'}
-              >
-                {saving ? (scheduleDateTime ? 'Scheduling...' : 'Posting...') : (scheduleDateTime ? 'Schedule' : 'Post')}
-              </Button>
-              {!scheduleDateTime && (
-                <button
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    setPendingScheduleDate(getTodayDate())
-                    setPendingScheduleTime(DEFAULT_SCHEDULE_TIME)
-                    setShowScheduleDropdown(!showScheduleDropdown)
-                  }}
-                  disabled={saving || !newContent.trim()}
-                  className="inline-flex items-center justify-center h-8 px-2 bg-primary text-white rounded-r-md border-l border-primary-hover hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-              )}
-
-              {showScheduleDropdown && (
-                <ScheduleDateTimePicker
-                  className="absolute right-0 top-full z-10 mt-1 min-w-[220px]"
-                  date={pendingScheduleDate}
-                  time={pendingScheduleTime}
-                  minDate={getTodayDate()}
-                  isFutureValid={!pendingScheduleDate ? false : isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)}
-                  onDateChange={setPendingScheduleDate}
-                  onTimeChange={setPendingScheduleTime}
-                  onCancel={() => setShowScheduleDropdown(false)}
-                  onConfirm={() => {
-                    if (pendingScheduleDate && isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)) {
-                      setScheduleDateTime(combineDateTime(pendingScheduleDate, pendingScheduleTime))
-                      setShowScheduleDropdown(false)
-                    }
-                  }}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {/* Delete confirmation dialog */}
       <ConfirmDialog

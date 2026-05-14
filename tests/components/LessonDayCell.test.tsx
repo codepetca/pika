@@ -43,6 +43,14 @@ const markdownAnnouncement: Announcement = {
   content: 'Read the [course outline](https://example.com/outline) before class.',
 }
 
+const titledAnnouncementTitle = 'Quiz reminder with a very long title that should truncate in the calendar'
+
+const titledAnnouncement: Announcement = {
+  ...longAnnouncement,
+  id: 'announcement-4',
+  title: titledAnnouncementTitle,
+}
+
 function renderWithTooltip(ui: ReactElement) {
   return render(<TooltipProvider>{ui}</TooltipProvider>)
 }
@@ -204,6 +212,31 @@ describe('LessonDayCell', () => {
 
     const tooltip = await screen.findByRole('tooltip')
     expect(within(tooltip).getByText(longAnnouncement.content)).toBeInTheDocument()
+  })
+
+  it('uses the announcement title as the calendar label and keeps it truncated', async () => {
+    renderWithTooltip(
+      <LessonDayCell
+        date="2026-03-13"
+        day={new Date('2026-03-13T12:00:00.000Z')}
+        lessonPlan={null}
+        announcements={[titledAnnouncement]}
+        isWeekend={false}
+        isToday={false}
+        editable={false}
+        compact={false}
+      />
+    )
+
+    const button = screen.getByRole('button', { name: titledAnnouncementTitle })
+    expect(button).toHaveClass('truncate')
+    expect(button).toHaveAttribute('title', titledAnnouncementTitle)
+
+    fireEvent.focus(button)
+
+    const tooltip = await screen.findByRole('tooltip')
+    expect(within(tooltip).getByText(titledAnnouncementTitle)).toBeInTheDocument()
+    expect(within(tooltip).getByText(titledAnnouncement.content)).toBeInTheDocument()
   })
 
   it('shows long announcement content without truncating it', async () => {

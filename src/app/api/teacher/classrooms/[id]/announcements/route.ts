@@ -6,6 +6,7 @@ import {
   assertTeacherCanMutateClassroom,
 } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
+import { parseAnnouncementTitleInput } from '@/lib/announcements'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -47,7 +48,11 @@ export const POST = withErrorHandler('PostCreateAnnouncement', async (request, c
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
   const body = await request.json()
-  const { content, scheduled_for } = body as { content?: string; scheduled_for?: string }
+  const { content, scheduled_for, title } = body as {
+    content?: string
+    scheduled_for?: string
+    title?: unknown
+  }
 
   if (!content || !content.trim()) {
     return NextResponse.json(
@@ -73,6 +78,14 @@ export const POST = withErrorHandler('PostCreateAnnouncement', async (request, c
     }
   }
 
+  const parsedTitle = parseAnnouncementTitleInput(title)
+  if (!parsedTitle.ok) {
+    return NextResponse.json(
+      { error: parsedTitle.error },
+      { status: 400 }
+    )
+  }
+
   const ownership = await assertTeacherCanMutateClassroom(user.id, classroomId)
   if (!ownership.ok) {
     return NextResponse.json(
@@ -82,15 +95,25 @@ export const POST = withErrorHandler('PostCreateAnnouncement', async (request, c
   }
 
   const supabase = getServiceRoleClient()
+  const insertData: {
+    classroom_id: string
+    content: string
+    created_by: string
+    scheduled_for: string | null
+    title?: string
+  } = {
+    classroom_id: classroomId,
+    content: content.trim(),
+    created_by: user.id,
+    scheduled_for: scheduled_for || null,
+  }
+  if (parsedTitle.value) {
+    insertData.title = parsedTitle.value
+  }
 
   const { data: announcement, error } = await supabase
     .from('announcements')
-    .insert({
-      classroom_id: classroomId,
-      content: content.trim(),
-      created_by: user.id,
-      scheduled_for: scheduled_for || null,
-    })
+    .insert(insertData)
     .select()
     .single()
 

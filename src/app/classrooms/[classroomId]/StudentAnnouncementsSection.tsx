@@ -8,6 +8,7 @@ import { useStudentNotifications } from '@/components/StudentNotificationsProvid
 import type { Announcement, Classroom } from '@/types'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { cn } from '@/ui/utils'
+import { normalizeAnnouncementTitle, sortAnnouncementsNewestFirst } from '@/lib/announcements'
 
 interface Props {
   classroom: Classroom
@@ -93,20 +94,31 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
     )
   }
 
+  const sortedAnnouncements = sortAnnouncementsNewestFirst(announcements)
+
   return (
     <div className={cn('space-y-3', className ?? 'max-w-2xl mx-auto')}>
-      {(showAll ? announcements : announcements.slice(0, 5)).map((announcement) => (
-        <div
-          key={announcement.id}
-          className="bg-surface rounded-lg border border-border p-4"
-        >
-          <p className="text-[11px] text-text-muted mb-2">
-            {formatDate(announcement.created_at)}
-            {announcement.updated_at !== announcement.created_at && ' (edited)'}
-          </p>
-          <AnnouncementContent content={announcement.content} />
-        </div>
-      ))}
+      {(showAll ? sortedAnnouncements : sortedAnnouncements.slice(0, 5)).map((announcement) => {
+        const title = normalizeAnnouncementTitle(announcement.title)
+
+        return (
+          <div
+            key={announcement.id}
+            className="bg-surface rounded-lg border border-border p-4"
+          >
+            <p className="text-[11px] text-text-muted mb-2">
+              {formatDate(announcement.created_at)}
+              {announcement.updated_at !== announcement.created_at && ' (edited)'}
+            </p>
+            {title && (
+              <h3 className="mb-2 truncate text-sm font-semibold text-text-default">
+                {title}
+              </h3>
+            )}
+            <AnnouncementContent content={announcement.content} />
+          </div>
+        )
+      })}
 
       {!showAll && announcements.length > 5 && (
         <Button

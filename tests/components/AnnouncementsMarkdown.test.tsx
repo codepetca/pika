@@ -40,6 +40,7 @@ const classroom: Classroom = {
 const markdownAnnouncement: Announcement = {
   id: 'announcement-1',
   classroom_id: classroom.id,
+  title: 'Unit update',
   content: 'Read the [course outline](https://example.com/outline) and **bring notes**.',
   created_by: classroom.teacher_id,
   scheduled_for: null,
@@ -47,7 +48,7 @@ const markdownAnnouncement: Announcement = {
   updated_at: '2026-05-13T12:00:00.000Z',
 }
 
-function mockAnnouncementFetch() {
+function mockAnnouncementFetch(announcements: Announcement[] = [markdownAnnouncement]) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -55,7 +56,7 @@ function mockAnnouncementFetch() {
         return new Response(JSON.stringify({ success: true, marked: 1 }), { status: 200 })
       }
 
-      return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), {
+      return new Response(JSON.stringify({ announcements }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       })
@@ -80,6 +81,7 @@ describe('announcement markdown rendering', () => {
     const link = await screen.findByRole('link', { name: 'course outline' })
 
     expect(link).toHaveAttribute('href', 'https://example.com/outline')
+    expect(screen.getByText('Unit update')).toBeInTheDocument()
     expect(screen.getByText('bring notes')).toBeInTheDocument()
 
     fireEvent.click(link)
@@ -89,6 +91,66 @@ describe('announcement markdown rendering', () => {
     })
   })
 
+  it('renders a larger, vertically resizable creation textarea', async () => {
+    const { container } = render(<TeacherAnnouncementsSection classroom={classroom} />)
+
+    await screen.findByRole('link', { name: 'course outline' })
+    fireEvent.click(screen.getByRole('button', { name: 'New announcement' }))
+
+    const titleInput = screen.getByPlaceholderText('Title (optional)')
+    const titleLabel = container.querySelector(`label[for="${titleInput.id}"]`)
+    expect(titleLabel).toHaveClass('sr-only')
+    expect(screen.queryByPlaceholderText('Optional title')).not.toBeInTheDocument()
+    expect(titleInput.compareDocumentPosition(screen.getByText('Unit update')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    const textarea = screen.getByPlaceholderText('Write an announcement...')
+    expect(textarea).toHaveAttribute('rows', '6')
+    expect(textarea).toHaveClass('min-h-[10rem]')
+    expect(textarea).toHaveClass('resize-y')
+
+    fireEvent.change(textarea, { target: { value: 'Announcement draft' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Choose announcement action' }))
+    expect(screen.getByRole('menuitem', { name: 'Schedule...' })).toBeInTheDocument()
+  })
+
+  it('shows the newest teacher announcements first', async () => {
+    mockAnnouncementFetch([
+      {
+        ...markdownAnnouncement,
+        id: 'older-scheduled-announcement',
+        title: 'Older scheduled update',
+        scheduled_for: '2026-05-20T12:00:00.000Z',
+        created_at: '2026-05-12T12:00:00.000Z',
+        updated_at: '2026-05-12T12:00:00.000Z',
+      },
+      {
+        ...markdownAnnouncement,
+        id: 'newest-announcement',
+        title: 'Newest update',
+        scheduled_for: null,
+        created_at: '2026-05-14T12:00:00.000Z',
+        updated_at: '2026-05-14T12:00:00.000Z',
+      },
+      {
+        ...markdownAnnouncement,
+        id: 'middle-announcement',
+        title: 'Middle update',
+        scheduled_for: null,
+        created_at: '2026-05-13T12:00:00.000Z',
+        updated_at: '2026-05-13T12:00:00.000Z',
+      },
+    ])
+
+    render(<TeacherAnnouncementsSection classroom={classroom} />)
+
+    const newest = await screen.findByText('Newest update')
+    const middle = screen.getByText('Middle update')
+    const scheduled = screen.getByText('Older scheduled update')
+
+    expect(newest.compareDocumentPosition(middle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(middle.compareDocumentPosition(scheduled) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('renders student announcements as markdown links', async () => {
     render(<StudentAnnouncementsSection classroom={classroom} />)
 
@@ -96,6 +158,7 @@ describe('announcement markdown rendering', () => {
 
     expect(link).toHaveAttribute('href', 'https://example.com/outline')
     expect(link).toHaveAttribute('target', '_blank')
+    expect(screen.getByText('Unit update')).toBeInTheDocument()
     expect(screen.getByText('bring notes')).toBeInTheDocument()
   })
 })
