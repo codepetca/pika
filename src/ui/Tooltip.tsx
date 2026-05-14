@@ -18,6 +18,8 @@ export interface TooltipProps {
   content: ReactNode
   /** The element that triggers the tooltip */
   children: ReactNode
+  /** Whether the tooltip content itself can be hovered/clicked */
+  interactive?: boolean
   /** Delay in ms before showing tooltip (default: 100) */
   delayDuration?: number
   /** Side of the trigger to render tooltip (default: 'bottom') */
@@ -40,20 +42,21 @@ export interface TooltipProps {
 export function Tooltip({
   content,
   children,
+  interactive = false,
   delayDuration = 100,
   side = 'bottom',
   align = 'center',
   className,
 }: TooltipProps) {
   return (
-    <TooltipPrimitive.Root delayDuration={delayDuration}>
+    <TooltipPrimitive.Root delayDuration={delayDuration} disableHoverableContent={!interactive}>
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
         <TooltipPrimitive.Content
           side={side}
           align={align}
           sideOffset={4}
-          className={cn(tooltipContentStyles(), className)}
+          className={cn(tooltipContentStyles(), interactive && 'pointer-events-auto', className)}
         >
           {content}
         </TooltipPrimitive.Content>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
+import { parseAnnouncementTitleInput } from '@/lib/announcements'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -45,10 +46,14 @@ export const PATCH = withErrorHandler('PatchAnnouncement', async (request, conte
   const user = await requireRole('teacher')
   const { id: classroomId, announcementId } = await context.params
   const body = await request.json()
-  const { content, scheduled_for } = body as { content?: string; scheduled_for?: string | null }
+  const { content, scheduled_for, title } = body as {
+    content?: string
+    scheduled_for?: string | null
+    title?: unknown
+  }
 
   // Require at least one field to update
-  if (content === undefined && scheduled_for === undefined) {
+  if (content === undefined && scheduled_for === undefined && title === undefined) {
     return NextResponse.json(
       { error: 'Content is required' },
       { status: 400 }
@@ -80,6 +85,14 @@ export const PATCH = withErrorHandler('PatchAnnouncement', async (request, conte
     }
   }
 
+  const parsedTitle = parseAnnouncementTitleInput(title)
+  if (!parsedTitle.ok) {
+    return NextResponse.json(
+      { error: parsedTitle.error },
+      { status: 400 }
+    )
+  }
+
   const ownership = await verifyAnnouncementOwnership(user.id, classroomId, announcementId)
   if (!ownership.ok) {
     return NextResponse.json(
@@ -98,12 +111,15 @@ export const PATCH = withErrorHandler('PatchAnnouncement', async (request, conte
   const supabase = getServiceRoleClient()
 
   // Build update object with only provided fields
-  const updateData: { content?: string; scheduled_for?: string | null } = {}
+  const updateData: { content?: string; scheduled_for?: string | null; title?: string | null } = {}
   if (content !== undefined) {
     updateData.content = content.trim()
   }
   if (scheduled_for !== undefined) {
     updateData.scheduled_for = scheduled_for
+  }
+  if (title !== undefined) {
+    updateData.title = parsedTitle.value ?? null
   }
 
   const { data: announcement, error } = await supabase

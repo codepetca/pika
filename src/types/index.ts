@@ -1000,6 +1000,7 @@ export interface LogSummary {
 export interface Announcement {
   id: string
   classroom_id: string
+  title?: string | null
   content: string
   created_by: string
   scheduled_for: string | null // NULL = published immediately, future timestamp = scheduled

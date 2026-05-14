@@ -14,6 +14,8 @@ export interface FormFieldProps {
   hint?: string
   /** Show required indicator (*) after label */
   required?: boolean
+  /** Keep the label available to assistive tech without showing it visually */
+  hideLabel?: boolean
   /** The form control (Input, Select, Textarea, etc.) */
   children: ReactNode
   /** Additional class names for the wrapper */
@@ -46,6 +48,7 @@ export function FormField({
   error,
   hint,
   required,
+  hideLabel,
   children,
   className,
 }: FormFieldProps) {
@@ -67,7 +70,7 @@ export function FormField({
 
   return (
     <div className={cn('w-full', className)}>
-      <label htmlFor={fieldId} className={labelStyles}>
+      <label htmlFor={fieldId} className={cn(labelStyles, hideLabel && 'sr-only')}>
         {label}
         {required && <span className={requiredMarkerStyles}>*</span>}
       </label>

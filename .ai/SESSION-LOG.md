@@ -7,114 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-11 — Add Daily quick date buttons
-
-**Completed:**
-- Added icon-only Daily tab quick-jump buttons for `Last class` and `Today` around the existing date picker arrows.
-- Simplified the quick-jump icons to `UndoDot` for `Last class` and `CircleDot` for `Today`.
-- Reused the existing Toronto date and class-day helpers so `Last class` targets the most recent class day before today.
-- Added focused component coverage for moving from the last class date to today and back.
-- Refreshed the Toronto `today` value on focus/visibility/interval and in quick-jump handlers so open tabs do not keep stale quick-jump dates after midnight.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/daily-tab-quick-date-buttons bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherAttendanceTab.test.tsx`
-- `pnpm lint`
-- Added rollover coverage for `Today` and `Last class` quick jumps after the mocked Toronto date changes while the tab remains mounted.
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/daily-tab-quick-date-buttons bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/751b1dfb-ec79-46fc-b4f6-24f97911ecea?tab=attendance'`
-- `E2E_BASE_URL=http://localhost:3002 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/daily-tab-quick-date-buttons bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c4536d07-c76a-4a5b-a9c9-6340ed1678a9?tab=attendance'`
-- `E2E_BASE_URL=http://localhost:3003 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/daily-tab-quick-date-buttons bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c4536d07-c76a-4a5b-a9c9-6340ed1678a9?tab=attendance'`
-- Tooltip hover checks:
-  - `/tmp/pika-tooltip-last-class.png`
-  - `/tmp/pika-tooltip-today.png`
-
-## 2026-05-12 — Preserve teacher assignment student-list scroll
-
-**Completed:**
-- Preserved the teacher assignment workspace class-pane scroll position while selecting students from the left student table.
-- Added regression coverage that remounts the left pane on student selection and verifies the stored scroll offset is restored.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/teacher-assignments-scroll bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/teacher-assignments-scroll E2E_BASE_URL=http://localhost:3000 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c4536d07-c76a-4a5b-a9c9-6340ed1678a9?tab=assignments&assignmentId=f2e7f53a-8399-42f7-9739-36a91fd837c1&assignmentStudentId=20d7927e-6c8d-4fe0-a31b-b3a4bd097f5e'`
-
-## 2026-05-12 — Continue teacher assignment scroll handoff
-
-**Completed:**
-- Audited the dirty `codex/teacher-assignments-scroll` worktree after the prior Codex session died.
-- Confirmed the assignment scroll fix preserves the class-pane scroll position before student selection and restores it after remount.
-- Seeded local Supabase and refreshed Playwright auth so UI verification used a live local classroom instead of a stale missing-classroom route.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/teacher-assignments-scroll bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherAttendanceTab.test.tsx tests/components/TeacherGradebookTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/teacher-assignments-scroll E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/61164fb0-26d2-4862-abfe-5517ccdc685a?tab=assignments&assignmentId=9ff41b8e-bb7a-485b-a553-fb11dfd98545&assignmentStudentId=852830be-50b4-48fe-9b03-67e4d1d49a37'`
-- Delayed loaded-state teacher desktop screenshot: `/tmp/pika-teacher-loaded.png`
-
-## 2026-05-12 — Student Today past log expansion
-
-**Completed:**
-- Removed the parent collapse control from the student Today past-log section.
-- Changed the section to always show past logs, excluding the current Today entry.
-- Added per-log expand/collapse behavior: collapsed entries use a two-line clamp with ellipsis and clicking the log reveals the full text.
-- Split the student Today right pane into `Today` and `Last Class` lesson-plan sections, with the previous class day loaded from shared class-day state.
-- Updated focused Today history component coverage for default visibility, per-entry toggling, empty past-log state, and sessionStorage caching.
-- Added page-client coverage for the student Today sidebar showing both current and last-class lesson-plan content.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/today-log-history-expand bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/StudentTodayTabHistory.test.tsx`
-- `pnpm test tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/StudentTodayTabHistory.test.tsx`
-- `pnpm lint`
-- `git diff --check`
-- Visual verification via temporary local harness after standard auth/seed path was blocked by local Supabase being down because Docker was not running:
-  - `/tmp/pika-student-today-mobile.png`
-  - `/tmp/pika-student-today-mobile-expanded.png`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/today-log-history-expand bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/90c4fdd7-28c0-4474-998e-650eee270d57?tab=today'`
-- Additional desktop student pane capture:
-  - `/tmp/pika-student-today-desktop.png`
-
-## 2026-05-12 — Student Today split pane and richer seed logs
-
-**Completed:**
-- Moved the student Today lesson-plan panel out of the global right sidebar and into a teacher-style gapped split workspace.
-- Kept the Today and Last Class lesson-plan sections in a rounded right pane and rendered lesson-plan rich text flush, without the nested viewer border/padding.
-- Disabled the external Today right sidebar route config and expanded the student Today history fetch/cache limit to 12 entries.
-- Updated `seed` and `seed:fresh` to create 20 sample student logs across recent class days, including several long entries, and to seed lesson plans for both today and the last class.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/StudentTodayTabHistory.test.tsx tests/unit/layout-config.test.ts`
-- `pnpm lint`
-- `pnpm seed:fresh`
-- `pnpm e2e:auth`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/today-log-history-expand bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/bdd3df5f-3596-4b8e-8acf-65004c9b2d66?tab=today'`
-- Additional desktop student split capture: `/tmp/pika-student-today-desktop-split-final.png`
-- `git diff --check`
-- `pnpm build`
-
-## 2026-05-12 — Student Today previous-day heading
-
-**Completed:**
-- Changed the student Today right-pane previous-class heading to show `Yesterday` when the previous class date is yesterday.
-- Moved the formatted date next to the heading instead of pinning it to the far right of the pane.
-- Kept the fallback copy as `Last class` for non-yesterday previous class days.
-
-**Validation:**
-- `pnpm test tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/StudentTodayTabHistory.test.tsx tests/unit/layout-config.test.ts`
-- `pnpm lint`
-- `git diff --check`
-- `E2E_BASE_URL=http://localhost:3010 pnpm e2e:auth`
-- `E2E_BASE_URL=http://localhost:3010 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/today-log-history-expand bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/bdd3df5f-3596-4b8e-8acf-65004c9b2d66?tab=today'`
-- Additional desktop student split capture: `/tmp/pika-student-today-yesterday-desktop.png`
-- `pnpm build`
-
 ## 2026-05-13 — Announcement markdown rendering
 
 **Completed:**
@@ -347,3 +239,102 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash scripts/verify-env.sh`
 - `pnpm lint`
 - `pnpm build`
+
+## 2026-05-14 — Announcement calendar titles
+
+**Completed:**
+- Added nullable announcement titles with shared normalization and a 60-character limit.
+- Wired title create/edit through teacher announcement APIs and UI, and displayed titles on teacher/student announcement cards.
+- Updated calendar announcement pills and focused-day presentation to use titles with truncation, falling back to `Announcement` or `Scheduled`.
+
+**Validation:**
+- `pnpm test tests/unit/announcements.test.ts tests/api/teacher/announcements.test.ts tests/api/teacher/announcements-id.test.ts tests/components/LessonDayCell.test.tsx tests/components/AnnouncementsMarkdown.test.tsx tests/components/LessonCalendar.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/announcement-calendar-title bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=calendar'`
+- Additional screenshots:
+  - `/tmp/pika-teacher-titled-announcement.png`
+  - `/tmp/pika-student-titled-announcement.png`
+  - `/tmp/pika-teacher-announcement-title-form.png`
+
+## 2026-05-14 — Interactive announcement calendar popups
+
+**Completed:**
+- Added an opt-in interactive mode to the shared tooltip wrapper so hoverable/clickable content is available without changing normal tooltip behavior.
+- Enabled interactive popup behavior for calendar announcement tooltips, including weekend announcement indicators.
+- Verified markdown links inside announcement popups remain reachable when moving the pointer from the calendar pill into the popup.
+
+**Validation:**
+- `pnpm test tests/components/LessonDayCell.test.tsx`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/LessonCalendar.test.tsx tests/components/AnnouncementsMarkdown.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/announcement-calendar-title bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=calendar'`
+- Targeted Playwright hover/click-actionability check with screenshot:
+  - `/tmp/pika-announcement-popup-link-hover.png`
+
+## 2026-05-14 — Announcement composer sizing
+
+**Completed:**
+- Increased teacher announcement create/edit textareas from 3 to 6 rows with a 10rem minimum height.
+- Enabled vertical resize and autogrow behavior from textarea scroll height for longer announcement drafts.
+- Added component coverage for the larger resizable creation textarea.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/announcement-calendar-title bash /Users/stew/Repos/pika/.codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/AnnouncementsMarkdown.test.tsx tests/api/teacher/announcements.test.ts tests/api/teacher/announcements-id.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/announcement-calendar-title bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=announcements'`
+- Additional screenshots:
+  - `/tmp/pika-announcement-create-textarea.png`
+  - `/tmp/pika-announcement-create-textarea-mobile.png`
+
+## 2026-05-14 — Announcement newest-first ordering
+
+**Completed:**
+- Added a shared newest-first announcement sorter based on `created_at`.
+- Updated teacher announcement display so scheduled announcements no longer jump ahead of newer published announcements.
+- Applied the same client-side newest-first display ordering for student announcements.
+
+**Validation:**
+- `pnpm test tests/unit/announcements.test.ts tests/components/AnnouncementsMarkdown.test.tsx tests/api/teacher/announcements.test.ts tests/api/student/announcements.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/announcement-calendar-title bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=announcements'`
+- Targeted ordering screenshots:
+  - `/tmp/pika-announcements-newest-first.png`
+  - `/tmp/pika-student-announcements-newest-first.png`
+
+## 2026-05-14 — Announcement title placeholder
+
+**Completed:**
+- Added an opt-in hidden-label mode to `FormField` so labels remain available to assistive tech without being visually shown.
+- Removed the visible `Title` label above announcement title fields and changed the placeholder to `Title (optional)`.
+- Applied the behavior to both create and edit announcement title inputs.
+
+**Validation:**
+- `pnpm test tests/components/AnnouncementsMarkdown.test.tsx tests/unit/announcements.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/announcement-calendar-title bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=announcements'`
+- Targeted composer screenshot:
+  - `/tmp/pika-announcement-title-placeholder.png`
+
+## 2026-05-14 — Announcement composer ordering and split button
+
+**Completed:**
+- Moved the teacher announcement composer above the existing announcement list so the draft/new announcement area always stays at the top.
+- Replaced the local hand-rolled Post/Schedule control with the shared `@/ui` `SplitButton`.
+- Kept the existing schedule date/time picker by opening it from the shared split button's `Schedule...` menu item.
+
+**Validation:**
+- `pnpm test tests/components/AnnouncementsMarkdown.test.tsx tests/ui/SplitButton.test.tsx tests/unit/announcements.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3005 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/announcement-calendar-title bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=announcements'`
+- Targeted composer screenshots:
+  - `/tmp/pika-announcement-composer-top-splitbutton.png`
+  - `/tmp/pika-announcement-composer-top-splitbutton-mobile.png`
