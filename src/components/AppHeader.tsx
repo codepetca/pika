@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { ClockAlert, LogOut, Maximize, Menu, Minimize } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { ClassroomDropdown } from './ClassroomDropdown'
 import { UserMenu } from './UserMenu'
@@ -44,6 +44,8 @@ function formatDuration(totalSeconds: number): string {
   return `${Math.floor(safe / 3600)}h`
 }
 
+const EXIT_COUNT_PULSE_MS = 1600
+
 /**
  * Compact global header (48px) with logo, classroom selector, date, and user menu.
  */
@@ -59,6 +61,8 @@ export function AppHeader({
   pageTitle,
 }: AppHeaderProps) {
   const [now, setNow] = useState(() => new Date())
+  const [exitCountPulseActive, setExitCountPulseActive] = useState(false)
+  const previousExamExitCountRef = useRef<number | null>(null)
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen()
   const hints = useKeyboardShortcutHint()
 
@@ -68,6 +72,7 @@ export function AppHeader({
   }, [])
 
   const isExamMode = Boolean(examModeHeader)
+  const examExitCount = examModeHeader?.exitsCount ?? null
   const isTextPageTitle = typeof pageTitle === 'string'
   const pageTitleClassName =
     pageTitle === 'Classrooms'
@@ -89,6 +94,31 @@ export function AppHeader({
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [toggleFullscreen, isExamMode])
+
+  useEffect(() => {
+    if (examExitCount === null) {
+      previousExamExitCountRef.current = null
+      setExitCountPulseActive(false)
+      return
+    }
+
+    const previousExitCount = previousExamExitCountRef.current
+    previousExamExitCountRef.current = examExitCount
+
+    if (previousExitCount === null) return
+
+    if (examExitCount <= previousExitCount) {
+      setExitCountPulseActive(false)
+      return
+    }
+
+    setExitCountPulseActive(true)
+    const timeoutId = window.setTimeout(() => {
+      setExitCountPulseActive(false)
+    }, EXIT_COUNT_PULSE_MS)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [examExitCount])
 
   return (
     <header className="sticky top-0 z-50 h-12 bg-surface border-b border-border grid grid-cols-[1fr_minmax(0,1fr)_1fr] items-center px-4">
@@ -143,9 +173,19 @@ export function AppHeader({
           <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-6 text-sm text-text-default">
             <span className="truncate font-semibold">{examModeHeader.testTitle}</span>
             <div className="inline-flex items-center gap-3 whitespace-nowrap text-text-muted tabular-nums">
-              <span className="inline-flex items-center gap-1">
+              <span
+                className={[
+                  'inline-flex items-center gap-1 rounded-md border px-2 py-1 transition-all duration-300',
+                  exitCountPulseActive
+                    ? 'motion-safe:scale-[1.03] border-warning bg-warning font-semibold text-text-inverse shadow-sm ring-2 ring-warning'
+                    : 'border-transparent text-text-muted',
+                ].join(' ')}
+                aria-label={`Exits ${examModeHeader.exitsCount}`}
+                aria-live="polite"
+              >
                 <LogOut className="h-3.5 w-3.5" />
                 <span>{examModeHeader.exitsCount}</span>
+                {exitCountPulseActive ? <span className="sr-only">Exit detected</span> : null}
               </span>
               <span className="inline-flex items-center gap-1">
                 <ClockAlert className="h-3.5 w-3.5" />

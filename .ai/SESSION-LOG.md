@@ -7,21 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-13 — Teacher test grading closed-access refresh
-
-**Completed:**
-- Stopped the teacher tests grading workspace from starting the background grade poll when every student has closed effective access.
-- Reused the same effective-access helper for polling decisions, batch action counts, and row access icons.
-- Added regression coverage for an active test whose access is closed for all students so the `Refreshing grades` status does not appear.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/close-test-refresh-notice bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/close-test-refresh-notice E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests'`
-- Closed selected test workspace browser check after 16.5s: no `Refreshing grades` status and no console errors; screenshots `/tmp/pika-teacher-closed-test-workspace.png` and `/tmp/pika-teacher-closed-test-selected-student.png`
-- `pnpm test`
-
 ## 2026-05-13 — Selected test pane scrolling
 
 **Completed:**
@@ -376,3 +361,34 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-assignment-mobile-1-students-grading-numbered-indicator.png`
   - `/tmp/pika-assignment-mobile-2-content-grading-numbered-indicator.png`
   - `/tmp/pika-assignment-mobile-3-students-content-numbered-indicator.png`
+
+## 2026-05-14 — Exit detection visibility
+
+**Completed:**
+- Rebasing checked `main` against `origin/main` and created worktree branch `codex/exit-detected-alert`.
+- Rebased `codex/exit-detected-alert` onto `origin/main` at `43b57445`.
+- Added a student exam-mode header pulse when the exits count increases, without pulsing on initial load.
+- Kept the student header pulse from sticking if the exits count is reset while the pulse timer is active.
+- Added a persistent cancellable teacher `Exit detected` alert for newly increased exits in test grading, targeting the first affected student row.
+- Highlighted unreviewed student rows with amber emphasis and made nonzero exit counts render as amber badges.
+- Cleared unreviewed row highlighting when the teacher clicks the alert or selects the affected row.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/AppHeader.test.tsx`
+- `pnpm test`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3002 pnpm e2e:auth`
+- `E2E_BASE_URL=http://localhost:3002 pnpm e2e:verify assessment-ux-parity`
+- Targeted Playwright screenshots:
+  - `/tmp/pika-exit-alert-teacher.png`
+  - `/tmp/pika-exit-pulse-student.png`
+- Chrome smoke:
+  - Teacher on `localhost:3002`: temporary active test loaded in grading, polled a student focus exit, showed `Exit detected`, and clicking the alert selected the student/cleared the banner.
+  - Student on `127.0.0.1:3002`: temporary active test started in exam mode and showed the exits indicator in Chrome.
+  - Temporary test was deleted after the smoke.
+  - Screenshots:
+    - `/tmp/pika-chrome-smoke-teacher-alert.png`
+    - `/tmp/pika-chrome-smoke-teacher-clicked.png`
+    - `/tmp/pika-chrome-smoke-student-pulse.png`
