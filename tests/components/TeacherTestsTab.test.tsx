@@ -1382,6 +1382,91 @@ describe('TeacherTestsTab', () => {
     })
   })
 
+  it('shows a simple exit alert and unreviewed row highlight when polling detects a new exit', async () => {
+    let intervalCallback: (() => void) | null = null
+    let resolvePoll:
+      | ((value: { ok: boolean; json: () => Promise<any> }) => void)
+      | null = null
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'visible',
+    })
+    vi.spyOn(document, 'hasFocus').mockImplementation(() => true)
+    vi.spyOn(window, 'setInterval').mockImplementation(((callback: TimerHandler) => {
+      intervalCallback = callback as () => void
+      return 1
+    }) as typeof window.setInterval)
+
+    const pollResultsPromise = new Promise<{ ok: boolean; json: () => Promise<any> }>((resolve) => {
+      resolvePoll = resolve
+    })
+    const focusSummary = {
+      exit_count: 0,
+      away_count: 0,
+      away_total_seconds: 0,
+      route_exit_attempts: 0,
+      window_unmaximize_attempts: 0,
+      last_away_started_at: null,
+      last_away_ended_at: null,
+    }
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({
+        students: [makeGradingStudent({ focus_summary: focusSummary })],
+      }))
+      .mockImplementationOnce(() => pollResultsPromise as unknown as Promise<Response>)
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    const row = await screen.findByTestId('test-grading-student-row-student-1')
+    expect(screen.queryByTestId('test-exit-detected-alert')).not.toBeInTheDocument()
+    expect(within(row).getByLabelText(/Exits 0\./)).toHaveClass('text-text-muted')
+
+    await act(async () => {
+      intervalCallback?.()
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      resolvePoll?.(
+        makeResultsResponse({
+          students: [
+            makeGradingStudent({
+              focus_summary: {
+                ...focusSummary,
+                exit_count: 1,
+                away_count: 1,
+                away_total_seconds: 12,
+              },
+            }),
+          ],
+        })
+      )
+      await Promise.resolve()
+    })
+
+    const alert = await screen.findByRole('button', { name: 'Exit detected' })
+    const highlightedRow = screen.getByTestId('test-grading-student-row-student-1')
+    expect(highlightedRow).toHaveClass('bg-warning-bg')
+    expect(within(highlightedRow).getByLabelText(/Exits 1\./)).toHaveClass('text-warning')
+
+    fireEvent.click(alert)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test-grading-panel')).toHaveTextContent('Grading panel for test-1:student-1')
+    })
+    expect(screen.queryByTestId('test-exit-detected-alert')).not.toBeInTheDocument()
+    expect(screen.getByTestId('test-grading-student-row-student-1')).toHaveClass('bg-surface-selected')
+    expect(screen.getByTestId('test-grading-student-row-student-1')).not.toHaveClass('bg-warning-bg')
+  })
+
   it('does not start polling when the server reports the test is closed', async () => {
     let visibilityState: DocumentVisibilityState = 'visible'
     let hasFocus = true

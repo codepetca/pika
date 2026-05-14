@@ -16,7 +16,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Check, ClockAlert, Code, ExternalLink, Lock, LogOut, Pencil, Plus, RotateCcw, Send, Settings, Trash2, Unlock } from 'lucide-react'
+import { Check, ClockAlert, Code, ExternalLink, Lock, LogOut, Pencil, Plus, RotateCcw, Send, Settings, Trash2, Unlock, X } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { QuizModal } from '@/components/QuizModal'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
@@ -122,6 +122,10 @@ type TestEditSaveStatus = 'saved' | 'saving' | 'unsaved'
 type TestGradingSortColumn = 'first_name' | 'last_name'
 
 const GRADING_POLL_INTERVAL_MS = 15_000
+
+function getTestGradingExitCount(student: TestGradingStudentRow): number {
+  return getQuizExitCount(student.focus_summary)
+}
 
 function TestWorkspacePaneFrame({ children }: { children: ReactNode }) {
   return (
@@ -306,6 +310,10 @@ export function TeacherTestsTab({
     selectedTestId: null,
   })
   const latestGradingRequestIdRef = useRef(0)
+  const gradingExitCountsRef = useRef<{ testId: string | null; counts: Map<string, number> }>({
+    testId: null,
+    counts: new Map(),
+  })
   const handledCompletedRunKeysRef = useRef<Set<string>>(new Set())
   const selectedTestIdRef = useRef<string | null>(null)
   const selectedTestDraftSummaryRef = useRef<AssessmentEditorSummaryUpdate | null>(null)
@@ -327,6 +335,8 @@ export function TeacherTestsTab({
   const [isDeletingTest, setIsDeletingTest] = useState(false)
 
   const [gradingStudents, setGradingStudents] = useState<TestGradingStudentRow[]>([])
+  const [unreviewedExitCounts, setUnreviewedExitCounts] = useState<Record<string, number>>({})
+  const [exitAlertStudentId, setExitAlertStudentId] = useState<string | null>(null)
   const [gradingQuestions, setGradingQuestions] = useState<TestGradingQuestionSummary[]>([])
   const [gradingServerTestStatus, setGradingServerTestStatus] = useState<Quiz['status'] | null>(null)
   const [gradingServerTestId, setGradingServerTestId] = useState<string | null>(null)
@@ -477,6 +487,23 @@ export function TeacherTestsTab({
       ),
     [selectedTestWorkspace?.status, sortedGradingStudents]
   )
+  const exitAlertStudent = useMemo(
+    () =>
+      exitAlertStudentId
+        ? sortedGradingStudents.find((student) => student.student_id === exitAlertStudentId) ?? null
+        : null,
+    [exitAlertStudentId, sortedGradingStudents]
+  )
+
+  const clearUnreviewedExitForStudent = useCallback((studentId: string) => {
+    setUnreviewedExitCounts((prev) => {
+      if (!(studentId in prev)) return prev
+      const next = { ...prev }
+      delete next[studentId]
+      return next
+    })
+    setExitAlertStudentId((prev) => (prev === studentId ? null : prev))
+  }, [])
 
   const setSelectedStudentId = useCallback((nextStudentId: string | null) => {
     setInternalSelectedStudentId(nextStudentId)
@@ -547,6 +574,86 @@ export function TeacherTestsTab({
     selectedTestId,
     selectedWorkspaceTab,
   ])
+
+  const scrollToGradingStudent = useCallback((studentId: string) => {
+    const scrollPane = gradingStudentTableScrollRef.current
+    if (!scrollPane) return
+
+    const row = Array.from(scrollPane.querySelectorAll('[data-test-grading-student-row-id]')).find(
+      (node) => node.getAttribute('data-test-grading-student-row-id') === studentId
+    )
+    if (row instanceof HTMLElement && typeof row.scrollIntoView === 'function') {
+      row.scrollIntoView({ block: 'center' })
+    }
+  }, [gradingStudentTableScrollRef])
+
+  const handleGradingStudentSelect = useCallback((studentId: string) => {
+    clearUnreviewedExitForStudent(studentId)
+    selectGradingStudent(studentId)
+  }, [clearUnreviewedExitForStudent, selectGradingStudent])
+
+  const handleExitAlertClick = useCallback(() => {
+    if (!exitAlertStudentId) return
+    clearUnreviewedExitForStudent(exitAlertStudentId)
+    selectGradingStudent(exitAlertStudentId)
+    const scrollAfterSelect = () => {
+      scrollToGradingStudent(exitAlertStudentId)
+    }
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(scrollAfterSelect)
+      return
+    }
+    scrollAfterSelect()
+  }, [clearUnreviewedExitForStudent, exitAlertStudentId, scrollToGradingStudent, selectGradingStudent])
+
+  const dismissExitAlert = useCallback(() => {
+    setExitAlertStudentId(null)
+  }, [])
+
+  const recordGradingExitCountChanges = useCallback((
+    testId: string,
+    students: TestGradingStudentRow[]
+  ) => {
+    const nextCounts = new Map(
+      students.map((student) => [student.student_id, getTestGradingExitCount(student)])
+    )
+    const previousSnapshot = gradingExitCountsRef.current
+
+    if (previousSnapshot.testId !== testId || previousSnapshot.counts.size === 0) {
+      gradingExitCountsRef.current = { testId, counts: nextCounts }
+      setUnreviewedExitCounts({})
+      setExitAlertStudentId(null)
+      return
+    }
+
+    const increasedStudents = students.filter((student) => {
+      const previousCount = previousSnapshot.counts.get(student.student_id) ?? 0
+      const nextCount = nextCounts.get(student.student_id) ?? 0
+      return nextCount > previousCount
+    })
+
+    gradingExitCountsRef.current = { testId, counts: nextCounts }
+
+    setUnreviewedExitCounts((prev) => {
+      const next: Record<string, number> = {}
+      for (const [studentId, exitCount] of Object.entries(prev)) {
+        if ((nextCounts.get(studentId) ?? 0) >= exitCount) {
+          next[studentId] = exitCount
+        }
+      }
+      for (const student of increasedStudents) {
+        next[student.student_id] = nextCounts.get(student.student_id) ?? 0
+      }
+      return next
+    })
+
+    if (increasedStudents.length > 0) {
+      setExitAlertStudentId((current) => {
+        if (current && nextCounts.has(current)) return current
+        return increasedStudents[0].student_id
+      })
+    }
+  }, [])
 
   const batchAutoGradePreflight = useMemo(() => {
     const selectedCount = batchSelectedStudents.length
@@ -640,6 +747,9 @@ export function TeacherTestsTab({
       setGradingServerTestId(null)
       setTestAiGradingRun(null)
       setGradingRefreshing(false)
+      gradingExitCountsRef.current = { testId: null, counts: new Map() }
+      setUnreviewedExitCounts({})
+      setExitAlertStudentId(null)
       return
     }
 
@@ -683,7 +793,9 @@ export function TeacherTestsTab({
           )
         )
       }
-      setGradingStudents((data.students || []) as TestGradingStudentRow[])
+      const nextStudents = (data.students || []) as TestGradingStudentRow[]
+      recordGradingExitCountChanges(requestedTestId, nextStudents)
+      setGradingStudents(nextStudents)
       setGradingQuestions(
         Array.isArray(data.questions)
           ? data.questions.map((question: any) => ({
@@ -707,7 +819,7 @@ export function TeacherTestsTab({
       setGradingLoading(false)
       setGradingRefreshing(false)
     }
-  }, [selectedTestId])
+  }, [recordGradingExitCountChanges, selectedTestId])
 
   useEffect(() => {
     void loadTests()
@@ -747,6 +859,9 @@ export function TeacherTestsTab({
   useEffect(() => {
     selectedTestDraftSummaryRef.current = null
     setSelectedTestDraftSummary(null)
+    gradingExitCountsRef.current = { testId: selectedTestId, counts: new Map() }
+    setUnreviewedExitCounts({})
+    setExitAlertStudentId(null)
     setPendingUnsubmitStudent(null)
     setPendingOpenAccessStudent(null)
     setPendingCloseAccessStudent(null)
@@ -756,6 +871,12 @@ export function TeacherTestsTab({
     setPendingCloseAccessStudentIds(null)
     setPendingDeleteStudentAttemptIds(null)
   }, [selectedTestId])
+
+  useEffect(() => {
+    if (!exitAlertStudentId) return
+    if (gradingStudents.some((student) => student.student_id === exitAlertStudentId)) return
+    setExitAlertStudentId(null)
+  }, [exitAlertStudentId, gradingStudents])
 
   useEffect(() => {
     if (previousTestsTabClickTokenRef.current === testsTabClickToken) return
@@ -781,6 +902,9 @@ export function TeacherTestsTab({
       setGradingLoading(false)
       setGradingRefreshing(false)
       setTestAiGradingRun(null)
+      gradingExitCountsRef.current = { testId: null, counts: new Map() }
+      setUnreviewedExitCounts({})
+      setExitAlertStudentId(null)
       clearBatchSelection()
       return
     }
@@ -1783,6 +1907,32 @@ export function TeacherTestsTab({
       className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden"
       onPointerDownCapture={handleGradingTablePointerDown}
     >
+      {exitAlertStudent ? (
+        <div
+          className="border-b border-warning bg-warning-bg px-3 py-2"
+          aria-live="polite"
+          data-testid="test-exit-detected-alert"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={handleExitAlertClick}
+              className="inline-flex min-w-0 items-center gap-2 rounded-control px-2 py-1 text-sm font-semibold text-warning transition-colors hover:bg-surface/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-warning"
+            >
+              <LogOut className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+              <span>Exit detected</span>
+            </button>
+            <button
+              type="button"
+              onClick={dismissExitAlert}
+              className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-control text-warning transition-colors hover:bg-surface/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-warning"
+              aria-label="Dismiss exit detected alert"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      ) : null}
       {gradingRefreshing ? (
         <RefreshingIndicator label="Refreshing grades" className="px-3 py-2" />
       ) : null}
@@ -1801,7 +1951,7 @@ export function TeacherTestsTab({
           ref={gradingStudentTableScrollRef}
           rowKeys={gradingRowIds}
           selectedKey={selectedStudentId}
-          onSelectKey={selectGradingStudent}
+          onSelectKey={handleGradingStudentSelect}
           className="min-h-0 w-full flex-1 overflow-auto rounded-md border border-border bg-surface"
           data-testid="test-grading-student-scroll-pane"
           onScroll={preserveGradingStudentTableScrollPosition}
@@ -1885,7 +2035,7 @@ export function TeacherTestsTab({
                 const awayLabel = `${awayMinutes}:${String(awayRemainder).padStart(2, '0')}`
                 const routeExitAttempts = student.focus_summary?.route_exit_attempts ?? 0
                 const windowUnmaximizeAttempts = student.focus_summary?.window_unmaximize_attempts ?? 0
-                const exitsCount = getQuizExitCount(student.focus_summary)
+                const exitsCount = getTestGradingExitCount(student)
                 const formattedLastActivity = formatTorontoTime(student.last_activity_at)
                 const effectiveAccess = getEffectiveTestAccess(student, selectedTestWorkspace?.status)
                 const accessSource = student.access_source || 'test'
@@ -1917,17 +2067,35 @@ export function TeacherTestsTab({
                       : `Click to open access for ${studentLabel}.`
                 const canUnsubmitStudent =
                   student.status === 'submitted' && !isReadOnly && !isCombinedTestActionsBusy
+                const hasUnreviewedExit = unreviewedExitCounts[student.student_id] !== undefined
+                const exitsClassName = exitsCount > 0
+                  ? 'inline-flex min-w-6 cursor-help items-center justify-center rounded-badge border border-warning bg-warning-bg px-2 py-0.5 text-xs font-semibold text-warning'
+                  : 'cursor-help text-text-muted'
 
                 return (
                   <DataTableRow
                     key={student.student_id}
                     data-test-grading-student-row=""
+                    data-test-grading-student-row-id={student.student_id}
+                    data-testid={`test-grading-student-row-${student.student_id}`}
                     aria-selected={isSelected}
                     className={[
                       'cursor-pointer transition-colors',
-                      isSelected ? 'border-l-2 border-l-primary bg-surface-selected shadow-sm' : 'hover:bg-surface-hover',
+                      isSelected
+                        ? 'border-l-2 border-l-primary bg-surface-selected shadow-sm'
+                        : hasUnreviewedExit
+                          ? 'border-l-2 border-l-warning bg-warning-bg hover:bg-warning-bg'
+                          : 'hover:bg-surface-hover',
                     ].join(' ')}
-                    onClick={() => selectGradingStudent(student.student_id)}
+                    style={
+                      !isSelected && hasUnreviewedExit
+                        ? {
+                            boxShadow:
+                              'inset 4px 0 0 var(--color-warning), inset 0 0 0 9999px color-mix(in srgb, var(--color-warning) 14%, transparent)',
+                          }
+                        : undefined
+                    }
+                    onClick={() => handleGradingStudentSelect(student.student_id)}
                   >
                     <DataTableCell className="px-3 py-2">
                       <input
@@ -2004,7 +2172,7 @@ export function TeacherTestsTab({
                         </span>
                       </Tooltip>
                     </DataTableCell>
-                    <DataTableCell className="px-3 py-2 text-xs text-text-muted tabular-nums">
+                    <DataTableCell className="px-3 py-2 text-xs tabular-nums">
                       <Tooltip
                         content={
                           <div className="space-y-0.5">
@@ -2016,7 +2184,7 @@ export function TeacherTestsTab({
                         }
                       >
                         <span
-                          className="cursor-help"
+                          className={exitsClassName}
                           aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.`}
                         >
                           {exitsCount}
