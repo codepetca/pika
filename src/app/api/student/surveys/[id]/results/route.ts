@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertStudentCanAccessSurvey } from '@/lib/server/surveys'
-import { aggregateSurveyResults } from '@/lib/surveys'
+import { aggregateSurveyResults, canStudentViewSurveyResults } from '@/lib/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { SurveyQuestion, SurveyResponse } from '@/types'
 
@@ -19,22 +19,11 @@ export const GET = withErrorHandler('GetStudentSurveyResults', async (_request, 
   }
   const survey = access.survey
 
-  if (!survey.show_results) {
+  if (!canStudentViewSurveyResults(survey)) {
     return NextResponse.json({ error: 'Results are not available' }, { status: 403 })
   }
 
   const supabase = getServiceRoleClient()
-  const { data: ownResponses } = await supabase
-    .from('survey_responses')
-    .select('id')
-    .eq('survey_id', surveyId)
-    .eq('student_id', user.id)
-    .limit(1)
-
-  if ((ownResponses?.length || 0) === 0) {
-    return NextResponse.json({ error: 'Submit a response to view results' }, { status: 403 })
-  }
-
   const { data: questions, error: questionsError } = await supabase
     .from('survey_questions')
     .select('*')

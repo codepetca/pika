@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
 import { TooltipProvider } from '@/ui'
 import { createMockQuiz, createMockQuizQuestion } from '../helpers/mocks'
@@ -425,6 +425,7 @@ describe('QuizDetailPanel', () => {
       )
 
       expect(await screen.findByTestId('test-editor-only-layout')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Edit test title' })).toHaveTextContent('Editor Modal Test')
       const editorPane = screen.getByTestId('test-question-editor-pane')
       expect(editorPane).toBeInTheDocument()
       expect(screen.queryByTestId('test-summary-detail-layout')).not.toBeInTheDocument()
@@ -433,6 +434,64 @@ describe('QuizDetailPanel', () => {
       expect(screen.queryByText('Markdown')).not.toBeInTheDocument()
       expect(within(editorPane).getByTestId('test-documents-card')).toBeInTheDocument()
       expect(within(editorPane).getByRole('button', { name: '+ MC Question' })).toBeInTheDocument()
+    })
+
+    it('moves the editable test title into the supplied modal header target', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Untitled 2026-05-14 10:45:00',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [],
+          },
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Untitled 2026-05-14 10:45:00',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      function PortalHarness() {
+        const [titleTarget, setTitleTarget] = useState<HTMLDivElement | null>(null)
+        return (
+          <>
+            <div data-testid="test-modal-title-target" ref={setTitleTarget} />
+            <QuizDetailPanel
+              quiz={testQuiz}
+              classroomId="classroom-1"
+              apiBasePath="/api/teacher/tests"
+              onQuizUpdate={vi.fn()}
+              testQuestionLayout="editor-only"
+              showPreviewButton={false}
+              showResultsTab={false}
+              titlePortalTarget={titleTarget}
+              generatedTitleLabel="Untitled Test"
+            />
+          </>
+        )
+      }
+
+      render(<PortalHarness />, { wrapper: Wrapper })
+
+      const editorLayout = await screen.findByTestId('test-editor-only-layout')
+      const titleTarget = screen.getByTestId('test-modal-title-target')
+      expect(within(titleTarget).getByRole('button', { name: 'Edit test title' })).toHaveTextContent('Untitled Test')
+      expect(within(editorLayout).queryByRole('button', { name: 'Edit test title' })).not.toBeInTheDocument()
     })
 
     it('renders tests in markdown-only mode with the markdown editor and no tabs', async () => {

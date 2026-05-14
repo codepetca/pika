@@ -16,6 +16,7 @@ import {
   isMissingTestStudentAvailabilityError,
 } from '@/lib/server/tests'
 import { withErrorHandler } from '@/lib/api-handler'
+import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
 import type { TestStudentAvailabilityState } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -241,9 +242,7 @@ export const POST = withErrorHandler('CreateTeacherTest', async (request) => {
   if (!classroom_id) {
     return NextResponse.json({ error: 'classroom_id is required' }, { status: 400 })
   }
-  if (!title || !title.trim()) {
-    return NextResponse.json({ error: 'Title is required' }, { status: 400 })
-  }
+  const cleanTitle = title?.trim() || getFallbackAssessmentTitle()
 
   const ownership = await assertTeacherCanMutateClassroom(user.id, classroom_id)
   if (!ownership.ok) {
@@ -269,7 +268,7 @@ export const POST = withErrorHandler('CreateTeacherTest', async (request) => {
     .from('tests')
     .insert({
       classroom_id,
-      title: title.trim(),
+      title: cleanTitle,
       created_by: user.id,
       position: nextPosition,
     })

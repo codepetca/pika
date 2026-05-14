@@ -4,7 +4,6 @@ import { useCallback, useMemo } from 'react'
 import {
   BookOpen,
   Calendar,
-  CircleHelp,
   ClipboardCheck,
   ClipboardList,
   FileCheck,
@@ -29,7 +28,6 @@ export type ClassroomNavItemId =
   | 'attendance'
   | 'gradebook'
   | 'assignments'
-  | 'quizzes'
   | 'tests'
   | 'calendar'
   | 'resources'
@@ -51,7 +49,6 @@ type NavItem = {
 const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Daily', icon: ClipboardCheck },
   { id: 'assignments', label: 'Classwork', icon: ClipboardList },
-  { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
   { id: 'tests', label: 'Tests', icon: FileCheck },
   { id: 'gradebook', label: 'Gradebook', icon: SquarePercent },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
@@ -64,7 +61,6 @@ const teacherItems: NavItem[] = [
 const studentItems: NavItem[] = [
   { id: 'today', label: 'Today', icon: PenSquare },
   { id: 'assignments', label: 'Classwork', icon: ClipboardList },
-  { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
   { id: 'tests', label: 'Tests', icon: FileCheck },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'resources', label: 'Syllabus', icon: BookOpen },
@@ -135,10 +131,6 @@ export function NavItems({
     role === 'student' &&
     !notifications?.loading &&
     (notifications?.unviewedAssignmentsCount ?? 0) > 0
-  const showQuizzesPulse =
-    role === 'student' &&
-    !notifications?.loading &&
-    (notifications?.activeQuizzesCount ?? 0) > 0
   const showTestsPulse =
     role === 'student' &&
     !notifications?.loading &&
@@ -209,7 +201,6 @@ export function NavItems({
         const shouldPulse =
           (item.id === 'today' && showTodayPulse) ||
           (item.id === 'assignments' && showAssignmentsPulse) ||
-          (item.id === 'quizzes' && showQuizzesPulse) ||
           (item.id === 'tests' && showTestsPulse) ||
           (item.id === 'announcements' && showAnnouncementsPulse)
         const ariaLabel = shouldPulse ? `${item.label} (new activity)` : item.label

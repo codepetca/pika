@@ -99,7 +99,7 @@ export function SortableSurveyCard({
               {survey.title}
             </span>
             <span className="block text-xs text-primary">
-              Survey{survey.dynamic_responses ? ' · Dynamic' : ''}
+              Survey
             </span>
           </span>
 
