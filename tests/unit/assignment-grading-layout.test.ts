@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   ASSIGNMENT_GRADING_LAYOUT,
   clampAssignmentGradingLayout,
+  getAssignmentSplitPaneViewSessionKey,
   getAssignmentGradingLayoutCookieName,
   getAssignmentWorkspaceStudentCookieName,
   getDefaultAssignmentGradingLayout,
+  getDefaultAssignmentSplitPaneView,
   getEffectiveInspectorWidthPercent,
+  getNextAssignmentSplitPaneView,
+  parseAssignmentSplitPaneView,
   parseAssignmentGradingLayout,
   parseAssignmentWorkspaceStudentId,
   serializeAssignmentGradingLayout,
@@ -102,6 +106,9 @@ describe('assignment grading layout helpers', () => {
     expect(getAssignmentWorkspaceStudentCookieName('classroom-1', 'assignment-9')).toBe(
       'pika_assignment_workspace_student:classroom-1:assignment-9',
     )
+    expect(getAssignmentSplitPaneViewSessionKey('classroom-1', 'assignment-9')).toBe(
+      'pika_assignment_split_pane_view:classroom-1:assignment-9',
+    )
   })
 
   it('parses remembered student ids defensively', () => {
@@ -120,5 +127,19 @@ describe('assignment grading layout helpers', () => {
 
     expect(overviewInspectorPx).toBeGreaterThanOrEqual(ASSIGNMENT_GRADING_LAYOUT.inspectorMinPx)
     expect(detailsInspectorPx).toBeGreaterThanOrEqual(ASSIGNMENT_GRADING_LAYOUT.inspectorMinPx)
+  })
+
+  it('cycles assignment split pane views in the requested order', () => {
+    expect(getDefaultAssignmentSplitPaneView()).toBe('students-grading')
+    expect(getNextAssignmentSplitPaneView('students-grading')).toBe('content-grading')
+    expect(getNextAssignmentSplitPaneView('content-grading')).toBe('students-content')
+    expect(getNextAssignmentSplitPaneView('students-content')).toBe('students-grading')
+  })
+
+  it('parses assignment split pane view memory defensively', () => {
+    expect(parseAssignmentSplitPaneView('content-grading')).toBe('content-grading')
+    expect(parseAssignmentSplitPaneView('students-content')).toBe('students-content')
+    expect(parseAssignmentSplitPaneView('bad')).toBe(getDefaultAssignmentSplitPaneView())
+    expect(parseAssignmentSplitPaneView(null)).toBe(getDefaultAssignmentSplitPaneView())
   })
 })

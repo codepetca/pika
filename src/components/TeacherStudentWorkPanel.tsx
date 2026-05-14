@@ -10,6 +10,7 @@ import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/Teacher
 import {
   ASSIGNMENT_GRADING_LAYOUT,
   clampAssignmentWorkspacePaneLayout,
+  type AssignmentSplitPaneView,
   type AssignmentWorkspaceMode,
   type AssignmentWorkspacePaneLayout,
 } from '@/lib/assignment-grading-layout'
@@ -23,8 +24,8 @@ interface TeacherStudentWorkPanelProps {
   refreshKey?: number
   mode?: AssignmentWorkspaceMode | 'workspace'
   classPane?: ReactNode
-  leftPaneView?: 'class' | 'individual'
-  leftHeader?: ReactNode
+  splitPaneView?: AssignmentSplitPaneView
+  studentHeader?: ReactNode
   inspectorCollapsed?: boolean
   inspectorWidth?: number
   totalWidth?: number
@@ -77,8 +78,8 @@ export function TeacherStudentWorkPanel({
   refreshKey = 0,
   mode = 'details',
   classPane,
-  leftPaneView = 'class',
-  leftHeader,
+  splitPaneView = 'students-grading',
+  studentHeader,
   inspectorCollapsed = false,
   inspectorWidth = ASSIGNMENT_GRADING_LAYOUT.defaultInspectorWidth,
   totalWidth = 0,
@@ -139,9 +140,10 @@ export function TeacherStudentWorkPanel({
     onLoadingStateChange,
   })
   const previousInspectorEditModeRef = useRef(inspectorEditMode)
+  const hasGradingPane = mode !== 'workspace' || splitPaneView !== 'students-content'
   const layoutMode: AssignmentWorkspaceMode =
     mode === 'workspace'
-      ? leftPaneView === 'individual'
+      ? splitPaneView === 'content-grading'
         ? 'details'
         : 'overview'
       : mode
@@ -177,7 +179,10 @@ export function TeacherStudentWorkPanel({
   }, [collapseAllSections, inspectorEditMode])
 
   useEffect(() => {
-    if (mode === 'overview' || showInitialSpinner || error || !data) {
+    const hasStudentContentPane = mode !== 'overview' && (
+      mode !== 'workspace' || splitPaneView !== 'students-grading'
+    )
+    if (!hasStudentContentPane || showInitialSpinner || error || !data) {
       onDetailsMetaChange?.(null)
       return
     }
@@ -193,14 +198,14 @@ export function TeacherStudentWorkPanel({
       studentName: nextStudentDisplayName,
       characterCount: nextCharacterCount,
     })
-  }, [data, error, leftPaneView, mode, onDetailsMetaChange, previewContent, showInitialSpinner])
+  }, [data, error, mode, onDetailsMetaChange, previewContent, showInitialSpinner, splitPaneView])
 
   useEffect(() => {
     return () => onGradeTemplateChange?.(null)
   }, [onGradeTemplateChange])
 
   useEffect(() => {
-    const shouldReportGradeTemplate = mode === 'overview' || mode === 'workspace'
+    const shouldReportGradeTemplate = (mode === 'overview' || mode === 'workspace') && hasGradingPane
     if (!shouldReportGradeTemplate || showInitialSpinner || error || !data || data.student.id !== studentId) {
       onGradeTemplateChange?.(null)
       return
@@ -219,6 +224,7 @@ export function TeacherStudentWorkPanel({
     error,
     feedbackDraft,
     gradeMode,
+    hasGradingPane,
     mode,
     onGradeTemplateChange,
     scoreCompletion,
@@ -323,10 +329,23 @@ export function TeacherStudentWorkPanel({
   }
 
   if (mode === 'workspace') {
-    const primaryPane = leftPaneView === 'individual' ? workPane : classPane ?? workPane
-    const primaryMinPx = leftPaneView === 'individual'
+    const primaryPane = splitPaneView === 'content-grading'
+      ? workPane
+      : classPane ?? workPane
+    const inspectorPane = splitPaneView === 'students-content'
+      ? workPane
+      : inspector
+    const primaryHeader = splitPaneView === 'content-grading' ? studentHeader : undefined
+    const inspectorHeader = splitPaneView === 'students-content' ? studentHeader : undefined
+    const primaryMinPx = splitPaneView === 'content-grading'
       ? ASSIGNMENT_GRADING_LAYOUT.detailsPrimaryMinPx
       : ASSIGNMENT_GRADING_LAYOUT.overviewPrimaryMinPx
+    const dividerLabel =
+      splitPaneView === 'students-grading'
+        ? 'Resize students and grading panes'
+        : splitPaneView === 'content-grading'
+          ? 'Resize content and grading panes'
+          : 'Resize students and content panes'
 
     return (
       <TeacherWorkspaceSplit
@@ -351,15 +370,15 @@ export function TeacherStudentWorkPanel({
             inspectorWidth: nextInspectorWidth,
           }))
         }}
-        dividerLabel="Resize assignment workspace panes"
+        dividerLabel={dividerLabel}
         primary={
-          <AssignmentWorkspacePaneFrame header={leftHeader}>
+          <AssignmentWorkspacePaneFrame header={primaryHeader}>
             {primaryPane}
           </AssignmentWorkspacePaneFrame>
         }
         inspector={
-          <AssignmentWorkspacePaneFrame>
-            {inspector}
+          <AssignmentWorkspacePaneFrame header={inspectorHeader}>
+            {inspectorPane}
           </AssignmentWorkspacePaneFrame>
         }
       />
