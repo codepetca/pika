@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, POST } from '@/app/api/teacher/classrooms/[id]/announcements/route'
 import { NextRequest } from 'next/server'
+import { ANNOUNCEMENT_TITLE_MAX_LENGTH } from '@/lib/announcements'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
@@ -121,18 +122,20 @@ describe('POST /api/teacher/classrooms/[id]/announcements', () => {
     const mockAnnouncement = {
       id: 'a-1',
       classroom_id: 'c-1',
+      title: 'Quiz reminder',
       content: 'Test Content',
       created_by: 'teacher-1',
       created_at: '2025-01-15T12:00:00Z',
       updated_at: '2025-01-15T12:00:00Z',
     }
+    const insert = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({ data: mockAnnouncement, error: null }),
+      })),
+    }))
 
     const mockFrom = vi.fn(() => ({
-      insert: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: mockAnnouncement, error: null }),
-        })),
-      })),
+      insert,
     }))
     ;(mockSupabaseClient.from as any) = mockFrom
 
@@ -140,7 +143,7 @@ describe('POST /api/teacher/classrooms/[id]/announcements', () => {
       'http://localhost:3000/api/teacher/classrooms/c-1/announcements',
       {
         method: 'POST',
-        body: JSON.stringify({ content: 'Test Content' }),
+        body: JSON.stringify({ title: '  Quiz reminder  ', content: 'Test Content' }),
       }
     )
     const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })
@@ -148,7 +151,32 @@ describe('POST /api/teacher/classrooms/[id]/announcements', () => {
 
     const data = await response.json()
     expect(data.announcement.id).toBe('a-1')
+    expect(data.announcement.title).toBe('Quiz reminder')
     expect(data.announcement.content).toBe('Test Content')
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Quiz reminder',
+        content: 'Test Content',
+      }),
+    )
+  })
+
+  it('should reject titles that are too long', async () => {
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/announcements',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          title: 'a'.repeat(ANNOUNCEMENT_TITLE_MAX_LENGTH + 1),
+          content: 'Test Content',
+        }),
+      }
+    )
+    const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })
+    expect(response.status).toBe(400)
+
+    const data = await response.json()
+    expect(data.error).toBe(`Title must be ${ANNOUNCEMENT_TITLE_MAX_LENGTH} characters or fewer`)
   })
 
   it('should return 400 when content is missing', async () => {

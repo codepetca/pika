@@ -63,7 +63,7 @@ Inspect or modify source only after the startup set and the docs required by you
 | Scaffold API route | `/add-api-route` | `.codex/prompts/add-api-route.md` |
 | Merge `main` into `production` | `/merge-main-into-production` | `.codex/prompts/merge-main-into-production.md` |
 
-UI changes must be visually verified before commit. Use [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md) for the verification workflow.
+UI changes require Playwright final verification before commit. Chrome plugin checks are supplemental. See [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md).
 
 ## Source Of Truth Order
 

@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, PanelRight, PanelRightClose } from 'lucide-r
 import { LessonDayCell } from './LessonDayCell'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+import { normalizeAnnouncementTitle } from '@/lib/announcements'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
 import { DialogPanel, SegmentedControl, Tooltip } from '@/ui'
@@ -653,13 +654,23 @@ export function LessonCalendar({
                     Announcements
                   </h3>
                   <div className="mt-4 space-y-4">
-                    {presentedDayDetails.announcements.map((announcement) => (
-                      <AnnouncementContent
-                        key={announcement.id}
-                        content={announcement.content}
-                        size="lg"
-                      />
-                    ))}
+                    {presentedDayDetails.announcements.map((announcement) => {
+                      const title = normalizeAnnouncementTitle(announcement.title)
+
+                      return (
+                        <div key={announcement.id}>
+                          {title && (
+                            <h4 className="mb-2 text-xl font-semibold text-text-default">
+                              {title}
+                            </h4>
+                          )}
+                          <AnnouncementContent
+                            content={announcement.content}
+                            size="lg"
+                          />
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}

@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+import { getAnnouncementCalendarLabel, normalizeAnnouncementTitle } from '@/lib/announcements'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { Tooltip } from '@/ui'
@@ -18,13 +19,20 @@ function isScheduled(announcement: Announcement): boolean {
 function AnnouncementTooltipContent({ announcements }: { announcements: Announcement[] }) {
   return (
     <div className="w-[min(14rem,calc(100vw-2rem))] text-left text-sm leading-5 break-words">
-      {announcements.map((announcement, index) => (
-        <AnnouncementContent
-          key={announcement.id}
-          content={announcement.content}
-          className={index > 0 ? 'mt-3' : undefined}
-        />
-      ))}
+      {announcements.map((announcement, index) => {
+        const title = normalizeAnnouncementTitle(announcement.title)
+
+        return (
+          <div key={announcement.id} className={index > 0 ? 'mt-3' : undefined}>
+            {title && (
+              <p className="mb-1 text-xs font-semibold text-text-default">
+                {title}
+              </p>
+            )}
+            <AnnouncementContent content={announcement.content} />
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -293,6 +301,7 @@ export const LessonDayCell = memo(function LessonDayCell({
               content={<AnnouncementTooltipContent announcements={announcements} />}
               side="right"
               align="start"
+              interactive
             >
               <button
                 type="button"
@@ -371,12 +380,14 @@ export const LessonDayCell = memo(function LessonDayCell({
         <div className={`min-w-0 ${compact ? 'px-0.5 space-y-0.5' : 'px-1 pb-1 space-y-1'}`}>
           {announcements.map((announcement) => {
             const scheduled = isScheduled(announcement)
+            const calendarLabel = getAnnouncementCalendarLabel(announcement, scheduled)
 
             return (
               <Tooltip
                 key={announcement.id}
                 content={<AnnouncementTooltipContent announcements={[announcement]} />}
                 align="start"
+                interactive
               >
                 <button
                   type="button"
@@ -384,6 +395,8 @@ export const LessonDayCell = memo(function LessonDayCell({
                     e.stopPropagation()
                     onAnnouncementClick?.()
                   }}
+                  title={calendarLabel}
+                  aria-label={calendarLabel}
                   className={`w-full min-w-0 rounded font-medium text-center truncate ${
                     compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
                   } ${
@@ -392,7 +405,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                       : 'bg-amber-500 text-white hover:bg-amber-600'
                   }`}
                 >
-                  {compact ? (scheduled ? 'Scheduled' : 'Announcement') : (scheduled ? 'Scheduled' : 'Announcement')}
+                  {calendarLabel}
                 </button>
               </Tooltip>
             )

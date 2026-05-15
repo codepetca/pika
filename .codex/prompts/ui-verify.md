@@ -2,6 +2,8 @@ Visually verify UI changes for the page path in `$ARGUMENTS`.
 
 Use the repo guide for expectations: `docs/guides/ai-ui-testing.md`.
 
+Playwright is the required final verification path. Chrome plugin/browser-profile checks may be used only as supplemental exploratory debugging and do not replace Playwright screenshots or verification scripts.
+
 Preferred path:
 ```bash
 bash "$PIKA_WORKTREE/.codex/skills/pika-ui-verify/scripts/ui_verify.sh" "$ARGUMENTS"

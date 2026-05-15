@@ -6,6 +6,7 @@ import { buildAssignmentInstructionFields, getAssignmentInstructionsMarkdown } f
 import { calculateAssignmentStats } from '@/lib/assignments'
 import { withErrorHandler } from '@/lib/api-handler'
 import { isMissingAssignmentTeacherClearedAtColumnError } from '@/lib/server/assignments'
+import { isMissingSurveysTableError } from '@/lib/server/surveys'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -142,7 +143,7 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
 
   const supabase = getServiceRoleClient()
 
-  const [lastAssignmentResult, lastMaterialResult] = await Promise.all([
+  const [lastAssignmentResult, lastMaterialResult, lastSurveyResult] = await Promise.all([
     supabase
       .from('assignments')
       .select('position')
@@ -157,6 +158,13 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
       .order('position', { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from('surveys')
+      .select('position')
+      .eq('classroom_id', classroom_id)
+      .order('position', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
 
   const lastAssignmentPosition =
@@ -164,6 +172,10 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
   const lastMaterialPosition =
     !lastMaterialResult.error && typeof lastMaterialResult.data?.position === 'number'
       ? lastMaterialResult.data.position
+      : -1
+  const lastSurveyPosition =
+    !lastSurveyResult.error && typeof lastSurveyResult.data?.position === 'number'
+      ? lastSurveyResult.data.position
       : -1
 
   if (lastAssignmentResult.error) {
@@ -176,7 +188,12 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
     return NextResponse.json({ error: 'Failed to create assignment' }, { status: 500 })
   }
 
-  const nextPosition = Math.max(lastAssignmentPosition, lastMaterialPosition) + 1
+  if (lastSurveyResult.error && !isMissingSurveysTableError(lastSurveyResult.error)) {
+    console.error('Error fetching last survey position:', lastSurveyResult.error)
+    return NextResponse.json({ error: 'Failed to create assignment' }, { status: 500 })
+  }
+
+  const nextPosition = Math.max(lastAssignmentPosition, lastMaterialPosition, lastSurveyPosition) + 1
 
   const instructionFields = buildAssignmentInstructionFields(
     typeof instructions_markdown === 'string'

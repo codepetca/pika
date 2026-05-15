@@ -291,7 +291,7 @@ describe('POST /api/teacher/assignments/bulk', () => {
     expect(data.created).toBe(0)
   })
 
-  it('should preserve material positions when saving assignment markdown', async () => {
+  it('should preserve material and survey positions when saving assignment markdown', async () => {
     const updates: Array<{ id: string; payload: Record<string, any> }> = []
 
     const mockFrom = vi.fn((table: string) => {
@@ -331,6 +331,17 @@ describe('POST /api/teacher/assignments/bulk', () => {
         }
       }
 
+      if (table === 'surveys') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [{ position: 2 }],
+              error: null,
+            }),
+          })),
+        }
+      }
+
       throw new Error(`Unexpected table: ${table}`)
     })
     ;(mockSupabaseClient.from as any) = mockFrom
@@ -352,7 +363,7 @@ describe('POST /api/teacher/assignments/bulk', () => {
     expect(response.status).toBe(200)
     expect(updates.map((update) => ({ id: update.id, position: update.payload.position }))).toEqual([
       { id: 'a-2', position: 0 },
-      { id: 'a-1', position: 2 },
+      { id: 'a-1', position: 3 },
     ])
   })
 

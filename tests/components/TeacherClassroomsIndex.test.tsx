@@ -50,7 +50,7 @@ describe('TeacherClassroomsIndex', () => {
     expect(classroomFetchCalls).toHaveLength(0)
   })
 
-  it('keeps the create button available in archived view when there are no active classrooms', async () => {
+  it('never shows the create button in archived view', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -60,10 +60,11 @@ describe('TeacherClassroomsIndex', () => {
 
     renderTeacherClassroomsIndex([])
 
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
 
     expect(await screen.findByRole('button', { name: /^Archived/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
   })
 
   it('hides the create button after the first classroom unless edit mode is enabled', async () => {
@@ -73,7 +74,10 @@ describe('TeacherClassroomsIndex', () => {
     const editButton = screen.getByRole('button', { name: 'Edit' })
     const card = screen.getByTestId('classroom-card')
 
-    expect(editButton.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(
+      within(screen.getByTestId('classroom-bottom-controls')).getByRole('button', { name: 'Edit' })
+    ).toBe(editButton)
+    expect(card.compareDocumentPosition(editButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
 
     fireEvent.click(editButton)
@@ -82,14 +86,12 @@ describe('TeacherClassroomsIndex', () => {
     expect(card.compareDocumentPosition(newButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('always shows the classroom view toggle while hiding row edit controls until edit is enabled', async () => {
+  it('shows the classroom view toggle only while classroom edit mode is enabled', async () => {
     const classrooms = [createMockClassroom({ id: 'c1', title: 'Math 101' })]
     renderTeacherClassroomsIndex(classrooms)
 
-    expect(screen.getByRole('button', { name: 'Active' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Archived' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Active' })).not.toHaveAttribute('title')
-    expect(screen.getByRole('button', { name: 'Archived' })).not.toHaveAttribute('title')
+    expect(screen.queryByRole('button', { name: 'Active' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Archived' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Drag to reorder Math 101' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Archive Math 101' })).not.toBeInTheDocument()
 
@@ -104,9 +106,14 @@ describe('TeacherClassroomsIndex', () => {
     expect(archivedButton).not.toHaveAttribute('title')
     expect(screen.getByRole('button', { name: 'Drag to reorder Math 101' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Archive Math 101' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+
+    expect(screen.queryByRole('button', { name: 'Active' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Archived' })).not.toBeInTheDocument()
   })
 
-  it('keeps the selected classroom view when edit mode is turned off', async () => {
+  it('returns to active view when edit mode is turned off from archived view', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -116,14 +123,20 @@ describe('TeacherClassroomsIndex', () => {
 
     renderTeacherClassroomsIndex([])
 
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
     expect(await screen.findByRole('button', { name: /^Archived/ })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+
+    expect(screen.queryByRole('group', { name: 'Classroom view' })).not.toBeInTheDocument()
+    expect(screen.getByText('Create your first classroom')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New' })).toBeInTheDocument()
+
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
 
     expect(
-      within(screen.getByRole('group', { name: 'Classroom view' })).getByRole('button', { name: 'Archived' })
+      within(screen.getByRole('group', { name: 'Classroom view' })).getByRole('button', { name: 'Active' })
     ).toHaveAttribute('aria-pressed', 'true')
   })
 

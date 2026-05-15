@@ -14,8 +14,22 @@ const mockSupabaseClient = { from: vi.fn() }
 // Helper to create ownership check mock
 function mockOwnershipCheck(opts: { found?: boolean; owned?: boolean; archived?: boolean } = {}) {
   const { found = true, owned = true, archived = false } = opts
+  const update = vi.fn((updateData: Record<string, string | null>) => ({
+    eq: vi.fn(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: {
+            id: 'a-1',
+            content: updateData.content ?? 'Content',
+            title: updateData.title ?? null,
+          },
+          error: null,
+        }),
+      })),
+    })),
+  }))
 
-  return vi.fn((table: string) => {
+  const from = vi.fn((table: string) => {
     if (table === 'announcements') {
       return {
         select: vi.fn(() => ({
@@ -34,16 +48,7 @@ function mockOwnershipCheck(opts: { found?: boolean; owned?: boolean; archived?:
             error: found ? null : { code: 'PGRST116' },
           }),
         })),
-        update: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            select: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'a-1', content: 'Updated Content' },
-                error: null,
-              }),
-            })),
-          })),
-        })),
+        update,
         delete: vi.fn(() => ({
           eq: vi.fn().mockResolvedValue({ error: null }),
         })),
@@ -51,6 +56,8 @@ function mockOwnershipCheck(opts: { found?: boolean; owned?: boolean; archived?:
     }
     return { select: vi.fn() }
   })
+
+  return Object.assign(from, { update })
 }
 
 describe('PATCH /api/teacher/classrooms/[id]/announcements/[announcementId]', () => {
@@ -75,6 +82,48 @@ describe('PATCH /api/teacher/classrooms/[id]/announcements/[announcementId]', ()
 
     const data = await response.json()
     expect(data.announcement).toBeDefined()
+  })
+
+  it('should update the optional announcement title', async () => {
+    const mockFrom = mockOwnershipCheck()
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/announcements/a-1',
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ title: '  Calendar note  ' }),
+      }
+    )
+    const response = await PATCH(request, {
+      params: Promise.resolve({ id: 'c-1', announcementId: 'a-1' }),
+    })
+    expect(response.status).toBe(200)
+
+    const data = await response.json()
+    expect(data.announcement.title).toBe('Calendar note')
+    expect(mockFrom.update).toHaveBeenCalledWith({ title: 'Calendar note' })
+  })
+
+  it('should clear the optional announcement title with a blank value', async () => {
+    const mockFrom = mockOwnershipCheck()
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/announcements/a-1',
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ title: '   ' }),
+      }
+    )
+    const response = await PATCH(request, {
+      params: Promise.resolve({ id: 'c-1', announcementId: 'a-1' }),
+    })
+    expect(response.status).toBe(200)
+
+    const data = await response.json()
+    expect(data.announcement.title).toBeNull()
+    expect(mockFrom.update).toHaveBeenCalledWith({ title: null })
   })
 
   it('should return 400 when content is missing', async () => {

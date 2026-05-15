@@ -10,6 +10,12 @@ This guide explains how to use Playwright for AI-assisted UI verification in Pik
 2. Check **BOTH** teacher and student views (if applicable)
 3. Iterate on aesthetics/styling until it looks good
 
+## Tooling Policy
+
+Playwright is the required path for final UI/UX verification. Use Playwright for E2E tests, `pnpm e2e:verify` scenarios, reproducible screenshots, teacher/student auth-state checks, and artifacts that another agent or CI can rerun.
+
+Chrome plugin checks are supplemental. Use Chrome when you need exploratory debugging, the user's real browser profile, authenticated remote sessions, extension behavior, cookie/session inspection, or fast interactive inspection. Do not replace the Playwright verification artifact with a Chrome-only check before committing UI/UX changes.
+
 ## Prerequisites
 
 1. **Dev server running**: `pnpm dev`

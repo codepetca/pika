@@ -702,6 +702,8 @@ export interface CreateClassroomFromBlueprintInput {
 // Quiz types
 export type QuizStatus = 'draft' | 'active' | 'closed'
 export type QuizAssessmentType = 'quiz' | 'test'
+export type SurveyStatus = 'draft' | 'active' | 'closed'
+export type SurveyQuestionType = 'multiple_choice' | 'short_text' | 'link'
 export type TestStudentAvailabilityState = 'open' | 'closed'
 export type QuizFocusEventType =
   | 'away_start'
@@ -731,6 +733,88 @@ export interface QuizFocusSummary {
   window_unmaximize_attempts: number
   last_away_started_at: string | null
   last_away_ended_at: string | null
+}
+
+export interface Survey {
+  id: string
+  classroom_id: string
+  title: string
+  status: SurveyStatus
+  opens_at: string | null
+  show_results: boolean
+  dynamic_responses: boolean
+  position: number
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SurveyQuestion {
+  id: string
+  survey_id: string
+  question_type: SurveyQuestionType
+  question_text: string
+  options: string[]
+  response_max_chars: number
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface SurveyResponse {
+  id: string
+  survey_id: string
+  question_id: string
+  student_id: string
+  selected_option: number | null
+  response_text: string | null
+  submitted_at: string
+  updated_at: string
+}
+
+export type SurveyResponseValue =
+  | {
+      question_type: 'multiple_choice'
+      selected_option: number
+    }
+  | {
+      question_type: 'short_text' | 'link'
+      response_text: string
+    }
+
+export type StudentSurveyStatus = 'not_started' | 'responded' | 'can_update' | 'can_view_results'
+
+export interface SurveyWithStats extends Survey {
+  stats: {
+    total_students: number
+    responded: number
+    questions_count: number
+  }
+}
+
+export interface StudentSurveyView extends Survey {
+  student_status: StudentSurveyStatus
+  questions?: SurveyQuestion[]
+}
+
+export interface SurveyTextResponseResult {
+  response_id: string
+  student_id: string
+  name?: string | null
+  email?: string | null
+  response_text: string
+  submitted_at: string
+  updated_at: string
+}
+
+export interface SurveyQuestionResult {
+  question_id: string
+  question_type: SurveyQuestionType
+  question_text: string
+  options: string[]
+  counts: number[]
+  responses: SurveyTextResponseResult[]
+  total_responses: number
 }
 
 export interface Quiz {
@@ -916,6 +1000,7 @@ export interface LogSummary {
 export interface Announcement {
   id: string
   classroom_id: string
+  title?: string | null
   content: string
   created_by: string
   scheduled_for: string | null // NULL = published immediately, future timestamp = scheduled

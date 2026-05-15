@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 type ReorderItem = {
-  type?: 'assignment' | 'material'
+  type?: 'assignment' | 'material' | 'survey'
   id?: string
 }
 
@@ -47,7 +47,7 @@ export const POST = withErrorHandler('PostTeacherClassworkReorder', async (reque
 
   const invalidItem = items.find((item) => (
     !item ||
-    (item.type !== 'assignment' && item.type !== 'material') ||
+    (item.type !== 'assignment' && item.type !== 'material' && item.type !== 'survey') ||
     typeof item.id !== 'string' ||
     item.id.length === 0
   ))

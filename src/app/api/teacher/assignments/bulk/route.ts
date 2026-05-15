@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { buildAssignmentInstructionFields } from '@/lib/assignment-instructions'
 import { withErrorHandler } from '@/lib/api-handler'
+import { isMissingSurveysTableError } from '@/lib/server/surveys'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -51,9 +52,9 @@ function isLiveAssignment(
 
 function buildAssignmentPositions(
   inputAssignments: BulkAssignmentInput[],
-  reservedMaterialPositions: number[],
+  reservedClassworkPositions: number[],
 ) {
-  const reserved = new Set(reservedMaterialPositions)
+  const reserved = new Set(reservedClassworkPositions)
   const positions = new Map<BulkAssignmentInput, number>()
   let nextPosition = 0
 
@@ -188,10 +189,16 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
     return NextResponse.json({ errors }, { status: 400 })
   }
 
-  const materialPositionsResult = await supabase
-    .from('classwork_materials')
-    .select('position')
-    .eq('classroom_id', classroom_id)
+  const [materialPositionsResult, surveyPositionsResult] = await Promise.all([
+    supabase
+      .from('classwork_materials')
+      .select('position')
+      .eq('classroom_id', classroom_id),
+    supabase
+      .from('surveys')
+      .select('position')
+      .eq('classroom_id', classroom_id),
+  ])
 
   if (
     materialPositionsResult.error &&
@@ -204,10 +211,27 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
     )
   }
 
+  if (
+    surveyPositionsResult.error &&
+    !isMissingSurveysTableError(surveyPositionsResult.error)
+  ) {
+    console.error('Error fetching survey positions:', surveyPositionsResult.error)
+    return NextResponse.json(
+      { error: 'Failed to save assignments' },
+      { status: 500 }
+    )
+  }
+
   const materialPositions = (materialPositionsResult.data || [])
     .map((material: { position?: number | null }) => material.position)
     .filter((position: unknown): position is number => typeof position === 'number' && Number.isFinite(position))
-  const assignmentPositions = buildAssignmentPositions(inputAssignments, materialPositions)
+  const surveyPositions = (surveyPositionsResult.data || [])
+    .map((survey: { position?: number | null }) => survey.position)
+    .filter((position: unknown): position is number => typeof position === 'number' && Number.isFinite(position))
+  const assignmentPositions = buildAssignmentPositions(inputAssignments, [
+    ...materialPositions,
+    ...surveyPositions,
+  ])
 
   // Process assignments: separate creates and updates
   const toCreate: BulkAssignmentInput[] = []
