@@ -7,22 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-14 — Announcement newest-first ordering
-
-**Completed:**
-- Added a shared newest-first announcement sorter based on `created_at`.
-- Updated teacher announcement display so scheduled announcements no longer jump ahead of newer published announcements.
-- Applied the same client-side newest-first display ordering for student announcements.
-
-**Validation:**
-- `pnpm test tests/unit/announcements.test.ts tests/components/AnnouncementsMarkdown.test.tsx tests/api/teacher/announcements.test.ts tests/api/student/announcements.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/announcement-calendar-title bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=announcements'`
-- Targeted ordering screenshots:
-  - `/tmp/pika-announcements-newest-first.png`
-  - `/tmp/pika-student-announcements-newest-first.png`
-
 ## 2026-05-14 — Announcement title placeholder
 
 **Completed:**
@@ -347,3 +331,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Targeted Playwright screenshots/assertions: `/tmp/pika-survey-question-autosave-delete-inline.png`, `/tmp/pika-survey-question-autosaved.png`; confirmed `saveButtonCount: 0`, observed question PATCH on blur, and deleted the temporary survey fixture afterward.
 - `E2E_BASE_URL=http://localhost:3027 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=a7b4279f-d18e-4277-b4de-b1950e24e892'`
 - Targeted Playwright screenshots/assertions: `/tmp/pika-survey-locked-controls.png`, `/tmp/pika-survey-hidden-results-control.png`; restored the seeded active survey to `show_results: true`.
+
+## 2026-05-15 — Survey results card cleanup
+
+**Completed:**
+- Removed the separate title/status card from the teacher selected-survey results pane.
+- Removed the selected-survey workspace parent border/background so survey results sit directly on the page.
+- Moved the survey title into the results card and removed the aggregate responded-count line from results.
+- Added shared survey option result bars that place percentages inside the indicator bars for teacher and student results.
+- Stabilized the generated-title focus test with an explicit wait after the all-file startup run exposed a focus timing flake.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-session-start/scripts/session_start.sh` — one focus-timing test failed during the full suite before edits; the isolated test passed afterward and was stabilized.
+- `pnpm test tests/components/TeacherSurveyResultsPane.test.tsx tests/components/StudentSurveyPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm test tests/components/TeacherSurveyWorkspace.test.tsx tests/components/TeacherSurveyResultsPane.test.tsx tests/components/StudentSurveyPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3028 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=a7b4279f-d18e-4277-b4de-b1950e24e892'`
+- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-results-bars.png`, `/tmp/pika-survey-results-card-teacher.png`, `/tmp/pika-survey-results-card-student.png`; temporary multiple-choice survey response rows were deleted afterward.

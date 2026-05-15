@@ -15,6 +15,7 @@ import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetup
 import { EditableAssessmentTitle } from '@/components/assessment/EditableAssessmentTitle'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { Spinner } from '@/components/Spinner'
+import { SurveyOptionResultBar } from '@/components/surveys/SurveyOptionResultBar'
 import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import {
   DEFAULT_SURVEY_LINK_MAX_CHARS,
@@ -267,9 +268,6 @@ export function TeacherSurveyResultsView({ payload }: { payload: SurveyResultsPa
 
   return (
     <div className="space-y-6">
-      <div className="text-sm text-text-muted">
-        {payload.stats.responded} of {payload.stats.total_students} students responded
-      </div>
       {payload.results.map((result, index) => (
         <div key={result.question_id} className="space-y-3">
           <div>
@@ -281,17 +279,13 @@ export function TeacherSurveyResultsView({ payload }: { payload: SurveyResultsPa
             <div className="space-y-1.5">
               {result.options.map((option, optionIndex) => {
                 const count = result.counts[optionIndex] || 0
-                const percent = result.total_responses > 0 ? (count / result.total_responses) * 100 : 0
                 return (
-                  <div key={optionIndex} className="space-y-0.5">
-                    <div className="flex justify-between gap-3 text-sm">
-                      <span className="min-w-0 text-text-default">{option}</span>
-                      <span className="shrink-0 text-text-muted">{count} ({percent.toFixed(0)}%)</span>
-                    </div>
-                    <div className="h-3 overflow-hidden rounded-full bg-surface-2">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
-                    </div>
-                  </div>
+                  <SurveyOptionResultBar
+                    key={optionIndex}
+                    option={option}
+                    count={count}
+                    totalResponses={result.total_responses}
+                  />
                 )
               })}
             </div>
