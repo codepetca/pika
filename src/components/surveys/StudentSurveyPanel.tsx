@@ -5,6 +5,7 @@ import { ExternalLink, Pencil } from 'lucide-react'
 import { Button, Card, Input } from '@/ui'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { Spinner } from '@/components/Spinner'
+import { SurveyOptionResultBar } from '@/components/surveys/SurveyOptionResultBar'
 import { canStudentViewSurveyResults } from '@/lib/surveys'
 import type {
   StudentSurveyStatus,
@@ -69,17 +70,13 @@ function StudentSurveyResults({ payload }: { payload: SurveyResultsPayload | nul
             <div className="space-y-1.5">
               {result.options.map((option, optionIndex) => {
                 const count = result.counts[optionIndex] || 0
-                const percent = result.total_responses > 0 ? (count / result.total_responses) * 100 : 0
                 return (
-                  <div key={optionIndex} className="space-y-0.5">
-                    <div className="flex justify-between gap-3 text-sm">
-                      <span className="min-w-0 text-text-default">{option}</span>
-                      <span className="shrink-0 text-text-muted">{count} ({percent.toFixed(0)}%)</span>
-                    </div>
-                    <div className="h-3 overflow-hidden rounded-full bg-surface-2">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
-                    </div>
-                  </div>
+                  <SurveyOptionResultBar
+                    key={optionIndex}
+                    option={option}
+                    count={count}
+                    totalResponses={result.total_responses}
+                  />
                 )
               })}
             </div>

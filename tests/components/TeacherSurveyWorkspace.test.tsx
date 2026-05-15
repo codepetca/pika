@@ -162,7 +162,7 @@ describe('TeacherSurveyWorkspace', () => {
     )
 
     const titleInput = await screen.findByLabelText('Survey title') as HTMLInputElement
-    expect(titleInput).toHaveFocus()
+    await waitFor(() => expect(titleInput).toHaveFocus())
     expect(titleInput.value).toBe('Untitled Survey')
     expect(titleInput.selectionStart).toBe(0)
     expect(titleInput.selectionEnd).toBe('Untitled Survey'.length)

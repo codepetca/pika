@@ -77,7 +77,8 @@ describe('StudentSurveyPanel', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'Class results' })).toBeInTheDocument()
     })
-    expect(await screen.findByText('1 (100%)')).toBeInTheDocument()
+    expect(await screen.findByText('100%')).toBeInTheDocument()
+    expect(screen.queryByText('1 (100%)')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Respond' }))
     expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument()
