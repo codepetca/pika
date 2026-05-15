@@ -11,33 +11,44 @@ import {
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
 } from '@/lib/assignments'
-import type { AssignmentWithStatus, Classroom, ClassworkMaterial, TiptapContent } from '@/types'
+import type {
+  AssignmentWithStatus,
+  Classroom,
+  ClassworkMaterial,
+  StudentSurveyView,
+  TiptapContent,
+} from '@/types'
 import { StudentAssignmentEditor, type StudentAssignmentEditorHandle } from '@/components/StudentAssignmentEditor'
 import { RichTextViewer } from '@/components/editor'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+import { StudentSurveyPanel } from '@/components/surveys/StudentSurveyPanel'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { buildOrderedClassworkItems } from '@/lib/classwork-order'
+import { getStudentSurveyStatus, getSurveyStatusBadgeClass, getSurveyStatusLabel } from '@/lib/surveys'
 
 interface Props {
   classroom: Classroom
   selectedAssignmentId?: string | null
   selectedMaterialId?: string | null
+  selectedSurveyId?: string | null
   isActive?: boolean
   updateSearchParams?: (updater: (params: URLSearchParams) => void, options?: { replace?: boolean }) => void
 }
 
-type StudentAssignmentsView = 'summary' | 'edit' | 'material'
+type StudentAssignmentsView = 'summary' | 'edit' | 'material' | 'survey'
 
 export function StudentAssignmentsTab({
   classroom,
   selectedAssignmentId = null,
   selectedMaterialId = null,
+  selectedSurveyId = null,
   isActive = true,
   updateSearchParams = () => {},
 }: Props) {
   const [assignments, setAssignments] = useState<AssignmentWithStatus[]>([])
   const [materials, setMaterials] = useState<ClassworkMaterial[]>([])
+  const [surveys, setSurveys] = useState<StudentSurveyView[]>([])
   const [loading, setLoading] = useState(false)
   const [hasLoaded, setHasLoaded] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -45,7 +56,9 @@ export function StudentAssignmentsTab({
   const [editorState, setEditorState] = useState({ isSubmitted: false, canSubmit: false, submitting: false, hasRepoMetadata: false })
   const editorRef = useRef<StudentAssignmentEditorHandle>(null)
   const wasActiveRef = useRef(isActive)
-  const showBlockingSpinner = useDelayedBusy(loading && assignments.length === 0 && materials.length === 0)
+  const showBlockingSpinner = useDelayedBusy(
+    loading && assignments.length === 0 && materials.length === 0 && surveys.length === 0
+  )
 
   const loadAssignments = useCallback(
     async (options?: { preserveContent?: boolean }) => {
@@ -56,7 +69,7 @@ export function StudentAssignmentsTab({
         setLoading(true)
       }
       try {
-        const [assignmentsData, materialsData] = await Promise.all([
+        const [assignmentsData, materialsData, surveysData] = await Promise.all([
           fetchJSONWithCache(
             `student-assignments:${classroom.id}`,
             async () => {
@@ -75,9 +88,19 @@ export function StudentAssignmentsTab({
             },
             20_000,
           ),
+          fetchJSONWithCache(
+            `student-surveys:${classroom.id}`,
+            async () => {
+              const res = await fetch(`/api/student/surveys?classroom_id=${classroom.id}`)
+              if (!res.ok) throw new Error('Failed to load surveys')
+              return res.json()
+            },
+            20_000,
+          ).catch(() => ({ surveys: [] })),
         ])
         setAssignments(assignmentsData.assignments || [])
         setMaterials(materialsData.materials || [])
+        setSurveys(surveysData.surveys || [])
         setHasLoaded(true)
       } catch (err) {
         console.error('Error loading assignments:', err)
@@ -111,20 +134,26 @@ export function StudentAssignmentsTab({
     return materials.find((material) => material.id === selectedMaterialId) ?? null
   }, [materials, selectedMaterialId])
 
+  const selectedSurvey = useMemo(() => {
+    if (!selectedSurveyId) return null
+    return surveys.find((survey) => survey.id === selectedSurveyId) ?? null
+  }, [selectedSurveyId, surveys])
+
   const classworkItems = useMemo(
-    () => buildOrderedClassworkItems(assignments, materials),
-    [assignments, materials],
+    () => buildOrderedClassworkItems(assignments, materials, surveys),
+    [assignments, materials, surveys],
   )
 
   const view: StudentAssignmentsView = useMemo(() => {
     if (selectedMaterialId && selectedMaterial) return 'material'
+    if (selectedSurveyId && selectedSurvey) return 'survey'
     if (!selectedAssignmentId) return 'summary'
     if (!selectedAssignment) return 'summary'
     return 'edit'
-  }, [selectedAssignment, selectedAssignmentId, selectedMaterial, selectedMaterialId])
+  }, [selectedAssignment, selectedAssignmentId, selectedMaterial, selectedMaterialId, selectedSurvey, selectedSurveyId])
 
   const navigate = useCallback(
-    (next: { assignmentId?: string | null; materialId?: string | null }) => {
+    (next: { assignmentId?: string | null; materialId?: string | null; surveyId?: string | null }) => {
       updateSearchParams((params) => {
         params.set('tab', 'assignments')
         params.delete('view')
@@ -137,6 +166,11 @@ export function StudentAssignmentsTab({
           params.set('materialId', next.materialId)
         } else {
           params.delete('materialId')
+        }
+        if (next.surveyId) {
+          params.set('surveyId', next.surveyId)
+        } else {
+          params.delete('surveyId')
         }
       })
     },
@@ -267,10 +301,10 @@ export function StudentAssignmentsTab({
                 </div>
               </Card>
             ) : view === 'summary' ? (
-              assignments.length === 0 && materials.length === 0 ? (
+              assignments.length === 0 && materials.length === 0 && surveys.length === 0 ? (
                 <EmptyState
                   title="No classwork yet"
-                  description="When your teacher posts assignments or materials, they will show up here."
+                  description="When your teacher posts assignments, materials, or surveys, they will show up here."
                 />
               ) : (
                 <PageStack>
@@ -296,6 +330,37 @@ export function StudentAssignmentsTab({
                             </div>
                             <span className="rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-primary">
                               Posted
+                            </span>
+                          </div>
+                        </button>
+                      )
+                    }
+
+                    if (item.type === 'survey') {
+                      const survey = item.survey
+                      return (
+                        <button
+                          key={survey.id}
+                          type="button"
+                          data-testid="survey-card"
+                          onClick={() => navigate({ surveyId: survey.id })}
+                          className="block w-full rounded-card border border-border bg-surface-panel px-5 py-4 text-left transition-[background-color,border-color,box-shadow,transform] hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <h3 className="truncate text-base font-semibold text-text-default">
+                                {survey.title}
+                              </h3>
+                              <p className="mt-1 text-sm text-primary">
+                                Survey{survey.dynamic_responses ? ' · Dynamic' : ''}
+                              </p>
+                            </div>
+                            <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getSurveyStatusBadgeClass(survey.status)}`}>
+                              {survey.student_status === 'not_started'
+                                ? getSurveyStatusLabel(survey.status)
+                                : survey.student_status === 'can_update'
+                                  ? 'Update'
+                                  : 'Done'}
                             </span>
                           </div>
                         </button>
@@ -342,6 +407,23 @@ export function StudentAssignmentsTab({
                 </div>
                 <RichTextViewer content={selectedMaterial.content} />
               </Card>
+            ) : view === 'survey' && selectedSurvey ? (
+              <StudentSurveyPanel
+                surveyId={selectedSurvey.id}
+                onBack={() => navigate({ surveyId: null })}
+                onCompleted={() => {
+                  setSurveys((current) =>
+                    current.map((survey) =>
+                      survey.id === selectedSurvey.id
+                        ? {
+                            ...survey,
+                            student_status: getStudentSurveyStatus(survey, true),
+                          }
+                        : survey
+                    )
+                  )
+                }}
+              />
             ) : !selectedAssignment ? (
               <EmptyState
                 title="Assignment unavailable"

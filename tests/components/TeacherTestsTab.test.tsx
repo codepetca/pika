@@ -204,6 +204,31 @@ function resultsFetchCalls(fetchMock: ReturnType<typeof vi.fn>) {
   )
 }
 
+function makeGradingStudent(overrides: Record<string, unknown> = {}) {
+  return {
+    student_id: 'student-1',
+    name: 'Alice Zephyr',
+    first_name: 'Alice',
+    last_name: 'Zephyr',
+    email: 'alice@example.com',
+    status: 'submitted',
+    submitted_at: null,
+    last_activity_at: '2026-04-17T18:15:00.000Z',
+    points_earned: 3,
+    points_possible: 5,
+    percent: 60,
+    graded_open_responses: 0,
+    ungraded_open_responses: 1,
+    focus_summary: {
+      away_count: 1,
+      away_total_seconds: 45,
+      route_exit_attempts: 1,
+      window_unmaximize_attempts: 0,
+    },
+    ...overrides,
+  }
+}
+
 function makeResultsResponse(overrides?: {
   quizId?: string
   quizTitle?: string
@@ -231,29 +256,7 @@ function makeResultsResponse(overrides?: {
           },
         ],
       students:
-        overrides?.students ?? [
-          {
-            student_id: 'student-1',
-            name: 'Alice Zephyr',
-            first_name: 'Alice',
-            last_name: 'Zephyr',
-            email: 'alice@example.com',
-            status: 'submitted',
-            submitted_at: null,
-            last_activity_at: '2026-04-17T18:15:00.000Z',
-            points_earned: 3,
-            points_possible: 5,
-            percent: 60,
-            graded_open_responses: 0,
-            ungraded_open_responses: 1,
-            focus_summary: {
-              away_count: 1,
-              away_total_seconds: 45,
-              route_exit_attempts: 1,
-              window_unmaximize_attempts: 0,
-            },
-          },
-        ],
+        overrides?.students ?? [makeGradingStudent()],
       active_ai_grading_run: overrides?.activeRun ?? null,
     }),
   }
@@ -964,6 +967,50 @@ describe('TeacherTestsTab', () => {
     })
   })
 
+  it('moves the selected grading student with up and down arrows', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({
+        students: [
+          makeGradingStudent(),
+          makeGradingStudent({
+            student_id: 'student-2',
+            name: 'Bob Zulu',
+            first_name: 'Bob',
+            last_name: 'Zulu',
+            email: 'bob@example.com',
+            points_earned: 4,
+            percent: 80,
+          }),
+        ],
+      }))
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    fireEvent.click(await screen.findByText('Alice Zephyr'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test-grading-panel')).toHaveTextContent('Grading panel for test-1:student-1')
+    })
+
+    const studentScrollPane = screen.getByTestId('test-grading-student-scroll-pane')
+    fireEvent.keyDown(studentScrollPane, { key: 'ArrowDown' })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test-grading-panel')).toHaveTextContent('Grading panel for test-1:student-2')
+    })
+
+    fireEvent.keyDown(studentScrollPane, { key: 'ArrowUp' })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test-grading-panel')).toHaveTextContent('Grading panel for test-1:student-1')
+    })
+  })
+
   it('uses independent scroll containers for the selected test grading panes', async () => {
     fetchMock
       .mockResolvedValueOnce({
@@ -1011,6 +1058,33 @@ describe('TeacherTestsTab', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('mock-test-grading-panel')).not.toBeInTheDocument()
     })
+  })
+
+  it('clears batch selection and the active grading student with Escape from the student table', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    fireEvent.click(await screen.findByLabelText('Select Alice Zephyr'))
+    fireEvent.click(await screen.findByText('Alice Zephyr'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test-grading-panel')).toBeInTheDocument()
+    })
+    expect(screen.getByLabelText('Select Alice Zephyr')).toBeChecked()
+
+    fireEvent.keyDown(screen.getByTestId('test-grading-student-scroll-pane'), { key: 'Escape' })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('mock-test-grading-panel')).not.toBeInTheDocument()
+    })
+    expect(screen.getByLabelText('Select Alice Zephyr')).not.toBeChecked()
   })
 
   it('clears the selected grading row when clicking table chrome outside the highlighted row', async () => {
@@ -1306,6 +1380,91 @@ describe('TeacherTestsTab', () => {
     await waitFor(() => {
       expect(screen.queryByRole('status')).not.toBeInTheDocument()
     })
+  })
+
+  it('shows a simple exit alert and unreviewed row highlight when polling detects a new exit', async () => {
+    let intervalCallback: (() => void) | null = null
+    let resolvePoll:
+      | ((value: { ok: boolean; json: () => Promise<any> }) => void)
+      | null = null
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'visible',
+    })
+    vi.spyOn(document, 'hasFocus').mockImplementation(() => true)
+    vi.spyOn(window, 'setInterval').mockImplementation(((callback: TimerHandler) => {
+      intervalCallback = callback as () => void
+      return 1
+    }) as typeof window.setInterval)
+
+    const pollResultsPromise = new Promise<{ ok: boolean; json: () => Promise<any> }>((resolve) => {
+      resolvePoll = resolve
+    })
+    const focusSummary = {
+      exit_count: 0,
+      away_count: 0,
+      away_total_seconds: 0,
+      route_exit_attempts: 0,
+      window_unmaximize_attempts: 0,
+      last_away_started_at: null,
+      last_away_ended_at: null,
+    }
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({
+        students: [makeGradingStudent({ focus_summary: focusSummary })],
+      }))
+      .mockImplementationOnce(() => pollResultsPromise as unknown as Promise<Response>)
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    const row = await screen.findByTestId('test-grading-student-row-student-1')
+    expect(screen.queryByTestId('test-exit-detected-alert')).not.toBeInTheDocument()
+    expect(within(row).getByLabelText(/Exits 0\./)).toHaveClass('text-text-muted')
+
+    await act(async () => {
+      intervalCallback?.()
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      resolvePoll?.(
+        makeResultsResponse({
+          students: [
+            makeGradingStudent({
+              focus_summary: {
+                ...focusSummary,
+                exit_count: 1,
+                away_count: 1,
+                away_total_seconds: 12,
+              },
+            }),
+          ],
+        })
+      )
+      await Promise.resolve()
+    })
+
+    const alert = await screen.findByRole('button', { name: 'Exit detected' })
+    const highlightedRow = screen.getByTestId('test-grading-student-row-student-1')
+    expect(highlightedRow).toHaveClass('bg-warning-bg')
+    expect(within(highlightedRow).getByLabelText(/Exits 1\./)).toHaveClass('text-warning')
+
+    fireEvent.click(alert)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test-grading-panel')).toHaveTextContent('Grading panel for test-1:student-1')
+    })
+    expect(screen.queryByTestId('test-exit-detected-alert')).not.toBeInTheDocument()
+    expect(screen.getByTestId('test-grading-student-row-student-1')).toHaveClass('bg-surface-selected')
+    expect(screen.getByTestId('test-grading-student-row-student-1')).not.toHaveClass('bg-warning-bg')
   })
 
   it('does not start polling when the server reports the test is closed', async () => {

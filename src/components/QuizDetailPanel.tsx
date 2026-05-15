@@ -34,6 +34,7 @@ import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
+import { markdownToQuiz, quizToMarkdown } from '@/lib/quiz-markdown'
 import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
 import type {
   AssessmentEditorSummaryUpdate,
@@ -55,6 +56,7 @@ interface Props {
   onPendingMarkdownImportChange?: (pending: boolean) => void
   onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
   showInlineDeleteAction?: boolean
+  assessmentQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only'
   testQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only'
   showPreviewButton?: boolean
   showResultsTab?: boolean
@@ -124,6 +126,7 @@ export function QuizDetailPanel({
   onPendingMarkdownImportChange,
   onSaveStatusChange,
   showInlineDeleteAction = true,
+  assessmentQuestionLayout,
   testQuestionLayout = 'stacked',
   showPreviewButton = true,
   showResultsTab,
@@ -133,6 +136,7 @@ export function QuizDetailPanel({
   const AUTOSAVE_MIN_INTERVAL_MS = 10_000
   const isTestsView = quiz.assessment_type === 'test' || apiBasePath.includes('/tests')
   const { showMarkdown } = useMarkdownPreference()
+  const questionLayout = assessmentQuestionLayout ?? testQuestionLayout
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
   const [documents, setDocuments] = useState<TestDocument[]>(
     () => normalizeTestDocuments((quiz as { documents?: unknown }).documents)
@@ -336,18 +340,28 @@ export function QuizDetailPanel({
       const nextSourceMarkdown =
         typeof draft.content.source_markdown === 'string'
           ? draft.content.source_markdown
-          : testToMarkdown({
-              title: nextTitle,
-              show_results: nextShowResults,
-              questions: nextQuestions,
-              documents: documentsRef.current,
-            })
+          : isTestsView
+            ? testToMarkdown({
+                title: nextTitle,
+                show_results: nextShowResults,
+                questions: nextQuestions,
+                documents: documentsRef.current,
+              })
+            : quizToMarkdown({
+                title: nextTitle,
+                show_results: nextShowResults,
+                questions: nextQuestions,
+              })
+      const shouldTrackSourceMarkdown =
+        isTestsView ||
+        draft.content.source_format === 'markdown' ||
+        typeof draft.content.source_markdown === 'string'
       const nextSnapshot = {
         title: nextTitle,
         show_results: nextShowResults,
         questions: nextQuestions,
-        ...(draft.content.source_format === 'markdown' ? { source_format: 'markdown' as const } : {}),
-        source_markdown: nextSourceMarkdown,
+        ...(shouldTrackSourceMarkdown ? { source_format: 'markdown' as const } : {}),
+        ...(shouldTrackSourceMarkdown ? { source_markdown: nextSourceMarkdown } : {}),
       }
 
       setEditTitle(nextTitle)
@@ -366,7 +380,7 @@ export function QuizDetailPanel({
       setError('')
       setConflictDraft(null)
     },
-    [normalizeDraftQuestions, quiz.id, quiz.show_results, quiz.title, updateSaveStatus]
+    [isTestsView, normalizeDraftQuestions, quiz.id, quiz.show_results, quiz.title, updateSaveStatus]
   )
 
   // Sync editTitle when quiz changes
@@ -414,20 +428,27 @@ export function QuizDetailPanel({
     documentsRef.current = documents
   }, [documents])
 
-  const currentTestMarkdown = useMemo(() => {
-    if (!isTestsView) return ''
-    return testToMarkdown({
+  const currentAssessmentMarkdown = useMemo(() => {
+    if (isTestsView) {
+      return testToMarkdown({
+        title: editTitle,
+        show_results: draftShowResults,
+        questions,
+        documents,
+      })
+    }
+
+    return quizToMarkdown({
       title: editTitle,
       show_results: draftShowResults,
       questions,
-      documents,
     })
   }, [documents, draftShowResults, editTitle, isTestsView, questions])
   const hasResponses = quiz.stats.responded > 0
   const isEditable = canEditQuizQuestions(quiz, hasResponses)
-  const usesMarkdownOnlyQuestions = isTestsView && testQuestionLayout === 'markdown-only'
+  const usesMarkdownOnlyQuestions = questionLayout === 'markdown-only'
   const isMarkdownSurfaceEnabled = showMarkdown || usesMarkdownOnlyQuestions
-  const hasPendingMarkdownImport = isTestsView && isMarkdownSurfaceEnabled && markdownDirty
+  const hasPendingMarkdownImport = isMarkdownSurfaceEnabled && markdownDirty
   const isMarkdownEditable = isEditable && isMarkdownEditing
   const markdownHelperStatus = markdownSaving
     ? 'Applying markdown...'
@@ -436,13 +457,13 @@ export function QuizDetailPanel({
       : isMarkdownEditing
         ? 'Editing markdown'
         : 'Markdown mirror'
-  const usesSummaryDetailQuestions = isTestsView && showMarkdown && testQuestionLayout === 'summary-detail'
-  const usesEditorOnlyQuestions = isTestsView && testQuestionLayout === 'editor-only'
+  const usesSummaryDetailQuestions = isTestsView && showMarkdown && questionLayout === 'summary-detail'
+  const usesEditorOnlyQuestions = questionLayout === 'editor-only'
   const { width: summaryDetailWorkspaceWidth } = useRefRect(summaryDetailWorkspaceRef, {
     enabled: usesSummaryDetailQuestions,
   })
   const { width: viewportWidth } = useWindowSize()
-  const hasInlineDocumentsCard = usesSummaryDetailQuestions || usesEditorOnlyQuestions
+  const hasInlineDocumentsCard = isTestsView && (usesSummaryDetailQuestions || usesEditorOnlyQuestions)
   const resolvedShowResultsTab = showResultsTab ?? !isTestsView
   const totalQuestionPoints = useMemo(
     () =>
@@ -475,19 +496,18 @@ export function QuizDetailPanel({
         TEST_SUMMARY_DETAIL_LAYOUT.minEditorWidthPx +
           TEST_SUMMARY_DETAIL_LAYOUT.minMarkdownWidthPx +
           48)
-  const hasCollapsibleEditorSections = questions.length > 0 || hasInlineDocumentsCard
+  const hasCollapsibleEditorSections = isTestsView && (questions.length > 0 || hasInlineDocumentsCard)
   const areAllEditorSectionsExpanded =
     (questions.length === 0 || areAllQuestionsExpanded) &&
     (!hasInlineDocumentsCard || isDocumentsCardExpanded)
 
   useEffect(() => {
-    if (!isTestsView) return
     if (markdownDirty) return
-    if (markdownContent !== currentTestMarkdown) {
-      setMarkdownContent(currentTestMarkdown)
+    if (markdownContent !== currentAssessmentMarkdown) {
+      setMarkdownContent(currentAssessmentMarkdown)
     }
-    savedMarkdownRef.current = currentTestMarkdown
-  }, [currentTestMarkdown, isTestsView, markdownContent, markdownDirty])
+    savedMarkdownRef.current = currentAssessmentMarkdown
+  }, [currentAssessmentMarkdown, markdownContent, markdownDirty])
 
   useEffect(() => {
     if (!usesMarkdownOnlyQuestions || !isEditable) return
@@ -503,7 +523,7 @@ export function QuizDetailPanel({
       setViewMode('questions')
     }
     if (markdownDirty) {
-      const fallbackMarkdown = savedMarkdownRef.current || currentTestMarkdown
+      const fallbackMarkdown = savedMarkdownRef.current || currentAssessmentMarkdown
       setMarkdownContent(fallbackMarkdown)
       setMarkdownDirty(false)
       markdownDirtyRef.current = false
@@ -511,15 +531,15 @@ export function QuizDetailPanel({
     setIsMarkdownEditing(false)
     setMarkdownError('')
     setMarkdownInfo('')
-  }, [currentTestMarkdown, isMarkdownSurfaceEnabled, markdownDirty, viewMode])
+  }, [currentAssessmentMarkdown, isMarkdownSurfaceEnabled, markdownDirty, viewMode])
 
   useEffect(() => {
-    onPendingMarkdownImportChange?.(isTestsView ? hasPendingMarkdownImport : false)
+    onPendingMarkdownImportChange?.(hasPendingMarkdownImport)
 
     return () => {
       onPendingMarkdownImportChange?.(false)
     }
-  }, [hasPendingMarkdownImport, isTestsView, onPendingMarkdownImportChange])
+  }, [hasPendingMarkdownImport, onPendingMarkdownImportChange])
 
   // Focus input when entering edit mode
   useEffect(() => {
@@ -539,19 +559,30 @@ export function QuizDetailPanel({
       nextDraft: AssessmentEditorDraft,
       options?: { forceFull?: boolean; documents?: TestDocument[]; sourceMarkdown?: string }
     ) => {
+      const shouldPersistMarkdownSource =
+        isTestsView ||
+        isMarkdownSurfaceEnabled ||
+        typeof options?.sourceMarkdown === 'string' ||
+        nextDraft.source_format === 'markdown'
       const contentDraft =
-        isTestsView
+        shouldPersistMarkdownSource
           ? {
               ...nextDraft,
               source_format: 'markdown' as const,
               source_markdown:
                 options?.sourceMarkdown ??
-                testToMarkdown({
-                  title: nextDraft.title,
-                  show_results: nextDraft.show_results,
-                  questions: nextDraft.questions,
-                  documents: options?.documents ?? documents,
-                }),
+                (isTestsView
+                  ? testToMarkdown({
+                      title: nextDraft.title,
+                      show_results: nextDraft.show_results,
+                      questions: nextDraft.questions,
+                      documents: options?.documents ?? documents,
+                    })
+                  : quizToMarkdown({
+                      title: nextDraft.title,
+                      show_results: nextDraft.show_results,
+                      questions: nextDraft.questions,
+                    })),
             }
           : nextDraft
       const nextSerialized = JSON.stringify(contentDraft)
@@ -684,7 +715,17 @@ export function QuizDetailPanel({
         return false
       }
     },
-    [apiBasePath, applyServerDraft, documents, isTestsView, normalizeDraftQuestions, onQuizUpdate, quiz.id, updateSaveStatus]
+    [
+      apiBasePath,
+      applyServerDraft,
+      documents,
+      isMarkdownSurfaceEnabled,
+      isTestsView,
+      normalizeDraftQuestions,
+      onQuizUpdate,
+      quiz.id,
+      updateSaveStatus,
+    ]
   )
 
   const scheduleSave = useCallback(
@@ -1214,7 +1255,7 @@ export function QuizDetailPanel({
   }
 
   function handleUndoMarkdownChanges() {
-    setMarkdownContent(currentTestMarkdown)
+    setMarkdownContent(currentAssessmentMarkdown)
     setIsMarkdownEditing(usesMarkdownOnlyQuestions && isEditable)
     setMarkdownDirty(false)
     markdownDirtyRef.current = false
@@ -1223,9 +1264,8 @@ export function QuizDetailPanel({
   }
 
   async function handleApplyMarkdown() {
-    if (!isTestsView) return
     if (!isEditable) {
-      setMarkdownError('This test cannot be edited after students have responded.')
+      setMarkdownError(`This ${isTestsView ? 'test' : 'quiz'} cannot be edited after students have responded.`)
       return
     }
 
@@ -1233,10 +1273,89 @@ export function QuizDetailPanel({
     setMarkdownError('')
     setMarkdownInfo('')
 
-    const parsed = markdownToTest(markdownContent, {
+    const existingById = new Map(questions.map((question) => [question.id, question]))
+    const now = new Date().toISOString()
+
+    if (isTestsView) {
+      const parsed = markdownToTest(markdownContent, {
+        defaultShowResults: draftShowResults,
+        existingQuestions: questions.map((question) => ({ id: question.id })),
+        existingDocuments: documents,
+      })
+
+      if (parsed.errors.length > 0 || !parsed.draftContent) {
+        setMarkdownError(parsed.errors.join('\n') || 'Invalid markdown')
+        setMarkdownSaving(false)
+        return
+      }
+
+      const nextQuestions = normalizeQuestionPositions(
+        parsed.draftContent.questions.map((question, index) => {
+          const existing = existingById.get(question.id)
+          return {
+            id: question.id,
+            quiz_id: quiz.id,
+            question_type: question.question_type,
+            question_text: question.question_text,
+            options: question.options,
+            correct_option: question.correct_option,
+            answer_key: question.answer_key,
+            sample_solution: question.sample_solution,
+            points: question.points,
+            response_max_chars: question.response_max_chars,
+            response_monospace: question.response_monospace,
+            position: index,
+            created_at: existing?.created_at || now,
+            updated_at: now,
+          }
+        })
+      )
+
+      const nextDraft = {
+        title: parsed.draftContent.title,
+        show_results: parsed.draftContent.show_results,
+        questions: nextQuestions,
+      }
+
+      const nextDerivedMarkdown = testToMarkdown({
+        title: parsed.draftContent.title,
+        show_results: parsed.draftContent.show_results,
+        questions: nextQuestions,
+        documents: parsed.documents,
+      })
+
+      setEditTitle(parsed.draftContent.title)
+      setDraftShowResults(parsed.draftContent.show_results)
+      setQuestions(nextQuestions)
+      setDocuments(parsed.documents)
+      emitDraftSummaryChange(nextDraft)
+      setMarkdownContent(nextDerivedMarkdown)
+      savedMarkdownRef.current = nextDerivedMarkdown
+      setIsMarkdownEditing(usesMarkdownOnlyQuestions && isEditable)
+      setMarkdownDirty(false)
+      markdownDirtyRef.current = false
+      setMarkdownError('')
+      setMarkdownInfo('')
+      pendingDraftRef.current = nextDraft
+      markDraftUnsaved()
+
+      const saved = await saveDraft(nextDraft, {
+        forceFull: true,
+        documents: parsed.documents,
+        sourceMarkdown: nextDerivedMarkdown,
+      })
+
+      if (saved) {
+        setMarkdownInfo('Markdown applied')
+      }
+
+      setMarkdownSaving(false)
+      return
+    }
+
+    const parsed = markdownToQuiz(markdownContent, {
       defaultShowResults: draftShowResults,
       existingQuestions: questions.map((question) => ({ id: question.id })),
-      existingDocuments: documents,
     })
 
     if (parsed.errors.length > 0 || !parsed.draftContent) {
@@ -1245,23 +1364,14 @@ export function QuizDetailPanel({
       return
     }
 
-    const existingById = new Map(questions.map((question) => [question.id, question]))
-    const now = new Date().toISOString()
     const nextQuestions = normalizeQuestionPositions(
       parsed.draftContent.questions.map((question, index) => {
         const existing = existingById.get(question.id)
         return {
           id: question.id,
           quiz_id: quiz.id,
-          question_type: question.question_type,
           question_text: question.question_text,
           options: question.options,
-          correct_option: question.correct_option,
-          answer_key: question.answer_key,
-          sample_solution: question.sample_solution,
-          points: question.points,
-          response_max_chars: question.response_max_chars,
-          response_monospace: question.response_monospace,
           position: index,
           created_at: existing?.created_at || now,
           updated_at: now,
@@ -1275,17 +1385,15 @@ export function QuizDetailPanel({
       questions: nextQuestions,
     }
 
-    const nextDerivedMarkdown = testToMarkdown({
+    const nextDerivedMarkdown = quizToMarkdown({
       title: parsed.draftContent.title,
       show_results: parsed.draftContent.show_results,
       questions: nextQuestions,
-      documents: parsed.documents,
     })
 
     setEditTitle(parsed.draftContent.title)
     setDraftShowResults(parsed.draftContent.show_results)
     setQuestions(nextQuestions)
-    setDocuments(parsed.documents)
     emitDraftSummaryChange(nextDraft)
     setMarkdownContent(nextDerivedMarkdown)
     savedMarkdownRef.current = nextDerivedMarkdown
@@ -1299,7 +1407,6 @@ export function QuizDetailPanel({
 
     const saved = await saveDraft(nextDraft, {
       forceFull: true,
-      documents: parsed.documents,
       sourceMarkdown: nextDerivedMarkdown,
     })
 
@@ -1426,7 +1533,7 @@ export function QuizDetailPanel({
       </div>
       {!isEditable && (
         <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-          This test is locked because students have responded.
+          This {isTestsView ? 'test' : 'quiz'} is locked because students have responded.
         </div>
       )}
       {markdownInfo && (
@@ -1440,7 +1547,7 @@ export function QuizDetailPanel({
         </div>
       )}
       <textarea
-        data-testid="test-markdown-editor"
+        data-testid={isTestsView ? 'test-markdown-editor' : 'quiz-markdown-editor'}
         value={markdownContent}
         readOnly={!isMarkdownEditable}
         onChange={(event) => handleMarkdownChange(event.target.value)}
@@ -1566,7 +1673,10 @@ export function QuizDetailPanel({
   )
 
   const testQuestionEditorPane = (
-    <div data-testid="test-question-editor-pane" className="flex h-full min-h-0 flex-col">
+    <div
+      data-testid={isTestsView ? 'test-question-editor-pane' : 'quiz-question-editor-pane'}
+      className="flex h-full min-h-0 flex-col"
+    >
       <div className="border-b border-border px-3 py-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-text-muted">
@@ -1575,27 +1685,30 @@ export function QuizDetailPanel({
             </span>
             <span aria-hidden="true">•</span>
             <span data-testid="test-question-editor-header-summary">
-              {questions.length} question{questions.length === 1 ? '' : 's'} • {totalQuestionPoints} pts
+              {questions.length} question{questions.length === 1 ? '' : 's'}
+              {isTestsView ? ` • ${totalQuestionPoints} pts` : ''}
             </span>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            aria-label={areAllEditorSectionsExpanded ? 'Collapse all sections' : 'Expand all sections'}
-            onClick={handleToggleAllQuestions}
-            disabled={!hasCollapsibleEditorSections}
-            className="h-8 w-8 shrink-0 p-0 text-text-muted hover:text-text-default"
-          >
-            {areAllEditorSectionsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
+          {isTestsView ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label={areAllEditorSectionsExpanded ? 'Collapse all sections' : 'Expand all sections'}
+              onClick={handleToggleAllQuestions}
+              disabled={!hasCollapsibleEditorSections}
+              className="h-8 w-8 shrink-0 p-0 text-text-muted hover:text-text-default"
+            >
+              {areAllEditorSectionsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          ) : null}
         </div>
       </div>
       <div className="relative min-h-0 flex-1">
         <div className={cn('flex h-full min-h-0 flex-col', hasPendingMarkdownImport && 'opacity-60')}>
           <div className="min-h-0 flex-1 overflow-y-auto p-3" data-testid="test-question-accordion-list">
             <div className="space-y-3">
-              {testsInlineDocumentsCard}
+              {isTestsView ? testsInlineDocumentsCard : null}
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -1606,20 +1719,31 @@ export function QuizDetailPanel({
                   strategy={verticalListSortingStrategy}
                 >
                   <div className="space-y-3">
-                    {questions.map((question, index) => (
-                      <TestQuestionEditor
-                        key={question.id}
-                        question={question}
-                        questionNumber={index + 1}
-                        isEditable={isEditable}
-                        onChange={handleQuestionChange}
-                        onDuplicate={handleDuplicateQuestion}
-                        onDelete={handleQuestionDelete}
-                        variant="accordion"
-                        isExpanded={expandedQuestionIds.includes(question.id)}
-                        onToggleExpanded={() => handleToggleQuestionExpanded(question.id)}
-                      />
-                    ))}
+                    {questions.map((question, index) =>
+                      isTestsView ? (
+                        <TestQuestionEditor
+                          key={question.id}
+                          question={question}
+                          questionNumber={index + 1}
+                          isEditable={isEditable}
+                          onChange={handleQuestionChange}
+                          onDuplicate={handleDuplicateQuestion}
+                          onDelete={handleQuestionDelete}
+                          variant="accordion"
+                          isExpanded={expandedQuestionIds.includes(question.id)}
+                          onToggleExpanded={() => handleToggleQuestionExpanded(question.id)}
+                        />
+                      ) : (
+                        <QuizQuestionEditor
+                          key={question.id}
+                          question={question}
+                          questionNumber={index + 1}
+                          isEditable={isEditable}
+                          onChange={handleQuestionChange}
+                          onDelete={handleQuestionDelete}
+                        />
+                      )
+                    )}
                   </div>
                 </SortableContext>
               </DndContext>
@@ -1628,7 +1752,20 @@ export function QuizDetailPanel({
 
           {isEditable ? (
             <div className="border-t border-border p-3">
-              {renderTestAddQuestionSplitButton()}
+              {isTestsView ? (
+                renderTestAddQuestionSplitButton()
+              ) : (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleAddQuestion('multiple_choice')}
+                  className="w-full gap-1.5"
+                  disabled={hasPendingMarkdownImport}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Question
+                </Button>
+              )}
             </div>
           ) : null}
         </div>
@@ -1712,7 +1849,7 @@ export function QuizDetailPanel({
             {documents.length > 0 ? `Documents (${documents.length})` : 'Documents'}
           </button>
         )}
-        {isTestsView && showMarkdown && (
+        {showMarkdown && (
           <button
             type="button"
             onClick={() => setViewMode('markdown')}
@@ -1804,11 +1941,17 @@ export function QuizDetailPanel({
         )}
 
         {usesEditorOnlyQuestions ? (
-          <div data-testid="test-editor-only-layout" className="h-full min-h-0 bg-surface-2">
+          <div
+            data-testid={isTestsView ? 'test-editor-only-layout' : 'quiz-editor-only-layout'}
+            className="h-full min-h-0 bg-surface-2"
+          >
             {testQuestionEditorPane}
           </div>
         ) : usesMarkdownOnlyQuestions ? (
-          <div data-testid="test-markdown-only-layout" className="flex h-full min-h-0 flex-col p-4">
+          <div
+            data-testid={isTestsView ? 'test-markdown-only-layout' : 'quiz-markdown-only-layout'}
+            className="flex h-full min-h-0 flex-col p-4"
+          >
             {testsMarkdownPanel}
           </div>
         ) : usesSummaryDetailQuestions ? (
@@ -1875,7 +2018,7 @@ export function QuizDetailPanel({
             </div>
 
             <div className="relative">
-              <div className={cn('space-y-3', isTestsView && hasPendingMarkdownImport && 'opacity-60')}>
+              <div className={cn('space-y-3', hasPendingMarkdownImport && 'opacity-60')}>
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
@@ -1926,7 +2069,7 @@ export function QuizDetailPanel({
                   )
                 )}
               </div>
-              {isTestsView && hasPendingMarkdownImport ? (
+              {hasPendingMarkdownImport ? (
                 <div
                   data-testid="markdown-pending-lock"
                   className="absolute inset-0 z-10 flex items-center justify-center bg-surface/75 px-6 text-center"
@@ -1951,7 +2094,7 @@ export function QuizDetailPanel({
               headerTitle="Reference Documents"
             />
           </div>
-        ) : viewMode === 'markdown' && isTestsView && showMarkdown ? (
+        ) : viewMode === 'markdown' && isMarkdownSurfaceEnabled ? (
           testsMarkdownPanel
         ) : viewMode === 'preview' ? (
           <QuizPreview questions={questions} isTestsView={isTestsView} />

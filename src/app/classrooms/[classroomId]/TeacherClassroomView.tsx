@@ -24,22 +24,26 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  FileCheck,
+  FileText,
   GripVertical,
   LoaderCircle,
   MessageSquare,
   Pencil,
   Plus,
   Send,
+  Table,
   Trash2,
-  User,
-  Users,
 } from 'lucide-react'
-import { Button, ConfirmDialog, ContentDialog, FormField, Input, SegmentedControl, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
+import { SortableSurveyCard } from '@/components/surveys/SortableSurveyCard'
+import { SurveyModal } from '@/components/surveys/SurveyModal'
+import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
 import {
   TeacherAssignmentStudentTable,
   type TeacherAssignmentStudentRow,
@@ -67,8 +71,13 @@ import { useAssignmentGradingLayout } from '@/hooks/use-assignment-grading-layou
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 import {
   ASSIGNMENT_GRADING_LAYOUT,
+  getAssignmentSplitPaneViewSessionKey,
   getAssignmentWorkspaceStudentCookieName,
+  getDefaultAssignmentSplitPaneView,
+  getNextAssignmentSplitPaneView,
+  parseAssignmentSplitPaneView,
   parseAssignmentWorkspaceStudentId,
+  type AssignmentSplitPaneView,
   type AssignmentWorkspaceMode,
 } from '@/lib/assignment-grading-layout'
 import { buildOrderedClassworkItems } from '@/lib/classwork-order'
@@ -80,6 +89,8 @@ import type {
   AssignmentStatus,
   ClassDay,
   ClassworkMaterial,
+  Survey,
+  SurveyWithStats,
   TiptapContent,
 } from '@/types'
 import {
@@ -92,6 +103,7 @@ import { applyDirection, compareByNameFields, toggleSort as toggleSortState } fr
 import type { SortDirection } from '@/lib/table-sort'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { readCookie, writeCookie } from '@/lib/cookies'
+import { safeSessionGetJson, safeSessionSetJson } from '@/lib/client-storage'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
@@ -105,7 +117,6 @@ type GradeSelectedUpdatedDoc = NonNullable<StudentSubmissionRow['doc']> & {
   updated_at?: string | null
 }
 type GradeSelectedApplyTarget = 'grade' | 'comments'
-type AssignmentLeftPaneView = 'class' | 'individual'
 type UpdateSearchParamsFn = (
   updater: (params: URLSearchParams) => void,
   options?: { replace?: boolean },
@@ -115,6 +126,21 @@ export type AssignmentViewMode = 'summary' | 'assignment'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
 
+const ASSIGNMENT_SPLIT_PANE_VIEW_LABELS: Record<AssignmentSplitPaneView, string> = {
+  'students-grading': 'Students + grading',
+  'content-grading': 'Content + grading',
+  'students-content': 'Students + content',
+}
+
+const ASSIGNMENT_SPLIT_PANE_VIEW_INDICATORS: Record<
+  AssignmentSplitPaneView,
+  { index: 1 | 2 | 3; icon: 'students' | 'grading' | 'content' }
+> = {
+  'students-grading': { index: 1, icon: 'grading' },
+  'content-grading': { index: 2, icon: 'content' },
+  'students-content': { index: 3, icon: 'students' },
+}
+
 interface Props {
   classroom: Classroom
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
@@ -123,6 +149,7 @@ interface Props {
   isActive?: boolean
   selectedAssignmentId?: string | null
   selectedMaterialId?: string | null
+  selectedSurveyId?: string | null
   selectedAssignmentStudentId?: string | null
   updateSearchParams?: UpdateSearchParamsFn
 }
@@ -141,6 +168,22 @@ function MetricBar({ value }: { value: number }) {
       />
     </div>
   )
+}
+
+function AssignmentSplitPaneIcon({
+  pane,
+}: {
+  pane: 'students' | 'grading' | 'content'
+}) {
+  if (pane === 'students') {
+    return <Table className="h-4 w-4" aria-hidden="true" />
+  }
+
+  if (pane === 'grading') {
+    return <FileCheck className="h-4 w-4" aria-hidden="true" />
+  }
+
+  return <FileText className="h-4 w-4" aria-hidden="true" />
 }
 
 function TeacherMaterialCard({
@@ -522,23 +565,34 @@ export function TeacherClassroomView({
   onEditModeChange,
   isActive = true,
   selectedAssignmentId: selectedAssignmentIdProp,
+  selectedSurveyId: selectedSurveyIdProp,
   selectedAssignmentStudentId,
   updateSearchParams,
 }: Props) {
   const isReadOnly = !!classroom.archived_at
-  const isUrlSelectionControlled = selectedAssignmentIdProp !== undefined
+  const isUrlSelectionControlled =
+    selectedAssignmentIdProp !== undefined || selectedSurveyIdProp !== undefined
 
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
   const [materials, setMaterials] = useState<ClassworkMaterial[]>([])
+  const [surveys, setSurveys] = useState<SurveyWithStats[]>([])
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [loading, setLoading] = useState(true)
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false)
+  const [isSurveyModalOpen, setIsSurveyModalOpen] = useState(false)
   const [editMaterial, setEditMaterial] = useState<ClassworkMaterial | null>(null)
   const [pendingMaterialDelete, setPendingMaterialDelete] = useState<ClassworkMaterial | null>(null)
   const [isDeletingMaterial, setIsDeletingMaterial] = useState(false)
+  const [pendingSurveyDelete, setPendingSurveyDelete] = useState<SurveyWithStats | null>(null)
+  const [isDeletingSurvey, setIsDeletingSurvey] = useState(false)
   const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
+  const [surveyModalId, setSurveyModalId] = useState<string | null>(null)
+  const [createdSurveyEditorIntent, setCreatedSurveyEditorIntent] = useState<{
+    surveyId: string
+    editMode: 'edit' | 'markdown'
+  } | null>(null)
   const [isReordering, setIsReordering] = useState(false)
   const [assignmentEditMode, setAssignmentEditMode] = useState(false)
 
@@ -573,7 +627,13 @@ export function TeacherClassroomView({
     studentName: string
     characterCount: number
   } | null>(null)
-  const [leftPaneView, setLeftPaneView] = useState<AssignmentLeftPaneView>('class')
+  const [splitPaneViewState, setSplitPaneViewState] = useState<{
+    key: string | null
+    view: AssignmentSplitPaneView
+  }>({
+    key: null,
+    view: getDefaultAssignmentSplitPaneView(),
+  })
   const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
@@ -600,7 +660,9 @@ export function TeacherClassroomView({
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const wasActiveRef = useRef(isActive)
   const handledCompletedRunKeysRef = useRef<Set<string>>(new Set())
-  const showSummarySpinner = useDelayedBusy(loading && assignments.length === 0 && materials.length === 0)
+  const showSummarySpinner = useDelayedBusy(
+    loading && assignments.length === 0 && materials.length === 0 && surveys.length === 0
+  )
   const { showMessage } = useAppMessage()
   const {
     layout: assignmentGradingLayout,
@@ -613,7 +675,7 @@ export function TeacherClassroomView({
       setLoading(true)
     }
     try {
-      const [assignmentsData, materialsData, classDaysRes] = await Promise.all([
+      const [assignmentsData, materialsData, surveysData, classDaysRes] = await Promise.all([
         fetchJSONWithCache(
           `teacher-assignments:${classroom.id}`,
           async () => {
@@ -633,6 +695,15 @@ export function TeacherClassroomView({
           20_000,
         ),
         fetchJSONWithCache(
+          `teacher-surveys:${classroom.id}`,
+          async () => {
+            const response = await fetch(`/api/teacher/surveys?classroom_id=${classroom.id}`)
+            if (!response.ok) throw new Error('Failed to load surveys')
+            return response.json()
+          },
+          20_000,
+        ).catch(() => ({ surveys: [] })),
+        fetchJSONWithCache(
           `class-days:${classroom.id}`,
           async () => {
             const response = await fetch(`/api/classrooms/${classroom.id}/class-days`)
@@ -644,6 +715,7 @@ export function TeacherClassroomView({
       ])
       setAssignments(assignmentsData.assignments || [])
       setMaterials(materialsData.materials || [])
+      setSurveys(surveysData.surveys || [])
       setClassDays(classDaysRes.class_days || [])
       setHasLoadedOnce(true)
       window.dispatchEvent(
@@ -675,6 +747,57 @@ export function TeacherClassroomView({
     setIsMaterialModalOpen(false)
   }, [classroom.id])
 
+  const handleSurveySaved = useCallback((survey: Survey) => {
+    invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+    invalidateCachedJSON(`student-surveys:${classroom.id}`)
+    setSurveys((current) => {
+      const withStats = survey as SurveyWithStats
+      const exists = current.some((item) => item.id === survey.id)
+      return exists
+        ? current.map((item) => (item.id === survey.id ? { ...item, ...withStats } : item))
+        : [
+            ...current,
+            {
+              ...withStats,
+              stats: withStats.stats ?? { total_students: 0, responded: 0, questions_count: 0 },
+            },
+          ]
+    })
+    setIsSurveyModalOpen(false)
+    setCreatedSurveyEditorIntent({ surveyId: survey.id, editMode: 'markdown' })
+    setSurveyModalId(survey.id)
+    writeCookie(`teacherAssignmentsSelection:${classroom.id}`, 'summary')
+    setSelection({ mode: 'summary' })
+    updateSearchParams?.((params) => {
+      params.set('tab', 'assignments')
+      params.delete('assignmentId')
+      params.set('surveyId', survey.id)
+      params.delete('assignmentStudentId')
+    }, { replace: true })
+    void loadAssignments({ preserveContent: true })
+  }, [classroom.id, loadAssignments, updateSearchParams])
+
+  const openSurveyModal = useCallback((surveyId: string, options?: { replace?: boolean }) => {
+    setSurveyModalId(surveyId)
+    writeCookie(`teacherAssignmentsSelection:${classroom.id}`, 'summary')
+    setSelection({ mode: 'summary' })
+    updateSearchParams?.((params) => {
+      params.set('tab', 'assignments')
+      params.delete('assignmentId')
+      params.set('surveyId', surveyId)
+      params.delete('assignmentStudentId')
+    }, { replace: options?.replace })
+  }, [classroom.id, updateSearchParams])
+
+  const closeSurveyModal = useCallback((options?: { replace?: boolean }) => {
+    setSurveyModalId(null)
+    setCreatedSurveyEditorIntent(null)
+    updateSearchParams?.((params) => {
+      params.set('tab', 'assignments')
+      params.delete('surveyId')
+    }, { replace: options?.replace })
+  }, [updateSearchParams])
+
   const deleteMaterial = useCallback(async () => {
     if (!pendingMaterialDelete) return
     setIsDeletingMaterial(true)
@@ -698,6 +821,30 @@ export function TeacherClassroomView({
     }
   }, [classroom.id, pendingMaterialDelete, showMessage])
 
+  const deleteSurvey = useCallback(async () => {
+    if (!pendingSurveyDelete) return
+    setIsDeletingSurvey(true)
+    try {
+      const response = await fetch(`/api/teacher/surveys/${pendingSurveyDelete.id}`, {
+        method: 'DELETE',
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to delete survey')
+      invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+      invalidateCachedJSON(`student-surveys:${classroom.id}`)
+      setSurveys((current) => current.filter((survey) => survey.id !== pendingSurveyDelete.id))
+      if (surveyModalId === pendingSurveyDelete.id) {
+        closeSurveyModal({ replace: true })
+      }
+      setPendingSurveyDelete(null)
+      showMessage({ text: 'Survey deleted.', tone: 'success' })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete survey')
+    } finally {
+      setIsDeletingSurvey(false)
+    }
+  }, [classroom.id, closeSurveyModal, pendingSurveyDelete, showMessage, surveyModalId])
+
   useEffect(() => {
     if (isActive && !wasActiveRef.current && hasLoadedOnce) {
       loadAssignments({ preserveContent: true })
@@ -716,11 +863,11 @@ export function TeacherClassroomView({
 
     observer.observe(node)
     return () => observer.disconnect()
-  }, [selection.mode, leftPaneView, selectedStudentId])
+  }, [selection.mode, selectedStudentId, splitPaneViewState.view])
 
   const classworkItems = useMemo(
-    () => buildOrderedClassworkItems(assignments, materials),
-    [assignments, materials],
+    () => buildOrderedClassworkItems(assignments, materials, surveys),
+    [assignments, materials, surveys],
   )
 
   const handleDragEnd = useCallback(
@@ -749,6 +896,13 @@ export function TeacherClassroomView({
             : []
         )),
       )
+      setSurveys(
+        reordered.flatMap((item, position) => (
+          item.type === 'survey'
+            ? [{ ...item.survey, position }]
+            : []
+        )),
+      )
 
       // Persist to server
       setIsReordering(true)
@@ -766,8 +920,10 @@ export function TeacherClassroomView({
         }
         invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
         invalidateCachedJSON(`teacher-materials:${classroom.id}`)
+        invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
         invalidateCachedJSON(`student-assignments:${classroom.id}`)
         invalidateCachedJSON(`student-materials:${classroom.id}`)
+        invalidateCachedJSON(`student-surveys:${classroom.id}`)
         // Notify sidebar to refresh
         window.dispatchEvent(
           new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
@@ -795,6 +951,11 @@ export function TeacherClassroomView({
       setSelection({ mode: 'summary' })
       return
     }
+    if (value.startsWith('survey:')) {
+      writeCookie(cookieName, 'summary')
+      setSelection({ mode: 'summary' })
+      return
+    }
     const assignment = assignments.find((a) => a.id === value)
     if (!assignment) {
       setSelection({ mode: 'summary' })
@@ -807,13 +968,29 @@ export function TeacherClassroomView({
     } else {
       setSelection({ mode: 'assignment', assignmentId: value })
     }
-  }, [assignments, classroom.id, isUrlSelectionControlled, loading])
+  }, [assignments, classroom.id, isUrlSelectionControlled, loading, surveys])
 
   useEffect(() => {
     if (!isUrlSelectionControlled) return
     if (loading) return
 
     const cookieName = `teacherAssignmentsSelection:${classroom.id}`
+    if (selectedSurveyIdProp) {
+      const survey = surveys.find((item) => item.id === selectedSurveyIdProp)
+      if (survey) {
+        writeCookie(cookieName, 'summary')
+        setSelection({ mode: 'summary' })
+        setSurveyModalId(selectedSurveyIdProp)
+      } else {
+        writeCookie(cookieName, 'summary')
+        setSelection({ mode: 'summary' })
+        setSurveyModalId(null)
+      }
+      return
+    }
+
+    setSurveyModalId(null)
+
     const value = selectedAssignmentIdProp
     if (!value || value === 'summary') {
       writeCookie(cookieName, 'summary')
@@ -836,13 +1013,14 @@ export function TeacherClassroomView({
       updateSearchParams?.((params) => {
         params.set('tab', 'assignments')
         params.delete('assignmentId')
+        params.delete('surveyId')
         params.delete('assignmentStudentId')
       }, { replace: true })
     } else {
       writeCookie(cookieName, value)
       setSelection({ mode: 'assignment', assignmentId: value })
     }
-  }, [assignments, classroom.id, isUrlSelectionControlled, loading, selectedAssignmentIdProp, updateSearchParams])
+  }, [assignments, classroom.id, isUrlSelectionControlled, loading, selectedAssignmentIdProp, selectedSurveyIdProp, surveys, updateSearchParams])
 
   useEffect(() => {
     function onSelectionEvent(e: Event) {
@@ -921,7 +1099,6 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (selection.mode !== 'assignment') {
-      setLeftPaneView('class')
       setSelectedStudentId(null)
       setWorkspaceLoading(false)
       return
@@ -972,7 +1149,7 @@ export function TeacherClassroomView({
 
   // Notify parent of view mode changes
   useEffect(() => {
-    onViewModeChange?.(selection.mode)
+    onViewModeChange?.(selection.mode === 'assignment' ? 'assignment' : 'summary')
   }, [selection.mode, onViewModeChange])
 
   useEffect(() => {
@@ -986,7 +1163,9 @@ export function TeacherClassroomView({
   }, [onEditModeChange])
 
   const assignmentEditModeResetKey =
-    selection.mode === 'assignment' ? selection.assignmentId : 'summary'
+    selection.mode === 'assignment'
+      ? selection.assignmentId
+      : 'summary'
 
   useEffect(() => {
     setAssignmentEditMode(false)
@@ -1057,7 +1236,10 @@ export function TeacherClassroomView({
     options: { updateUrl?: boolean; replace?: boolean } = {},
   ) => {
     const cookieName = `teacherAssignmentsSelection:${classroom.id}`
-    const cookieValue = next.mode === 'summary' ? 'summary' : next.assignmentId
+    const cookieValue =
+      next.mode === 'summary'
+        ? 'summary'
+        : next.assignmentId
     writeCookie(cookieName, cookieValue)
     setSelection(next)
     if (options.updateUrl === false || !updateSearchParams) return
@@ -1069,6 +1251,7 @@ export function TeacherClassroomView({
       } else {
         params.delete('assignmentId')
       }
+      params.delete('surveyId')
       params.delete('assignmentStudentId')
     }, { replace: options.replace })
   }, [classroom.id, updateSearchParams])
@@ -1152,7 +1335,6 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (selection.mode !== 'assignment') return
-    setLeftPaneView('class')
     setSelectedStudentId(null)
     setWorkspaceLoading(false)
     batchClearSelection()
@@ -1521,13 +1703,51 @@ export function TeacherClassroomView({
   }, [currentStudentRows, selectedStudentId])
   const activeSelectedStudentId = selectedStudentRow?.student_id ?? null
   const selectedAssignmentId = selection.mode === 'assignment' ? selection.assignmentId : null
+  const splitPaneViewSessionKey = selectedAssignmentId
+    ? getAssignmentSplitPaneViewSessionKey(classroom.id, selectedAssignmentId)
+    : null
+  const splitPaneView = splitPaneViewState.key === splitPaneViewSessionKey
+    ? splitPaneViewState.view
+    : getDefaultAssignmentSplitPaneView()
+
+  useEffect(() => {
+    const nextView = splitPaneViewSessionKey
+      ? parseAssignmentSplitPaneView(safeSessionGetJson<unknown>(splitPaneViewSessionKey))
+      : getDefaultAssignmentSplitPaneView()
+    setSplitPaneViewState({
+      key: splitPaneViewSessionKey,
+      view: nextView,
+    })
+  }, [splitPaneViewSessionKey])
+
+  const setPersistedSplitPaneView = useCallback((
+    next:
+      | AssignmentSplitPaneView
+      | ((current: AssignmentSplitPaneView) => AssignmentSplitPaneView),
+  ) => {
+    setSplitPaneViewState((current) => {
+      const currentView = current.key === splitPaneViewSessionKey
+        ? current.view
+        : getDefaultAssignmentSplitPaneView()
+      const nextView = typeof next === 'function' ? next(currentView) : next
+
+      if (splitPaneViewSessionKey) {
+        safeSessionSetJson(splitPaneViewSessionKey, nextView)
+      }
+
+      return {
+        key: splitPaneViewSessionKey,
+        view: nextView,
+      }
+    })
+  }, [splitPaneViewSessionKey])
 
   const {
     scrollRef: classPaneScrollRef,
     preserveScrollPosition: preserveClassPaneScrollPosition,
   } = useScrollPositionMemory<HTMLDivElement>({
     key: selectedAssignmentId,
-    enabled: leftPaneView === 'class',
+    enabled: splitPaneView !== 'content-grading',
     restoreToken: [
       activeSelectedStudentId ?? 'none',
       currentStudentRows.length,
@@ -1618,21 +1838,22 @@ export function TeacherClassroomView({
     return currentStudentRows[0]?.student_id ?? null
   }, [classroom.id, currentStudentRows, selectedStudentId, selection])
 
-  const handleSwitchLeftPaneView = useCallback((nextView: AssignmentLeftPaneView) => {
-    if (nextView === leftPaneView) return
+  const handleCycleSplitPaneView = useCallback(() => {
+    const nextView = getNextAssignmentSplitPaneView(splitPaneView)
 
-    if (nextView === 'individual') {
+    if (nextView !== 'students-grading') {
       const nextStudentId = resolveDetailsStudentId()
       if (!nextStudentId) return
       setIndividualHeaderMeta(null)
       setSelectedStudentAndNavigate(nextStudentId, { replace: true })
     }
 
-    setLeftPaneView(nextView)
+    setPersistedSplitPaneView(nextView)
   }, [
-    leftPaneView,
     resolveDetailsStudentId,
+    setPersistedSplitPaneView,
     setSelectedStudentAndNavigate,
+    splitPaneView,
   ])
 
   useEffect(() => {
@@ -1741,7 +1962,7 @@ export function TeacherClassroomView({
         ? `${individualHeaderMeta.characterCount} chars`
         : 'Loading…'
       : null
-  const activeWorkspaceMode: AssignmentWorkspaceMode = leftPaneView === 'individual' ? 'details' : 'overview'
+  const activeWorkspaceMode: AssignmentWorkspaceMode = splitPaneView === 'content-grading' ? 'details' : 'overview'
   const activeWorkspaceLayout = assignmentGradingLayout[activeWorkspaceMode]
   const highlightedInspectorSections =
     highlightedApplyTarget === 'grade'
@@ -1749,7 +1970,7 @@ export function TeacherClassroomView({
       : highlightedApplyTarget === 'comments'
         ? (['comments'] as const)
         : undefined
-  const canOpenIndividual =
+  const canCycleSplitPaneView =
     selection.mode === 'assignment' &&
     !selectedAssignmentLoading &&
     currentStudentRows.length > 0
@@ -1849,115 +2070,117 @@ export function TeacherClassroomView({
 
   const classPaneActions = (
     <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
-      <SplitButton
-        label={
-          <span className="inline-flex items-center gap-2">
-            <Check className="h-4 w-4" aria-hidden="true" />
-            <span>AI Grade</span>
-          </span>
-        }
-        onPrimaryClick={() => {
-          void handleBatchAutoGrade()
-        }}
-        options={[
-          {
-            id: 'edit-assignment',
-            label: (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                <Pencil className="h-4 w-4" aria-hidden="true" />
-                <span>Edit Assignment</span>
-              </span>
-            ),
-            onSelect: () => {
-              if (activeSelectedAssignmentData) {
-                setEditAssignment(activeSelectedAssignmentData.assignment)
-              }
+      <span className="inline-flex">
+        <SplitButton
+          label={
+            <span className="inline-flex items-center gap-2">
+              <Check className="h-4 w-4" aria-hidden="true" />
+              <span>AI Grade</span>
+            </span>
+          }
+          onPrimaryClick={() => {
+            void handleBatchAutoGrade()
+          }}
+          options={[
+            {
+              id: 'edit-assignment',
+              label: (
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                  <Pencil className="h-4 w-4" aria-hidden="true" />
+                  <span>Edit Assignment</span>
+                </span>
+              ),
+              onSelect: () => {
+                if (activeSelectedAssignmentData) {
+                  setEditAssignment(activeSelectedAssignmentData.assignment)
+                }
+              },
+              disabled: !canEditAssignment,
             },
-            disabled: !canEditAssignment,
-          },
-          {
-            id: 'delete-assignment',
-            label: (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap text-danger">
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-                <span>Delete Assignment</span>
-              </span>
-            ),
-            onSelect: () => {
-              if (activeSelectedAssignmentData) {
-                setPendingDelete({
-                  id: activeSelectedAssignmentData.assignment.id,
-                  title: activeSelectedAssignmentData.assignment.title,
-                })
-              }
+            {
+              id: 'delete-assignment',
+              label: (
+                <span className="inline-flex items-center gap-2 whitespace-nowrap text-danger">
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  <span>Delete Assignment</span>
+                </span>
+              ),
+              onSelect: () => {
+                if (activeSelectedAssignmentData) {
+                  setPendingDelete({
+                    id: activeSelectedAssignmentData.assignment.id,
+                    title: activeSelectedAssignmentData.assignment.title,
+                  })
+                }
+              },
+              disabled: !activeSelectedAssignmentData || selectedAssignmentLoading || isReadOnly || isDeleting,
             },
-            disabled: !activeSelectedAssignmentData || selectedAssignmentLoading || isReadOnly || isDeleting,
-          },
-          {
-            id: 'grade-selected',
-            label: (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                <Copy className="h-4 w-4" aria-hidden="true" />
-                <span>Apply Grade to Selected Students</span>
-              </span>
-            ),
-            onHoverChange: (active) => setHighlightedApplyTarget(active ? 'grade' : null),
-            onSelect: () => {
-              setHighlightedApplyTarget(null)
-              setGradeSelectedConfirmTarget('grade')
+            {
+              id: 'grade-selected',
+              label: (
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                  <Copy className="h-4 w-4" aria-hidden="true" />
+                  <span>Apply Grade to Selected Students</span>
+                </span>
+              ),
+              onHoverChange: (active) => setHighlightedApplyTarget(active ? 'grade' : null),
+              onSelect: () => {
+                setHighlightedApplyTarget(null)
+                setGradeSelectedConfirmTarget('grade')
+              },
+              disabled: isApplyGradeSelectedDisabled,
             },
-            disabled: isApplyGradeSelectedDisabled,
-          },
-          {
-            id: 'comments-selected',
-            label: (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                <MessageSquare className="h-4 w-4" aria-hidden="true" />
-                <span>Apply Comments to Selected Students</span>
-              </span>
-            ),
-            onHoverChange: (active) => setHighlightedApplyTarget(active ? 'comments' : null),
-            onSelect: () => {
-              setHighlightedApplyTarget(null)
-              setGradeSelectedConfirmTarget('comments')
+            {
+              id: 'comments-selected',
+              label: (
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                  <MessageSquare className="h-4 w-4" aria-hidden="true" />
+                  <span>Apply Comments to Selected Students</span>
+                </span>
+              ),
+              onHoverChange: (active) => setHighlightedApplyTarget(active ? 'comments' : null),
+              onSelect: () => {
+                setHighlightedApplyTarget(null)
+                setGradeSelectedConfirmTarget('comments')
+              },
+              disabled: isApplyCommentsSelectedDisabled,
             },
-            disabled: isApplyCommentsSelectedDisabled,
-          },
-          {
-            id: 'repo-analysis',
-            label: (
-              <span className="inline-flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                <span>Repo analysis</span>
-              </span>
-            ),
-            onSelect: () => {
-              void handleBatchArtifactRepoAnalyze()
+            {
+              id: 'repo-analysis',
+              label: (
+                <span className="inline-flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                  <span>Repo analysis</span>
+                </span>
+              ),
+              onSelect: () => {
+                void handleBatchArtifactRepoAnalyze()
+              },
+              disabled: isArtifactRepoAnalyzing || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
             },
-            disabled: isArtifactRepoAnalyzing || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
-          },
-          {
-            id: 'return',
-            label: (
-              <span className="inline-flex items-center gap-2">
-                <Send className="h-4 w-4" aria-hidden="true" />
-                <span>Return</span>
-              </span>
-            ),
-            onSelect: () => {
-              setShowReturnConfirm(true)
+            {
+              id: 'return',
+              label: (
+                <span className="inline-flex items-center gap-2">
+                  <Send className="h-4 w-4" aria-hidden="true" />
+                  <span>Return</span>
+                </span>
+              ),
+              onSelect: () => {
+                setShowReturnConfirm(true)
+              },
+              disabled: isReturnDisabled,
             },
-            disabled: isReturnDisabled,
-          },
-        ]}
-        className="inline-flex"
-        toggleAriaLabel={`More assignment actions${workspaceActionLabelSuffix}`}
-        menuPlacement="down"
-        primaryButtonProps={{
-          'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
-          disabled: isAutoGrading || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
-        }}
-      />
+          ]}
+          className="inline-flex"
+          toggleAriaLabel={`More assignment actions${workspaceActionLabelSuffix}`}
+          menuPlacement="down"
+          primaryButtonProps={{
+            'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
+            disabled: isAutoGrading || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
+          }}
+        />
+      </span>
     </Tooltip>
   )
 
@@ -2016,26 +2239,57 @@ export function TeacherClassroomView({
     />
   )
 
+  const splitPaneViewLabel = ASSIGNMENT_SPLIT_PANE_VIEW_LABELS[splitPaneView]
+  const nextSplitPaneView = getNextAssignmentSplitPaneView(splitPaneView)
+  const nextSplitPaneViewLabel = ASSIGNMENT_SPLIT_PANE_VIEW_LABELS[nextSplitPaneView]
+  const splitPaneViewIndicator = ASSIGNMENT_SPLIT_PANE_VIEW_INDICATORS[splitPaneView]
+
   const assignmentWorkspaceControls = selection.mode === 'assignment' ? (
     <div
       data-testid="assignment-workspace-actionbar-center"
       className="relative flex min-w-0 items-center justify-center gap-2"
     >
-      <SegmentedControl<AssignmentLeftPaneView>
-        ariaLabel="Assignment workspace view"
-        value={leftPaneView}
-        onChange={handleSwitchLeftPaneView}
-        iconOnly
-        options={[
-          { value: 'class', label: 'Class', icon: <Users className="h-4 w-4" /> },
-          {
-            value: 'individual',
-            label: 'Individual',
-            icon: <User className="h-4 w-4" />,
-            disabled: !canOpenIndividual,
-          },
-        ]}
-      />
+      <Tooltip
+        content={
+          canCycleSplitPaneView
+            ? `Current: ${splitPaneViewLabel}. Next: ${nextSplitPaneViewLabel}.`
+            : 'No students available for split views yet.'
+        }
+      >
+        <span className="inline-flex">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="inline-flex min-w-0 items-center gap-1.5"
+            onClick={handleCycleSplitPaneView}
+            disabled={!canCycleSplitPaneView}
+            aria-label={`Assignment panes: ${splitPaneViewLabel}. Switch to ${nextSplitPaneViewLabel}.`}
+          >
+            <span
+              className="inline-flex items-center gap-1.5"
+              data-testid="assignment-split-pane-indicator"
+              data-view-index={splitPaneViewIndicator.index}
+              data-view-icon={splitPaneViewIndicator.icon}
+            >
+              <span
+                className="min-w-3 text-center text-xs font-semibold tabular-nums"
+                data-testid="assignment-split-pane-index"
+                aria-hidden="true"
+              >
+                {splitPaneViewIndicator.index}
+              </span>
+              <span
+                className="inline-flex"
+                data-testid="assignment-split-pane-icon"
+              >
+                <AssignmentSplitPaneIcon pane={splitPaneViewIndicator.icon} />
+              </span>
+            </span>
+            <span className="sr-only">{splitPaneViewLabel}</span>
+          </Button>
+        </span>
+      </Tooltip>
       {classPaneActions}
       {workspaceStatus}
     </div>
@@ -2048,34 +2302,41 @@ export function TeacherClassroomView({
         center={
           <div className="flex items-center justify-center gap-1.5">
             <Tooltip content="Create a new assignment">
-              <SplitButton
-                label={
-                  <span className="inline-flex items-center gap-1.5">
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                    <span>New</span>
-                  </span>
-                }
-                onPrimaryClick={() => setIsCreateModalOpen(true)}
-                options={[
-                  {
-                    id: 'assignment',
-                    label: 'Assignment',
-                    onSelect: () => setIsCreateModalOpen(true),
-                  },
-                  {
-                    id: 'material',
-                    label: 'Material',
-                    onSelect: () => {
-                      setEditMaterial(null)
-                      setIsMaterialModalOpen(true)
+              <span className="inline-flex">
+                <SplitButton
+                  label={
+                    <span className="inline-flex items-center gap-1.5">
+                      <Plus className="h-4 w-4" aria-hidden="true" />
+                      <span>New</span>
+                    </span>
+                  }
+                  onPrimaryClick={() => setIsCreateModalOpen(true)}
+                  options={[
+                    {
+                      id: 'assignment',
+                      label: 'Assignment',
+                      onSelect: () => setIsCreateModalOpen(true),
                     },
-                  },
-                ]}
-                disabled={isReadOnly}
-                toggleAriaLabel="Choose classwork type"
-                menuPlacement="down"
-                primaryButtonProps={{ 'aria-label': 'New assignment' }}
-              />
+                    {
+                      id: 'material',
+                      label: 'Material',
+                      onSelect: () => {
+                        setEditMaterial(null)
+                        setIsMaterialModalOpen(true)
+                      },
+                    },
+                    {
+                      id: 'survey',
+                      label: 'Survey',
+                      onSelect: () => setIsSurveyModalOpen(true),
+                    },
+                  ]}
+                  disabled={isReadOnly}
+                  toggleAriaLabel="Choose classwork type"
+                  menuPlacement="down"
+                  primaryButtonProps={{ 'aria-label': 'New assignment' }}
+                />
+              </span>
             </Tooltip>
             {assignmentSummaryEditControls}
           </div>
@@ -2103,7 +2364,7 @@ export function TeacherClassroomView({
     <div className="flex justify-center py-8">
       <Spinner />
     </div>
-  ) : assignments.length === 0 && materials.length === 0 ? (
+  ) : assignments.length === 0 && materials.length === 0 && surveys.length === 0 ? (
     <div className="py-6 text-center text-sm text-text-muted">
       No classwork yet
     </div>
@@ -2137,6 +2398,21 @@ export function TeacherClassroomView({
               )
             }
 
+            if (item.type === 'survey') {
+              const survey = item.survey
+              return (
+                <SortableSurveyCard
+                  key={survey.id}
+                  survey={survey}
+                  isReadOnly={isReadOnly}
+                  isDragDisabled={isReordering}
+                  editMode={assignmentEditMode}
+                  onOpen={() => openSurveyModal(survey.id)}
+                  onDelete={() => setPendingSurveyDelete(survey)}
+                />
+              )
+            }
+
             const assignment = item.assignment
             return (
               <SortableAssignmentCard
@@ -2162,8 +2438,6 @@ export function TeacherClassroomView({
     </TeacherWorkItemList>
   )
 
-  const leftPaneHeader = leftPaneView === 'individual' ? selectedStudentControls : null
-
   const workspaceContent = selectedAssignmentId == null ? null : activeSelectedStudentId ? (
     <TeacherStudentWorkPanel
       classroomId={classroom.id}
@@ -2171,8 +2445,8 @@ export function TeacherClassroomView({
       studentId={activeSelectedStudentId}
       mode="workspace"
       classPane={classPane}
-      leftPaneView={leftPaneView}
-      leftHeader={leftPaneHeader}
+      splitPaneView={splitPaneView}
+      studentHeader={selectedStudentControls}
       inspectorCollapsed={false}
       inspectorWidth={activeWorkspaceLayout.inspectorWidth}
       refreshKey={gradeSelectedRefreshCounter}
@@ -2236,6 +2510,21 @@ export function TeacherClassroomView({
         onCancel={() => (isDeletingMaterial ? null : setPendingMaterialDelete(null))}
         onConfirm={() => {
           void deleteMaterial()
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={!!pendingSurveyDelete}
+        title="Delete survey?"
+        description={pendingSurveyDelete ? `${pendingSurveyDelete.title}\n\nThis cannot be undone.` : undefined}
+        confirmLabel={isDeletingSurvey ? 'Deleting...' : 'Delete'}
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        isConfirmDisabled={isDeletingSurvey}
+        isCancelDisabled={isDeletingSurvey}
+        onCancel={() => (isDeletingSurvey ? null : setPendingSurveyDelete(null))}
+        onConfirm={() => {
+          void deleteSurvey()
         }}
       />
 
@@ -2308,6 +2597,54 @@ export function TeacherClassroomView({
         }}
         onSaved={handleMaterialSaved}
         onRequestDelete={setPendingMaterialDelete}
+      />
+
+      <DialogPanel
+        isOpen={!!surveyModalId}
+        onClose={() => closeSurveyModal()}
+        ariaLabelledBy="survey-workspace-dialog-title"
+        maxWidth="max-w-6xl"
+        className="h-[85vh] overflow-hidden p-0"
+      >
+        <h2 id="survey-workspace-dialog-title" className="sr-only">
+          Survey
+        </h2>
+        {surveyModalId ? (
+          <TeacherSurveyWorkspace
+            classroomId={classroom.id}
+            surveyId={surveyModalId}
+            isReadOnly={isReadOnly}
+            initialEditMode={
+              createdSurveyEditorIntent?.surveyId === surveyModalId
+                ? createdSurveyEditorIntent.editMode
+                : undefined
+            }
+            onInitialEditModeConsumed={() => setCreatedSurveyEditorIntent(null)}
+            onBack={() => closeSurveyModal()}
+            onSurveyUpdated={(updatedSurvey) => {
+              setSurveys((current) =>
+                current.map((survey) =>
+                  survey.id === updatedSurvey.id ? { ...survey, ...updatedSurvey } : survey
+                )
+              )
+              invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+              invalidateCachedJSON(`student-surveys:${classroom.id}`)
+            }}
+            onSurveyDeleted={(surveyId) => {
+              setSurveys((current) => current.filter((survey) => survey.id !== surveyId))
+              invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+              invalidateCachedJSON(`student-surveys:${classroom.id}`)
+              closeSurveyModal({ replace: true })
+            }}
+          />
+        ) : null}
+      </DialogPanel>
+
+      <SurveyModal
+        isOpen={isSurveyModalOpen}
+        classroomId={classroom.id}
+        onClose={() => setIsSurveyModalOpen(false)}
+        onSuccess={handleSurveySaved}
       />
     </>
   )

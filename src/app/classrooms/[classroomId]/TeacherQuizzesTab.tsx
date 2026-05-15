@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Code, Plus, Trash2 } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { QuizModal } from '@/components/QuizModal'
 import { QuizCard } from '@/components/QuizCard'
@@ -10,7 +10,7 @@ import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWo
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
-import { Button, EmptyState, Tooltip } from '@/ui'
+import { Button, DialogPanel, EmptyState, Tooltip } from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
   Classroom,
@@ -51,6 +51,9 @@ export function TeacherQuizzesTab({
   const [loading, setLoading] = useState(true)
   const [internalSelectedQuizId, setInternalSelectedQuizId] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [quizEditModalView, setQuizEditModalView] = useState<'edit' | 'markdown'>('edit')
+  const [hasPendingMarkdownImport, setHasPendingMarkdownImport] = useState(false)
   const [pendingCreatedQuizId, setPendingCreatedQuizId] = useState<string | null>(null)
   const [selectedQuizDraftSummary, setSelectedQuizDraftSummary] =
     useState<AssessmentEditorSummaryUpdate | null>(null)
@@ -169,11 +172,20 @@ export function TeacherQuizzesTab({
     if (!quizzes.some((quiz) => quiz.id === pendingCreatedQuizId)) return
 
     navigateQuizWorkspace(pendingCreatedQuizId)
+    setQuizEditModalView('edit')
+    setHasPendingMarkdownImport(false)
+    setShowEditModal(true)
     setPendingCreatedQuizId(null)
   }, [navigateQuizWorkspace, pendingCreatedQuizId, quizzes])
 
   function handleCardSelect(quiz: QuizWithStats) {
     navigateQuizWorkspace(quiz.id)
+  }
+
+  function closeEditModal() {
+    setShowEditModal(false)
+    setQuizEditModalView('edit')
+    setHasPendingMarkdownImport(false)
   }
 
   function handleNewQuiz() {
@@ -191,18 +203,33 @@ export function TeacherQuizzesTab({
   const primaryContent = selectedQuizWorkspace ? (
     <TeacherWorkSurfaceActionBar
       center={
-        onRequestDelete ? (
+        <div className="flex flex-wrap items-center justify-center gap-2">
           <Button
             type="button"
-            variant="danger"
+            variant="secondary"
             size="sm"
-            onClick={onRequestDelete}
+            onClick={() => {
+              setQuizEditModalView('edit')
+              setHasPendingMarkdownImport(false)
+              setShowEditModal(true)
+            }}
             disabled={isReadOnly}
           >
-            <Trash2 className="h-4 w-4" />
-            Delete Quiz
+            Edit Quiz
           </Button>
-        ) : null
+          {onRequestDelete ? (
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              onClick={onRequestDelete}
+              disabled={isReadOnly}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Quiz
+            </Button>
+          ) : null}
+        </div>
       }
       centerPlacement="floating"
     />
@@ -298,6 +325,69 @@ export function TeacherQuizzesTab({
         onClose={() => setShowModal(false)}
         onSuccess={handleQuizCreated}
       />
+
+      <DialogPanel
+        isOpen={showEditModal && !!selectedQuizWorkspace}
+        onClose={closeEditModal}
+        ariaLabelledBy="quiz-edit-title"
+        maxWidth="max-w-6xl"
+        className="h-[85vh] overflow-hidden p-0"
+      >
+        <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border px-4 py-3">
+          <h2 id="quiz-edit-title" className="min-w-0 basis-full truncate text-base font-semibold text-text-default sm:basis-auto sm:flex-1">
+            {selectedQuizWorkspace ? `Edit ${selectedQuizWorkspace.title}` : 'Edit quiz'}
+          </h2>
+          <Tooltip content="Markdown view">
+            <Button
+              type="button"
+              variant={quizEditModalView === 'markdown' ? 'subtle' : 'secondary'}
+              size="sm"
+              aria-pressed={quizEditModalView === 'markdown'}
+              className="gap-1.5"
+              onClick={() => {
+                setQuizEditModalView((current) => (current === 'markdown' ? 'edit' : 'markdown'))
+              }}
+            >
+              <Code className="h-4 w-4" aria-hidden="true" />
+              <span>Code</span>
+            </Button>
+          </Tooltip>
+          {hasPendingMarkdownImport ? (
+            <span className="text-xs font-medium text-warning">Markdown edits not applied</span>
+          ) : null}
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={closeEditModal}
+          >
+            Close
+          </Button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {selectedQuizWorkspace ? (
+            <QuizDetailPanel
+              quiz={selectedQuizWorkspace}
+              classroomId={classroom.id}
+              apiBasePath={apiBasePath}
+              onDraftSummaryChange={setSelectedQuizDraftSummary}
+              onQuizUpdate={(update) => {
+                if (update) {
+                  setSelectedQuizDraftSummary(update)
+                  applyQuizSummaryPatch(selectedQuizWorkspace.id, update)
+                  return
+                }
+                void loadQuizzes()
+              }}
+              onPendingMarkdownImportChange={setHasPendingMarkdownImport}
+              showInlineDeleteAction={false}
+              assessmentQuestionLayout={quizEditModalView === 'markdown' ? 'markdown-only' : 'editor-only'}
+              showPreviewButton={false}
+              showResultsTab={false}
+            />
+          ) : null}
+        </div>
+      </DialogPanel>
     </>
   )
 }

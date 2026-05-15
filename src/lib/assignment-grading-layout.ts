@@ -1,4 +1,8 @@
 export type AssignmentWorkspaceMode = 'overview' | 'details'
+export type AssignmentSplitPaneView =
+  | 'students-grading'
+  | 'content-grading'
+  | 'students-content'
 
 export interface AssignmentWorkspacePaneLayout {
   inspectorCollapsed: boolean
@@ -20,6 +24,12 @@ export const ASSIGNMENT_GRADING_LAYOUT = {
   overviewPrimaryMinPx: 420,
   detailsPrimaryMinPx: 360,
 } as const
+
+export const ASSIGNMENT_SPLIT_PANE_VIEW_SEQUENCE: readonly AssignmentSplitPaneView[] = [
+  'students-grading',
+  'content-grading',
+  'students-content',
+] as const
 
 const DEFAULT_PANE_LAYOUT: AssignmentWorkspacePaneLayout = {
   inspectorCollapsed: false,
@@ -81,6 +91,35 @@ export function getAssignmentWorkspaceStudentCookieName(
   assignmentId: string,
 ): string {
   return `pika_assignment_workspace_student:${classroomId}:${assignmentId}`
+}
+
+export function getAssignmentSplitPaneViewSessionKey(
+  classroomId: string,
+  assignmentId: string,
+): string {
+  return `pika_assignment_split_pane_view:${classroomId}:${assignmentId}`
+}
+
+export function getDefaultAssignmentSplitPaneView(): AssignmentSplitPaneView {
+  return ASSIGNMENT_SPLIT_PANE_VIEW_SEQUENCE[0]
+}
+
+export function parseAssignmentSplitPaneView(
+  value: unknown,
+): AssignmentSplitPaneView {
+  return ASSIGNMENT_SPLIT_PANE_VIEW_SEQUENCE.includes(value as AssignmentSplitPaneView)
+    ? value as AssignmentSplitPaneView
+    : getDefaultAssignmentSplitPaneView()
+}
+
+export function getNextAssignmentSplitPaneView(
+  current: AssignmentSplitPaneView,
+): AssignmentSplitPaneView {
+  const currentIndex = ASSIGNMENT_SPLIT_PANE_VIEW_SEQUENCE.indexOf(current)
+  const nextIndex = currentIndex === -1
+    ? 0
+    : (currentIndex + 1) % ASSIGNMENT_SPLIT_PANE_VIEW_SEQUENCE.length
+  return ASSIGNMENT_SPLIT_PANE_VIEW_SEQUENCE[nextIndex]
 }
 
 export function serializeAssignmentGradingLayout(

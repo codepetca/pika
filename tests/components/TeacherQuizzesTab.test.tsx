@@ -47,12 +47,15 @@ vi.mock('@/components/QuizDetailPanel', () => ({
   QuizDetailPanel: ({
     quiz,
     onQuizUpdate,
+    assessmentQuestionLayout,
   }: {
     quiz: QuizWithStats
     onQuizUpdate?: () => void
+    assessmentQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only'
   }) => (
     <div data-testid="mock-quiz-detail">
       Detail for {quiz.title}
+      <span data-testid="mock-quiz-detail-layout">{assessmentQuestionLayout || 'workspace'}</span>
       <button type="button" onClick={() => onQuizUpdate?.()}>
         Simulate quiz update
       </button>
@@ -192,6 +195,25 @@ describe('TeacherQuizzesTab', () => {
     expect(await screen.findByTestId('mock-quiz-detail')).toHaveTextContent('Detail for Loops Quiz')
     expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
     expect(setOpenMock).not.toHaveBeenCalledWith(true)
+  })
+
+  it('opens the quiz editor modal with an editor/code toggle', async () => {
+    mockQuizzesResponse([makeQuiz({ id: 'quiz-1', title: 'Loops Quiz' })])
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Loops Quiz'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Quiz' }))
+
+    expect(await screen.findByRole('dialog', { name: 'Edit Loops Quiz' })).toBeInTheDocument()
+    expect(screen.getAllByTestId('mock-quiz-detail-layout').map((item) => item.textContent)).toContain('editor-only')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Code' }))
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('mock-quiz-detail-layout').map((item) => item.textContent)).toContain(
+        'markdown-only'
+      )
+    })
   })
 
   it('reports quiz selection through search params', async () => {

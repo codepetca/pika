@@ -211,14 +211,7 @@ export function EmptyStateRow({
  * Wrapper component that adds keyboard navigation (↑/↓ arrows) to a table.
  * Use this to wrap TableCard when you need row selection with keyboard support.
  */
-export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable<K extends string>({
-  children,
-  rowKeys,
-  selectedKey,
-  onSelectKey,
-  onDeselect,
-  wrap = true,
-}: {
+type KeyboardNavigableTableProps<K extends string> = {
   children: ReactNode
   /** Array of row keys in display order */
   rowKeys: K[]
@@ -230,7 +223,19 @@ export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable
   onDeselect?: () => void
   /** Whether to wrap around at the ends (default: true) */
   wrap?: boolean
-}, ref: Ref<HTMLDivElement>) {
+} & Omit<HTMLAttributes<HTMLDivElement>, 'onKeyDown' | 'onSelect'>
+
+export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable<K extends string>({
+  children,
+  rowKeys,
+  selectedKey,
+  onSelectKey,
+  onDeselect,
+  wrap = true,
+  className = '',
+  tabIndex,
+  ...props
+}: KeyboardNavigableTableProps<K>, ref: Ref<HTMLDivElement>) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
       if (e.key === 'Escape' && selectedKey && onDeselect) {
@@ -275,20 +280,15 @@ export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable
 
   return (
     <div
+      {...props}
       ref={ref}
-      tabIndex={0}
+      tabIndex={tabIndex ?? 0}
       onKeyDown={handleKeyDown}
-      className="rounded-card outline-none"
+      className={['rounded-card outline-none', className].filter(Boolean).join(' ')}
     >
       {children}
     </div>
   )
-}) as <K extends string>(props: {
-  children: ReactNode
-  rowKeys: K[]
-  selectedKey: K | null
-  onSelectKey: (key: K) => void
-  onDeselect?: () => void
-  wrap?: boolean
+}) as <K extends string>(props: KeyboardNavigableTableProps<K> & {
   ref?: Ref<HTMLDivElement>
 }) => ReactNode

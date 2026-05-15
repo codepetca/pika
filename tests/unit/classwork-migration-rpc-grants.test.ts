@@ -12,17 +12,30 @@ function readMigration(relativePath: string) {
 describe('classwork mixed ordering migration', () => {
   it('keeps reorder RPCs behind the service-role API boundary', () => {
     const migration = readMigration('supabase/migrations/067_classwork_mixed_ordering.sql')
+    const surveyMigration = readMigration('supabase/migrations/068_surveys_classwork.sql')
 
     for (const functionName of [
       'reorder_classwork_items',
       'reorder_assignments_preserve_materials',
     ]) {
-      expect(migration).toContain(
+      const migrationText = `${migration}\n${surveyMigration}`
+
+      expect(migrationText).toContain(
         `revoke all on function public.${functionName}(uuid, jsonb) from public, anon, authenticated;`,
       )
-      expect(migration).toContain(
+      expect(migrationText).toContain(
         `grant execute on function public.${functionName}(uuid, jsonb) to service_role;`,
       )
     }
+  })
+
+  it('includes surveys in mixed classwork ordering', () => {
+    const migration = readMigration('supabase/migrations/068_surveys_classwork.sql')
+
+    expect(migration).toContain("item_type not in ('assignment', 'material', 'survey')")
+    expect(migration).toContain("select 'survey'::text as item_type")
+    expect(migration).toContain('update public.surveys survey')
+    expect(migration).toContain('create or replace function public.reorder_assignments_preserve_materials')
+    expect(migration).toContain('survey.position = next_position')
   })
 })

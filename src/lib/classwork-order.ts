@@ -1,4 +1,4 @@
-export type OrderedClassworkItem<TAssignment, TMaterial> =
+export type OrderedClassworkItem<TAssignment, TMaterial, TSurvey = never> =
   | {
       id: string
       type: 'assignment'
@@ -15,6 +15,14 @@ export type OrderedClassworkItem<TAssignment, TMaterial> =
       title: string
       material: TMaterial
     }
+  | {
+      id: string
+      type: 'survey'
+      position: number
+      createdAt: string
+      title: string
+      survey: TSurvey
+    }
 
 type AssignmentLike = {
   id: string
@@ -30,6 +38,13 @@ type MaterialLike = {
   created_at?: string | null
 }
 
+type SurveyLike = {
+  id: string
+  title: string
+  position?: number | null
+  created_at?: string | null
+}
+
 function normalizedPosition(position: number | null | undefined, fallback: number) {
   return typeof position === 'number' && Number.isFinite(position) ? position : fallback
 }
@@ -37,10 +52,12 @@ function normalizedPosition(position: number | null | undefined, fallback: numbe
 export function buildOrderedClassworkItems<
   TAssignment extends AssignmentLike,
   TMaterial extends MaterialLike,
+  TSurvey extends SurveyLike = never,
 >(
   assignments: TAssignment[],
   materials: TMaterial[],
-): OrderedClassworkItem<TAssignment, TMaterial>[] {
+  surveys: TSurvey[] = [],
+): OrderedClassworkItem<TAssignment, TMaterial, TSurvey>[] {
   const assignmentItems = assignments.map((assignment, index) => ({
     id: assignment.id,
     type: 'assignment' as const,
@@ -60,7 +77,17 @@ export function buildOrderedClassworkItems<
     material,
   }))
 
-  return [...assignmentItems, ...materialItems].sort((left, right) => {
+  const surveyOffset = assignments.length + materials.length
+  const surveyItems = surveys.map((survey, index) => ({
+    id: survey.id,
+    type: 'survey' as const,
+    position: normalizedPosition(survey.position, surveyOffset + index),
+    createdAt: survey.created_at || '',
+    title: survey.title,
+    survey,
+  }))
+
+  return [...assignmentItems, ...materialItems, ...surveyItems].sort((left, right) => {
     const positionDelta = left.position - right.position
     if (positionDelta !== 0) return positionDelta
 

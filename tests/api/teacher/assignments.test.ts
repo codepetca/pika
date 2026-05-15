@@ -289,6 +289,20 @@ describe('POST /api/teacher/assignments', () => {
         }
       }
 
+      if (table === 'surveys') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                })),
+              })),
+            })),
+          })),
+        }
+      }
+
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -330,6 +344,20 @@ describe('POST /api/teacher/assignments', () => {
               order: vi.fn(() => ({
                 limit: vi.fn(() => ({
                   maybeSingle: vi.fn().mockResolvedValue({ data: null, error: { message: 'database unavailable' } }),
+                })),
+              })),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'surveys') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
                 })),
               })),
             })),
