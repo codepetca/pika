@@ -167,6 +167,75 @@ describe('AssignmentModal', () => {
       expect(screen.getByRole('menuitem', { name: 'Draft' })).toBeInTheDocument()
     })
 
+    it('does not show release or scheduling controls for live assignments', () => {
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={{
+            ...baseAssignment,
+            is_draft: false,
+            released_at: '2025-01-01T12:00:00.000Z',
+          }}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      expect(screen.getByText('Saved')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Close assignment modal' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Post' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Schedule' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Choose assignment action' })).not.toBeInTheDocument()
+    })
+
+    it('saves live assignment edits without sending release fields', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      const liveAssignment = {
+        ...baseAssignment,
+        is_draft: false,
+        released_at: '2025-01-01T12:00:00.000Z',
+      }
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          assignment: {
+            ...liveAssignment,
+            title: 'Updated live title',
+          },
+        }),
+      })
+      const onSuccess = vi.fn()
+      const onClose = vi.fn()
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={liveAssignment}
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      )
+
+      fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Updated live title' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+      })
+
+      const [url, options] = fetchMock.mock.calls[0]
+      expect(url).toBe('/api/teacher/assignments/assignment-1')
+      expect(options.method).toBe('PATCH')
+      expect(JSON.parse(options.body)).toEqual({ title: 'Updated live title' })
+
+      await waitFor(() => {
+        expect(onSuccess).toHaveBeenCalled()
+        expect(onClose).toHaveBeenCalled()
+      })
+    })
+
     it('schedules release for draft assignments', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
