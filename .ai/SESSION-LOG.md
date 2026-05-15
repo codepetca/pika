@@ -7,23 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-13 — Selected test pane scrolling
-
-**Completed:**
-- Updated the selected teacher test grading workspace to frame the grading table and response inspector with the same full-height pane pattern used by assignment workspaces.
-- Made the student grading table fill the left pane and keep its own scroll container.
-- Made the selected student response inspector keep its own right-pane scroll container.
-- Added regression coverage for the selected test grading pane scroll containers.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-pane-scroll bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-pane-scroll bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests&testId=92120fed-7145-4118-a8ad-117e7962d679&testMode=grading&testStudentId=23977f0b-efb8-4408-98cb-2e6887c4fd7e'`
-- DOM scroll check: window stayed at `scrollY=0`, left table pane filled the workspace, right inspector reported `overflow-y: auto` with independent scroll.
-- Temporary sample tests were seeded for the visual capture and removed afterward; the shared classroom test list returned to empty.
-- `pnpm test`
-
 ## 2026-05-13 — Teacher test student arrow navigation
 
 **Completed:**
@@ -392,3 +375,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
     - `/tmp/pika-chrome-smoke-teacher-alert.png`
     - `/tmp/pika-chrome-smoke-teacher-clicked.png`
     - `/tmp/pika-chrome-smoke-student-pulse.png`
+
+## 2026-05-15 — Released assignment scheduling controls
+
+**Completed:**
+- Removed post/schedule split controls from the live assignment editor while keeping normal edit autosave/close behavior.
+- Guarded assignment scheduling hook actions so live assignments do not attempt post, schedule, or revert-to-draft requests.
+- Added regression coverage for live assignment edits saving without release fields and for live assignments exposing no scheduling actions.
+
+**Validation:**
+- `pnpm test tests/hooks/useAssignmentScheduling.test.ts tests/components/AssignmentModal.test.tsx`
+- `pnpm lint`
+- `pnpm test tests/api/teacher/assignments-id.test.ts tests/lib/assignment-schedule-validation.test.ts tests/unit/assignments.test.ts`
+- `pnpm test`
+- `pnpm build`
+- UI verification on `http://localhost:3001`:
+  - `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/fix-released-assignment-scheduling E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/fix-released-assignment-scheduling/.codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+  - Targeted live-assignment editor screenshot: `/tmp/pika-live-assignment-editor.png`

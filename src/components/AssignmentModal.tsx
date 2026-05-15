@@ -752,7 +752,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  {currentAssignment ? (
+                  {currentAssignment && !isLive ? (
                     <SplitButton
                       label={primaryLabel}
                       onPrimaryClick={() => {
