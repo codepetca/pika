@@ -7,34 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-13 — Teacher test student arrow navigation
-
-**Completed:**
-- Put the selected teacher test grading student list on the shared `KeyboardNavigableTable` and `DataTable` primitives used by assignment student tables.
-- Extended `KeyboardNavigableTable` so it can own scroll-pane props like `className`, `data-testid`, and `onScroll` while preserving its arrow-key selection behavior.
-- Added regression coverage for moving the selected test student with ArrowDown and ArrowUp.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-arrow-key-navigation bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/DataTable.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx`
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/test-arrow-key-navigation bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests&testId=88a8b3b5-7559-417e-8d16-c53175a3d692&testMode=grading&testStudentId=23977f0b-efb8-4408-98cb-2e6887c4fd7e'`
-- Browser smoke check: clicked the selected student row, pressed ArrowDown, and confirmed the URL, selected row, and grading inspector moved from Student1 to Student2.
-- Temporary verification test `88a8b3b5-7559-417e-8d16-c53175a3d692` was deleted after screenshots and browser checks.
-- `pnpm build`
-- `pnpm test`
-
-## 2026-05-13 — Chrome plugin UI verification guidance
-
-**Completed:**
-- Documented Playwright as the required final path for E2E tests, UI verification scripts, and screenshot artifacts.
-- Clarified that Chrome plugin checks are supplemental for exploratory debugging, browser-profile behavior, remote auth, extension, cookie, and interactive inspection cases.
-- Updated the AI routing doc, UI testing guide, testing strategy, and Codex UI verification prompt.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/chrome-ui-guidance bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/ui-guidance-candidate-script.test.ts`
-
 ## 2026-05-13 — Classroom list edit control placement
 
 **Completed:**
@@ -392,3 +364,28 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - UI verification on `http://localhost:3001`:
   - `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/fix-released-assignment-scheduling E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/fix-released-assignment-scheduling/.codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
   - Targeted live-assignment editor screenshot: `/tmp/pika-live-assignment-editor.png`
+
+## 2026-05-17 — Student exam-mode route-exit e2e
+
+**Completed:**
+- Added focused Playwright coverage for an active student test that blocks Home navigation, records route-exit telemetry, and preserves an autosaved open-response draft.
+- Reused the existing student exam-mode e2e setup and cleanup helpers; no app logic or migrations changed.
+- Environment setup required ignored symlinks for shared `node_modules` and `.env.local`.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop` failed because the sandbox denied Next.js listening on `0.0.0.0:3000`.
+- `HOSTNAME=127.0.0.1 E2E_BASE_URL=http://127.0.0.1:3020 pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop` failed for the same `listen EPERM` restriction on `0.0.0.0:3020`.
+
+## 2026-05-17 — Exam route-exit e2e review fix
+
+**Completed:**
+- Tightened the student exam-mode route-exit e2e telemetry assertion so it scopes to the test documents pane instead of matching any visible `Exits` badge.
+- Confirmed the narrow Playwright spec now runs successfully in the current environment.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop`
