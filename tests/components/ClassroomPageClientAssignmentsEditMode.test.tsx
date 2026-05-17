@@ -12,11 +12,22 @@ const mockClassDays = vi.hoisted(() => [
 ])
 
 vi.mock('@/app/classrooms/[classroomId]/TeacherClassroomView', () => ({
-  TeacherClassroomView: ({ onEditModeChange, onSelectAssignment, onViewModeChange }: any) => (
+  TeacherClassroomView: ({
+    onEditModeChange,
+    onOpenMarkdownEditor,
+    onSelectAssignment,
+    onViewModeChange,
+    showMarkdownEditorOption,
+  }: any) => (
     <div>
       <button type="button" onClick={() => onEditModeChange?.(true)}>
         Set assignment edit active
       </button>
+      {showMarkdownEditorOption ? (
+        <button type="button" onClick={onOpenMarkdownEditor}>
+          Edit Markdown
+        </button>
+      ) : null}
       <button type="button" onClick={() => onEditModeChange?.(false)}>
         Set assignment edit inactive
       </button>
@@ -31,7 +42,7 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherClassroomView', () => ({
       </button>
     </div>
   ),
-  TeacherAssignmentsMarkdownSidebar: ({ markdownContent }: any) => (
+  TeacherAssignmentsMarkdownEditor: ({ markdownContent }: any) => (
     <div>Markdown editor: {markdownContent}</div>
   ),
 }))
@@ -131,7 +142,15 @@ vi.mock('@/lib/timezone', () => ({
 }))
 
 vi.mock('@/ui', () => ({
+  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
   ConfirmDialog: () => null,
+  DialogPanel: ({ isOpen, children, ariaLabelledBy }: any) => (
+    isOpen ? (
+      <div role="dialog" aria-labelledby={ariaLabelledBy}>
+        {children}
+      </div>
+    ) : null
+  ),
   TabContentTransition: ({ children, isActive }: any) => (isActive ? <>{children}</> : null),
 }))
 
@@ -347,20 +366,21 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     })
   })
 
-  it('opens assignment markdown when assignment edit mode activates and closes it when edit mode turns off', async () => {
+  it('opens assignment markdown from the assignments FAB dropdown and closes it from the modal', async () => {
     renderClient()
 
     expect(screen.queryByText(/Markdown editor:/)).not.toBeInTheDocument()
     expect(mockFetchJSONWithCache).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Set assignment edit active' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Markdown' }))
 
     await waitFor(() => {
       expect(screen.getByText('Markdown editor: ## Assignment One')).toBeInTheDocument()
     })
+    expect(screen.getByRole('dialog', { name: 'Edit Markdown' })).toBeInTheDocument()
     expect(mockFetchJSONWithCache).toHaveBeenCalledTimes(1)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Set assignment edit inactive' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     await waitFor(() => {
       expect(screen.queryByText(/Markdown editor:/)).not.toBeInTheDocument()
@@ -478,30 +498,20 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
   })
 
-  it('does not reopen assignment markdown after the teacher manually closes the panel', async () => {
+  it('does not open assignment markdown when assignment edit mode activates', async () => {
     renderClient()
 
     fireEvent.click(screen.getByRole('button', { name: 'Set assignment edit active' }))
 
-    await waitFor(() => {
-      expect(screen.getByText('Markdown editor: ## Assignment One')).toBeInTheDocument()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Close panel' }))
-
-    await waitFor(() => {
-      expect(screen.queryByText(/Markdown editor:/)).not.toBeInTheDocument()
-    })
-
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(screen.queryByText(/Markdown editor:/)).not.toBeInTheDocument()
-    expect(mockFetchJSONWithCache).toHaveBeenCalledTimes(1)
+    expect(mockFetchJSONWithCache).not.toHaveBeenCalled()
   })
 
   it('clears assignment edit and markdown mode when route navigation leaves assignments', async () => {
     renderClient()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Set assignment edit active' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Markdown' }))
 
     await waitFor(() => {
       expect(screen.getByText('Markdown editor: ## Assignment One')).toBeInTheDocument()
@@ -520,11 +530,14 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     window.localStorage.setItem('pika_show_markdown', 'false')
     renderClient()
 
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Edit Markdown' })).not.toBeInTheDocument()
+    })
+
     fireEvent.click(screen.getByRole('button', { name: 'Set assignment edit active' }))
 
-    await waitFor(() => {
-      expect(mockFetchJSONWithCache).not.toHaveBeenCalled()
-    })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(mockFetchJSONWithCache).not.toHaveBeenCalled()
     expect(screen.queryByText(/Markdown editor:/)).not.toBeInTheDocument()
   })
 })

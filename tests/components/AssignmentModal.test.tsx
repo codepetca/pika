@@ -65,10 +65,12 @@ describe('AssignmentModal', () => {
       expect(screen.getByLabelText(/Title/)).toHaveValue('Original title')
       expect(screen.getByDisplayValue('2025-01-15')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Wed Jan 15' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Previous day' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Next day' })).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Close assignment modal' })).toBeInTheDocument()
     })
 
-    it('renders a markdown-only instructions editor with formatting buttons', () => {
+    it('renders a markdown-only instructions editor with formatting buttons and a preview modal', async () => {
       render(
         <AssignmentModal
           isOpen={true}
@@ -90,6 +92,7 @@ describe('AssignmentModal', () => {
       expect(screen.getByRole('button', { name: 'Bullet list' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Link' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Inline code' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
 
       const instructions = screen.getByPlaceholderText('Assignment instructions') as HTMLTextAreaElement
       instructions.focus()
@@ -108,9 +111,18 @@ describe('AssignmentModal', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Redo' }))
 
       expect(instructions).toHaveValue('**Original** instructions')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
+
+      const previewDialog = await screen.findByRole('dialog', { name: 'Instructions' })
+      expect(within(previewDialog).getByText((_content, element) => (
+        element?.tagName.toLowerCase() === 'p' && element.textContent === 'Original instructions'
+      ))).toBeInTheDocument()
+      expect(within(previewDialog).queryByText('Original title')).not.toBeInTheDocument()
+      expect(within(previewDialog).queryByText('Close')).not.toBeInTheDocument()
     })
 
-    it('hides markdown instruction tools when the user preference is off', async () => {
+    it('keeps markdown instruction tools visible when the user preference is off', async () => {
       window.localStorage.setItem('pika_show_markdown', 'false')
 
       render(
@@ -126,10 +138,10 @@ describe('AssignmentModal', () => {
       )
 
       await waitFor(() => {
-        expect(screen.queryByRole('button', { name: 'Heading' })).not.toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Heading' })).toBeInTheDocument()
       })
-      expect(screen.queryByRole('button', { name: 'Bold' })).not.toBeInTheDocument()
-      expect(screen.queryByText('Preview')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
       expect(screen.getByPlaceholderText('Assignment instructions')).toHaveValue('Original instructions')
     })
 
