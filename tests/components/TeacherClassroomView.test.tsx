@@ -603,14 +603,17 @@ describe('TeacherClassroomView', () => {
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
   })
 
-  it('keeps New visible without a Code action while edit mode is active', async () => {
+  it('keeps New visible with an Edit Markdown dropdown action while edit mode is active', async () => {
     const onEditModeChange = vi.fn()
+    const onOpenMarkdownEditor = vi.fn()
 
     render(
       <TeacherClassroomView
         classroom={classroom}
         selectedAssignmentId={null}
         onEditModeChange={onEditModeChange}
+        onOpenMarkdownEditor={onOpenMarkdownEditor}
+        showMarkdownEditorOption
       />,
     )
 
@@ -619,13 +622,18 @@ describe('TeacherClassroomView', () => {
     })
 
     expect(screen.getByRole('button', { name: 'New assignment' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit Markdown' })).toBeInTheDocument()
     expect(screen.getByTestId('assignment-summary-actionbar-center')).toHaveClass('grid')
     expect(screen.getByRole('button', { name: 'New assignment' }).closest('.fixed')).toHaveClass('fixed')
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
 
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Markdown' }))
+    expect(onOpenMarkdownEditor).toHaveBeenCalledTimes(1)
+
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
 
     expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Edit Markdown' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
     expect(onEditModeChange).toHaveBeenLastCalledWith(true)
 

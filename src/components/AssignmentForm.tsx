@@ -2,10 +2,9 @@
 
 import { useId, useRef } from 'react'
 import type { KeyboardEvent, ReactNode, RefObject } from 'react'
+import { Eye } from 'lucide-react'
 import { Input, Button } from '@/ui'
 import { DateActionBar } from '@/components/DateActionBar'
-import { LimitedMarkdown } from '@/components/LimitedMarkdown'
-import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { BoldIcon } from '@/components/tiptap-icons/bold-icon'
 import { Code2Icon } from '@/components/tiptap-icons/code2-icon'
 import { ItalicIcon } from '@/components/tiptap-icons/italic-icon'
@@ -27,8 +26,7 @@ interface AssignmentFormProps {
   onInstructionsUndo: () => void
   onInstructionsRedo: () => void
   onDueAtChange: (next: string) => void
-  onPrevDate: () => void
-  onNextDate: () => void
+  onPreviewInstructions?: () => void
   disabled?: boolean
   error?: string
   titleInputRef?: RefObject<HTMLInputElement>
@@ -52,8 +50,7 @@ export function AssignmentForm({
   onInstructionsUndo,
   onInstructionsRedo,
   onDueAtChange,
-  onPrevDate,
-  onNextDate,
+  onPreviewInstructions,
   disabled = false,
   error,
   titleInputRef,
@@ -67,7 +64,12 @@ export function AssignmentForm({
 }: AssignmentFormProps) {
   const instructionsRef = useRef<HTMLTextAreaElement>(null)
   const titleFieldId = useId()
-  const { showMarkdown } = useMarkdownPreference()
+  const topRowGridClassName = topRowActions
+    ? 'grid-cols-[minmax(2.75rem,1fr)_auto_auto] sm:grid-cols-[minmax(9rem,1fr)_auto_auto]'
+    : 'grid-cols-[minmax(0,1fr)_auto]'
+  const titleFieldClassName = topRowActions
+    ? 'min-w-0 max-w-[22rem] space-y-1 sm:max-w-[24rem]'
+    : 'min-w-0 space-y-1'
 
   function applyWrapFormatting(prefix: string, suffix = prefix) {
     const textarea = instructionsRef.current
@@ -155,8 +157,8 @@ export function AssignmentForm({
 
   return (
     <div className={fillHeight ? 'flex h-full min-h-0 w-full flex-col gap-3' : 'space-y-3 w-full'}>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end lg:gap-x-8">
-        <div className="min-w-0 space-y-1">
+      <div className={`grid items-end gap-1.5 sm:gap-2 ${topRowGridClassName}`}>
+        <div className={titleFieldClassName}>
           <label htmlFor={titleFieldId} className="block text-sm font-medium text-text-default">
             Title
             <span className="ml-1 text-danger">*</span>
@@ -175,7 +177,7 @@ export function AssignmentForm({
           />
         </div>
 
-        <div className="space-y-1">
+        <div className="w-[6.75rem] space-y-1 sm:w-[8.25rem]">
           {(() => {
             const relative = getRelativeDueDate(dueAt, classDays)
             const labelText = relative ? `Due ${relative.text}` : 'Due Date'
@@ -185,7 +187,7 @@ export function AssignmentForm({
                 : 'text-primary'
               : 'text-text-muted'
             return (
-              <div className={`text-sm font-medium ${colorClass}`}>
+              <div className={`truncate text-sm font-medium ${colorClass}`}>
                 {labelText}
               </div>
             )
@@ -194,29 +196,39 @@ export function AssignmentForm({
             <DateActionBar
               value={dueAt}
               onChange={onDueAtChange}
-              onPrev={onPrevDate}
-              onNext={onNextDate}
               layout="compact"
             />
           </div>
         </div>
 
         {topRowActions && (
-          <div className="space-y-1 lg:justify-self-end lg:pl-2">
+          <div className="min-w-0">
             {topRowActions}
           </div>
         )}
       </div>
 
       <div className={fillHeight ? 'flex min-h-0 flex-1 flex-col space-y-1' : 'space-y-1'}>
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <label className="block text-sm font-medium text-text-default">
             Instructions
           </label>
-          <div className="justify-self-center">
+          <div className="flex items-center gap-3">
             {statusContent}
+            {onPreviewInstructions && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={onPreviewInstructions}
+                disabled={disabled}
+                className="gap-1.5"
+              >
+                <Eye className="h-4 w-4" aria-hidden="true" />
+                Preview
+              </Button>
+            )}
           </div>
-          <div aria-hidden="true" />
         </div>
         <div className={fillHeight ? 'flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border-strong' : 'rounded-lg border border-border-strong overflow-hidden'}>
           {markdownWarning && (
@@ -224,73 +236,43 @@ export function AssignmentForm({
               {markdownWarning}
             </div>
           )}
-          {showMarkdown ? (
-            <div className={fillHeight ? 'grid min-h-0 flex-1 gap-0 md:grid-cols-2' : 'grid min-h-[400px] gap-0 md:grid-cols-2 lg:min-h-[460px]'}>
-              <div className="flex h-full min-h-0 flex-col border-b border-border md:border-b-0 md:border-r md:border-border">
-                <div className="flex flex-wrap gap-1 border-b border-border bg-surface px-2 py-2">
-                  <Button type="button" variant="ghost" size="sm" onClick={onInstructionsUndo} disabled={disabled || !canUndoInstructions} className="h-8 w-8 px-0" aria-label="Undo" title="Undo">
-                    <Undo2Icon className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={onInstructionsRedo} disabled={disabled || !canRedoInstructions} className="h-8 w-8 px-0" aria-label="Redo" title="Redo">
-                    <Redo2Icon className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => applyLinePrefix('### ')} disabled={disabled} className="h-8 w-8 px-0 text-sm font-bold" aria-label="Heading" title="Heading">
-                    H
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => applyWrapFormatting('**')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Bold" title="Bold">
-                    <BoldIcon className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => applyWrapFormatting('*')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Italic" title="Italic">
-                    <ItalicIcon className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => applyLinePrefix('- ')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Bullet list" title="Bullet list">
-                    <ListIcon className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => applyLinkFormatting()} disabled={disabled} className="h-8 w-8 px-0" aria-label="Link" title="Link">
-                    <LinkIcon className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => applyWrapFormatting('`')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Inline code" title="Inline code">
-                    <Code2Icon className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                </div>
-                <textarea
-                  ref={instructionsRef}
-                  value={instructionsMarkdown}
-                  onChange={(e) => onInstructionsMarkdownChange(e.target.value)}
-                  onKeyDown={handleInstructionsKeyDown}
-                  onBlur={onBlur}
-                  placeholder="Assignment instructions"
-                  disabled={disabled}
-                  spellCheck={false}
-                  className={fillHeight ? 'h-full min-h-0 w-full flex-1 resize-none border-0 bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-0' : 'h-full min-h-[360px] w-full flex-1 resize-none border-0 bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-0 lg:min-h-[420px]'}
-                />
-              </div>
-              <div className="flex min-h-0 flex-col bg-page">
-                <div className="px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">
-                  Preview
-                </div>
-                <div className={fillHeight ? 'min-h-0 flex-1 overflow-y-auto px-3 pb-3' : 'min-h-[360px] px-3 pb-3 lg:min-h-[420px]'}>
-                  <LimitedMarkdown
-                    content={instructionsMarkdown}
-                    emptyPlaceholder={<div className="text-sm text-text-muted">No assignment details provided.</div>}
-                  />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className={fillHeight ? 'flex min-h-0 flex-1' : 'min-h-[400px] lg:min-h-[460px]'}>
-              <textarea
-                ref={instructionsRef}
-                value={instructionsMarkdown}
-                onChange={(e) => onInstructionsMarkdownChange(e.target.value)}
-                onKeyDown={handleInstructionsKeyDown}
-                onBlur={onBlur}
-                placeholder="Assignment instructions"
-                disabled={disabled}
-                className={fillHeight ? 'min-h-0 w-full flex-1 resize-none border-0 bg-surface p-3 text-sm leading-6 text-text-default focus:outline-none focus:ring-0' : 'min-h-[400px] w-full resize-none border-0 bg-surface p-3 text-sm leading-6 text-text-default focus:outline-none focus:ring-0 lg:min-h-[460px]'}
-              />
-            </div>
-          )}
+          <div className="flex flex-wrap gap-1 border-b border-border bg-surface px-2 py-2">
+            <Button type="button" variant="ghost" size="sm" onClick={onInstructionsUndo} disabled={disabled || !canUndoInstructions} className="h-8 w-8 px-0" aria-label="Undo" title="Undo">
+              <Undo2Icon className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={onInstructionsRedo} disabled={disabled || !canRedoInstructions} className="h-8 w-8 px-0" aria-label="Redo" title="Redo">
+              <Redo2Icon className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => applyLinePrefix('### ')} disabled={disabled} className="h-8 w-8 px-0 text-sm font-bold" aria-label="Heading" title="Heading">
+              H
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => applyWrapFormatting('**')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Bold" title="Bold">
+              <BoldIcon className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => applyWrapFormatting('*')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Italic" title="Italic">
+              <ItalicIcon className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => applyLinePrefix('- ')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Bullet list" title="Bullet list">
+              <ListIcon className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => applyLinkFormatting()} disabled={disabled} className="h-8 w-8 px-0" aria-label="Link" title="Link">
+              <LinkIcon className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => applyWrapFormatting('`')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Inline code" title="Inline code">
+              <Code2Icon className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>
+          <textarea
+            ref={instructionsRef}
+            value={instructionsMarkdown}
+            onChange={(e) => onInstructionsMarkdownChange(e.target.value)}
+            onKeyDown={handleInstructionsKeyDown}
+            onBlur={onBlur}
+            placeholder="Assignment instructions"
+            disabled={disabled}
+            spellCheck={false}
+            className={fillHeight ? 'min-h-0 w-full flex-1 resize-none border-0 bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-0' : 'min-h-[420px] w-full resize-none border-0 bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-0'}
+          />
         </div>
       </div>
 
