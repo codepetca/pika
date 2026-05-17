@@ -146,6 +146,8 @@ interface Props {
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
   onViewModeChange?: (mode: AssignmentViewMode) => void
   onEditModeChange?: (active: boolean) => void
+  onOpenMarkdownEditor?: () => void
+  showMarkdownEditorOption?: boolean
   isActive?: boolean
   selectedAssignmentId?: string | null
   selectedMaterialId?: string | null
@@ -563,6 +565,8 @@ export function TeacherClassroomView({
   onSelectAssignment,
   onViewModeChange,
   onEditModeChange,
+  onOpenMarkdownEditor,
+  showMarkdownEditorOption = false,
   isActive = true,
   selectedAssignmentId: selectedAssignmentIdProp,
   selectedSurveyId: selectedSurveyIdProp,
@@ -2330,6 +2334,21 @@ export function TeacherClassroomView({
                       label: 'Survey',
                       onSelect: () => setIsSurveyModalOpen(true),
                     },
+                    ...(showMarkdownEditorOption
+                      ? [
+                          {
+                            id: 'edit-markdown',
+                            label: (
+                              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                                <FileText className="h-4 w-4" aria-hidden="true" />
+                                <span>Edit Markdown</span>
+                              </span>
+                            ),
+                            onSelect: () => onOpenMarkdownEditor?.(),
+                            disabled: !onOpenMarkdownEditor || isReadOnly,
+                          },
+                        ]
+                      : []),
                   ]}
                   disabled={isReadOnly}
                   toggleAriaLabel="Choose classwork type"
@@ -2650,8 +2669,7 @@ export function TeacherClassroomView({
   )
 }
 
-// Sidebar content component - rendered via page.tsx
-export function TeacherAssignmentsMarkdownSidebar({
+export function TeacherAssignmentsMarkdownEditor({
   markdownContent,
   markdownError,
   markdownWarning,
@@ -2699,6 +2717,7 @@ export function TeacherAssignmentsMarkdownSidebar({
       )}
 
       <textarea
+        aria-label="Assignments markdown"
         value={markdownContent}
         onChange={(e) => onMarkdownChange(e.target.value)}
         onKeyDown={handleKeyDown}

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { AppShell } from '@/components/AppShell'
-import { TeacherClassroomView, TeacherAssignmentsMarkdownSidebar, type AssignmentViewMode } from './TeacherClassroomView'
+import { TeacherClassroomView, TeacherAssignmentsMarkdownEditor, type AssignmentViewMode } from './TeacherClassroomView'
 import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-markdown'
 import { StudentTodayTab } from './StudentTodayTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
@@ -34,7 +34,7 @@ import {
   useMobileDrawer,
   useRightSidebar,
 } from '@/components/layout'
-import { DESKTOP_BREAKPOINT, getRouteKeyFromTab } from '@/lib/layout-config'
+import { getRouteKeyFromTab } from '@/lib/layout-config'
 import { RichTextViewer } from '@/components/editor'
 import { Spinner } from '@/components/Spinner'
 import {
@@ -45,10 +45,10 @@ import {
 } from '@/lib/events'
 import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
-import { ConfirmDialog, TabContentTransition } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, TabContentTransition } from '@/ui'
 import { PageDensityProvider } from '@/components/PageLayout'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
-import { fetchJSONWithCache, prefetchJSON } from '@/lib/request-cache'
+import { fetchJSONWithCache, invalidateCachedJSON, prefetchJSON } from '@/lib/request-cache'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
 import { getTodayInToronto } from '@/lib/timezone'
 import type {
@@ -354,7 +354,7 @@ function ClassroomPageContent({
   searchParams: URLSearchParams
   updateSearchParams: UpdateSearchParamsFn
 }) {
-  const { openLeft, openRight, close: closeMobileDrawer } = useMobileDrawer()
+  const { openLeft, close: closeMobileDrawer } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
   const { classDays } = useClassDaysContext()
   const { showMarkdown } = useMarkdownPreference()
@@ -599,10 +599,10 @@ function ClassroomPageContent({
     setTeacherTestPreview(null)
   }, [selectedQuiz, teacherTestPreview])
 
-  // State for markdown mode (teacher assignments tab - summary view only)
+  // State for markdown editing (teacher assignments tab - summary view only)
   const [assignmentViewMode, setAssignmentViewMode] = useState<AssignmentViewMode>('summary')
   const [assignmentEditMode, setAssignmentEditMode] = useState(false)
-  const [isMarkdownMode, setIsMarkdownMode] = useState(false)
+  const [isAssignmentMarkdownDialogOpen, setIsAssignmentMarkdownDialogOpen] = useState(false)
   const [markdownContent, setMarkdownContent] = useState('')
   const [markdownError, setMarkdownError] = useState<string | null>(null)
   const [markdownWarning, setMarkdownWarning] = useState<string | null>(null)
@@ -613,8 +613,6 @@ function ClassroomPageContent({
   const [assignmentsCache, setAssignmentsCache] = useState<Assignment[]>([])
 
   // Track previous states for detecting transitions
-  const prevSidebarOpenRef = useRef(false)
-  const prevAssignmentMarkdownAutoOpenReadyRef = useRef(false)
   const abortControllerRef = useRef<AbortController | null>(null)
   const markdownStaleRef = useRef(true) // Start stale so first open loads
 
@@ -674,7 +672,7 @@ function ClassroomPageContent({
     setAssignmentViewMode(mode)
     if (mode === 'assignment') {
       setAssignmentEditMode(false)
-      setIsMarkdownMode(false)
+      setIsAssignmentMarkdownDialogOpen(false)
       // Abort any in-flight markdown load to prevent it from re-enabling markdown mode
       abortControllerRef.current?.abort()
     }
@@ -692,7 +690,6 @@ function ClassroomPageContent({
     setMarkdownWarning(null)
     setWarningsAcknowledged(false)
     setMarkdownLoading(true)
-    setIsMarkdownMode(true)
 
     try {
       const data = await fetchJSONWithCache<{ assignments?: Assignment[] }>(
@@ -712,7 +709,6 @@ function ClassroomPageContent({
       const result = assignmentsToMarkdown(assignments)
       setMarkdownContent(result.markdown)
       setHasRichContent(result.hasRichContent)
-      setRightSidebarWidth('50%')
       markdownStaleRef.current = false
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
@@ -723,62 +719,29 @@ function ClassroomPageContent({
     } finally {
       setMarkdownLoading(false)
     }
-  }, [classroom.id, setRightSidebarWidth])
+  }, [classroom.id])
 
-  const openAssignmentsMarkdownPanel = useCallback(() => {
-    if (!showMarkdown) return
+  const closeAssignmentsMarkdownDialog = useCallback(() => {
+    setIsAssignmentMarkdownDialogOpen(false)
+  }, [])
 
-    setRightSidebarWidth('50%')
-    setRightSidebarOpen(true)
-    if (typeof window !== 'undefined' && window.innerWidth < DESKTOP_BREAKPOINT) {
-      openRight()
-    }
+  const openAssignmentsMarkdownDialog = useCallback(() => {
+    if (!showMarkdown || assignmentViewMode !== 'summary') return
 
-    if (markdownStaleRef.current || !isMarkdownMode) {
-      loadAssignmentsMarkdown()
-    } else {
-      setIsMarkdownMode(true)
+    setIsAssignmentMarkdownDialogOpen(true)
+    if (markdownStaleRef.current || !markdownContent) {
+      void loadAssignmentsMarkdown()
     }
   }, [
-    isMarkdownMode,
+    assignmentViewMode,
     loadAssignmentsMarkdown,
-    openRight,
+    markdownContent,
     showMarkdown,
-    setRightSidebarOpen,
-    setRightSidebarWidth,
   ])
 
   const handleAssignmentsEditModeChange = useCallback((active: boolean) => {
     setAssignmentEditMode(active)
   }, [])
-
-  const assignmentMarkdownAutoOpenReady =
-    showMarkdown && isTeacher && activeTab === 'assignments' && assignmentEditMode && assignmentViewMode === 'summary'
-
-  // Detect sidebar close for assignments tab. Markdown mode opens by default when summary edit mode starts.
-  useEffect(() => {
-    const wasOpen = prevSidebarOpenRef.current
-    prevSidebarOpenRef.current = isRightSidebarOpen
-
-    if (!isTeacher || activeTab !== 'assignments') return
-
-    if (!showMarkdown || !assignmentEditMode || assignmentViewMode !== 'summary') {
-      setIsMarkdownMode(false)
-      return
-    }
-
-    if (!isRightSidebarOpen && wasOpen) {
-      setIsMarkdownMode(false)
-    }
-  }, [isRightSidebarOpen, isTeacher, activeTab, assignmentEditMode, assignmentViewMode, showMarkdown])
-
-  useEffect(() => {
-    const wasReady = prevAssignmentMarkdownAutoOpenReadyRef.current
-    prevAssignmentMarkdownAutoOpenReadyRef.current = assignmentMarkdownAutoOpenReady
-
-    if (!assignmentMarkdownAutoOpenReady || wasReady) return
-    openAssignmentsMarkdownPanel()
-  }, [assignmentMarkdownAutoOpenReady, openAssignmentsMarkdownPanel])
 
   useEffect(() => {
     if (!isTeacher || activeTab === 'assignments') return
@@ -786,53 +749,38 @@ function ClassroomPageContent({
     if (assignmentEditMode) {
       setAssignmentEditMode(false)
     }
-    if (isMarkdownMode) {
-      setIsMarkdownMode(false)
+    if (isAssignmentMarkdownDialogOpen) {
+      setIsAssignmentMarkdownDialogOpen(false)
     }
-    if (assignmentEditMode || isMarkdownMode) {
+    if (assignmentEditMode || isAssignmentMarkdownDialogOpen) {
       abortControllerRef.current?.abort()
-    }
-    if (isMarkdownMode && isRightSidebarOpen) {
-      setRightSidebarOpen(false)
-      closeMobileDrawer()
     }
   }, [
     activeTab,
     assignmentEditMode,
-    closeMobileDrawer,
-    isMarkdownMode,
-    isRightSidebarOpen,
+    isAssignmentMarkdownDialogOpen,
     isTeacher,
-    setRightSidebarOpen,
   ])
 
   useEffect(() => {
     if (!isTeacher || activeTab !== 'assignments') return
-    if (showMarkdown && assignmentEditMode && assignmentViewMode === 'summary') return
+    if (showMarkdown && assignmentViewMode === 'summary') return
 
-    if (isMarkdownMode) {
-      setIsMarkdownMode(false)
+    if (isAssignmentMarkdownDialogOpen) {
+      setIsAssignmentMarkdownDialogOpen(false)
     }
     abortControllerRef.current?.abort()
-    if (isRightSidebarOpen) {
-      setRightSidebarOpen(false)
-      closeMobileDrawer()
-    }
   }, [
     activeTab,
-    assignmentEditMode,
     assignmentViewMode,
-    closeMobileDrawer,
-    isMarkdownMode,
-    isRightSidebarOpen,
+    isAssignmentMarkdownDialogOpen,
     isTeacher,
     showMarkdown,
-    setRightSidebarOpen,
   ])
 
   // Refresh markdown when assignments are updated
   useEffect(() => {
-    if (!showMarkdown || !isTeacher || activeTab !== 'assignments' || assignmentViewMode !== 'summary' || !assignmentEditMode || !isMarkdownMode) return
+    if (!showMarkdown || !isTeacher || activeTab !== 'assignments' || assignmentViewMode !== 'summary' || !isAssignmentMarkdownDialogOpen) return
 
     const handleAssignmentsUpdated = () => {
       markdownStaleRef.current = true
@@ -843,7 +791,7 @@ function ClassroomPageContent({
     return () => {
       window.removeEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, handleAssignmentsUpdated)
     }
-  }, [showMarkdown, isTeacher, activeTab, assignmentEditMode, assignmentViewMode, isMarkdownMode, loadAssignmentsMarkdown])
+  }, [showMarkdown, isTeacher, activeTab, assignmentViewMode, isAssignmentMarkdownDialogOpen, loadAssignmentsMarkdown])
 
   const handleMarkdownContentChange = useCallback((content: string) => {
     setMarkdownContent(content)
@@ -852,7 +800,7 @@ function ClassroomPageContent({
     setWarningsAcknowledged(false)
   }, [])
 
-  const handleMarkdownSave = useCallback(async () => {
+  const handleMarkdownSave = useCallback(async (options?: { ignoreWarnings?: boolean }) => {
     setMarkdownError(null)
     setBulkSaving(true)
 
@@ -865,7 +813,7 @@ function ClassroomPageContent({
         return
       }
 
-      if (result.warnings.length > 0 && !warningsAcknowledged) {
+      if (result.warnings.length > 0 && !warningsAcknowledged && !options?.ignoreWarnings) {
         setMarkdownWarning(result.warnings.join('\n'))
         setBulkSaving(false)
         return
@@ -887,8 +835,9 @@ function ClassroomPageContent({
         return
       }
 
-      setIsMarkdownMode(false)
-      setRightSidebarOpen(false)
+      invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
+      markdownStaleRef.current = true
+      setIsAssignmentMarkdownDialogOpen(false)
       setMarkdownWarning(null)
       setWarningsAcknowledged(false)
 
@@ -903,11 +852,7 @@ function ClassroomPageContent({
     } finally {
       setBulkSaving(false)
     }
-  }, [markdownContent, assignmentsCache, classroom.id, setRightSidebarOpen, warningsAcknowledged])
-
-  const handleAcknowledgeWarnings = useCallback(() => {
-    setWarningsAcknowledged(true)
-  }, [])
+  }, [markdownContent, assignmentsCache, classroom.id, warningsAcknowledged])
 
   useEffect(() => {
     if (isTeacher && activeTab === 'assignments') {
@@ -922,7 +867,7 @@ function ClassroomPageContent({
   useEffect(() => {
     if (!isTeacher || activeTab !== 'assignments') return
     if (assignmentViewMode !== 'assignment') return
-    setIsMarkdownMode(false)
+    setIsAssignmentMarkdownDialogOpen(false)
     setRightSidebarOpen(false)
     closeMobileDrawer()
   }, [
@@ -1271,6 +1216,8 @@ function ClassroomPageContent({
                         onSelectAssignment={handleSelectAssignment}
                         onViewModeChange={handleViewModeChange}
                         onEditModeChange={handleAssignmentsEditModeChange}
+                        onOpenMarkdownEditor={openAssignmentsMarkdownDialog}
+                        showMarkdownEditorOption={showMarkdown && assignmentViewMode === 'summary'}
                         isActive={activeTab === 'assignments'}
                         selectedAssignmentId={assignmentIdParam}
                         selectedMaterialId={materialIdParam}
@@ -1458,9 +1405,7 @@ function ClassroomPageContent({
           hideDesktopHeader={false}
           minimalMobileHeader={false}
           title={
-            showMarkdown && isTeacher && activeTab === 'assignments' && isMarkdownMode
-              ? 'Assignments'
-              : isTeacher && activeTab === 'calendar' && calendarSidebarState
+            isTeacher && activeTab === 'calendar' && calendarSidebarState
               ? 'Calendar'
               : isTeacher && isAssessmentTab
               ? ''
@@ -1471,30 +1416,7 @@ function ClassroomPageContent({
               : 'Details'
           }
           headerActions={
-            showMarkdown && isTeacher && activeTab === 'assignments' && isMarkdownMode ? (
-              markdownWarning && !warningsAcknowledged ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleAcknowledgeWarnings()
-                    setTimeout(handleMarkdownSave, 0)
-                  }}
-                  disabled={bulkSaving}
-                  className="px-2 py-1 text-xs rounded bg-warning text-text-inverse hover:opacity-90 disabled:opacity-50"
-                >
-                  Save Anyway
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleMarkdownSave}
-                  disabled={bulkSaving}
-                  className="px-2 py-1 text-xs rounded bg-primary text-text-inverse hover:bg-primary-hover disabled:opacity-50"
-                >
-                  {bulkSaving ? 'Saving...' : 'Save'}
-                </button>
-              )
-            ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
+            isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
               <button
                 type="button"
                 onClick={calendarSidebarState.onSave}
@@ -1506,23 +1428,7 @@ function ClassroomPageContent({
             ) : undefined
           }
         >
-          {showMarkdown && isTeacher && activeTab === 'assignments' && isMarkdownMode ? (
-            markdownLoading ? (
-              <div className="flex items-center justify-center h-32">
-                <Spinner />
-              </div>
-            ) : (
-              <TeacherAssignmentsMarkdownSidebar
-                markdownContent={markdownContent}
-                markdownError={markdownError}
-                markdownWarning={markdownWarning}
-                hasRichContent={hasRichContent}
-                bulkSaving={bulkSaving}
-                onMarkdownChange={handleMarkdownContentChange}
-                onSave={handleMarkdownSave}
-              />
-            )
-          ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
+          {isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
             <TeacherLessonCalendarSidebar {...calendarSidebarState} />
           ) : isTeacher && isAssessmentTab ? (
             null
@@ -1560,6 +1466,82 @@ function ClassroomPageContent({
         </RightSidebar>
         )}
       </ThreePanelShell>
+
+      <DialogPanel
+        isOpen={showMarkdown && isTeacher && activeTab === 'assignments' && isAssignmentMarkdownDialogOpen}
+        onClose={() => {
+          if (!bulkSaving) closeAssignmentsMarkdownDialog()
+        }}
+        maxWidth="max-w-5xl"
+        className="h-[85vh] overflow-hidden p-0"
+        viewportPaddingClassName="p-2 sm:p-4"
+        ariaLabelledBy="assignments-markdown-dialog-title"
+      >
+        <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <div className="min-w-0">
+            <h2 id="assignments-markdown-dialog-title" className="text-base font-semibold text-text-default">
+              Edit Markdown
+            </h2>
+            <p className="truncate text-xs text-text-muted">Assignments</p>
+          </div>
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={closeAssignmentsMarkdownDialog}
+              disabled={bulkSaving}
+            >
+              Cancel
+            </Button>
+            {markdownWarning && !warningsAcknowledged ? (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  setWarningsAcknowledged(true)
+                  void handleMarkdownSave({ ignoreWarnings: true })
+                }}
+                disabled={bulkSaving || markdownLoading}
+              >
+                {bulkSaving ? 'Saving...' : 'Save Anyway'}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  void handleMarkdownSave()
+                }}
+                disabled={bulkSaving || markdownLoading}
+              >
+                {bulkSaving ? 'Saving...' : 'Save'}
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className="min-h-0 flex-1">
+          {markdownLoading ? (
+            <div className="flex h-full items-center justify-center">
+              <Spinner />
+            </div>
+          ) : (
+            <TeacherAssignmentsMarkdownEditor
+              markdownContent={markdownContent}
+              markdownError={markdownError}
+              markdownWarning={markdownWarning}
+              hasRichContent={hasRichContent}
+              bulkSaving={bulkSaving}
+              onMarkdownChange={handleMarkdownContentChange}
+              onSave={() => {
+                void handleMarkdownSave()
+              }}
+            />
+          )}
+        </div>
+      </DialogPanel>
 
       <ConfirmDialog
         isOpen={!!pendingAssessmentDelete}

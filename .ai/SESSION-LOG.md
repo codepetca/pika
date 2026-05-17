@@ -7,92 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-13 — Classroom list edit control placement
-
-**Completed:**
-- Moved the teacher classroom list edit pen from the top floating cluster into the bottom controls beside the Active/Archived segmented toggle.
-- Removed the no-longer-needed top padding on the classroom list and updated the focused component test to assert the new bottom placement.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/classroom-list-edit-pen bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx`
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/classroom-list-edit-pen bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- Extra teacher edit-mode captures: `/tmp/pika-teacher-edit.png`, `/tmp/pika-teacher-mobile-edit.png`
-
-## 2026-05-13 — Classwork surveys
-
-**Completed:**
-- Added surveys as ungraded Classwork items with draft/active/closed status, classwork ordering, and teacher/student API routes.
-- Added survey question types for multiple choice, short text, and link responses, including response validation and link normalization.
-- Added a dynamic responses toggle so students can update answers while an active survey remains open.
-- Fixed the responded-student status priority so dynamic surveys remain updateable even when class results are visible.
-- Added teacher survey creation/settings, question editing, class results, survey cards, and student survey cards/response form/results support.
-- Added the Supabase migration `068_surveys_classwork.sql` for surveys, questions, responses, RLS, and mixed classwork ordering RPC support.
-- Kept Classwork assignment/material loading resilient if the surveys endpoint is unavailable before the migration is applied.
-- Rebased the worktree onto `origin/main` and resequenced the survey migration after `067_classwork_mixed_ordering.sql`.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/unit/surveys.test.ts tests/lib/classwork-order.test.ts tests/unit/classwork-migration-rpc-grants.test.ts`
-- `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/unit/surveys.test.ts`
-- `pnpm test tests/unit/surveys.test.ts tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- `pnpm test -- --maxWorkers=4`
-- `pnpm build`
-- `git rev-list --left-right --count origin/main...HEAD` -> `0 0`
-- Migration prefix duplicate check returned no duplicates.
-- `E2E_BASE_URL=http://localhost:3000 pnpm e2e:auth`
-- Standard UI verify for live teacher/student Classwork pages:
-  - `/tmp/pika-teacher.png`
-  - `/tmp/pika-student.png`
-  - `/tmp/pika-teacher-mobile.png`
-- Mocked survey UI verification for migration-independent teacher/student survey states:
-  - `/tmp/pika-survey-teacher-classwork.png`
-  - `/tmp/pika-survey-teacher-modal.png`
-  - `/tmp/pika-survey-teacher-workspace.png`
-  - `/tmp/pika-survey-student-classwork.png`
-  - `/tmp/pika-survey-student-form.png`
-
-## 2026-05-13 — Quiz and survey source editors
-
-**Completed:**
-- Generalized the test editor-only/markdown-only authoring layout so quizzes can use the same modal Code toggle flow without test documents.
-- Added quiz markdown source serialization/parsing and draft source persistence for AI-friendly quiz authoring.
-- Added a survey Code view with markdown serialization/parsing for multiple-choice, short-text, and link questions, including title/results/dynamic settings.
-- Let survey question POST/PATCH accept explicit `position` so markdown apply preserves source order.
-- Added route, parser, and component coverage for the new quiz/survey source authoring paths.
-
-**Validation:**
-- `pnpm test tests/lib/quiz-markdown.test.ts tests/unit/surveys.test.ts tests/components/QuizDetailPanel.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/api/teacher/surveys-questions-route.test.ts tests/api/teacher/surveys-questions-id.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/surveys-classwork bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Additional teacher screenshots:
-  - `/tmp/pika-quiz-edit-modal.png`
-  - `/tmp/pika-quiz-code-modal.png`
-  - `/tmp/pika-survey-code.png`
-
-## 2026-05-13 — Survey setup parity
-
-**Completed:**
-- Extracted a shared assessment setup dialog shell and routed quiz/test setup plus survey setup through it.
-- Updated new survey creation to use the same full-screen assessment setup frame as quiz/test creation.
-- After creating a survey, route the teacher directly into the new survey workspace with Code authoring selected.
-- Added component coverage for survey setup chrome and the created-survey Code-mode handoff.
-
-**Validation:**
-- `pnpm test tests/components/QuizModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/surveys-classwork E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Additional teacher screenshots:
-  - `/tmp/pika-survey-create-modal.png`
-  - `/tmp/pika-survey-create-modal-mobile.png`
-  - `/tmp/pika-survey-created-code.png`
-
 ## 2026-05-13 — Survey workspace modal routing
 
 **Completed:**
@@ -339,7 +253,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Targeted Playwright screenshots:
   - `/tmp/pika-exit-alert-teacher.png`
   - `/tmp/pika-exit-pulse-student.png`
-- Chrome smoke:
+  - Chrome smoke:
   - Teacher on `localhost:3002`: temporary active test loaded in grading, polled a student focus exit, showed `Exit detected`, and clicking the alert selected the student/cleared the banner.
   - Student on `127.0.0.1:3002`: temporary active test started in exam mode and showed the exits indicator in Chrome.
   - Temporary test was deleted after the smoke.
@@ -389,3 +303,76 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop`
+
+## 2026-05-15 — Assignment markdown modal
+
+**Completed:**
+- Moved teacher assignment-list markdown editing out of the right sidebar and into an `Edit Markdown` modal.
+- Added `Edit Markdown` to the assignment summary FAB split-button dropdown when markdown is enabled.
+- Reused the existing assignment markdown parse/save path, warning flow, and bulk sync API.
+- Updated assignment markdown tests for explicit dropdown-driven modal opening.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherClassroomView.test.tsx tests/api/teacher/assignments-bulk.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-markdown-modal E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional modal screenshots:
+  - `/tmp/pika-teacher-assignment-markdown-modal.png`
+  - `/tmp/pika-teacher-assignment-markdown-modal-mobile.png`
+
+## 2026-05-15 — Assignment creation modal flow
+
+**Completed:**
+- Reworked the assignment modal into a narrower, more vertical authoring flow.
+- Kept title and due date on the same form row and removed due-date previous/next arrow controls.
+- Made assignment instructions always use the markdown editor toolbar.
+- Moved rendered markdown into a separate `Assignment Preview` dialog opened by a Preview button.
+- Updated assignment modal tests for the new preview dialog and always-visible markdown tools.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/AssignmentModal.test.tsx`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-markdown-modal E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional modal screenshots:
+  - `/tmp/pika-assignment-modal-desktop.png`
+  - `/tmp/pika-assignment-modal-mobile.png`
+  - `/tmp/pika-assignment-preview-dialog.png`
+
+## 2026-05-16 — Assignment modal top row tightening
+
+**Completed:**
+- Removed the visible assignment modal header above the title field.
+- Moved the post/schedule split button into the same first row as title and due date.
+- Shortened compact title/date/action widths so the same-row layout holds on mobile.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/AssignmentModal.test.tsx`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-markdown-modal E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional modal screenshots:
+  - `/tmp/pika-assignment-modal-desktop.png`
+  - `/tmp/pika-assignment-modal-mobile.png`
+  - `/tmp/pika-assignment-preview-dialog.png`
+
+## 2026-05-17 — Assignment modal close placement
+
+**Completed:**
+- Moved the assignment modal close button to an absolute upper-right corner position with minimal modal-edge padding.
+- Removed the close button from the title/due/action row.
+- Tightened the title input max width and matched compact due-date and post split-button widths.
+- Removed the reserved right-side content padding so the close button no longer consumes modal content width.
+- Made the close button borderless while keeping the same absolute corner hit target.
+- Updated the assignment instructions preview to a narrower student-content render: no footer Close button, no draft-only subtitle, and direct markdown output.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/AssignmentModal.test.tsx`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-markdown-modal E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional modal screenshots:
+  - `/tmp/pika-assignment-modal-desktop.png`
+  - `/tmp/pika-assignment-modal-mobile.png`
+  - `/tmp/pika-assignment-preview-dialog.png`
