@@ -276,7 +276,9 @@ test.describe('student exam mode', () => {
         const detail = await loadJson<StudentTestDetailRecord>(page, `/api/student/tests/${testId}`)
         return detail.focus_summary?.route_exit_attempts ?? 0
       }).toBeGreaterThanOrEqual(1)
-      await expect(page.getByLabel(/Exits [1-9]/)).toBeVisible()
+      await expect(
+        page.locator('[data-testid="student-test-documents-pane"]').getByLabel(/Exits [1-9]/)
+      ).toBeVisible()
     } finally {
       await cleanupTest(browser, testId)
     }

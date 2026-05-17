@@ -7,17 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-13 — Chrome plugin UI verification guidance
-
-**Completed:**
-- Documented Playwright as the required final path for E2E tests, UI verification scripts, and screenshot artifacts.
-- Clarified that Chrome plugin checks are supplemental for exploratory debugging, browser-profile behavior, remote auth, extension, cookie, and interactive inspection cases.
-- Updated the AI routing doc, UI testing guide, testing strategy, and Codex UI verification prompt.
-
-**Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/chrome-ui-guidance bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/ui-guidance-candidate-script.test.ts`
-
 ## 2026-05-13 — Classroom list edit control placement
 
 **Completed:**
@@ -389,3 +378,14 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop` failed because the sandbox denied Next.js listening on `0.0.0.0:3000`.
 - `HOSTNAME=127.0.0.1 E2E_BASE_URL=http://127.0.0.1:3020 pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop` failed for the same `listen EPERM` restriction on `0.0.0.0:3020`.
+
+## 2026-05-17 — Exam route-exit e2e review fix
+
+**Completed:**
+- Tightened the student exam-mode route-exit e2e telemetry assertion so it scopes to the test documents pane instead of matching any visible `Exits` badge.
+- Confirmed the narrow Playwright spec now runs successfully in the current environment.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop`
