@@ -58,6 +58,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     const input = screen.getByLabelText('Course Name')
     expect(input).toHaveValue('Test Course')
+    expect(screen.queryByLabelText('Quizzes')).toBeNull()
   })
 
   it('hides syllabus markdown fields when the user preference is off', async () => {

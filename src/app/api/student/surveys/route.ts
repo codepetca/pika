@@ -3,7 +3,7 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { isMissingSurveysTableError } from '@/lib/server/surveys'
-import { getStudentSurveyStatus, isSurveyVisibleToStudents } from '@/lib/surveys'
+import { canStudentViewSurveyResults, getStudentSurveyStatus, isSurveyVisibleToStudents } from '@/lib/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -55,7 +55,11 @@ export const GET = withErrorHandler('GetStudentSurveys', async (request) => {
   }
 
   const visibleSurveys = (surveys || [])
-    .filter((survey) => isSurveyVisibleToStudents(survey) || responseMap.has(survey.id))
+    .filter((survey) =>
+      isSurveyVisibleToStudents(survey) ||
+      canStudentViewSurveyResults(survey) ||
+      responseMap.has(survey.id)
+    )
     .map((survey) => {
       const hasResponded = responseMap.has(survey.id)
       return {

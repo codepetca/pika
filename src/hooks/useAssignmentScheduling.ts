@@ -129,7 +129,7 @@ export function useAssignmentScheduling({
         : saving
           ? 'Saving...'
           : 'Draft'
-  const splitOptions: SplitOption[] = isScheduled
+  const splitOptions: SplitOption[] = isScheduled || isLive
     ? []
     : [
         { id: 'post', label: 'Post', onSelect: () => handleActionSelection('post') },
@@ -187,6 +187,7 @@ export function useAssignmentScheduling({
       if (releasing) return
       const assignmentToRelease = currentAssignment
       if (!assignmentToRelease) return
+      if (isAssignmentLive(assignmentToRelease)) return
 
       onError('')
       setReleasing(true)
@@ -222,6 +223,7 @@ export function useAssignmentScheduling({
       if (releasing) return
       const assignmentToSchedule = currentAssignment
       if (!assignmentToSchedule || !scheduleDate) return
+      if (isAssignmentLive(assignmentToSchedule)) return
 
       const releaseIso = combineScheduleDateTimeToIso(scheduleDate, scheduleTime)
       if (!isScheduleIsoInFuture(releaseIso)) {
@@ -278,6 +280,7 @@ export function useAssignmentScheduling({
     if (releasing) return
     const assignmentToUpdate = currentAssignment
     if (!assignmentToUpdate || assignmentToUpdate.is_draft) return
+    if (isAssignmentLive(assignmentToUpdate)) return
 
     onError('')
     setReleasing(true)
@@ -337,6 +340,7 @@ export function useAssignmentScheduling({
 
   const openScheduleModalWithSave = useCallback(async () => {
     if (!currentAssignment || saving || releasing || creating) return
+    if (isAssignmentLive(currentAssignment)) return
     try {
       await flushPendingChanges()
       syncScheduleInputsFromAssignment()
@@ -357,6 +361,7 @@ export function useAssignmentScheduling({
   const triggerPrimaryAction = useCallback(
     async (action: CreateSubmitAction = primaryAction) => {
       if (!currentAssignment || creating || saving || releasing) return
+      if (isAssignmentLive(currentAssignment)) return
 
       if (action === 'post') {
         setShowPostNowConfirm(true)

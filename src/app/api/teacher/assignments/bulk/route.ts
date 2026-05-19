@@ -72,7 +72,7 @@ function buildAssignmentPositions(
 /**
  * POST /api/teacher/assignments/bulk - Bulk create/update assignments
  *
- * Used by the markdown sidebar to sync assignments from markdown content.
+ * Used by the markdown editor to sync assignments from markdown content.
  * - Creates new assignments (entries without ID) as drafts
  * - Updates existing assignments (entries with ID)
  * - Allows draft→released and scheduled→draft
