@@ -44,6 +44,7 @@ import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { SortableSurveyCard } from '@/components/surveys/SortableSurveyCard'
+import { SurveyCreationModal } from '@/components/surveys/SurveyCreationModal'
 import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
 import { TeacherSurveyResultsPane } from '@/components/surveys/TeacherSurveyResultsPane'
 import {
@@ -608,7 +609,7 @@ export function TeacherClassroomView({
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false)
-  const [isCreatingSurvey, setIsCreatingSurvey] = useState(false)
+  const [isSurveyCreateModalOpen, setIsSurveyCreateModalOpen] = useState(false)
   const [editMaterial, setEditMaterial] = useState<ClassworkMaterial | null>(null)
   const [pendingMaterialDelete, setPendingMaterialDelete] = useState<ClassworkMaterial | null>(null)
   const [isDeletingMaterial, setIsDeletingMaterial] = useState(false)
@@ -828,27 +829,6 @@ export function TeacherClassroomView({
       )
     )
   }, [classroom.id])
-
-  const createSurveyDraft = useCallback(async () => {
-    if (isCreatingSurvey || isReadOnly) return
-
-    setIsCreatingSurvey(true)
-    setError('')
-    try {
-      const response = await fetch('/api/teacher/surveys', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ classroom_id: classroom.id }),
-      })
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || 'Failed to create survey')
-      handleSurveySaved(data.survey as Survey, { initialEditMode: 'edit', focusTitle: true })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create survey')
-    } finally {
-      setIsCreatingSurvey(false)
-    }
-  }, [classroom.id, handleSurveySaved, isCreatingSurvey, isReadOnly])
 
   const openSurveyModal = useCallback((surveyId: string) => {
     setSurveyModalId(surveyId)
@@ -2525,11 +2505,8 @@ export function TeacherClassroomView({
                     },
                     {
                       id: 'survey',
-                      label: isCreatingSurvey ? 'Creating survey...' : 'Survey',
-                      onSelect: () => {
-                        void createSurveyDraft()
-                      },
-                      disabled: isCreatingSurvey,
+                      label: 'Survey',
+                      onSelect: () => setIsSurveyCreateModalOpen(true),
                     },
                     ...(showMarkdownEditorOption
                       ? [
@@ -2815,6 +2792,16 @@ export function TeacherClassroomView({
         }}
         onSaved={handleMaterialSaved}
         onRequestDelete={setPendingMaterialDelete}
+      />
+
+      <SurveyCreationModal
+        isOpen={isSurveyCreateModalOpen}
+        classroomId={classroom.id}
+        onClose={() => setIsSurveyCreateModalOpen(false)}
+        onSuccess={(survey) => {
+          setIsSurveyCreateModalOpen(false)
+          handleSurveySaved(survey, { initialEditMode: 'edit' })
+        }}
       />
 
       <DialogPanel

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { AssessmentSetupDialog } from '@/components/assessment/AssessmentSetupDialog'
 import { AssessmentSetupCheckbox, AssessmentSetupForm } from '@/components/assessment/AssessmentSetupForm'
+import { CreationModalShell, CreationModalTopRow } from '@/components/creation/CreationModalShell'
+import { Button } from '@/ui'
 import type { Quiz, QuizAssessmentType } from '@/types'
 
 interface QuizModalProps {
@@ -101,18 +103,53 @@ export function QuizModal({
     }
   }
 
+  if (!isEditMode) {
+    return (
+      <CreationModalShell
+        isOpen={isOpen}
+        onClose={onClose}
+        title={`New ${assessmentLabel}`}
+        titleId="quiz-modal-title"
+        closeLabel={`Close ${assessmentLabel.toLowerCase()} modal`}
+        closeDisabled={saving}
+        maxWidth="!max-w-2xl"
+      >
+        <form onSubmit={handleSubmit} className="w-full space-y-4">
+          <CreationModalTopRow
+            title={title}
+            titlePlaceholder={`Enter ${assessmentLabel.toLowerCase()} title`}
+            titleError={error}
+            titleDisabled={saving}
+            titleInputRef={titleInputRef}
+            onTitleChange={setTitle}
+            actions={(
+              <Button
+                type="submit"
+                variant="primary"
+                className="w-[5.75rem] justify-center font-semibold"
+                disabled={saving}
+              >
+                {saving ? 'Saving...' : 'Create'}
+              </Button>
+            )}
+          />
+        </form>
+      </CreationModalShell>
+    )
+  }
+
   return (
     <AssessmentSetupDialog
       isOpen={isOpen}
       onClose={onClose}
-      isCompact={isEditMode}
+      isCompact
       title={isEditMode ? `Edit ${assessmentLabel}` : `New ${assessmentLabel}`}
       titleId="quiz-modal-title"
       closeLabel={`Close ${assessmentLabel.toLowerCase()} modal`}
       closeDisabled={saving}
     >
       <AssessmentSetupForm
-        isCompact={isEditMode}
+        isCompact
         title={title}
         titlePlaceholder={`Enter ${assessmentLabel.toLowerCase()} title`}
         titleError={error}
