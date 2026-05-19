@@ -7,25 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-17 — Assignment modal close placement
-
-**Completed:**
-- Moved the assignment modal close button to an absolute upper-right corner position with minimal modal-edge padding.
-- Removed the close button from the title/due/action row.
-- Tightened the title input max width and matched compact due-date and post split-button widths.
-- Removed the reserved right-side content padding so the close button no longer consumes modal content width.
-- Made the close button borderless while keeping the same absolute corner hit target.
-- Updated the assignment instructions preview to a narrower student-content render: no footer Close button, no draft-only subtitle, and direct markdown output.
-
-**Validation:**
-- `pnpm lint`
-- `pnpm test tests/components/AssignmentModal.test.tsx`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-markdown-modal E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Additional modal screenshots:
-  - `/tmp/pika-assignment-modal-desktop.png`
-  - `/tmp/pika-assignment-modal-mobile.png`
-  - `/tmp/pika-assignment-preview-dialog.png`
-
 ## 2026-05-14 — Survey experience cleanup
 
 **Completed:**
@@ -305,3 +286,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Validation:**
 - `pnpm test tests/unit/ai-startup-docs.test.ts`
+
+## 2026-05-19 — Survey creation preview option
+
+**Completed:**
+- Added a Preview mode to the teacher survey authoring modal with a student-style response layout for multiple-choice, text, and link questions.
+- Kept preview responses local to the modal so teachers can click through the survey without saving anything.
+- Added regression coverage for opening preview and selecting an option without issuing a survey PATCH.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-preview bash /Users/stew/Repos/.worktrees/pika/survey-preview/.codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherSurveyWorkspace.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3003 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-preview bash /Users/stew/Repos/.worktrees/pika/survey-preview/.codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-preview-teacher.png`, `/tmp/pika-survey-preview-teacher-mobile.png`; temporary survey fixtures were deleted afterward.

@@ -9,7 +9,7 @@ import {
   useState,
   type TextareaHTMLAttributes,
 } from 'react'
-import { Code, ExternalLink, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { Code, ExternalLink, Eye, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { Button, Card, ConfirmDialog, FormField, Input, Select } from '@/ui'
 import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetupForm'
 import { EditableAssessmentTitle } from '@/components/assessment/EditableAssessmentTitle'
@@ -50,6 +50,11 @@ type SurveyResultsPayload = {
     total_students: number
     responded: number
   }
+}
+
+type SurveyPreviewResponse = {
+  selectedOption?: number
+  responseText?: string
 }
 
 const QUESTION_TYPE_OPTIONS = [
@@ -322,6 +327,128 @@ export function TeacherSurveyResultsView({ payload }: { payload: SurveyResultsPa
   )
 }
 
+function TeacherSurveyPreview({
+  survey,
+  questions,
+}: {
+  survey: Survey
+  questions: SurveyQuestion[]
+}) {
+  const [responses, setResponses] = useState<Record<string, SurveyPreviewResponse>>({})
+
+  useEffect(() => {
+    setResponses({})
+  }, [questions, survey.id])
+
+  return (
+    <Card tone="panel" padding="lg" className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-xl font-semibold text-text-default">{survey.title}</h2>
+          <p className="mt-1 text-sm text-text-muted">Survey</p>
+        </div>
+        <span className="self-start rounded-badge bg-surface-2 px-2.5 py-1 text-xs font-semibold text-text-muted">
+          Student preview
+        </span>
+      </div>
+
+      {questions.length === 0 ? (
+        <p className="rounded-lg border border-border bg-surface px-3 py-4 text-center text-sm text-text-muted">
+          No questions to preview.
+        </p>
+      ) : (
+        <>
+          <div className="space-y-5">
+            {questions.map((question, index) => {
+              const response = responses[question.id] || {}
+              return (
+                <div key={question.id} className="space-y-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Q{index + 1}</p>
+                    <QuestionMarkdown content={question.question_text} />
+                  </div>
+
+                  {question.question_type === 'multiple_choice' ? (
+                    <div className="space-y-2">
+                      {question.options.map((option, optionIndex) => {
+                        const isSelected = response.selectedOption === optionIndex
+                        return (
+                          <button
+                            key={optionIndex}
+                            type="button"
+                            aria-pressed={isSelected}
+                            onClick={() => {
+                              setResponses((current) => ({
+                                ...current,
+                                [question.id]: { selectedOption: optionIndex },
+                              }))
+                            }}
+                            className={[
+                              'flex w-full items-center gap-3 rounded-lg border p-3 text-left text-sm transition-colors',
+                              isSelected
+                                ? 'border-primary bg-primary/5 text-text-default'
+                                : 'border-border bg-surface text-text-default hover:bg-surface-hover',
+                            ].join(' ')}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={[
+                                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
+                                isSelected ? 'border-primary' : 'border-border',
+                              ].join(' ')}
+                            >
+                              {isSelected && <span className="h-2.5 w-2.5 rounded-full bg-primary" />}
+                            </span>
+                            <span>{option}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : question.question_type === 'link' ? (
+                    <Input
+                      type="url"
+                      aria-label={`Q${index + 1} link response preview`}
+                      value={response.responseText || ''}
+                      onChange={(event) => {
+                        setResponses((current) => ({
+                          ...current,
+                          [question.id]: { responseText: event.target.value },
+                        }))
+                      }}
+                      placeholder="https://example.com"
+                    />
+                  ) : (
+                    <textarea
+                      aria-label={`Q${index + 1} text response preview`}
+                      value={response.responseText || ''}
+                      onChange={(event) => {
+                        setResponses((current) => ({
+                          ...current,
+                          [question.id]: { responseText: event.target.value },
+                        }))
+                      }}
+                      rows={4}
+                      maxLength={question.response_max_chars}
+                      className="w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="Write your response..."
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="flex justify-end border-t border-border pt-4">
+            <Button type="button" disabled>
+              Submit
+            </Button>
+          </div>
+        </>
+      )}
+    </Card>
+  )
+}
+
 export function TeacherSurveyWorkspace({
   surveyId,
   isReadOnly = false,
@@ -345,7 +472,7 @@ export function TeacherSurveyWorkspace({
   const [titleSaving, setTitleSaving] = useState(false)
   const [responseSettingSaving, setResponseSettingSaving] = useState(false)
   const [titleError, setTitleError] = useState('')
-  const [surveyEditMode, setSurveyEditMode] = useState<'edit' | 'markdown'>('edit')
+  const [surveyEditMode, setSurveyEditMode] = useState<'edit' | 'markdown' | 'preview'>('edit')
   const [surveyMarkdown, setSurveyMarkdown] = useState('')
   const [surveyMarkdownDirty, setSurveyMarkdownDirty] = useState(false)
   const [surveyMarkdownSaving, setSurveyMarkdownSaving] = useState(false)
@@ -681,6 +808,19 @@ export function TeacherSurveyWorkspace({
               </AssessmentSetupCheckbox>
               <Button
                 size="sm"
+                variant={surveyEditMode === 'preview' ? 'subtle' : 'secondary'}
+                aria-pressed={surveyEditMode === 'preview'}
+                onClick={() => {
+                  setSurveyEditMode((current) => (current === 'preview' ? 'edit' : 'preview'))
+                  setSurveyMarkdownError('')
+                  setSurveyMarkdownInfo('')
+                }}
+              >
+                <Eye className="mr-1 h-4 w-4" aria-hidden="true" />
+                Preview
+              </Button>
+              <Button
+                size="sm"
                 variant={surveyEditMode === 'markdown' ? 'subtle' : 'secondary'}
                 aria-pressed={surveyEditMode === 'markdown'}
                 onClick={() => {
@@ -710,7 +850,7 @@ export function TeacherSurveyWorkspace({
               {error}
             </div>
           )}
-          {surveyMarkdownDirty && surveyEditMode === 'markdown' ? (
+          {surveyMarkdownDirty && surveyEditMode !== 'edit' ? (
             <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
               Markdown edits not applied
             </div>
@@ -778,6 +918,8 @@ export function TeacherSurveyWorkspace({
               spellCheck={false}
             />
           </Card>
+        ) : surveyEditMode === 'preview' ? (
+          <TeacherSurveyPreview survey={survey} questions={questions} />
         ) : (
           <>
             <Card tone="panel" padding="md" className="space-y-4">
