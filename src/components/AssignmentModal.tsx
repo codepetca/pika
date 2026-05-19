@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { X } from 'lucide-react'
 import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
+import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { getRelativeDueDate } from '@/lib/assignment-relative-date'
-import { Button, ConfirmDialog, ContentDialog, DialogPanel, SplitButton } from '@/ui'
+import { ConfirmDialog, ContentDialog, DialogPanel, SplitButton } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
 import { format, isValid, parse } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
@@ -671,8 +671,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     : 'muted'
   const scheduleDueDateValidationMessage = getScheduleDueDateValidationMessage(scheduleIso, dueAt, isScheduleValid)
   const previewSubtitle = isLive ? title.trim() || undefined : undefined
-  const editorPanelClass =
-    'relative !max-h-[calc(100dvh-1rem)] overflow-hidden p-0 sm:!max-h-[calc(100dvh-2rem)]'
   const saveStatusContent = (
     <span
       className={`text-xs ${
@@ -686,96 +684,78 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
     </span>
   )
-  const closeAssignmentModalButton = (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      className="absolute right-1 top-1 z-20 h-9 w-9 px-0 text-text-default"
-      onClick={() => {
-        void handleClose()
-      }}
-      disabled={saving || releasing}
-      aria-label="Close assignment modal"
-      title="Close"
-    >
-      <X className="h-4 w-4" aria-hidden="true" />
-    </Button>
-  )
 
   return (
     <>
-      <DialogPanel
+      <CreationModalShell
         isOpen={isOpen}
-        onClose={handleClose}
-        maxWidth="!max-w-4xl"
-        className={editorPanelClass}
-        viewportPaddingClassName="p-2 sm:p-4"
-        ariaLabelledBy="assignment-modal-title"
+        onClose={() => {
+          if (showInstructionsPreview) {
+            setShowInstructionsPreview(false)
+            return
+          }
+          void handleClose()
+        }}
+        title={modalTitle}
+        titleId="assignment-modal-title"
+        closeLabel="Close assignment modal"
+        closeDisabled={saving || releasing}
       >
-        <h2 id="assignment-modal-title" className="sr-only">
-          {modalTitle}
-        </h2>
-
-        {closeAssignmentModalButton}
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
-          <AssignmentForm
-            title={title}
-            instructionsMarkdown={instructionsMarkdown}
-            dueAt={dueAt}
-            classDays={classDays}
-            onTitleChange={handleTitleChange}
-            onInstructionsMarkdownChange={handleInstructionsMarkdownChange}
-            onInstructionsUndo={handleInstructionsUndo}
-            onInstructionsRedo={handleInstructionsRedo}
-            onDueAtChange={handleDueAtChange}
-            onPreviewInstructions={() => setShowInstructionsPreview(true)}
-            disabled={saving || releasing || creating}
-            error={error}
-            titleInputRef={titleInputRef}
-            onBlur={flushAutosave}
-            markdownWarning={markdownWarning}
-            canUndoInstructions={instructionsHistoryIndexRef.current > 0}
-            canRedoInstructions={instructionsHistoryIndexRef.current < instructionsHistoryRef.current.length - 1}
-            statusContent={(
-              <span className="inline-flex items-center gap-2">
-                {saveStatusContent}
-                {currentAssignment && isScheduled && currentAssignment.released_at && (
-                  <span className="text-xs font-medium text-warning">
-                    {formatReleaseDate(currentAssignment.released_at)}
-                  </span>
-                )}
-              </span>
-            )}
-            topRowActions={
-              currentAssignment && !isLive ? (
-                <div className="flex items-end">
-                  <SplitButton
-                    label={primaryLabel}
-                    onPrimaryClick={() => {
-                      void handleTriggerPrimaryAction()
-                    }}
-                    variant={effectivePrimaryAction === 'post' ? 'success' : 'primary'}
-                    size="md"
-                    disabled={creating || releasing || saving || !currentAssignment}
-                    className="shadow-sm"
-                    toggleAriaLabel="Choose assignment action"
-                    menuPlacement="down"
-                    primaryButtonProps={{
-                      className: 'w-[4.25rem] justify-center font-semibold sm:w-[5.75rem]',
-                    }}
-                    options={splitOptions.map((option) => ({
-                      ...option,
-                      onSelect: () => handleSplitActionSelection(option.id as CreateSubmitAction),
-                    }))}
-                  />
-                </div>
-              ) : null
-            }
-          />
-        </div>
-      </DialogPanel>
+        <AssignmentForm
+          title={title}
+          instructionsMarkdown={instructionsMarkdown}
+          dueAt={dueAt}
+          classDays={classDays}
+          onTitleChange={handleTitleChange}
+          onInstructionsMarkdownChange={handleInstructionsMarkdownChange}
+          onInstructionsUndo={handleInstructionsUndo}
+          onInstructionsRedo={handleInstructionsRedo}
+          onDueAtChange={handleDueAtChange}
+          onPreviewInstructions={() => setShowInstructionsPreview(true)}
+          disabled={saving || releasing || creating}
+          error={error}
+          titleInputRef={titleInputRef}
+          onBlur={flushAutosave}
+          markdownWarning={markdownWarning}
+          canUndoInstructions={instructionsHistoryIndexRef.current > 0}
+          canRedoInstructions={instructionsHistoryIndexRef.current < instructionsHistoryRef.current.length - 1}
+          statusContent={(
+            <span className="inline-flex items-center gap-2">
+              {saveStatusContent}
+              {currentAssignment && isScheduled && currentAssignment.released_at && (
+                <span className="text-xs font-medium text-warning">
+                  {formatReleaseDate(currentAssignment.released_at)}
+                </span>
+              )}
+            </span>
+          )}
+          topRowActions={
+            currentAssignment && !isLive ? (
+              <div className="flex items-end">
+                <SplitButton
+                  label={primaryLabel}
+                  onPrimaryClick={() => {
+                    void handleTriggerPrimaryAction()
+                  }}
+                  variant={effectivePrimaryAction === 'post' ? 'success' : 'primary'}
+                  size="md"
+                  disabled={creating || releasing || saving || !currentAssignment}
+                  className="shadow-sm"
+                  toggleAriaLabel="Choose assignment action"
+                  menuPlacement="down"
+                  primaryButtonProps={{
+                    className: 'w-[3.5rem] justify-center font-semibold sm:w-[5.75rem]',
+                  }}
+                  options={splitOptions.map((option) => ({
+                    ...option,
+                    onSelect: () => handleSplitActionSelection(option.id as CreateSubmitAction),
+                  }))}
+                />
+              </div>
+            ) : null
+          }
+        />
+      </CreationModalShell>
 
       <ContentDialog
         isOpen={isOpen && showInstructionsPreview}

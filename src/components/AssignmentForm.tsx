@@ -1,9 +1,10 @@
 'use client'
 
-import { useId, useRef } from 'react'
+import { useRef } from 'react'
 import type { KeyboardEvent, ReactNode, RefObject } from 'react'
 import { Eye } from 'lucide-react'
-import { Input, Button } from '@/ui'
+import { Button } from '@/ui'
+import { CreationModalTopRow } from '@/components/creation/CreationModalShell'
 import { DateActionBar } from '@/components/DateActionBar'
 import { BoldIcon } from '@/components/tiptap-icons/bold-icon'
 import { Code2Icon } from '@/components/tiptap-icons/code2-icon'
@@ -63,13 +64,6 @@ export function AssignmentForm({
   fillHeight = false,
 }: AssignmentFormProps) {
   const instructionsRef = useRef<HTMLTextAreaElement>(null)
-  const titleFieldId = useId()
-  const topRowGridClassName = topRowActions
-    ? 'grid-cols-[minmax(2.75rem,1fr)_auto_auto] sm:grid-cols-[minmax(9rem,1fr)_auto_auto]'
-    : 'grid-cols-[minmax(0,1fr)_auto]'
-  const titleFieldClassName = topRowActions
-    ? 'min-w-0 max-w-[22rem] space-y-1 sm:max-w-[24rem]'
-    : 'min-w-0 space-y-1'
 
   function applyWrapFormatting(prefix: string, suffix = prefix) {
     const textarea = instructionsRef.current
@@ -157,56 +151,41 @@ export function AssignmentForm({
 
   return (
     <div className={fillHeight ? 'flex h-full min-h-0 w-full flex-col gap-3' : 'space-y-3 w-full'}>
-      <div className={`grid items-end gap-1.5 sm:gap-2 ${topRowGridClassName}`}>
-        <div className={titleFieldClassName}>
-          <label htmlFor={titleFieldId} className="block text-sm font-medium text-text-default">
-            Title
-            <span className="ml-1 text-danger">*</span>
-          </label>
-          <Input
-            id={titleFieldId}
-            ref={titleInputRef}
-            type="text"
-            value={title}
-            onChange={(e) => onTitleChange(e.target.value)}
-            onBlur={onBlur}
-            required
-            disabled={disabled}
-            placeholder="Add a title"
-            className="flex-1"
-          />
-        </div>
-
-        <div className="w-[6.75rem] space-y-1 sm:w-[8.25rem]">
-          {(() => {
-            const relative = getRelativeDueDate(dueAt, classDays)
-            const labelText = relative ? `Due ${relative.text}` : 'Due Date'
-            const colorClass = relative
-              ? relative.isPast
-                ? 'text-warning'
-                : 'text-primary'
-              : 'text-text-muted'
-            return (
-              <div className={`truncate text-sm font-medium ${colorClass}`}>
-                {labelText}
-              </div>
-            )
-          })()}
-          <div className="flex">
-            <DateActionBar
-              value={dueAt}
-              onChange={onDueAtChange}
-              layout="compact"
-            />
-          </div>
-        </div>
-
-        {topRowActions && (
-          <div className="min-w-0">
-            {topRowActions}
+      <CreationModalTopRow
+        title={title}
+        titlePlaceholder="Add a title"
+        titleDisabled={disabled}
+        titleInputRef={titleInputRef}
+        titleInputClassName="flex-1"
+        onTitleChange={onTitleChange}
+        onTitleBlur={onBlur}
+        afterTitle={(
+          <div className="w-[6.25rem] space-y-1 sm:w-[8.25rem]">
+            {(() => {
+              const relative = getRelativeDueDate(dueAt, classDays)
+              const labelText = relative ? `Due ${relative.text}` : 'Due Date'
+              const colorClass = relative
+                ? relative.isPast
+                  ? 'text-warning'
+                  : 'text-primary'
+                : 'text-text-muted'
+              return (
+                <div className={`truncate text-sm font-medium ${colorClass}`}>
+                  {labelText}
+                </div>
+              )
+            })()}
+            <div className="flex">
+              <DateActionBar
+                value={dueAt}
+                onChange={onDueAtChange}
+                layout="compact"
+              />
+            </div>
           </div>
         )}
-      </div>
+        actions={topRowActions}
+      />
 
       <div className={fillHeight ? 'flex min-h-0 flex-1 flex-col space-y-1' : 'space-y-1'}>
         <div className="flex flex-wrap items-center justify-between gap-2">

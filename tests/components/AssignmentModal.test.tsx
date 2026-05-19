@@ -71,12 +71,14 @@ describe('AssignmentModal', () => {
     })
 
     it('renders a markdown-only instructions editor with formatting buttons and a preview modal', async () => {
+      const onClose = vi.fn()
+
       render(
         <AssignmentModal
           isOpen={true}
           classroomId="classroom-1"
           assignment={baseAssignment}
-          onClose={vi.fn()}
+          onClose={onClose}
           onSuccess={vi.fn()}
         />
       )
@@ -120,6 +122,14 @@ describe('AssignmentModal', () => {
       ))).toBeInTheDocument()
       expect(within(previewDialog).queryByText('Original title')).not.toBeInTheDocument()
       expect(within(previewDialog).queryByText('Close')).not.toBeInTheDocument()
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: 'Instructions' })).not.toBeInTheDocument()
+      })
+      expect(screen.getByRole('dialog', { name: 'Edit Draft' })).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
     })
 
     it('keeps markdown instruction tools visible when the user preference is off', async () => {

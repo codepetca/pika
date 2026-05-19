@@ -277,6 +277,69 @@ describe('TeacherSurveyWorkspace', () => {
     expect(fetchMock).not.toHaveBeenCalledWith('/api/teacher/surveys/survey-1/results')
   })
 
+  it('previews the survey from the authoring workspace without saving preview responses', async () => {
+    fetchMock.mockImplementation(async (url: string | URL) => {
+      const href = String(url)
+      if (href.endsWith('/results')) {
+        return {
+          ok: true,
+          json: async () => ({
+            results: [],
+            stats: { total_students: 0, responded: 0 },
+          }),
+        }
+      }
+
+      return {
+        ok: true,
+        json: async () => ({
+          survey: makeSurvey({ title: 'Exit Ticket' }),
+          questions: [
+            {
+              id: 'question-1',
+              survey_id: 'survey-1',
+              question_type: 'multiple_choice',
+              question_text: 'Can you attend?',
+              options: ['Yes', 'No'],
+              response_max_chars: 1200,
+              position: 0,
+              created_at: '2026-01-01T00:00:00.000Z',
+              updated_at: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        }),
+      }
+    })
+
+    render(
+      <TeacherSurveyWorkspace
+        classroomId="classroom-1"
+        surveyId="survey-1"
+        onBack={vi.fn()}
+        onSurveyUpdated={vi.fn()}
+        onSurveyDeleted={vi.fn()}
+      />
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Preview' }))
+
+    expect(screen.getByRole('heading', { name: 'Exit Ticket' })).toBeInTheDocument()
+    expect(screen.getByText('Student preview')).toBeInTheDocument()
+    expect(screen.getByText('Can you attend?')).toBeInTheDocument()
+
+    const yesOption = screen.getByRole('button', { name: 'Yes' })
+    expect(yesOption).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(yesOption)
+
+    expect(yesOption).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/teacher/surveys/survey-1',
+      expect.objectContaining({ method: 'PATCH' }),
+    )
+  })
+
   it('saves editable response changes from the authoring workspace', async () => {
     let surveyState = makeSurvey({ dynamic_responses: true })
     const onSurveyUpdated = vi.fn()
