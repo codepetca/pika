@@ -812,6 +812,23 @@ export function TeacherClassroomView({
     void loadAssignments({ preserveContent: true })
   }, [classroom.id, loadAssignments, updateSearchParams])
 
+  const handleSurveyQuestionCountChanged = useCallback((surveyId: string, questionsCount: number) => {
+    invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+    setSurveys((current) =>
+      current.map((survey) =>
+        survey.id === surveyId
+          ? {
+              ...survey,
+              stats: {
+                ...survey.stats,
+                questions_count: questionsCount,
+              },
+            }
+          : survey
+      )
+    )
+  }, [classroom.id])
+
   const createSurveyDraft = useCallback(async () => {
     if (isCreatingSurvey || isReadOnly) return
 
@@ -2835,6 +2852,7 @@ export function TeacherClassroomView({
               invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
               invalidateCachedJSON(`student-surveys:${classroom.id}`)
             }}
+            onQuestionCountChanged={handleSurveyQuestionCountChanged}
             onSurveyDeleted={(surveyId) => {
               setSurveys((current) => current.filter((survey) => survey.id !== surveyId))
               invalidateCachedJSON(`teacher-surveys:${classroom.id}`)

@@ -35,6 +35,7 @@ interface TeacherSurveyWorkspaceProps {
   onInitialEditModeConsumed?: () => void
   onBack: () => void
   onSurveyUpdated: (survey: Survey) => void
+  onQuestionCountChanged?: (surveyId: string, questionsCount: number) => void
   onSurveyDeleted: (surveyId: string) => void
 }
 
@@ -329,6 +330,7 @@ export function TeacherSurveyWorkspace({
   onInitialEditModeConsumed,
   onBack,
   onSurveyUpdated,
+  onQuestionCountChanged,
   onSurveyDeleted,
 }: TeacherSurveyWorkspaceProps) {
   const [detail, setDetail] = useState<SurveyDetailPayload | null>(null)
@@ -485,6 +487,7 @@ export function TeacherSurveyWorkspace({
           ? { ...current, questions: [...current.questions, data.question] }
           : current
       )
+      onQuestionCountChanged?.(surveyId, questions.length + 1)
       setNewQuestionText('')
       setNewOptionsText('Option 1\nOption 2')
     } catch (err) {
@@ -598,6 +601,7 @@ export function TeacherSurveyWorkspace({
         .sort((left, right) => left.position - right.position)
       setDetail({ survey: nextSurvey, questions: nextQuestions })
       onSurveyUpdated(nextSurvey)
+      onQuestionCountChanged?.(surveyId, nextQuestions.length)
 
       const nextMarkdown = surveyToMarkdown({ survey: nextSurvey, questions: nextQuestions })
       setSurveyMarkdown(nextMarkdown)
@@ -856,6 +860,10 @@ export function TeacherSurveyWorkspace({
                                 questions: current.questions.filter((item) => item.id !== questionId),
                               }
                             : current
+                        )
+                        onQuestionCountChanged?.(
+                          surveyId,
+                          questions.filter((item) => item.id !== questionId).length,
                         )
                       }}
                     />

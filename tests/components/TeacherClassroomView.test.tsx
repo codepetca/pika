@@ -199,11 +199,20 @@ vi.mock('@/components/SortableAssignmentCard', () => ({
 }))
 
 vi.mock('@/components/surveys/TeacherSurveyWorkspace', () => ({
-  TeacherSurveyWorkspace: ({ surveyId, initialEditMode, autoEditTitle, onBack }: any) => (
+  TeacherSurveyWorkspace: ({
+    surveyId,
+    initialEditMode,
+    autoEditTitle,
+    onBack,
+    onQuestionCountChanged,
+  }: any) => (
     <div data-testid="mock-survey-workspace">
       Survey workspace {surveyId}
       {initialEditMode ? ` mode ${initialEditMode}` : ''}
       {autoEditTitle ? ' auto title' : ''}
+      <button type="button" onClick={() => onQuestionCountChanged?.(surveyId, 1)}>
+        Mock add survey question
+      </button>
       <button type="button" onClick={onBack}>
         Close survey workspace
       </button>
@@ -859,6 +868,44 @@ describe('TeacherClassroomView', () => {
     expect(openPollButton).toHaveClass('bg-danger-bg', 'text-danger')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
+  })
+
+  it('enables opening a draft survey after adding its first question in the edit modal', async () => {
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return Promise.resolve({ assignments: [] })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({
+          surveys: [
+            makeSurveySummary('survey-1', 'Draft Survey', {
+              status: 'draft',
+              stats: { total_students: 2, responded: 0, questions_count: 0 },
+            }),
+          ],
+        })
+      }
+      if (key === `class-days:${classroom.id}`) {
+        return Promise.resolve({ class_days: [] })
+      }
+      return fetcher()
+    })
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Draft Survey' }))
+
+    expect(screen.getByRole('button', { name: 'Open poll' })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit survey' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Mock add survey question' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Open poll' })).not.toBeDisabled()
+    })
   })
 
   it('creates a draft survey directly from the New menu and opens visual editing', async () => {
