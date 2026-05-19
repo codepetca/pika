@@ -7,21 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-14 — Hide quiz classroom feature
-
-**Completed:**
-- Removed the Quizzes item from teacher/student classroom nav, UI gallery links, snapshot coverage, and assessment parity capture.
-- Made legacy `tab=quizzes` classroom URLs fall back to the role default tab and clear stale `quizId` params.
-- Hid quiz publishing/blueprint choices from settings and blueprint editor UI; normalized published/planned site configs to keep quizzes unpublished.
-
-**Validation:**
-- `pnpm test tests/components/NavItems.test.tsx tests/unit/layout-config.test.ts tests/components/ThreePanelProvider.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/lib/course-site-publishing.test.ts tests/components/TeacherBlueprintsPage.test.tsx tests/components/TeacherSettingsTab.test.tsx`
-- `pnpm test tests/components/SurveyModal.test.tsx tests/api/student/surveys-route.test.ts tests/components/TeacherSurveyWorkspace.test.tsx tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/StudentQuizzesTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/lib/course-blueprint-package.test.ts tests/lib/server/course-sites.test.ts tests/lib/server/course-blueprints.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Extra screenshots/assertions: `/tmp/pika-student-desktop.png`, `/tmp/pika-teacher-settings-no-quiz.png`; Playwright confirmed `Quizzes` links are absent for both roles and legacy quiz URLs redirect to `attendance`/`today`.
-
 ## 2026-05-14 — Survey poll/results timing split
 
 **Completed:**
@@ -297,3 +282,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows E2E_BASE_URL=http://localhost:3017 bash /Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=attendance'`
 - Warmed desktop screenshot: `/tmp/pika-teacher-final.png`; teacher desktop/mobile confirmed no forward/back date arrows, student mobile unaffected.
 - `pnpm test`
+
+## 2026-05-19 — Assignment preview Escape handling
+
+**Completed:**
+- Reviewed merged assignment markdown/modal work and found the nested instructions preview could let Escape reach the underlying assignment editor dialog.
+- Updated the assignment editor dialog close handler so an open instructions preview is treated as the top modal and closes first.
+- Added regression coverage that Escape closes the preview while keeping the assignment editor open.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/AssignmentModal.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3003 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-preview-escape bash /Users/stew/Repos/.worktrees/pika/assignment-preview-escape/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Targeted Playwright screenshots/assertions: `/tmp/pika-assignment-instructions-preview.png`, `/tmp/pika-assignment-modal-after-preview-escape.png`.
