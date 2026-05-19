@@ -707,7 +707,13 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     <>
       <DialogPanel
         isOpen={isOpen}
-        onClose={handleClose}
+        onClose={() => {
+          if (showInstructionsPreview) {
+            setShowInstructionsPreview(false)
+            return
+          }
+          void handleClose()
+        }}
         maxWidth="!max-w-4xl"
         className={editorPanelClass}
         viewportPaddingClassName="p-2 sm:p-4"
