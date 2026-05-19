@@ -908,7 +908,7 @@ describe('TeacherClassroomView', () => {
     })
   })
 
-  it('creates a draft survey directly from the New menu and opens visual editing', async () => {
+  it('creates a draft survey from the New menu and opens visual editing', async () => {
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {
         return Promise.resolve({
@@ -931,7 +931,7 @@ describe('TeacherClassroomView', () => {
     ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({
-        survey: makeSurveySummary('survey-new', 'Untitled 2026-05-14 10:15:30'),
+        survey: makeSurveySummary('survey-new', 'Class feedback'),
       }),
     })
     const updateSearchParams = vi.fn()
@@ -945,17 +945,27 @@ describe('TeacherClassroomView', () => {
 
     await screen.findByRole('button', { name: 'Assignment One' })
     fireEvent.click(screen.getByRole('button', { name: 'Survey' }))
+    const createDialog = await screen.findByRole('dialog')
+    fireEvent.change(within(createDialog).getByPlaceholderText('Enter survey title'), {
+      target: { value: 'Class feedback' },
+    })
+    fireEvent.click(within(createDialog).getByRole('button', { name: 'Create' }))
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         '/api/teacher/surveys',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ classroom_id: classroom.id }),
+          body: JSON.stringify({
+            classroom_id: classroom.id,
+            title: 'Class feedback',
+            show_results: true,
+            dynamic_responses: false,
+          }),
         }),
       )
     })
-    expect(await screen.findByRole('dialog')).toHaveTextContent('Survey workspace survey-new mode edit auto title')
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Survey workspace survey-new mode edit')
 
     const { params } = applySearchParamsUpdate(updateSearchParams.mock.calls[0])
     expect(params.get('surveyId')).toBeNull()

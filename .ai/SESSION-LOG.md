@@ -7,66 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-14 — Survey poll/results timing split
-
-**Completed:**
-- Added independent selected-survey controls for poll visibility (`Poll hidden/open/closed`) and result visibility (`Results hidden/visible`).
-- Allowed enrolled students to view survey class results before submitting when results are visible and the survey is open or closed; drafts and hidden/future polls stay unavailable.
-- Kept open surveys answerable for unsubmitted students even when class results are already visible.
-
-**Validation:**
-- `pnpm test tests/api/student/surveys-route.test.ts tests/components/TeacherSurveyWorkspace.test.tsx tests/components/StudentSurveyPanel.test.tsx tests/components/StudentAssignmentsTab.test.tsx tests/unit/surveys.test.ts`
-- `pnpm test tests/components/SurveyModal.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3001 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Targeted screenshots/assertions: `/tmp/pika-survey-teacher-controls.png`, `/tmp/pika-survey-student-results-before-submit.png`, `/tmp/pika-survey-teacher-mobile-controls.png`.
-
-## 2026-05-14 — Direct survey draft creation
-
-**Completed:**
-- Changed `New > Survey` to create an untitled draft immediately and open the selected-survey workspace directly.
-- Defaulted newly created surveys to visual question editing instead of markdown/code mode.
-- Added inline title editing from the selected survey header; generated backend titles display as `Untitled` until the teacher enters a title.
-- Let the teacher survey POST endpoint generate `Untitled yyyy-MM-dd HH:mm:ss` when the title is blank or omitted.
-
-**Validation:**
-- `pnpm test tests/api/teacher/surveys-route.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/SurveyModal.test.tsx tests/api/student/surveys-route.test.ts tests/components/StudentSurveyPanel.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test` (known unrelated full-suite issue: `tests/components/TeacherGradebookTab.test.tsx` timed out/failed under load; isolated file passes)
-- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
-- `E2E_BASE_URL=http://localhost:3003 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Targeted screenshots/assertions: `/tmp/pika-direct-survey-create-desktop.png`, `/tmp/pika-direct-survey-create-mobile.png`.
-
-## 2026-05-14 — Shared test/survey editable title creation
-
-**Completed:**
-- Changed `New Test` to create an untitled draft immediately and open the visual test authoring modal, removing the title-only modal step.
-- Added shared untitled-title helpers and a shared editable assessment title control used by both test and survey authoring.
-- Saved test title edits into the assessment draft so activation preserves the teacher-entered title.
-- Kept generated backend titles displayed as `Untitled` in both survey and test creation surfaces until the teacher enters a title.
-
-**Validation:**
-- `pnpm test tests/api/teacher/tests-route.test.ts tests/api/teacher/surveys-route.test.ts tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3005 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests'`
-- Targeted screenshots/assertions: `/tmp/pika-direct-test-create-desktop.png`, `/tmp/pika-direct-test-create-mobile.png`, `/tmp/pika-shared-survey-title-desktop.png`, `/tmp/pika-shared-survey-title-mobile.png`.
-
-## 2026-05-14 — Survey response length field removal
-
-**Completed:**
-- Removed the visible `Max characters` control from the survey question edit card for short-text and link questions.
-- Kept the existing/default `response_max_chars` value in save payloads so existing survey response limits remain compatible.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/components/TeacherSurveyWorkspace.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- Targeted Playwright screenshot/assertion: `/tmp/pika-survey-no-max-characters.png`.
-
 ## 2026-05-14 — Test modal header title placement
 
 **Completed:**
@@ -297,3 +237,87 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `E2E_BASE_URL=http://localhost:3003 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-preview-escape bash /Users/stew/Repos/.worktrees/pika/assignment-preview-escape/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
 - Targeted Playwright screenshots/assertions: `/tmp/pika-assignment-instructions-preview.png`, `/tmp/pika-assignment-modal-after-preview-escape.png`.
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-markdown-modal E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional modal screenshots:
+  - `/tmp/pika-teacher-assignment-markdown-modal.png`
+  - `/tmp/pika-teacher-assignment-markdown-modal-mobile.png`
+
+## 2026-05-15 — Assignment creation modal flow
+
+**Completed:**
+- Reworked the assignment modal into a narrower, more vertical authoring flow.
+- Kept title and due date on the same form row and removed due-date previous/next arrow controls.
+- Made assignment instructions always use the markdown editor toolbar.
+- Moved rendered markdown into a separate `Assignment Preview` dialog opened by a Preview button.
+- Updated assignment modal tests for the new preview dialog and always-visible markdown tools.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/AssignmentModal.test.tsx`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-markdown-modal E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional modal screenshots:
+  - `/tmp/pika-assignment-modal-desktop.png`
+  - `/tmp/pika-assignment-modal-mobile.png`
+  - `/tmp/pika-assignment-preview-dialog.png`
+
+## 2026-05-16 — Assignment modal top row tightening
+
+**Completed:**
+- Removed the visible assignment modal header above the title field.
+- Moved the post/schedule split button into the same first row as title and due date.
+- Shortened compact title/date/action widths so the same-row layout holds on mobile.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/AssignmentModal.test.tsx`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-markdown-modal E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional modal screenshots:
+  - `/tmp/pika-assignment-modal-desktop.png`
+  - `/tmp/pika-assignment-modal-mobile.png`
+  - `/tmp/pika-assignment-preview-dialog.png`
+
+## 2026-05-17 — Assignment modal close placement
+
+**Completed:**
+- Moved the assignment modal close button to an absolute upper-right corner position with minimal modal-edge padding.
+- Removed the close button from the title/due/action row.
+- Tightened the title input max width and matched compact due-date and post split-button widths.
+- Removed the reserved right-side content padding so the close button no longer consumes modal content width.
+- Made the close button borderless while keeping the same absolute corner hit target.
+- Updated the assignment instructions preview to a narrower student-content render: no footer Close button, no draft-only subtitle, and direct markdown output.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/components/AssignmentModal.test.tsx`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-markdown-modal E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- Additional modal screenshots:
+  - `/tmp/pika-assignment-modal-desktop.png`
+  - `/tmp/pika-assignment-modal-mobile.png`
+  - `/tmp/pika-assignment-preview-dialog.png`
+
+## 2026-05-18 — Shared creation modal shell
+
+**Completed:**
+- Extracted `CreationModalShell` and `CreationModalTopRow` for assignment-style creation flows.
+- Reused the shared creation shell in assignment creation while keeping scheduling, autosave, and markdown behavior feature-local.
+- Applied the same title-first, no-visible-header, absolute-close, top-row primary-action creation UI to quiz/test and survey creation.
+- Added a dedicated survey creation modal so the shared creation shell fits the upstream survey workspace flow after creation.
+- Kept quiz/test and survey edit/settings modals compact instead of forcing them into the creation shell.
+- Added experimental UI guidance for the shared creation shell candidate.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/creation-modal-shell bash /Users/stew/Repos/.worktrees/pika/creation-modal-shell/.codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/components/AssignmentModal.test.tsx tests/components/QuizModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/unit/ai-startup-docs.test.ts`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3000 pnpm e2e:auth`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/creation-modal-shell E2E_BASE_URL=http://localhost:3000 bash /Users/stew/Repos/.worktrees/pika/creation-modal-shell/.codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Additional modal screenshots:
+  - `/tmp/pika-assignment-create-desktop.png`
+  - `/tmp/pika-test-create-desktop.png`
+  - `/tmp/pika-survey-create-desktop.png`
+  - `/tmp/pika-assignment-create-mobile.png`
+  - `/tmp/pika-test-create-mobile.png`
+  - `/tmp/pika-survey-create-mobile.png`
