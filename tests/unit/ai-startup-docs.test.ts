@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -73,7 +73,7 @@ describe('AI startup docs', () => {
 
     for (const file of files) {
       const content = readRepoFile(file)
-      expect(content).not.toMatch(/tail -\d+ "\$PIKA_WORKTREE\/\.ai\/JOURNAL/)
+      expect(content).not.toMatch(/tail -\d+ ".*\.ai\/JOURNAL/)
       expect(content).not.toContain('Append to `.ai/JOURNAL.md`')
     }
   })
@@ -96,7 +96,47 @@ describe('AI startup docs', () => {
     }
   })
 
-  it('renders the required startup docs in order in the automated session-start path', () => {
+  it('documents both named and app-managed Codex worktree locations', () => {
+    const workflow = readRepoFile('docs/dev-workflow.md')
+    const current = readRepoFile('.ai/CURRENT.md')
+
+    for (const content of [workflow, current]) {
+      expect(content).toContain('$HOME/.codex/worktrees/pika/')
+      expect(content).toContain('$HOME/.codex/worktrees/<id>/pika')
+    }
+    expect(workflow).toContain('git rev-parse --show-toplevel')
+  })
+
+  it('documents cleanup by resolving the registered worktree path', () => {
+    const files = ['.ai/START-HERE.md', 'docs/dev-workflow.md']
+
+    for (const file of files) {
+      const content = readRepoFile(file)
+
+      expect(content).toContain('worktree list --porcelain')
+      expect(content).toContain('awk -v branch="$BRANCH"')
+      expect(content).not.toContain('worktree remove "$HOME/.codex/worktrees/pika/<branch-name>"')
+      expect(content).not.toContain('worktree remove "$WT_ROOT/<branch-name>"')
+    }
+  })
+
+  it('keeps production merge prompts on the production-worktree helper flow', () => {
+    const files = [
+      '.claude/commands/merge-main-into-production.md',
+      '.codex/prompts/merge-main-into-production.md',
+    ]
+
+    for (const file of files) {
+      const content = readRepoFile(file)
+
+      expect(content).toContain('merge_main_into_production.sh')
+      expect(content).not.toContain('hub-level operation')
+      expect(content).not.toContain('git -C "$HOME/Repos/pika" switch main')
+      expect(content).not.toContain('git -C "$HOME/Repos/pika" switch production')
+    }
+  })
+
+  it('renders the required startup docs in order from the current git root', () => {
     const repoRoot = makeFixtureWorktree()
     const scriptPath = resolve(testDir, '../../.codex/skills/pika-session-start/scripts/session_start.sh')
 
@@ -106,7 +146,6 @@ describe('AI startup docs', () => {
         env: {
           ...process.env,
           HOME: repoRoot,
-          PIKA_WORKTREE: repoRoot,
         },
         encoding: 'utf8',
       })
@@ -125,6 +164,50 @@ describe('AI startup docs', () => {
       expect(output).toContain('FEATURE NEXT MARKER')
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects the hub checkout for automated session-start', () => {
+    const homeRoot = mkdtempSync(join(tmpdir(), 'pika-session-hub-'))
+    const hubRoot = join(homeRoot, 'Repos/pika')
+    mkdirSync(hubRoot, { recursive: true })
+
+    execFileSync('git', ['init'], { cwd: hubRoot })
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-session-start/scripts/session_start.sh')
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: hubRoot,
+        env: {
+          ...process.env,
+          HOME: homeRoot,
+        },
+        encoding: 'utf8',
+      })
+
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).toContain('Current repo is the hub')
+    } finally {
+      rmSync(homeRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('makes the audit script fail outside a git checkout', () => {
+    const tempRoot = mkdtempSync(join(tmpdir(), 'pika-audit-nongit-'))
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: tempRoot,
+        encoding: 'utf8',
+      })
+
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).toContain(
+        'Pika Audit must be run from inside a git checkout.',
+      )
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true })
     }
   })
 })

@@ -13,7 +13,8 @@
 
 set -euo pipefail
 
-WORKTREE_ROOT="$HOME/Repos/.worktrees/pika"
+WORKTREE_ROOT="$HOME/.codex/worktrees/pika"
+LEGACY_WORKTREE_ROOT="$HOME/Repos/.worktrees/pika"
 HUB_REPO="$HOME/Repos/pika"
 ENV_CANONICAL="$HOME/Repos/.env/pika/.env.local"
 HUB_SENTINEL="__hub__"
@@ -66,13 +67,13 @@ require_tty_or_die() {
 }
 
 list_worktrees() {
-    if [[ ! -d "$WORKTREE_ROOT" ]]; then
+    if [[ ! -d "$WORKTREE_ROOT" && ! -d "$LEGACY_WORKTREE_ROOT" ]]; then
         return 0
     fi
 
     local lines=""
     if ! lines="$(git -C "$HUB_REPO" worktree list --porcelain 2>/dev/null)"; then
-        ls -1t "$WORKTREE_ROOT" 2>/dev/null || true
+        { ls -1t "$WORKTREE_ROOT" 2>/dev/null || true; ls -1t "$LEGACY_WORKTREE_ROOT" 2>/dev/null || true; } | sort -u
         return 0
     fi
 
@@ -82,10 +83,12 @@ list_worktrees() {
         case "$line" in
             worktree\ *)
                 local path="${line#worktree }"
-                if [[ "$path" == "$WORKTREE_ROOT" || "$path" != "$WORKTREE_ROOT/"* ]]; then
-                    continue
+                local rel=""
+                if [[ "$path" != "$WORKTREE_ROOT" && "$path" == "$WORKTREE_ROOT/"* ]]; then
+                    rel="${path#"$WORKTREE_ROOT/"}"
+                elif [[ "$path" != "$LEGACY_WORKTREE_ROOT" && "$path" == "$LEGACY_WORKTREE_ROOT/"* ]]; then
+                    rel="${path#"$LEGACY_WORKTREE_ROOT/"}"
                 fi
-                local rel="${path#"$WORKTREE_ROOT/"}"
                 if [[ -n "$rel" ]]; then
                     paths+=("$rel")
                 fi
@@ -100,7 +103,8 @@ list_worktrees() {
     local mtime_lines=""
     local rel=""
     for rel in "${paths[@]}"; do
-        local path="$WORKTREE_ROOT/$rel"
+        local path=""
+        path="$(resolve_worktree_path "$rel" 2>/dev/null || echo "$WORKTREE_ROOT/$rel")"
         local mtime=""
         if mtime="$(stat -f %m "$path" 2>/dev/null)"; then
             :
@@ -113,9 +117,22 @@ list_worktrees() {
     done
 
     if [[ -n "$mtime_lines" ]]; then
-        printf "%s" "$mtime_lines" | sort -rn | cut -f2-
+        printf "%s" "$mtime_lines" | sort -rn | cut -f2- | awk '!seen[$0]++'
     fi
     return 0
+}
+
+resolve_worktree_path() {
+    local name="$1"
+    if [[ -d "$WORKTREE_ROOT/$name" ]]; then
+        echo "$WORKTREE_ROOT/$name"
+        return 0
+    fi
+    if [[ -d "$LEGACY_WORKTREE_ROOT/$name" ]]; then
+        echo "$LEGACY_WORKTREE_ROOT/$name"
+        return 0
+    fi
+    return 1
 }
 
 slugify() {
@@ -139,8 +156,8 @@ find_issue_worktree() {
     local issue_num="$1"
     # Look for existing worktree starting with issue number
     local match=""
-    match="$(ls -1 "$WORKTREE_ROOT" 2>/dev/null | grep -E "^${issue_num}(-|$)" | head -n 1)"
-    if [[ -n "$match" && -d "$WORKTREE_ROOT/$match" ]]; then
+    match="$(list_worktrees | grep -E "^${issue_num}(-|$)" | head -n 1)"
+    if [[ -n "$match" ]] && resolve_worktree_path "$match" >/dev/null 2>&1; then
         echo "$match"
         return 0
     fi
@@ -386,6 +403,7 @@ create_worktree() {
         echo "error: worktree path already exists: $path" >&2
         return 1
     fi
+    mkdir -p "$(dirname "$path")"
 
     if git -C "$HUB_REPO" show-ref --verify --quiet "refs/heads/$name"; then
         if ! git -C "$HUB_REPO" worktree add "$path" "$name" >&2; then
@@ -713,7 +731,7 @@ cmd_claude() {
         name="$(ensure_issue_worktree "$name")" || exit 1
     elif [[ -z "$name" ]]; then
         name="$(prompt_for_worktree "" "usage: pika claude <worktree> [-- <args...>]")" || exit 1
-    elif [[ ! -d "$WORKTREE_ROOT/$name" ]]; then
+    elif ! resolve_worktree_path "$name" >/dev/null 2>&1; then
         if [[ "$name" == "main" || "$name" == "hub" ]]; then
             name="$HUB_SENTINEL"
         else
@@ -729,12 +747,8 @@ cmd_claude() {
         path="$HUB_REPO"
         name="main"
     else
-        path="$WORKTREE_ROOT/$name"
+        path="$(resolve_worktree_path "$name")"
     fi
-
-    export PIKA_PROJECT="pika"
-    export PIKA_WORKTREE="$path"
-    export PIKA_WORKTREE_NAME="$name"
 
     cd "$path"
     if (( ${#args[@]} > 0 )); then
@@ -760,7 +774,7 @@ cmd_codex() {
         name="$(ensure_issue_worktree "$name")" || exit 1
     elif [[ -z "$name" ]]; then
         name="$(prompt_for_worktree "" "usage: pika codex <worktree> [-- <args...>]")" || exit 1
-    elif [[ ! -d "$WORKTREE_ROOT/$name" ]]; then
+    elif ! resolve_worktree_path "$name" >/dev/null 2>&1; then
         if [[ "$name" == "main" || "$name" == "hub" ]]; then
             name="$HUB_SENTINEL"
         else
@@ -776,12 +790,8 @@ cmd_codex() {
         path="$HUB_REPO"
         name="main"
     else
-        path="$WORKTREE_ROOT/$name"
+        path="$(resolve_worktree_path "$name")"
     fi
-
-    export PIKA_PROJECT="pika"
-    export PIKA_WORKTREE="$path"
-    export PIKA_WORKTREE_NAME="$name"
 
     cd "$path"
     if (( ${#args[@]} > 0 )); then
@@ -793,9 +803,9 @@ cmd_codex() {
 cmd_git() {
     local name="$1"
     shift
-    local path="$WORKTREE_ROOT/$name"
+    local path=""
 
-    [[ -d "$path" ]] || die "worktree '$name' does not exist"
+    path="$(resolve_worktree_path "$name")" || die "worktree '$name' does not exist"
 
     exec git -C "$path" "$@"
 }

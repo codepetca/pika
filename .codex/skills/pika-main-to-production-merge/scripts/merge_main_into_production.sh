@@ -2,7 +2,7 @@
 set -euo pipefail
 
 HUB_REPO="${PIKA_HUB_REPO:-$HOME/Repos/pika}"
-WORKTREE_ROOT="${PIKA_WORKTREE_ROOT:-$HOME/Repos/.worktrees/pika}"
+WORKTREE_ROOT="${PIKA_PROD_WT_ROOT:-$HOME/.codex/worktrees/pika}"
 PROD_WT="$WORKTREE_ROOT/production"
 DATE_TAG="$(date +%Y%m%d)"
 BRANCH_NAME="codex/merge-main-into-production-${DATE_TAG}"
@@ -20,7 +20,7 @@ Usage: $0 [--dry-run]
 
 Env overrides:
   PIKA_HUB_REPO       Hub checkout path (default: $HOME/Repos/pika)
-  PIKA_WORKTREE_ROOT  Worktree root (default: $HOME/Repos/.worktrees/pika)
+  PIKA_PROD_WT_ROOT   Production worktree root for new checkouts (default: $HOME/.codex/worktrees/pika)
 USAGE
 }
 
@@ -65,7 +65,14 @@ fi
 run git -C "$HUB_REPO" fetch origin
 run git -C "$HUB_REPO" worktree prune
 
+EXISTING_PROD_WT="$(git -C "$HUB_REPO" worktree list --porcelain \
+  | awk '/^worktree / { path=$2 } /^branch refs\/heads\/production$/ { print path; exit }')"
+if [[ -n "$EXISTING_PROD_WT" ]]; then
+  PROD_WT="$EXISTING_PROD_WT"
+fi
+
 if [[ ! -d "$PROD_WT" ]]; then
+  run mkdir -p "$(dirname "$PROD_WT")"
   run git -C "$HUB_REPO" worktree add "$PROD_WT" production
 fi
 

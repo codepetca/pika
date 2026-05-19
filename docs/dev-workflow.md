@@ -18,6 +18,8 @@ Pika is developed using:
 - AI agents (Claude, Codex)
 
 Relying on shell cwd, terminal tabs, or human memory does not scale.
+Codex can use its current checkout/worktree directly; no project-specific
+environment variable is required for it to know where it is working.
 
 This workflow exists to ensure:
 - correctness
@@ -47,17 +49,31 @@ Used for:
 
 ---
 
-### Worktrees
+### Worktree locations
 
-Each feature branch lives in its own worktree:
+New named Pika feature worktrees live under:
 
 ```
-$HOME/Repos/.worktrees/pika/<worktree-name>
+$HOME/.codex/worktrees/pika/<worktree-name>
 ```
+
+Codex Desktop may also create app-managed Pika worktrees under:
+
+```
+$HOME/.codex/worktrees/<id>/pika
+```
+
+Both are valid Codex-native worktrees. Agents should discover the current
+checkout with `git rev-parse --show-toplevel` and then operate from that root.
 
 Rules:
 - One worktree per feature branch
 - Agents operate on exactly one worktree
+- Older worktrees may still exist under `$HOME/Repos/.worktrees/pika`; leave them in place, but create new named worktrees under `$HOME/.codex/worktrees/pika`.
+
+Do not depend on project-specific worktree environment variables. If an
+external script needs a path, pass it explicitly or run it from inside the
+intended worktree.
 
 ---
 
@@ -76,17 +92,18 @@ Each worktree must symlink `.env.local` to that canonical path to avoid drift.
 ## The `pika` command
 
 The `pika` script is a thin router that:
-- binds commands to a specific worktree
-- removes reliance on shell cwd
-- provides a stable contract for AI agents
+- launches commands in a specific worktree
+- helps humans avoid opening agents in the hub by mistake
+- keeps human-launched AI sessions on a named worktree
+
+It is a convenience wrapper, not a requirement for Codex. Codex should create or
+open a git worktree natively and then operate from that worktree root.
 
 ### Quick start
 
 ```bash
 pika ls
 pika claude <worktree>
-# or
-pika codex <worktree>
 ```
 
 ### Available commands
@@ -95,31 +112,22 @@ pika codex <worktree>
   Lists available worktrees.
 
 - `pika claude <worktree> [-- <args...>]`
-  Launches Claude bound to the given worktree.
-  Exports:
-  - `PIKA_PROJECT`
-  - `PIKA_WORKTREE`
-  - `PIKA_WORKTREE_NAME`
+  Launches Claude in the given worktree.
 
   Alias: `pika ai <worktree>` (legacy)
 
 - `pika codex <worktree> [-- <args...>]`
-  Launches Codex bound to the given worktree.
-  Exports:
-  - `PIKA_PROJECT`
-  - `PIKA_WORKTREE`
-  - `PIKA_WORKTREE_NAME`
+  Optional compatibility helper for launching Codex in the given named worktree.
+  Codex Desktop sessions do not need this.
 
 - `pika git <worktree> <git args...>`
-  Runs git safely using:
-  ```bash
-  git -C "$PIKA_WORKTREE" <git args...>
-  ```
+  Runs git in the resolved named worktree. Resolution checks
+  `$HOME/.codex/worktrees/pika` first, then the legacy
+  `$HOME/Repos/.worktrees/pika` path while old worktrees exist.
 
 Use `--` to pass through engine flags, for example:
 ```bash
 pika claude my-worktree -- --model sonnet
-pika codex my-worktree -- --max-output-tokens 1200
 ```
 
 ---
@@ -128,18 +136,14 @@ pika codex my-worktree -- --max-output-tokens 1200
 
 Agents **must** follow these rules:
 
-- NEVER assume the shell cwd
-- ALL git commands MUST use:
-  ```bash
-  git -C "$PIKA_WORKTREE"
-  ```
-- ALL file paths must be absolute or prefixed with:
-  ```bash
-  $PIKA_WORKTREE
-  ```
+- Resolve the current repo root with `git rev-parse --show-toplevel`.
+- Treat that resolved root as the only checkout for the task.
+- Use absolute paths or paths relative to that root.
+- Do not do feature or branch work in `$HOME/Repos/pika` (the hub).
+- For non-trivial edits started from the hub, create a dedicated worktree first.
 
 If unsure which worktree to use:
-- Ask the user to run `pika ls`
+- Run `git worktree list` from the hub or ask the user which worktree to use.
 
 ---
 
@@ -193,37 +197,56 @@ git merge --no-ff <branch>   # creates merge commit (rejected on main)
 After a feature PR is merged to `main`, clean up from the hub checkout:
 
 ```bash
-export PIKA_WORKTREE="$HOME/Repos/pika"
-git -C "$PIKA_WORKTREE" fetch origin
-git -C "$PIKA_WORKTREE" merge --ff-only origin/main
-git -C "$PIKA_WORKTREE" worktree remove "$HOME/Repos/.worktrees/pika/<branch-name>"
-git -C "$PIKA_WORKTREE" branch -D <branch-name>
+HUB="$HOME/Repos/pika"
+BRANCH="<branch-name>"
+git -C "$HUB" fetch origin
+git -C "$HUB" merge --ff-only origin/main
+WT_PATH="$(git -C "$HUB" worktree list --porcelain \
+  | awk -v branch="$BRANCH" '
+      /^worktree / { path=substr($0, 10) }
+      /^branch refs\/heads\// {
+        ref=substr($0, 19)
+        if (ref == branch) { print path; exit }
+      }')"
+if [ -n "$WT_PATH" ]; then
+  git -C "$HUB" worktree remove "$WT_PATH"
+fi
+git -C "$HUB" branch -D "$BRANCH"
 ```
 
-This keeps the hub checkout fast-forwarded to the merged `main` before removing the finished worktree and branch.
+This keeps the hub checkout fast-forwarded to the merged `main` before removing
+the finished worktree and branch. Resolving the path from Git metadata lets
+cleanup handle both new Codex worktrees and older legacy worktrees.
 
 ---
 
 ## Merging `main` into `production` (PR-required)
 
 `production` is branch-protected and rejects direct pushes. Always merge through a PR.
+Prefer the helper script in `.codex/skills/pika-main-to-production-merge`; the
+manual flow below documents the same behavior.
 
 ### 1) Prepare hub + production worktree
 
 ```bash
-export PIKA_WORKTREE="$HOME/Repos/pika"   # hub checkout
-git -C "$PIKA_WORKTREE" fetch origin
-git -C "$PIKA_WORKTREE" worktree prune
+HUB="$HOME/Repos/pika"
+WT_ROOT="$HOME/.codex/worktrees/pika"
+git -C "$HUB" fetch origin
+git -C "$HUB" worktree prune
 
-if [ ! -d "$HOME/Repos/.worktrees/pika/production" ]; then
-  git -C "$PIKA_WORKTREE" worktree add "$HOME/Repos/.worktrees/pika/production" production
+PROD_WT="$(git -C "$HUB" worktree list --porcelain \
+  | awk '/^worktree / { path=$2 } /^branch refs\/heads\/production$/ { print path; exit }')"
+
+if [ -z "$PROD_WT" ]; then
+  PROD_WT="$WT_ROOT/production"
+  mkdir -p "$(dirname "$PROD_WT")"
+  git -C "$HUB" worktree add "$PROD_WT" production
 fi
 ```
 
 ### 2) Merge latest remote branches in production worktree
 
 ```bash
-export PROD_WT="$HOME/Repos/.worktrees/pika/production"
 git -C "$PROD_WT" fetch origin main production
 git -C "$PROD_WT" merge --ff-only origin/production
 git -C "$PROD_WT" merge origin/main

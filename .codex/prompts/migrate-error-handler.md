@@ -8,4 +8,4 @@ Steps:
 3. Convert `export async function X(...)` to `export const X = withErrorHandler(...)`.
 4. Add `import { withErrorHandler } from '@/lib/api-handler'` if missing.
 5. If the old `catch` contained custom domain behavior, move it inline with `ApiError` or `apiErrors`.
-6. Verify with `pnpm -C "$PIKA_WORKTREE" tsc --noEmit` and run nearby tests when available.
+6. Verify with `pnpm tsc --noEmit` and run nearby tests when available.

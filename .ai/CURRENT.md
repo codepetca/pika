@@ -11,7 +11,8 @@ Read this file at the start of every AI session. It is the compact continuity la
 ## Environment And Workflow Facts
 
 - Main hub checkout: `$HOME/Repos/pika`
-- Feature worktrees: `$HOME/Repos/.worktrees/pika/<branch-name>`
+- New named Pika worktrees: `$HOME/.codex/worktrees/pika/<branch-name>`
+- Codex Desktop may also use app-managed worktrees: `$HOME/.codex/worktrees/<id>/pika`
 - Shared env file: `$HOME/Repos/.env/pika/.env.local`
 - Runtime and package-manager requirements live in `.nvmrc`, `package.json`, and `scripts/verify-env.sh`
 - Worktree and shared-env setup are defined only in `docs/dev-workflow.md`
@@ -28,7 +29,7 @@ Read this file at the start of every AI session. It is the compact continuity la
 
 ## Known Hazards
 
-- Do not work in the hub checkout for non-trivial changes; bind to a worktree first
+- Do not work in the hub checkout for non-trivial changes; create or open a dedicated worktree first
 - Do not tail `.ai/JOURNAL-ARCHIVE.md` by default; it is intentionally large
 - Keep `.ai/SESSION-LOG.md` as a rolling recent log and run `node scripts/trim-session-log.mjs` after appending
 - Do not run `supabase db push`, `supabase db reset`, or other migration-application commands as an AI agent
