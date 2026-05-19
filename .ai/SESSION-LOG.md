@@ -621,3 +621,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `E2E_BASE_URL=http://localhost:3028 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=a7b4279f-d18e-4277-b4de-b1950e24e892'`
 - Targeted Playwright screenshots/assertions: `/tmp/pika-survey-results-bars.png`, `/tmp/pika-survey-results-card-teacher.png`, `/tmp/pika-survey-results-card-student.png`; temporary multiple-choice survey response rows were deleted afterward.
+
+## 2026-05-19 — Multiple-choice survey option cap
+
+**Completed:**
+- Raised the multiple-choice survey option cap from 6 to 50 in the shared survey validation.
+- Added a boundary unit test that accepts the configured maximum and rejects one option beyond it.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/surveys.test.ts tests/api/teacher/surveys-questions-route.test.ts tests/api/teacher/surveys-questions-id.test.ts`
+- `pnpm lint`
+- `pnpm build`

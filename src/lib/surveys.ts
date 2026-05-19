@@ -10,7 +10,7 @@ import type {
   SurveyStatus,
 } from '@/types'
 
-export const MAX_SURVEY_OPTIONS = 6
+export const MAX_SURVEY_OPTIONS = 50
 export const DEFAULT_SURVEY_TEXT_MAX_CHARS = 500
 export const DEFAULT_SURVEY_LINK_MAX_CHARS = 2048
 

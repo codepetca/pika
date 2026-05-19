@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MAX_SURVEY_OPTIONS,
   aggregateSurveyResults,
   canStudentRespondToSurvey,
   getStudentSurveyStatus,
   normalizeSurveyQuestionInput,
+  validateSurveyOptions,
   validateSurveyResponses,
 } from '@/lib/surveys'
 import { markdownToSurvey, surveyToMarkdown } from '@/lib/survey-markdown'
@@ -89,6 +91,17 @@ describe('survey utilities', () => {
       expect(result.question.question_type).toBe('link')
       expect(result.question.options).toEqual([])
     }
+  })
+
+  it('allows many multiple-choice survey options while keeping a validation boundary', () => {
+    const maximumOptions = Array.from({ length: MAX_SURVEY_OPTIONS }, (_, index) => `Option ${index + 1}`)
+    const tooManyOptions = [...maximumOptions, `Option ${MAX_SURVEY_OPTIONS + 1}`]
+
+    expect(validateSurveyOptions(maximumOptions)).toEqual({ valid: true })
+    expect(validateSurveyOptions(tooManyOptions)).toEqual({
+      valid: false,
+      error: `Maximum ${MAX_SURVEY_OPTIONS} options allowed`,
+    })
   })
 
   it('validates multiple-choice, short-text, and link responses', () => {
