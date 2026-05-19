@@ -217,6 +217,18 @@ describe('TeacherAttendanceTab', () => {
     })
   })
 
+  it('does not show previous or next arrows around the Daily date picker', async () => {
+    mockLogsFetch()
+
+    render(<TeacherAttendanceTab classroom={classroom} />)
+
+    await screen.findByRole('columnheader', { name: 'Log' })
+
+    expect(screen.getByRole('button', { name: 'Select attendance date' })).toHaveTextContent('Tue May 5')
+    expect(screen.queryByRole('button', { name: 'Previous day' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Next day' })).not.toBeInTheDocument()
+  })
+
   it('uses the current Toronto date for quick jumps after a date rollover', async () => {
     classDaysMock.classDays = [
       ...classDaysMock.defaultClassDays,
