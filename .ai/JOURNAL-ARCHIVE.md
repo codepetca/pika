@@ -1771,7 +1771,7 @@
 ---
 ## 2026-01-08 10:02 [AI - Codex]
 **Goal:** Unify worktree workflow docs and path conventions; align with docs/dev-workflow.md.
-**Completed:** Updated worktree guidance to point to docs/dev-workflow.md, standardized $HOME/Repos paths, and aligned git examples with git -C "$PIKA_WORKTREE" usage; refreshed legacy worktrees.md with a deprecation banner.
+**Completed:** Updated worktree guidance to point to docs/dev-workflow.md, standardized $HOME/Repos paths, and aligned git examples with git -C "<worktree>" usage; refreshed legacy worktrees.md with a deprecation banner.
 **Status:** completed
 **Artifacts:**
 - Branch: `92-worktree-docs`
@@ -2092,7 +2092,7 @@
 **Completed:** Listed worktrees via `git worktree list --porcelain` and printed paths relative to `WORKTREE_ROOT`; updated ls and error output to use this list.
 **Status:** completed
 **Artifacts:**
-- Branch: chore/pika-worktree-menu
+- Branch: chore/worktree-menu
 - Files: scripts/pika
 **Tests:** Not run (manual check via `scripts/pika ls`).
 **Next:** Run `pika codex` to confirm menu shows `issue/...` entries.
@@ -2103,7 +2103,7 @@
 **Completed:** Added fallback to `ls -1t` when `git worktree list` fails and restored mtime-based ordering for nested worktrees.
 **Status:** completed
 **Artifacts:**
-- Branch: chore/pika-worktree-menu
+- Branch: chore/worktree-menu
 - Files: scripts/pika
 **Tests:** Not run (manual check recommended).
 **Next:** Run `scripts/pika codex` to confirm ordering and nested names.
@@ -2114,7 +2114,7 @@
 **Completed:** Switched mtime aggregation to use real tab separators so `cut -f2-` strips timestamps correctly.
 **Status:** completed
 **Artifacts:**
-- Branch: chore/pika-worktree-menu
+- Branch: chore/worktree-menu
 - Files: scripts/pika
 **Tests:** Not run (manual check recommended).
 **Next:** Re-run `scripts/pika ls` and `scripts/pika codex` to confirm clean labels.
@@ -7196,7 +7196,7 @@
 - Reworked the classroom shell height chain so authenticated pages use a true `min-h-dvh -> flex-1/min-h-0 -> h-full/min-h-0` flow in `src/components/AppShell.tsx`, `src/components/layout/ThreePanelShell.tsx`, `src/components/layout/MainContent.tsx`, `src/ui/TabContentTransition.tsx`, and `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`.
 - Updated `src/components/PageLayout.tsx` and `src/components/layout/MainContent.tsx` to merge override spacing classes correctly via `cn`, so tab-specific `pt-0`, `pt-1`, and `pb-0` overrides actually win over density defaults.
 - Converted student tests and both teacher/student calendar tabs to fill their available pane height using flex-based wrappers instead of viewport math in `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`, `src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx`, `src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx`, and `src/components/LessonCalendar.tsx`.
-- Added screenshots from the worktree dev server for student tests, student calendar, teacher tests, and teacher calendar under `/tmp/pika-worktree-*.png`.
+- Added screenshots from the worktree dev server for student tests, student calendar, teacher tests, and teacher calendar under `/tmp/worktree-*.png`.
 
 **Validation:**
 - `pnpm lint --file src/components/PageLayout.tsx --file src/components/layout/MainContent.tsx --file 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx' --file 'src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx' --file 'src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx' --file 'src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx' --file src/components/AppShell.tsx --file src/components/LessonCalendar.tsx --file src/components/layout/ThreePanelShell.tsx --file src/ui/TabContentTransition.tsx` (pass)
@@ -7210,7 +7210,7 @@
 - Audited `supabase/migrations` against `origin/main`; no new migration files were added on this branch and no duplicate migration prefixes were present, so no resequencing was needed.
 
 **Validation:**
-- `git -C "$PIKA_WORKTREE" diff --name-only --diff-filter=A origin/main -- supabase/migrations` (no output)
+- `git -C "<worktree>" diff --name-only --diff-filter=A origin/main -- supabase/migrations` (no output)
 - duplicate migration prefix check across `supabase/migrations` (no output)
 
 ## 2026-03-20 [AI - GPT-5 Codex]
@@ -7328,7 +7328,7 @@
 **Validation:**
 - `pnpm test` (all 1592 tests pass)
 - `pnpm test tests/components/StudentQuizForm.test.tsx` (3 tests pass, no unhandled errors)
-- `git -C "$PIKA_WORKTREE" log --oneline -1` → fdbe6cd fix: add safety check for scrollIntoView and add flagging E2E tests
+- `git -C "<worktree>" log --oneline -1` → fdbe6cd fix: add safety check for scrollIntoView and add flagging E2E tests
 
 **Blockers/Notes:**
 - User's last request: "change q7 mc option so its not using arrays" - unable to locate Q7 in codebase
@@ -7371,7 +7371,7 @@
 - Added a regression test covering an `ok: true` OpenAI response whose body is non-JSON text beginning with `An error occurred...`
 
 **Validation:**
-- `bash "$PIKA_WORKTREE/.codex/skills/pika-session-start/scripts/session_start.sh"` (179 test files, 1592 tests passing)
+- `bash "<worktree>/.codex/skills/pika-session-start/scripts/session_start.sh"` (179 test files, 1592 tests passing)
 - `pnpm test tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts` (17 tests passing)
 
 **Notes:**
@@ -8664,9 +8664,9 @@
 - Targeted regression:
   - `corepack pnpm --dir /Users/stew/Repos/.worktrees/pika/codex/ai-guidance-slimdown exec vitest run tests/unit/ui-guidance-docs.test.ts`
 - Full session-start dry run:
-  - `PATH="/opt/homebrew/opt/node@24/bin:$PATH" PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/codex/ai-guidance-slimdown bash "$PIKA_WORKTREE/.codex/skills/pika-session-start/scripts/session_start.sh"`
+  - `PATH="/opt/homebrew/opt/node@24/bin:$PATH" bash "<worktree>/.codex/skills/pika-session-start/scripts/session_start.sh"`
 
-**Status:** The default AI startup path is now under the target budget, journal reads are on-demand, and the bound worktree session-start flow passes end-to-end.
+**Status:** The default AI startup path is now under the target budget, journal reads are on-demand, and the current-root session-start flow passes end-to-end.
 
 ## 2026-04-15 [AI - Codex]
 
@@ -8734,7 +8734,7 @@
 - Verified the main dependency families currently checked are internally aligned between manifest and lockfile.
 
 **Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` with `PIKA_WORKTREE=/Users/stew/.codex/worktrees/88c8/pika` (failed on Node version check)
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` from a local worktree (failed on Node version check)
 - `node -v` → `v22.21.1`
 - `pnpm -v` → `10.25.0`
 - `pnpm exec node -v` → `v22.21.1`
@@ -9193,7 +9193,7 @@
 **Validation:**
 - `pnpm test tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx`
 - `pnpm exec eslint src/components/StudentQuizForm.tsx tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx`
-- `bash "$PIKA_WORKTREE/.codex/skills/pika-ui-verify/scripts/ui_verify.sh" 'classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests'` with `E2E_BASE_URL=http://localhost:3002`
+- `bash "<worktree>/.codex/skills/pika-ui-verify/scripts/ui_verify.sh" 'classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests'` with `E2E_BASE_URL=http://localhost:3002`
 - Manual Playwright screenshots:
 - `/tmp/pika-teacher-test-preview-submit-end.png`
 - `/tmp/pika-student-test-submit-end.png`
@@ -9649,7 +9649,7 @@
 **Validation:**
 - `pnpm lint`
 - `pnpm vitest run tests/unit/layout-config.test.ts tests/components/TeacherWorkspaceSplit.test.tsx tests/components/WorkspaceSplitPane.test.tsx tests/components/SummaryDetailWorkspaceShell.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `bash "$PIKA_WORKTREE/scripts/verify-env.sh"`
+- `bash "<worktree>/scripts/verify-env.sh"`
 - Cleared stale generated `.next` cache after a dev-server vendor chunk error,
   then reran Pika UI verification cleanly.
 - Pika UI verification for `/classrooms/8d9c9d0b-444f-4b6b-80e2-4522ec26681a?tab=attendance` on `http://localhost:3002`.
@@ -9766,7 +9766,7 @@
 **Validation:**
 - `pnpm test tests/ui/AppMessage.test.tsx tests/ui/StatusPrimitives.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSettingsTab.test.tsx`
 - `pnpm lint`
-- `bash "$PIKA_WORKTREE/scripts/verify-env.sh"` (235 files, 1951 tests)
+- `bash "<worktree>/scripts/verify-env.sh"` (235 files, 1951 tests)
 - Pika UI verification for classroom assignments and assignment grading workspace:
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`
@@ -9793,7 +9793,7 @@
 - Added a README license section that states the repository is publicly visible for review/evaluation only and links to `LICENSE`.
 
 **Validation:**
-- `bash "$PIKA_WORKTREE/scripts/verify-env.sh"` (235 files, 1951 tests)
+- `bash "<worktree>/scripts/verify-env.sh"` (235 files, 1951 tests)
 ## 2026-04-29 — Classroom navigation pending feedback
 
 **Completed:**
@@ -10037,7 +10037,7 @@
 - Added NavItems regression coverage for no assignment dropdown affordance or nested assignment buttons.
 
 **Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/remove-assignments-sidebar-dropdown bash scripts/verify-env.sh`
+- `bash scripts/verify-env.sh`
 - `pnpm exec vitest run tests/components/NavItems.test.tsx`
 - `pnpm lint`
 - `pnpm exec tsc --noEmit`
@@ -10123,7 +10123,7 @@
 - Added component regression coverage that switches from one overview student to another with a deferred load and verifies the batch apply source is cleared until the new student's data arrives.
 
 **Validation:**
-- `bash "$PIKA_WORKTREE/.codex/skills/pika-session-start/scripts/session_start.sh"` (235 files / 1958 tests before the focused regression was added)
+- `bash "<worktree>/.codex/skills/pika-session-start/scripts/session_start.sh"` (235 files / 1958 tests before the focused regression was added)
 - `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx tests/api/teacher/assignments-grade-selected.test.ts tests/api/teacher/assignments-id-grade.test.ts tests/ui/SplitButton.test.tsx`
 - `pnpm lint`
 
@@ -10794,7 +10794,7 @@
 **Validation:**
 - `pnpm test tests/components/StudentQuizzesTab.test.tsx`
 - `pnpm lint`
-- Pre-edit startup verification: `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/issue-548-doc-chevron bash scripts/verify-env.sh`
+- Pre-edit startup verification: `bash scripts/verify-env.sh`
 - Pika UI verification script on `http://localhost:3002/classrooms`:
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`

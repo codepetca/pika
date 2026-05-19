@@ -12,4 +12,4 @@ Steps:
 3. Inspect the affected files and the nearest tests without editing anything yet.
 4. Draft the plan: worktree or branch name, files to change, tests to write first, and whether a migration file is needed.
 5. Present the plan and wait for approval.
-6. After approval, create or bind the worktree using `docs/dev-workflow.md`, then continue the work from that bound worktree.
+6. After approval, create or open the dedicated worktree using `docs/dev-workflow.md`, then continue the work from that worktree.

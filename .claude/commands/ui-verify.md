@@ -2,10 +2,10 @@ Visual verification of UI changes using Playwright screenshots.
 
 Takes the page path as $ARGUMENTS (e.g. `classrooms/abc123`).
 
-This command operates on the bound worktree (`$PIKA_WORKTREE`).
+This command operates on the current repo/worktree.
 
 Rules:
-- Verify `$PIKA_WORKTREE` is set before running any commands.
+- Resolve the current repo root with `git rev-parse --show-toplevel`.
 - Requires dev server running at `localhost:3000`.
 - Must capture BOTH teacher and student views when applicable.
 - You MUST look at the screenshots and provide visual feedback.
@@ -14,32 +14,32 @@ Steps:
 
 1) Ensure dev server is running
    - Check: `curl -s http://localhost:3000/api/auth/me > /dev/null && echo ok || echo not running`
-   - If not running: `pnpm -C "$PIKA_WORKTREE" dev &` and wait 5s.
+   - If not running: `pnpm dev &` and wait 5s.
 
 2) Ensure auth states exist
-   - Check: `ls "$PIKA_WORKTREE/.auth/"` for teacher.json and student.json.
-   - If missing: `pnpm -C "$PIKA_WORKTREE" e2e:auth`
+   - Check: `ls .auth/` for teacher.json and student.json.
+   - If missing: `pnpm e2e:auth`
 
 3) Take screenshots for BOTH roles
    - Teacher view:
      ```bash
      npx playwright screenshot "http://localhost:3000/$ARGUMENTS" \
        /tmp/pika-teacher.png \
-       --load-storage "$PIKA_WORKTREE/.auth/teacher.json" \
+       --load-storage ".auth/teacher.json" \
        --viewport-size 1440,900
      ```
    - Student view:
      ```bash
      npx playwright screenshot "http://localhost:3000/$ARGUMENTS" \
        /tmp/pika-student.png \
-       --load-storage "$PIKA_WORKTREE/.auth/student.json" \
+       --load-storage ".auth/student.json" \
        --viewport-size 390,844
      ```
    - Mobile teacher (if responsive):
      ```bash
      npx playwright screenshot "http://localhost:3000/$ARGUMENTS" \
        /tmp/pika-teacher-mobile.png \
-       --load-storage "$PIKA_WORKTREE/.auth/teacher.json" \
+       --load-storage ".auth/teacher.json" \
        --viewport-size 390,844
      ```
 

@@ -2,11 +2,11 @@ Load a GitHub issue, set up a worktree, and prepare a plan before coding.
 
 Takes the issue number as $ARGUMENTS (e.g. `382`).
 
-This command operates on the bound worktree (`$PIKA_WORKTREE`).
+This command operates on the current repo/worktree.
 
 Rules:
-- Verify `$PIKA_WORKTREE` is set before running any commands.
-- ALL git commands MUST use: `git -C "$PIKA_WORKTREE"` or hub path.
+- Resolve the current repo root with `git rev-parse --show-toplevel`.
+- Use the hub path only for creating a new worktree.
 - Plan before coding — wait for my approval before writing any files.
 
 Steps:
@@ -16,9 +16,9 @@ Steps:
    - Read and summarize: title, description, acceptance criteria, affected areas.
 
 2) Read relevant docs
-   - `$PIKA_WORKTREE/docs/ai-instructions.md` (if not already read this session)
-   - `$PIKA_WORKTREE/docs/core/architecture.md` (relevant sections)
-   - Any guidance doc under `$PIKA_WORKTREE/docs/guidance/` related to the issue.
+   - `docs/ai-instructions.md` (if not already read this session)
+   - `docs/core/architecture.md` (relevant sections)
+   - Any guidance doc under `docs/guidance/` related to the issue.
 
 3) Explore affected code
    - Identify which files will likely change (API routes, components, lib utilities, tests).
@@ -40,8 +40,8 @@ Steps:
 
 6) After approval: set up worktree (if not already on correct branch)
    ```bash
-   export PIKA_WORKTREE="$HOME/Repos/pika"
-   git -C "$PIKA_WORKTREE" fetch origin
-   git -C "$PIKA_WORKTREE" worktree add "$HOME/Repos/.worktrees/pika/issue-$ARGUMENTS-<slug>" -b "issue/$ARGUMENTS-<slug>" origin/main
+   HUB="$HOME/Repos/pika"
+   git -C "$HUB" fetch origin
+   git -C "$HUB" worktree add "$HOME/.codex/worktrees/pika/issue-$ARGUMENTS-<slug>" -b "issue/$ARGUMENTS-<slug>" origin/main
    ```
-   Then tell me to: `pika claude issue-$ARGUMENTS-<slug>` to bind the new worktree.
+   Then open the new worktree before editing.

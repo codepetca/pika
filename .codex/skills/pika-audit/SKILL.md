@@ -11,10 +11,10 @@ Scan changed TypeScript files for codebase violations before committing. Catches
 
 ## Workflow
 
-1. Confirm you are in the Pika repo (`$PIKA_WORKTREE` is set).
+1. Confirm you are in the Pika repo with `git rev-parse --show-toplevel`.
 2. Run the audit script:
    ```bash
-   bash "$PIKA_WORKTREE/.codex/skills/pika-audit/scripts/audit.sh"
+   bash .codex/skills/pika-audit/scripts/audit.sh
    ```
 3. Review any violations reported.
 4. Fix violations before committing (use `/migrate-error-handler` for withErrorHandler issues).

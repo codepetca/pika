@@ -7,47 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-14 — Test modal header title placement
-
-**Completed:**
-- Moved the editable test title into the test creation/edit modal header where the fixed `Test` label was.
-- Display generated untitled test drafts as `Untitled Test` in the editable test title control.
-- Kept the same draft-backed title save path by portaling the existing `QuizDetailPanel` title editor into the modal header.
-
-**Validation:**
-- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3005 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests'`
-- Targeted screenshots/assertions: `/tmp/pika-test-title-header-desktop.png`, `/tmp/pika-test-title-header-mobile.png`.
-
-## 2026-05-14 — Survey selected-card results pane
-
-**Completed:**
-- Moved teacher survey results out of the authoring modal and into the selected survey Pika pane.
-- Moved teacher survey settings/actions into the selected-survey floating action bar: edit, code, poll visibility, results visibility, response editing, delete.
-- Changed survey cards to select the survey results pane instead of opening the authoring modal directly.
-- Updated student survey behavior so visible results render first, unsubmitted students can still open the response form, and submitted students get an edit-response FAB when response editing is allowed.
-- Fixed URL-selected survey modal state so the teacher action-bar edit/code buttons can open the authoring modal without being immediately cleared by the URL selection effect.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/StudentSurveyPanel.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3005 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Targeted Playwright screenshots/assertions: `/tmp/pika-teacher-survey-results-pane.png`, `/tmp/pika-teacher-survey-authoring-no-results.png`, `/tmp/pika-student-survey-results-respond.png`, `/tmp/pika-student-survey-results-edit.png`, `/tmp/pika-student-survey-edit-form.png`.
-
-## 2026-05-14 — Survey cleanup resumed validation
-
-**Completed:**
-- Resumed the survey cleanup worktree after an interrupted startup verification run.
-- Confirmed the real worktree branch remained `codex/survey-experience-cleanup`.
-- Loaded startup and UI guidance context without making further code changes.
-
-**Validation:**
-- `pnpm test` — 268 test files and 2235 tests passed.
-- `git diff --check`
-
 ## 2026-05-14 — Rebased survey cleanup onto origin/main
 
 **Completed:**
@@ -75,7 +34,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
 - `pnpm lint`
 - `pnpm build`
-- `E2E_BASE_URL=http://localhost:3006 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- `E2E_BASE_URL=http://localhost:3006 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
 - Targeted Playwright screenshot/assertion: `/tmp/pika-survey-create-modal-title-selected.png`.
 
 ## 2026-05-14 — Teacher selected-survey split actions
@@ -90,7 +49,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/components/TeacherClassroomView.test.tsx`
 - `pnpm lint`
 - `pnpm build`
-- `E2E_BASE_URL=http://localhost:3021 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=167609a8-2111-482f-8be2-7bb74a8f548f'`
+- `E2E_BASE_URL=http://localhost:3021 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=167609a8-2111-482f-8be2-7bb74a8f548f'`
 - Targeted Playwright screenshots/assertions: `/tmp/pika-survey-teacher-final.png`, `/tmp/pika-survey-actions-open.png`; temporary survey fixture was deleted afterward.
 
 ## 2026-05-14 — Teacher selected-survey icon controls
@@ -105,7 +64,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
 - `pnpm lint`
 - `pnpm build`
-- `E2E_BASE_URL=http://localhost:3022 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=47927a72-ffe7-45d8-a51d-9f60bd9696d6'`
+- `E2E_BASE_URL=http://localhost:3022 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=47927a72-ffe7-45d8-a51d-9f60bd9696d6'`
 - Targeted Playwright screenshots/assertions: `/tmp/pika-survey-icon-controls.png`, `/tmp/pika-survey-edit-modal-settings.png`; temporary survey fixture was deleted afterward.
 
 ## 2026-05-14 — Survey hidden-results and live-change copy
@@ -119,7 +78,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
 - `pnpm lint`
 - `pnpm build`
-- `E2E_BASE_URL=http://localhost:3023 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=b04fcfbf-1071-4d14-af9f-592c35a9f02a'`
+- `E2E_BASE_URL=http://localhost:3023 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=b04fcfbf-1071-4d14-af9f-592c35a9f02a'`
 - Targeted Playwright screenshots/assertions: `/tmp/pika-survey-hidden-results-icon.png`, `/tmp/pika-survey-edit-modal-live-changes-row.png`; temporary survey fixture was deleted afterward.
 
 ## 2026-05-14 — Survey question autosave controls
@@ -137,9 +96,9 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/components/TeacherSurveyWorkspace.test.tsx`
 - `pnpm lint`
 - `pnpm build`
-- `E2E_BASE_URL=http://localhost:3024 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=619428d0-644e-4f13-9681-bb0954e266b1'`
+- `E2E_BASE_URL=http://localhost:3024 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=619428d0-644e-4f13-9681-bb0954e266b1'`
 - Targeted Playwright screenshots/assertions: `/tmp/pika-survey-question-autosave-delete-inline.png`, `/tmp/pika-survey-question-autosaved.png`; confirmed `saveButtonCount: 0`, observed question PATCH on blur, and deleted the temporary survey fixture afterward.
-- `E2E_BASE_URL=http://localhost:3027 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=a7b4279f-d18e-4277-b4de-b1950e24e892'`
+- `E2E_BASE_URL=http://localhost:3027 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=a7b4279f-d18e-4277-b4de-b1950e24e892'`
 - Targeted Playwright screenshots/assertions: `/tmp/pika-survey-locked-controls.png`, `/tmp/pika-survey-hidden-results-control.png`; restored the seeded active survey to `show_results: true`.
 
 ## 2026-05-15 — Survey results card cleanup
@@ -152,12 +111,12 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Stabilized the generated-title focus test with an explicit wait after the all-file startup run exposed a focus timing flake.
 
 **Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-session-start/scripts/session_start.sh` — one focus-timing test failed during the full suite before edits; the isolated test passed afterward and was stabilized.
+- `bash /Users/stew/Repos/pika/.codex/skills/pika-session-start/scripts/session_start.sh` — one focus-timing test failed during the full suite before edits; the isolated test passed afterward and was stabilized.
 - `pnpm test tests/components/TeacherSurveyResultsPane.test.tsx tests/components/StudentSurveyPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
 - `pnpm test tests/components/TeacherSurveyWorkspace.test.tsx tests/components/TeacherSurveyResultsPane.test.tsx tests/components/StudentSurveyPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
 - `pnpm lint`
 - `pnpm build`
-- `E2E_BASE_URL=http://localhost:3028 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=a7b4279f-d18e-4277-b4de-b1950e24e892'`
+- `E2E_BASE_URL=http://localhost:3028 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=a7b4279f-d18e-4277-b4de-b1950e24e892'`
 - Targeted Playwright screenshots/assertions: `/tmp/pika-survey-results-bars.png`, `/tmp/pika-survey-results-card-teacher.png`, `/tmp/pika-survey-results-card-student.png`; temporary multiple-choice survey response rows were deleted afterward.
 
 ## 2026-05-19 — Multiple-choice survey option cap
@@ -167,7 +126,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added a boundary unit test that accepts the configured maximum and rejects one option beyond it.
 
 **Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-session-start/scripts/session_start.sh`
+- `bash /Users/stew/Repos/pika/.codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm test tests/unit/surveys.test.ts tests/api/teacher/surveys-questions-route.test.ts tests/api/teacher/surveys-questions-id.test.ts`
 - `pnpm lint`
 - `pnpm build`
@@ -182,7 +141,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
 - `pnpm lint`
 - `pnpm build`
-- `E2E_BASE_URL=http://localhost:3030 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-experience-cleanup bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- `E2E_BASE_URL=http://localhost:3030 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
 - Targeted Playwright smoke created a temporary draft survey, confirmed `Open poll` was disabled before adding a question and enabled after adding the first question in the modal, then deleted the temporary survey. Screenshot: `/tmp/pika-survey-question-count-enabled.png`.
 
 ## 2026-05-19 — Survey PR merge prep
@@ -202,11 +161,11 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added regression coverage for opening preview and selecting an option without issuing a survey PATCH.
 
 **Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-preview bash /Users/stew/Repos/.worktrees/pika/survey-preview/.codex/skills/pika-session-start/scripts/session_start.sh`
+- `bash /Users/stew/Repos/.worktrees/pika/survey-preview/.codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm test tests/components/TeacherSurveyWorkspace.test.tsx`
 - `pnpm lint`
 - `pnpm build`
-- `E2E_BASE_URL=http://localhost:3003 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-preview bash /Users/stew/Repos/.worktrees/pika/survey-preview/.codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- `E2E_BASE_URL=http://localhost:3003 bash /Users/stew/Repos/.worktrees/pika/survey-preview/.codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Targeted Playwright screenshots/assertions: `/tmp/pika-survey-preview-teacher.png`, `/tmp/pika-survey-preview-teacher-mobile.png`; temporary survey fixtures were deleted afterward.
 
 ## 2026-05-19 — Teacher Daily date picker arrows
@@ -216,10 +175,10 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added a regression test asserting the Daily picker no longer renders `Previous day` or `Next day` buttons.
 
 **Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows bash /Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows/.codex/skills/pika-session-start/scripts/session_start.sh`
+- `bash /Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows/.codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm vitest run tests/components/TeacherAttendanceTab.test.tsx`
 - `pnpm lint`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows E2E_BASE_URL=http://localhost:3017 bash /Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=attendance'`
+- `E2E_BASE_URL=http://localhost:3017 bash /Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=attendance'`
 - Warmed desktop screenshot: `/tmp/pika-teacher-final.png`; teacher desktop/mobile confirmed no forward/back date arrows, student mobile unaffected.
 - `pnpm test`
 
@@ -235,10 +194,10 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/components/AssignmentModal.test.tsx`
 - `pnpm lint`
 - `pnpm build`
-- `E2E_BASE_URL=http://localhost:3003 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-preview-escape bash /Users/stew/Repos/.worktrees/pika/assignment-preview-escape/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- `E2E_BASE_URL=http://localhost:3003 bash /Users/stew/Repos/.worktrees/pika/assignment-preview-escape/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
 - Targeted Playwright screenshots/assertions: `/tmp/pika-assignment-instructions-preview.png`, `/tmp/pika-assignment-modal-after-preview-escape.png`.
 - `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-markdown-modal E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- `E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
 - Additional modal screenshots:
   - `/tmp/pika-teacher-assignment-markdown-modal.png`
   - `/tmp/pika-teacher-assignment-markdown-modal-mobile.png`
@@ -255,7 +214,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `pnpm lint`
 - `pnpm test tests/components/AssignmentModal.test.tsx`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-markdown-modal E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- `E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
 - Additional modal screenshots:
   - `/tmp/pika-assignment-modal-desktop.png`
   - `/tmp/pika-assignment-modal-mobile.png`
@@ -271,7 +230,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `pnpm lint`
 - `pnpm test tests/components/AssignmentModal.test.tsx`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-markdown-modal E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- `E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
 - Additional modal screenshots:
   - `/tmp/pika-assignment-modal-desktop.png`
   - `/tmp/pika-assignment-modal-mobile.png`
@@ -290,7 +249,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `pnpm lint`
 - `pnpm test tests/components/AssignmentModal.test.tsx`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/assignment-markdown-modal E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
+- `E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
 - Additional modal screenshots:
   - `/tmp/pika-assignment-modal-desktop.png`
   - `/tmp/pika-assignment-modal-mobile.png`
@@ -307,13 +266,13 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added experimental UI guidance for the shared creation shell candidate.
 
 **Validation:**
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/creation-modal-shell bash /Users/stew/Repos/.worktrees/pika/creation-modal-shell/.codex/skills/pika-session-start/scripts/session_start.sh`
+- `bash /Users/stew/Repos/.worktrees/pika/creation-modal-shell/.codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm lint`
 - `pnpm exec tsc --noEmit`
 - `pnpm test tests/components/AssignmentModal.test.tsx tests/components/QuizModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/unit/ai-startup-docs.test.ts`
 - `pnpm build`
 - `E2E_BASE_URL=http://localhost:3000 pnpm e2e:auth`
-- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/creation-modal-shell E2E_BASE_URL=http://localhost:3000 bash /Users/stew/Repos/.worktrees/pika/creation-modal-shell/.codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- `E2E_BASE_URL=http://localhost:3000 bash /Users/stew/Repos/.worktrees/pika/creation-modal-shell/.codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Additional modal screenshots:
   - `/tmp/pika-assignment-create-desktop.png`
   - `/tmp/pika-test-create-desktop.png`
@@ -321,3 +280,55 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-assignment-create-mobile.png`
   - `/tmp/pika-test-create-mobile.png`
   - `/tmp/pika-survey-create-mobile.png`
+- UI verification on `http://localhost:3001`:
+  - `E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/fix-released-assignment-scheduling/.codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+  - Targeted live-assignment editor screenshot: `/tmp/pika-live-assignment-editor.png`
+
+## 2026-05-16 — Native worktree AI guidance
+
+**Completed:**
+- Removed the per-session worktree environment variable requirement from live AI startup docs, Codex prompts/skills, and Claude command docs.
+- Updated the startup, audit, and UI verification helper scripts to resolve the current git root directly.
+- Kept the hub guardrail: branch work must happen in a dedicated worktree, not `$HOME/Repos/pika`.
+- Removed remaining old worktree wording from live AI workflow docs.
+- Made the audit helper fail loudly when run outside a git checkout.
+- Added regression coverage for session-start rejecting the hub checkout and audit rejecting non-git directories.
+- Removed legacy env exports from `scripts/pika`, the parity challenge helper, and the production merge worktree-root override.
+- Sanitized tracked historical logs so repo-wide legacy env-var searches are clean.
+- Changed future Pika worktree creation to `$HOME/.codex/worktrees/pika/<worktree-name>` while leaving existing `$HOME/Repos/.worktrees/pika` checkouts resolvable.
+- Updated the production merge helper to reuse an already registered `production` worktree, otherwise create future production checkouts under `$HOME/.codex/worktrees/pika`.
+
+**Validation:**
+- `bash scripts/verify-env.sh` from the hub before edits
+- `pnpm install --offline` in the docs worktree to recreate local dependency links
+- `pnpm test -- tests/unit/ai-startup-docs.test.ts` (Vitest ran the full suite: 268 files / 2244 tests passed)
+- `pnpm test tests/unit/ai-startup-docs.test.ts` (7 tests)
+- `bash -n scripts/pika scripts/run-teacher-tests-parity-challenge.sh .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh .codex/skills/pika-audit/scripts/audit.sh .codex/skills/pika-session-start/scripts/session_start.sh .codex/skills/pika-ui-verify/scripts/ui_verify.sh`
+- `scripts/pika ls`
+- Exact legacy worktree env-var search across the repo returned no matches
+
+## 2026-05-19 — Codex worktree flow simplification
+
+**Completed:**
+- Simplified the canonical workflow so new named Pika worktrees live under `$HOME/.codex/worktrees/pika/<worktree-name>`, while Codex Desktop app-managed worktrees under `$HOME/.codex/worktrees/<id>/pika` are explicitly valid.
+- Updated cleanup guidance to resolve the registered worktree path from `git worktree list --porcelain` before removing it, so new and legacy worktrees clean up correctly.
+- Replaced stale Claude production-merge guidance with the shared production worktree helper flow.
+- Added regression coverage for the worktree-location distinction, path-discovered cleanup, and production-merge helper routing.
+
+**Validation:**
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `bash -n scripts/pika scripts/wt-add.sh scripts/run-teacher-tests-parity-challenge.sh .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh .codex/skills/pika-audit/scripts/audit.sh .codex/skills/pika-session-start/scripts/session_start.sh .codex/skills/pika-ui-verify/scripts/ui_verify.sh`
+- `scripts/pika ls`
+- `git diff --check`
+- Legacy worktree env-var and stale workflow phrase scans returned no live-source matches.
+
+## 2026-05-19 — Workflow friction automation
+
+**Completed:**
+- Created the active weekly `Pika Workflow Friction Review` Codex automation as a report-only review of recent workflow friction and guidance drift.
+- Updated the active `Weekly Pika Simplification` automation prompt to use the native worktree flow and stop relying on project-specific worktree environment variables.
+- Confirmed both automation configs were written under `/Users/stew/.codex/automations`.
+
+**Validation:**
+- Read back `/Users/stew/.codex/automations/weekly-pika-simplification/automation.toml`.
+- Read back `/Users/stew/.codex/automations/pika-workflow-friction-review/automation.toml`.

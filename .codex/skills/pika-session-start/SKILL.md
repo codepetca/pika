@@ -13,7 +13,7 @@ Automates the `.ai/START-HERE.md` ritual to ensure every AI session begins with 
 
 1. Run the session start script:
    ```bash
-   bash "$PIKA_WORKTREE/.codex/skills/pika-session-start/scripts/session_start.sh"
+   bash .codex/skills/pika-session-start/scripts/session_start.sh
    ```
 2. Review the output — confirm worktree, branch, `.ai/CURRENT.md`, and feature status.
 3. If an issue number is provided, load it with `gh issue view <number>`.
@@ -21,10 +21,11 @@ Automates the `.ai/START-HERE.md` ritual to ensure every AI session begins with 
 
 ## Guardrails
 
-- STOP if `$PIKA_WORKTREE` is unset or equals `$HOME/Repos/pika` (the hub).
+- Run from the current Pika worktree root, not the hub checkout.
+- STOP if the resolved repo root equals `$HOME/Repos/pika` (the hub).
 - STOP if `verify-env.sh` fails.
 - Do NOT write any code until a plan is approved.
-- ALL git commands must use `git -C "$PIKA_WORKTREE"`.
+- Use the resolved repo root consistently for git commands and file paths.
 
 ## Script
 

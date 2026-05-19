@@ -6,7 +6,7 @@ Playwright is the required final verification path. Chrome plugin/browser-profil
 
 Preferred path:
 ```bash
-bash "$PIKA_WORKTREE/.codex/skills/pika-ui-verify/scripts/ui_verify.sh" "$ARGUMENTS"
+bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "$ARGUMENTS"
 ```
 
 After screenshots are captured:
