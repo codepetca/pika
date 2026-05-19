@@ -5,7 +5,6 @@ import { getTodayInToronto } from '@/lib/timezone'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
-import { isQuizVisibleToStudents } from '@/lib/server/quizzes'
 import { withErrorHandler } from '@/lib/api-handler'
 
 export const dynamic = 'force-dynamic'
@@ -133,124 +132,69 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
     }
   }
 
-  async function countActiveUnanswered(
-    table: 'quizzes' | 'tests',
+  async function countActiveUnansweredTests(
     opts?: { tolerateMissingTable?: boolean }
   ): Promise<{ count: number; error: boolean }> {
     const tolerateMissingTable = opts?.tolerateMissingTable === true
 
-    let activeIds: string[] = []
+    const { data: activeRows, error: activeError } = await supabase
+      .from('tests')
+      .select('id')
+      .eq('classroom_id', classroomId)
+      .eq('status', 'active')
 
-    if (table === 'quizzes') {
-      const { data: activeRows, error: activeError } = await supabase
-        .from('quizzes')
-        .select('id,opens_at')
-        .eq('classroom_id', classroomId)
-        .eq('status', 'active')
-
-      if (activeError) {
-        if (tolerateMissingTable && activeError.code === 'PGRST205') {
-          return { count: 0, error: false }
-        }
-        console.error(`Error fetching ${table}:`, activeError)
-        return { count: 0, error: true }
+    if (activeError) {
+      if (tolerateMissingTable && activeError.code === 'PGRST205') {
+        return { count: 0, error: false }
       }
-
-      activeIds = (activeRows || [])
-        .filter((row) =>
-          isQuizVisibleToStudents({
-            status: 'active',
-            opens_at: row.opens_at ?? null,
-          })
-        )
-        .map((row) => row.id)
-    } else {
-      const { data: activeRows, error: activeError } = await supabase
-        .from('tests')
-        .select('id')
-        .eq('classroom_id', classroomId)
-        .eq('status', 'active')
-
-      if (activeError) {
-        if (tolerateMissingTable && activeError.code === 'PGRST205') {
-          return { count: 0, error: false }
-        }
-        console.error(`Error fetching ${table}:`, activeError)
-        return { count: 0, error: true }
-      }
-
-      activeIds = (activeRows || []).map((row) => row.id)
+      console.error('Error fetching tests:', activeError)
+      return { count: 0, error: true }
     }
+
+    const activeIds = (activeRows || []).map((row) => row.id)
 
     if (activeIds.length === 0) {
       return { count: 0, error: false }
     }
 
-    let responses:
-      | Array<{ quiz_id: string }>
-      | Array<{ test_id: string; selected_option: unknown; response_text: unknown }>
-      | null = null
-    let responsesError: { code?: string; message?: string; details?: string; hint?: string } | null = null
+    const testResponsesResult = await supabase
+      .from('test_responses')
+      .select('test_id, selected_option, response_text')
+      .eq('student_id', user.id)
+      .in('test_id', activeIds)
 
-    if (table === 'tests') {
-      const testResponsesResult = await supabase
-        .from('test_responses')
-        .select('test_id, selected_option, response_text')
-        .eq('student_id', user.id)
-        .in('test_id', activeIds)
-
-      responses = (testResponsesResult.data as typeof responses) || null
-      responsesError = testResponsesResult.error
-    } else {
-      const quizResponsesResult = await supabase
-        .from('quiz_responses')
-        .select('quiz_id')
-        .eq('student_id', user.id)
-        .in('quiz_id', activeIds)
-
-      responses = (quizResponsesResult.data as typeof responses) || null
-      responsesError = quizResponsesResult.error
-    }
+    const responses =
+      (testResponsesResult.data as Array<{ test_id: string; selected_option: unknown; response_text: unknown }> | null) || []
+    const responsesError = testResponsesResult.error
 
     if (responsesError) {
       if (tolerateMissingTable && responsesError.code === 'PGRST205') {
         return { count: 0, error: false }
       }
-      console.error(`Error fetching ${table} responses:`, responsesError)
+      console.error('Error fetching test responses:', responsesError)
       return { count: 0, error: true }
     }
 
     const respondedIds = new Set<string>()
     for (const row of responses || []) {
-      let assessmentId: string | null = null
-      if (table === 'tests') {
-        if (!hasMeaningfulTestResponse(row)) continue
-        assessmentId = (row as { test_id: string }).test_id
-      } else {
-        assessmentId = (row as { quiz_id: string }).quiz_id
-      }
-
-      if (assessmentId) {
-        respondedIds.add(assessmentId)
-      }
+      if (!hasMeaningfulTestResponse(row)) continue
+      respondedIds.add(row.test_id)
     }
 
-    if (table === 'tests') {
-      const { data: submittedAttempts, error: attemptsError } = await supabase
-        .from('test_attempts')
-        .select('test_id, is_submitted')
-        .eq('student_id', user.id)
-        .in('test_id', activeIds)
+    const { data: submittedAttempts, error: attemptsError } = await supabase
+      .from('test_attempts')
+      .select('test_id, is_submitted')
+      .eq('student_id', user.id)
+      .in('test_id', activeIds)
 
-      if (attemptsError && attemptsError.code !== 'PGRST205') {
-        console.error('Error fetching test_attempts:', attemptsError)
-        return { count: 0, error: true }
-      }
+    if (attemptsError && attemptsError.code !== 'PGRST205') {
+      console.error('Error fetching test_attempts:', attemptsError)
+      return { count: 0, error: true }
+    }
 
-      for (const attempt of submittedAttempts || []) {
-        if (attempt.is_submitted && attempt.test_id) {
-          respondedIds.add(attempt.test_id)
-        }
+    for (const attempt of submittedAttempts || []) {
+      if (attempt.is_submitted && attempt.test_id) {
+        respondedIds.add(attempt.test_id)
       }
     }
 
@@ -260,18 +204,7 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
     }
   }
 
-  const activeQuizzesResult = await countActiveUnanswered(
-    'quizzes',
-  )
-  if (activeQuizzesResult.error) {
-    return NextResponse.json(
-      { error: 'Failed to check notifications' },
-      { status: 500 }
-    )
-  }
-
-  const activeTestsResult = await countActiveUnanswered(
-    'tests',
+  const activeTestsResult = await countActiveUnansweredTests(
     { tolerateMissingTable: true }
   )
   if (activeTestsResult.error) {
@@ -322,7 +255,6 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
   return NextResponse.json({
     hasTodayEntry,
     unviewedAssignmentsCount: unviewedCount,
-    activeQuizzesCount: activeQuizzesResult.count,
     activeTestsCount: activeTestsResult.count,
     unreadAnnouncementsCount,
   })

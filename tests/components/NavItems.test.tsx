@@ -6,7 +6,6 @@ import { NavItems } from '@/components/layout/NavItems'
 type MockNotifications = {
   hasTodayEntry: boolean
   unviewedAssignmentsCount: number
-  activeQuizzesCount: number
   activeTestsCount: number
   unreadAnnouncementsCount: number
   loading: boolean
@@ -35,7 +34,6 @@ function baseNotifications(overrides: Partial<MockNotifications> = {}): MockNoti
   return {
     hasTodayEntry: true,
     unviewedAssignmentsCount: 0,
-    activeQuizzesCount: 0,
     activeTestsCount: 0,
     unreadAnnouncementsCount: 0,
     loading: false,
@@ -78,6 +76,13 @@ describe('NavItems notification dots', () => {
     expect(screen.queryByRole('link', { name: 'Quizzes' })).toBeNull()
   })
 
+  it('does not render a student quizzes nav item', () => {
+    renderNav('student', 'today')
+
+    expect(screen.getByRole('link', { name: 'Tests' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Quizzes' })).toBeNull()
+  })
+
   it('uses dot path for student assignments nav item', () => {
     mockNotifications = baseNotifications({ unviewedAssignmentsCount: 2 })
     renderNav('student', 'assignments')
@@ -116,7 +121,6 @@ describe('NavItems notification dots', () => {
     mockNotifications = baseNotifications({
       hasTodayEntry: false,
       unviewedAssignmentsCount: 3,
-      activeQuizzesCount: 2,
       activeTestsCount: 1,
       unreadAnnouncementsCount: 4,
     })
