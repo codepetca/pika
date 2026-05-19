@@ -7,21 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-14 — Rebased survey cleanup onto origin/main
-
-**Completed:**
-- Stashed dirty work, fetched `origin/main`, and rebased `codex/survey-experience-cleanup`.
-- Re-applied local changes and resolved the single conflict in `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`.
-- Kept upstream assignment split-pane behavior and branch survey results/action-bar behavior together.
-- Confirmed no branch-added Supabase migrations needed resequencing.
-- Dropped the temporary `pre-rebase-main-20260514-131209` stash after validation.
-
-**Validation:**
-- `pnpm lint`
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/StudentSurveyPanel.test.tsx tests/components/StudentAssignmentsTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
-- `pnpm build`
-- `git diff --check`
-
 ## 2026-05-14 — Survey creation modal title focus
 
 **Completed:**
@@ -332,3 +317,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - Read back `/Users/stew/.codex/automations/weekly-pika-simplification/automation.toml`.
 - Read back `/Users/stew/.codex/automations/pika-workflow-friction-review/automation.toml`.
+
+## 2026-05-19 — Remove student legacy quizzes nav plumbing
+
+**Completed:**
+- Removed legacy `activeQuizzesCount` from student sidebar notification state and the `/api/student/notifications` response.
+- Kept the student assessment sidebar focused on Tests and added coverage that no student Quizzes nav item is rendered.
+- Added coverage that legacy `?tab=quizzes` URLs fall back to the default student Today tab and clear quiz-specific params.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/NavItems.test.tsx tests/components/StudentNotificationsProvider.test.tsx tests/api/student/notifications.test.ts tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=today"`
+- Additional student sidebar screenshot: `/tmp/pika-student-desktop-expanded.png`
+- `pnpm test`
+- `pnpm build`
