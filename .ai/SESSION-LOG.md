@@ -7,24 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-14 — Survey experience cleanup
-
-**Completed:**
-- Removed the back-to-Classwork link from student and teacher survey detail surfaces.
-- Removed dynamic-survey labels from student cards/detail and teacher cards/detail, and renamed the teacher settings checkbox without the dynamic wording.
-- Covered the earlier submit-gated survey results behavior before the follow-up timing split below.
-- Aligned survey creation with test creation by making `New Survey` title-only in the shared full-screen assessment setup modal; survey options remain in compact edit/settings.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/api/student/surveys-route.test.ts tests/components/SurveyModal.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/StudentAssignmentsTab.test.tsx`
-- `pnpm test tests/components/SurveyModal.test.tsx tests/components/QuizModal.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=c1341f92-b133-4d8a-bfcf-a1409e3ef0ba'` (temporary local survey removed after screenshots)
-- Extra settings screenshot: `/tmp/pika-teacher-survey-settings.png`
-- Creation parity screenshots: `/tmp/pika-new-test-modal.png`, `/tmp/pika-new-survey-modal.png`
-
 ## 2026-05-14 — Hide quiz classroom feature
 
 **Completed:**
@@ -301,3 +283,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `E2E_BASE_URL=http://localhost:3003 PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/survey-preview bash /Users/stew/Repos/.worktrees/pika/survey-preview/.codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Targeted Playwright screenshots/assertions: `/tmp/pika-survey-preview-teacher.png`, `/tmp/pika-survey-preview-teacher-mobile.png`; temporary survey fixtures were deleted afterward.
+
+## 2026-05-19 — Teacher Daily date picker arrows
+
+**Completed:**
+- Removed the previous/next arrow buttons from the teacher Daily date picker while keeping the date label picker plus Last class and Today controls.
+- Added a regression test asserting the Daily picker no longer renders `Previous day` or `Next day` buttons.
+
+**Validation:**
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows bash /Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows/.codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/components/TeacherAttendanceTab.test.tsx`
+- `pnpm lint`
+- `PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows E2E_BASE_URL=http://localhost:3017 bash /Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=attendance'`
+- Warmed desktop screenshot: `/tmp/pika-teacher-final.png`; teacher desktop/mobile confirmed no forward/back date arrows, student mobile unaffected.
+- `pnpm test`

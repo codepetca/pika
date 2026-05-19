@@ -263,13 +263,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     setSortState((prev) => toggleSort(prev, column))
   }
 
-  function moveDateBy(deltaDays: number) {
-    setSelectedDate(prev => {
-      const base = prev || getTodayInToronto()
-      return addDaysToDateString(base, deltaDays)
-    })
-  }
-
   function goToLastClass() {
     const currentToday = refreshToday()
     const currentLastClassDate = getMostRecentClassDayBefore(classDays, currentToday)
@@ -487,10 +480,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             label={selectedDateLabel}
             onLabelClick={() => dateInputRef.current?.showPicker()}
             labelAriaLabel="Select attendance date"
-            onPrev={() => moveDateBy(-1)}
-            onNext={() => moveDateBy(1)}
-            prevAriaLabel="Previous day"
-            nextAriaLabel="Next day"
+            showNavigation={false}
           />
           <Tooltip content="Today">
             <Button
