@@ -28,12 +28,14 @@ import {
   FileText,
   GripVertical,
   LoaderCircle,
+  Lock,
   MessageSquare,
   Pencil,
   Plus,
   Send,
   Table,
   Trash2,
+  Unlock,
 } from 'lucide-react'
 import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
@@ -42,8 +44,8 @@ import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { SortableSurveyCard } from '@/components/surveys/SortableSurveyCard'
-import { SurveyModal } from '@/components/surveys/SurveyModal'
 import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
+import { TeacherSurveyResultsPane } from '@/components/surveys/TeacherSurveyResultsPane'
 import {
   TeacherAssignmentStudentTable,
   type TeacherAssignmentStudentRow,
@@ -109,7 +111,10 @@ interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
 }
 
-type TeacherAssignmentSelection = { mode: 'summary' } | { mode: 'assignment'; assignmentId: string }
+type TeacherAssignmentSelection =
+  | { mode: 'summary' }
+  | { mode: 'assignment'; assignmentId: string }
+  | { mode: 'survey'; surveyId: string }
 
 type StudentSubmissionRow = TeacherAssignmentStudentRow
 type GradeSelectedUpdatedDoc = NonNullable<StudentSubmissionRow['doc']> & {
@@ -146,6 +151,8 @@ interface Props {
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
   onViewModeChange?: (mode: AssignmentViewMode) => void
   onEditModeChange?: (active: boolean) => void
+  onOpenMarkdownEditor?: () => void
+  showMarkdownEditorOption?: boolean
   isActive?: boolean
   selectedAssignmentId?: string | null
   selectedMaterialId?: string | null
@@ -184,6 +191,24 @@ function AssignmentSplitPaneIcon({
   }
 
   return <FileText className="h-4 w-4" aria-hidden="true" />
+}
+
+function HiddenResultsIcon() {
+  return (
+    <span className="relative inline-flex h-4 w-4 items-center justify-center" aria-hidden="true">
+      <BarChart3 className="h-4 w-4" />
+      <span className="absolute h-0.5 w-5 rotate-45 rounded-full bg-current" />
+    </span>
+  )
+}
+
+function surveyStateButtonClassName(isOn: boolean) {
+  return [
+    'h-10 w-10 p-0',
+    isOn
+      ? 'border-success bg-success-bg text-success hover:bg-success-bg-hover'
+      : 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover',
+  ].join(' ')
 }
 
 function TeacherMaterialCard({
@@ -563,6 +588,8 @@ export function TeacherClassroomView({
   onSelectAssignment,
   onViewModeChange,
   onEditModeChange,
+  onOpenMarkdownEditor,
+  showMarkdownEditorOption = false,
   isActive = true,
   selectedAssignmentId: selectedAssignmentIdProp,
   selectedSurveyId: selectedSurveyIdProp,
@@ -581,17 +608,19 @@ export function TeacherClassroomView({
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false)
-  const [isSurveyModalOpen, setIsSurveyModalOpen] = useState(false)
+  const [isCreatingSurvey, setIsCreatingSurvey] = useState(false)
   const [editMaterial, setEditMaterial] = useState<ClassworkMaterial | null>(null)
   const [pendingMaterialDelete, setPendingMaterialDelete] = useState<ClassworkMaterial | null>(null)
   const [isDeletingMaterial, setIsDeletingMaterial] = useState(false)
   const [pendingSurveyDelete, setPendingSurveyDelete] = useState<SurveyWithStats | null>(null)
   const [isDeletingSurvey, setIsDeletingSurvey] = useState(false)
+  const [surveyActionBusy, setSurveyActionBusy] = useState(false)
   const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
   const [surveyModalId, setSurveyModalId] = useState<string | null>(null)
   const [createdSurveyEditorIntent, setCreatedSurveyEditorIntent] = useState<{
     surveyId: string
     editMode: 'edit' | 'markdown'
+    focusTitle?: boolean
   } | null>(null)
   const [isReordering, setIsReordering] = useState(false)
   const [assignmentEditMode, setAssignmentEditMode] = useState(false)
@@ -747,7 +776,10 @@ export function TeacherClassroomView({
     setIsMaterialModalOpen(false)
   }, [classroom.id])
 
-  const handleSurveySaved = useCallback((survey: Survey) => {
+  const handleSurveySaved = useCallback((
+    survey: Survey,
+    options?: { initialEditMode?: 'edit' | 'markdown'; focusTitle?: boolean },
+  ) => {
     invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
     invalidateCachedJSON(`student-surveys:${classroom.id}`)
     setSurveys((current) => {
@@ -763,40 +795,74 @@ export function TeacherClassroomView({
             },
           ]
     })
-    setIsSurveyModalOpen(false)
-    setCreatedSurveyEditorIntent({ surveyId: survey.id, editMode: 'markdown' })
+    setCreatedSurveyEditorIntent({
+      surveyId: survey.id,
+      editMode: options?.initialEditMode ?? 'edit',
+      focusTitle: options?.focusTitle,
+    })
     setSurveyModalId(survey.id)
     writeCookie(`teacherAssignmentsSelection:${classroom.id}`, 'summary')
     setSelection({ mode: 'summary' })
     updateSearchParams?.((params) => {
       params.set('tab', 'assignments')
       params.delete('assignmentId')
-      params.set('surveyId', survey.id)
+      params.delete('surveyId')
       params.delete('assignmentStudentId')
     }, { replace: true })
     void loadAssignments({ preserveContent: true })
   }, [classroom.id, loadAssignments, updateSearchParams])
 
-  const openSurveyModal = useCallback((surveyId: string, options?: { replace?: boolean }) => {
+  const handleSurveyQuestionCountChanged = useCallback((surveyId: string, questionsCount: number) => {
+    invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+    setSurveys((current) =>
+      current.map((survey) =>
+        survey.id === surveyId
+          ? {
+              ...survey,
+              stats: {
+                ...survey.stats,
+                questions_count: questionsCount,
+              },
+            }
+          : survey
+      )
+    )
+  }, [classroom.id])
+
+  const createSurveyDraft = useCallback(async () => {
+    if (isCreatingSurvey || isReadOnly) return
+
+    setIsCreatingSurvey(true)
+    setError('')
+    try {
+      const response = await fetch('/api/teacher/surveys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classroom_id: classroom.id }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to create survey')
+      handleSurveySaved(data.survey as Survey, { initialEditMode: 'edit', focusTitle: true })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create survey')
+    } finally {
+      setIsCreatingSurvey(false)
+    }
+  }, [classroom.id, handleSurveySaved, isCreatingSurvey, isReadOnly])
+
+  const openSurveyModal = useCallback((surveyId: string) => {
     setSurveyModalId(surveyId)
-    writeCookie(`teacherAssignmentsSelection:${classroom.id}`, 'summary')
-    setSelection({ mode: 'summary' })
-    updateSearchParams?.((params) => {
-      params.set('tab', 'assignments')
-      params.delete('assignmentId')
-      params.set('surveyId', surveyId)
-      params.delete('assignmentStudentId')
-    }, { replace: options?.replace })
-  }, [classroom.id, updateSearchParams])
+  }, [])
 
   const closeSurveyModal = useCallback((options?: { replace?: boolean }) => {
     setSurveyModalId(null)
     setCreatedSurveyEditorIntent(null)
+    if (selection.mode === 'survey') return
     updateSearchParams?.((params) => {
       params.set('tab', 'assignments')
       params.delete('surveyId')
     }, { replace: options?.replace })
-  }, [updateSearchParams])
+  }, [selection.mode, updateSearchParams])
 
   const deleteMaterial = useCallback(async () => {
     if (!pendingMaterialDelete) return
@@ -836,6 +902,16 @@ export function TeacherClassroomView({
       if (surveyModalId === pendingSurveyDelete.id) {
         closeSurveyModal({ replace: true })
       }
+      if (selection.mode === 'survey' && selection.surveyId === pendingSurveyDelete.id) {
+        writeCookie(`teacherAssignmentsSelection:${classroom.id}`, 'summary')
+        setSelection({ mode: 'summary' })
+        updateSearchParams?.((params) => {
+          params.set('tab', 'assignments')
+          params.delete('assignmentId')
+          params.delete('surveyId')
+          params.delete('assignmentStudentId')
+        }, { replace: true })
+      }
       setPendingSurveyDelete(null)
       showMessage({ text: 'Survey deleted.', tone: 'success' })
     } catch (err) {
@@ -843,7 +919,7 @@ export function TeacherClassroomView({
     } finally {
       setIsDeletingSurvey(false)
     }
-  }, [classroom.id, closeSurveyModal, pendingSurveyDelete, showMessage, surveyModalId])
+  }, [classroom.id, closeSurveyModal, pendingSurveyDelete, selection, showMessage, surveyModalId, updateSearchParams])
 
   useEffect(() => {
     if (isActive && !wasActiveRef.current && hasLoadedOnce) {
@@ -952,8 +1028,9 @@ export function TeacherClassroomView({
       return
     }
     if (value.startsWith('survey:')) {
-      writeCookie(cookieName, 'summary')
-      setSelection({ mode: 'summary' })
+      const surveyId = value.slice('survey:'.length)
+      const survey = surveys.find((item) => item.id === surveyId)
+      setSelection(survey ? { mode: 'survey', surveyId } : { mode: 'summary' })
       return
     }
     const assignment = assignments.find((a) => a.id === value)
@@ -978,9 +1055,9 @@ export function TeacherClassroomView({
     if (selectedSurveyIdProp) {
       const survey = surveys.find((item) => item.id === selectedSurveyIdProp)
       if (survey) {
-        writeCookie(cookieName, 'summary')
-        setSelection({ mode: 'summary' })
-        setSurveyModalId(selectedSurveyIdProp)
+        writeCookie(cookieName, `survey:${selectedSurveyIdProp}`)
+        setSelection({ mode: 'survey', surveyId: selectedSurveyIdProp })
+        setSurveyModalId((current) => (current && current !== selectedSurveyIdProp ? null : current))
       } else {
         writeCookie(cookieName, 'summary')
         setSelection({ mode: 'summary' })
@@ -988,8 +1065,6 @@ export function TeacherClassroomView({
       }
       return
     }
-
-    setSurveyModalId(null)
 
     const value = selectedAssignmentIdProp
     if (!value || value === 'summary') {
@@ -1239,7 +1314,9 @@ export function TeacherClassroomView({
     const cookieValue =
       next.mode === 'summary'
         ? 'summary'
-        : next.assignmentId
+        : next.mode === 'assignment'
+          ? next.assignmentId
+          : `survey:${next.surveyId}`
     writeCookie(cookieName, cookieValue)
     setSelection(next)
     if (options.updateUrl === false || !updateSearchParams) return
@@ -1251,7 +1328,11 @@ export function TeacherClassroomView({
       } else {
         params.delete('assignmentId')
       }
-      params.delete('surveyId')
+      if (next.mode === 'survey') {
+        params.set('surveyId', next.surveyId)
+      } else {
+        params.delete('surveyId')
+      }
       params.delete('assignmentStudentId')
     }, { replace: options.replace })
   }, [classroom.id, updateSearchParams])
@@ -1741,6 +1822,38 @@ export function TeacherClassroomView({
       }
     })
   }, [splitPaneViewSessionKey])
+
+  const selectedSurveyId = selection.mode === 'survey' ? selection.surveyId : null
+  const selectedSurvey = useMemo(() => {
+    if (!selectedSurveyId) return null
+    return surveys.find((survey) => survey.id === selectedSurveyId) ?? null
+  }, [selectedSurveyId, surveys])
+
+  const patchSelectedSurvey = useCallback(async (update: Record<string, unknown>) => {
+    if (!selectedSurveyId) return
+    setSurveyActionBusy(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/teacher/surveys/${selectedSurveyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(update),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to update survey')
+      setSurveys((current) =>
+        current.map((survey) =>
+          survey.id === selectedSurveyId ? { ...survey, ...data.survey } : survey
+        )
+      )
+      invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+      invalidateCachedJSON(`student-surveys:${classroom.id}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update survey')
+    } finally {
+      setSurveyActionBusy(false)
+    }
+  }, [classroom.id, selectedSurveyId])
 
   const {
     scrollRef: classPaneScrollRef,
@@ -2295,6 +2408,91 @@ export function TeacherClassroomView({
     </div>
   ) : null
 
+  const selectedSurveyControls = selectedSurvey ? (
+    <div
+      data-testid="survey-workspace-actionbar-center"
+      className="flex min-w-0 items-center justify-center gap-1.5"
+    >
+      <Tooltip
+        content={
+          selectedSurvey.status === 'draft' && selectedSurvey.stats.questions_count === 0
+            ? 'Add a question before opening the poll'
+            : selectedSurvey.status === 'active'
+              ? 'Close poll'
+              : 'Open poll'
+        }
+      >
+        <span className="inline-flex">
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className={surveyStateButtonClassName(selectedSurvey.status === 'active')}
+            aria-label={selectedSurvey.status === 'active' ? 'Close poll' : 'Open poll'}
+            aria-pressed={selectedSurvey.status === 'active'}
+            onClick={() => {
+              void patchSelectedSurvey({
+                status: selectedSurvey.status === 'active' ? 'closed' : 'active',
+              })
+            }}
+            disabled={
+              isReadOnly ||
+              surveyActionBusy ||
+              isDeletingSurvey ||
+              (selectedSurvey.status === 'draft' && selectedSurvey.stats.questions_count === 0)
+            }
+          >
+            {selectedSurvey.status === 'active' ? (
+              <Unlock className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Lock className="h-4 w-4" aria-hidden="true" />
+            )}
+          </Button>
+        </span>
+      </Tooltip>
+      <Tooltip content={selectedSurvey.show_results ? 'Hide results' : 'Show results'}>
+        <span className="inline-flex">
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className={surveyStateButtonClassName(selectedSurvey.show_results)}
+            aria-label={selectedSurvey.show_results ? 'Hide results' : 'Show results'}
+            aria-pressed={selectedSurvey.show_results}
+            onClick={() => {
+              void patchSelectedSurvey({ show_results: !selectedSurvey.show_results })
+            }}
+            disabled={isReadOnly || surveyActionBusy || isDeletingSurvey}
+          >
+            {selectedSurvey.show_results ? (
+              <BarChart3 className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <HiddenResultsIcon />
+            )}
+          </Button>
+        </span>
+      </Tooltip>
+      <Tooltip content="Edit survey">
+        <span className="inline-flex">
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="h-10 w-10 p-0"
+            aria-label="Edit survey"
+            onClick={() => {
+              setCreatedSurveyEditorIntent({ surveyId: selectedSurvey.id, editMode: 'edit' })
+              openSurveyModal(selectedSurvey.id)
+            }}
+            disabled={isReadOnly || surveyActionBusy || isDeletingSurvey}
+          >
+            <Pencil className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        </span>
+      </Tooltip>
+    </div>
+  ) : null
+
   const primaryButtons =
     selection.mode === 'summary' ? (
       <TeacherWorkSurfaceActionBar
@@ -2327,9 +2525,27 @@ export function TeacherClassroomView({
                     },
                     {
                       id: 'survey',
-                      label: 'Survey',
-                      onSelect: () => setIsSurveyModalOpen(true),
+                      label: isCreatingSurvey ? 'Creating survey...' : 'Survey',
+                      onSelect: () => {
+                        void createSurveyDraft()
+                      },
+                      disabled: isCreatingSurvey,
                     },
+                    ...(showMarkdownEditorOption
+                      ? [
+                          {
+                            id: 'edit-markdown',
+                            label: (
+                              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                                <FileText className="h-4 w-4" aria-hidden="true" />
+                                <span>Edit Markdown</span>
+                              </span>
+                            ),
+                            onSelect: () => onOpenMarkdownEditor?.(),
+                            disabled: !onOpenMarkdownEditor || isReadOnly,
+                          },
+                        ]
+                      : []),
                   ]}
                   disabled={isReadOnly}
                   toggleAriaLabel="Choose classwork type"
@@ -2345,7 +2561,7 @@ export function TeacherClassroomView({
       />
     ) : (
       <TeacherWorkSurfaceActionBar
-        center={assignmentWorkspaceControls}
+        center={selection.mode === 'survey' ? selectedSurveyControls : assignmentWorkspaceControls}
         centerPlacement="floating"
       />
     )
@@ -2407,7 +2623,7 @@ export function TeacherClassroomView({
                   isReadOnly={isReadOnly}
                   isDragDisabled={isReordering}
                   editMode={assignmentEditMode}
-                  onOpen={() => openSurveyModal(survey.id)}
+                  onOpen={() => setSelectionAndPersist({ mode: 'survey', surveyId: survey.id })}
                   onDelete={() => setPendingSurveyDelete(survey)}
                 />
               )
@@ -2438,7 +2654,9 @@ export function TeacherClassroomView({
     </TeacherWorkItemList>
   )
 
-  const workspaceContent = selectedAssignmentId == null ? null : activeSelectedStudentId ? (
+  const workspaceContent = selectedSurvey ? (
+    <TeacherSurveyResultsPane survey={selectedSurvey} />
+  ) : selectedAssignmentId == null ? null : activeSelectedStudentId ? (
     <TeacherStudentWorkPanel
       classroomId={classroom.id}
       assignmentId={selectedAssignmentId}
@@ -2481,7 +2699,7 @@ export function TeacherClassroomView({
         summary={summaryContent}
         workspace={workspaceContent}
         workspaceFrame="standalone"
-        workspaceFrameClassName={activeSelectedStudentId ? 'border-0 bg-page' : undefined}
+        workspaceFrameClassName={selectedSurvey || activeSelectedStudentId ? 'border-0 bg-page' : undefined}
         workspaceRef={workspaceContainerRef}
       />
 
@@ -2619,6 +2837,10 @@ export function TeacherClassroomView({
                 ? createdSurveyEditorIntent.editMode
                 : undefined
             }
+            autoEditTitle={
+              createdSurveyEditorIntent?.surveyId === surveyModalId &&
+              createdSurveyEditorIntent.focusTitle === true
+            }
             onInitialEditModeConsumed={() => setCreatedSurveyEditorIntent(null)}
             onBack={() => closeSurveyModal()}
             onSurveyUpdated={(updatedSurvey) => {
@@ -2630,6 +2852,7 @@ export function TeacherClassroomView({
               invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
               invalidateCachedJSON(`student-surveys:${classroom.id}`)
             }}
+            onQuestionCountChanged={handleSurveyQuestionCountChanged}
             onSurveyDeleted={(surveyId) => {
               setSurveys((current) => current.filter((survey) => survey.id !== surveyId))
               invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
@@ -2640,18 +2863,11 @@ export function TeacherClassroomView({
         ) : null}
       </DialogPanel>
 
-      <SurveyModal
-        isOpen={isSurveyModalOpen}
-        classroomId={classroom.id}
-        onClose={() => setIsSurveyModalOpen(false)}
-        onSuccess={handleSurveySaved}
-      />
     </>
   )
 }
 
-// Sidebar content component - rendered via page.tsx
-export function TeacherAssignmentsMarkdownSidebar({
+export function TeacherAssignmentsMarkdownEditor({
   markdownContent,
   markdownError,
   markdownWarning,
@@ -2699,6 +2915,7 @@ export function TeacherAssignmentsMarkdownSidebar({
       )}
 
       <textarea
+        aria-label="Assignments markdown"
         value={markdownContent}
         onChange={(e) => onMarkdownChange(e.target.value)}
         onKeyDown={handleKeyDown}

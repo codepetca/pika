@@ -2,14 +2,11 @@
 
 import { useRef } from 'react'
 import { format, parseISO } from 'date-fns'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { ACTIONBAR_BUTTON_CLASSNAME, ACTIONBAR_ICON_BUTTON_CLASSNAME } from '@/components/PageLayout'
+import { ACTIONBAR_BUTTON_CLASSNAME } from '@/components/PageLayout'
 
 interface DateActionBarProps {
   value: string
   onChange: (next: string) => void
-  onPrev: () => void
-  onNext: () => void
   rightActions?: React.ReactNode
   className?: string
   layout?: 'default' | 'compact'
@@ -18,8 +15,6 @@ interface DateActionBarProps {
 export function DateActionBar({
   value,
   onChange,
-  onPrev,
-  onNext,
   rightActions,
   className = '',
   layout = 'default',
@@ -30,14 +25,13 @@ export function DateActionBar({
   const containerClassName = isCompact
     ? 'flex items-center gap-2'
     : 'flex w-full flex-wrap items-center justify-between gap-4'
+  const buttonClassName = isCompact
+    ? `${ACTIONBAR_BUTTON_CLASSNAME} w-[6.75rem] text-center sm:w-[8.25rem]`
+    : `${ACTIONBAR_BUTTON_CLASSNAME} min-w-[7rem] text-center`
 
   return (
     <div className={[containerClassName, className].join(' ')}>
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className={ACTIONBAR_ICON_BUTTON_CLASSNAME} onClick={onPrev} aria-label="Previous day">
-          <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-        </button>
-
         <input
           ref={dateInputRef}
           type="date"
@@ -49,14 +43,10 @@ export function DateActionBar({
 
         <button
           type="button"
-          className={`${ACTIONBAR_BUTTON_CLASSNAME} min-w-[7rem] text-center`}
+          className={buttonClassName}
           onClick={() => dateInputRef.current?.showPicker()}
         >
           {formattedDate || 'Select date'}
-        </button>
-
-        <button type="button" className={ACTIONBAR_ICON_BUTTON_CLASSNAME} onClick={onNext} aria-label="Next day">
-          <ChevronRight className="h-5 w-5" aria-hidden="true" />
         </button>
       </div>
 

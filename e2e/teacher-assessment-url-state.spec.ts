@@ -37,21 +37,6 @@ async function loadJson<T>(page: Page, path: string): Promise<T> {
   }, path) as Promise<T>
 }
 
-async function postJson<T>(page: Page, path: string, body: Record<string, unknown>): Promise<T> {
-  return page.evaluate(async ({ apiPath, payload }) => {
-    const response = await fetch(apiPath, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    const data = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      throw new Error(data?.error || `Failed to post ${apiPath}: ${response.status}`)
-    }
-    return data
-  }, { apiPath: path, payload: body }) as Promise<T>
-}
-
 async function loadTeacherClassroom(page: Page): Promise<ClassroomRecord> {
   await page.goto('/classrooms', { waitUntil: 'domcontentloaded' })
 
@@ -63,24 +48,6 @@ async function loadTeacherClassroom(page: Page): Promise<ClassroomRecord> {
 
   expect(classroom, 'Seed a teacher classroom before running assessment URL-state e2e tests.').toBeTruthy()
   return classroom!
-}
-
-async function loadTeacherQuiz(page: Page, classroomId: string): Promise<AssessmentRecord> {
-  const data = await loadJson<{ quizzes?: AssessmentRecord[] }>(
-    page,
-    `/api/teacher/quizzes?classroom_id=${encodeURIComponent(classroomId)}`,
-  )
-  const existing =
-    (data.quizzes || []).find((quiz) => quiz.title === 'URL State E2E Quiz') ||
-    (data.quizzes || [])[0]
-
-  if (existing) return existing
-
-  const created = await postJson<{ quiz: AssessmentRecord }>(page, '/api/teacher/quizzes', {
-    classroom_id: classroomId,
-    title: 'URL State E2E Quiz',
-  })
-  return created.quiz
 }
 
 async function loadTeacherTestWithStudent(page: Page, classroomId: string): Promise<{
@@ -121,7 +88,7 @@ async function expectNoSearchParam(page: Page, name: string): Promise<void> {
   await expect.poll(() => new URL(page.url()).searchParams.has(name)).toBe(false)
 }
 
-async function expectSummaryUrl(page: Page, classroomId: string, tab: 'tests' | 'quizzes'): Promise<void> {
+async function expectSummaryUrl(page: Page, classroomId: string, tab: 'tests'): Promise<void> {
   await expect.poll(() => {
     const url = new URL(page.url())
     const params = url.searchParams
@@ -192,36 +159,5 @@ test.describe('teacher assessment URL state', () => {
     await page.getByRole('link', { name: 'Tests' }).click()
     await expectSummaryUrl(page, classroom.id, 'tests')
     await expect(page.getByRole('button', { name: 'New Test' })).toBeVisible()
-  })
-
-  test('Quizzes deep links, browser Back, and active-nav reset return to summary', async ({ page }) => {
-    const classroom = await loadTeacherClassroom(page)
-    const quiz = await loadTeacherQuiz(page, classroom.id)
-
-    await page.goto(`/classrooms/${classroom.id}?tab=quizzes&quizId=${quiz.id}`, {
-      waitUntil: 'domcontentloaded',
-    })
-    await expect(page.getByText(quiz.title).first()).toBeVisible()
-    await expectSearchParam(page, 'quizId', quiz.id)
-
-    await page.goto(`/classrooms/${classroom.id}?tab=quizzes`, { waitUntil: 'domcontentloaded' })
-    await expect(page.getByRole('button', { name: 'New Quiz' })).toBeVisible()
-
-    await page.getByRole('button', { name: new RegExp(escapeRegExp(quiz.title)) }).first().click()
-    await expectSearchParam(page, 'quizId', quiz.id)
-    await expect(page.getByText(quiz.title).first()).toBeVisible()
-
-    await page.goBack()
-    await expectSummaryUrl(page, classroom.id, 'quizzes')
-    await expect(page.getByRole('button', { name: 'New Quiz' })).toBeVisible()
-
-    await page.goto(`/classrooms/${classroom.id}?tab=quizzes&quizId=${quiz.id}`, {
-      waitUntil: 'domcontentloaded',
-    })
-    await expectSearchParam(page, 'quizId', quiz.id)
-
-    await page.getByRole('link', { name: 'Quizzes' }).click()
-    await expectSummaryUrl(page, classroom.id, 'quizzes')
-    await expect(page.getByRole('button', { name: 'New Quiz' })).toBeVisible()
   })
 })

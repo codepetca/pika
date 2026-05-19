@@ -22,8 +22,18 @@ interface AssessmentDraftRecord {
   }
 }
 
+interface StudentTestDetailRecord {
+  focus_summary?: {
+    route_exit_attempts?: number
+  } | null
+}
+
 function uniqueTitle(): string {
   return `Exam Mode E2E ${Date.now()}`
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 async function loadJson<T>(page: Page, path: string): Promise<T> {
@@ -221,6 +231,55 @@ test.describe('student exam mode', () => {
       await expect(responseBox).toHaveValue('Draft survives exam-mode lock and reload.')
     } finally {
       await page.setViewportSize({ width: 1440, height: 900 }).catch(() => undefined)
+      await cleanupTest(browser, testId)
+    }
+  })
+
+  test('blocks home navigation during an active exam and preserves the draft response', async ({ browser, page }) => {
+    test.setTimeout(90_000)
+    let testId: string | null = null
+
+    try {
+      await page.goto('/classrooms', { waitUntil: 'domcontentloaded' })
+
+      const testTitle = uniqueTitle()
+      const classroom = await withTeacherPage(browser, async (teacherPage) => {
+        const shared = await findSharedClassroom(page, teacherPage)
+        const testRecord = await createActiveOpenResponseTest(teacherPage, shared.id, testTitle)
+        testId = testRecord.id
+        return shared
+      })
+
+      await page.goto(`/classrooms/${classroom.id}?tab=tests`, { waitUntil: 'domcontentloaded' })
+      await page.getByRole('button', { name: new RegExp(testTitle) }).first().click()
+      await prepareExamWindowForViewportCompliance(page)
+
+      await page.getByRole('button', { name: 'Start the Test' }).click()
+      await page.getByRole('button', { name: 'Start test' }).click()
+
+      const splitShell = page.locator('[data-testid="student-test-split-container"]')
+      await expect(splitShell).toBeVisible({ timeout: 15_000 })
+
+      const responseBox = page.locator('textarea[placeholder="Write your response..."]')
+      await expect(responseBox).toBeVisible()
+      await responseBox.fill('Draft remains visible after a blocked route exit.')
+      await expect(page.getByText('Saved')).toBeVisible({ timeout: 20_000 })
+
+      await page.getByRole('link', { name: 'Home' }).click()
+
+      await expect(page).toHaveURL(new RegExp(`/classrooms/${escapeRegExp(classroom.id)}\\?tab=tests`))
+      await expect(splitShell).toBeVisible()
+      await expect(responseBox).toHaveValue('Draft remains visible after a blocked route exit.')
+
+      await expect.poll(async () => {
+        if (!testId) return 0
+        const detail = await loadJson<StudentTestDetailRecord>(page, `/api/student/tests/${testId}`)
+        return detail.focus_summary?.route_exit_attempts ?? 0
+      }).toBeGreaterThanOrEqual(1)
+      await expect(
+        page.locator('[data-testid="student-test-documents-pane"]').getByLabel(/Exits [1-9]/)
+      ).toBeVisible()
+    } finally {
       await cleanupTest(browser, testId)
     }
   })

@@ -443,6 +443,76 @@ describe('POST /api/teacher/tests', () => {
     expect(deleteSpy).not.toHaveBeenCalled()
   })
 
+  it('creates an untitled draft when title is omitted', async () => {
+    const assessmentDraftInsertSpy = vi.fn((payload: Record<string, unknown>) => ({
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: { id: 'draft-1', ...payload },
+          error: null,
+        }),
+      })),
+    }))
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'tests') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: null,
+                    error: null,
+                  }),
+                })),
+              })),
+            })),
+          })),
+          insert: vi.fn((payload: Record<string, unknown>) => ({
+            select: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'test-1',
+                  show_results: false,
+                  documents: null,
+                  ...payload,
+                },
+                error: null,
+              }),
+            })),
+          })),
+          delete: vi.fn(),
+        }
+      }
+
+      if (table === 'assessment_drafts') {
+        return {
+          insert: assessmentDraftInsertSpy,
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/tests', {
+        method: 'POST',
+        body: JSON.stringify({ classroom_id: 'classroom-1' }),
+      })
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(201)
+    expect(data.quiz.title).toMatch(/^Untitled \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)
+    expect(assessmentDraftInsertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.objectContaining({
+          title: data.quiz.title,
+        }),
+      })
+    )
+  })
+
   it('rolls back the new test when the assessment drafts table is unavailable', async () => {
     const deleteEqSpy = vi.fn().mockResolvedValue({ error: null })
     const deleteSpy = vi.fn(() => ({

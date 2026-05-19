@@ -82,6 +82,13 @@ describe('useAssignmentScheduling', () => {
       expect(result.current.isScheduled).toBe(false)
     })
 
+    it('does not expose scheduling actions for a live assignment', () => {
+      const { result } = renderHook(() =>
+        useAssignmentScheduling(makeOptions(makeLiveAssignment()))
+      )
+      expect(result.current.splitOptions).toHaveLength(0)
+    })
+
     it('isScheduled is true when released_at is in the future', () => {
       const { result } = renderHook(() =>
         useAssignmentScheduling(makeOptions(makeScheduledAssignment()))
@@ -209,13 +216,10 @@ describe('useAssignmentScheduling', () => {
   })
 
   describe('revertAssignmentToDraft', () => {
-    it('sets primaryAction to "post" after reverting', async () => {
+    it('does nothing for a live assignment', async () => {
       const live = makeLiveAssignment()
-      const updatedDraft = makeDraftAssignment({ id: live.id })
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ assignment: updatedDraft }),
-      }))
+      const fetchSpy = vi.fn()
+      vi.stubGlobal('fetch', fetchSpy)
 
       const opts = makeOptions(live)
       const { result } = renderHook(() => useAssignmentScheduling(opts))
@@ -224,9 +228,8 @@ describe('useAssignmentScheduling', () => {
         await result.current.revertAssignmentToDraft()
       })
 
-      await waitFor(() => {
-        expect(result.current.primaryAction).toBe('post')
-      })
+      expect(fetchSpy).not.toHaveBeenCalled()
+      expect(opts.onAssignmentChange).not.toHaveBeenCalled()
       vi.unstubAllGlobals()
     })
 

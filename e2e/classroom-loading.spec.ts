@@ -127,22 +127,22 @@ test.describe('classroom loading - teacher', () => {
     expect(teacherAssignmentMetrics?.tab).toBe('assignments')
     expect(teacherAssignmentMetrics?.durationMs ?? Number.POSITIVE_INFINITY).toBeLessThan(TAB_READY_THRESHOLD_MS)
 
-    await page.getByRole('link', { name: 'Quizzes' }).click()
+    await page.getByRole('link', { name: 'Tests' }).click()
     await expect(skeleton).not.toBeVisible()
-    await expect(page).toHaveURL(/tab=quizzes/)
+    await expect(page).toHaveURL(/tab=tests/)
     await page.waitForFunction(
       () => {
         const metrics = (window as any).__classroomTabMetrics || []
-        return metrics.length > 0 && metrics[metrics.length - 1]?.tab === 'quizzes'
+        return metrics.length > 0 && metrics[metrics.length - 1]?.tab === 'tests'
       },
       { timeout: 15_000 },
     )
-    const teacherQuizMetrics = await page.evaluate(() => {
+    const teacherTestMetrics = await page.evaluate(() => {
       const metrics = (window as any).__classroomTabMetrics || []
       return metrics[metrics.length - 1] || null
     })
-    expect(teacherQuizMetrics?.tab).toBe('quizzes')
-    expect(teacherQuizMetrics?.durationMs ?? Number.POSITIVE_INFINITY).toBeLessThan(TAB_READY_THRESHOLD_MS)
+    expect(teacherTestMetrics?.tab).toBe('tests')
+    expect(teacherTestMetrics?.durationMs ?? Number.POSITIVE_INFINITY).toBeLessThan(TAB_READY_THRESHOLD_MS)
 
     await page.evaluate(() => window.history.back())
     await expect(page).toHaveURL(/tab=assignments/)

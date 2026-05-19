@@ -352,7 +352,7 @@ export function StudentAssignmentsTab({
                                 {survey.title}
                               </h3>
                               <p className="mt-1 text-sm text-primary">
-                                Survey{survey.dynamic_responses ? ' · Dynamic' : ''}
+                                Survey
                               </p>
                             </div>
                             <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getSurveyStatusBadgeClass(survey.status)}`}>
@@ -360,7 +360,9 @@ export function StudentAssignmentsTab({
                                 ? getSurveyStatusLabel(survey.status)
                                 : survey.student_status === 'can_update'
                                   ? 'Update'
-                                  : 'Done'}
+                                  : survey.student_status === 'can_view_results'
+                                    ? 'Results'
+                                    : 'Done'}
                             </span>
                           </div>
                         </button>
@@ -410,7 +412,6 @@ export function StudentAssignmentsTab({
             ) : view === 'survey' && selectedSurvey ? (
               <StudentSurveyPanel
                 surveyId={selectedSurvey.id}
-                onBack={() => navigate({ surveyId: null })}
                 onCompleted={() => {
                   setSurveys((current) =>
                     current.map((survey) =>

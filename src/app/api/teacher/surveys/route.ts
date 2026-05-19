@@ -4,6 +4,7 @@ import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { isMissingSurveysTableError } from '@/lib/server/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -143,10 +144,7 @@ export const POST = withErrorHandler('PostTeacherSurvey', async (request) => {
     return NextResponse.json({ error: 'classroom_id is required' }, { status: 400 })
   }
 
-  const cleanTitle = title?.trim()
-  if (!cleanTitle) {
-    return NextResponse.json({ error: 'Title is required' }, { status: 400 })
-  }
+  const cleanTitle = title?.trim() || getFallbackAssessmentTitle()
 
   const ownership = await assertTeacherCanMutateClassroom(user.id, classroom_id)
   if (!ownership.ok) {
