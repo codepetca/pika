@@ -7,15 +7,13 @@ import type { Survey } from '@/types'
 
 interface SurveyModalProps {
   isOpen: boolean
-  classroomId: string
-  survey?: Survey | null
+  survey: Survey
   onClose: () => void
   onSuccess: (survey: Survey) => void
 }
 
 export function SurveyModal({
   isOpen,
-  classroomId,
   survey,
   onClose,
   onSuccess,
@@ -26,18 +24,17 @@ export function SurveyModal({
   const [dynamicResponses, setDynamicResponses] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const isEditMode = !!survey
 
   useEffect(() => {
     if (!isOpen) return
-    setTitle(survey?.title ?? '')
-    setShowResults(survey?.show_results ?? true)
-    setDynamicResponses(survey?.dynamic_responses ?? false)
+    setTitle(survey.title)
+    setShowResults(survey.show_results)
+    setDynamicResponses(survey.dynamic_responses)
     setError('')
 
     setTimeout(() => {
       titleInputRef.current?.focus()
-      if (survey) titleInputRef.current?.select()
+      titleInputRef.current?.select()
     }, 100)
   }, [isOpen, survey])
 
@@ -53,19 +50,15 @@ export function SurveyModal({
     setError('')
 
     try {
-      const response = await fetch(
-        isEditMode ? `/api/teacher/surveys/${survey.id}` : '/api/teacher/surveys',
-        {
-          method: isEditMode ? 'PATCH' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            classroom_id: classroomId,
-            title: title.trim(),
-            show_results: showResults,
-            dynamic_responses: dynamicResponses,
-          }),
-        }
-      )
+      const response = await fetch(`/api/teacher/surveys/${survey.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: title.trim(),
+          show_results: showResults,
+          dynamic_responses: dynamicResponses,
+        }),
+      })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to save survey')
       onSuccess(data.survey)
@@ -81,21 +74,21 @@ export function SurveyModal({
     <AssessmentSetupDialog
       isOpen={isOpen}
       onClose={onClose}
-      isCompact={isEditMode}
+      isCompact
       compactMaxWidth="max-w-md"
-      title={isEditMode ? 'Edit Survey' : 'New Survey'}
+      title="Edit Survey"
       titleId="survey-modal-title"
       closeLabel="Close survey modal"
       closeDisabled={saving}
     >
       <AssessmentSetupForm
-        isCompact={isEditMode}
+        isCompact
         title={title}
         titlePlaceholder="Enter survey title"
         titleError={error}
         titleInputRef={titleInputRef}
         saving={saving}
-        submitLabel={isEditMode ? 'Save' : 'Create'}
+        submitLabel="Save"
         onTitleChange={setTitle}
         onCancel={onClose}
         onSubmit={handleSubmit}
@@ -106,7 +99,7 @@ export function SurveyModal({
             disabled={saving}
             onChange={setShowResults}
           >
-            Show class results to students after they respond
+            Show class results to students
           </AssessmentSetupCheckbox>
 
           <AssessmentSetupCheckbox
@@ -114,7 +107,7 @@ export function SurveyModal({
             disabled={saving}
             onChange={setDynamicResponses}
           >
-            Dynamic responses: students can update answers while open
+            Allow students to update answers while open
           </AssessmentSetupCheckbox>
         </div>
       </AssessmentSetupForm>

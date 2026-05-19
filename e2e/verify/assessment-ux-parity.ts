@@ -20,7 +20,7 @@ type ClassroomRecord = {
 type CaptureRoute = {
   role: 'teacher' | 'student'
   name: string
-  tab: 'assignments' | 'tests' | 'quizzes'
+  tab: 'assignments' | 'tests'
   readyTexts: readonly string[]
   readyButtons?: readonly string[]
   readySelectors?: readonly string[]
@@ -47,14 +47,6 @@ const ROUTES: readonly CaptureRoute[] = [
     readySelectors: ['main h3'],
   },
   {
-    role: 'teacher' as const,
-    name: 'teacher-quizzes-target',
-    tab: 'quizzes',
-    readyTexts: ['No quizzes yet'],
-    readyButtons: ['New Quiz'],
-    readySelectors: ['main h3'],
-  },
-  {
     role: 'student' as const,
     name: 'student-assignments-reference',
     tab: 'assignments',
@@ -69,13 +61,6 @@ const ROUTES: readonly CaptureRoute[] = [
     readyTexts: ['Select a test from the list to view and complete it.', 'No tests available.', 'This test is closed', 'Returned'],
     readyButtons: ['Start the Test'],
     readySelectors: ['[data-testid="student-test-split-container"]', 'main button h3'],
-  },
-  {
-    role: 'student' as const,
-    name: 'student-quizzes-target',
-    tab: 'quizzes',
-    readyTexts: ['No quizzes available.', 'View Results', 'Submitted'],
-    readySelectors: ['main button h3'],
   },
 ] as const
 
