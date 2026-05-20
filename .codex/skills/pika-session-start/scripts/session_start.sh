@@ -27,26 +27,36 @@ echo ""
 
 # ── 1. Verify worktree ──────────────────────────────
 echo "── 1. Worktree check"
-if [[ -z "${PIKA_WORKTREE:-}" ]]; then
-  echo -e "${FAIL} PIKA_WORKTREE is not set."
-  echo "   Run: pika codex <worktree>"
+
+if WORKTREE=$(git rev-parse --show-toplevel 2>/dev/null); then
+  WORKTREE=$(cd "$WORKTREE" && pwd -P)
+else
+  echo -e "${FAIL} Current directory is not inside a git checkout."
+  echo "   Open a Pika worktree and re-run this script from inside it."
   exit 1
 fi
 
 HUB="${HOME}/Repos/pika"
-if [[ "$PIKA_WORKTREE" == "$HUB" ]]; then
-  echo -e "${FAIL} PIKA_WORKTREE is the hub ($HUB). Do not work in the hub."
-  echo "   Run: pika codex <worktree>"
+WORKTREE_REAL="$(cd "$WORKTREE" && pwd -P)"
+if [[ -d "$HUB" ]]; then
+  HUB_REAL="$(cd "$HUB" && pwd -P)"
+else
+  HUB_REAL="$HUB"
+fi
+
+if [[ "$WORKTREE_REAL" == "$HUB_REAL" ]]; then
+  echo -e "${FAIL} Current repo is the hub ($HUB). Do not do branch work in the hub."
+  echo "   Create or open a dedicated worktree, then re-run this script from that checkout."
   exit 1
 fi
 
-echo -e "${PASS} PIKA_WORKTREE = $PIKA_WORKTREE"
+echo -e "${PASS} Worktree = $WORKTREE"
 
 # ── 2. Verify environment ───────────────────────────
 echo ""
 echo "── 2. Environment check"
-if [[ -f "$PIKA_WORKTREE/scripts/verify-env.sh" ]]; then
-  bash "$PIKA_WORKTREE/scripts/verify-env.sh" && \
+if [[ -f "$WORKTREE/scripts/verify-env.sh" ]]; then
+  bash "$WORKTREE/scripts/verify-env.sh" && \
     echo -e "${PASS} verify-env.sh passed" || \
     { echo -e "${FAIL} verify-env.sh failed. Fix before proceeding."; exit 1; }
 else
@@ -56,18 +66,18 @@ fi
 # ── 3. Git context ──────────────────────────────────
 echo ""
 echo "── 3. Git context"
-BRANCH=$(git -C "$PIKA_WORKTREE" branch --show-current)
+BRANCH=$(git -C "$WORKTREE" branch --show-current)
 echo -e "${INFO} Branch: $BRANCH"
 echo ""
-git -C "$PIKA_WORKTREE" log --oneline -8
+git -C "$WORKTREE" log --oneline -8
 echo ""
-git -C "$PIKA_WORKTREE" status -sb
+git -C "$WORKTREE" status -sb
 
 # ── 4. Required startup docs ────────────────────────
-START_HERE="$PIKA_WORKTREE/.ai/START-HERE.md"
-CURRENT="$PIKA_WORKTREE/.ai/CURRENT.md"
-FEATURES_FILE="$PIKA_WORKTREE/.ai/features.json"
-AI_INSTRUCTIONS="$PIKA_WORKTREE/docs/ai-instructions.md"
+START_HERE="$WORKTREE/.ai/START-HERE.md"
+CURRENT="$WORKTREE/.ai/CURRENT.md"
+FEATURES_FILE="$WORKTREE/.ai/features.json"
+AI_INSTRUCTIONS="$WORKTREE/docs/ai-instructions.md"
 
 print_required_doc "4. Startup contract (.ai/START-HERE.md)" "$START_HERE" '1,200p'
 print_required_doc "5. Current context (.ai/CURRENT.md)" "$CURRENT" '1,220p'
@@ -77,7 +87,7 @@ print_required_doc "7. AI routing (docs/ai-instructions.md)" "$AI_INSTRUCTIONS" 
 # ── 8. Feature summary ──────────────────────────────
 echo ""
 echo "── 8. Feature summary"
-FEATURES_SCRIPT="$PIKA_WORKTREE/scripts/features.mjs"
+FEATURES_SCRIPT="$WORKTREE/scripts/features.mjs"
 if [[ -f "$FEATURES_SCRIPT" ]]; then
   node "$FEATURES_SCRIPT" summary 2>/dev/null || echo "(features.mjs summary unavailable)"
   echo ""

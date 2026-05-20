@@ -4,7 +4,13 @@
 # Exit 0 = clean. Exit 1 = violations found.
 set -euo pipefail
 
-WORKTREE="${PIKA_WORKTREE:-$PWD}"
+if WORKTREE="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+  :
+else
+  echo "Pika Audit must be run from inside a git checkout." >&2
+  exit 1
+fi
+WORKTREE="$(cd "$WORKTREE" && pwd)"
 VIOLATIONS=0
 PASS="\033[0;32m✅\033[0m"
 FAIL="\033[0;31m❌\033[0m"

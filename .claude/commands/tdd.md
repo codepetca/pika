@@ -2,12 +2,12 @@ Guide TDD implementation: write failing tests first, then implement to pass them
 
 Takes a feature description as $ARGUMENTS (e.g. `parseContentField utility`).
 
-This command operates on the bound worktree (`$PIKA_WORKTREE`).
+This command operates on the current repo/worktree.
 
 Rules:
 - Tests MUST be written before implementation code.
 - Prefer Vitest unit tests for pure functions; API route tests for route handlers.
-- Verify `$PIKA_WORKTREE` is set before running any commands.
+- Resolve the current repo root with `git rev-parse --show-toplevel`.
 
 Steps:
 
@@ -29,7 +29,7 @@ Steps:
      - Edge cases (empty input, null, boundary values)
      - Error cases (invalid input, thrown errors)
    - Use `describe`/`it` blocks for organization.
-   - Run tests to confirm they FAIL: `pnpm -C "$PIKA_WORKTREE" vitest run <test-file>`
+   - Run tests to confirm they FAIL: `pnpm test <test-file>`
 
 4) Write minimal implementation
    - Create the source file.
@@ -37,7 +37,7 @@ Steps:
    - Do NOT add features not covered by tests.
 
 5) Verify all tests pass
-   - Run: `pnpm -C "$PIKA_WORKTREE" vitest run <test-file>`
+   - Run: `pnpm test <test-file>`
    - All tests should be green.
 
 6) Refactor if needed
@@ -45,6 +45,6 @@ Steps:
    - Re-run tests to confirm still green.
 
 7) Check coverage
-   - Run: `pnpm -C "$PIKA_WORKTREE" test:coverage`
+   - Run: `pnpm test:coverage`
    - Core utilities should reach 100% coverage.
    - Report: lines covered, any uncovered branches.

@@ -16,7 +16,7 @@ gh issue view <number> --json number,title,body,labels,comments
 5. If the issue affects teacher assignments, teacher quizzes, or teacher tests, also read `docs/guidance/ui/teacher-work-surfaces.md` and `docs/guidance/ui/audit-teacher-work-surfaces.md`.
 
 ## 3) Branch & PR Setup
-- Create or bind a dedicated worktree using `docs/dev-workflow.md`.
+- Create or open a dedicated worktree using `docs/dev-workflow.md`.
 - Prefer a draft PR early; include `Closes #<number>` in the body.
 
 ## 4) Plan Before Coding (MANDATORY)
