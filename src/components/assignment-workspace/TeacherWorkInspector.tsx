@@ -9,7 +9,6 @@ import { Button, SegmentedControl, Tooltip } from '@/ui'
 import type {
   AssignmentDocHistoryEntry,
   AssignmentFeedbackEntry,
-  AssignmentRepoReviewResult,
   AuthenticityFlag,
 } from '@/types'
 import type { InspectorSectionId, StudentWorkData } from './types'
@@ -74,32 +73,6 @@ function AuthenticityGauge({ score, flags }: { score: number | null; flags: Auth
     >
       <div>{bar}</div>
     </Tooltip>
-  )
-}
-
-function RepoMetricBar({
-  label,
-  value,
-  tone = 'primary',
-}: {
-  label: string
-  value: number
-  tone?: 'primary' | 'muted'
-}) {
-  const percentage = Math.max(0, Math.min(100, Math.round(value * 100)))
-  const fillClass = tone === 'primary' ? 'bg-primary' : 'bg-surface-hover'
-
-  return (
-    <div className="relative h-6 overflow-hidden rounded-full border border-border bg-surface">
-      <div
-        className={`absolute inset-y-0 left-0 rounded-full transition-[width] ${fillClass}`}
-        style={{ width: `${percentage}%` }}
-      />
-      <div className="absolute inset-0 z-10 flex items-center justify-between px-3 text-[10px] font-semibold leading-none">
-        <span className="text-text-default">{label}</span>
-        <span className="text-text-default">{percentage}%</span>
-      </div>
-    </div>
   )
 }
 
@@ -373,30 +346,6 @@ function AnimatedSectionContent({
   )
 }
 
-function RepoSummary({
-  repoReviewResult,
-  hasRepoConnection,
-}: {
-  repoReviewResult: AssignmentRepoReviewResult | null
-  hasRepoConnection: boolean
-}) {
-  if (!hasRepoConnection) {
-    return <RepoMetricBar label="No repo linked" value={0} tone="muted" />
-  }
-
-  if (!repoReviewResult) {
-    return <RepoMetricBar label="Analysis not run" value={0} tone="muted" />
-  }
-
-  const compositeScore =
-    ((repoReviewResult.relative_contribution_share || 0) +
-      (repoReviewResult.spread_score || 0) +
-      (repoReviewResult.iteration_score || 0)) /
-    3
-
-  return <RepoMetricBar label="Repo analysis" value={compositeScore} />
-}
-
 function ScoreTotalBox({ value, total }: { value: number; total: number }) {
   return (
     <div className="grid h-8 grid-cols-[1fr_auto] overflow-hidden rounded border border-border bg-surface-2">
@@ -477,7 +426,6 @@ export function TeacherWorkInspector({
   onHistoryMouseLeave,
   isPreviewLocked,
   onExitPreview,
-  repoReviewResult,
   scoreCompletion,
   setScoreCompletion,
   scoreThinking,
@@ -496,7 +444,6 @@ export function TeacherWorkInspector({
   feedbackReturning,
   gradeSaving,
   showDraftAutosavedNotice,
-  repoAnalyzing,
   highlightedSections = [],
   expandedSections,
   visibleSections,
@@ -505,7 +452,6 @@ export function TeacherWorkInspector({
   onToggleSectionVisibility,
   handleReturnFeedback,
   handleSetGradeMode,
-  handleAnalyzeRepo,
 }: {
   data: StudentWorkData
   historyEntries: AssignmentDocHistoryEntry[]
@@ -517,7 +463,6 @@ export function TeacherWorkInspector({
   onHistoryMouseLeave: () => void
   isPreviewLocked: boolean
   onExitPreview: () => void
-  repoReviewResult: AssignmentRepoReviewResult | null
   scoreCompletion: string
   setScoreCompletion: (value: string) => void
   scoreThinking: string
@@ -536,7 +481,6 @@ export function TeacherWorkInspector({
   feedbackReturning: boolean
   gradeSaving: boolean
   showDraftAutosavedNotice: boolean
-  repoAnalyzing: boolean
   highlightedSections?: readonly InspectorSectionId[]
   expandedSections: InspectorSectionId[]
   visibleSections: InspectorSectionId[]
@@ -545,11 +489,7 @@ export function TeacherWorkInspector({
   onToggleSectionVisibility: (section: InspectorSectionId) => void
   handleReturnFeedback: () => Promise<void>
   handleSetGradeMode: (mode: GradeSaveMode) => Promise<void>
-  handleAnalyzeRepo: () => Promise<void>
 }) {
-  const hasRepoConnection = !!(
-    data.repo_target.effectiveRepoUrl || data.repo_target.effectiveGitHubUsername
-  )
   const gradeStatusLabel = gradeSaving
     ? `Saving ${gradeMode === 'graded' ? 'graded' : 'draft'}...`
     : data.doc?.graded_at
@@ -606,72 +546,6 @@ export function TeacherWorkInspector({
             </div>
           )}
         </Fragment>
-      ),
-    },
-    {
-      id: 'repo',
-      title: 'Repo',
-      summary: (
-        <RepoSummary
-          repoReviewResult={repoReviewResult}
-          hasRepoConnection={hasRepoConnection}
-        />
-      ),
-      content: repoReviewResult ? (
-        <div className="space-y-3">
-          <div className="flex justify-end">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                void handleAnalyzeRepo()
-              }}
-              disabled={
-                repoAnalyzing ||
-                !data.repo_target.effectiveRepoUrl ||
-                !data.repo_target.effectiveGitHubUsername
-              }
-            >
-              {repoAnalyzing ? 'Analyzing...' : 'Analyze Repo'}
-            </Button>
-          </div>
-          <RepoMetricBar
-            label="Contribution"
-            value={repoReviewResult.relative_contribution_share || 0}
-          />
-          <RepoMetricBar
-            label="Consistency"
-            value={repoReviewResult.spread_score || 0}
-          />
-          <RepoMetricBar
-            label="Iteration"
-            value={repoReviewResult.iteration_score || 0}
-          />
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <div className="flex justify-end">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                void handleAnalyzeRepo()
-              }}
-              disabled={
-                repoAnalyzing ||
-                !data.repo_target.effectiveRepoUrl ||
-                !data.repo_target.effectiveGitHubUsername
-              }
-            >
-              {repoAnalyzing ? 'Analyzing...' : 'Analyze Repo'}
-            </Button>
-          </div>
-          <p className="text-sm text-text-muted">
-            {hasRepoConnection
-              ? 'Run repo analysis to see contribution, consistency, and iteration details.'
-              : 'No repository metadata is available for this submission yet.'}
-          </p>
-        </div>
       ),
     },
     {

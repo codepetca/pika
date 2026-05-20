@@ -11,6 +11,7 @@ import {
 } from '@/lib/repo-review'
 import { gradeRepoReviewFeedback } from '@/lib/repo-review-ai'
 import {
+  extractRepoArtifactsFromContent,
   resolveAssignmentRepoTarget,
   saveAssignmentRepoTarget,
   validatePublicGitHubRepo,
@@ -117,6 +118,7 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
     const studentId = enrollment.student_id
     const doc = docMap.get(studentId)
     const resolved = resolveAssignmentRepoTarget({
+      candidateRepos: extractRepoArtifactsFromContent(doc?.content),
       submittedRepoUrl: typeof doc?.repo_url === 'string' ? doc.repo_url : null,
       submittedGitHubUsername: typeof doc?.github_username === 'string' ? doc.github_username : null,
       target: repoTargetMap.get(studentId) || null,

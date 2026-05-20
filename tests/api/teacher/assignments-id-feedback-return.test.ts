@@ -48,6 +48,9 @@ describe('POST /api/teacher/assignments/[id]/feedback-return', () => {
       is_submitted: true,
       submitted_at: '2026-03-20T12:00:00.000Z',
       teacher_feedback_draft: 'Draft feedback',
+      ai_feedback_suggestion: 'AI feedback suggestion',
+      ai_feedback_suggested_at: '2026-03-20T12:10:00.000Z',
+      ai_feedback_model: 'gpt-5-nano',
     }
 
     const upsert = vi.fn((payload: Record<string, unknown>) => ({
@@ -110,6 +113,9 @@ describe('POST /api/teacher/assignments/[id]/feedback-return', () => {
       is_submitted: true,
       submitted_at: '2026-03-20T12:00:00.000Z',
       feedback_returned_at: expect.any(String),
+      ai_feedback_suggestion: null,
+      ai_feedback_suggested_at: null,
+      ai_feedback_model: null,
     }))
     expect(payload).not.toHaveProperty('teacher_cleared_at')
     expect(payload).not.toHaveProperty('returned_at')

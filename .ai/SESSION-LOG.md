@@ -7,85 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-14 — Survey creation modal title focus
-
-**Completed:**
-- Fixed routed classroom state so creating a survey keeps the new survey authoring modal open instead of immediately clearing it.
-- Added an auto-edit path for newly created survey titles.
-- Displayed generated survey titles as `Untitled Survey` in authoring and selected the full title text on creation so teachers can replace it immediately.
-- Kept unchanged generated title blur from saving a literal `Untitled Survey`.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3006 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Targeted Playwright screenshot/assertion: `/tmp/pika-survey-create-modal-title-selected.png`.
-
-## 2026-05-14 — Teacher selected-survey split actions
-
-**Completed:**
-- Replaced the selected-survey teacher floating controls with a compact `SplitButton`.
-- Kept `Edit survey` as the primary action and moved poll open/close, results visibility, response editing, and delete into the action menu.
-- Added optional per-option styling to `SplitButton` so destructive menu actions can be shown distinctly.
-- Updated the teacher classroom test coverage to assert the new selected-survey action menu behavior and PATCH flow.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3021 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=167609a8-2111-482f-8be2-7bb74a8f548f'`
-- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-teacher-final.png`, `/tmp/pika-survey-actions-open.png`; temporary survey fixture was deleted afterward.
-
-## 2026-05-14 — Teacher selected-survey icon controls
-
-**Completed:**
-- Replaced the selected-survey split button with direct icon buttons for poll open/close, results visibility, and edit survey.
-- Made the poll state action prominent with play/stop icons and primary/danger treatment.
-- Removed the selected-survey response-editing action and moved `Editable responses` into the survey authoring modal.
-- Updated tests for the direct icon controls and the editable-response setting PATCH flow.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3022 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=47927a72-ffe7-45d8-a51d-9f60bd9696d6'`
-- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-icon-controls.png`, `/tmp/pika-survey-edit-modal-settings.png`; temporary survey fixture was deleted afterward.
-
-## 2026-05-14 — Survey hidden-results and live-change copy
-
-**Completed:**
-- Replaced the hidden-results selected-survey icon with a slashed graph icon instead of an eye-off icon.
-- Renamed the survey response-editing setting to `Allow live changes`.
-- Moved `Allow live changes` onto the same survey authoring modal header row as the title, Code, and Delete controls.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3023 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=b04fcfbf-1071-4d14-af9f-592c35a9f02a'`
-- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-hidden-results-icon.png`, `/tmp/pika-survey-edit-modal-live-changes-row.png`; temporary survey fixture was deleted afterward.
-
-## 2026-05-14 — Survey question autosave controls
-
-**Completed:**
-- Removed the per-question `Save` button from survey authoring.
-- Added debounced automatic saving for edited survey question type, prompt, and options, with blur flushing for immediate persistence.
-- Kept failed autosave attempts retryable instead of suppressing the same payload after a transient error.
-- Moved the per-question delete action inline with the prompt row.
-- Updated selected-survey controls to use test-style green unlock/red lock icons for poll state and green/red color for visible/hidden results.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/components/TeacherClassroomView.test.tsx`
-- `pnpm test tests/components/TeacherSurveyWorkspace.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3024 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=619428d0-644e-4f13-9681-bb0954e266b1'`
-- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-question-autosave-delete-inline.png`, `/tmp/pika-survey-question-autosaved.png`; confirmed `saveButtonCount: 0`, observed question PATCH on blur, and deleted the temporary survey fixture afterward.
-- `E2E_BASE_URL=http://localhost:3027 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=a7b4279f-d18e-4277-b4de-b1950e24e892'`
-- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-locked-controls.png`, `/tmp/pika-survey-hidden-results-control.png`; restored the seeded active survey to `show_results: true`.
-
 ## 2026-05-15 — Survey results card cleanup
 
 **Completed:**
@@ -332,4 +253,91 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=today"`
 - Additional student sidebar screenshot: `/tmp/pika-student-desktop-expanded.png`
 - `pnpm test`
+- `pnpm build`
+
+## 2026-05-20 — Student test total points label
+
+**Completed:**
+- Added a student test overview label under the selected test title, showing question count and total points as `pts total`.
+- Rendered the label before the student starts a test and at the top of the active test attempt.
+- Added component coverage that the total-points label appears before start and during the attempt.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test -- tests/components/StudentQuizzesTab.test.tsx` (Vitest ran the full suite: 272 files / 2263 tests passed)
+- `pnpm lint`
+- `pnpm e2e:auth`
+- `pnpm e2e:verify assessment-ux-parity`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests"`
+- Additional selected student test screenshots:
+  - `/tmp/pika-student-test-before-start.png`
+  - `/tmp/pika-student-test-active.png`
+  - `/tmp/pika-student-test-before-start-mobile.png`
+  - `/tmp/pika-student-test-active-mobile.png`
+
+## 2026-05-20 — Freeze submitted assignment timing
+
+**Completed:**
+- Added submitted-aware assignment timing copy so submitted work freezes against `submitted_at` instead of continuing to count overdue time from the current date.
+- Updated student assignment cards and the standalone student assignment editor header to use the submitted-aware timing helper.
+- Added unit and component coverage for submitted timing, including late submissions freezing at the actual submission timestamp.
+
+**Validation:**
+- `pnpm test tests/unit/assignments.test.ts tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments"`
+- Reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`
+- `pnpm test`
+
+## 2026-05-20 — Remove assignment repo submission option
+
+**Completed:**
+- Removed the separate student `Repo` action and GitHub repo metadata dialog from the assignment editor.
+- Stopped student assignment saves from writing `repo_url` / `github_username`; repo links now live in editor content as artifacts.
+- Changed submission validation so repo metadata alone is not submittable work.
+- Updated repo analysis target resolution to fall back to pasted GitHub repo artifacts and infer the GitHub username from the repo owner when no legacy username is present.
+- Kept teacher assignment artifact and repo-analysis surfaces working with pasted repo artifacts.
+- Hid the unfinished repository marking section from the teacher grading inspector and removed the batch repo-analysis action while leaving backend repo artifact extraction/analysis plumbing in place for a later rebuild.
+
+**Validation:**
+- `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/components/StudentAssignmentEditor.feedback-card.test.tsx tests/unit/assignment-repo-targets.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/api/assignment-docs/submit.test.ts tests/unit/assignments.test.ts`
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments"`
+- Additional assignment screenshots: `/tmp/pika-student-assignment-editor.png`, `/tmp/pika-teacher-assignment-workspace.png`
+- Additional hidden-repo marking screenshots: `/tmp/pika-teacher-assignment-workspace-hidden-repo.png`, `/tmp/pika-teacher-assignment-actions-hidden-repo.png`
+- `git diff --check`
+
+## 2026-05-20 — Assignment repo follow-up
+
+**Completed:**
+- Changed assignment repo target resolution so pasted repo artifacts in current submission content take precedence over legacy `assignment_docs.repo_url` metadata.
+- Kept legacy repo metadata as a fallback only, leaving `repo_url`/`github_username` as deprecated fields for now.
+- Added unit coverage for artifact-over-legacy repo target precedence.
+- Trimmed the rolling session log to satisfy the 20-entry startup guard.
+
+**Validation:**
+- `pnpm test tests/unit/assignment-repo-targets.test.ts`
+- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/assignment-repo-targets.test.ts`
+- `pnpm lint`
+- `git diff --check`
+- `bash scripts/verify-env.sh`
+
+## 2026-05-20 — Assignment AI draft comment refresh fix
+
+**Completed:**
+- Prevented stale `ai_feedback_suggestion` values from being merged back into teacher comment drafts after a newer manual edit.
+- Manual assignment comment saves and sent comments now clear consumed AI suggestion metadata so refreshes load the teacher-edited draft as the source of truth.
+- Added UI and API coverage for edited AI comments, single-student saves, and selected-student comment saves.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-grade-selected.test.ts`
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-grade-selected.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts`
+- `pnpm lint`
+- `pnpm test`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments"`
+- Reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, and `/tmp/pika-teacher-assignment-detail.png`
 - `pnpm build`

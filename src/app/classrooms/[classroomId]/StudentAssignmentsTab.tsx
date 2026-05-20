@@ -1,13 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Pencil } from 'lucide-react'
 import { Button, Card, ContentDialog, EmptyState, RefreshingIndicator } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout, PageStack } from '@/components/PageLayout'
 import {
+  formatAssignmentTiming,
   formatDueDate,
-  formatRelativeDueDate,
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
 } from '@/lib/assignments'
@@ -53,7 +52,7 @@ export function StudentAssignmentsTab({
   const [hasLoaded, setHasLoaded] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
-  const [editorState, setEditorState] = useState({ isSubmitted: false, canSubmit: false, submitting: false, hasRepoMetadata: false })
+  const [editorState, setEditorState] = useState({ isSubmitted: false, canSubmit: false, submitting: false })
   const editorRef = useRef<StudentAssignmentEditorHandle>(null)
   const wasActiveRef = useRef(isActive)
   const showBlockingSpinner = useDelayedBusy(
@@ -257,14 +256,6 @@ export function StudentAssignmentsTab({
               <Button size="sm" variant="secondary" onClick={() => setShowInstructions(true)}>
                 Instructions
               </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => editorRef.current?.openRepoDialog()}
-              >
-                <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-                Repo
-              </Button>
             </div>
           }
           trailing={
@@ -387,7 +378,7 @@ export function StudentAssignmentsTab({
                               {formatDueDate(assignment.due_at)}
                             </p>
                             <p className="mt-1 text-xs uppercase tracking-[0.16em] text-text-muted">
-                              {formatRelativeDueDate(assignment.due_at)}
+                              {formatAssignmentTiming(assignment.due_at, assignment.doc)}
                             </p>
                           </div>
                           <span

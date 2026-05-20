@@ -221,6 +221,9 @@ describe('POST /api/teacher/assignments/[id]/grade', () => {
     expect(response.status).toBe(200)
     expect(capturedUpsertPayload?.graded_at).toBeNull()
     expect(capturedUpsertPayload?.graded_by).toBeNull()
+    expect(capturedUpsertPayload?.ai_feedback_suggestion).toBeNull()
+    expect(capturedUpsertPayload?.ai_feedback_suggested_at).toBeNull()
+    expect(capturedUpsertPayload?.ai_feedback_model).toBeNull()
     expect(body.doc.graded_at).toBeNull()
   })
 
@@ -309,6 +312,9 @@ describe('POST /api/teacher/assignments/[id]/grade', () => {
       score_thinking: null,
       score_workflow: null,
       teacher_feedback_draft: 'Draft only',
+      ai_feedback_suggestion: null,
+      ai_feedback_suggested_at: null,
+      ai_feedback_model: null,
       graded_at: null,
       graded_by: null,
     })
