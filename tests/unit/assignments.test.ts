@@ -22,6 +22,7 @@ import {
   hasAssignmentSubmissionContent,
   formatDueDate,
   isPastDue,
+  formatAssignmentTiming,
   formatRelativeDueDate,
   sanitizeDocForStudent,
 } from '@/lib/assignments'
@@ -1086,6 +1087,100 @@ describe('assignment utilities', () => {
 
         expect(result).toBe('Just passed')
       })
+    })
+  })
+
+  // ==========================================================================
+  // formatAssignmentTiming()
+  // ==========================================================================
+
+  describe('formatAssignmentTiming', () => {
+    it('keeps counting relative due time for unsubmitted work', () => {
+      vi.setSystemTime(new Date('2024-10-25T12:00:00Z'))
+      const doc = createMockAssignmentDoc({
+        is_submitted: false,
+        submitted_at: null,
+      })
+
+      const result = formatAssignmentTiming('2024-10-20T12:00:00Z', doc)
+
+      expect(result).toBe('5 days overdue')
+    })
+
+    it('freezes submitted on-time work instead of counting overdue days', () => {
+      vi.setSystemTime(new Date('2024-10-25T12:00:00Z'))
+      const doc = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-18T12:00:00Z',
+      })
+
+      const result = formatAssignmentTiming('2024-10-20T12:00:00Z', doc)
+
+      expect(result).toBe('Submitted on time')
+    })
+
+    it('freezes submitted late work at the submission timestamp', () => {
+      vi.setSystemTime(new Date('2024-10-25T12:00:00Z'))
+      const doc = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-21T12:00:00Z',
+      })
+
+      const result = formatAssignmentTiming('2024-10-20T12:00:00Z', doc)
+
+      expect(result).toBe('Submitted 1 day late')
+    })
+
+    it('shows multiple days late for older late submissions', () => {
+      vi.setSystemTime(new Date('2024-10-25T12:00:00Z'))
+      const doc = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-23T12:00:00Z',
+      })
+
+      const result = formatAssignmentTiming('2024-10-20T12:00:00Z', doc)
+
+      expect(result).toBe('Submitted 3 days late')
+    })
+
+    it('shows singular and plural hour late durations', () => {
+      const oneHourLate = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-20T13:00:00Z',
+      })
+      const twoHoursLate = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-20T14:00:00Z',
+      })
+
+      expect(formatAssignmentTiming('2024-10-20T12:00:00Z', oneHourLate)).toBe('Submitted 1 hour late')
+      expect(formatAssignmentTiming('2024-10-20T12:00:00Z', twoHoursLate)).toBe('Submitted 2 hours late')
+    })
+
+    it('shows minute and immediate late durations', () => {
+      const minutesLate = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-20T12:02:00Z',
+      })
+      const justAfterDue = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-20T12:00:30Z',
+      })
+
+      expect(formatAssignmentTiming('2024-10-20T12:00:00Z', minutesLate)).toBe('Submitted 2 minutes late')
+      expect(formatAssignmentTiming('2024-10-20T12:00:00Z', justAfterDue)).toBe('Submitted just after due')
+    })
+
+    it('handles submitted docs that are missing submitted_at', () => {
+      vi.setSystemTime(new Date('2024-10-25T12:00:00Z'))
+      const doc = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: null,
+      })
+
+      const result = formatAssignmentTiming('2024-10-20T12:00:00Z', doc)
+
+      expect(result).toBe('Submitted')
     })
   })
 

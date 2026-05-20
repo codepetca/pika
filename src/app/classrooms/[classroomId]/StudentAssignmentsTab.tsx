@@ -6,8 +6,8 @@ import { Button, Card, ContentDialog, EmptyState, RefreshingIndicator } from '@/
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout, PageStack } from '@/components/PageLayout'
 import {
+  formatAssignmentTiming,
   formatDueDate,
-  formatRelativeDueDate,
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
 } from '@/lib/assignments'
@@ -387,7 +387,7 @@ export function StudentAssignmentsTab({
                               {formatDueDate(assignment.due_at)}
                             </p>
                             <p className="mt-1 text-xs uppercase tracking-[0.16em] text-text-muted">
-                              {formatRelativeDueDate(assignment.due_at)}
+                              {formatAssignmentTiming(assignment.due_at, assignment.doc)}
                             </p>
                           </div>
                           <span
