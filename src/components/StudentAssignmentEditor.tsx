@@ -11,8 +11,8 @@ import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
+  formatAssignmentTiming,
   formatDueDate,
-  formatRelativeDueDate,
   calculateAssignmentStatus,
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
@@ -939,7 +939,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 {assignment.title}
               </div>
               <div className="text-xs text-text-muted truncate">
-                Due: {formatDueDate(assignment.due_at)} • {formatRelativeDueDate(assignment.due_at)}
+                Due: {formatDueDate(assignment.due_at)} • {formatAssignmentTiming(assignment.due_at, doc)}
               </div>
             </div>
             <div className="flex items-center gap-3">

@@ -269,4 +269,33 @@ describe('StudentAssignmentsTab', () => {
     expect(cards[0]).not.toHaveClass('border-primary/40')
     expect(cards[0].querySelector('.border-l-2')).not.toBeInTheDocument()
   })
+
+  it('freezes assignment card timing once work is submitted', async () => {
+    const submittedClassroom = { ...classroom, id: 'cls-submitted' }
+    mockFetchAssignments([
+      makeAssignment({
+        classroom_id: submittedClassroom.id,
+        due_at: '2024-10-20T12:00:00Z',
+        status: 'submitted_late',
+        doc: {
+          id: 'doc-1',
+          assignment_id: 'asgn-1',
+          student_id: 'stu-1',
+          content: { type: 'doc', content: [] },
+          is_submitted: true,
+          submitted_at: '2024-10-21T12:00:00Z',
+          viewed_at: '2024-06-01T00:00:00Z',
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        } as any,
+      }),
+    ])
+
+    render(<StudentAssignmentsTab classroom={submittedClassroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Submitted 1 day late')).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/days overdue/i)).not.toBeInTheDocument()
+  })
 })

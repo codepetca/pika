@@ -7,21 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-14 — Teacher selected-survey split actions
-
-**Completed:**
-- Replaced the selected-survey teacher floating controls with a compact `SplitButton`.
-- Kept `Edit survey` as the primary action and moved poll open/close, results visibility, response editing, and delete into the action menu.
-- Added optional per-option styling to `SplitButton` so destructive menu actions can be shown distinctly.
-- Updated the teacher classroom test coverage to assert the new selected-survey action menu behavior and PATCH flow.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3021 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=167609a8-2111-482f-8be2-7bb74a8f548f'`
-- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-teacher-final.png`, `/tmp/pika-survey-actions-open.png`; temporary survey fixture was deleted afterward.
-
 ## 2026-05-14 — Teacher selected-survey icon controls
 
 **Completed:**
@@ -338,3 +323,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
   - `/tmp/pika-student-test-active.png`
   - `/tmp/pika-student-test-before-start-mobile.png`
   - `/tmp/pika-student-test-active-mobile.png`
+
+## 2026-05-20 — Freeze submitted assignment timing
+
+**Completed:**
+- Added submitted-aware assignment timing copy so submitted work freezes against `submitted_at` instead of continuing to count overdue time from the current date.
+- Updated student assignment cards and the standalone student assignment editor header to use the submitted-aware timing helper.
+- Added unit and component coverage for submitted timing, including late submissions freezing at the actual submission timestamp.
+
+**Validation:**
+- `pnpm test tests/unit/assignments.test.ts tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments"`
+- Reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`
+- `pnpm test`
