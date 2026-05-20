@@ -4,13 +4,13 @@ Canonical startup rules live in `.ai/START-HERE.md`, `.ai/CURRENT.md`, `docs/ai-
 
 Preferred path:
 ```bash
-bash "$PIKA_WORKTREE/.codex/skills/pika-session-start/scripts/session_start.sh"
+bash .codex/skills/pika-session-start/scripts/session_start.sh
 ```
 
 Manual fallback:
-1. Verify `$PIKA_WORKTREE` is set and is not `$HOME/Repos/pika`.
-2. Run `bash "$PIKA_WORKTREE/scripts/verify-env.sh"`.
-3. Review `git -C "$PIKA_WORKTREE" status -sb` and `git -C "$PIKA_WORKTREE" log --oneline -8`.
+1. Resolve the repo root with `git rev-parse --show-toplevel` and verify it is not `$HOME/Repos/pika` for branch work.
+2. Run `bash scripts/verify-env.sh`.
+3. Review `git status -sb` and `git log --oneline -8`.
 4. Read `.ai/START-HERE.md`, `.ai/CURRENT.md`, `.ai/features.json`, and `docs/ai-instructions.md`.
 5. Read `.ai/SESSION-LOG.md` only if recent handoff context is needed; use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 6. Load only the task-specific docs routed by `docs/ai-instructions.md`.

@@ -1,11 +1,11 @@
 Migrate an API route from manual try/catch error handling to `withErrorHandler`.
 
-Takes `$ARGUMENTS` as the file path to migrate (relative to `$PIKA_WORKTREE` or absolute).
+Takes `$ARGUMENTS` as the file path to migrate, relative to the current repo root or absolute.
 
-This command operates on the bound worktree (`$PIKA_WORKTREE`).
+This command operates on the current repo/worktree.
 
 Rules:
-- ALL file paths MUST be absolute or prefixed with `$PIKA_WORKTREE`.
+- Resolve paths under the current repo root.
 - Preserve all existing business logic exactly.
 - Do NOT change response shapes, status codes, or behavior.
 - Only refactor the error handling wrapper.
@@ -13,7 +13,7 @@ Rules:
 Steps:
 
 1) Resolve and read the target file
-   - If `$ARGUMENTS` is relative, prepend `$PIKA_WORKTREE/`.
+   - If `$ARGUMENTS` is relative, resolve it from the current repo root.
    - Read the file contents.
    - If it already uses `withErrorHandler`, stop and tell me.
    - Count how many exported handler functions exist (GET, POST, PATCH, PUT, DELETE).
@@ -66,5 +66,5 @@ Steps:
 
 5) Verify
    - Run: `pnpm tsc --noEmit` to confirm no type errors.
-   - If there are existing tests for this route, run them: `pnpm vitest run <test-file>`.
+   - If there are existing tests for this route, run them: `pnpm test <test-file>`.
    - Report: number of handlers migrated, any edge cases encountered.

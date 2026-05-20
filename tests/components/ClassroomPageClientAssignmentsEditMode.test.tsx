@@ -460,6 +460,21 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
   })
 
+  it('falls back from the legacy quizzes tab to the default student tab', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=quizzes&quizId=quiz-1')
+
+    renderStudentClient({
+      initialTab: 'quizzes',
+      initialSearchParams: { tab: 'quizzes', quizId: 'quiz-1' },
+    })
+
+    await waitFor(() => {
+      const params = new URLSearchParams(window.location.search)
+      expect(params.get('tab')).toBe('today')
+      expect(params.has('quizId')).toBe(false)
+    })
+  })
+
   it('does not pin the tests summary label in the app shell title slot', () => {
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=tests')
 

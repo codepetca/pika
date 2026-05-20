@@ -782,8 +782,6 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     setRemoteClosureNotice(null)
     if (isTestsView) {
       notifications?.clearActiveTestsCount()
-    } else {
-      notifications?.clearActiveQuizzesCount()
     }
     void loadQuizzes()
 

@@ -20,7 +20,7 @@ Use `docs/guides/ai-ui-testing.md` and `.codex/prompts/ui-verify.md` for the act
 
 - Never switch branches inside an existing feature checkout.
 - Use one worktree per branch.
-- Use `docs/dev-workflow.md` for creation, cleanup, and the `pika` command workflow.
+- Use `docs/dev-workflow.md` for worktree creation, cleanup, and optional `pika` command helpers.
 - Avoid the legacy `scripts/wt-add.sh` helper.
 
 ## Environment Files (.env.local)

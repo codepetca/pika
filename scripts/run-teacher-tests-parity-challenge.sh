@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-WORKTREE="${PIKA_WORKTREE:-$(pwd)}"
+WORKTREE="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+WORKTREE="$(cd "$WORKTREE" && pwd -P)"
 HUB="${HOME}/Repos/pika"
 MODEL="gpt-5.4"
 REFRESH_AUTH=0
@@ -40,7 +41,13 @@ if [[ ! -d "$WORKTREE" ]]; then
   exit 1
 fi
 
-if [[ "$WORKTREE" == "$HUB" ]]; then
+if [[ -d "$HUB" ]]; then
+  HUB_REAL="$(cd "$HUB" && pwd -P)"
+else
+  HUB_REAL="$HUB"
+fi
+
+if [[ "$WORKTREE" == "$HUB_REAL" ]]; then
   echo "Refusing to run in the hub checkout: $HUB" >&2
   exit 1
 fi
@@ -112,7 +119,7 @@ CHALLENGE_EXIT_CODE=0
 set +e
 (
   cd "$WORKTREE"
-  env PIKA_WORKTREE="$WORKTREE" python3 - "$WORKTREE" "$MODEL" "$REFERENCE_IMAGE" "$BEFORE_IMAGE" "$LAST_MESSAGE" "$PROMPT_COPY" "$TIMEOUT_SECONDS" >"$RUN_LOG" 2>&1 <<'PY'
+  python3 - "$WORKTREE" "$MODEL" "$REFERENCE_IMAGE" "$BEFORE_IMAGE" "$LAST_MESSAGE" "$PROMPT_COPY" "$TIMEOUT_SECONDS" >"$RUN_LOG" 2>&1 <<'PY'
 import subprocess
 import sys
 from pathlib import Path

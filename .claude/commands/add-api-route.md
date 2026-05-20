@@ -2,10 +2,10 @@ Scaffold a new API route at the given path with best-practice patterns.
 
 Takes `$ARGUMENTS` as the route path (e.g. `teacher/widgets/[id]`).
 
-This command operates on the bound worktree (`$PIKA_WORKTREE`).
+This command operates on the current repo/worktree.
 
 Rules:
-- ALL file paths MUST be absolute or prefixed with `$PIKA_WORKTREE`.
+- Resolve paths under the current repo root.
 - Follow patterns from `docs/ai-instructions.md` and `docs/core/architecture.md`.
 - Every handler MUST use `withErrorHandler` from `@/lib/api-handler`.
 - Use Zod for request body validation.
@@ -16,7 +16,7 @@ Steps:
 
 1) Parse the target path
    - Extract from `$ARGUMENTS` (e.g. `teacher/widgets/[id]`).
-   - Compute full file path: `$PIKA_WORKTREE/src/app/api/<path>/route.ts`.
+   - Compute full file path: `src/app/api/<path>/route.ts`.
    - If the file already exists, stop and tell me.
 
 2) Determine route characteristics

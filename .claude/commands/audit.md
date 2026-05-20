@@ -1,18 +1,18 @@
 Pre-commit audit: scan changed files for common violations.
 
-This command operates on the bound worktree (`$PIKA_WORKTREE`).
+This command operates on the current repo/worktree.
 
 Rules:
-- ALL git commands MUST use: `git -C "$PIKA_WORKTREE"`
-- ALL file paths MUST be absolute or prefixed with `$PIKA_WORKTREE`.
+- Resolve the current repo root with `git rev-parse --show-toplevel`.
+- Use absolute paths or paths relative to the current repo root.
 - Report ALL violations found, not just the first one.
 - Exit with a summary: pass/fail + violation count.
 
 Steps:
 
 1) Get changed files
-   - Run: `git -C "$PIKA_WORKTREE" diff --name-only HEAD` (staged + unstaged)
-   - Also check: `git -C "$PIKA_WORKTREE" diff --name-only --cached` (staged only)
+   - Run: `git diff --name-only HEAD` (staged + unstaged)
+   - Also check: `git diff --name-only --cached` (staged only)
    - Combine both lists, deduplicate.
    - Filter to only `.ts` and `.tsx` files.
    - If no changed files, report "No TypeScript files changed" and stop.

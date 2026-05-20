@@ -3,7 +3,8 @@
 set -euo pipefail
 
 PAGE="${1:-}"
-WORKTREE="${PIKA_WORKTREE:-$PWD}"
+WORKTREE="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+WORKTREE="$(cd "$WORKTREE" && pwd)"
 BASE_URL="${E2E_BASE_URL:-http://localhost:3000}"
 AUTH_DIR="$WORKTREE/.auth"
 OUT_DIR="/tmp"

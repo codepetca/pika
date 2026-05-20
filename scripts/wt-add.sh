@@ -11,7 +11,7 @@ if [[ $# -ne 1 ]]; then
 fi
 
 BRANCH_NAME="$1"
-WORKTREE_BASE="$HOME/Repos/.worktrees/pika"
+WORKTREE_BASE="$HOME/.codex/worktrees/pika"
 WORKTREE_PATH="$WORKTREE_BASE/$BRANCH_NAME"
 CANONICAL_ENV="$HOME/Repos/.env/pika/.env.local"
 
