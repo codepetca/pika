@@ -7,21 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-14 — Survey creation modal title focus
-
-**Completed:**
-- Fixed routed classroom state so creating a survey keeps the new survey authoring modal open instead of immediately clearing it.
-- Added an auto-edit path for newly created survey titles.
-- Displayed generated survey titles as `Untitled Survey` in authoring and selected the full title text on creation so teachers can replace it immediately.
-- Kept unchanged generated title blur from saving a literal `Untitled Survey`.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3006 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Targeted Playwright screenshot/assertion: `/tmp/pika-survey-create-modal-title-selected.png`.
-
 ## 2026-05-14 — Teacher selected-survey split actions
 
 **Completed:**
@@ -333,3 +318,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Additional student sidebar screenshot: `/tmp/pika-student-desktop-expanded.png`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-05-20 — Student test total points label
+
+**Completed:**
+- Added a student test overview label under the selected test title, showing question count and total points as `pts total`.
+- Rendered the label before the student starts a test and at the top of the active test attempt.
+- Added component coverage that the total-points label appears before start and during the attempt.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test -- tests/components/StudentQuizzesTab.test.tsx` (Vitest ran the full suite: 272 files / 2263 tests passed)
+- `pnpm lint`
+- `pnpm e2e:auth`
+- `pnpm e2e:verify assessment-ux-parity`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests"`
+- Additional selected student test screenshots:
+  - `/tmp/pika-student-test-before-start.png`
+  - `/tmp/pika-student-test-active.png`
+  - `/tmp/pika-student-test-before-start-mobile.png`
+  - `/tmp/pika-student-test-active-mobile.png`
