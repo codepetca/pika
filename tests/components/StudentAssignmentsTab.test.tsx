@@ -26,13 +26,12 @@ vi.mock('@/components/StudentAssignmentEditor', () => ({
     useImperativeHandle(ref, () => ({
       submit: vi.fn(),
       unsubmit: vi.fn(),
-      openRepoDialog: vi.fn(),
       isSubmitted: false,
       canSubmit: false,
       submitting: false,
     }))
     useEffect(() => {
-      props.onStateChange?.({ isSubmitted: false, canSubmit: false, submitting: false, hasRepoMetadata: false })
+      props.onStateChange?.({ isSubmitted: false, canSubmit: false, submitting: false })
     }, [props.onStateChange])
     return <div data-testid="student-editor">Editor</div>
   }),
@@ -213,7 +212,7 @@ describe('StudentAssignmentsTab', () => {
     })
   })
 
-  it('shows Repo action when editing an assignment', async () => {
+  it('does not show a separate Repo action when editing an assignment', async () => {
     const viewed = makeAssignment({
       doc: {
         id: 'doc-1',
@@ -238,8 +237,9 @@ describe('StudentAssignmentsTab', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Repo' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Instructions' })).toBeInTheDocument()
     })
+    expect(screen.queryByRole('button', { name: 'Repo' })).not.toBeInTheDocument()
   })
 
   it('renders materials and assignments in shared classwork order', async () => {

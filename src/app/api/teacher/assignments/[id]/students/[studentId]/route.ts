@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { calculateAssignmentStatus } from '@/lib/assignments'
 import {
+  extractRepoArtifactsFromContent,
   loadAssignmentRepoTarget,
   resolveAssignmentRepoTarget,
 } from '@/lib/server/assignment-repo-targets'
@@ -90,6 +91,7 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
 
   const status = calculateAssignmentStatus(assignment, doc)
   const repoSelection = resolveAssignmentRepoTarget({
+    candidateRepos: extractRepoArtifactsFromContent(doc?.content),
     submittedRepoUrl: doc?.repo_url ?? null,
     submittedGitHubUsername: doc?.github_username ?? null,
     target: repoTarget,

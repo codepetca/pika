@@ -97,12 +97,8 @@ export function isAssignmentReturnable(
 
 export function hasAssignmentSubmissionContent(input: {
   content: TiptapContent
-  repo_url?: string | null
-  github_username?: string | null
 }): boolean {
   return !isEmpty(input.content)
-    || Boolean(input.repo_url?.trim())
-    || Boolean(input.github_username?.trim())
 }
 
 export function isAssignmentAlreadyReturnedWithoutResubmission(

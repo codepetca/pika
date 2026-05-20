@@ -110,9 +110,7 @@ export function TeacherStudentWorkPanel({
     showDraftAutosavedNotice,
     gradeError,
     feedbackReturning,
-    repoAnalyzing,
     feedbackEntries,
-    repoReviewResult,
     totalScore,
     totalPercent,
     expandedSections,
@@ -131,7 +129,6 @@ export function TeacherStudentWorkPanel({
     toggleSectionVisibility,
     handleReturnFeedback,
     handleSetGradeMode,
-    handleAnalyzeRepo,
   } = useTeacherStudentWorkController({
     classroomId,
     assignmentId,
@@ -263,7 +260,6 @@ export function TeacherStudentWorkPanel({
       onHistoryMouseLeave={handleHistoryMouseLeave}
       isPreviewLocked={isPreviewLocked}
       onExitPreview={handleExitPreview}
-      repoReviewResult={repoReviewResult}
       scoreCompletion={scoreCompletion}
       setScoreCompletion={setScoreCompletion}
       scoreThinking={scoreThinking}
@@ -282,7 +278,6 @@ export function TeacherStudentWorkPanel({
       feedbackReturning={feedbackReturning}
       gradeSaving={gradeSaving}
       showDraftAutosavedNotice={showDraftAutosavedNotice}
-      repoAnalyzing={repoAnalyzing}
       highlightedSections={highlightedInspectorSections}
       expandedSections={expandedSections}
       visibleSections={visibleSections}
@@ -291,7 +286,6 @@ export function TeacherStudentWorkPanel({
       onToggleSectionVisibility={toggleSectionVisibility}
       handleReturnFeedback={handleReturnFeedback}
       handleSetGradeMode={handleSetGradeMode}
-      handleAnalyzeRepo={handleAnalyzeRepo}
     />
   )
 

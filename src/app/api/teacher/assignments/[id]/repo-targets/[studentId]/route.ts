@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler, apiErrors } from '@/lib/api-handler'
 import {
+  extractRepoArtifactsFromContent,
   loadAssignmentRepoTarget,
+  resolveAssignmentRepoTarget,
   saveAssignmentRepoTarget,
   validatePublicGitHubRepo,
 } from '@/lib/server/assignment-repo-targets'
@@ -26,12 +28,19 @@ export const PUT = withErrorHandler('PutTeacherAssignmentRepoTarget', async (req
 
   const { data: existingDoc } = await supabase
     .from('assignment_docs')
-    .select('repo_url, github_username')
+    .select('content, repo_url, github_username')
     .eq('assignment_id', assignmentId)
     .eq('student_id', studentId)
     .maybeSingle()
 
   let repoTarget = await loadAssignmentRepoTarget(assignmentId, studentId)
+  const repoSelection = resolveAssignmentRepoTarget({
+    candidateRepos: extractRepoArtifactsFromContent(existingDoc?.content),
+    submittedRepoUrl: existingDoc?.repo_url ?? null,
+    submittedGitHubUsername: existingDoc?.github_username ?? null,
+    target: repoTarget,
+  })
+
   if (selectionMode === 'auto' && !selectedRepoUrl && !overrideGitHubUsername) {
     if (repoTarget?.id) {
       await supabase
@@ -41,7 +50,7 @@ export const PUT = withErrorHandler('PutTeacherAssignmentRepoTarget', async (req
       repoTarget = null
     }
   } else {
-    const submittedRepoUrl = existingDoc?.repo_url?.trim() || ''
+    const submittedRepoUrl = repoSelection.submittedRepoUrl?.trim() || ''
     const repoUrlToValidate = selectedRepoUrl || submittedRepoUrl
     if (!repoUrlToValidate) {
       throw apiErrors.badRequest('selected_repo_url is required when saving a repo target')
@@ -63,7 +72,7 @@ export const PUT = withErrorHandler('PutTeacherAssignmentRepoTarget', async (req
 
   return NextResponse.json({
     repo_target: repoTarget,
-    submitted_repo_url: existingDoc?.repo_url || null,
-    submitted_github_username: existingDoc?.github_username || null,
+    submitted_repo_url: repoSelection.submittedRepoUrl || null,
+    submitted_github_username: repoSelection.submittedGitHubUsername || null,
   })
 })

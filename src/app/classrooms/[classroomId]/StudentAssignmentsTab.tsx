@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Pencil } from 'lucide-react'
 import { Button, Card, ContentDialog, EmptyState, RefreshingIndicator } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout, PageStack } from '@/components/PageLayout'
@@ -53,7 +52,7 @@ export function StudentAssignmentsTab({
   const [hasLoaded, setHasLoaded] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
-  const [editorState, setEditorState] = useState({ isSubmitted: false, canSubmit: false, submitting: false, hasRepoMetadata: false })
+  const [editorState, setEditorState] = useState({ isSubmitted: false, canSubmit: false, submitting: false })
   const editorRef = useRef<StudentAssignmentEditorHandle>(null)
   const wasActiveRef = useRef(isActive)
   const showBlockingSpinner = useDelayedBusy(
@@ -256,14 +255,6 @@ export function StudentAssignmentsTab({
             <div className="flex items-center gap-2">
               <Button size="sm" variant="secondary" onClick={() => setShowInstructions(true)}>
                 Instructions
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => editorRef.current?.openRepoDialog()}
-              >
-                <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-                Repo
               </Button>
             </div>
           }

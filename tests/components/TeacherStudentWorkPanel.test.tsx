@@ -301,19 +301,19 @@ describe('TeacherStudentWorkPanel', () => {
     ).map((element) => element.getAttribute('data-testid'))
     expect(sectionIds).toEqual([
       'inspector-section-history',
-      'inspector-section-repo',
       'inspector-section-grades',
       'inspector-section-comments',
     ])
 
     const gradesSection = screen.getByTestId('inspector-section-grades')
     expect(screen.getByText('Authenticity 64%')).toBeInTheDocument()
-    expect(screen.getByText('No repo linked')).toBeInTheDocument()
     expect(within(gradesSection).getByText('0%')).toBeInTheDocument()
     expect(within(gradesSection).getByText('Total')).toBeInTheDocument()
     expect(within(gradesSection).getByText('30')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Comments' })).toBeInTheDocument()
     expect(screen.queryByText('No draft')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('inspector-section-repo')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Repo' })).not.toBeInTheDocument()
 
     expect(screen.getByLabelText('Completion score')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Teacher comment draft')).toBeInTheDocument()
@@ -352,19 +352,18 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    const repoSection = await screen.findByTestId('inspector-section-repo')
-    const repoVisibility = within(repoSection).getByRole('checkbox', { name: 'Show Repo card' })
-    expect(repoVisibility).toBeChecked()
-    expect(within(repoSection).getByText('No repo linked')).toBeInTheDocument()
+    const historySection = await screen.findByTestId('inspector-section-history')
+    const historyVisibility = within(historySection).getByRole('checkbox', { name: 'Show History card' })
+    expect(historyVisibility).toBeChecked()
+    expect(screen.queryByTestId('inspector-section-repo')).not.toBeInTheDocument()
 
-    await user.click(repoVisibility)
+    await user.click(historyVisibility)
 
-    expect(repoVisibility).not.toBeChecked()
-    expect(within(repoSection).queryByText('No repo linked')).not.toBeInTheDocument()
+    expect(historyVisibility).not.toBeChecked()
 
     rerender(<TeacherStudentWorkPanel {...panelProps} />)
 
-    expect(screen.queryByTestId('inspector-section-repo')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('inspector-section-history')).not.toBeInTheDocument()
 
     rerender(
       <TeacherStudentWorkPanel
@@ -373,19 +372,19 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    const hiddenRepoSection = screen.getByTestId('inspector-section-repo')
-    const hiddenRepoVisibility = within(hiddenRepoSection).getByRole('checkbox', {
-      name: 'Show Repo card',
+    const hiddenHistorySection = screen.getByTestId('inspector-section-history')
+    const hiddenHistoryVisibility = within(hiddenHistorySection).getByRole('checkbox', {
+      name: 'Show History card',
     })
-    expect(hiddenRepoVisibility).not.toBeChecked()
+    expect(hiddenHistoryVisibility).not.toBeChecked()
 
-    await user.click(hiddenRepoVisibility)
+    await user.click(hiddenHistoryVisibility)
 
-    expect(hiddenRepoVisibility).toBeChecked()
+    expect(hiddenHistoryVisibility).toBeChecked()
 
     rerender(<TeacherStudentWorkPanel {...panelProps} />)
 
-    expect(screen.getByTestId('inspector-section-repo')).toBeInTheDocument()
+    expect(screen.getByTestId('inspector-section-history')).toBeInTheDocument()
   })
 
   it('collapses inspector cards when edit mode is entered', async () => {
@@ -826,7 +825,7 @@ describe('TeacherStudentWorkPanel', () => {
   })
 
   it('keeps classroom-specific section state isolated', async () => {
-    writeInspectorSectionsCookie('classroom-2', 'history,repo')
+    writeInspectorSectionsCookie('classroom-2', 'history')
     mockFetchByStudent({
       'student-1': { graded: false },
     })
@@ -848,7 +847,7 @@ describe('TeacherStudentWorkPanel', () => {
     expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
   })
 
-  it('reveals repo metrics only when the repo section is expanded and keeps Analyze Repo there', async () => {
+  it('hides the repo marking section even when repo data exists', async () => {
     mockFetchByStudent({
       'student-1': {
         graded: false,
@@ -863,7 +862,6 @@ describe('TeacherStudentWorkPanel', () => {
       },
     })
 
-    const user = userEvent.setup()
     render(
       <TeacherStudentWorkPanel
         classroomId="classroom-1"
@@ -876,16 +874,13 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    const repoSection = await screen.findByTestId('inspector-section-repo')
-    expect(within(repoSection).queryByRole('button', { name: 'Analyze Repo' })).not.toBeInTheDocument()
+    await screen.findByTestId('grading-inspector-pane')
+    expect(screen.queryByTestId('inspector-section-repo')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Repo' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Analyze Repo' })).not.toBeInTheDocument()
     expect(screen.queryByText('Contribution')).not.toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Repo' }))
-
-    expect(within(repoSection).getByRole('button', { name: 'Analyze Repo' })).toBeInTheDocument()
-    expect(within(repoSection).getByText('Contribution')).toBeInTheDocument()
-    expect(within(repoSection).getByText('Consistency')).toBeInTheDocument()
-    expect(within(repoSection).getByText('Iteration')).toBeInTheDocument()
+    expect(screen.queryByText('Consistency')).not.toBeInTheDocument()
+    expect(screen.queryByText('Iteration')).not.toBeInTheDocument()
   })
 
   it('toggles collapsed cards when clicking the header summary area', async () => {
@@ -906,12 +901,16 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    const repoSection = await screen.findByTestId('inspector-section-repo')
-    expect(within(repoSection).queryByRole('button', { name: 'Analyze Repo' })).not.toBeInTheDocument()
+    const historySection = await screen.findByTestId('inspector-section-history')
+    expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
 
-    await user.click(within(repoSection).getByText('No repo linked'))
+    const historySummary = within(historySection)
+      .getAllByText((_, node) => node?.textContent === 'Authenticity —')
+      .find((node) => node.tagName.toLowerCase() === 'span')
+    expect(historySummary).toBeTruthy()
+    await user.click(historySummary!)
 
-    expect(within(repoSection).getByRole('button', { name: 'Analyze Repo' })).toBeInTheDocument()
+    expect(screen.getByTestId('history-list')).toBeInTheDocument()
   })
 
   it('updates the individual-mode preview when hovering a history entry', async () => {
@@ -1120,7 +1119,6 @@ describe('TeacherStudentWorkPanel', () => {
     await screen.findByTestId('grading-inspector-pane')
 
     expect(screen.getByTestId('inspector-section-history')).not.toHaveAttribute('data-highlighted')
-    expect(screen.getByTestId('inspector-section-repo')).not.toHaveAttribute('data-highlighted')
     expect(screen.getByTestId('inspector-section-grades')).toHaveAttribute('data-highlighted', 'true')
     expect(screen.getByTestId('inspector-section-comments')).toHaveAttribute('data-highlighted', 'true')
   })
