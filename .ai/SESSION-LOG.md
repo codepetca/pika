@@ -7,35 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-14 — Teacher selected-survey icon controls
-
-**Completed:**
-- Replaced the selected-survey split button with direct icon buttons for poll open/close, results visibility, and edit survey.
-- Made the poll state action prominent with play/stop icons and primary/danger treatment.
-- Removed the selected-survey response-editing action and moved `Editable responses` into the survey authoring modal.
-- Updated tests for the direct icon controls and the editable-response setting PATCH flow.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3022 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=47927a72-ffe7-45d8-a51d-9f60bd9696d6'`
-- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-icon-controls.png`, `/tmp/pika-survey-edit-modal-settings.png`; temporary survey fixture was deleted afterward.
-
-## 2026-05-14 — Survey hidden-results and live-change copy
-
-**Completed:**
-- Replaced the hidden-results selected-survey icon with a slashed graph icon instead of an eye-off icon.
-- Renamed the survey response-editing setting to `Allow live changes`.
-- Moved `Allow live changes` onto the same survey authoring modal header row as the title, Code, and Delete controls.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3023 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments&surveyId=b04fcfbf-1071-4d14-af9f-592c35a9f02a'`
-- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-hidden-results-icon.png`, `/tmp/pika-survey-edit-modal-live-changes-row.png`; temporary survey fixture was deleted afterward.
-
 ## 2026-05-14 — Survey question autosave controls
 
 **Completed:**
@@ -337,6 +308,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments"`
 - Reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`
 - `pnpm test`
+
 ## 2026-05-20 — Remove assignment repo submission option
 
 **Completed:**
@@ -357,3 +329,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Additional assignment screenshots: `/tmp/pika-student-assignment-editor.png`, `/tmp/pika-teacher-assignment-workspace.png`
 - Additional hidden-repo marking screenshots: `/tmp/pika-teacher-assignment-workspace-hidden-repo.png`, `/tmp/pika-teacher-assignment-actions-hidden-repo.png`
 - `git diff --check`
+
+## 2026-05-20 — Assignment repo follow-up
+
+**Completed:**
+- Changed assignment repo target resolution so pasted repo artifacts in current submission content take precedence over legacy `assignment_docs.repo_url` metadata.
+- Kept legacy repo metadata as a fallback only, leaving `repo_url`/`github_username` as deprecated fields for now.
+- Added unit coverage for artifact-over-legacy repo target precedence.
+- Trimmed the rolling session log to satisfy the 20-entry startup guard.
+
+**Validation:**
+- `pnpm test tests/unit/assignment-repo-targets.test.ts`
+- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/assignment-repo-targets.test.ts`
+- `pnpm lint`
+- `git diff --check`
+- `bash scripts/verify-env.sh`

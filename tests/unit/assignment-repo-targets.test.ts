@@ -124,6 +124,31 @@ describe('assignment repo target helpers', () => {
     }))
   })
 
+  it('prefers pasted repo artifacts over legacy submitted repo metadata', () => {
+    const resolved = resolveAssignmentRepoTarget({
+      candidateRepos: [{
+        type: 'repo',
+        url: 'https://github.com/current/student-work',
+        repo_owner: 'current',
+        repo_name: 'student-work',
+        normalized_url: 'https://github.com/current/student-work',
+      }],
+      submittedRepoUrl: 'https://github.com/legacy/old-work',
+      submittedGitHubUsername: 'legacy-login',
+      target: null,
+    })
+
+    expect(resolved).toEqual(expect.objectContaining({
+      submittedRepoUrl: 'https://github.com/current/student-work',
+      submittedGitHubUsername: 'current',
+      effectiveRepoUrl: 'https://github.com/current/student-work',
+      effectiveGitHubUsername: 'current',
+      selectionMode: 'auto',
+      validationStatus: 'valid',
+      validationMessage: null,
+    }))
+  })
+
   it('reports actionable missing and invalid states before repo analysis can run', () => {
     expect(resolveAssignmentRepoTarget({
       submittedRepoUrl: null,
