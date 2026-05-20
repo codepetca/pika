@@ -676,7 +676,6 @@ export function TeacherClassroomView({
   // Batch grading state
   const [isAutoGrading, setIsAutoGrading] = useState(false)
   const [isGradeSelectedSaving, setIsGradeSelectedSaving] = useState(false)
-  const [isArtifactRepoAnalyzing, setIsArtifactRepoAnalyzing] = useState(false)
   const [isReturning, setIsReturning] = useState(false)
   const [batchProgressCount, setBatchProgressCount] = useState(0)
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
@@ -1562,38 +1561,6 @@ export function TeacherClassroomView({
     }
   }
 
-  async function handleBatchArtifactRepoAnalyze() {
-    if (!selectedAssignmentData || batchSelectedCount === 0) return
-    setBatchProgressCount(batchSelectedCount)
-    setIsArtifactRepoAnalyzing(true)
-    setError('')
-    setInfo('')
-    try {
-      const res = await fetch(`/api/teacher/assignments/${selectedAssignmentData.assignment.id}/artifact-repo/run`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_ids: Array.from(batchSelectedIds) }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Repo analysis failed')
-
-      const skipSummary = Object.entries((data.skipped_reasons || {}) as Record<string, number>)
-        .map(([reason, count]) => `${count} ${reason}`)
-        .join(' • ')
-      setInfo(
-        `Analyzed ${data.analyzed_students ?? 0} student(s) across ${data.repo_groups ?? 0} repo group(s)${
-          skipSummary ? ` • ${skipSummary}` : ''
-        }`
-      )
-      batchClearSelection()
-      setRefreshCounter((c) => c + 1)
-    } catch (err: any) {
-      setError(err.message || 'Repo analysis failed')
-    } finally {
-      setIsArtifactRepoAnalyzing(false)
-    }
-  }
-
   async function handleBatchReturn() {
     if (!selectedAssignmentData || batchSelectedCount === 0) return
     setBatchProgressCount(batchSelectedCount)
@@ -2082,7 +2049,6 @@ export function TeacherClassroomView({
     isGradeSelectedSaving ||
     isAutoGrading ||
     hasActiveAssignmentAiRun ||
-    isArtifactRepoAnalyzing ||
     isReturning ||
     isReadOnly ||
     batchSelectedCount === 0 ||
@@ -2092,7 +2058,6 @@ export function TeacherClassroomView({
     isGradeSelectedSaving ||
     isAutoGrading ||
     hasActiveAssignmentAiRun ||
-    isArtifactRepoAnalyzing ||
     isReturning ||
     isReadOnly ||
     batchSelectedCount === 0 ||
@@ -2111,13 +2076,11 @@ export function TeacherClassroomView({
     gradeSelectedConfirmTarget === 'comments' ? 'Applying comments' : 'Applying grade'
   const activeWorkMessage = showAssignmentAiRunOverlay
     ? assignmentAiRunOverlayLabel
-    : isArtifactRepoAnalyzing
-      ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
-      : isReturning
-        ? `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
-        : isGradeSelectedSaving
-          ? `${gradeSelectedSavingLabel} to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
-          : ''
+    : isReturning
+      ? `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+      : isGradeSelectedSaving
+        ? `${gradeSelectedSavingLabel} to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+        : ''
   useOverlayMessage(!!activeWorkMessage, activeWorkMessage, { tone: 'loading' })
 
   const studentBusyOverlay = activeWorkMessage ? (
@@ -2237,19 +2200,6 @@ export function TeacherClassroomView({
                 setGradeSelectedConfirmTarget('comments')
               },
               disabled: isApplyCommentsSelectedDisabled,
-            },
-            {
-              id: 'repo-analysis',
-              label: (
-                <span className="inline-flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                  <span>Repo analysis</span>
-                </span>
-              ),
-              onSelect: () => {
-                void handleBatchArtifactRepoAnalyze()
-              },
-              disabled: isArtifactRepoAnalyzing || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
             },
             {
               id: 'return',

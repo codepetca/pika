@@ -9,14 +9,13 @@ import type {
   AssignmentDoc,
   AssignmentDocHistoryEntry,
   AssignmentFeedbackEntry,
-  AssignmentRepoReviewResult,
   TiptapContent,
 } from '@/types'
 import type { InspectorSectionId, StudentWorkData } from './types'
 
 type GradeSaveMode = 'draft' | 'graded'
 
-const SECTION_ORDER: InspectorSectionId[] = ['history', 'repo', 'grades', 'comments']
+const SECTION_ORDER: InspectorSectionId[] = ['history', 'grades', 'comments']
 const DEFAULT_EXPANDED_SECTIONS: InspectorSectionId[] = ['grades', 'comments']
 const DEFAULT_VISIBLE_SECTIONS: InspectorSectionId[] = SECTION_ORDER
 const INSPECTOR_SECTIONS_COOKIE_PREFIX = 'pika_teacher_student_work_sections'
@@ -196,9 +195,7 @@ export interface TeacherStudentWorkController {
   gradeError: string
   autoGrading: boolean
   feedbackReturning: boolean
-  repoAnalyzing: boolean
   feedbackEntries: AssignmentFeedbackEntry[]
-  repoReviewResult: AssignmentRepoReviewResult | null
   totalScore: number
   totalPercent: number
   expandedSections: InspectorSectionId[]
@@ -218,7 +215,6 @@ export interface TeacherStudentWorkController {
   handleAutoGrade: () => Promise<void>
   handleReturnFeedback: () => Promise<void>
   handleSetGradeMode: (mode: GradeSaveMode) => Promise<void>
-  handleAnalyzeRepo: () => Promise<void>
 }
 
 export function useTeacherStudentWorkController({
@@ -260,7 +256,6 @@ export function useTeacherStudentWorkController({
   const [gradeError, setGradeError] = useState('')
   const [autoGrading, setAutoGrading] = useState(false)
   const [feedbackReturning, setFeedbackReturning] = useState(false)
-  const [repoAnalyzing, setRepoAnalyzing] = useState(false)
   const [expandedSections, setExpandedSections] = useState<InspectorSectionId[]>(() =>
     parseExpandedSections(readCookie(getInspectorSectionsCookieName(classroomId))),
   )
@@ -806,38 +801,7 @@ export function useTeacherStudentWorkController({
     studentId,
   ])
 
-  const handleAnalyzeRepo = useCallback(async () => {
-    if (!data) return
-
-    setRepoAnalyzing(true)
-    setGradeError('')
-    try {
-      const response = await fetch(`/api/teacher/assignments/${assignmentId}/artifact-repo/run`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_ids: [studentId] }),
-      })
-      const result = await response.json()
-      if (!response.ok) throw new Error(result.error || 'Repo analysis failed')
-      const refreshed = await loadStudentWork()
-      dispatchGradeUpdated(refreshed?.doc ?? null)
-      if ((result.analyzed_students ?? 0) === 0 && result.skipped_reasons) {
-        const message = Object.entries(result.skipped_reasons as Record<string, number>)
-          .map(([reason, count]) => `${count} ${reason}`)
-          .join(' ')
-        if (message) {
-          setGradeError(message)
-        }
-      }
-    } catch (err: any) {
-      setGradeError(err.message || 'Repo analysis failed')
-    } finally {
-      setRepoAnalyzing(false)
-    }
-  }, [assignmentId, data, dispatchGradeUpdated, loadStudentWork, studentId])
-
   const feedbackEntries = data?.feedback_entries || []
-  const repoReviewResult = data?.repo_target.latest_result || null
 
   const totalScore = useMemo(() => {
     const sc = Number(scoreCompletion) || 0
@@ -870,9 +834,7 @@ export function useTeacherStudentWorkController({
     gradeError,
     autoGrading,
     feedbackReturning,
-    repoAnalyzing,
     feedbackEntries,
-    repoReviewResult,
     totalScore,
     totalPercent,
     expandedSections,
@@ -892,6 +854,5 @@ export function useTeacherStudentWorkController({
     handleAutoGrade,
     handleReturnFeedback,
     handleSetGradeMode,
-    handleAnalyzeRepo,
   }
 }

@@ -50,7 +50,7 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
   // Check if doc exists
   const { data: existingDoc, error: docError } = await supabase
     .from('assignment_docs')
-    .select('id, student_id, content, repo_url, github_username')
+    .select('id, student_id, content')
     .eq('assignment_id', assignmentId)
     .eq('student_id', user.id)
     .single()

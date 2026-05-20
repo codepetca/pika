@@ -99,6 +99,31 @@ describe('assignment repo target helpers', () => {
     }))
   })
 
+  it('uses the first pasted repo artifact when explicit repo metadata is absent', () => {
+    const resolved = resolveAssignmentRepoTarget({
+      candidateRepos: [{
+        type: 'repo',
+        url: 'https://github.com/codepetca/pika',
+        repo_owner: 'codepetca',
+        repo_name: 'pika',
+        normalized_url: 'https://github.com/codepetca/pika',
+      }],
+      submittedRepoUrl: null,
+      submittedGitHubUsername: null,
+      target: null,
+    })
+
+    expect(resolved).toEqual(expect.objectContaining({
+      submittedRepoUrl: 'https://github.com/codepetca/pika',
+      submittedGitHubUsername: 'codepetca',
+      effectiveRepoUrl: 'https://github.com/codepetca/pika',
+      effectiveGitHubUsername: 'codepetca',
+      selectionMode: 'auto',
+      validationStatus: 'valid',
+      validationMessage: null,
+    }))
+  })
+
   it('reports actionable missing and invalid states before repo analysis can run', () => {
     expect(resolveAssignmentRepoTarget({
       submittedRepoUrl: null,
@@ -109,7 +134,7 @@ describe('assignment repo target helpers', () => {
       effectiveGitHubUsername: 'student-login',
       selectionMode: 'auto',
       validationStatus: 'missing',
-      validationMessage: 'No repo link has been submitted yet.',
+      validationMessage: 'No repo artifact has been submitted yet.',
     }))
 
     expect(resolveAssignmentRepoTarget({

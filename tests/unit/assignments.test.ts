@@ -406,19 +406,21 @@ describe('assignment utilities', () => {
   })
 
   describe('hasAssignmentSubmissionContent', () => {
-    it('allows repo metadata to count as submittable work', () => {
+    it('allows pasted repo links in content to count as submittable work', () => {
       expect(hasAssignmentSubmissionContent({
-        content: { type: 'doc', content: [] },
-        repo_url: 'https://github.com/codepetca/pika-student',
-        github_username: null,
+        content: {
+          type: 'doc',
+          content: [{
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'https://github.com/codepetca/pika-student' }],
+          }],
+        },
       })).toBe(true)
     })
 
-    it('rejects docs with no written work or repo metadata', () => {
+    it('rejects docs with no written work', () => {
       expect(hasAssignmentSubmissionContent({
         content: { type: 'doc', content: [] },
-        repo_url: '   ',
-        github_username: null,
       })).toBe(false)
     })
   })
