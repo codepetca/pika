@@ -5,6 +5,7 @@ const {
   mockSupabaseClient,
   mockAnalyzeRepoReviewAssignment,
   mockGradeRepoReviewFeedback,
+  mockExtractRepoArtifactsFromContent,
   mockResolveAssignmentRepoTarget,
   mockSaveAssignmentRepoTarget,
   mockValidatePublicGitHubRepo,
@@ -13,6 +14,7 @@ const {
   mockSupabaseClient: { from: vi.fn() },
   mockAnalyzeRepoReviewAssignment: vi.fn(),
   mockGradeRepoReviewFeedback: vi.fn(),
+  mockExtractRepoArtifactsFromContent: vi.fn(),
   mockResolveAssignmentRepoTarget: vi.fn(),
   mockSaveAssignmentRepoTarget: vi.fn(),
   mockValidatePublicGitHubRepo: vi.fn(),
@@ -40,6 +42,7 @@ vi.mock('@/lib/repo-review-ai', () => ({
 }))
 
 vi.mock('@/lib/server/assignment-repo-targets', () => ({
+  extractRepoArtifactsFromContent: mockExtractRepoArtifactsFromContent,
   resolveAssignmentRepoTarget: mockResolveAssignmentRepoTarget,
   saveAssignmentRepoTarget: mockSaveAssignmentRepoTarget,
   validatePublicGitHubRepo: mockValidatePublicGitHubRepo,
@@ -141,6 +144,7 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSupabaseClient.from.mockReset()
+    mockExtractRepoArtifactsFromContent.mockReturnValue([])
     mockAssertTeacherOwnsAssignment.mockResolvedValue({
       id: 'assignment-1',
       classroom_id: 'classroom-1',
@@ -175,7 +179,7 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
     mockResolveAssignmentRepoTarget.mockReturnValue({
       effectiveRepoUrl: null,
       effectiveGitHubUsername: null,
-      validationMessage: 'No repo link has been submitted yet.',
+      validationMessage: 'No repo artifact has been submitted yet.',
     })
     installRepoRunTables({
       enrollments: [{ student_id: 'student-1', users: { email: 's1@example.com' } }],
@@ -195,12 +199,20 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
     expect(data).toEqual({
       analyzed_students: 0,
       repo_groups: 0,
-      skipped_reasons: { 'No repo link has been submitted yet.': 1 },
+      skipped_reasons: { 'No repo artifact has been submitted yet.': 1 },
     })
     expect(mockValidatePublicGitHubRepo).not.toHaveBeenCalled()
   })
 
   it('groups valid repos, saves run results, and upserts draft grades', async () => {
+    const candidateRepo = {
+      type: 'repo',
+      url: 'https://github.com/codepetca/pika',
+      repo_owner: 'codepetca',
+      repo_name: 'pika',
+      normalized_url: 'https://github.com/codepetca/pika',
+    }
+    mockExtractRepoArtifactsFromContent.mockReturnValue([candidateRepo])
     mockResolveAssignmentRepoTarget.mockReturnValue({
       effectiveRepoUrl: 'https://github.com/codepetca/pika',
       effectiveGitHubUsername: 'student-login',
@@ -269,6 +281,9 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
 
     expect(response.status).toBe(200)
     expect(data).toEqual({ analyzed_students: 1, repo_groups: 1, skipped_reasons: {} })
+    expect(mockResolveAssignmentRepoTarget).toHaveBeenCalledWith(expect.objectContaining({
+      candidateRepos: [candidateRepo],
+    }))
     expect(mockSaveAssignmentRepoTarget).toHaveBeenCalledWith(expect.objectContaining({
       assignmentId: 'assignment-1',
       studentId: 'student-1',

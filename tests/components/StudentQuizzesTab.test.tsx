@@ -180,6 +180,36 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(screen.queryByText('Leave this test?')).not.toBeInTheDocument()
   })
 
+  it('shows total test points before starting and during the attempt', async () => {
+    queueTestList()
+    queueTestDetail()
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('1 question · 1 pt total')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('1 question · 1 pt total')).toBeInTheDocument()
+  })
+
   it('dispatches exam mode state changes for active test sessions', async () => {
     queueTestList()
     queueTestDetail()

@@ -117,9 +117,27 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
     expect(response.status).toBe(400)
   })
 
-  it('allows late submission when the saved work is repo metadata only', async () => {
+  it('rejects saved repo metadata only because repo links must be in assignment content', async () => {
     const historyInsert = vi.fn(async () => ({ error: null }))
     const emptyContent = { type: 'doc', content: [] }
+    const updateDoc = vi.fn((payload: Record<string, unknown>) => ({
+      eq: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'doc-1',
+              student_id: 'student-1',
+              content: emptyContent,
+              repo_url: 'https://github.com/codepetca/student-work',
+              github_username: 'student1',
+              is_submitted: true,
+              submitted_at: payload.submitted_at,
+            },
+            error: null,
+          }),
+        })),
+      })),
+    }))
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'assignments') {
@@ -159,24 +177,7 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
               })),
             })),
           })),
-          update: vi.fn((payload: Record<string, unknown>) => ({
-            eq: vi.fn(() => ({
-              select: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    id: 'doc-1',
-                    student_id: 'student-1',
-                    content: emptyContent,
-                    repo_url: 'https://github.com/codepetca/student-work',
-                    github_username: 'student1',
-                    is_submitted: true,
-                    submitted_at: payload.submitted_at,
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          })),
+          update: updateDoc,
         }
       }
 
@@ -197,22 +198,10 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
     const response = await POST(new NextRequest('http://localhost:3000/api/assignment-docs/assign-1/submit', {
       method: 'POST',
     }), { params: { id: 'assign-1' } })
-    const data = await response.json()
 
-    expect(response.status).toBe(200)
-    expect(data.doc).toEqual(expect.objectContaining({
-      id: 'doc-1',
-      is_submitted: true,
-      submitted_at: expect.any(String),
-      repo_url: 'https://github.com/codepetca/student-work',
-    }))
-    expect(historyInsert).toHaveBeenCalledWith(expect.objectContaining({
-      assignment_doc_id: 'doc-1',
-      snapshot: emptyContent,
-      word_count: 0,
-      char_count: 0,
-      trigger: 'submit',
-    }))
+    expect(response.status).toBe(400)
+    expect(updateDoc).not.toHaveBeenCalled()
+    expect(historyInsert).not.toHaveBeenCalled()
   })
 
   it('submits work, records history, and attaches authenticity results', async () => {

@@ -171,7 +171,7 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
     expect(screen.getByText('Strong effort and clear structure.')).toBeInTheDocument()
   })
 
-  it('shows saved repo metadata under the assignment title when present', async () => {
+  it('does not show saved repo metadata as separate assignment chrome', async () => {
     mockLoadResponses(
       makeDoc({
         repo_url: 'https://github.com/codepetca/pika',
@@ -182,9 +182,9 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
     render(<StudentAssignmentEditor classroomId="classroom-1" assignmentId="assignment-1" variant="embedded" />)
 
     await waitFor(() => {
-      expect(screen.getByText('Repo', { exact: false })).toBeInTheDocument()
+      expect(screen.getByText('Assignment Title')).toBeInTheDocument()
     })
-    expect(screen.getByRole('link', { name: 'https://github.com/codepetca/pika' })).toHaveAttribute('href', 'https://github.com/codepetca/pika')
-    expect(screen.getByText('@student1-demo')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'https://github.com/codepetca/pika' })).not.toBeInTheDocument()
+    expect(screen.queryByText('@student1-demo')).not.toBeInTheDocument()
   })
 })

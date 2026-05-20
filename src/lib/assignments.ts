@@ -97,12 +97,8 @@ export function isAssignmentReturnable(
 
 export function hasAssignmentSubmissionContent(input: {
   content: TiptapContent
-  repo_url?: string | null
-  github_username?: string | null
 }): boolean {
   return !isEmpty(input.content)
-    || Boolean(input.repo_url?.trim())
-    || Boolean(input.github_username?.trim())
 }
 
 export function isAssignmentAlreadyReturnedWithoutResubmission(
@@ -350,6 +346,50 @@ export function formatRelativeDueDate(dueAt: string): string {
     if (absMins > 1) return `${absMins} minutes overdue`
     return 'Just passed'
   }
+}
+
+type AssignmentTimingDoc = Pick<AssignmentDoc, 'is_submitted' | 'submitted_at'>
+
+function formatLateSubmissionDuration(diffMs: number): string {
+  const diffMins = Math.round(diffMs / 60000)
+  const diffHours = Math.round(diffMs / 3600000)
+  const diffDays = Math.round(diffMs / 86400000)
+
+  if (diffDays > 1) return `${diffDays} days late`
+  if (diffDays === 1) return '1 day late'
+  if (diffHours > 1) return `${diffHours} hours late`
+  if (diffHours === 1) return '1 hour late'
+  if (diffMins > 1) return `${diffMins} minutes late`
+  return 'just after due'
+}
+
+/**
+ * Format student-facing assignment timing.
+ *
+ * Unsubmitted work keeps counting relative to the due date. Submitted work is
+ * frozen at submitted_at so overdue text does not keep increasing after submit.
+ */
+export function formatAssignmentTiming(
+  dueAt: string,
+  doc: AssignmentTimingDoc | null | undefined
+): string {
+  if (!doc?.is_submitted) {
+    return formatRelativeDueDate(dueAt)
+  }
+
+  if (!doc.submitted_at) {
+    return 'Submitted'
+  }
+
+  const due = new Date(dueAt)
+  const submitted = new Date(doc.submitted_at)
+  const diffMs = submitted.getTime() - due.getTime()
+
+  if (diffMs <= 0) {
+    return 'Submitted on time'
+  }
+
+  return `Submitted ${formatLateSubmissionDuration(diffMs)}`
 }
 
 const GRADE_FIELDS = [

@@ -59,9 +59,16 @@ export function resolveAssignmentRepoTarget(opts: {
   target: AssignmentRepoTarget | null
 }): ResolvedAssignmentRepoTarget {
   const candidateRepos = opts.candidateRepos || []
+  const candidateRepo = candidateRepos[0] ?? null
   const target = opts.target
-  const submittedRepoUrl = opts.submittedRepoUrl?.trim() || null
-  const submittedGitHubUsername = opts.submittedGitHubUsername?.trim() || null
+  const artifactRepoUrl = candidateRepo
+    ? (candidateRepo.normalized_url || candidateRepo.url).trim() || null
+    : null
+  const artifactGitHubUsername = candidateRepo?.repo_owner?.trim() || null
+  const legacySubmittedRepoUrl = opts.submittedRepoUrl?.trim() || null
+  const legacySubmittedGitHubUsername = opts.submittedGitHubUsername?.trim() || null
+  const submittedRepoUrl = artifactRepoUrl || legacySubmittedRepoUrl
+  const submittedGitHubUsername = artifactGitHubUsername || legacySubmittedGitHubUsername
   const normalizedSubmittedRepoUrl = submittedRepoUrl ? normalizeGitHubRepoUrl(submittedRepoUrl) : null
 
   if (
@@ -95,7 +102,7 @@ export function resolveAssignmentRepoTarget(opts: {
       repoName: null,
       selectionMode: target?.selection_mode ?? 'auto',
       validationStatus: 'missing',
-      validationMessage: 'No repo link has been submitted yet.',
+      validationMessage: 'No repo artifact has been submitted yet.',
     }
   }
 

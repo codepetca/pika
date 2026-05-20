@@ -84,6 +84,25 @@ function createFocusSessionId(): string {
   return `focus_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 }
 
+function formatPointsTotal(points: number): string {
+  const rounded = Math.round(points * 100) / 100
+  const formatted = Number.isInteger(rounded)
+    ? String(rounded)
+    : rounded.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+  const unit = Math.abs(rounded) === 1 ? 'pt' : 'pts'
+  return `${formatted} ${unit} total`
+}
+
+function formatTestOverviewLabel(questions: QuizQuestion[]): string {
+  const questionCount = questions.length
+  const totalPoints = questions.reduce((sum, question) => {
+    const points = Number(question.points ?? 0)
+    return Number.isFinite(points) ? sum + points : sum
+  }, 0)
+  const questionLabel = `${questionCount} question${questionCount === 1 ? '' : 's'}`
+  return `${questionLabel} · ${formatPointsTotal(totalPoints)}`
+}
+
 function isFullscreenActive(): boolean {
   return typeof document !== 'undefined' && Boolean(document.fullscreenElement)
 }
@@ -1154,6 +1173,9 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     const selectedTestPanelTitle = isViewingResults
       ? `${selectedTestTitle} Results`
       : selectedTestTitle
+    const selectedTestOverviewLabel = hasSelectedQuiz
+      ? formatTestOverviewLabel(selectedQuiz.questions)
+      : null
     const showSplitExamShell =
       hasSelectedQuiz &&
       !requiresStart &&
@@ -1386,7 +1408,12 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                       </div>
                     ) : hasSelectedQuiz ? (
                       <div className="space-y-4">
-                        <h2 className="text-xl font-bold text-text-default">{selectedTestPanelTitle}</h2>
+                        <div className="space-y-1">
+                          <h2 className="text-xl font-bold text-text-default">{selectedTestPanelTitle}</h2>
+                          {selectedTestOverviewLabel ? (
+                            <p className="text-sm text-text-muted">{selectedTestOverviewLabel}</p>
+                          ) : null}
+                        </div>
 
                         {remoteClosureNotice ? (
                           <div className="rounded-xl border border-warning bg-warning-bg/20 p-4">
@@ -1510,6 +1537,9 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                       <h2 className="truncate text-xl font-bold text-text-default">
                         {selectedTestPanelTitle}
                       </h2>
+                      {selectedTestOverviewLabel ? (
+                        <p className="mt-1 text-sm text-text-muted">{selectedTestOverviewLabel}</p>
+                      ) : null}
                       {allowedDocs.length > 0 && requiresStart ? (
                         <p className="mt-1 text-sm text-text-muted">
                           {allowedDocs.length} reference document{allowedDocs.length === 1 ? '' : 's'} will be available during the test.
