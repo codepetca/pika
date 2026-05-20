@@ -199,6 +199,9 @@ export function buildAssignmentGradeRows(opts: {
     if (shouldApplyComments) {
       row.teacher_feedback_draft = grade.feedback
       row.teacher_feedback_draft_updated_at = now
+      row.ai_feedback_suggestion = null
+      row.ai_feedback_suggested_at = null
+      row.ai_feedback_model = null
     }
 
     return row

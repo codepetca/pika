@@ -60,7 +60,9 @@ function makeStudentWork(
     repoUrl?: string | null
     githubUsername?: string | null
     aiFeedbackSuggestion?: string | null
+    aiFeedbackSuggestedAt?: string | null
     teacherFeedbackDraft?: string | null
+    teacherFeedbackDraftUpdatedAt?: string | null
     feedbackEntries?: Array<{ id: string; body: string; returned_at: string }>
     repoReviewResult?: Record<string, any> | null
     authenticityScore?: number | null
@@ -95,12 +97,14 @@ function makeStudentWork(
           ? 'Nice work'
           : null,
     teacher_feedback_draft_updated_at:
-      opts.teacherFeedbackDraft !== undefined || opts.graded
+      opts.teacherFeedbackDraftUpdatedAt !== undefined
+        ? opts.teacherFeedbackDraftUpdatedAt
+        : opts.teacherFeedbackDraft !== undefined || opts.graded
         ? '2026-02-20T13:00:00Z'
         : null,
     feedback_returned_at: null,
     ai_feedback_suggestion: opts.aiFeedbackSuggestion ?? null,
-    ai_feedback_suggested_at: null,
+    ai_feedback_suggested_at: opts.aiFeedbackSuggestedAt ?? null,
     ai_feedback_model: null,
     graded_at: opts.graded ? '2026-02-20T13:00:00Z' : null,
     graded_by: opts.graded ? 'teacher@example.com' : null,
@@ -164,7 +168,9 @@ function mockFetchByStudent(
       repoUrl?: string | null
       githubUsername?: string | null
       aiFeedbackSuggestion?: string | null
+      aiFeedbackSuggestedAt?: string | null
       teacherFeedbackDraft?: string | null
+      teacherFeedbackDraftUpdatedAt?: string | null
       feedbackEntries?: Array<{ id: string; body: string; returned_at: string }>
       repoReviewResult?: Record<string, any> | null
       authenticityScore?: number | null
@@ -1077,6 +1083,34 @@ describe('TeacherStudentWorkPanel', () => {
     expect(draft).toHaveValue('AI feedback suggestion\n\nTeacher note')
     expect(draft).not.toHaveClass('border-primary')
     expect(draft).not.toHaveClass('bg-info-bg')
+    expect(screen.queryByText('AI draft')).not.toBeInTheDocument()
+  })
+
+  it('does not restore stale AI comments after the teacher edits the draft', async () => {
+    mockFetchByStudent({
+      'student-1': {
+        graded: false,
+        teacherFeedbackDraft: 'Edited teacher comment',
+        teacherFeedbackDraftUpdatedAt: '2026-02-20T13:05:00Z',
+        aiFeedbackSuggestion: 'Original AI feedback',
+        aiFeedbackSuggestedAt: '2026-02-20T13:00:00Z',
+      },
+    })
+
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    const draft = await screen.findByPlaceholderText('Teacher comment draft')
+    expect(draft).toHaveValue('Edited teacher comment')
     expect(screen.queryByText('AI draft')).not.toBeInTheDocument()
   })
 
