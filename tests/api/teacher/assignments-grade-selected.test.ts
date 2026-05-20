@@ -162,6 +162,9 @@ describe('POST /api/teacher/assignments/[id]/grade-selected', () => {
       score_workflow: 9,
       teacher_feedback_draft: 'Shared feedback',
       teacher_feedback_draft_updated_at: expect.any(String),
+      ai_feedback_suggestion: null,
+      ai_feedback_suggested_at: null,
+      ai_feedback_model: null,
       graded_at: expect.any(String),
       graded_by: 'teacher',
     }))
@@ -201,6 +204,9 @@ describe('POST /api/teacher/assignments/[id]/grade-selected', () => {
     }))
     expect(capturedRows[0][0]).not.toHaveProperty('teacher_feedback_draft')
     expect(capturedRows[0][0]).not.toHaveProperty('teacher_feedback_draft_updated_at')
+    expect(capturedRows[0][0]).not.toHaveProperty('ai_feedback_suggestion')
+    expect(capturedRows[0][0]).not.toHaveProperty('ai_feedback_suggested_at')
+    expect(capturedRows[0][0]).not.toHaveProperty('ai_feedback_model')
   })
 
   it('applies only comments when apply_target is comments', async () => {
@@ -225,6 +231,9 @@ describe('POST /api/teacher/assignments/[id]/grade-selected', () => {
       student_id: 'student-1',
       teacher_feedback_draft: 'Shared comments',
       teacher_feedback_draft_updated_at: expect.any(String),
+      ai_feedback_suggestion: null,
+      ai_feedback_suggested_at: null,
+      ai_feedback_model: null,
     }))
     expect(capturedRows[0][0]).not.toHaveProperty('score_completion')
     expect(capturedRows[0][0]).not.toHaveProperty('score_thinking')
@@ -258,6 +267,9 @@ describe('POST /api/teacher/assignments/[id]/grade-selected', () => {
       score_thinking: 8,
       score_workflow: null,
       teacher_feedback_draft: 'Draft feedback',
+      ai_feedback_suggestion: null,
+      ai_feedback_suggested_at: null,
+      ai_feedback_model: null,
       graded_at: null,
       graded_by: null,
     }))

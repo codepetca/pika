@@ -90,11 +90,42 @@ function serializeVisibleSections(sections: InspectorSectionId[]): string {
   return SECTION_ORDER.filter((section) => sections.includes(section)).join(',')
 }
 
-function mergeFeedbackDraft(baseDraft: string | null | undefined, aiSuggestion: string | null | undefined) {
+function parseOptionalTimestamp(value: string | null | undefined) {
+  if (!value) return null
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function isFreshAiFeedbackSuggestion({
+  draftUpdatedAt,
+  suggestionUpdatedAt,
+}: {
+  draftUpdatedAt: string | null | undefined
+  suggestionUpdatedAt: string | null | undefined
+}) {
+  const draftTime = parseOptionalTimestamp(draftUpdatedAt)
+  const suggestionTime = parseOptionalTimestamp(suggestionUpdatedAt)
+
+  if (draftTime === null || suggestionTime === null) return true
+
+  return draftTime <= suggestionTime
+}
+
+function mergeFeedbackDraft(
+  baseDraft: string | null | undefined,
+  aiSuggestion: string | null | undefined,
+  timestamps?: {
+    draftUpdatedAt: string | null | undefined
+    suggestionUpdatedAt: string | null | undefined
+  },
+) {
   const base = (baseDraft ?? '').trim()
   const suggestion = (aiSuggestion ?? '').trim()
 
   if (!suggestion) return { value: baseDraft ?? '', hasFreshAI: false }
+  if (timestamps && !isFreshAiFeedbackSuggestion(timestamps)) {
+    return { value: baseDraft ?? '', hasFreshAI: false }
+  }
   if (!base) return { value: suggestion, hasFreshAI: true }
   if (base.includes(suggestion)) return { value: baseDraft ?? base, hasFreshAI: false }
 
@@ -420,7 +451,10 @@ export function useTeacherStudentWorkController({
     const nextScoreThinking = doc.score_thinking?.toString() ?? ''
     const nextScoreWorkflow = doc.score_workflow?.toString() ?? ''
     const baseDraft = mergeBaseDraft ?? doc.teacher_feedback_draft ?? doc.feedback ?? ''
-    const mergedDraft = mergeFeedbackDraft(baseDraft, doc.ai_feedback_suggestion)
+    const mergedDraft = mergeFeedbackDraft(baseDraft, doc.ai_feedback_suggestion, {
+      draftUpdatedAt: doc.teacher_feedback_draft_updated_at,
+      suggestionUpdatedAt: doc.ai_feedback_suggested_at,
+    })
 
     setScoreCompletion(nextScoreCompletion)
     setScoreThinking(nextScoreThinking)

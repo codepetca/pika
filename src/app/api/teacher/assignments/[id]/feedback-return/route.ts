@@ -55,6 +55,9 @@ export const POST = withErrorHandler('PostTeacherAssignmentFeedbackReturn', asyn
       feedback: feedbackDraft,
       teacher_feedback_draft: feedbackDraft,
       teacher_feedback_draft_updated_at: now,
+      ai_feedback_suggestion: null,
+      ai_feedback_suggested_at: null,
+      ai_feedback_model: null,
       feedback_returned_at: now,
     }, { onConflict: 'assignment_id,student_id' })
     .select('*')
