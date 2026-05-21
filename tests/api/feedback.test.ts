@@ -35,6 +35,35 @@ describe('POST /api/feedback', () => {
     await expect(response.json()).resolves.toEqual({ error: 'Invalid JSON body' })
   })
 
+  it('returns 400 for malformed JSON shapes', async () => {
+    const nullBody = await POST(
+      new Request('http://localhost:3000/api/feedback', {
+        method: 'POST',
+        body: 'null',
+      })
+    )
+
+    expect(nullBody.status).toBe(400)
+    await expect(nullBody.json()).resolves.toEqual({ error: 'Invalid category' })
+
+    const numericDescription = await POST(
+      new Request('http://localhost:3000/api/feedback', {
+        method: 'POST',
+        body: JSON.stringify({
+          category: 'bug',
+          description: 12345,
+          metadata: [],
+        }),
+      })
+    )
+
+    expect(numericDescription.status).toBe(400)
+    await expect(numericDescription.json()).resolves.toEqual({
+      error: 'Description must be at least 10 characters',
+    })
+    expect(recordDirectDeveloperFeedback).not.toHaveBeenCalled()
+  })
+
   it('returns 400 for invalid category and short descriptions', async () => {
     const invalidCategory = await POST(
       new Request('http://localhost:3000/api/feedback', {

@@ -361,3 +361,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/ai-startup-docs.test.ts`
 - `pnpm test`
 - `git diff --check`
+
+## 2026-05-21 — Developer feedback PR review fixes
+
+**Completed:**
+- Moved daily-log feedback candidate dedupe/merge into an atomic Supabase RPC to avoid dropped or lost concurrent classroom signals.
+- Hardened `/api/feedback` request validation so malformed JSON shapes return 400 instead of falling through to 500.
+- Added focused tests for the RPC storage path and malformed direct feedback bodies.
+
+**Validation:**
+- `pnpm test tests/unit/developer-log-feedback.test.ts tests/api/feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `node scripts/features.mjs validate`
+- `pnpm test`
+- `git diff --check`

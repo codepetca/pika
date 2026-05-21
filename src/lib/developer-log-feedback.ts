@@ -61,6 +61,7 @@ export interface DirectDeveloperFeedbackRecord {
 
 type SupabaseLike = {
   from: (table: string) => any
+  rpc?: (fn: string, args: Record<string, unknown>) => any
 }
 
 export function buildDeveloperFeedbackPrompt(
@@ -206,7 +207,6 @@ export async function recordDeveloperFeedbackCandidates(
   context: DeveloperFeedbackRecordContext
 ): Promise<DeveloperFeedbackRecordResult> {
   const result = emptyRecordResult()
-  const now = new Date().toISOString()
 
   for (const candidate of candidates) {
     const normalized = normalizeCandidateForStorage(candidate)
@@ -215,86 +215,39 @@ export async function recordDeveloperFeedbackCandidates(
       continue
     }
 
-    const existingResult = await supabase
-      .from('developer_feedback_candidates')
-      .select('*')
-      .eq('dedupe_key', normalized.dedupe_key)
-      .maybeSingle()
+    if (!supabase.rpc) {
+      throw new Error('Supabase RPC client is required for developer feedback storage')
+    }
 
-    if (existingResult.error) {
-      if (isMissingDeveloperFeedbackTableError(existingResult.error)) {
+    const upsertResult = await supabase.rpc('upsert_developer_feedback_candidate', {
+      p_dedupe_key: normalized.dedupe_key,
+      p_title: normalized.title,
+      p_original_request: normalized.original_request,
+      p_refined_request: normalized.refined_request,
+      p_implementation_hint: normalized.implementation_hint,
+      p_affected_area: normalized.affected_area,
+      p_suggested_agent: normalized.suggested_agent,
+      p_confidence: normalized.confidence,
+      p_source_entry_count: context.sourceEntryCount,
+      p_source_classroom_id: context.classroomId,
+      p_source_date: context.date,
+      p_model: context.model,
+    })
+
+    if (upsertResult.error) {
+      if (isMissingDeveloperFeedbackTableError(upsertResult.error)) {
         result.tableMissing = true
         result.skipped += candidates.length - result.inserted - result.updated - result.skipped
         return result
       }
-      throw new Error(`Failed to load developer feedback candidate: ${existingResult.error.message || 'unknown error'}`)
+      throw new Error(`Failed to upsert developer feedback candidate: ${upsertResult.error.message || 'unknown error'}`)
     }
 
-    const existing = existingResult.data
-    if (existing) {
-      const updateResult = await supabase
-        .from('developer_feedback_candidates')
-        .update({
-          title: normalized.title,
-          original_request: normalized.original_request,
-          refined_request: normalized.refined_request,
-          implementation_hint: normalized.implementation_hint,
-          affected_area: normalized.affected_area,
-          suggested_agent: normalized.suggested_agent,
-          confidence: Math.max(Number(existing.confidence) || 0, normalized.confidence),
-          signal_count: Math.max(1, Number(existing.signal_count) || 1) + 1,
-          source_entry_count: Math.max(0, Number(existing.source_entry_count) || 0) + context.sourceEntryCount,
-          source_classroom_ids: unionStrings(asStringArray(existing.source_classroom_ids), [context.classroomId]),
-          source_dates: unionStrings(asStringArray(existing.source_dates), [context.date]),
-          last_seen_at: now,
-          last_seen_date: context.date,
-          model: context.model,
-        })
-        .eq('id', existing.id)
-
-      if (updateResult.error) {
-        if (isMissingDeveloperFeedbackTableError(updateResult.error)) {
-          result.tableMissing = true
-          result.skipped += candidates.length - result.inserted - result.updated - result.skipped
-          return result
-        }
-        throw new Error(`Failed to update developer feedback candidate: ${updateResult.error.message || 'unknown error'}`)
-      }
-
+    if (isRpcInserted(upsertResult.data)) {
+      result.inserted += 1
+    } else {
       result.updated += 1
-      continue
     }
-
-    const insertResult = await supabase
-      .from('developer_feedback_candidates')
-      .insert({
-        dedupe_key: normalized.dedupe_key,
-        title: normalized.title,
-        original_request: normalized.original_request,
-        refined_request: normalized.refined_request,
-        implementation_hint: normalized.implementation_hint,
-        affected_area: normalized.affected_area,
-        suggested_agent: normalized.suggested_agent,
-        confidence: normalized.confidence,
-        signal_count: 1,
-        source_entry_count: context.sourceEntryCount,
-        source_classroom_ids: [context.classroomId],
-        source_dates: [context.date],
-        last_seen_at: now,
-        last_seen_date: context.date,
-        model: context.model,
-      })
-
-    if (insertResult.error) {
-      if (isMissingDeveloperFeedbackTableError(insertResult.error)) {
-        result.tableMissing = true
-        result.skipped += candidates.length - result.inserted - result.updated - result.skipped
-        return result
-      }
-      throw new Error(`Failed to insert developer feedback candidate: ${insertResult.error.message || 'unknown error'}`)
-    }
-
-    result.inserted += 1
   }
 
   return result
@@ -364,11 +317,19 @@ export function isMissingDeveloperFeedbackTableError(error: unknown): boolean {
   const message = String(record?.message || '').toLowerCase()
   return (
     code === 'PGRST205' ||
+    code === 'PGRST202' ||
     code === '42P01' ||
+    code === '42883' ||
     (message.includes('developer_feedback_candidates') && (
       message.includes('does not exist') ||
       message.includes('could not find') ||
       message.includes('schema cache')
+    )) ||
+    (message.includes('upsert_developer_feedback_candidate') && (
+      message.includes('does not exist') ||
+      message.includes('could not find') ||
+      message.includes('schema cache') ||
+      message.includes('function')
     ))
   )
 }
@@ -548,11 +509,7 @@ function emptyRecordResult(): DeveloperFeedbackRecordResult {
   return { inserted: 0, updated: 0, skipped: 0, tableMissing: false }
 }
 
-function asStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-  return value.map((item) => String(item)).filter(Boolean)
-}
-
-function unionStrings(existing: string[], incoming: string[]): string[] {
-  return [...new Set([...existing, ...incoming].filter(Boolean))]
+function isRpcInserted(value: unknown): boolean {
+  const row = Array.isArray(value) ? value[0] : value
+  return typeof row === 'object' && row !== null && (row as { inserted?: unknown }).inserted === true
 }

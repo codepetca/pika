@@ -4,24 +4,18 @@ import { withErrorHandler } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { recordDirectDeveloperFeedback } from '@/lib/developer-log-feedback'
 
-interface FeedbackBody {
-  category: 'bug' | 'suggestion'
+interface FeedbackPayload {
+  category: unknown
   description: string
-  metadata: {
-    url: string
-    userAgent: string
-    version: string
-    commit: string
-    env: string
-  }
+  metadata: Record<string, unknown>
 }
 
 export const POST = withErrorHandler('PostFeedback', async (request) => {
   const user = await requireAuth()
 
-  let body: FeedbackBody
+  let payload: unknown
   try {
-    body = await request.json()
+    payload = await request.json()
   } catch {
     return NextResponse.json(
       { error: 'Invalid JSON body' },
@@ -29,7 +23,9 @@ export const POST = withErrorHandler('PostFeedback', async (request) => {
     )
   }
 
-  if (!['bug', 'suggestion'].includes(body.category)) {
+  const body = normalizeFeedbackBody(payload)
+
+  if (body.category !== 'bug' && body.category !== 'suggestion') {
     return NextResponse.json(
       { error: 'Invalid category' },
       { status: 400 },
@@ -53,3 +49,18 @@ export const POST = withErrorHandler('PostFeedback', async (request) => {
 
   return NextResponse.json({ success: true, candidate_id: result.id })
 })
+
+function normalizeFeedbackBody(payload: unknown): FeedbackPayload {
+  const record = isRecord(payload) ? payload : {}
+  const metadata = isRecord(record.metadata) ? record.metadata : {}
+
+  return {
+    category: record.category,
+    description: typeof record.description === 'string' ? record.description : '',
+    metadata,
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}

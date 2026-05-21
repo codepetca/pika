@@ -65,16 +65,10 @@ describe('developer log feedback extraction', () => {
 
 describe('recordDeveloperFeedbackCandidates', () => {
   it('inserts high-confidence candidates', async () => {
-    const insert = vi.fn().mockResolvedValue({ error: null })
+    const rpc = vi.fn().mockResolvedValue({ data: { id: 'candidate-1', inserted: true }, error: null })
     const supabase = {
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-          })),
-        })),
-        insert,
-      })),
+      rpc,
+      from: vi.fn(),
     }
 
     const result = await recordDeveloperFeedbackCandidates(
@@ -99,45 +93,23 @@ describe('recordDeveloperFeedbackCandidates', () => {
     )
 
     expect(result).toEqual({ inserted: 1, updated: 0, skipped: 0, tableMissing: false })
-    expect(insert).toHaveBeenCalledWith(
+    expect(rpc).toHaveBeenCalledWith(
+      'upsert_developer_feedback_candidate',
       expect.objectContaining({
-        dedupe_key: 'daily-log-draft-recovery',
-        signal_count: 1,
-        source_entry_count: 12,
-        source_classroom_ids: ['11111111-1111-1111-1111-111111111111'],
-        source_dates: ['2026-05-19'],
+        p_dedupe_key: 'daily-log-draft-recovery',
+        p_source_entry_count: 12,
+        p_source_classroom_id: '11111111-1111-1111-1111-111111111111',
+        p_source_date: '2026-05-19',
       })
     )
+    expect(supabase.from).not.toHaveBeenCalled()
   })
 
-  it('updates existing candidates without resetting their status', async () => {
-    const updatePayloads: any[] = []
+  it('merges existing candidates through the atomic upsert RPC without status changes', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { id: 'candidate-1', inserted: false }, error: null })
     const supabase = {
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            maybeSingle: vi.fn().mockResolvedValue({
-              data: {
-                id: 'candidate-1',
-                dedupe_key: 'assignment-due-date-warnings',
-                status: 'approved',
-                confidence: 0.62,
-                signal_count: 3,
-                source_entry_count: 18,
-                source_classroom_ids: ['11111111-1111-1111-1111-111111111111'],
-                source_dates: ['2026-05-18'],
-              },
-              error: null,
-            }),
-          })),
-        })),
-        update: vi.fn((payload: any) => {
-          updatePayloads.push(payload)
-          return {
-            eq: vi.fn().mockResolvedValue({ error: null }),
-          }
-        }),
-      })),
+      rpc,
+      from: vi.fn(),
     }
 
     const result = await recordDeveloperFeedbackCandidates(
@@ -162,19 +134,20 @@ describe('recordDeveloperFeedbackCandidates', () => {
     )
 
     expect(result).toEqual({ inserted: 0, updated: 1, skipped: 0, tableMissing: false })
-    expect(updatePayloads[0]).toEqual(
+    expect(rpc).toHaveBeenCalledWith(
+      'upsert_developer_feedback_candidate',
       expect.objectContaining({
-        signal_count: 4,
-        source_entry_count: 27,
-        source_classroom_ids: [
-          '11111111-1111-1111-1111-111111111111',
-          '22222222-2222-2222-2222-222222222222',
-        ],
-        source_dates: ['2026-05-18', '2026-05-19'],
-        confidence: 0.81,
+        p_dedupe_key: 'assignment-due-date-warnings',
+        p_source_entry_count: 9,
+        p_source_classroom_id: '22222222-2222-2222-2222-222222222222',
+        p_source_date: '2026-05-19',
+        p_confidence: 0.81,
       })
     )
-    expect(updatePayloads[0]).not.toHaveProperty('status')
+    const args = rpc.mock.calls[0][1]
+    expect(args).not.toHaveProperty('status')
+    expect(args).not.toHaveProperty('signal_count')
+    expect(supabase.from).not.toHaveBeenCalled()
   })
 
   it('skips low-confidence candidates', async () => {
@@ -204,19 +177,14 @@ describe('recordDeveloperFeedbackCandidates', () => {
 
   it('reports tableMissing without throwing when the migration has not been applied', async () => {
     const supabase = {
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            maybeSingle: vi.fn().mockResolvedValue({
-              data: null,
-              error: {
-                code: 'PGRST205',
-                message: "Could not find the table 'public.developer_feedback_candidates' in the schema cache",
-              },
-            }),
-          })),
-        })),
-      })),
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: {
+          code: 'PGRST202',
+          message: "Could not find the function 'public.upsert_developer_feedback_candidate' in the schema cache",
+        },
+      }),
+      from: vi.fn(),
     }
 
     const result = await recordDeveloperFeedbackCandidates(
