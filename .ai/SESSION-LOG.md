@@ -342,3 +342,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/85d6177d-f695-4df2-bbad-2946876d8e16?tab=assignments"`
 - Reviewed `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, and `/tmp/pika-teacher-loaded.png`.
 - `pnpm test`
+## 2026-05-21 — Developer feedback helper
+
+**Completed:**
+- Added a private Supabase-backed developer feedback candidate queue for sanitized Pika improvement requests extracted from daily logs.
+- Extended the nightly log summary cron to opportunistically extract and dedupe developer candidates without blocking summary generation.
+- Added the agent-operated `scripts/dev-feedback.mjs` helper, `$pika-dev-feedback` Codex skill, and Claude `/dev-feedback` mirror command for numbered approve/dismiss/work-on flows.
+- Kept the existing Send Feedback UI in place and routed direct bug/feature submissions into the same developer triage queue with sanitized page metadata.
+- Updated docs, env examples, and feature inventory for the new developer feedback workflow.
+
+**Validation:**
+- `pnpm test tests/unit/developer-log-feedback.test.ts tests/api/feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
+- `/usr/bin/python3 /Users/stew/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/pika-dev-feedback`
+- `node scripts/dev-feedback.mjs help`
+- `node scripts/features.mjs validate`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `pnpm test`
+- `git diff --check`

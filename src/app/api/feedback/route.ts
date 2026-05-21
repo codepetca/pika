@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
+import { getServiceRoleClient } from '@/lib/supabase'
+import { recordDirectDeveloperFeedback } from '@/lib/developer-log-feedback'
 
 interface FeedbackBody {
   category: 'bug' | 'suggestion'
@@ -15,16 +17,6 @@ interface FeedbackBody {
 }
 
 export const POST = withErrorHandler('PostFeedback', async (request) => {
-  const token = process.env.GITHUB_FEEDBACK_TOKEN
-  const repo = process.env.GITHUB_FEEDBACK_REPO
-
-  if (!token || !repo) {
-    return NextResponse.json(
-      { error: 'Feedback not configured' },
-      { status: 501 },
-    )
-  }
-
   const user = await requireAuth()
 
   let body: FeedbackBody
@@ -51,42 +43,13 @@ export const POST = withErrorHandler('PostFeedback', async (request) => {
     )
   }
 
-  const titlePrefix = `[${body.category}]`
-  const titleText = body.description.trim().slice(0, 80)
-  const title = `${titlePrefix} ${titleText}`
-
-  const meta = body.metadata ?? {}
-  const issueBody = [
-    `**Role:** ${user.role}`,
-    `**Page:** ${meta.url || 'N/A'}`,
-    `**User-Agent:** ${meta.userAgent || 'N/A'}`,
-    `**Version:** ${meta.version || 'N/A'}`,
-    `**Commit:** ${meta.commit || 'N/A'}`,
-    `**Environment:** ${meta.env || 'N/A'}`,
-    '',
-    '---',
-    '',
-    body.description.trim(),
-  ].join('\n')
-
-  const res = await fetch(`https://api.github.com/repos/${repo}/issues`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ title, body: issueBody, labels: ['user-feedback'] }),
+  const result = await recordDirectDeveloperFeedback(getServiceRoleClient(), {
+    userId: user.id,
+    role: user.role,
+    category: body.category,
+    description: body.description.trim(),
+    metadata: body.metadata ?? {},
   })
 
-  if (!res.ok) {
-    const text = await res.text()
-    console.error('GitHub Issues API error:', res.status, text)
-    return NextResponse.json(
-      { error: 'Failed to create feedback issue' },
-      { status: 502 },
-    )
-  }
-
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, candidate_id: result.id })
 })

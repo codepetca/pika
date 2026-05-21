@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pika Dev Feedback"
+  short_description: "Reviews numbered Pika improvement candidates from logs and Send Feedback"
+  default_prompt: "Use $pika-dev-feedback to show new Pika developer feedback candidates and help me approve, dismiss, or work on one."
