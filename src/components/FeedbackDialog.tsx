@@ -83,16 +83,20 @@ export function FeedbackDialog({ isOpen, onClose }: FeedbackDialogProps) {
   }
 
   return (
-    <ContentDialog isOpen={isOpen} onClose={handleClose} title="Send Feedback" maxWidth="max-w-md">
+    <ContentDialog
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Send Feedback"
+      maxWidth="max-w-md"
+      showFooterClose={false}
+    >
       {state === 'success' ? (
         <div className="py-6 text-center text-sm text-text-muted">
           Thanks for your feedback!
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Category */}
-          <fieldset>
-            <legend className="text-sm font-medium text-text-default mb-2">Category</legend>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <fieldset aria-label="Feedback category">
             <div className="flex gap-2">
               {(['bug', 'suggestion'] as const).map((opt) => (
                 <button
@@ -111,30 +115,20 @@ export function FeedbackDialog({ isOpen, onClose }: FeedbackDialogProps) {
             </div>
           </fieldset>
 
-          {/* Description */}
-          <div>
-            <label htmlFor="feedback-description" className="block text-sm font-medium text-text-default mb-1">
-              Description
-            </label>
-            <textarea
-              id="feedback-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={category === 'bug' ? 'What happened? What did you expect?' : 'What would you like to see improved?'}
-              rows={4}
-              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary resize-none"
-              disabled={state === 'submitting'}
-            />
-          </div>
+          <textarea
+            id="feedback-description"
+            aria-label="Feedback description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={category === 'bug' ? 'What happened? What did you expect?' : 'What would you like to see improved?'}
+            rows={4}
+            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary resize-none"
+            disabled={state === 'submitting'}
+          />
 
           {errorMsg && (
             <p className="text-sm text-danger">{errorMsg}</p>
           )}
-
-          {/* Build info */}
-          <div className="rounded-md bg-surface-2 px-3 py-2 text-xs text-text-muted space-y-0.5">
-            <p>Version {version} · {commit} · {env}</p>
-          </div>
 
           <button
             type="submit"

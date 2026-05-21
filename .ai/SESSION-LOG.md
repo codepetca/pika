@@ -7,15 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-19 — Survey PR merge prep
-
-**Completed:**
-- Rebasing/push left GitHub CI blocked only by the rolling session-log size check.
-- Trimmed `.ai/SESSION-LOG.md` back under the documented 20-entry limit before merging PR #595.
-
-**Validation:**
-- `pnpm test tests/unit/ai-startup-docs.test.ts`
-
 ## 2026-05-19 — Survey creation preview option
 
 **Completed:**
@@ -377,3 +368,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash -n .codex/skills/pika-session-start/scripts/session_start.sh scripts/verify-env.sh scripts/pika`
 - `node scripts/features.mjs validate`
 - `git diff --check`
+
+## 2026-05-21 — Send Feedback modal simplification
+
+**Completed:**
+- Removed visible Category and Description labels from the Send Feedback modal while preserving accessible control names.
+- Removed the build/version info row from the modal.
+- Disabled the modal footer Close button for Send Feedback, leaving the header X close affordance.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/UserMenu.test.tsx tests/ui/Dialog.test.tsx tests/api/feedback.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Playwright screenshots: `/tmp/pika-feedback-teacher.png`, `/tmp/pika-feedback-student-mobile.png`
