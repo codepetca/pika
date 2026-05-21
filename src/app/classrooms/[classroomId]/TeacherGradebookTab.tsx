@@ -27,7 +27,6 @@ import {
   DataTableRow,
   EmptyStateRow,
   SortableHeaderCell,
-  TableCard,
 } from '@/components/DataTable'
 import {
   fetchJSONWithCache,
@@ -488,12 +487,11 @@ function AssessmentMatrixTable({
   return (
     <div
       ref={scrollContainerRef}
-      className="h-full min-h-0 overflow-auto"
+      className="h-full min-h-0 min-w-0 overflow-auto"
       data-testid="gradebook-student-scroll-pane"
       onScroll={onScrollContainerScroll}
     >
-      <TableCard chrome="flush">
-        <DataTable density="tight" className="min-w-max">
+      <DataTable density="tight" className="min-w-max">
           <DataTableHead>
             {editMode ? (
               <DataTableRow className="border-b border-border">
@@ -970,8 +968,7 @@ function AssessmentMatrixTable({
               </>
             )}
           </DataTableBody>
-        </DataTable>
-      </TableCard>
+      </DataTable>
     </div>
   )
 }
@@ -1239,7 +1236,7 @@ export function TeacherGradebookTab({
   )
 
   const gradebookTable = (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface">
+    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface">
       <AssessmentMatrixTable
         students={sortedStudents}
         columns={assessmentColumns}
@@ -1286,7 +1283,7 @@ export function TeacherGradebookTab({
     </div>
   ) : (
     <TeacherWorkspaceSplit
-      className="flex-1"
+      className="h-full flex-1"
       splitVariant="gapped"
       primary={gradebookTable}
       inspector={studentAssessmentPanel}

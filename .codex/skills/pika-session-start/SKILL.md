@@ -23,6 +23,7 @@ Automates the `.ai/START-HERE.md` ritual to ensure every AI session begins with 
 
 - Run from the current Pika worktree root, not the hub checkout.
 - STOP if the resolved repo root equals `$HOME/Repos/pika` (the hub).
+- The script creates a missing `.env.local` symlink to `$HOME/Repos/.env/pika/.env.local` before verification.
 - STOP if `verify-env.sh` fails.
 - Do NOT write any code until a plan is approved.
 - Use the resolved repo root consistently for git commands and file paths.

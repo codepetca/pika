@@ -371,6 +371,8 @@ Existing indexes (migration 038):
 - `announcements` — `classroom_id`, `content` (markdown text), `created_by`, timestamps
 - `resources` — `classroom_id`, `title`, `url`, `description`, timestamps
 - `lesson_plans` — `classroom_id`, `class_day_id`, `content` (Tiptap JSON)
+- `log_summaries` — server-managed AI summaries of student daily logs per classroom/date
+- `developer_feedback_candidates` — server-managed, sanitized Pika improvement candidates from daily logs and direct Send Feedback submissions for developer review
 
 **RLS Highlights**
 - Auth tables (`verification_codes`) are server-managed only (service role).
