@@ -298,4 +298,35 @@ describe('StudentAssignmentsTab', () => {
     })
     expect(screen.queryByText(/days overdue/i)).not.toBeInTheDocument()
   })
+
+  it('freezes returned late assignment card timing at the original submission timestamp', async () => {
+    const returnedClassroom = { ...classroom, id: 'cls-returned' }
+    mockFetchAssignments([
+      makeAssignment({
+        classroom_id: returnedClassroom.id,
+        due_at: '2024-10-20T12:00:00Z',
+        status: 'returned',
+        doc: {
+          id: 'doc-1',
+          assignment_id: 'asgn-1',
+          student_id: 'stu-1',
+          content: { type: 'doc', content: [] },
+          is_submitted: false,
+          submitted_at: '2024-10-21T12:00:00Z',
+          returned_at: '2024-10-22T12:00:00Z',
+          viewed_at: '2024-06-01T00:00:00Z',
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        } as any,
+      }),
+    ])
+
+    render(<StudentAssignmentsTab classroom={returnedClassroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Submitted 1 day late')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Returned')).toBeInTheDocument()
+    expect(screen.queryByText(/days overdue/i)).not.toBeInTheDocument()
+  })
 })
