@@ -366,19 +366,20 @@ function formatLateSubmissionDuration(diffMs: number): string {
 /**
  * Format student-facing assignment timing.
  *
- * Unsubmitted work keeps counting relative to the due date. Submitted work is
- * frozen at submitted_at so overdue text does not keep increasing after submit.
+ * Work without a submission timestamp keeps counting relative to the due date.
+ * Once a submission exists, timing is frozen at submitted_at so overdue text
+ * does not keep increasing after submit or teacher return.
  */
 export function formatAssignmentTiming(
   dueAt: string,
   doc: AssignmentTimingDoc | null | undefined
 ): string {
-  if (!doc?.is_submitted) {
+  if (!doc) {
     return formatRelativeDueDate(dueAt)
   }
 
   if (!doc.submitted_at) {
-    return 'Submitted'
+    return doc.is_submitted ? 'Submitted' : formatRelativeDueDate(dueAt)
   }
 
   const due = new Date(dueAt)

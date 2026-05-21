@@ -7,18 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-19 — Multiple-choice survey option cap
-
-**Completed:**
-- Raised the multiple-choice survey option cap from 6 to 50 in the shared survey validation.
-- Added a boundary unit test that accepts the configured maximum and rejects one option beyond it.
-
-**Validation:**
-- `bash /Users/stew/Repos/pika/.codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/surveys.test.ts tests/api/teacher/surveys-questions-route.test.ts tests/api/teacher/surveys-questions-id.test.ts`
-- `pnpm lint`
-- `pnpm build`
-
 ## 2026-05-19 — Survey open-state question-count refresh
 
 **Completed:**
@@ -338,3 +326,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Mocked long-grid Playwright check with 48 students and 32 assessment columns; verified `gradebook-student-scroll-pane` can scroll on both axes and captured `/tmp/pika-gradebook-scroll-after.png` and `/tmp/pika-gradebook-settings-scroll-after.png`.
 - `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=gradebook"`
 - Reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`.
+
+## 2026-05-21 — Returned assignment timing freeze
+
+**Completed:**
+- Fixed returned assignment timing so student-facing labels freeze against preserved `submitted_at` even after teacher return clears `is_submitted`.
+- Added regression coverage for returned late work with `is_submitted: false`, preserved `submitted_at`, and `returned_at`.
+- Rebuilt the fix on a fresh branch from current `origin/main` to avoid carrying stale already-merged commits.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/assignments.test.ts tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm seed`
+- `pnpm e2e:auth`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/85d6177d-f695-4df2-bbad-2946876d8e16?tab=assignments"`
+- Reviewed `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, and `/tmp/pika-teacher-loaded.png`.
+- `pnpm test`
