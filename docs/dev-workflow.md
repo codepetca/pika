@@ -85,7 +85,18 @@ All worktrees share a single canonical `.env.local` file:
 $HOME/Repos/.env/pika/.env.local
 ```
 
-Each worktree must symlink `.env.local` to that canonical path to avoid drift.
+Each worktree must symlink `.env.local` to that canonical path to avoid drift:
+
+```bash
+WORKTREE="$(git rev-parse --show-toplevel)"
+ENV_CANONICAL="$HOME/Repos/.env/pika/.env.local"
+[ -e "$WORKTREE/.env.local" ] || ln -s "$ENV_CANONICAL" "$WORKTREE/.env.local"
+```
+
+The hub checkout may also expose `.env.local`, but worktrees should point to the
+canonical shared file directly. Do not copy the env file into a worktree.
+Codex/Claude startup should repair a missing symlink before running the app or
+`verify-env.sh`.
 
 ---
 

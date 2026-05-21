@@ -7,19 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-19 — Survey open-state question-count refresh
-
-**Completed:**
-- Fixed the selected-survey action bar so adding, deleting, or markdown-syncing survey questions updates the parent survey `questions_count` immediately.
-- Added regression coverage for a draft survey becoming openable after its first question is added in the edit modal.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3030 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Targeted Playwright smoke created a temporary draft survey, confirmed `Open poll` was disabled before adding a question and enabled after adding the first question in the modal, then deleted the temporary survey. Screenshot: `/tmp/pika-survey-question-count-enabled.png`.
-
 ## 2026-05-19 — Survey PR merge prep
 
 **Completed:**
@@ -375,4 +362,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `node scripts/features.mjs validate`
 - `pnpm test`
+- `git diff --check`
+
+## 2026-05-21 — Worktree env symlink guidance
+
+**Completed:**
+- Created the missing `.env.local` symlink in the developer feedback worktree so local Next dev uses the shared Pika env file.
+- Updated startup guidance to require each worktree to symlink `.env.local` to `$HOME/Repos/.env/pika/.env.local`.
+- Updated the Codex session-start script to create the missing symlink before running environment verification.
+- Added regression coverage for the symlink guidance and session-start repair behavior.
+
+**Validation:**
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `bash -n .codex/skills/pika-session-start/scripts/session_start.sh scripts/verify-env.sh scripts/pika`
+- `node scripts/features.mjs validate`
 - `git diff --check`

@@ -12,6 +12,7 @@ Steps:
 1) Verify worktree environment
    - Run: `git rev-parse --show-toplevel`
    - If it equals `$HOME/Repos/pika`: STOP — tell me to open or create a feature worktree first.
+   - Ensure `.env.local` symlinks to `$HOME/Repos/.env/pika/.env.local`.
    - Run: `bash scripts/verify-env.sh`
    - If verify-env.sh fails: STOP — report the failure.
 
