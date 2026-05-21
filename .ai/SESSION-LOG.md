@@ -7,22 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-16 — Assignment modal top row tightening
-
-**Completed:**
-- Removed the visible assignment modal header above the title field.
-- Moved the post/schedule split button into the same first row as title and due date.
-- Shortened compact title/date/action widths so the same-row layout holds on mobile.
-
-**Validation:**
-- `pnpm lint`
-- `pnpm test tests/components/AssignmentModal.test.tsx`
-- `E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Additional modal screenshots:
-  - `/tmp/pika-assignment-modal-desktop.png`
-  - `/tmp/pika-assignment-modal-mobile.png`
-  - `/tmp/pika-assignment-preview-dialog.png`
-
 ## 2026-05-17 — Assignment modal close placement
 
 **Completed:**
@@ -354,3 +338,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/developer-log-feedback.test.ts`
 - Migration duplicate-prefix check
 - Migration filename convention check
+
+## 2026-05-21 — Migration filename CI guard
+
+**Completed:**
+- Added a Vitest guard for Supabase migration filenames so CI rejects non-`NNN_snake_case.sql` files.
+- The guard also rejects duplicate migration prefixes and gaps in the numeric sequence.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/migration-filenames.test.ts`
+- `pnpm test tests/unit/migration-filenames.test.ts tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `git diff --check`
