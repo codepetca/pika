@@ -20,6 +20,39 @@ print_required_doc() {
   fi
 }
 
+ensure_env_symlink() {
+  local worktree="$1"
+  local canonical="${HOME}/Repos/.env/pika/.env.local"
+  local link="${worktree}/.env.local"
+
+  if [[ ! -e "$canonical" ]]; then
+    echo -e "${INFO} Shared env file not found at $canonical"
+    echo "   Create it or link .env.local manually before running the app."
+    return 0
+  fi
+
+  if [[ -L "$link" ]]; then
+    local target
+    target="$(readlink "$link")"
+    if [[ "$target" == "$canonical" ]]; then
+      echo -e "${PASS} .env.local -> $canonical"
+    else
+      echo -e "${INFO} .env.local points to $target"
+      echo "   Expected shared env symlink target: $canonical"
+    fi
+    return 0
+  fi
+
+  if [[ -e "$link" ]]; then
+    echo -e "${INFO} .env.local exists but is not a symlink; leaving it unchanged."
+    echo "   Default worktree setup is: .env.local -> $canonical"
+    return 0
+  fi
+
+  ln -s "$canonical" "$link"
+  echo -e "${PASS} Created .env.local -> $canonical"
+}
+
 echo "╔══════════════════════════════════════════════╗"
 echo "║         Pika Session Start Ritual            ║"
 echo "╚══════════════════════════════════════════════╝"
@@ -55,6 +88,7 @@ echo -e "${PASS} Worktree = $WORKTREE"
 # ── 2. Verify environment ───────────────────────────
 echo ""
 echo "── 2. Environment check"
+ensure_env_symlink "$WORKTREE"
 if [[ -f "$WORKTREE/scripts/verify-env.sh" ]]; then
   bash "$WORKTREE/scripts/verify-env.sh" && \
     echo -e "${PASS} verify-env.sh passed" || \

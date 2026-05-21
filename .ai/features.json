@@ -1,12 +1,12 @@
 {
   "meta": {
     "project": "pika",
-    "lastUpdated": "2026-05-13",
+    "lastUpdated": "2026-05-21",
     "phase": "Infrastructure — AI Effectiveness Layer",
     "DO_NOT_DELETE_FEATURES": "APPEND-ONLY. Never delete entries.",
     "deletionPolicy": "PROHIBITED",
-    "totalFeatures": 11,
-    "passing": 11,
+    "totalFeatures": 12,
+    "passing": 12,
     "failing": 0
   },
   "features": [
@@ -127,6 +127,17 @@
       "blockedBy": [],
       "addedDate": "2026-05-13",
       "completedDate": "2026-05-13"
+    },
+    {
+      "id": "epic-developer-feedback-helper",
+      "phase": "Infrastructure",
+      "description": "Agent queue for Pika improvement candidates from logs and Send Feedback",
+      "passes": true,
+      "verification": "focused developer feedback tests",
+      "issueRefs": [],
+      "blockedBy": [],
+      "addedDate": "2026-05-21",
+      "completedDate": "2026-05-21"
     }
   ]
 }

@@ -16,6 +16,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "measure:ai-grading-prompts": "tsx scripts/measure-ai-grading-prompts.ts",
+    "dev-feedback": "node scripts/dev-feedback.mjs",
     "eval:test-ai-grading-gold-set": "tsx scripts/eval-test-ai-grading-gold-set.ts",
     "docs:sync:test-markdown": "tsx scripts/sync-test-markdown-docs.ts",
     "e2e:install": "playwright install",

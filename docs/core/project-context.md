@@ -87,6 +87,8 @@ pnpm run lint
 - `ENABLE_MOCK_EMAIL` (`true` to log verification/reset codes)
 - `NEXT_PUBLIC_APP_URL`
 - `CRON_SECRET` (required for protected cron endpoints; Vercel sends `Authorization: Bearer <CRON_SECRET>`; cron schedules are configured in the Vercel dashboard; on the Hobby plan, schedules must run at most once per day)
+- `OPENAI_API_KEY` (optional; required for AI grading, nightly log summaries, and developer feedback extraction)
+- `OPENAI_SUMMARY_MODEL` / `OPENAI_DEVELOPER_FEEDBACK_MODEL` (optional model overrides)
 
 Legacy anon/service keys are supported but publishable/secret are preferred.
 

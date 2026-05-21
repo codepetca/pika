@@ -56,6 +56,7 @@ Inspect or modify source only after the startup set and the docs required by you
 |---|---|---|
 | Start a session | `/session-start` | `.codex/prompts/session-start.md` |
 | Work on a GitHub issue | `/work-on-issue <N>` | `.codex/prompts/work-on-issue.md` |
+| Review developer feedback triage | `/dev-feedback` | `$pika-dev-feedback` |
 | TDD implementation | `/tdd <feature>` | `.codex/prompts/tdd.md` |
 | Verify UI changes | `/ui-verify <page>` | `.codex/prompts/ui-verify.md` |
 | Pre-commit audit | `/audit` | `.codex/prompts/audit.md` |

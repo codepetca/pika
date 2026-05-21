@@ -1,8 +1,8 @@
 # Pika — AI Agent Starting Ritual
 
-**CRITICAL:** Follow this checklist at the start of **every** AI session.
+**CRITICAL:** Follow this at the start of **every** AI session.
 
-**Automated alternative:** Run `/session-start` (Claude Code) or paste `.codex/prompts/session-start.md` (Codex).
+**Automated:** `/session-start` or `.codex/prompts/session-start.md`.
 
 ---
 
@@ -11,6 +11,7 @@
 ```
 [ ] Resolve repo root: git rev-parse --show-toplevel
 [ ] Verify repo root is a feature worktree, not $HOME/Repos/pika for branch work
+[ ] Ensure .env.local symlinks to $HOME/Repos/.env/pika/.env.local
 [ ] Run: bash scripts/verify-env.sh
 [ ] Check status: git status --short --branch
 [ ] Read: .ai/CURRENT.md
@@ -20,8 +21,7 @@
 [ ] Plan before coding: state task, propose approach, wait for approval
 ```
 
-Do not start coding if verification fails.
-Read `.ai/SESSION-LOG.md` only for recent handoff context; `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+Do not code if verification fails. Read `.ai/SESSION-LOG.md` only for recent handoff context; `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
 ---
 

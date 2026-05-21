@@ -10,6 +10,10 @@ import {
   callOpenAIForSummary,
   getSummaryModel,
 } from '@/lib/log-summary'
+import {
+  extractAndStoreDeveloperFeedbackCandidates,
+  getDeveloperFeedbackModel,
+} from '@/lib/developer-log-feedback'
 import type { TiptapContent } from '@/types'
 import { withErrorHandler } from '@/lib/api-handler'
 
@@ -293,6 +297,22 @@ async function generateSummaryForClassroom(
   if (upsertError) {
     console.error(`Error upserting summary for classroom ${classroomId}:`, upsertError)
     return false
+  }
+
+  try {
+    const developerFeedbackResult = await extractAndStoreDeveloperFeedbackCandidates(supabase, {
+      classroomId,
+      date,
+      sourceEntryCount: entries.length,
+      model: getDeveloperFeedbackModel(),
+      sanitizedLogs,
+    })
+
+    if (developerFeedbackResult.tableMissing) {
+      console.warn('Developer feedback candidates table is not available; skipping extraction storage.')
+    }
+  } catch (error) {
+    console.error(`Error extracting developer feedback for classroom ${classroomId}:`, error)
   }
 
   return true

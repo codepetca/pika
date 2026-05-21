@@ -7,130 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-19 — Survey open-state question-count refresh
-
-**Completed:**
-- Fixed the selected-survey action bar so adding, deleting, or markdown-syncing survey questions updates the parent survey `questions_count` immediately.
-- Added regression coverage for a draft survey becoming openable after its first question is added in the edit modal.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3030 bash /Users/stew/Repos/pika/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Targeted Playwright smoke created a temporary draft survey, confirmed `Open poll` was disabled before adding a question and enabled after adding the first question in the modal, then deleted the temporary survey. Screenshot: `/tmp/pika-survey-question-count-enabled.png`.
-
-## 2026-05-19 — Survey PR merge prep
-
-**Completed:**
-- Rebasing/push left GitHub CI blocked only by the rolling session-log size check.
-- Trimmed `.ai/SESSION-LOG.md` back under the documented 20-entry limit before merging PR #595.
-
-**Validation:**
-- `pnpm test tests/unit/ai-startup-docs.test.ts`
-
-## 2026-05-19 — Survey creation preview option
-
-**Completed:**
-- Added a Preview mode to the teacher survey authoring modal with a student-style response layout for multiple-choice, text, and link questions.
-- Kept preview responses local to the modal so teachers can click through the survey without saving anything.
-- Added regression coverage for opening preview and selecting an option without issuing a survey PATCH.
-
-**Validation:**
-- `bash /Users/stew/Repos/.worktrees/pika/survey-preview/.codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherSurveyWorkspace.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3003 bash /Users/stew/Repos/.worktrees/pika/survey-preview/.codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-preview-teacher.png`, `/tmp/pika-survey-preview-teacher-mobile.png`; temporary survey fixtures were deleted afterward.
-
-## 2026-05-19 — Teacher Daily date picker arrows
-
-**Completed:**
-- Removed the previous/next arrow buttons from the teacher Daily date picker while keeping the date label picker plus Last class and Today controls.
-- Added a regression test asserting the Daily picker no longer renders `Previous day` or `Next day` buttons.
-
-**Validation:**
-- `bash /Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows/.codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/TeacherAttendanceTab.test.tsx`
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3017 bash /Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=attendance'`
-- Warmed desktop screenshot: `/tmp/pika-teacher-final.png`; teacher desktop/mobile confirmed no forward/back date arrows, student mobile unaffected.
-- `pnpm test`
-
-## 2026-05-19 — Assignment preview Escape handling
-
-**Completed:**
-- Reviewed merged assignment markdown/modal work and found the nested instructions preview could let Escape reach the underlying assignment editor dialog.
-- Updated the assignment editor dialog close handler so an open instructions preview is treated as the top modal and closes first.
-- Added regression coverage that Escape closes the preview while keeping the assignment editor open.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/components/AssignmentModal.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3003 bash /Users/stew/Repos/.worktrees/pika/assignment-preview-escape/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Targeted Playwright screenshots/assertions: `/tmp/pika-assignment-instructions-preview.png`, `/tmp/pika-assignment-modal-after-preview-escape.png`.
-- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
-- `E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Additional modal screenshots:
-  - `/tmp/pika-teacher-assignment-markdown-modal.png`
-  - `/tmp/pika-teacher-assignment-markdown-modal-mobile.png`
-
-## 2026-05-15 — Assignment creation modal flow
-
-**Completed:**
-- Reworked the assignment modal into a narrower, more vertical authoring flow.
-- Kept title and due date on the same form row and removed due-date previous/next arrow controls.
-- Made assignment instructions always use the markdown editor toolbar.
-- Moved rendered markdown into a separate `Assignment Preview` dialog opened by a Preview button.
-- Updated assignment modal tests for the new preview dialog and always-visible markdown tools.
-
-**Validation:**
-- `pnpm lint`
-- `pnpm test tests/components/AssignmentModal.test.tsx`
-- `E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Additional modal screenshots:
-  - `/tmp/pika-assignment-modal-desktop.png`
-  - `/tmp/pika-assignment-modal-mobile.png`
-  - `/tmp/pika-assignment-preview-dialog.png`
-
-## 2026-05-16 — Assignment modal top row tightening
-
-**Completed:**
-- Removed the visible assignment modal header above the title field.
-- Moved the post/schedule split button into the same first row as title and due date.
-- Shortened compact title/date/action widths so the same-row layout holds on mobile.
-
-**Validation:**
-- `pnpm lint`
-- `pnpm test tests/components/AssignmentModal.test.tsx`
-- `E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Additional modal screenshots:
-  - `/tmp/pika-assignment-modal-desktop.png`
-  - `/tmp/pika-assignment-modal-mobile.png`
-  - `/tmp/pika-assignment-preview-dialog.png`
-
-## 2026-05-17 — Assignment modal close placement
-
-**Completed:**
-- Moved the assignment modal close button to an absolute upper-right corner position with minimal modal-edge padding.
-- Removed the close button from the title/due/action row.
-- Tightened the title input max width and matched compact due-date and post split-button widths.
-- Removed the reserved right-side content padding so the close button no longer consumes modal content width.
-- Made the close button borderless while keeping the same absolute corner hit target.
-- Updated the assignment instructions preview to a narrower student-content render: no footer Close button, no draft-only subtitle, and direct markdown output.
-
-**Validation:**
-- `pnpm lint`
-- `pnpm test tests/components/AssignmentModal.test.tsx`
-- `E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Additional modal screenshots:
-  - `/tmp/pika-assignment-modal-desktop.png`
-  - `/tmp/pika-assignment-modal-mobile.png`
-  - `/tmp/pika-assignment-preview-dialog.png`
-
 ## 2026-05-18 — Shared creation modal shell
 
 **Completed:**
@@ -342,3 +218,118 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/85d6177d-f695-4df2-bbad-2946876d8e16?tab=assignments"`
 - Reviewed `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, and `/tmp/pika-teacher-loaded.png`.
 - `pnpm test`
+
+## 2026-05-21 — Developer feedback helper
+
+**Completed:**
+- Added a private Supabase-backed developer feedback candidate queue for sanitized Pika improvement requests extracted from daily logs.
+- Extended the nightly log summary cron to opportunistically extract and dedupe developer candidates without blocking summary generation.
+- Added the agent-operated `scripts/dev-feedback.mjs` helper, `$pika-dev-feedback` Codex skill, and Claude `/dev-feedback` mirror command for numbered approve/dismiss/work-on flows.
+- Kept the existing Send Feedback UI in place and routed direct bug/feature submissions into the same developer triage queue with sanitized page metadata.
+- Updated docs, env examples, and feature inventory for the new developer feedback workflow.
+
+**Validation:**
+- `pnpm test tests/unit/developer-log-feedback.test.ts tests/api/feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
+- `/usr/bin/python3 /Users/stew/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/pika-dev-feedback`
+- `node scripts/dev-feedback.mjs help`
+- `node scripts/features.mjs validate`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `pnpm test`
+- `git diff --check`
+
+## 2026-05-21 — Developer feedback PR review fixes
+
+**Completed:**
+- Moved daily-log feedback candidate dedupe/merge into an atomic Supabase RPC to avoid dropped or lost concurrent classroom signals.
+- Hardened `/api/feedback` request validation so malformed JSON shapes return 400 instead of falling through to 500.
+- Added focused tests for the RPC storage path and malformed direct feedback bodies.
+
+**Validation:**
+- `pnpm test tests/unit/developer-log-feedback.test.ts tests/api/feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `node scripts/features.mjs validate`
+- `pnpm test`
+- `git diff --check`
+
+## 2026-05-21 — Worktree env symlink guidance
+
+**Completed:**
+- Created the missing `.env.local` symlink in the developer feedback worktree so local Next dev uses the shared Pika env file.
+- Updated startup guidance to require each worktree to symlink `.env.local` to `$HOME/Repos/.env/pika/.env.local`.
+- Updated the Codex session-start script to create the missing symlink before running environment verification.
+- Added regression coverage for the symlink guidance and session-start repair behavior.
+
+**Validation:**
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `bash -n .codex/skills/pika-session-start/scripts/session_start.sh scripts/verify-env.sh scripts/pika`
+- `node scripts/features.mjs validate`
+- `git diff --check`
+
+## 2026-05-21 — Send Feedback modal simplification
+
+**Completed:**
+- Removed visible Category and Description labels from the Send Feedback modal while preserving accessible control names.
+- Removed the build/version info row from the modal.
+- Disabled the modal footer Close button for Send Feedback, leaving the header X close affordance.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/UserMenu.test.tsx tests/ui/Dialog.test.tsx tests/api/feedback.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Playwright screenshots: `/tmp/pika-feedback-teacher.png`, `/tmp/pika-feedback-student-mobile.png`
+
+## 2026-05-21 — Developer feedback re-review fixes
+
+**Completed:**
+- Redacted direct identifiers from model-produced daily-log feedback candidate fields before storage.
+- Added `source_keys` tracking to the developer feedback migration so nightly reruns do not inflate signal or entry counts for an already-seen classroom/date source.
+- Restored `.ai/features.json` append-only entries and widened the startup-doc budget guard to fit the appended feature inventory.
+
+**Validation:**
+- `pnpm test tests/unit/developer-log-feedback.test.ts tests/api/feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
+- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/developer-log-feedback.test.ts tests/api/feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `bash scripts/verify-env.sh`
+- `node scripts/features.mjs validate`
+- `git diff --check`
+
+## 2026-05-21 — Developer feedback idempotent last-seen fix
+
+**Completed:**
+- Updated the developer feedback candidate upsert so duplicate classroom/date reruns preserve `last_seen_at` and `last_seen_date`.
+- Tightened the migration regression test to cover ranking timestamp preservation, not just count preservation.
+
+**Validation:**
+- `pnpm test tests/unit/developer-log-feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+
+## 2026-05-21 — Developer feedback migration filename
+
+**Completed:**
+- Renamed the developer feedback migration from the timestamped Supabase filename to Pika's sequential migration convention: `070_developer_feedback_candidates.sql`.
+- Updated the migration regression test to read the renamed file.
+
+**Validation:**
+- `pnpm test tests/unit/developer-log-feedback.test.ts`
+- Migration duplicate-prefix check
+- Migration filename convention check
+
+## 2026-05-21 — Migration filename CI guard
+
+**Completed:**
+- Added a Vitest guard for Supabase migration filenames so CI rejects non-`NNN_snake_case.sql` files.
+- The guard also rejects duplicate migration prefixes and gaps in the numeric sequence.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/migration-filenames.test.ts`
+- `pnpm test tests/unit/migration-filenames.test.ts tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `git diff --check`
