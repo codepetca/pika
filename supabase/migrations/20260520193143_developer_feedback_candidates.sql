@@ -22,6 +22,7 @@ create table if not exists public.developer_feedback_candidates (
     check (source_entry_count >= 0),
   source_classroom_ids uuid[] not null default '{}',
   source_dates date[] not null default '{}',
+  source_keys text[] not null default '{}',
   first_seen_at timestamptz not null default now(),
   last_seen_at timestamptz not null default now(),
   last_seen_date date,
@@ -53,6 +54,9 @@ create index if not exists idx_developer_feedback_candidates_last_seen
 
 create index if not exists idx_developer_feedback_candidates_source_dates
   on public.developer_feedback_candidates using gin (source_dates);
+
+create index if not exists idx_developer_feedback_candidates_source_keys
+  on public.developer_feedback_candidates using gin (source_keys);
 
 drop trigger if exists update_developer_feedback_candidates_updated_at
   on public.developer_feedback_candidates;
@@ -95,6 +99,7 @@ as $$
       source_entry_count,
       source_classroom_ids,
       source_dates,
+      source_keys,
       last_seen_at,
       last_seen_date,
       model
@@ -113,6 +118,7 @@ as $$
       greatest(0, coalesce(p_source_entry_count, 0)),
       array[p_source_classroom_id],
       array[p_source_date],
+      array[p_source_classroom_id::text || ':' || p_source_date::text],
       now(),
       p_source_date,
       p_model
@@ -125,8 +131,16 @@ as $$
           affected_area = excluded.affected_area,
           suggested_agent = excluded.suggested_agent,
           confidence = greatest(public.developer_feedback_candidates.confidence, excluded.confidence),
-          signal_count = public.developer_feedback_candidates.signal_count + 1,
-          source_entry_count = public.developer_feedback_candidates.source_entry_count + excluded.source_entry_count,
+          signal_count = public.developer_feedback_candidates.signal_count +
+            case
+              when public.developer_feedback_candidates.source_keys @> excluded.source_keys then 0
+              else 1
+            end,
+          source_entry_count = public.developer_feedback_candidates.source_entry_count +
+            case
+              when public.developer_feedback_candidates.source_keys @> excluded.source_keys then 0
+              else excluded.source_entry_count
+            end,
           source_classroom_ids = (
             select coalesce(array_agg(distinct classroom_id order by classroom_id), array[]::uuid[])
             from unnest(public.developer_feedback_candidates.source_classroom_ids || excluded.source_classroom_ids) as source(classroom_id)
@@ -134,6 +148,11 @@ as $$
           source_dates = (
             select coalesce(array_agg(distinct source_date order by source_date), array[]::date[])
             from unnest(public.developer_feedback_candidates.source_dates || excluded.source_dates) as source(source_date)
+          ),
+          source_keys = (
+            select coalesce(array_agg(distinct source_key order by source_key), array[]::text[])
+            from unnest(public.developer_feedback_candidates.source_keys || excluded.source_keys) as source(source_key)
+            where source_key is not null
           ),
           last_seen_at = now(),
           last_seen_date = excluded.last_seen_date,

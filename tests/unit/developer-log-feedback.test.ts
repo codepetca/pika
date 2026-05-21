@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildDeveloperFeedbackPrompt,
@@ -7,6 +10,12 @@ import {
   recordDirectDeveloperFeedback,
   recordDeveloperFeedbackCandidates,
 } from '@/lib/developer-log-feedback'
+
+const testDir = dirname(fileURLToPath(import.meta.url))
+
+function readMigration(relativePath: string) {
+  return readFileSync(resolve(testDir, '../..', relativePath), 'utf8')
+}
 
 describe('developer log feedback extraction', () => {
   it('builds a privacy-preserving product feedback prompt', () => {
@@ -150,6 +159,47 @@ describe('recordDeveloperFeedbackCandidates', () => {
     expect(supabase.from).not.toHaveBeenCalled()
   })
 
+  it('redacts model-produced direct identifiers before storage', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { id: 'candidate-1', inserted: true }, error: null })
+    const supabase = {
+      rpc,
+      from: vi.fn(),
+    }
+
+    await recordDeveloperFeedbackCandidates(
+      supabase,
+      [
+        {
+          title: 'Bug from student@example.com',
+          original_request: 'A student shared student@example.com in a Pika bug report.',
+          refined_request: 'Warn users before 416-555-1212 disappears from the daily log.',
+          implementation_hint: 'Inspect https://example.com/debug for repro notes.',
+          affected_area: 'student number 123456789 daily log',
+          suggested_agent: 'codex',
+          confidence: 0.9,
+          dedupe_key: 'student@example.com 416-555-1212',
+        },
+      ],
+      {
+        classroomId: '11111111-1111-1111-1111-111111111111',
+        date: '2026-05-19',
+        sourceEntryCount: 12,
+        model: 'gpt-test',
+      }
+    )
+
+    const args = rpc.mock.calls[0][1]
+    expect(args.p_title).toBe('Bug from [email redacted]')
+    expect(args.p_original_request).toBe('A student shared [email redacted] in a Pika bug report.')
+    expect(args.p_refined_request).toBe('Warn users before [phone redacted] disappears from the daily log.')
+    expect(args.p_implementation_hint).toBe('Inspect [url redacted] for repro notes.')
+    expect(args.p_affected_area).toBe('[student number redacted] daily log')
+    expect(JSON.stringify(args)).not.toContain('student@example.com')
+    expect(JSON.stringify(args)).not.toContain('416-555-1212')
+    expect(JSON.stringify(args)).not.toContain('https://example.com')
+    expect(JSON.stringify(args)).not.toContain('123456789')
+  })
+
   it('skips low-confidence candidates', async () => {
     const supabase = { from: vi.fn() }
 
@@ -206,6 +256,18 @@ describe('recordDeveloperFeedbackCandidates', () => {
     )
 
     expect(result).toEqual({ inserted: 0, updated: 0, skipped: 1, tableMissing: true })
+  })
+})
+
+describe('developer feedback migration', () => {
+  it('tracks classroom/date source keys so nightly retries do not inflate signal counts', () => {
+    const migration = readMigration('supabase/migrations/20260520193143_developer_feedback_candidates.sql')
+
+    expect(migration).toContain("source_keys text[] not null default '{}'")
+    expect(migration).toContain("array[p_source_classroom_id::text || ':' || p_source_date::text]")
+    expect(migration).toContain('when public.developer_feedback_candidates.source_keys @> excluded.source_keys then 0')
+    expect(migration).toContain('else excluded.source_entry_count')
+    expect(migration).toContain('idx_developer_feedback_candidates_source_keys')
   })
 })
 

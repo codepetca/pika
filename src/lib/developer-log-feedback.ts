@@ -362,23 +362,35 @@ function normalizeCandidate(candidate: unknown): DeveloperFeedbackCandidateInput
 }
 
 function normalizeCandidateForStorage(candidate: DeveloperFeedbackCandidateInput) {
-  const title = candidate.title.trim()
-  const originalRequest = candidate.original_request.trim()
-  const refinedRequest = candidate.refined_request.trim()
+  const title = sanitizeModelFeedbackText(candidate.title)
+  const originalRequest = sanitizeModelFeedbackText(candidate.original_request)
+  const refinedRequest = sanitizeModelFeedbackText(candidate.refined_request)
   if (!title || !originalRequest || !refinedRequest) return null
 
-  const baseKey = candidate.dedupe_key || `${candidate.affected_area || 'pika'}-${refinedRequest || title}`
+  const affectedArea = nullableSanitizedModelText(candidate.affected_area)
+  const baseKey = candidate.dedupe_key || `${affectedArea || 'pika'}-${refinedRequest || title}`
+  const sanitizedKey = sanitizeModelFeedbackText(baseKey)
 
   return {
     title,
     original_request: originalRequest,
     refined_request: refinedRequest,
-    implementation_hint: candidate.implementation_hint?.trim() || null,
-    affected_area: candidate.affected_area?.trim() || null,
+    implementation_hint: nullableSanitizedModelText(candidate.implementation_hint),
+    affected_area: affectedArea,
     suggested_agent: normalizeAgent(candidate.suggested_agent),
     confidence: clampConfidence(candidate.confidence),
-    dedupe_key: normalizeDeveloperFeedbackDedupeKey(baseKey),
+    dedupe_key: normalizeDeveloperFeedbackDedupeKey(sanitizedKey),
   }
+}
+
+function sanitizeModelFeedbackText(value: string): string {
+  return redactDirectIdentifiers(value).trim()
+}
+
+function nullableSanitizedModelText(value: string | null | undefined): string | null {
+  if (!value) return null
+  const sanitized = sanitizeModelFeedbackText(value)
+  return sanitized || null
 }
 
 function normalizeAgent(value: unknown): DeveloperFeedbackAgent {

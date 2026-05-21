@@ -7,35 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-19 — Survey creation preview option
-
-**Completed:**
-- Added a Preview mode to the teacher survey authoring modal with a student-style response layout for multiple-choice, text, and link questions.
-- Kept preview responses local to the modal so teachers can click through the survey without saving anything.
-- Added regression coverage for opening preview and selecting an option without issuing a survey PATCH.
-
-**Validation:**
-- `bash /Users/stew/Repos/.worktrees/pika/survey-preview/.codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherSurveyWorkspace.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3003 bash /Users/stew/Repos/.worktrees/pika/survey-preview/.codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- Targeted Playwright screenshots/assertions: `/tmp/pika-survey-preview-teacher.png`, `/tmp/pika-survey-preview-teacher-mobile.png`; temporary survey fixtures were deleted afterward.
-
-## 2026-05-19 — Teacher Daily date picker arrows
-
-**Completed:**
-- Removed the previous/next arrow buttons from the teacher Daily date picker while keeping the date label picker plus Last class and Today controls.
-- Added a regression test asserting the Daily picker no longer renders `Previous day` or `Next day` buttons.
-
-**Validation:**
-- `bash /Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows/.codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/TeacherAttendanceTab.test.tsx`
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3017 bash /Users/stew/Repos/.worktrees/pika/remove-daily-date-arrows/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=attendance'`
-- Warmed desktop screenshot: `/tmp/pika-teacher-final.png`; teacher desktop/mobile confirmed no forward/back date arrows, student mobile unaffected.
-- `pnpm test`
-
 ## 2026-05-19 — Assignment preview Escape handling
 
 **Completed:**
@@ -382,3 +353,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - Playwright screenshots: `/tmp/pika-feedback-teacher.png`, `/tmp/pika-feedback-student-mobile.png`
+
+## 2026-05-21 — Developer feedback re-review fixes
+
+**Completed:**
+- Redacted direct identifiers from model-produced daily-log feedback candidate fields before storage.
+- Added `source_keys` tracking to the developer feedback migration so nightly reruns do not inflate signal or entry counts for an already-seen classroom/date source.
+- Restored `.ai/features.json` append-only entries and widened the startup-doc budget guard to fit the appended feature inventory.
+
+**Validation:**
+- `pnpm test tests/unit/developer-log-feedback.test.ts tests/api/feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
+- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/developer-log-feedback.test.ts tests/api/feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `bash scripts/verify-env.sh`
+- `node scripts/features.mjs validate`
+- `git diff --check`

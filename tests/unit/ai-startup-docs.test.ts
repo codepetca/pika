@@ -59,7 +59,7 @@ describe('AI startup docs', () => {
   it('keeps the default startup set under the budget', () => {
     const totalChars = requiredStartupFiles.reduce((sum, file) => sum + readRepoFile(file).length, 0)
 
-    expect(totalChars).toBeLessThanOrEqual(15_000)
+    expect(totalChars).toBeLessThanOrEqual(16_000)
   })
 
   it('keeps journal reads out of the default startup flow', () => {

@@ -2,7 +2,7 @@
   "meta": {
     "project": "pika",
     "lastUpdated": "2026-05-21",
-    "phase": "Infrastructure — Developer Feedback Loop",
+    "phase": "Infrastructure — AI Effectiveness Layer",
     "DO_NOT_DELETE_FEATURES": "APPEND-ONLY. Never delete entries.",
     "deletionPolicy": "PROHIBITED",
     "totalFeatures": 12,
@@ -94,9 +94,50 @@
       "addedDate": "2025-12-12",
       "completedDate": "2025-12-14"
     },
-    {"id":"epic-daily-log-summaries","phase":"Phase 7 — AI (Daily Logs)","description":"Legacy entry_summaries removed; active summaries use classroom/day log_summaries.","passes":true,"verification":"Removed in #241; migration 032 drops entry_summaries.","issueRefs":["#241"],"blockedBy":[],"addedDate":"2025-12-13","completedDate":"2025-12-14","removedDate":"2026-01-31"},
-    {"id":"epic-course-blueprints","phase":"Phase 8 — Course Authoring","description":"Teacher-owned flat course blueprints with markdown editing, classroom instantiation, and package import/export","passes":true,"verification":"pnpm lint && pnpm build && focused course-blueprint tests","issueRefs":[],"blockedBy":[],"addedDate":"2026-04-17","completedDate":"2026-04-17"},
-    {"id":"epic-classwork-surveys","phase":"Phase 9 — Surveys","description":"Classwork surveys: MC/text/link, updates, results","passes":true,"verification":"pnpm lint && pnpm test && pnpm build","issueRefs":[],"blockedBy":[],"addedDate":"2026-05-13","completedDate":"2026-05-13"},
-    {"id":"epic-developer-feedback-helper","phase":"Infrastructure","description":"Agent queue for Pika improvement candidates from logs and Send Feedback","passes":true,"verification":"focused developer feedback tests","issueRefs":[],"blockedBy":[],"addedDate":"2026-05-21","completedDate":"2026-05-21"}
+    {
+      "id": "epic-daily-log-summaries",
+      "phase": "Phase 7 — AI (Daily Logs)",
+      "description": "Legacy entry_summaries per-entry log snippets. Removed; distinct from active classroom/day log_summaries.",
+      "passes": true,
+      "verification": "Removed in #241; migration 032 drops entry_summaries.",
+      "issueRefs": ["#241"],
+      "blockedBy": [],
+      "addedDate": "2025-12-13",
+      "completedDate": "2025-12-14",
+      "removedDate": "2026-01-31"
+    },
+    {
+      "id": "epic-course-blueprints",
+      "phase": "Phase 8 — Course Authoring",
+      "description": "Teacher-owned flat course blueprints with markdown-first editing, classroom instantiation, and portable package import/export",
+      "passes": true,
+      "verification": "Run: pnpm lint && pnpm build && pnpm test tests/lib/course-blueprint-package.test.ts tests/api/teacher/course-blueprints-route.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts",
+      "issueRefs": [],
+      "blockedBy": [],
+      "addedDate": "2026-04-17",
+      "completedDate": "2026-04-17"
+    },
+    {
+      "id": "epic-classwork-surveys",
+      "phase": "Phase 9 — Surveys",
+      "description": "Classwork surveys: MC/text/link, updates, results",
+      "passes": true,
+      "verification": "pnpm lint && pnpm test && pnpm build",
+      "issueRefs": [],
+      "blockedBy": [],
+      "addedDate": "2026-05-13",
+      "completedDate": "2026-05-13"
+    },
+    {
+      "id": "epic-developer-feedback-helper",
+      "phase": "Infrastructure",
+      "description": "Agent queue for Pika improvement candidates from logs and Send Feedback",
+      "passes": true,
+      "verification": "focused developer feedback tests",
+      "issueRefs": [],
+      "blockedBy": [],
+      "addedDate": "2026-05-21",
+      "completedDate": "2026-05-21"
+    }
   ]
 }
