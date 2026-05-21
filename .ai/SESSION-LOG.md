@@ -7,24 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-15 — Assignment creation modal flow
-
-**Completed:**
-- Reworked the assignment modal into a narrower, more vertical authoring flow.
-- Kept title and due date on the same form row and removed due-date previous/next arrow controls.
-- Made assignment instructions always use the markdown editor toolbar.
-- Moved rendered markdown into a separate `Assignment Preview` dialog opened by a Preview button.
-- Updated assignment modal tests for the new preview dialog and always-visible markdown tools.
-
-**Validation:**
-- `pnpm lint`
-- `pnpm test tests/components/AssignmentModal.test.tsx`
-- `E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Additional modal screenshots:
-  - `/tmp/pika-assignment-modal-desktop.png`
-  - `/tmp/pika-assignment-modal-mobile.png`
-  - `/tmp/pika-assignment-preview-dialog.png`
-
 ## 2026-05-16 — Assignment modal top row tightening
 
 **Completed:**
@@ -361,3 +343,14 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - `git diff --check`
+
+## 2026-05-21 — Developer feedback migration filename
+
+**Completed:**
+- Renamed the developer feedback migration from the timestamped Supabase filename to Pika's sequential migration convention: `070_developer_feedback_candidates.sql`.
+- Updated the migration regression test to read the renamed file.
+
+**Validation:**
+- `pnpm test tests/unit/developer-log-feedback.test.ts`
+- Migration duplicate-prefix check
+- Migration filename convention check

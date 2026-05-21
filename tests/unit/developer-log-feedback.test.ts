@@ -261,7 +261,7 @@ describe('recordDeveloperFeedbackCandidates', () => {
 
 describe('developer feedback migration', () => {
   it('tracks classroom/date source keys so nightly retries do not refresh ranking signals', () => {
-    const migration = readMigration('supabase/migrations/20260520193143_developer_feedback_candidates.sql')
+    const migration = readMigration('supabase/migrations/070_developer_feedback_candidates.sql')
 
     expect(migration).toContain("source_keys text[] not null default '{}'")
     expect(migration).toContain("array[p_source_classroom_id::text || ':' || p_source_date::text]")
