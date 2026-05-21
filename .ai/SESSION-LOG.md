@@ -7,25 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-17 — Assignment modal close placement
-
-**Completed:**
-- Moved the assignment modal close button to an absolute upper-right corner position with minimal modal-edge padding.
-- Removed the close button from the title/due/action row.
-- Tightened the title input max width and matched compact due-date and post split-button widths.
-- Removed the reserved right-side content padding so the close button no longer consumes modal content width.
-- Made the close button borderless while keeping the same absolute corner hit target.
-- Updated the assignment instructions preview to a narrower student-content render: no footer Close button, no draft-only subtitle, and direct markdown output.
-
-**Validation:**
-- `pnpm lint`
-- `pnpm test tests/components/AssignmentModal.test.tsx`
-- `E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Additional modal screenshots:
-  - `/tmp/pika-assignment-modal-desktop.png`
-  - `/tmp/pika-assignment-modal-mobile.png`
-  - `/tmp/pika-assignment-preview-dialog.png`
-
 ## 2026-05-18 — Shared creation modal shell
 
 **Completed:**
@@ -237,6 +218,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/85d6177d-f695-4df2-bbad-2946876d8e16?tab=assignments"`
 - Reviewed `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, and `/tmp/pika-teacher-loaded.png`.
 - `pnpm test`
+
 ## 2026-05-21 — Developer feedback helper
 
 **Completed:**
