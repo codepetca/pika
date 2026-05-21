@@ -260,13 +260,16 @@ describe('recordDeveloperFeedbackCandidates', () => {
 })
 
 describe('developer feedback migration', () => {
-  it('tracks classroom/date source keys so nightly retries do not inflate signal counts', () => {
+  it('tracks classroom/date source keys so nightly retries do not refresh ranking signals', () => {
     const migration = readMigration('supabase/migrations/20260520193143_developer_feedback_candidates.sql')
 
     expect(migration).toContain("source_keys text[] not null default '{}'")
     expect(migration).toContain("array[p_source_classroom_id::text || ':' || p_source_date::text]")
     expect(migration).toContain('when public.developer_feedback_candidates.source_keys @> excluded.source_keys then 0')
     expect(migration).toContain('else excluded.source_entry_count')
+    expect(migration).toContain('then public.developer_feedback_candidates.last_seen_at')
+    expect(migration).toContain('then public.developer_feedback_candidates.last_seen_date')
+    expect(migration).toContain('else excluded.last_seen_date')
     expect(migration).toContain('idx_developer_feedback_candidates_source_keys')
   })
 })

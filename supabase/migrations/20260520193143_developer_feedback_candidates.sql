@@ -154,8 +154,16 @@ as $$
             from unnest(public.developer_feedback_candidates.source_keys || excluded.source_keys) as source(source_key)
             where source_key is not null
           ),
-          last_seen_at = now(),
-          last_seen_date = excluded.last_seen_date,
+          last_seen_at = case
+            when public.developer_feedback_candidates.source_keys @> excluded.source_keys
+              then public.developer_feedback_candidates.last_seen_at
+            else now()
+          end,
+          last_seen_date = case
+            when public.developer_feedback_candidates.source_keys @> excluded.source_keys
+              then public.developer_feedback_candidates.last_seen_date
+            else excluded.last_seen_date
+          end,
           model = excluded.model
     returning id, (xmax = 0) as inserted
   )

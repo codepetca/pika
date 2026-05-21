@@ -7,26 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-19 — Assignment preview Escape handling
-
-**Completed:**
-- Reviewed merged assignment markdown/modal work and found the nested instructions preview could let Escape reach the underlying assignment editor dialog.
-- Updated the assignment editor dialog close handler so an open instructions preview is treated as the top modal and closes first.
-- Added regression coverage that Escape closes the preview while keeping the assignment editor open.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/components/AssignmentModal.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3003 bash /Users/stew/Repos/.worktrees/pika/assignment-preview-escape/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Targeted Playwright screenshots/assertions: `/tmp/pika-assignment-instructions-preview.png`, `/tmp/pika-assignment-modal-after-preview-escape.png`.
-- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
-- `E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/assignment-markdown-modal/.codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments'`
-- Additional modal screenshots:
-  - `/tmp/pika-teacher-assignment-markdown-modal.png`
-  - `/tmp/pika-teacher-assignment-markdown-modal-mobile.png`
-
 ## 2026-05-15 — Assignment creation modal flow
 
 **Completed:**
@@ -368,4 +348,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `bash scripts/verify-env.sh`
 - `node scripts/features.mjs validate`
+- `git diff --check`
+
+## 2026-05-21 — Developer feedback idempotent last-seen fix
+
+**Completed:**
+- Updated the developer feedback candidate upsert so duplicate classroom/date reruns preserve `last_seen_at` and `last_seen_date`.
+- Tightened the migration regression test to cover ranking timestamp preservation, not just count preservation.
+
+**Validation:**
+- `pnpm test tests/unit/developer-log-feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
+- `pnpm lint`
+- `pnpm build`
 - `git diff --check`
