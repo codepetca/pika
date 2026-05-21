@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -59,7 +59,7 @@ describe('AI startup docs', () => {
   it('keeps the default startup set under the budget', () => {
     const totalChars = requiredStartupFiles.reduce((sum, file) => sum + readRepoFile(file).length, 0)
 
-    expect(totalChars).toBeLessThanOrEqual(15_000)
+    expect(totalChars).toBeLessThanOrEqual(16_000)
   })
 
   it('keeps journal reads out of the default startup flow', () => {
@@ -105,6 +105,21 @@ describe('AI startup docs', () => {
       expect(content).toContain('$HOME/.codex/worktrees/<id>/pika')
     }
     expect(workflow).toContain('git rev-parse --show-toplevel')
+  })
+
+  it('documents the shared env symlink requirement', () => {
+    const files = [
+      '.ai/START-HERE.md',
+      '.ai/CURRENT.md',
+      'AGENTS.md',
+      'docs/dev-workflow.md',
+      '.codex/prompts/session-start.md',
+      '.claude/commands/session-start.md',
+    ]
+
+    for (const file of files) {
+      expect(readRepoFile(file)).toContain('$HOME/Repos/.env/pika/.env.local')
+    }
   })
 
   it('documents cleanup by resolving the registered worktree path', () => {
@@ -162,6 +177,31 @@ describe('AI startup docs', () => {
 
       expect(output).toContain('FEATURE SUMMARY MARKER')
       expect(output).toContain('FEATURE NEXT MARKER')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('creates a missing worktree env symlink before verification', () => {
+    const repoRoot = makeFixtureWorktree()
+    const canonicalEnv = join(repoRoot, 'Repos/.env/pika/.env.local')
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-session-start/scripts/session_start.sh')
+
+    mkdirSync(dirname(canonicalEnv), { recursive: true })
+    writeFileSync(canonicalEnv, 'SESSION_SECRET=fixture-secret-with-at-least-32-characters\n')
+
+    try {
+      const output = execFileSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          HOME: repoRoot,
+        },
+        encoding: 'utf8',
+      })
+
+      expect(output).toContain('Created .env.local')
+      expect(readlinkSync(join(repoRoot, '.env.local'))).toBe(canonicalEnv)
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
     }

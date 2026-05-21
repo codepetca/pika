@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/cron/nightly-log-summaries/route'
 import { callOpenAIForSummary } from '@/lib/log-summary'
+import { extractAndStoreDeveloperFeedbackCandidates } from '@/lib/developer-log-feedback'
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -23,6 +24,20 @@ vi.mock('@/lib/log-summary', async () => {
       action_items: [{ text: 'Follow up with A.B.', initials: 'A.B.' }],
     })),
     getSummaryModel: vi.fn(() => 'gpt-test'),
+  }
+})
+
+vi.mock('@/lib/developer-log-feedback', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/developer-log-feedback')>('@/lib/developer-log-feedback')
+  return {
+    ...actual,
+    extractAndStoreDeveloperFeedbackCandidates: vi.fn(async () => ({
+      inserted: 0,
+      updated: 0,
+      skipped: 0,
+      tableMissing: false,
+    })),
+    getDeveloperFeedbackModel: vi.fn(() => 'gpt-dev-feedback-test'),
   }
 })
 
@@ -506,6 +521,15 @@ describe('cron nightly-log-summaries route', () => {
     expect(data.status).toBe('ok')
     expect(data.generated).toBe(1)
     expect(data.skipped).toBe(0)
+    expect(extractAndStoreDeveloperFeedbackCandidates).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        classroomId: 'classroom-1',
+        model: 'gpt-dev-feedback-test',
+        sanitizedLogs: [{ initials: 'A.B.', text: 'Reflected on progress' }],
+        sourceEntryCount: 1,
+      })
+    )
   })
 
   it('redacts full-roster names and direct identifiers before sending logs to OpenAI', async () => {
@@ -665,5 +689,16 @@ describe('cron nightly-log-summaries route', () => {
     expect(userPrompt).not.toContain('123456789')
     expect(userPrompt).not.toContain('123 Main Street')
     expect(userPrompt).not.toContain('https://example.com')
+    expect(extractAndStoreDeveloperFeedbackCandidates).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        sanitizedLogs: [
+          {
+            initials: 'A.B.',
+            text: expect.not.stringContaining('Alice Brown'),
+          },
+        ],
+      })
+    )
   })
 })

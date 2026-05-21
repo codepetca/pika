@@ -1133,6 +1133,19 @@ describe('assignment utilities', () => {
       expect(result).toBe('Submitted 1 day late')
     })
 
+    it('freezes returned late work at the original submission timestamp', () => {
+      vi.setSystemTime(new Date('2024-10-25T12:00:00Z'))
+      const doc = createMockAssignmentDoc({
+        is_submitted: false,
+        submitted_at: '2024-10-21T12:00:00Z',
+        returned_at: '2024-10-22T12:00:00Z',
+      })
+
+      const result = formatAssignmentTiming('2024-10-20T12:00:00Z', doc)
+
+      expect(result).toBe('Submitted 1 day late')
+    })
+
     it('shows multiple days late for older late submissions', () => {
       vi.setSystemTime(new Date('2024-10-25T12:00:00Z'))
       const doc = createMockAssignmentDoc({

@@ -1073,8 +1073,9 @@ function ClassroomPageContent({
       (activeTab === 'assignments' && !!assignmentIdParam && !!assignmentStudentIdParam) ||
       (activeTab === 'tests' && !!testIdParam && testModeParam === 'grading' && !!testStudentIdParam)
     )
+  const hasTeacherViewportGrid = isTeacher && activeTab === 'gradebook'
   const hasConstrainedWorkspace =
-    hasActiveTeacherSplitPanes || (!isTeacher && activeTab === 'today')
+    hasActiveTeacherSplitPanes || hasTeacherViewportGrid || (!isTeacher && activeTab === 'today')
 
   async function handleRequestAssessmentDelete() {
     if (!selectedQuiz) return

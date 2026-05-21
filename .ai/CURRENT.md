@@ -1,6 +1,6 @@
 # Pika Current Context
 
-Read this file at the start of every AI session. It is the compact continuity layer for current repo state. Use `.ai/SESSION-LOG.md` only for recent handoff context and `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+Read this at the start of every AI session. Use `.ai/SESSION-LOG.md` only for recent handoff context and `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
 ## Current Focus
 
@@ -13,7 +13,7 @@ Read this file at the start of every AI session. It is the compact continuity la
 - Main hub checkout: `$HOME/Repos/pika`
 - New named Pika worktrees: `$HOME/.codex/worktrees/pika/<branch-name>`
 - Codex Desktop may also use app-managed worktrees: `$HOME/.codex/worktrees/<id>/pika`
-- Shared env file: `$HOME/Repos/.env/pika/.env.local`
+- Shared env file: `$HOME/Repos/.env/pika/.env.local`; each worktree must symlink `.env.local` to it before running the app
 - Runtime and package-manager requirements live in `.nvmrc`, `package.json`, and `scripts/verify-env.sh`
 - Worktree and shared-env setup are defined only in `docs/dev-workflow.md`
 
