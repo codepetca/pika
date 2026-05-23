@@ -7,35 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-18 — Shared creation modal shell
-
-**Completed:**
-- Extracted `CreationModalShell` and `CreationModalTopRow` for assignment-style creation flows.
-- Reused the shared creation shell in assignment creation while keeping scheduling, autosave, and markdown behavior feature-local.
-- Applied the same title-first, no-visible-header, absolute-close, top-row primary-action creation UI to quiz/test and survey creation.
-- Added a dedicated survey creation modal so the shared creation shell fits the upstream survey workspace flow after creation.
-- Kept quiz/test and survey edit/settings modals compact instead of forcing them into the creation shell.
-- Added experimental UI guidance for the shared creation shell candidate.
-
-**Validation:**
-- `bash /Users/stew/Repos/.worktrees/pika/creation-modal-shell/.codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm lint`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/AssignmentModal.test.tsx tests/components/QuizModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/unit/ai-startup-docs.test.ts`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3000 pnpm e2e:auth`
-- `E2E_BASE_URL=http://localhost:3000 bash /Users/stew/Repos/.worktrees/pika/creation-modal-shell/.codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- Additional modal screenshots:
-  - `/tmp/pika-assignment-create-desktop.png`
-  - `/tmp/pika-test-create-desktop.png`
-  - `/tmp/pika-survey-create-desktop.png`
-  - `/tmp/pika-assignment-create-mobile.png`
-  - `/tmp/pika-test-create-mobile.png`
-  - `/tmp/pika-survey-create-mobile.png`
-- UI verification on `http://localhost:3001`:
-  - `E2E_BASE_URL=http://localhost:3001 bash /Users/stew/Repos/.worktrees/pika/fix-released-assignment-scheduling/.codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-  - Targeted live-assignment editor screenshot: `/tmp/pika-live-assignment-editor.png`
-
 ## 2026-05-16 — Native worktree AI guidance
 
 **Completed:**
@@ -333,3 +304,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/migration-filenames.test.ts tests/unit/ai-startup-docs.test.ts`
 - `pnpm lint`
 - `git diff --check`
+
+## 2026-05-22 — Assignment student list scroll persistence
+
+**Completed:**
+- Persisted assignment student-list scroll memory to session storage for the teacher assignment workspace.
+- Made scroll restoration run across the next layout frames so split-pane refreshes and route reloads do not leave the list at the top.
+- Added hook regression coverage for session-backed scroll restoration after remount.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/hooks/useScrollPositionMemory.test.tsx`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=assignments&assignmentId=1bd43274-afe7-472c-90c9-5b704d83e4b2&assignmentStudentId=e0d9c4e7-2a88-4428-bd15-ba87f2d935b7"`
+- Targeted Playwright long-list check: selected Student65 and reloaded; `scrollTop` remained `1500`.
