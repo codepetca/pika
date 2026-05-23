@@ -456,66 +456,30 @@ export async function syncQuizQuestionsFromDraft(
   quizId: string,
   content: QuizDraftContent
 ): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
-  const { data: existingRows, error: existingError } = await supabase
-    .from('quiz_questions')
-    .select('id')
-    .eq('quiz_id', quizId)
-
-  if (existingError) {
-    return { ok: false, status: 500, error: 'Failed to load quiz questions for sync' }
-  }
-
-  const existingIds = new Set<string>((existingRows || []).map((row: { id: string }) => row.id))
-  const nextIds = new Set(content.questions.map((question) => question.id))
-
-  for (const [position, question] of content.questions.entries()) {
-    if (existingIds.has(question.id)) {
-      const { error } = await supabase
-        .from('quiz_questions')
-        .update({
-          question_text: question.question_text,
-          options: question.options,
-          position,
-        })
-        .eq('quiz_id', quizId)
-        .eq('id', question.id)
-
-      if (error) {
-        return { ok: false, status: 500, error: 'Failed to update synced quiz question' }
-      }
-      continue
-    }
-
-    const { error } = await supabase
-      .from('quiz_questions')
-      .insert({
-        id: question.id,
-        quiz_id: quizId,
-        question_text: question.question_text,
-        options: question.options,
-        position,
-      })
-
-    if (error) {
-      return { ok: false, status: 500, error: 'Failed to insert synced quiz question' }
-    }
-  }
-
-  for (const existingId of existingIds) {
-    if (nextIds.has(existingId)) continue
-
-    const { error } = await supabase
-      .from('quiz_questions')
-      .delete()
-      .eq('quiz_id', quizId)
-      .eq('id', existingId)
-
-    if (error) {
-      return { ok: false, status: 500, error: 'Failed to delete removed quiz question' }
-    }
-  }
-
-  return { ok: true }
+  return syncAssessmentQuestionRowsFromDraft(supabase, {
+    table: 'quiz_questions',
+    foreignKey: 'quiz_id',
+    parentId: quizId,
+    questions: content.questions,
+    buildUpdatePayload: (question, position) => ({
+      question_text: question.question_text,
+      options: question.options,
+      position,
+    }),
+    buildInsertPayload: (question, position) => ({
+      id: question.id,
+      quiz_id: quizId,
+      question_text: question.question_text,
+      options: question.options,
+      position,
+    }),
+    errorMessages: {
+      load: 'Failed to load quiz questions for sync',
+      update: 'Failed to update synced quiz question',
+      insert: 'Failed to insert synced quiz question',
+      delete: 'Failed to delete removed quiz question',
+    },
+  })
 }
 
 export async function syncTestQuestionsFromDraft(
@@ -523,20 +487,12 @@ export async function syncTestQuestionsFromDraft(
   testId: string,
   content: TestDraftContent
 ): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
-  const { data: existingRows, error: existingError } = await supabase
-    .from('test_questions')
-    .select('id')
-    .eq('test_id', testId)
-
-  if (existingError) {
-    return { ok: false, status: 500, error: 'Failed to load test questions for sync' }
-  }
-
-  const existingIds = new Set<string>((existingRows || []).map((row: { id: string }) => row.id))
-  const nextIds = new Set(content.questions.map((question) => question.id))
-
-  for (const [position, question] of content.questions.entries()) {
-    const rowPayload = {
+  return syncAssessmentQuestionRowsFromDraft(supabase, {
+    table: 'test_questions',
+    foreignKey: 'test_id',
+    parentId: testId,
+    questions: content.questions,
+    buildUpdatePayload: (question, position) => ({
       question_type: question.question_type,
       question_text: question.question_text,
       options: question.options,
@@ -547,31 +503,79 @@ export async function syncTestQuestionsFromDraft(
       response_max_chars: question.response_max_chars,
       response_monospace: question.response_monospace,
       position,
-    }
+    }),
+    buildInsertPayload: (question, position) => ({
+      id: question.id,
+      test_id: testId,
+      question_type: question.question_type,
+      question_text: question.question_text,
+      options: question.options,
+      correct_option: question.correct_option,
+      answer_key: question.answer_key,
+      sample_solution: question.sample_solution,
+      points: question.points,
+      response_max_chars: question.response_max_chars,
+      response_monospace: question.response_monospace,
+      position,
+    }),
+    errorMessages: {
+      load: 'Failed to load test questions for sync',
+      update: 'Failed to update synced test question',
+      insert: 'Failed to insert synced test question',
+      delete: 'Failed to delete removed test question',
+    },
+  })
+}
 
+type SyncAssessmentQuestionRowsConfig<TQuestion extends { id: string }> = {
+  table: string
+  foreignKey: string
+  parentId: string
+  questions: TQuestion[]
+  buildUpdatePayload: (question: TQuestion, position: number) => Record<string, unknown>
+  buildInsertPayload: (question: TQuestion, position: number) => Record<string, unknown>
+  errorMessages: {
+    load: string
+    update: string
+    insert: string
+    delete: string
+  }
+}
+
+async function syncAssessmentQuestionRowsFromDraft<TQuestion extends { id: string }>(
+  supabase: SupabaseLike,
+  config: SyncAssessmentQuestionRowsConfig<TQuestion>
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const { data: existingRows, error: existingError } = await supabase
+    .from(config.table)
+    .select('id')
+    .eq(config.foreignKey, config.parentId)
+
+  if (existingError) {
+    return { ok: false, status: 500, error: config.errorMessages.load }
+  }
+
+  const existingIds = new Set<string>((existingRows || []).map((row: { id: string }) => row.id))
+  const nextIds = new Set(config.questions.map((question) => question.id))
+
+  for (const [position, question] of config.questions.entries()) {
     if (existingIds.has(question.id)) {
       const { error } = await supabase
-        .from('test_questions')
-        .update(rowPayload)
-        .eq('test_id', testId)
+        .from(config.table)
+        .update(config.buildUpdatePayload(question, position))
+        .eq(config.foreignKey, config.parentId)
         .eq('id', question.id)
 
       if (error) {
-        return { ok: false, status: 500, error: 'Failed to update synced test question' }
+        return { ok: false, status: 500, error: config.errorMessages.update }
       }
       continue
     }
 
-    const { error } = await supabase
-      .from('test_questions')
-      .insert({
-        id: question.id,
-        test_id: testId,
-        ...rowPayload,
-      })
+    const { error } = await supabase.from(config.table).insert(config.buildInsertPayload(question, position))
 
     if (error) {
-      return { ok: false, status: 500, error: 'Failed to insert synced test question' }
+      return { ok: false, status: 500, error: config.errorMessages.insert }
     }
   }
 
@@ -579,13 +583,13 @@ export async function syncTestQuestionsFromDraft(
     if (nextIds.has(existingId)) continue
 
     const { error } = await supabase
-      .from('test_questions')
+      .from(config.table)
       .delete()
-      .eq('test_id', testId)
+      .eq(config.foreignKey, config.parentId)
       .eq('id', existingId)
 
     if (error) {
-      return { ok: false, status: 500, error: 'Failed to delete removed test question' }
+      return { ok: false, status: 500, error: config.errorMessages.delete }
     }
   }
 

@@ -442,6 +442,36 @@ describe('assessment drafts', () => {
     expect(deletes).toEqual([QUIZ_ID_2])
   })
 
+  it('returns a 500 error when syncing quiz questions fails during insert', async () => {
+    const supabase = {
+      from: vi.fn((_table: string) => ({
+        select: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue({
+            data: [{ id: QUIZ_ID_1 }],
+            error: null,
+          }),
+        })),
+        update: vi.fn(),
+        insert: vi.fn().mockResolvedValue({ error: { message: 'insert failed' } }),
+        delete: vi.fn(),
+      })),
+    }
+
+    await expect(
+      syncQuizQuestionsFromDraft(supabase, 'quiz-1', {
+        title: 'Quiz',
+        show_results: false,
+        questions: [
+          { id: '55555555-5555-4555-8555-555555555555', question_text: 'New', options: ['C', 'D'] },
+        ],
+      })
+    ).resolves.toEqual({
+      ok: false,
+      status: 500,
+      error: 'Failed to insert synced quiz question',
+    })
+  })
+
   it('returns a 500 error when syncing test questions fails during update', async () => {
     const supabase = {
       from: vi.fn((_table: string) => ({
