@@ -169,4 +169,62 @@ describe('TeacherRosterTab', () => {
       expect(getDeleteCalls(fetchMock)).toHaveLength(2)
     })
   })
+
+  it('keeps only remaining students pending when a multi-student removal partially fails', async () => {
+    const user = userEvent.setup()
+    let failAdaOnce = true
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
+        return mockJson({ roster: [rosterRow, secondRosterRow] })
+      }
+
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster/${rosterRow.id}` && method === 'DELETE') {
+        if (failAdaOnce) {
+          failAdaOnce = false
+          return mockJson({ error: 'Failed to remove Ada' }, false)
+        }
+        return mockJson({ success: true })
+      }
+
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster/${secondRosterRow.id}` && method === 'DELETE') {
+        return mockJson({ success: true })
+      }
+
+      throw new Error(`Unhandled fetch: ${method} ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderRoster()
+
+    await screen.findByText('Ada')
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Grace Hopper' }))
+    await user.click(screen.getByRole('button', { name: 'Roster actions' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Remove students' }))
+
+    const multiDialog = screen.getByRole('dialog', { name: 'Remove students?' })
+    await user.click(within(multiDialog).getByRole('button', { name: 'Remove' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to remove Ada')).toBeInTheDocument()
+    })
+
+    const retryDialog = screen.getByRole('dialog', { name: 'Remove student?' })
+    expect(within(retryDialog).getByText(/ada@example\.com/)).toBeInTheDocument()
+    expect(within(retryDialog).queryByText(/grace@example\.com/)).not.toBeInTheDocument()
+
+    await user.click(within(retryDialog).getByRole('button', { name: 'Remove' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    const deleteUrls = getDeleteCalls(fetchMock).map(([input]) => String(input))
+    expect(deleteUrls.filter((url) => url.endsWith(`/${secondRosterRow.id}`))).toHaveLength(1)
+    expect(deleteUrls.filter((url) => url.endsWith(`/${rosterRow.id}`))).toHaveLength(2)
+  })
 })

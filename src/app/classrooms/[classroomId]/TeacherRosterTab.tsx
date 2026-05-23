@@ -178,9 +178,11 @@ export function TeacherRosterTab({ classroom }: Props) {
     if (isReadOnly) return
     setIsRemoving(true)
     setError('')
+    const rowsToRemove = pendingRemoval.rows
+    const remainingRows = [...rowsToRemove]
 
     try {
-      for (const row of pendingRemoval.rows) {
+      for (const row of rowsToRemove) {
         const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster/${row.rosterId}`, {
           method: 'DELETE',
         })
@@ -188,11 +190,15 @@ export function TeacherRosterTab({ classroom }: Props) {
         if (!res.ok) {
           throw new Error(data.error || 'Failed to remove student')
         }
+        remainingRows.shift()
       }
       setPendingRemoval(null)
       await loadRoster()
     } catch (err: any) {
-      setError(err.message || 'Failed to remove student')
+      const message = err.message || 'Failed to remove student'
+      setPendingRemoval(remainingRows.length > 0 ? { rows: remainingRows } : null)
+      await loadRoster()
+      setError(message)
     } finally {
       setIsRemoving(false)
     }
