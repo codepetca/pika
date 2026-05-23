@@ -87,4 +87,26 @@ describe('SplitButton', () => {
     fireEvent.click(option)
     expect(onHoverChange).toHaveBeenLastCalledWith(false)
   })
+
+  it('renders checked menu options and dividers', () => {
+    render(
+      <SplitButton
+        label="View"
+        onPrimaryClick={vi.fn()}
+        options={[
+          { id: 'percent', label: 'Show %', onSelect: vi.fn(), checked: true },
+          { id: 'raw', label: 'Show Raw', onSelect: vi.fn(), checked: false },
+          { id: 'copy', label: 'Copy emails', onSelect: vi.fn(), dividerBefore: true },
+        ]}
+        toggleAriaLabel="View actions"
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'View actions' }))
+
+    expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('menuitemradio', { name: 'Show Raw' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('separator')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Copy emails' })).toBeInTheDocument()
+  })
 })

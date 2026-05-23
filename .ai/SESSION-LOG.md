@@ -332,3 +332,60 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/assessment-drafts.test.ts`
 - `pnpm test`
 - `pnpm lint`
+## 2026-05-22 — Gradebook identity column fixes
+
+**Completed:**
+- Defaulted the gradebook ID column to hidden while keeping it available in settings.
+- Added a strong separator after the last rendered identity column, including the First-only case.
+- Replaced fixed identity widths/sticky offsets with resizable First, Last, and ID column widths.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm test`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=gradebook'`
+- Playwright first-only separator and drag check on the seeded gradebook page
+
+## 2026-05-23 — Gradebook Final column separator
+
+**Completed:**
+- Added a strong separator before the Final grade column across gradebook header, student, and summary rows.
+- Covered the separator with focused gradebook component expectations.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=gradebook'`
+
+## 2026-05-23 — Gradebook Final column resize
+
+**Completed:**
+- Made the Final grade column resizable from the separator line before it.
+- Kept the Final column width synchronized across header, student rows, and summary rows.
+- Added keyboard-accessible resize coverage for the Final column.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=gradebook'`
+- Playwright Final separator drag check on the seeded gradebook page
+
+## 2026-05-23 — Gradebook split FAB actions
+
+**Completed:**
+- Replaced the gradebook floating score/settings controls with a split-button FAB.
+- Moved Show % / Show Raw into the split menu and kept Settings as the no-selection primary action.
+- Added selected-student actions for default email, Gmail, Outlook, and copying selected student emails.
+- Refactored the shared SplitButton menu options to support checked states, leading icons, and dividers; gradebook uses those shared props for the score/email grouping.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/ui/SplitButton.test.tsx tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm test`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=gradebook'`
+- Playwright checks for unselected and selected gradebook action menus, including checked score state and divider count
