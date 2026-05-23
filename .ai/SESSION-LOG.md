@@ -320,3 +320,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test`
 - `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=assignments&assignmentId=1bd43274-afe7-472c-90c9-5b704d83e4b2&assignmentStudentId=e0d9c4e7-2a88-4428-bd15-ba87f2d935b7"`
 - Targeted Playwright long-list check: selected Student65 and reloaded; `scrollTop` remained `1500`.
+## 2026-05-23 — Draft question sync helper
+
+**Completed:**
+- Refactored quiz/test draft question syncing to use a shared helper in `src/lib/server/assessment-drafts.ts` (keeps behavior + error strings the same, reduces drift risk).
+- Added unit coverage for the quiz sync insert-failure path.
+- Draft PR: https://github.com/codepetca/pika/pull/619
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/unit/assessment-drafts.test.ts`
+- `pnpm test`
+- `pnpm lint`
