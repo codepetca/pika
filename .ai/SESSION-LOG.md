@@ -7,6 +7,67 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-05-19 — Workflow friction automation
+
+**Completed:**
+- Created the active weekly `Pika Workflow Friction Review` Codex automation as a report-only review of recent workflow friction and guidance drift.
+- Updated the active `Weekly Pika Simplification` automation prompt to use the native worktree flow and stop relying on project-specific worktree environment variables.
+- Confirmed both automation configs were written under `/Users/stew/.codex/automations`.
+
+**Validation:**
+- Read back `/Users/stew/.codex/automations/weekly-pika-simplification/automation.toml`.
+- Read back `/Users/stew/.codex/automations/pika-workflow-friction-review/automation.toml`.
+
+## 2026-05-19 — Remove student legacy quizzes nav plumbing
+
+**Completed:**
+- Removed legacy `activeQuizzesCount` from student sidebar notification state and the `/api/student/notifications` response.
+- Kept the student assessment sidebar focused on Tests and added coverage that no student Quizzes nav item is rendered.
+- Added coverage that legacy `?tab=quizzes` URLs fall back to the default student Today tab and clear quiz-specific params.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/NavItems.test.tsx tests/components/StudentNotificationsProvider.test.tsx tests/api/student/notifications.test.ts tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=today"`
+- Additional student sidebar screenshot: `/tmp/pika-student-desktop-expanded.png`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-05-20 — Student test total points label
+
+**Completed:**
+- Added a student test overview label under the selected test title, showing question count and total points as `pts total`.
+- Rendered the label before the student starts a test and at the top of the active test attempt.
+- Added component coverage that the total-points label appears before start and during the attempt.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test -- tests/components/StudentQuizzesTab.test.tsx` (Vitest ran the full suite: 272 files / 2263 tests passed)
+- `pnpm lint`
+- `pnpm e2e:auth`
+- `pnpm e2e:verify assessment-ux-parity`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests"`
+- Additional selected student test screenshots:
+  - `/tmp/pika-student-test-before-start.png`
+  - `/tmp/pika-student-test-active.png`
+  - `/tmp/pika-student-test-before-start-mobile.png`
+  - `/tmp/pika-student-test-active-mobile.png`
+
+## 2026-05-20 — Freeze submitted assignment timing
+
+**Completed:**
+- Added submitted-aware assignment timing copy so submitted work freezes against `submitted_at` instead of continuing to count overdue time from the current date.
+- Updated student assignment cards and the standalone student assignment editor header to use the submitted-aware timing helper.
+- Added unit and component coverage for submitted timing, including late submissions freezing at the actual submission timestamp.
+
+**Validation:**
+- `pnpm test tests/unit/assignments.test.ts tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments"`
+- Reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`
+- `pnpm test`
+
 ## 2026-05-20 — Remove assignment repo submission option
 
 **Completed:**
@@ -305,3 +366,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash scripts/verify-env.sh`
 - `pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop`
 - `pnpm lint`
+## 2026-05-23 — Roster delete action in FAB menu
+
+**Completed:**
+- Moved roster removal from the details pane into the floating roster actions dropdown.
+- Reused the existing `ConfirmDialog` and DELETE route behavior for single-row and selected multi-row removal.
+- Added component coverage for opening the roster FAB dropdown, choosing Remove student/students, and confirming deletion.
+
+**Validation:**
+- `pnpm test tests/components/TeacherRosterTab.test.tsx`
+- `pnpm lint`
+- `pnpm test tests/components/TeacherRosterTab.test.tsx tests/api/teacher/roster-rosterId.test.ts`
+- Targeted Playwright screenshot: `/tmp/pika-roster-multi-delete-dropdown.png`
+- `E2E_BASE_URL=http://127.0.0.1:3100 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=roster'`
+- Playwright screenshots: `/tmp/pika-roster-dropdown.png`, `/tmp/pika-roster-remove-confirm.png`, `/tmp/pika-roster-dropdown-dark.png`

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { Button, ConfirmDialog, SplitButton, type SplitButtonOption, useAppMessage } from '@/ui'
+import { ConfirmDialog, SplitButton, type SplitButtonOption, useAppMessage } from '@/ui'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
@@ -41,6 +41,14 @@ interface RosterRow {
   joined: boolean
   student_id: string | null
   joined_at: string | null
+}
+
+interface RemovalTarget {
+  rosterId: string
+  email: string
+  firstName: string | null
+  lastName: string | null
+  joined: boolean
 }
 
 interface Props {
@@ -95,11 +103,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     direction: 'asc' | 'desc'
   }>({ column: 'last_name', direction: 'asc' })
   const [pendingRemoval, setPendingRemoval] = useState<{
-    rosterId: string
-    email: string
-    firstName: string | null
-    lastName: string | null
-    joined: boolean
+    rows: RemovalTarget[]
   } | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
   const [selectedRosterId, setSelectedRosterId] = useState<string | null>(null)
@@ -170,18 +174,20 @@ export function TeacherRosterTab({ classroom }: Props) {
   }, [classroom.id])
 
   async function confirmRemoveStudent() {
-    if (!pendingRemoval) return
+    if (!pendingRemoval || pendingRemoval.rows.length === 0) return
     if (isReadOnly) return
     setIsRemoving(true)
     setError('')
 
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster/${pendingRemoval.rosterId}`, {
-        method: 'DELETE',
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to remove student')
+      for (const row of pendingRemoval.rows) {
+        const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster/${row.rosterId}`, {
+          method: 'DELETE',
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to remove student')
+        }
       }
       setPendingRemoval(null)
       await loadRoster()
@@ -199,6 +205,7 @@ export function TeacherRosterTab({ classroom }: Props) {
   const selectedStudentEmails = selectedRows.map((r) => r.email)
   const selectedCounselorEmails = selectedRows.map((r) => r.counselor_email).filter(Boolean) as string[]
   const selectedRosterRow = sortedRoster.find((row) => row.id === selectedRosterId) ?? null
+  const removalTargetRows = selectedRows.length > 0 ? selectedRows : selectedRosterRow ? [selectedRosterRow] : []
   const {
     scrollRef: rosterTableScrollRef,
     preserveScrollPosition: preserveRosterTableScrollPosition,
@@ -301,6 +308,53 @@ export function TeacherRosterTab({ classroom }: Props) {
     }
   }
 
+  function toRemovalTarget(row: RosterRow): RemovalTarget {
+    return {
+      rosterId: row.id,
+      email: row.email,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      joined: row.joined,
+    }
+  }
+
+  function openRemoveStudentDialog(rows: RosterRow[]) {
+    if (rows.length === 0 || isReadOnly) return
+    setPendingRemoval({ rows: rows.map(toRemovalTarget) })
+  }
+
+  function getRemovalMenuLabel(rowCount: number) {
+    return rowCount > 1 ? 'Remove students' : 'Remove student'
+  }
+
+  function formatRemovalTargetName(row: RemovalTarget) {
+    return [row.firstName, row.lastName].filter(Boolean).join(' ') || 'Unnamed student'
+  }
+
+  function getRemovalDescription(rows: RemovalTarget[]) {
+    if (rows.length === 0) return undefined
+
+    if (rows.length === 1) {
+      const row = rows[0]
+      return `${formatRemovalTargetName(row)}\n${row.email}\n\n${
+        row.joined
+          ? 'They are currently joined. This will delete their classroom data (logs and assignment docs).'
+          : 'They are not joined yet.'
+      }`
+    }
+
+    const previewRows = rows.slice(0, 5)
+    const preview = previewRows.map((row) => `${formatRemovalTargetName(row)} - ${row.email}`).join('\n')
+    const remaining = rows.length > previewRows.length ? `\n+ ${rows.length - previewRows.length} more` : ''
+    const joinedCount = rows.filter((row) => row.joined).length
+
+    return `${preview}${remaining}\n\n${
+      joinedCount > 0
+        ? `${joinedCount} ${joinedCount === 1 ? 'student is' : 'students are'} currently joined. This will delete their classroom data (logs and assignment docs).`
+        : 'These students are not joined yet.'
+    }`
+  }
+
   const rosterActionOptions: SplitButtonOption[] = someSelected
     ? [
         {
@@ -326,6 +380,15 @@ export function TeacherRosterTab({ classroom }: Props) {
       ]
 
   if (!someSelected) {
+    if (removalTargetRows.length > 0) {
+      rosterActionOptions.push({
+        id: 'remove-student',
+        label: <span className="text-danger">{getRemovalMenuLabel(removalTargetRows.length)}</span>,
+        onSelect: () => openRemoveStudentDialog(removalTargetRows),
+        disabled: isReadOnly || loading || isRemoving,
+      })
+    }
+
     rosterActionOptions.push({
       id: 'email-placeholder',
       label: 'Select students to email',
@@ -333,6 +396,13 @@ export function TeacherRosterTab({ classroom }: Props) {
       disabled: true,
     })
   } else {
+    rosterActionOptions.push({
+      id: 'remove-student',
+      label: <span className="text-danger">{getRemovalMenuLabel(removalTargetRows.length)}</span>,
+      onSelect: () => openRemoveStudentDialog(removalTargetRows),
+      disabled: isReadOnly || loading || isRemoving || removalTargetRows.length === 0,
+    })
+
     rosterActionOptions.push(
       {
         id: 'copy-student-emails',
@@ -440,23 +510,6 @@ export function TeacherRosterTab({ classroom }: Props) {
           <div className="text-text-default">{formatRosterDate(selectedRosterRow.joined_at)}</div>
         </div>
       </div>
-      <Button
-        type="button"
-        size="sm"
-        variant="danger"
-        disabled={isReadOnly}
-        onClick={() => {
-          setPendingRemoval({
-            rosterId: selectedRosterRow.id,
-            email: selectedRosterRow.email,
-            firstName: selectedRosterRow.first_name,
-            lastName: selectedRosterRow.last_name,
-            joined: selectedRosterRow.joined,
-          })
-        }}
-      >
-        Remove
-      </Button>
     </div>
   ) : (
     <div className="space-y-4 p-4">
@@ -702,20 +755,8 @@ export function TeacherRosterTab({ classroom }: Props) {
 
       <ConfirmDialog
         isOpen={!!pendingRemoval}
-        title="Remove student?"
-        description={
-          pendingRemoval
-            ? `${
-                pendingRemoval.firstName || pendingRemoval.lastName
-                  ? `${pendingRemoval.firstName ?? ''} ${pendingRemoval.lastName ?? ''}`.trim()
-                  : 'Unnamed student'
-              }\n${pendingRemoval.email}\n\n${
-                pendingRemoval.joined
-                  ? 'They are currently joined. This will delete their classroom data (logs and assignment docs).'
-                  : 'They are not joined yet.'
-              }`
-            : undefined
-        }
+        title={pendingRemoval && pendingRemoval.rows.length > 1 ? 'Remove students?' : 'Remove student?'}
+        description={pendingRemoval ? getRemovalDescription(pendingRemoval.rows) : undefined}
         confirmLabel={isRemoving ? 'Removing...' : 'Remove'}
         cancelLabel="Cancel"
         confirmVariant="danger"
