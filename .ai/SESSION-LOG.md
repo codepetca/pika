@@ -7,27 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-20 — Remove assignment repo submission option
-
-**Completed:**
-- Removed the separate student `Repo` action and GitHub repo metadata dialog from the assignment editor.
-- Stopped student assignment saves from writing `repo_url` / `github_username`; repo links now live in editor content as artifacts.
-- Changed submission validation so repo metadata alone is not submittable work.
-- Updated repo analysis target resolution to fall back to pasted GitHub repo artifacts and infer the GitHub username from the repo owner when no legacy username is present.
-- Kept teacher assignment artifact and repo-analysis surfaces working with pasted repo artifacts.
-- Hid the unfinished repository marking section from the teacher grading inspector and removed the batch repo-analysis action while leaving backend repo artifact extraction/analysis plumbing in place for a later rebuild.
-
-**Validation:**
-- `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/components/StudentAssignmentEditor.feedback-card.test.tsx tests/unit/assignment-repo-targets.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/api/assignment-docs/submit.test.ts tests/unit/assignments.test.ts`
-- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments"`
-- Additional assignment screenshots: `/tmp/pika-student-assignment-editor.png`, `/tmp/pika-teacher-assignment-workspace.png`
-- Additional hidden-repo marking screenshots: `/tmp/pika-teacher-assignment-workspace-hidden-repo.png`, `/tmp/pika-teacher-assignment-actions-hidden-repo.png`
-- `git diff --check`
-
 ## 2026-05-20 — Assignment repo follow-up
 
 **Completed:**
@@ -305,3 +284,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash scripts/verify-env.sh`
 - `pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop`
 - `pnpm lint`
+
+## 2026-05-23 — Roster delete action in FAB menu
+
+**Completed:**
+- Moved roster removal from the details pane into the floating roster actions dropdown.
+- Added an atomic roster removal RPC plus a bulk-delete action route so selected multi-row removal is one server-side operation.
+- Updated the existing single-row DELETE route to use the same atomic roster removal path.
+- Added component coverage for opening the roster FAB dropdown, choosing Remove student/students, and confirming deletion.
+- Updated retry behavior so failed bulk deletion keeps the full selected set pending instead of retrying partial client-side deletes.
+
+**Validation:**
+- `pnpm test tests/components/TeacherRosterTab.test.tsx`
+- `pnpm lint`
+- `pnpm test tests/components/TeacherRosterTab.test.tsx tests/api/teacher/roster-rosterId.test.ts`
+- `pnpm test tests/components/TeacherRosterTab.test.tsx tests/api/teacher/roster-rosterId.test.ts tests/api/teacher/roster-bulk-delete.test.ts tests/unit/roster-removal-migration.test.ts tests/unit/migration-filenames.test.ts`
+- `psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f supabase/migrations/071_atomic_roster_bulk_removal.sql`
+- `select public.remove_classroom_roster_entries_atomic('00000000-0000-0000-0000-000000000000'::uuid, array[]::uuid[])`
+- `git diff --check`
+- Targeted Playwright screenshot: `/tmp/pika-roster-multi-delete-dropdown.png`
+- `E2E_BASE_URL=http://127.0.0.1:3100 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=roster'`
+- Playwright screenshots: `/tmp/pika-roster-dropdown.png`, `/tmp/pika-roster-remove-confirm.png`, `/tmp/pika-roster-dropdown-dark.png`
