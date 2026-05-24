@@ -7,21 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-20 — Assignment repo follow-up
-
-**Completed:**
-- Changed assignment repo target resolution so pasted repo artifacts in current submission content take precedence over legacy `assignment_docs.repo_url` metadata.
-- Kept legacy repo metadata as a fallback only, leaving `repo_url`/`github_username` as deprecated fields for now.
-- Added unit coverage for artifact-over-legacy repo target precedence.
-- Trimmed the rolling session log to satisfy the 20-entry startup guard.
-
-**Validation:**
-- `pnpm test tests/unit/assignment-repo-targets.test.ts`
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/assignment-repo-targets.test.ts`
-- `pnpm lint`
-- `git diff --check`
-- `bash scripts/verify-env.sh`
-
 ## 2026-05-20 — Assignment AI draft comment refresh fix
 
 **Completed:**
@@ -305,3 +290,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Targeted Playwright screenshot: `/tmp/pika-roster-multi-delete-dropdown.png`
 - `E2E_BASE_URL=http://127.0.0.1:3100 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=roster'`
 - Playwright screenshots: `/tmp/pika-roster-dropdown.png`, `/tmp/pika-roster-remove-confirm.png`, `/tmp/pika-roster-dropdown-dark.png`
+
+## 2026-05-24 — Atomic selected test-work delete
+
+**Completed:**
+- Added migration `072_atomic_test_work_bulk_delete.sql` with `delete_student_test_attempts_atomic(p_test_id, p_student_ids)`.
+- Added a bulk selected test-work delete route that validates all selected students are enrolled and calls one RPC.
+- Updated the teacher Tests selected-delete flow to POST once instead of looping per-student DELETE calls.
+- Added API, migration, and component coverage for success, validation, missing-RPC guidance, and retry-safe failure state.
+
+**Validation:**
+- `pnpm test tests/api/teacher/tests-student-attempts-bulk-delete.test.ts tests/unit/test-work-bulk-delete-migration.test.ts tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test tests/api/teacher/tests-student-attempt-delete.test.ts tests/api/teacher/tests-student-attempts-bulk-delete.test.ts tests/unit/test-work-bulk-delete-migration.test.ts tests/unit/migration-filenames.test.ts`
+- `pnpm lint`
+- `supabase migration list --local`
+- `supabase db lint --local --fail-on error` (passes; existing warning on `public.unsubmit_test_attempts_atomic` unused parameter)
+- `supabase migration up --local`
+- `supabase db query --local "select public.delete_student_test_attempts_atomic('00000000-0000-0000-0000-000000000001'::uuid, array['00000000-0000-0000-0000-000000000002'::uuid]) as result;"`
+- `pnpm build`
+- `pnpm test`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=tests'`
+- Focused Playwright screenshot: `/tmp/pika-test-work-bulk-delete-dialog.png`
