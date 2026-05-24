@@ -15,12 +15,13 @@ vi.mock('@/lib/server/classrooms', () => ({
   })),
 }))
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 describe('PATCH /api/teacher/classrooms/[id]/roster/[rosterId]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSupabaseClient.from = vi.fn()
+    mockSupabaseClient.rpc = vi.fn()
   })
 
   it('validates counselor_email input and requires a valid update field', async () => {
@@ -108,101 +109,77 @@ describe('DELETE /api/teacher/classrooms/[id]/roster/[rosterId]', () => {
 
     const response = await DELETE(request, { params: { id: 'c-1', rosterId: 'r-1' } })
     expect(response.status).toBe(403)
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
   })
 
-  it('deletes classroom data, removes enrollment, and deletes roster entry', async () => {
-    const fromImpl = (table: string) => {
-      if (table === 'classrooms') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({ data: { teacher_id: 'teacher-1' }, error: null }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'classroom_roster') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({ data: { id: 'r-1', email: 's1@student.com' }, error: null }),
-              })),
-            })),
-          })),
-          delete: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn().mockResolvedValue({ error: null }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'users') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({ data: { id: 's-1' }, error: null }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'entries') {
-        return {
-          delete: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn().mockResolvedValue({ error: null }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'assignments') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({ data: [{ id: 'a-1' }, { id: 'a-2' }], error: null }),
-          })),
-        }
-      }
-
-      if (table === 'assignment_docs') {
-        return {
-          delete: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              in: vi.fn().mockResolvedValue({ error: null }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'classroom_enrollments') {
-        return {
-          delete: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn().mockResolvedValue({ error: null }),
-            })),
-          })),
-        }
-      }
-
-      throw new Error(`Unexpected table: ${table}`)
-    }
-
-    ;(mockSupabaseClient.from as any) = vi.fn(fromImpl)
+  it('removes one roster entry through the atomic roster removal RPC', async () => {
+    mockSupabaseClient.rpc = vi.fn().mockResolvedValue({
+      data: {
+        requested_count: 1,
+        deleted_roster_entries: 1,
+        deleted_entries: 2,
+        deleted_assignment_docs: 3,
+        deleted_enrollments: 1,
+      },
+      error: null,
+    })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster/s-1', {
       method: 'DELETE',
     })
 
     const response = await DELETE(request, { params: { id: 'c-1', rosterId: 'r-1' } })
+    const data = await response.json()
     expect(response.status).toBe(200)
+    expect(data).toEqual({
+      success: true,
+      requested_count: 1,
+      deleted_roster_entries: 1,
+      deleted_entries: 2,
+      deleted_assignment_docs: 3,
+      deleted_enrollments: 1,
+    })
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('remove_classroom_roster_entries_atomic', {
+      p_classroom_id: 'c-1',
+      p_roster_ids: ['r-1'],
+    })
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
 
-    expect(mockSupabaseClient.from).toHaveBeenCalledWith('classroom_roster')
-    expect(mockSupabaseClient.from).toHaveBeenCalledWith('entries')
-    expect(mockSupabaseClient.from).toHaveBeenCalledWith('assignments')
-    expect(mockSupabaseClient.from).toHaveBeenCalledWith('assignment_docs')
-    expect(mockSupabaseClient.from).toHaveBeenCalledWith('classroom_enrollments')
+  it('returns 404 when the atomic removal RPC reports a missing roster entry', async () => {
+    mockSupabaseClient.rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: 'One or more roster entries not found in classroom' },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster/s-1', {
+      method: 'DELETE',
+    })
+
+    const response = await DELETE(request, { params: { id: 'c-1', rosterId: 'r-1' } })
+    const data = await response.json()
+
+    expect(response.status).toBe(404)
+    expect(data.error).toBe('One or more roster entries not found in classroom')
+  })
+
+  it('returns migration guidance when the atomic removal RPC is missing', async () => {
+    mockSupabaseClient.rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: {
+        code: 'PGRST202',
+        message: 'Could not find function remove_classroom_roster_entries_atomic',
+      },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster/s-1', {
+      method: 'DELETE',
+    })
+
+    const response = await DELETE(request, { params: { id: 'c-1', rosterId: 'r-1' } })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('Roster removal requires migration 071 to be applied')
   })
 })

@@ -178,27 +178,22 @@ export function TeacherRosterTab({ classroom }: Props) {
     if (isReadOnly) return
     setIsRemoving(true)
     setError('')
-    const rowsToRemove = pendingRemoval.rows
-    const remainingRows = [...rowsToRemove]
+    const fallbackError = pendingRemoval.rows.length > 1 ? 'Failed to remove students' : 'Failed to remove student'
 
     try {
-      for (const row of rowsToRemove) {
-        const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster/${row.rosterId}`, {
-          method: 'DELETE',
-        })
-        const data = await res.json().catch(() => ({}))
-        if (!res.ok) {
-          throw new Error(data.error || 'Failed to remove student')
-        }
-        remainingRows.shift()
+      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster/bulk-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roster_ids: pendingRemoval.rows.map((row) => row.rosterId) }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || fallbackError)
       }
       setPendingRemoval(null)
       await loadRoster()
     } catch (err: any) {
-      const message = err.message || 'Failed to remove student'
-      setPendingRemoval(remainingRows.length > 0 ? { rows: remainingRows } : null)
-      await loadRoster()
-      setError(message)
+      setError(err.message || fallbackError)
     } finally {
       setIsRemoving(false)
     }

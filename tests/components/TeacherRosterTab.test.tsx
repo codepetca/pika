@@ -74,13 +74,7 @@ function mockRosterFetch() {
       return mockJson({ roster: [rosterRow, secondRosterRow] })
     }
 
-    if (
-      [
-        `/api/teacher/classrooms/${classroom.id}/roster/${rosterRow.id}`,
-        `/api/teacher/classrooms/${classroom.id}/roster/${secondRosterRow.id}`,
-      ].includes(url) &&
-      method === 'DELETE'
-    ) {
+    if (url === `/api/teacher/classrooms/${classroom.id}/roster/bulk-delete` && method === 'POST') {
       return mockJson({ success: true })
     }
 
@@ -100,13 +94,26 @@ function renderRoster() {
   )
 }
 
-function getDeleteCalls(fetchMock: ReturnType<typeof vi.fn>) {
+function getIndividualDeleteCalls(fetchMock: ReturnType<typeof vi.fn>) {
   return fetchMock.mock.calls.filter(([input, init]) => {
     return (
       String(input).startsWith(`/api/teacher/classrooms/${classroom.id}/roster/`) &&
       (init as RequestInit | undefined)?.method === 'DELETE'
     )
   })
+}
+
+function getBulkDeleteCalls(fetchMock: ReturnType<typeof vi.fn>) {
+  return fetchMock.mock.calls.filter(([input, init]) => {
+    return (
+      String(input) === `/api/teacher/classrooms/${classroom.id}/roster/bulk-delete` &&
+      (init as RequestInit | undefined)?.method === 'POST'
+    )
+  })
+}
+
+function getRequestBody(call: unknown[]) {
+  return JSON.parse(String((call[1] as RequestInit).body))
 }
 
 describe('TeacherRosterTab', () => {
@@ -130,7 +137,7 @@ describe('TeacherRosterTab', () => {
     await user.click(screen.getByRole('button', { name: 'Roster actions' }))
     await user.click(screen.getByRole('menuitem', { name: 'Remove student' }))
 
-    expect(getDeleteCalls(fetchMock)).toHaveLength(0)
+    expect(getBulkDeleteCalls(fetchMock)).toHaveLength(0)
 
     const dialog = screen.getByRole('dialog', { name: 'Remove student?' })
     expect(dialog).toBeInTheDocument()
@@ -139,8 +146,10 @@ describe('TeacherRosterTab', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Remove' }))
 
     await waitFor(() => {
-      expect(getDeleteCalls(fetchMock)).toHaveLength(1)
+      expect(getBulkDeleteCalls(fetchMock)).toHaveLength(1)
     })
+    expect(getRequestBody(getBulkDeleteCalls(fetchMock)[0]).roster_ids).toEqual([rosterRow.id])
+    expect(getIndividualDeleteCalls(fetchMock)).toHaveLength(0)
   })
 
   it('shows and confirms removal for multiple checked students from the floating actions dropdown', async () => {
@@ -156,7 +165,7 @@ describe('TeacherRosterTab', () => {
     await user.click(screen.getByRole('button', { name: 'Roster actions' }))
     await user.click(screen.getByRole('menuitem', { name: 'Remove students' }))
 
-    expect(getDeleteCalls(fetchMock)).toHaveLength(0)
+    expect(getBulkDeleteCalls(fetchMock)).toHaveLength(0)
 
     const dialog = screen.getByRole('dialog', { name: 'Remove students?' })
     expect(dialog).toBeInTheDocument()
@@ -166,13 +175,17 @@ describe('TeacherRosterTab', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Remove' }))
 
     await waitFor(() => {
-      expect(getDeleteCalls(fetchMock)).toHaveLength(2)
+      expect(getBulkDeleteCalls(fetchMock)).toHaveLength(1)
     })
+    expect(getRequestBody(getBulkDeleteCalls(fetchMock)[0]).roster_ids).toEqual(
+      expect.arrayContaining([rosterRow.id, secondRosterRow.id])
+    )
+    expect(getIndividualDeleteCalls(fetchMock)).toHaveLength(0)
   })
 
-  it('keeps only remaining students pending when a multi-student removal partially fails', async () => {
+  it('keeps the full selected set pending when bulk removal fails', async () => {
     const user = userEvent.setup()
-    let failAdaOnce = true
+    let failBulkOnce = true
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       const method = init?.method ?? 'GET'
@@ -181,15 +194,11 @@ describe('TeacherRosterTab', () => {
         return mockJson({ roster: [rosterRow, secondRosterRow] })
       }
 
-      if (url === `/api/teacher/classrooms/${classroom.id}/roster/${rosterRow.id}` && method === 'DELETE') {
-        if (failAdaOnce) {
-          failAdaOnce = false
-          return mockJson({ error: 'Failed to remove Ada' }, false)
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster/bulk-delete` && method === 'POST') {
+        if (failBulkOnce) {
+          failBulkOnce = false
+          return mockJson({ error: 'Failed to remove students' }, false)
         }
-        return mockJson({ success: true })
-      }
-
-      if (url === `/api/teacher/classrooms/${classroom.id}/roster/${secondRosterRow.id}` && method === 'DELETE') {
         return mockJson({ success: true })
       }
 
@@ -210,12 +219,12 @@ describe('TeacherRosterTab', () => {
     await user.click(within(multiDialog).getByRole('button', { name: 'Remove' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to remove Ada')).toBeInTheDocument()
+      expect(screen.getByText('Failed to remove students')).toBeInTheDocument()
     })
 
-    const retryDialog = screen.getByRole('dialog', { name: 'Remove student?' })
+    const retryDialog = screen.getByRole('dialog', { name: 'Remove students?' })
     expect(within(retryDialog).getByText(/ada@example\.com/)).toBeInTheDocument()
-    expect(within(retryDialog).queryByText(/grace@example\.com/)).not.toBeInTheDocument()
+    expect(within(retryDialog).getByText(/grace@example\.com/)).toBeInTheDocument()
 
     await user.click(within(retryDialog).getByRole('button', { name: 'Remove' }))
 
@@ -223,8 +232,7 @@ describe('TeacherRosterTab', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
 
-    const deleteUrls = getDeleteCalls(fetchMock).map(([input]) => String(input))
-    expect(deleteUrls.filter((url) => url.endsWith(`/${secondRosterRow.id}`))).toHaveLength(1)
-    expect(deleteUrls.filter((url) => url.endsWith(`/${rosterRow.id}`))).toHaveLength(2)
+    expect(getBulkDeleteCalls(fetchMock)).toHaveLength(2)
+    expect(getIndividualDeleteCalls(fetchMock)).toHaveLength(0)
   })
 })

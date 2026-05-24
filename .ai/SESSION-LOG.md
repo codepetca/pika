@@ -309,14 +309,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Completed:**
 - Moved roster removal from the details pane into the floating roster actions dropdown.
-- Reused the existing `ConfirmDialog` and DELETE route behavior for single-row and selected multi-row removal.
+- Added an atomic roster removal RPC plus a bulk-delete action route so selected multi-row removal is one server-side operation.
+- Updated the existing single-row DELETE route to use the same atomic roster removal path.
 - Added component coverage for opening the roster FAB dropdown, choosing Remove student/students, and confirming deletion.
-- Addressed review feedback so partial multi-row deletion failures keep only failed/not-yet-attempted rows in the retry dialog.
+- Updated retry behavior so failed bulk deletion keeps the full selected set pending instead of retrying partial client-side deletes.
 
 **Validation:**
 - `pnpm test tests/components/TeacherRosterTab.test.tsx`
 - `pnpm lint`
 - `pnpm test tests/components/TeacherRosterTab.test.tsx tests/api/teacher/roster-rosterId.test.ts`
+- `pnpm test tests/components/TeacherRosterTab.test.tsx tests/api/teacher/roster-rosterId.test.ts tests/api/teacher/roster-bulk-delete.test.ts tests/unit/roster-removal-migration.test.ts tests/unit/migration-filenames.test.ts`
+- `psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f supabase/migrations/071_atomic_roster_bulk_removal.sql`
+- `select public.remove_classroom_roster_entries_atomic('00000000-0000-0000-0000-000000000000'::uuid, array[]::uuid[])`
 - `git diff --check`
 - Targeted Playwright screenshot: `/tmp/pika-roster-multi-delete-dropdown.png`
 - `E2E_BASE_URL=http://127.0.0.1:3100 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=roster'`
