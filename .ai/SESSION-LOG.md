@@ -7,105 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-16 — Native worktree AI guidance
-
-**Completed:**
-- Removed the per-session worktree environment variable requirement from live AI startup docs, Codex prompts/skills, and Claude command docs.
-- Updated the startup, audit, and UI verification helper scripts to resolve the current git root directly.
-- Kept the hub guardrail: branch work must happen in a dedicated worktree, not `$HOME/Repos/pika`.
-- Removed remaining old worktree wording from live AI workflow docs.
-- Made the audit helper fail loudly when run outside a git checkout.
-- Added regression coverage for session-start rejecting the hub checkout and audit rejecting non-git directories.
-- Removed legacy env exports from `scripts/pika`, the parity challenge helper, and the production merge worktree-root override.
-- Sanitized tracked historical logs so repo-wide legacy env-var searches are clean.
-- Changed future Pika worktree creation to `$HOME/.codex/worktrees/pika/<worktree-name>` while leaving existing `$HOME/Repos/.worktrees/pika` checkouts resolvable.
-- Updated the production merge helper to reuse an already registered `production` worktree, otherwise create future production checkouts under `$HOME/.codex/worktrees/pika`.
-
-**Validation:**
-- `bash scripts/verify-env.sh` from the hub before edits
-- `pnpm install --offline` in the docs worktree to recreate local dependency links
-- `pnpm test -- tests/unit/ai-startup-docs.test.ts` (Vitest ran the full suite: 268 files / 2244 tests passed)
-- `pnpm test tests/unit/ai-startup-docs.test.ts` (7 tests)
-- `bash -n scripts/pika scripts/run-teacher-tests-parity-challenge.sh .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh .codex/skills/pika-audit/scripts/audit.sh .codex/skills/pika-session-start/scripts/session_start.sh .codex/skills/pika-ui-verify/scripts/ui_verify.sh`
-- `scripts/pika ls`
-- Exact legacy worktree env-var search across the repo returned no matches
-
-## 2026-05-19 — Codex worktree flow simplification
-
-**Completed:**
-- Simplified the canonical workflow so new named Pika worktrees live under `$HOME/.codex/worktrees/pika/<worktree-name>`, while Codex Desktop app-managed worktrees under `$HOME/.codex/worktrees/<id>/pika` are explicitly valid.
-- Updated cleanup guidance to resolve the registered worktree path from `git worktree list --porcelain` before removing it, so new and legacy worktrees clean up correctly.
-- Replaced stale Claude production-merge guidance with the shared production worktree helper flow.
-- Added regression coverage for the worktree-location distinction, path-discovered cleanup, and production-merge helper routing.
-
-**Validation:**
-- `pnpm test tests/unit/ai-startup-docs.test.ts`
-- `bash -n scripts/pika scripts/wt-add.sh scripts/run-teacher-tests-parity-challenge.sh .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh .codex/skills/pika-audit/scripts/audit.sh .codex/skills/pika-session-start/scripts/session_start.sh .codex/skills/pika-ui-verify/scripts/ui_verify.sh`
-- `scripts/pika ls`
-- `git diff --check`
-- Legacy worktree env-var and stale workflow phrase scans returned no live-source matches.
-
-## 2026-05-19 — Workflow friction automation
-
-**Completed:**
-- Created the active weekly `Pika Workflow Friction Review` Codex automation as a report-only review of recent workflow friction and guidance drift.
-- Updated the active `Weekly Pika Simplification` automation prompt to use the native worktree flow and stop relying on project-specific worktree environment variables.
-- Confirmed both automation configs were written under `/Users/stew/.codex/automations`.
-
-**Validation:**
-- Read back `/Users/stew/.codex/automations/weekly-pika-simplification/automation.toml`.
-- Read back `/Users/stew/.codex/automations/pika-workflow-friction-review/automation.toml`.
-
-## 2026-05-19 — Remove student legacy quizzes nav plumbing
-
-**Completed:**
-- Removed legacy `activeQuizzesCount` from student sidebar notification state and the `/api/student/notifications` response.
-- Kept the student assessment sidebar focused on Tests and added coverage that no student Quizzes nav item is rendered.
-- Added coverage that legacy `?tab=quizzes` URLs fall back to the default student Today tab and clear quiz-specific params.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/NavItems.test.tsx tests/components/StudentNotificationsProvider.test.tsx tests/api/student/notifications.test.ts tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=today"`
-- Additional student sidebar screenshot: `/tmp/pika-student-desktop-expanded.png`
-- `pnpm test`
-- `pnpm build`
-
-## 2026-05-20 — Student test total points label
-
-**Completed:**
-- Added a student test overview label under the selected test title, showing question count and total points as `pts total`.
-- Rendered the label before the student starts a test and at the top of the active test attempt.
-- Added component coverage that the total-points label appears before start and during the attempt.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test -- tests/components/StudentQuizzesTab.test.tsx` (Vitest ran the full suite: 272 files / 2263 tests passed)
-- `pnpm lint`
-- `pnpm e2e:auth`
-- `pnpm e2e:verify assessment-ux-parity`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=tests"`
-- Additional selected student test screenshots:
-  - `/tmp/pika-student-test-before-start.png`
-  - `/tmp/pika-student-test-active.png`
-  - `/tmp/pika-student-test-before-start-mobile.png`
-  - `/tmp/pika-student-test-active-mobile.png`
-
-## 2026-05-20 — Freeze submitted assignment timing
-
-**Completed:**
-- Added submitted-aware assignment timing copy so submitted work freezes against `submitted_at` instead of continuing to count overdue time from the current date.
-- Updated student assignment cards and the standalone student assignment editor header to use the submitted-aware timing helper.
-- Added unit and component coverage for submitted timing, including late submissions freezing at the actual submission timestamp.
-
-**Validation:**
-- `pnpm test tests/unit/assignments.test.ts tests/components/StudentAssignmentsTab.test.tsx`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments"`
-- Reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`
-- `pnpm test`
-
 ## 2026-05-20 — Remove assignment repo submission option
 
 **Completed:**
@@ -320,6 +221,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test`
 - `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=assignments&assignmentId=1bd43274-afe7-472c-90c9-5b704d83e4b2&assignmentStudentId=e0d9c4e7-2a88-4428-bd15-ba87f2d935b7"`
 - Targeted Playwright long-list check: selected Student65 and reloaded; `scrollTop` remained `1500`.
+
 ## 2026-05-23 — Draft question sync helper
 
 **Completed:**
@@ -332,6 +234,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/assessment-drafts.test.ts`
 - `pnpm test`
 - `pnpm lint`
+
 ## 2026-05-22 — Gradebook identity column fixes
 
 **Completed:**
@@ -389,3 +292,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=gradebook'`
 - Playwright checks for unselected and selected gradebook action menus, including checked score state and divider count
+
+## 2026-05-24 — Student exam away-focus e2e
+
+**Completed:**
+- Added focused Playwright coverage for a student active test away/focus restoration cycle.
+- Verified the open-response draft stays visible and mounted after focus returns.
+- Asserted student focus telemetry records one away/focus event in both API detail and the visible exam summary.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (first run failed until dependencies were installed and session log was trimmed)
+- `bash scripts/verify-env.sh`
+- `pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop`
+- `pnpm lint`
