@@ -1,20 +1,28 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type Ref } from 'react'
-import { X } from 'lucide-react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type Ref,
+} from 'react'
+import { ChevronDown, ChevronUp, Copy, Mail, Pencil, X } from 'lucide-react'
 import type {
   GradebookAssessmentCell,
   GradebookAssessmentColumn,
   Classroom,
   GradebookStudentSummary,
 } from '@/types'
-import { Input, SegmentedControl, Tooltip } from '@/ui'
+import { Input, SplitButton, Tooltip, type SplitButtonOption, useAppMessage } from '@/ui'
 import {
   AssessmentStatusIndicator,
   getGradebookAssessmentStatusDisplay,
 } from '@/components/AssessmentStatusIndicator'
 import { Spinner } from '@/components/Spinner'
-import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
@@ -26,7 +34,6 @@ import {
   DataTableHeaderCell,
   DataTableRow,
   EmptyStateRow,
-  SortableHeaderCell,
 } from '@/components/DataTable'
 import {
   fetchJSONWithCache,
@@ -57,7 +64,7 @@ interface Props {
 const DEFAULT_VISIBLE_COLUMNS: Record<GradebookFixedColumn, boolean> = {
   first_name: true,
   last_name: true,
-  id: true,
+  id: false,
   final: true,
 }
 const DEFAULT_VISIBLE_SUMMARY_ROWS: Record<GradebookSummaryRow, boolean> = {
@@ -69,16 +76,33 @@ const ASSESSMENT_WEIGHT_DEFAULT = 10
 const ASSESSMENT_WEIGHT_MAX = 999
 const SELECT_COLUMN_WIDTH_CLASS = 'w-10 min-w-10 max-w-10'
 const EDIT_LABEL_COLUMN_WIDTH_CLASS = 'w-20 min-w-20 max-w-20'
+const SELECT_COLUMN_WIDTH_PX = 40
+const EDIT_LABEL_COLUMN_WIDTH_PX = 80
+const IDENTITY_COLUMN_RESIZE_STEP = 8
+const FINAL_COLUMN_SEPARATOR_CLASS = 'border-l border-border-strong'
+const FINAL_COLUMN_DEFAULT_WIDTH = 96
+const FINAL_COLUMN_MIN_WIDTH = 80
+const FINAL_COLUMN_MAX_WIDTH = 220
 
 const IDENTITY_COLUMN_DEFS: Array<{
   key: GradebookIdentityColumn
   label: string
-  widthClass: string
+  defaultWidth: number
+  minWidth: number
+  maxWidth: number
 }> = [
-  { key: 'first_name', label: 'First', widthClass: 'w-24 min-w-24 max-w-24' },
-  { key: 'last_name', label: 'Last', widthClass: 'w-24 min-w-24 max-w-24' },
-  { key: 'id', label: 'ID', widthClass: 'w-20 min-w-20 max-w-20' },
+  { key: 'first_name', label: 'First', defaultWidth: 96, minWidth: 72, maxWidth: 220 },
+  { key: 'last_name', label: 'Last', defaultWidth: 96, minWidth: 72, maxWidth: 220 },
+  { key: 'id', label: 'ID', defaultWidth: 80, minWidth: 64, maxWidth: 180 },
 ]
+
+const DEFAULT_IDENTITY_COLUMN_WIDTHS = IDENTITY_COLUMN_DEFS.reduce(
+  (widths, column) => ({
+    ...widths,
+    [column.key]: column.defaultWidth,
+  }),
+  {} as Record<GradebookIdentityColumn, number>,
+)
 
 function formatPercent(value: number | null): string {
   if (value == null) return '—'
@@ -124,6 +148,10 @@ function getStudentDisplayId(student: GradebookStudentSummary): string {
   return student.student_number?.trim() || student.student_email.split('@')[0] || student.student_id
 }
 
+function getValidEmailList(emails: string[]): string[] {
+  return [...new Set(emails.map((email) => email.trim()).filter((email) => email.includes('@')))]
+}
+
 function getStudentIdentityValue(student: GradebookStudentSummary, column: GradebookIdentityColumn): string {
   if (column === 'first_name') return student.student_first_name || '—'
   if (column === 'last_name') return student.student_last_name || '—'
@@ -134,15 +162,66 @@ function getLeadingColumnWidthClass(editMode: boolean): string {
   return editMode ? EDIT_LABEL_COLUMN_WIDTH_CLASS : SELECT_COLUMN_WIDTH_CLASS
 }
 
-function getIdentityStickyClass(index: number, editMode: boolean): string {
-  if (editMode) {
-    if (index === 0) return 'left-20'
-    if (index === 1) return 'left-[11rem]'
-    return 'left-[17rem]'
+function getLeadingColumnWidthPx(editMode: boolean): number {
+  return editMode ? EDIT_LABEL_COLUMN_WIDTH_PX : SELECT_COLUMN_WIDTH_PX
+}
+
+function getIdentityColumnDef(columnKey: GradebookIdentityColumn) {
+  return IDENTITY_COLUMN_DEFS.find((column) => column.key === columnKey) || IDENTITY_COLUMN_DEFS[0]
+}
+
+function clampIdentityColumnWidth(columnKey: GradebookIdentityColumn, width: number): number {
+  const column = getIdentityColumnDef(columnKey)
+  return Math.min(column.maxWidth, Math.max(column.minWidth, Math.round(width)))
+}
+
+function clampFinalColumnWidth(width: number): number {
+  return Math.min(FINAL_COLUMN_MAX_WIDTH, Math.max(FINAL_COLUMN_MIN_WIDTH, Math.round(width)))
+}
+
+function getIdentityStickyLeftPx(
+  index: number,
+  editMode: boolean,
+  renderedColumns: Array<(typeof IDENTITY_COLUMN_DEFS)[number]>,
+  columnWidths: Record<GradebookIdentityColumn, number>,
+): number {
+  return renderedColumns.slice(0, index).reduce(
+    (left, column) => left + columnWidths[column.key],
+    getLeadingColumnWidthPx(editMode),
+  )
+}
+
+function getIdentityColumnStyle(
+  column: (typeof IDENTITY_COLUMN_DEFS)[number],
+  index: number,
+  editMode: boolean,
+  renderedColumns: Array<(typeof IDENTITY_COLUMN_DEFS)[number]>,
+  columnWidths: Record<GradebookIdentityColumn, number>,
+): CSSProperties {
+  const width = columnWidths[column.key]
+  return {
+    left: `${getIdentityStickyLeftPx(index, editMode, renderedColumns, columnWidths)}px`,
+    width: `${width}px`,
+    minWidth: `${width}px`,
+    maxWidth: `${width}px`,
   }
-  if (index === 0) return 'left-10'
-  if (index === 1) return 'left-[8.5rem]'
-  return 'left-[14.5rem]'
+}
+
+function getFinalColumnStyle(width: number): CSSProperties {
+  return {
+    width: `${width}px`,
+    minWidth: `${width}px`,
+    maxWidth: `${width}px`,
+  }
+}
+
+function getIdentityColumnBorderClass(
+  index: number,
+  editMode: boolean,
+  renderedColumns: Array<(typeof IDENTITY_COLUMN_DEFS)[number]>,
+): string {
+  if (index === renderedColumns.length - 1) return 'border-r border-border-strong'
+  return editMode ? 'border-r border-border' : ''
 }
 
 function getAssessmentColumnKey(column: GradebookAssessmentColumn): string {
@@ -405,18 +484,267 @@ function StudentAssessmentPanel({
   )
 }
 
+function ResizableIdentityHeaderCell({
+  column,
+  index,
+  renderedColumns,
+  editMode,
+  headerTopClass,
+  hidden,
+  columnWidths,
+  sortColumn,
+  sortDirection,
+  onSort,
+  onColumnWidthChange,
+}: {
+  column: (typeof IDENTITY_COLUMN_DEFS)[number]
+  index: number
+  renderedColumns: Array<(typeof IDENTITY_COLUMN_DEFS)[number]>
+  editMode: boolean
+  headerTopClass: string
+  hidden: boolean
+  columnWidths: Record<GradebookIdentityColumn, number>
+  sortColumn: GradebookSortColumn
+  sortDirection: 'asc' | 'desc'
+  onSort: (column: GradebookSortColumn) => void
+  onColumnWidthChange: (column: GradebookIdentityColumn, width: number) => void
+}) {
+  const columnWidth = columnWidths[column.key]
+  const columnBounds = getIdentityColumnDef(column.key)
+  const isActive = sortColumn === column.key
+  const ariaSort = isActive ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'
+  const Icon = sortDirection === 'asc' ? ChevronUp : ChevronDown
+
+  function handleResizeStart(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    const startX = event.clientX
+    const startWidth = columnWidth
+    const previousCursor = document.body.style.cursor
+    const previousUserSelect = document.body.style.userSelect
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    const target = event.currentTarget
+    if (target.setPointerCapture) {
+      try {
+        target.setPointerCapture(event.pointerId)
+      } catch {
+        // Pointer capture can fail in test environments; window listeners still handle the drag.
+      }
+    }
+
+    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
+      if (!Number.isFinite(moveEvent.clientX) || !Number.isFinite(startX)) return
+      const nextWidth = clampIdentityColumnWidth(column.key, startWidth + moveEvent.clientX - startX)
+      onColumnWidthChange(column.key, nextWidth)
+    }
+
+    const handleResizeEnd = () => {
+      document.body.style.cursor = previousCursor
+      document.body.style.userSelect = previousUserSelect
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handleResizeEnd)
+      window.removeEventListener('pointercancel', handleResizeEnd)
+      window.removeEventListener('blur', handleResizeEnd)
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handleResizeEnd)
+    window.addEventListener('pointercancel', handleResizeEnd)
+    window.addEventListener('blur', handleResizeEnd)
+  }
+
+  function handleResizeKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    const step = event.shiftKey ? IDENTITY_COLUMN_RESIZE_STEP * 3 : IDENTITY_COLUMN_RESIZE_STEP
+    let nextWidth: number | null = null
+
+    if (event.key === 'ArrowLeft') {
+      nextWidth = columnWidth - step
+    } else if (event.key === 'ArrowRight') {
+      nextWidth = columnWidth + step
+    } else if (event.key === 'Home') {
+      nextWidth = columnBounds.minWidth
+    } else if (event.key === 'End') {
+      nextWidth = columnBounds.maxWidth
+    }
+
+    if (nextWidth == null) return
+    event.preventDefault()
+    event.stopPropagation()
+    onColumnWidthChange(column.key, clampIdentityColumnWidth(column.key, nextWidth))
+  }
+
+  return (
+    <DataTableHeaderCell
+      aria-label={column.label}
+      aria-sort={ariaSort}
+      style={getIdentityColumnStyle(column, index, editMode, renderedColumns, columnWidths)}
+      className={[
+        '!p-0 group relative sticky z-40 bg-surface-2',
+        headerTopClass,
+        getIdentityColumnBorderClass(index, editMode, renderedColumns),
+        hidden ? 'text-text-muted' : '',
+      ].join(' ')}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(column.key)}
+        className="flex w-full items-center gap-1 overflow-hidden px-3 py-1 pr-5 text-left transition-colors hover:bg-surface-hover"
+      >
+        <span className="truncate">{column.label}</span>
+        <Icon
+          className={[
+            'h-4 w-4 flex-shrink-0',
+            isActive ? 'text-text-muted' : 'opacity-0',
+          ].join(' ')}
+          aria-hidden="true"
+        />
+      </button>
+      <div
+        role="separator"
+        tabIndex={0}
+        aria-orientation="vertical"
+        aria-label={`Resize ${column.label} column`}
+        aria-valuemin={columnBounds.minWidth}
+        aria-valuemax={columnBounds.maxWidth}
+        aria-valuenow={columnWidth}
+        className="absolute inset-y-0 right-0 z-10 flex w-2 translate-x-1/2 cursor-col-resize touch-none items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        onPointerDown={handleResizeStart}
+        onKeyDown={handleResizeKeyDown}
+      >
+        <span
+          aria-hidden="true"
+          className="h-5 w-px rounded-full bg-border-strong opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+        />
+      </div>
+    </DataTableHeaderCell>
+  )
+}
+
+function ResizableFinalHeaderCell({
+  headerTopClass,
+  hidden,
+  finalColumnWidth,
+  onFinalColumnWidthChange,
+}: {
+  headerTopClass: string
+  hidden: boolean
+  finalColumnWidth: number
+  onFinalColumnWidthChange: (width: number) => void
+}) {
+  function handleResizeStart(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    const startX = event.clientX
+    const startWidth = finalColumnWidth
+    const previousCursor = document.body.style.cursor
+    const previousUserSelect = document.body.style.userSelect
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    const target = event.currentTarget
+    if (target.setPointerCapture) {
+      try {
+        target.setPointerCapture(event.pointerId)
+      } catch {
+        // Pointer capture can fail in test environments; window listeners still handle the drag.
+      }
+    }
+
+    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
+      if (!Number.isFinite(moveEvent.clientX) || !Number.isFinite(startX)) return
+      const nextWidth = clampFinalColumnWidth(startWidth - (moveEvent.clientX - startX))
+      onFinalColumnWidthChange(nextWidth)
+    }
+
+    const handleResizeEnd = () => {
+      document.body.style.cursor = previousCursor
+      document.body.style.userSelect = previousUserSelect
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handleResizeEnd)
+      window.removeEventListener('pointercancel', handleResizeEnd)
+      window.removeEventListener('blur', handleResizeEnd)
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handleResizeEnd)
+    window.addEventListener('pointercancel', handleResizeEnd)
+    window.addEventListener('blur', handleResizeEnd)
+  }
+
+  function handleResizeKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    const step = event.shiftKey ? IDENTITY_COLUMN_RESIZE_STEP * 3 : IDENTITY_COLUMN_RESIZE_STEP
+    let nextWidth: number | null = null
+
+    if (event.key === 'ArrowLeft') {
+      nextWidth = finalColumnWidth - step
+    } else if (event.key === 'ArrowRight') {
+      nextWidth = finalColumnWidth + step
+    } else if (event.key === 'Home') {
+      nextWidth = FINAL_COLUMN_MIN_WIDTH
+    } else if (event.key === 'End') {
+      nextWidth = FINAL_COLUMN_MAX_WIDTH
+    }
+
+    if (nextWidth == null) return
+    event.preventDefault()
+    event.stopPropagation()
+    onFinalColumnWidthChange(clampFinalColumnWidth(nextWidth))
+  }
+
+  return (
+    <DataTableHeaderCell
+      aria-label="Final"
+      align="right"
+      style={getFinalColumnStyle(finalColumnWidth)}
+      className={[
+        'group relative sticky z-30 bg-surface-2 text-xs sm:text-sm md:right-0 md:z-40',
+        FINAL_COLUMN_SEPARATOR_CLASS,
+        headerTopClass,
+        hidden ? 'text-text-muted opacity-60' : '',
+      ].join(' ')}
+    >
+      Final
+      <div
+        role="separator"
+        tabIndex={0}
+        aria-orientation="vertical"
+        aria-label="Resize Final column"
+        aria-valuemin={FINAL_COLUMN_MIN_WIDTH}
+        aria-valuemax={FINAL_COLUMN_MAX_WIDTH}
+        aria-valuenow={finalColumnWidth}
+        className="absolute inset-y-0 left-0 z-10 flex w-2 -translate-x-1/2 cursor-col-resize touch-none items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        onPointerDown={handleResizeStart}
+        onKeyDown={handleResizeKeyDown}
+      >
+        <span
+          aria-hidden="true"
+          className="h-5 w-px rounded-full bg-border-strong opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+        />
+      </div>
+    </DataTableHeaderCell>
+  )
+}
+
 function AssessmentMatrixTable({
   students,
   columns,
   displayMode,
   editMode,
   visibleColumns,
+  identityColumnWidths,
+  finalColumnWidth,
   visibleSummaryRows,
   hiddenAssessmentColumnKeys,
   assessmentWeightDrafts,
   savingAssessmentKey,
   isReadOnly,
   onFixedColumnVisibleChange,
+  onIdentityColumnWidthChange,
+  onFinalColumnWidthChange,
   onAssessmentColumnVisibleChange,
   onSummaryRowVisibleChange,
   onAssessmentWeightDraftChange,
@@ -438,12 +766,16 @@ function AssessmentMatrixTable({
   displayMode: ScoreDisplayMode
   editMode: boolean
   visibleColumns: Record<GradebookFixedColumn, boolean>
+  identityColumnWidths: Record<GradebookIdentityColumn, number>
+  finalColumnWidth: number
   visibleSummaryRows: Record<GradebookSummaryRow, boolean>
   hiddenAssessmentColumnKeys: Set<string>
   assessmentWeightDrafts: Record<string, string>
   savingAssessmentKey: string | null
   isReadOnly: boolean
   onFixedColumnVisibleChange: (column: GradebookFixedColumn, visible: boolean) => void
+  onIdentityColumnWidthChange: (column: GradebookIdentityColumn, width: number) => void
+  onFinalColumnWidthChange: (width: number) => void
   onAssessmentColumnVisibleChange: (column: GradebookAssessmentColumn, visible: boolean) => void
   onSummaryRowVisibleChange: (row: GradebookSummaryRow, visible: boolean) => void
   onAssessmentWeightDraftChange: (column: GradebookAssessmentColumn, value: string) => void
@@ -507,10 +839,10 @@ function AssessmentMatrixTable({
                   <DataTableHeaderCell
                     key={`toggle:${column.key}`}
                     align="center"
+                    style={getIdentityColumnStyle(column, index, editMode, renderedIdentityColumns, identityColumnWidths)}
                     className={[
-                      'sticky top-0 z-50 h-8 border-r border-border bg-surface-2',
-                      getIdentityStickyClass(index, editMode),
-                      column.widthClass,
+                      'sticky top-0 z-50 h-8 bg-surface-2',
+                      getIdentityColumnBorderClass(index, editMode, renderedIdentityColumns),
                     ].join(' ')}
                   >
                     <ColumnHeaderCheckbox
@@ -540,7 +872,11 @@ function AssessmentMatrixTable({
                 {renderFinalColumn ? (
                   <DataTableHeaderCell
                     align="right"
-                    className="sticky top-0 z-40 h-8 min-w-20 bg-surface-2 text-xs sm:text-sm md:right-0 md:z-50"
+                    style={getFinalColumnStyle(finalColumnWidth)}
+                    className={[
+                      'sticky top-0 z-40 h-8 bg-surface-2 text-xs sm:text-sm md:right-0 md:z-50',
+                      FINAL_COLUMN_SEPARATOR_CLASS,
+                    ].join(' ')}
                   >
                     <ColumnHeaderCheckbox
                       label="Final"
@@ -564,10 +900,10 @@ function AssessmentMatrixTable({
                 {renderedIdentityColumns.map((column, index) => (
                   <DataTableHeaderCell
                     key={`weight-label:${column.key}`}
+                    style={getIdentityColumnStyle(column, index, editMode, renderedIdentityColumns, identityColumnWidths)}
                     className={[
-                      'sticky top-8 z-50 h-14 border-r border-border bg-surface-2',
-                      getIdentityStickyClass(index, editMode),
-                      column.widthClass,
+                      'sticky top-8 z-50 h-14 bg-surface-2',
+                      getIdentityColumnBorderClass(index, editMode, renderedIdentityColumns),
                       !visibleColumns[column.key] ? 'text-text-muted' : '',
                     ].join(' ')}
                   >
@@ -622,7 +958,11 @@ function AssessmentMatrixTable({
                 {renderFinalColumn ? (
                   <DataTableHeaderCell
                     align="right"
-                    className="sticky top-8 z-40 h-14 min-w-20 bg-surface-2 text-xs font-semibold tabular-nums text-text-muted md:right-0 md:z-50"
+                    style={getFinalColumnStyle(finalColumnWidth)}
+                    className={[
+                      'sticky top-8 z-40 h-14 bg-surface-2 text-xs font-semibold tabular-nums text-text-muted md:right-0 md:z-50',
+                      FINAL_COLUMN_SEPARATOR_CLASS,
+                    ].join(' ')}
                   >
                     <div className="flex flex-col items-end gap-0.5">
                       <span>Total {assessmentWeightTotal}</span>
@@ -652,21 +992,19 @@ function AssessmentMatrixTable({
                 )}
               </DataTableHeaderCell>
               {renderedIdentityColumns.map((column, index) => (
-                <SortableHeaderCell
+                <ResizableIdentityHeaderCell
                   key={column.key}
-                  label={column.label}
-                  isActive={sortColumn === column.key}
-                  direction={sortDirection}
-                  onClick={() => handleSort(column.key)}
-                  density="tight"
-                  className={[
-                    'sticky z-40 bg-surface-2',
-                    headerTopClass,
-                    getIdentityStickyClass(index, editMode),
-                    column.widthClass,
-                    editColumnBorderClass,
-                    !visibleColumns[column.key] ? 'text-text-muted' : '',
-                  ].join(' ')}
+                  column={column}
+                  index={index}
+                  renderedColumns={renderedIdentityColumns}
+                  editMode={editMode}
+                  headerTopClass={headerTopClass}
+                  hidden={!visibleColumns[column.key]}
+                  columnWidths={identityColumnWidths}
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                  onColumnWidthChange={onIdentityColumnWidthChange}
                 />
               ))}
               {renderedAssessmentColumns.map((column) => {
@@ -710,16 +1048,12 @@ function AssessmentMatrixTable({
                 )
               })}
               {renderFinalColumn ? (
-                <DataTableHeaderCell
-                  align="right"
-                  className={[
-                    'sticky z-30 min-w-20 bg-surface-2 text-xs sm:text-sm md:right-0 md:z-40',
-                    headerTopClass,
-                    !visibleColumns.final ? 'text-text-muted opacity-60' : '',
-                  ].join(' ')}
-                >
-                  Final
-                </DataTableHeaderCell>
+                <ResizableFinalHeaderCell
+                  headerTopClass={headerTopClass}
+                  hidden={!visibleColumns.final}
+                  finalColumnWidth={finalColumnWidth}
+                  onFinalColumnWidthChange={onFinalColumnWidthChange}
+                />
               ) : null}
             </DataTableRow>
           </DataTableHead>
@@ -773,11 +1107,10 @@ function AssessmentMatrixTable({
                     return (
                       <DataTableCell
                         key={column.key}
+                        style={getIdentityColumnStyle(column, index, editMode, renderedIdentityColumns, identityColumnWidths)}
                         className={[
                           'sticky z-20',
-                          getIdentityStickyClass(index, editMode),
-                          column.widthClass,
-                          editColumnBorderClass,
+                          getIdentityColumnBorderClass(index, editMode, renderedIdentityColumns),
                           isSelected ? 'bg-surface-selected group-hover:bg-surface-selected' : 'bg-surface group-hover:bg-surface-hover',
                           column.key === 'id' ? 'text-text-muted' : '',
                           hidden ? 'bg-surface-2 text-text-muted group-hover:bg-surface-hover' : '',
@@ -818,8 +1151,10 @@ function AssessmentMatrixTable({
                   {renderFinalColumn ? (
                     <DataTableCell
                       align="right"
+                      style={getFinalColumnStyle(finalColumnWidth)}
                       className={[
-                        'min-w-20 whitespace-nowrap text-xs font-semibold tabular-nums sm:text-sm md:sticky md:right-0 md:z-20',
+                        'whitespace-nowrap text-xs font-semibold tabular-nums sm:text-sm md:sticky md:right-0 md:z-20',
+                        FINAL_COLUMN_SEPARATOR_CLASS,
                         isSelected ? 'bg-surface-selected group-hover:bg-surface-selected' : 'bg-surface group-hover:bg-surface-hover',
                         !visibleColumns.final ? 'bg-surface-2 text-text-muted' : '',
                       ].join(' ')}
@@ -861,11 +1196,10 @@ function AssessmentMatrixTable({
                     {renderedIdentityColumns.map((column, index) => (
                       <DataTableCell
                         key={`average:${column.key}`}
+                        style={getIdentityColumnStyle(column, index, editMode, renderedIdentityColumns, identityColumnWidths)}
                         className={[
                         'sticky z-20 bg-surface-2',
-                        getIdentityStickyClass(index, editMode),
-                        column.widthClass,
-                        editColumnBorderClass,
+                        getIdentityColumnBorderClass(index, editMode, renderedIdentityColumns),
                         editMode && index === 0 ? 'text-xs font-semibold uppercase tracking-wide text-text-muted' : '',
                       ].join(' ')}
                       >
@@ -892,8 +1226,10 @@ function AssessmentMatrixTable({
                     {renderFinalColumn ? (
                       <DataTableCell
                         align="right"
+                        style={getFinalColumnStyle(finalColumnWidth)}
                         className={[
-                          'min-w-20 whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-20',
+                          'whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-20',
+                          FINAL_COLUMN_SEPARATOR_CLASS,
                           visibleColumns.final ? 'text-text-default' : 'text-text-muted',
                         ].join(' ')}
                       >
@@ -924,11 +1260,10 @@ function AssessmentMatrixTable({
                     {renderedIdentityColumns.map((column, index) => (
                       <DataTableCell
                         key={`median:${column.key}`}
+                        style={getIdentityColumnStyle(column, index, editMode, renderedIdentityColumns, identityColumnWidths)}
                         className={[
                         'sticky z-20 bg-surface-2',
-                        getIdentityStickyClass(index, editMode),
-                        column.widthClass,
-                        editColumnBorderClass,
+                        getIdentityColumnBorderClass(index, editMode, renderedIdentityColumns),
                         editMode && index === 0 ? 'text-xs font-semibold uppercase tracking-wide text-text-muted' : '',
                       ].join(' ')}
                       >
@@ -955,8 +1290,10 @@ function AssessmentMatrixTable({
                     {renderFinalColumn ? (
                       <DataTableCell
                         align="right"
+                        style={getFinalColumnStyle(finalColumnWidth)}
                         className={[
-                          'min-w-20 whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-20',
+                          'whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-20',
+                          FINAL_COLUMN_SEPARATOR_CLASS,
                           visibleColumns.final ? 'text-text-default' : 'text-text-muted',
                         ].join(' ')}
                       >
@@ -980,12 +1317,16 @@ export function TeacherGradebookTab({
 }: Props) {
   const section: GradebookSection = sectionParam === 'settings' ? 'settings' : 'grades'
   const isReadOnly = !!classroom.archived_at
+  const { showMessage } = useAppMessage()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [scoreDisplayMode, setScoreDisplayMode] = useState<ScoreDisplayMode>('percent')
   const [columnEditorOpen, setColumnEditorOpen] = useState(section === 'settings')
   const [visibleColumns, setVisibleColumns] =
     useState<Record<GradebookFixedColumn, boolean>>(DEFAULT_VISIBLE_COLUMNS)
+  const [identityColumnWidths, setIdentityColumnWidths] =
+    useState<Record<GradebookIdentityColumn, number>>(DEFAULT_IDENTITY_COLUMN_WIDTHS)
+  const [finalColumnWidth, setFinalColumnWidth] = useState(FINAL_COLUMN_DEFAULT_WIDTH)
   const [visibleSummaryRows, setVisibleSummaryRows] =
     useState<Record<GradebookSummaryRow, boolean>>(DEFAULT_VISIBLE_SUMMARY_ROWS)
   const [hiddenAssessmentColumnKeys, setHiddenAssessmentColumnKeys] = useState<Set<string>>(() => new Set())
@@ -1030,6 +1371,15 @@ export function TeacherGradebookTab({
   )
   const rowKeys = useMemo(() => sortedStudents.map((student) => student.student_id), [sortedStudents])
   const { selectedIds, toggleSelect, toggleSelectAll, allSelected } = useStudentSelection(rowKeys)
+  const selectedStudents = useMemo(
+    () => sortedStudents.filter((student) => selectedIds.has(student.student_id)),
+    [selectedIds, sortedStudents],
+  )
+  const selectedStudentEmails = useMemo(
+    () => getValidEmailList(selectedStudents.map((student) => student.student_email)),
+    [selectedStudents],
+  )
+  const someStudentsSelected = selectedIds.size > 0
   const {
     scrollRef: gradebookTableScrollRef,
     preserveScrollPosition: preserveGradebookTableScrollPosition,
@@ -1107,6 +1457,58 @@ export function TeacherGradebookTab({
     onSectionChange(active ? 'settings' : 'grades')
   }
 
+  function handleScoreDisplayModeChange(nextMode: ScoreDisplayMode) {
+    setScoreDisplayMode(nextMode)
+    if (columnEditorOpen) {
+      setColumnEditorOpen(false)
+    }
+    onSectionChange('grades')
+  }
+
+  async function copySelectedEmailsToClipboard() {
+    if (selectedStudentEmails.length === 0) {
+      showMessage({ text: 'No selected student emails', tone: 'warning' })
+      return
+    }
+
+    const text = selectedStudentEmails.join(', ')
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
+    showMessage({ text: 'Student emails copied', tone: 'success' })
+  }
+
+  function openDefaultEmail(emails: string[]) {
+    if (emails.length === 0) {
+      showMessage({ text: 'No selected student emails', tone: 'warning' })
+      return
+    }
+    window.location.href = `mailto:?bcc=${encodeURIComponent(emails.join(','))}`
+  }
+
+  function openGmail(emails: string[]) {
+    if (emails.length === 0) {
+      showMessage({ text: 'No selected student emails', tone: 'warning' })
+      return
+    }
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&bcc=${encodeURIComponent(emails.join(','))}`, '_blank')
+  }
+
+  function openOutlook(emails: string[]) {
+    if (emails.length === 0) {
+      showMessage({ text: 'No selected student emails', tone: 'warning' })
+      return
+    }
+    window.open(`https://outlook.office.com/mail/deeplink/compose?bcc=${encodeURIComponent(emails.join(','))}`, '_blank')
+  }
+
   function handleStudentSelect(student: GradebookStudentSummary) {
     preserveGradebookTableScrollPosition()
     setSelectedStudentId((previous) => (
@@ -1123,6 +1525,17 @@ export function TeacherGradebookTab({
     if (column === sortColumn && !visible) {
       setSortState({ column: visibleIdentityColumns[0].key, direction: 'asc' })
     }
+  }
+
+  function handleIdentityColumnWidthChange(column: GradebookIdentityColumn, width: number) {
+    setIdentityColumnWidths((previous) => ({
+      ...previous,
+      [column]: clampIdentityColumnWidth(column, width),
+    }))
+  }
+
+  function handleFinalColumnWidthChange(width: number) {
+    setFinalColumnWidth(clampFinalColumnWidth(width))
   }
 
   function handleAssessmentColumnVisibleChange(column: GradebookAssessmentColumn, visible: boolean) {
@@ -1202,33 +1615,107 @@ export function TeacherGradebookTab({
   }
 
   const isSettingsActive = columnEditorOpen
+  const scoreDisplayOptions: SplitButtonOption[] = [
+    {
+      id: 'show-percent',
+      label: 'Show %',
+      onSelect: () => handleScoreDisplayModeChange('percent'),
+      checked: scoreDisplayMode === 'percent',
+    },
+    {
+      id: 'show-raw',
+      label: 'Show Raw',
+      onSelect: () => handleScoreDisplayModeChange('raw'),
+      checked: scoreDisplayMode === 'raw',
+    },
+  ]
+  const settingsActionOption: SplitButtonOption = {
+    id: 'toggle-settings',
+    label: isSettingsActive ? 'Hide settings' : 'Settings',
+    icon: isSettingsActive ? (
+      <X className="h-4 w-4" aria-hidden="true" />
+    ) : (
+      <Pencil className="h-4 w-4" aria-hidden="true" />
+    ),
+    onSelect: () => handleSettingsActiveChange(!isSettingsActive),
+  }
+  const gradebookActionOptions: SplitButtonOption[] = someStudentsSelected
+    ? [
+        settingsActionOption,
+        ...scoreDisplayOptions,
+        {
+          id: 'copy-selected-emails',
+          label: `Copy selected emails (${selectedStudentEmails.length})`,
+          icon: <Copy className="h-4 w-4" aria-hidden="true" />,
+          onSelect: () => {
+            void copySelectedEmailsToClipboard()
+          },
+          disabled: selectedStudentEmails.length === 0,
+          dividerBefore: true,
+        },
+        {
+          id: 'gmail-selected-students',
+          label: 'Gmail',
+          icon: <Mail className="h-4 w-4" aria-hidden="true" />,
+          onSelect: () => openGmail(selectedStudentEmails),
+          disabled: selectedStudentEmails.length === 0,
+        },
+        {
+          id: 'outlook-selected-students',
+          label: 'Outlook',
+          icon: <Mail className="h-4 w-4" aria-hidden="true" />,
+          onSelect: () => openOutlook(selectedStudentEmails),
+          disabled: selectedStudentEmails.length === 0,
+        },
+      ]
+    : [
+        ...scoreDisplayOptions,
+        {
+          id: 'email-placeholder',
+          label: 'Select students to email',
+          onSelect: () => {},
+          disabled: true,
+          dividerBefore: true,
+        },
+      ]
 
   const actionBar = (
     <TeacherWorkSurfaceActionBar
       center={
-        <div aria-label="Gradebook controls" className="flex items-center gap-1">
-          <SegmentedControl<ScoreDisplayMode>
-            ariaLabel="Score display"
-            value={scoreDisplayMode}
-            onChange={(nextMode) => {
-              setScoreDisplayMode(nextMode)
-              onSectionChange('grades')
-            }}
-            options={[
-              { value: 'percent', label: '%' },
-              { value: 'raw', label: 'Raw' },
-            ]}
-          />
-          <TeacherEditModeControls
-            active={isSettingsActive}
-            onActiveChange={handleSettingsActiveChange}
-            editLabel="Settings"
-            activeTooltip="Hide settings"
-            inactiveTooltip="Show settings"
-            variant="surface"
-            className="[&>button]:gap-0 [&>button]:px-2.5 [&>button>span]:sr-only"
-          />
-        </div>
+        <SplitButton
+          label={
+            someStudentsSelected ? (
+              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                <Mail className="h-4 w-4" aria-hidden="true" />
+                <span>Email ({selectedStudentEmails.length})</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                {isSettingsActive ? (
+                  <X className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <Pencil className="h-4 w-4" aria-hidden="true" />
+                )}
+                <span>{isSettingsActive ? 'Done' : 'Settings'}</span>
+              </span>
+            )
+          }
+          onPrimaryClick={() => {
+            if (someStudentsSelected) {
+              openDefaultEmail(selectedStudentEmails)
+              return
+            }
+            handleSettingsActiveChange(!isSettingsActive)
+          }}
+          options={gradebookActionOptions}
+          variant="surface"
+          size="sm"
+          toggleAriaLabel="Gradebook actions"
+          menuPlacement="down"
+          primaryButtonProps={{
+            'aria-pressed': !someStudentsSelected ? isSettingsActive : undefined,
+          }}
+        />
       }
       centerPlacement="floating"
       centerClassName="z-[70]"
@@ -1243,12 +1730,16 @@ export function TeacherGradebookTab({
         displayMode={scoreDisplayMode}
         editMode={columnEditorOpen}
         visibleColumns={visibleColumns}
+        identityColumnWidths={identityColumnWidths}
+        finalColumnWidth={finalColumnWidth}
         visibleSummaryRows={visibleSummaryRows}
         hiddenAssessmentColumnKeys={hiddenAssessmentColumnKeys}
         assessmentWeightDrafts={assessmentWeightDrafts}
         savingAssessmentKey={savingAssessmentKey}
         isReadOnly={isReadOnly}
         onFixedColumnVisibleChange={handleFixedColumnVisibleChange}
+        onIdentityColumnWidthChange={handleIdentityColumnWidthChange}
+        onFinalColumnWidthChange={handleFinalColumnWidthChange}
         onAssessmentColumnVisibleChange={handleAssessmentColumnVisibleChange}
         onSummaryRowVisibleChange={handleSummaryRowVisibleChange}
         onAssessmentWeightDraftChange={handleAssessmentWeightDraftChange}

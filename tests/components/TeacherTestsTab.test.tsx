@@ -2178,6 +2178,8 @@ describe('TeacherTestsTab', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
+          requested_count: 1,
+          deleted_student_count: 1,
           deleted_attempts: 1,
           deleted_responses: 2,
           deleted_focus_events: 1,
@@ -2225,11 +2227,66 @@ describe('TeacherTestsTab', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/teacher/tests/test-1/students/student-1/attempt',
-        expect.objectContaining({ method: 'DELETE' })
+        '/api/teacher/tests/test-1/students/attempts/bulk-delete',
+        expect.objectContaining({ method: 'POST' })
       )
     })
+    const deleteCall = fetchMock.mock.calls.find(
+      ([url]: [string]) => typeof url === 'string' && url === '/api/teacher/tests/test-1/students/attempts/bulk-delete'
+    )
+    expect(JSON.parse(deleteCall?.[1]?.body as string)).toEqual({ student_ids: ['student-1'] })
     expect(await screen.findByLabelText('Status Not started')).toBeInTheDocument()
+  })
+
+  it('keeps selected test work pending when the atomic bulk delete fails', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({
+        students: [
+          makeGradingStudent(),
+          makeGradingStudent({
+            student_id: 'student-2',
+            name: 'Bob Yellow',
+            first_name: 'Bob',
+            last_name: 'Yellow',
+            email: 'bob@example.com',
+          }),
+        ],
+      }))
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Failed to delete selected student test work' }),
+      })
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
+    fireEvent.click(screen.getByLabelText('Select Bob Yellow'))
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /Delete Selected/ }))
+
+    expect(await screen.findByText('Delete 2 selected test work items?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Work' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/teacher/tests/test-1/students/attempts/bulk-delete',
+        expect.objectContaining({ method: 'POST' })
+      )
+    })
+    const deleteCall = fetchMock.mock.calls.find(
+      ([url]: [string]) => typeof url === 'string' && url === '/api/teacher/tests/test-1/students/attempts/bulk-delete'
+    )
+    expect(JSON.parse(deleteCall?.[1]?.body as string).student_ids.sort()).toEqual(['student-1', 'student-2'])
+    expect(await screen.findByText('Failed to delete selected student test work')).toBeInTheDocument()
+    expect(screen.getByText('Delete 2 selected test work items?')).toBeInTheDocument()
+    expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
   })
 
   it('starts a background AI grading run, polls it, and refreshes rows on completion', async () => {
