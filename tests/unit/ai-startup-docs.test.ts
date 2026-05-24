@@ -55,6 +55,10 @@ const requiredStartupFiles = [
   'docs/ai-instructions.md',
 ]
 
+const SESSION_LOG_RETAINED_ENTRY_TARGET = 40
+const SESSION_LOG_ENTRY_SLACK = 20
+const SESSION_LOG_CI_ENTRY_LIMIT = SESSION_LOG_RETAINED_ENTRY_TARGET + SESSION_LOG_ENTRY_SLACK
+
 describe('AI startup docs', () => {
   it('keeps the default startup set under the budget', () => {
     const totalChars = requiredStartupFiles.reduce((sum, file) => sum + readRepoFile(file).length, 0)
@@ -80,11 +84,13 @@ describe('AI startup docs', () => {
 
   it('keeps the rolling session log small', () => {
     const sessionLog = readRepoFile('.ai/SESSION-LOG.md')
+    const trimScript = readRepoFile('scripts/trim-session-log.mjs')
     const entryCount = sessionLog.match(/^## /gm)?.length ?? 0
 
     expect(sessionLog).toContain('Rolling recent session log')
+    expect(trimScript).toContain(`const DEFAULT_KEEP = ${SESSION_LOG_RETAINED_ENTRY_TARGET}`)
     expect(entryCount).toBeGreaterThan(0)
-    expect(entryCount).toBeLessThanOrEqual(20)
+    expect(entryCount).toBeLessThanOrEqual(SESSION_LOG_CI_ENTRY_LIMIT)
     expect(readRepoFile('.ai/JOURNAL-ARCHIVE.md')).toContain('# Pika Project Journal')
   })
 

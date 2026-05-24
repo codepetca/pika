@@ -87,4 +87,38 @@ describe('trim-session-log script', () => {
       rmSync(otherCwd, { recursive: true, force: true })
     }
   })
+
+  it('defaults to retaining the latest 40 session entries', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'pika-session-log-default-'))
+
+    try {
+      mkdirSync(join(repoRoot, 'scripts'), { recursive: true })
+      mkdirSync(join(repoRoot, '.ai'), { recursive: true })
+
+      const copiedScriptPath = join(repoRoot, 'scripts/trim-session-log.mjs')
+      const entries = Array.from({ length: 42 }, (_, index) => {
+        const entryNumber = String(index + 1).padStart(2, '0')
+        return [`## Session Entry ${entryNumber}`, `entry ${index + 1}`].join('\n')
+      })
+
+      writeFileSync(copiedScriptPath, readFileSync(scriptPath, 'utf8'))
+      writeFileSync(
+        join(repoRoot, '.ai/SESSION-LOG.md'),
+        ['# Pika Session Log', '', ...entries].join('\n\n'),
+      )
+
+      execFileSync('node', [copiedScriptPath], { cwd: repoRoot })
+
+      const output = readFileSync(join(repoRoot, '.ai/SESSION-LOG.md'), 'utf8')
+
+      expect(output).toContain('latest 40 entries')
+      expect(output).not.toContain('## Session Entry 01')
+      expect(output).not.toContain('## Session Entry 02')
+      expect(output).toContain('## Session Entry 03')
+      expect(output).toContain('## Session Entry 42')
+      expect(output.match(/^## /gm)).toHaveLength(40)
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
 })

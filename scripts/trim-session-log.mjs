@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const DEFAULT_KEEP = 20
+const DEFAULT_KEEP = 40
 const DEFAULT_SOURCE = '.ai/SESSION-LOG.md'
 const DEFAULT_OUTPUT = '.ai/SESSION-LOG.md'
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -44,7 +44,7 @@ function parseArgs(argv) {
 
 function usage() {
   return [
-    'Usage: node scripts/trim-session-log.mjs [--keep 20] [--source .ai/SESSION-LOG.md] [--output .ai/SESSION-LOG.md]',
+    'Usage: node scripts/trim-session-log.mjs [--keep 40] [--source .ai/SESSION-LOG.md] [--output .ai/SESSION-LOG.md]',
     '',
     'Keeps the latest session entries, where each entry starts with a markdown "## " heading.',
   ].join('\n')
@@ -69,7 +69,7 @@ function buildSessionLog(entries) {
     '',
     '**Rules:**',
     '- Append one concise entry for meaningful work at the end of a session.',
-    '- Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.',
+    '- Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 40 entries.',
     '- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.',
     '',
     '',

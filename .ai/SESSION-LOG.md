@@ -4,7 +4,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Rules:**
 - Append one concise entry for meaningful work at the end of a session.
-- Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
+- Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 40 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
 ## 2026-05-20 — Assignment repo follow-up
@@ -305,3 +305,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Targeted Playwright screenshot: `/tmp/pika-roster-multi-delete-dropdown.png`
 - `E2E_BASE_URL=http://127.0.0.1:3100 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=roster'`
 - Playwright screenshots: `/tmp/pika-roster-dropdown.png`, `/tmp/pika-roster-remove-confirm.png`, `/tmp/pika-roster-dropdown-dark.png`
+
+## 2026-05-24 — Session log retention slack
+
+**Completed:**
+- Changed the session log trim target from 20 to 40 entries for better AI continuity.
+- Changed the startup-doc CI guard to allow 20 entries of slack above the trim target.
+- Updated the trim script, startup guidance, and planning docs to describe the 40-entry target and 60-entry hard cap.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts`
+- `node scripts/trim-session-log.mjs --help`
+- `git diff --check`
