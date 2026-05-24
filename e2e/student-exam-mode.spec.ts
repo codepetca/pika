@@ -283,4 +283,58 @@ test.describe('student exam mode', () => {
       await cleanupTest(browser, testId)
     }
   })
+
+  test('records restored away focus without hiding the open-response draft', async ({ browser, page }) => {
+    test.setTimeout(90_000)
+    let testId: string | null = null
+
+    try {
+      await page.goto('/classrooms', { waitUntil: 'domcontentloaded' })
+
+      const testTitle = uniqueTitle()
+      const classroom = await withTeacherPage(browser, async (teacherPage) => {
+        const shared = await findSharedClassroom(page, teacherPage)
+        const testRecord = await createActiveOpenResponseTest(teacherPage, shared.id, testTitle)
+        testId = testRecord.id
+        return shared
+      })
+
+      await page.goto(`/classrooms/${classroom.id}?tab=tests`, { waitUntil: 'domcontentloaded' })
+      await page.getByRole('button', { name: new RegExp(testTitle) }).first().click()
+      await prepareExamWindowForViewportCompliance(page)
+
+      await page.getByRole('button', { name: 'Start the Test' }).click()
+      await page.getByRole('button', { name: 'Start test' }).click()
+
+      const splitShell = page.locator('[data-testid="student-test-split-container"]')
+      await expect(splitShell).toBeVisible({ timeout: 15_000 })
+
+      const responseBox = page.locator('textarea[placeholder="Write your response..."]')
+      await expect(responseBox).toBeVisible()
+      await responseBox.fill('Draft remains mounted while focus is restored.')
+      await expect(page.getByText('Saved')).toBeVisible({ timeout: 20_000 })
+
+      await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+      await page.waitForTimeout(1100)
+      await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+
+      await expect(page.locator('[data-testid="exam-content-obscurer"]')).toHaveCount(0)
+      await expect(responseBox).toBeVisible()
+      await expect(responseBox).toHaveValue('Draft remains mounted while focus is restored.')
+
+      await expect.poll(async () => {
+        if (!testId) return { awayCount: 0, awayTotalSeconds: 0 }
+        const detail = await loadJson<StudentTestDetailRecord>(page, `/api/student/tests/${testId}`)
+        return {
+          awayCount: detail.focus_summary?.away_count ?? 0,
+          awayTotalSeconds: detail.focus_summary?.away_total_seconds ?? 0,
+        }
+      }).toMatchObject({ awayCount: 1, awayTotalSeconds: 1 })
+      await expect(
+        page.locator('[data-testid="student-test-documents-pane"]').getByLabel(/Away\/focus 1/)
+      ).toBeVisible()
+    } finally {
+      await cleanupTest(browser, testId)
+    }
+  })
 })
