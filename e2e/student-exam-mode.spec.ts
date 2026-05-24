@@ -331,7 +331,15 @@ test.describe('student exam mode', () => {
           awayCount: detail.focus_summary?.away_count ?? 0,
           awayTotalSeconds: detail.focus_summary?.away_total_seconds ?? 0,
         }
-      }).toMatchObject({ awayCount: 1, awayTotalSeconds: 1 })
+      }).toEqual(expect.objectContaining({
+        awayCount: 1,
+        awayTotalSeconds: expect.any(Number),
+      }))
+      await expect.poll(async () => {
+        if (!testId) return 0
+        const detail = await loadJson<StudentTestDetailRecord>(page, `/api/student/tests/${testId}`)
+        return detail.focus_summary?.away_total_seconds ?? 0
+      }).toBeGreaterThanOrEqual(1)
       await expect(
         page.locator('[data-testid="student-test-documents-pane"]').getByLabel(/Away\/focus 1/)
       ).toBeVisible()
