@@ -24,6 +24,8 @@ interface AssessmentDraftRecord {
 
 interface StudentTestDetailRecord {
   focus_summary?: {
+    away_count?: number
+    away_total_seconds?: number
     route_exit_attempts?: number
   } | null
 }
