@@ -1,7 +1,8 @@
 'use client'
 
-import { ChevronDown } from 'lucide-react'
+import { Check, ChevronDown } from 'lucide-react'
 import {
+  Fragment,
   useCallback,
   useEffect,
   useId,
@@ -18,6 +19,9 @@ export interface SplitButtonOption {
   label: ReactNode
   onSelect: () => void
   disabled?: boolean
+  icon?: ReactNode
+  checked?: boolean
+  dividerBefore?: boolean
   onHoverChange?: (hovered: boolean) => void
 }
 
@@ -50,6 +54,7 @@ export function SplitButton({
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const menuId = useId()
+  const hasLeadingVisual = options.some((option) => option.icon || option.checked !== undefined)
 
   const clearOptionHover = useCallback(() => {
     options.forEach((option) => option.onHoverChange?.(false))
@@ -134,23 +139,39 @@ export function SplitButton({
           )}
         >
           {options.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              role="menuitem"
-              disabled={option.disabled}
-              onMouseEnter={() => option.onHoverChange?.(true)}
-              onMouseLeave={() => option.onHoverChange?.(false)}
-              onFocus={() => option.onHoverChange?.(true)}
-              onBlur={() => option.onHoverChange?.(false)}
-              onClick={(event) => {
-                event.stopPropagation()
-                handleOptionSelect(option.onSelect)
-              }}
-              className="w-full rounded-sm px-2 py-1.5 text-left text-sm text-text-default hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {option.label}
-            </button>
+            <Fragment key={option.id}>
+              {option.dividerBefore ? (
+                <div role="separator" className="my-1 border-t border-border" />
+              ) : null}
+              <button
+                type="button"
+                role={option.checked === undefined ? 'menuitem' : 'menuitemradio'}
+                aria-checked={option.checked === undefined ? undefined : option.checked}
+                disabled={option.disabled}
+                onMouseEnter={() => option.onHoverChange?.(true)}
+                onMouseLeave={() => option.onHoverChange?.(false)}
+                onFocus={() => option.onHoverChange?.(true)}
+                onBlur={() => option.onHoverChange?.(false)}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  handleOptionSelect(option.onSelect)
+                }}
+                className="w-full rounded-sm px-2 py-1.5 text-left text-sm text-text-default hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <span className="inline-flex w-full items-center gap-2 whitespace-nowrap">
+                  {hasLeadingVisual ? (
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                      {option.checked ? (
+                        <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+                      ) : (
+                        option.icon
+                      )}
+                    </span>
+                  ) : null}
+                  <span className="min-w-0 flex-1">{option.label}</span>
+                </span>
+              </button>
+            </Fragment>
           ))}
         </div>
       )}

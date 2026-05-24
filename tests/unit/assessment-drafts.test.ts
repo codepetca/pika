@@ -442,6 +442,36 @@ describe('assessment drafts', () => {
     expect(deletes).toEqual([QUIZ_ID_2])
   })
 
+  it('returns a 500 error when syncing quiz questions fails during insert', async () => {
+    const supabase = {
+      from: vi.fn((_table: string) => ({
+        select: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue({
+            data: [{ id: QUIZ_ID_1 }],
+            error: null,
+          }),
+        })),
+        update: vi.fn(),
+        insert: vi.fn().mockResolvedValue({ error: { message: 'insert failed' } }),
+        delete: vi.fn(),
+      })),
+    }
+
+    await expect(
+      syncQuizQuestionsFromDraft(supabase, 'quiz-1', {
+        title: 'Quiz',
+        show_results: false,
+        questions: [
+          { id: '55555555-5555-4555-8555-555555555555', question_text: 'New', options: ['C', 'D'] },
+        ],
+      })
+    ).resolves.toEqual({
+      ok: false,
+      status: 500,
+      error: 'Failed to insert synced quiz question',
+    })
+  })
+
   it('returns a 500 error when syncing test questions fails during update', async () => {
     const supabase = {
       from: vi.fn((_table: string) => ({
@@ -485,5 +515,107 @@ describe('assessment drafts', () => {
       status: 500,
       error: 'Failed to update synced test question',
     })
+  })
+
+  it('syncs test questions by updating existing rows, inserting new rows, and deleting removed rows', async () => {
+    const updates: Array<Record<string, unknown>> = []
+    const inserts: Array<Record<string, unknown>> = []
+    const deletes: Array<string> = []
+
+    const supabase = {
+      from: vi.fn((_table: string) => ({
+        select: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue({
+            data: [{ id: TEST_ID_1 }, { id: TEST_ID_2 }],
+            error: null,
+          }),
+        })),
+        update: vi.fn((payload: Record<string, unknown>) => {
+          updates.push(payload)
+          return {
+            eq: vi.fn(() => ({
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            })),
+          }
+        }),
+        insert: vi.fn((payload: Record<string, unknown>) => {
+          inserts.push(payload)
+          return Promise.resolve({ error: null })
+        }),
+        delete: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn((_column: string, id: string) => {
+              deletes.push(id)
+              return Promise.resolve({ error: null })
+            }),
+          })),
+        })),
+      })),
+    }
+
+    await expect(
+      syncTestQuestionsFromDraft(supabase, 'test-1', {
+        title: 'Test',
+        show_results: false,
+        questions: [
+          {
+            id: TEST_ID_1,
+            question_type: 'multiple_choice',
+            question_text: 'Updated',
+            options: ['A', 'B'],
+            correct_option: 0,
+            answer_key: null,
+            sample_solution: null,
+            points: 2,
+            response_max_chars: 5000,
+            response_monospace: false,
+          },
+          {
+            id: '66666666-6666-4666-8666-666666666666',
+            question_type: 'open_response',
+            question_text: 'New',
+            options: [],
+            correct_option: null,
+            answer_key: 'Key',
+            sample_solution: null,
+            points: 1,
+            response_max_chars: 1200,
+            response_monospace: true,
+          },
+        ],
+      })
+    ).resolves.toEqual({ ok: true })
+
+    expect(updates).toEqual([
+      {
+        question_type: 'multiple_choice',
+        question_text: 'Updated',
+        options: ['A', 'B'],
+        correct_option: 0,
+        answer_key: null,
+        sample_solution: null,
+        points: 2,
+        response_max_chars: 5000,
+        response_monospace: false,
+        position: 0,
+      },
+    ])
+    expect(inserts).toEqual([
+      {
+        id: '66666666-6666-4666-8666-666666666666',
+        test_id: 'test-1',
+        question_type: 'open_response',
+        question_text: 'New',
+        options: [],
+        correct_option: null,
+        answer_key: 'Key',
+        sample_solution: null,
+        points: 1,
+        response_max_chars: 1200,
+        response_monospace: true,
+        position: 1,
+      },
+    ])
+    expect(deletes).toEqual([TEST_ID_2])
   })
 })

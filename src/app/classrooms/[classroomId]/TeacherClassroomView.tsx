@@ -1808,6 +1808,9 @@ export function TeacherClassroomView({
   } = useScrollPositionMemory<HTMLDivElement>({
     key: selectedAssignmentId,
     enabled: splitPaneView !== 'content-grading',
+    storageKey: selectedAssignmentId
+      ? `teacher-assignment-student-scroll:${classroom.id}:${selectedAssignmentId}`
+      : null,
     restoreToken: [
       activeSelectedStudentId ?? 'none',
       currentStudentRows.length,
