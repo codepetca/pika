@@ -1606,23 +1606,17 @@ export function TeacherTestsTab({
     setGradingError('')
     setGradingInfo('')
     try {
-      let deletedCount = 0
-      for (const studentId of targetStudentIds) {
-        const response = await fetch(`${apiBasePath}/${selectedTestId}/students/${studentId}/attempt`, {
-          method: 'DELETE',
-        })
-        const data = await response.json()
-        if (!response.ok) {
-          throw new Error(data.error || 'Delete failed')
-        }
-
-        const deletedAttempts = Number(data.deleted_attempts ?? 0)
-        const deletedResponses = Number(data.deleted_responses ?? 0)
-        if (deletedAttempts > 0 || deletedResponses > 0) {
-          deletedCount += 1
-        }
+      const response = await fetch(`${apiBasePath}/${selectedTestId}/students/attempts/bulk-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_ids: targetStudentIds }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Delete failed')
       }
 
+      const deletedCount = Number(data.deleted_student_count ?? 0)
       setGradingInfo(`Deleted test work for ${deletedCount} student${deletedCount === 1 ? '' : 's'}`)
       if (selectedStudentId && targetStudentIds.includes(selectedStudentId)) {
         selectGradingStudent(null)
