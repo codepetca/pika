@@ -62,8 +62,16 @@ describe('TeacherAssignmentStudentTable', () => {
 
     expect(screen.getByText('Ada')).toBeInTheDocument()
     expect(screen.getByText('Lovelace')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /first/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /last/i })).toBeInTheDocument()
+    expect(screen.queryByText('First Name')).not.toBeInTheDocument()
+    expect(screen.queryByText('Last Name')).not.toBeInTheDocument()
     expect(screen.getByText('90')).toBeInTheDocument()
     expect(screen.getAllByText('Artifacts')).toHaveLength(2)
+    expect(screen.getByRole('separator', { name: 'Resize First column' })).toBeInTheDocument()
+    expect(screen.getByRole('separator', { name: 'Resize Last column' })).toBeInTheDocument()
+    expect(screen.getByRole('separator', { name: 'Resize Status column' })).toBeInTheDocument()
+    expect(screen.getByRole('separator', { name: 'Resize Grade column' })).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Select all students' })).toBeChecked()
   })
 
