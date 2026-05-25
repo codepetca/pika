@@ -308,6 +308,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added atomic requirement replacement RPC so teacher requirement edits cannot partially delete student artifacts.
 - Preserved existing requirement IDs on teacher edits so student artifacts remain attached; refreshed screenshot signed URLs from storage paths.
 - Added screenshot replacement cleanup for replaced files and failed DB writes.
+- Folded the atomic replacement RPC into the base assignment submission requirements migration and removed the unapplied follow-up migration.
 
 **Validation:**
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
@@ -323,3 +324,5 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -c "select has_function_privilege('anon', 'public.replace_assignment_submission_requirements_atomic(uuid, jsonb)', 'execute') as anon_execute, has_function_privilege('authenticated', 'public.replace_assignment_submission_requirements_atomic(uuid, jsonb)', 'execute') as authenticated_execute, has_function_privilege('service_role', 'public.replace_assignment_submission_requirements_atomic(uuid, jsonb)', 'execute') as service_role_execute;"`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=assignments'`
 - Focused Playwright screenshots: `/tmp/pika-teacher-requirements-modal.png`, `/tmp/pika-student-requirements-checklist-clean.png`
+- `pnpm test tests/unit/migration-filenames.test.ts`
+- `git diff --check`
