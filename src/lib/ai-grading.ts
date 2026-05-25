@@ -238,16 +238,36 @@ function formatArtifactLabel(artifact: AssignmentArtifact): string {
   }
 }
 
-export function hasGradableAssignmentSubmission(studentWork: TiptapContent): boolean {
+function mergeAssignmentArtifacts(
+  extractedArtifacts: AssignmentArtifact[],
+  structuredArtifacts: AssignmentArtifact[] = []
+): AssignmentArtifact[] {
+  const byUrl = new Map<string, AssignmentArtifact>()
+  for (const artifact of [...structuredArtifacts, ...extractedArtifacts]) {
+    if (!artifact.url) continue
+    const existing = byUrl.get(artifact.url)
+    if (existing?.type === 'image') continue
+    byUrl.set(artifact.url, artifact)
+  }
+  return Array.from(byUrl.values())
+}
+
+export function hasGradableAssignmentSubmission(
+  studentWork: TiptapContent,
+  submissionArtifacts: AssignmentArtifact[] = []
+): boolean {
   const studentText = extractPlainText(studentWork).trim()
-  const artifacts = extractAssignmentArtifacts(studentWork)
+  const artifacts = mergeAssignmentArtifacts(extractAssignmentArtifacts(studentWork), submissionArtifacts)
 
   return studentText.length > 0 || artifacts.length > 0
 }
 
-function buildStudentSubmissionText(studentWork: TiptapContent): string {
+function buildStudentSubmissionText(
+  studentWork: TiptapContent,
+  submissionArtifacts: AssignmentArtifact[] = []
+): string {
   const studentText = extractPlainText(studentWork).trim()
-  const artifacts = extractAssignmentArtifacts(studentWork)
+  const artifacts = mergeAssignmentArtifacts(extractAssignmentArtifacts(studentWork), submissionArtifacts)
   const sections: string[] = []
 
   if (studentText) {
@@ -265,7 +285,7 @@ function buildStudentSubmissionText(studentWork: TiptapContent): string {
     sections.push(`Attached Artifacts:\n${artifactLines.join('\n')}`)
   }
 
-  if (!hasGradableAssignmentSubmission(studentWork)) {
+  if (!hasGradableAssignmentSubmission(studentWork, submissionArtifacts)) {
     throw new Error('Student work is empty')
   }
 
@@ -296,9 +316,10 @@ export function buildAssignmentGradingRequest(opts: {
   assignmentTitle: string
   instructions: string
   studentWork: TiptapContent
+  submissionArtifacts?: AssignmentArtifact[]
 }): AssignmentGradingRequest {
   const model = process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
-  const studentSubmission = buildStudentSubmissionText(opts.studentWork)
+  const studentSubmission = buildStudentSubmissionText(opts.studentWork, opts.submissionArtifacts)
 
   return {
     model,
@@ -455,6 +476,7 @@ export async function gradeStudentWork(opts: {
   assignmentTitle: string
   instructions: string
   studentWork: TiptapContent
+  submissionArtifacts?: AssignmentArtifact[]
   previousFeedback?: string | null
   requestTimeoutMs?: number
   telemetry?: AssignmentGradingTelemetryContext
@@ -472,6 +494,7 @@ export async function gradeStudentWork(opts: {
     assignmentTitle: opts.assignmentTitle,
     instructions: opts.instructions,
     studentWork: opts.studentWork,
+    submissionArtifacts: opts.submissionArtifacts,
   })
   const promptMetrics = estimatePromptMetrics(request.systemPrompt, request.userPrompt)
   try {

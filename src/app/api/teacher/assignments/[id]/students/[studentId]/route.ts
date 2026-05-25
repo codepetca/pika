@@ -7,6 +7,8 @@ import {
   loadAssignmentRepoTarget,
   resolveAssignmentRepoTarget,
 } from '@/lib/server/assignment-repo-targets'
+import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
+import { loadAssignmentSubmissionArtifactsForDoc } from '@/lib/server/assignment-submission-artifacts'
 import { loadAssignmentFeedbackEntries } from '@/lib/server/assignment-feedback'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { parseContentField } from '@/lib/tiptap-content'
@@ -88,10 +90,17 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
   if (doc) {
     doc.content = parseContentField(doc.content)
   }
+  const structuredArtifacts = doc?.id
+    ? await loadAssignmentSubmissionArtifactsForDoc(supabase, doc.id)
+    : []
+  const structuredCandidateRepos = submissionArtifactsToAssignmentArtifacts(structuredArtifacts)
+    .filter((artifact) => artifact.type === 'repo')
 
   const status = calculateAssignmentStatus(assignment, doc)
   const repoSelection = resolveAssignmentRepoTarget({
-    candidateRepos: extractRepoArtifactsFromContent(doc?.content),
+    candidateRepos: structuredCandidateRepos.length > 0
+      ? structuredCandidateRepos
+      : extractRepoArtifactsFromContent(doc?.content),
     submittedRepoUrl: doc?.repo_url ?? null,
     submittedGitHubUsername: doc?.github_username ?? null,
     target: repoTarget,
@@ -126,6 +135,7 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
       name: profile ? `${profile.first_name} ${profile.last_name}` : null,
     },
     doc,
+    submission_artifacts: structuredArtifacts,
     status,
     feedback_entries: feedbackEntries,
     repo_target: {

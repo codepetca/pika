@@ -7,23 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-20 — Assignment AI draft comment refresh fix
-
-**Completed:**
-- Prevented stale `ai_feedback_suggestion` values from being merged back into teacher comment drafts after a newer manual edit.
-- Manual assignment comment saves and sent comments now clear consumed AI suggestion metadata so refreshes load the teacher-edited draft as the source of truth.
-- Added UI and API coverage for edited AI comments, single-student saves, and selected-student comment saves.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-grade-selected.test.ts`
-- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-grade-selected.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts`
-- `pnpm lint`
-- `pnpm test`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=assignments"`
-- Reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, and `/tmp/pika-teacher-assignment-detail.png`
-- `pnpm build`
-
 ## 2026-05-21 — Gradebook scroll containment
 
 **Completed:**
@@ -311,3 +294,49 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=tests'`
 - Focused Playwright screenshot: `/tmp/pika-test-work-bulk-delete-dialog.png`
+
+## 2026-05-25 — Assignment submission requirements MVP
+
+**Completed:**
+- Added assignment-level structured submission requirements for `repo_link`, `link`, and `image` with Supabase tables, RLS, and private image storage.
+- Added student artifact APIs and UI checklist; required artifacts now gate submission and can feed grading/repo-review flows.
+- Added account-level GitHub identity storage/validation and reused it for repo requirements.
+- Added teacher assignment modal controls for adding, editing, ordering, and removing requirements.
+- Added blueprint assignment markdown support via `### Submission Requirements`, plus blueprint storage and classroom instantiation into assignment requirements.
+- Removed server-side fetching of arbitrary public-link artifacts; generic links are format-validated only.
+- Blocked invalid/inaccessible submitted artifacts from satisfying required submission gates.
+- Added atomic requirement replacement RPC so teacher requirement edits cannot partially delete student artifacts.
+- Preserved existing requirement IDs on teacher edits so student artifacts remain attached; refreshed screenshot signed URLs from storage paths.
+- Added screenshot replacement cleanup for replaced files and failed DB writes.
+- Folded the atomic replacement RPC into the base assignment submission requirements migration and removed the unapplied follow-up migration.
+- Returned and rendered structured artifacts in the teacher individual work pane so artifact-only submissions do not appear empty.
+- Merged structured artifacts with rich-text artifacts in the teacher assignment roster instead of replacing rich-text artifacts.
+- Preserved inaccessible/invalid GitHub username validation state when saving account-level identity from repo artifacts.
+- Fixed background assignment AI grading run creation so artifact-only submissions are queued instead of being skipped as empty.
+
+**Follow-up:**
+- Add teacher-side image storage cleanup when a submission requirement is deleted. The DB cascade removes related `assignment_submission_artifacts` rows, but image objects referenced by those rows are not currently removed from storage in that delete path.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `supabase migration up --local`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `pnpm exec vitest run tests/unit/assignment-submission-validation.test.ts`
+- `pnpm exec vitest run tests/lib/assignment-submission-artifacts.test.ts tests/unit/assignment-submission-validation.test.ts`
+- `pnpm exec vitest run tests/unit/assignment-submission-validation.test.ts tests/lib/assignment-submission-requirements.test.ts tests/lib/assignment-submission-artifacts.test.ts tests/api/assignment-docs/artifacts.test.ts`
+- `psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -c "begin;" -c "with target_assignment as (select id from public.assignments limit 1), replaced as (select r.* from target_assignment t cross join lateral public.replace_assignment_submission_requirements_atomic(t.id, '[{\"type\":\"link\",\"label\":\"Smoke public link\",\"required\":true,\"position\":0}]'::jsonb) r) select count(*) as replaced_count from replaced;" -c "rollback;"`
+- `psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -c "select has_function_privilege('anon', 'public.replace_assignment_submission_requirements_atomic(uuid, jsonb)', 'execute') as anon_execute, has_function_privilege('authenticated', 'public.replace_assignment_submission_requirements_atomic(uuid, jsonb)', 'execute') as authenticated_execute, has_function_privilege('service_role', 'public.replace_assignment_submission_requirements_atomic(uuid, jsonb)', 'execute') as service_role_execute;"`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=assignments'`
+- Focused Playwright screenshots: `/tmp/pika-teacher-requirements-modal.png`, `/tmp/pika-student-requirements-checklist-clean.png`
+- `pnpm test tests/unit/migration-filenames.test.ts`
+- `pnpm test tests/unit/assignment-submission-validation.test.ts tests/components/TeacherStudentWorkPanel.test.tsx tests/api/teacher/assignments-id.test.ts tests/api/assignment-docs/artifacts.test.ts tests/lib/assignment-submission-requirements.test.ts tests/lib/assignment-submission-artifacts.test.ts`
+- `git diff --check`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=assignments'`
+- Focused Playwright screenshot: `/tmp/pika-teacher-artifact-content-pane.png`
+- `pnpm exec vitest run tests/lib/assignment-ai-grading-runs.test.ts tests/unit/ai-grading.test.ts`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm test`
