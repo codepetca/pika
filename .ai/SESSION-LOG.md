@@ -7,22 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-21 — Returned assignment timing freeze
-
-**Completed:**
-- Fixed returned assignment timing so student-facing labels freeze against preserved `submitted_at` even after teacher return clears `is_submitted`.
-- Added regression coverage for returned late work with `is_submitted: false`, preserved `submitted_at`, and `returned_at`.
-- Rebuilt the fix on a fresh branch from current `origin/main` to avoid carrying stale already-merged commits.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/assignments.test.ts tests/components/StudentAssignmentsTab.test.tsx`
-- `pnpm seed`
-- `pnpm e2e:auth`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/85d6177d-f695-4df2-bbad-2946876d8e16?tab=assignments"`
-- Reviewed `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, and `/tmp/pika-teacher-loaded.png`.
-- `pnpm test`
-
 ## 2026-05-21 — Developer feedback helper
 
 **Completed:**
@@ -340,3 +324,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm test`
+
+## 2026-05-25 — Supabase RLS/Auth hardening for WorkOS
+
+**Completed:**
+- Added migration `075_auth_rls_hardening.sql` with `users.workos_user_id` unique mapping while preserving local UUID user IDs.
+- Enabled RLS and explicit no-direct-access policies on announcements, announcement reads, gradebook settings, quiz score overrides, and report-card tables.
+- Revoked direct public table/sequence/function grants from `anon` and `authenticated`, preserved `service_role`, and hardened migration-owner default privileges.
+- Removed direct authenticated upload/delete storage policies for legacy public buckets while keeping public read behavior.
+- Set stable `search_path` on existing public functions surfaced by Supabase security advisors.
+- Updated architecture/AI guidance for the server-route authorization model and WorkOS posture.
+
+**Validation:**
+- `psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -1 -f supabase/migrations/075_auth_rls_hardening.sql`
+- Metadata checks for RLS, grants, policies, default privileges, and WorkOS index.
+- `supabase db lint --local --schema public,storage --fail-on none` (passes with pre-existing warnings only)
+- `supabase db advisors --local --type security --level warn --fail-on none`
+- `pnpm test tests/api/teacher/announcements.test.ts tests/api/teacher/announcements-id.test.ts tests/api/student/announcements.test.ts tests/api/teacher/gradebook.test.ts tests/api/teacher/gradebook-quiz-overrides.test.ts tests/unit/auth-rls-hardening-migration.test.ts tests/unit/migration-filenames.test.ts`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `git diff --check`
