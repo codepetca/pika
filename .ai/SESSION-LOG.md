@@ -312,6 +312,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Returned and rendered structured artifacts in the teacher individual work pane so artifact-only submissions do not appear empty.
 - Merged structured artifacts with rich-text artifacts in the teacher assignment roster instead of replacing rich-text artifacts.
 - Preserved inaccessible/invalid GitHub username validation state when saving account-level identity from repo artifacts.
+- Fixed background assignment AI grading run creation so artifact-only submissions are queued instead of being skipped as empty.
 
 **Follow-up:**
 - Add teacher-side image storage cleanup when a submission requirement is deleted. The DB cascade removes related `assignment_submission_artifacts` rows, but image objects referenced by those rows are not currently removed from storage in that delete path.
@@ -335,3 +336,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=assignments'`
 - Focused Playwright screenshot: `/tmp/pika-teacher-artifact-content-pane.png`
+- `pnpm exec vitest run tests/lib/assignment-ai-grading-runs.test.ts tests/unit/ai-grading.test.ts`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm test`

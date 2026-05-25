@@ -8,7 +8,10 @@ import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions
 import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
 import { analyzeAuthenticity } from '@/lib/authenticity'
 import { limitedMarkdownToPlainText } from '@/lib/limited-markdown'
-import { loadAssignmentSubmissionArtifactsForDoc } from '@/lib/server/assignment-submission-artifacts'
+import {
+  loadAssignmentSubmissionArtifactsForDoc,
+  loadAssignmentSubmissionArtifactsForDocs,
+} from '@/lib/server/assignment-submission-artifacts'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { parseContentField } from '@/lib/tiptap-content'
 import type {
@@ -18,6 +21,7 @@ import type {
   AssignmentAiGradingRunItem,
   AssignmentAiGradingRunStatus,
   AssignmentAiGradingRunSummary,
+  AssignmentSubmissionArtifact,
   AssignmentDocHistoryEntry,
 } from '@/types'
 
@@ -722,6 +726,14 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
   const docByStudentId = new Map(
     ((docs as Array<{ id: string; student_id: string; content: unknown }> | null) ?? []).map((doc) => [doc.student_id, doc]),
   )
+  const docIds = Array.from(docByStudentId.values()).map((doc) => doc.id)
+  const rawSubmissionArtifacts = await loadAssignmentSubmissionArtifactsForDocs(supabase, docIds)
+  const submissionArtifactsByDocId = new Map<string, AssignmentSubmissionArtifact[]>()
+  for (const artifact of rawSubmissionArtifacts) {
+    const current = submissionArtifactsByDocId.get(artifact.assignment_doc_id) || []
+    current.push(artifact)
+    submissionArtifactsByDocId.set(artifact.assignment_doc_id, current)
+  }
 
   let gradableCount = 0
   let skippedMissingCount = 0
@@ -747,7 +759,10 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
     }
 
     const parsed = parseContentField(doc.content)
-    if (!hasGradableAssignmentSubmission(parsed)) {
+    const submissionArtifacts = submissionArtifactsToAssignmentArtifacts(
+      submissionArtifactsByDocId.get(doc.id) || [],
+    )
+    if (!hasGradableAssignmentSubmission(parsed, submissionArtifacts)) {
       skippedEmptyCount += 1
       return {
         student_id: studentId,
