@@ -6,7 +6,7 @@ import {
   isAssignmentLive,
   isAssignmentScheduledForFuture,
 } from '@/lib/assignments'
-import { extractAssignmentArtifacts } from '@/lib/assignment-artifacts'
+import { extractAssignmentArtifacts, type AssignmentArtifact } from '@/lib/assignment-artifacts'
 import { buildAssignmentInstructionFields, getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getActiveAssignmentAiGradingRunSummary } from '@/lib/server/assignment-ai-grading-runs'
@@ -26,6 +26,20 @@ import {
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+function mergeAssignmentArtifacts(
+  structuredArtifacts: AssignmentArtifact[],
+  contentArtifacts: AssignmentArtifact[]
+): AssignmentArtifact[] {
+  const byUrl = new Map<string, AssignmentArtifact>()
+
+  for (const artifact of [...structuredArtifacts, ...contentArtifacts]) {
+    if (!artifact.url || byUrl.has(artifact.url)) continue
+    byUrl.set(artifact.url, artifact)
+  }
+
+  return Array.from(byUrl.values())
+}
 
 // GET /api/teacher/assignments/[id] - Get assignment details with all student submissions
 export const GET = withErrorHandler('GetTeacherAssignment', async (request, context) => {
@@ -134,9 +148,10 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     const userEmail = (enrollment.users as unknown as { id: string; email: string }).email
     const profile = profileMap.get(enrollment.student_id) || null
     const studentStructuredArtifacts = doc ? (structuredArtifactsByDocId.get(doc.id) || []) : []
-    const artifacts = studentStructuredArtifacts.length > 0
-      ? submissionArtifactsToAssignmentArtifacts(studentStructuredArtifacts)
-      : doc ? extractAssignmentArtifacts(doc.content) : []
+    const artifacts = mergeAssignmentArtifacts(
+      submissionArtifactsToAssignmentArtifacts(studentStructuredArtifacts),
+      doc ? extractAssignmentArtifacts(doc.content) : []
+    )
     const completion = getSubmissionRequirementCompletion(submissionRequirements, studentStructuredArtifacts)
 
     return {

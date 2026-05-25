@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  getGitHubIdentityValidationFromArtifact,
   isBlockedPublicLinkHostname,
   normalizeGitHubLogin,
   normalizePublicUrl,
@@ -54,6 +55,27 @@ describe('assignment submission validation helpers', () => {
         default_branch: 'main',
         github_login: 'student-dev',
       },
+      github_login_validation_status: 'valid',
+      github_login_validation_message: null,
+    })
+
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps account GitHub identity inaccessible when username verification cannot complete', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 503 })))
+
+    const result = await validateAssignmentSubmissionArtifactValue({
+      type: 'repo_link',
+      url: 'https://github.com/codepetca/pika',
+      githubLogin: '@student-dev',
+    })
+
+    expect(result.validation_status).toBe('valid')
+    expect(result.github_login_validation_status).toBe('inaccessible')
+    expect(getGitHubIdentityValidationFromArtifact(result)).toEqual({
+      validation_status: 'inaccessible',
+      validation_message: 'Pika could not verify this GitHub username right now.',
     })
 
     vi.unstubAllGlobals()

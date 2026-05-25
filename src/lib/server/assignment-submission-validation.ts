@@ -13,6 +13,38 @@ export type ArtifactValidationResult = {
   validation_message: string | null
   metadata_json: Record<string, unknown>
   normalized_url: string | null
+  github_login_validation_status?: 'valid' | 'invalid' | 'inaccessible'
+  github_login_validation_message?: string | null
+}
+
+export function getGitHubIdentityValidationFromArtifact(
+  validation: ArtifactValidationResult
+): {
+  validation_status: 'unvalidated' | 'valid' | 'invalid' | 'inaccessible'
+  validation_message: string | null
+} {
+  if (validation.github_login_validation_status === 'valid') {
+    return { validation_status: 'valid', validation_message: null }
+  }
+
+  if (validation.github_login_validation_status === 'invalid') {
+    return {
+      validation_status: 'invalid',
+      validation_message: validation.github_login_validation_message ?? null,
+    }
+  }
+
+  if (validation.github_login_validation_status === 'inaccessible') {
+    return {
+      validation_status: 'inaccessible',
+      validation_message: validation.github_login_validation_message ?? null,
+    }
+  }
+
+  return {
+    validation_status: 'unvalidated',
+    validation_message: validation.validation_message,
+  }
 }
 
 export function normalizeGitHubLogin(value: string | null | undefined): string | null {
@@ -208,19 +240,22 @@ export async function validateAssignmentSubmissionArtifactValue(opts: {
 
     const repoValidation = await validatePublicGitHubRepo(normalizedUrl)
     const githubLogin = normalizeGitHubLogin(opts.githubLogin)
+    let githubLoginValidation: Awaited<ReturnType<typeof validateGitHubLogin>> | null = null
 
     if (githubLogin) {
-      const loginValidation = await validateGitHubLogin(githubLogin)
-      if (loginValidation.validation_status === 'invalid') {
+      githubLoginValidation = await validateGitHubLogin(githubLogin)
+      if (githubLoginValidation.validation_status === 'invalid') {
         return {
           validation_status: 'invalid',
-          validation_message: loginValidation.validation_message,
+          validation_message: githubLoginValidation.validation_message,
           metadata_json: {
             repo_owner: repoValidation.repoOwner || parsed.owner,
             repo_name: repoValidation.repoName || parsed.name,
             github_login: githubLogin,
           },
           normalized_url: parsed.normalizedUrl,
+          github_login_validation_status: githubLoginValidation.validation_status,
+          github_login_validation_message: githubLoginValidation.validation_message,
         }
       }
     }
@@ -240,6 +275,12 @@ export async function validateAssignmentSubmissionArtifactValue(opts: {
         ...(githubLogin ? { github_login: githubLogin } : {}),
       },
       normalized_url: repoValidation.repoUrl || parsed.normalizedUrl,
+      ...(githubLoginValidation
+        ? {
+            github_login_validation_status: githubLoginValidation.validation_status,
+            github_login_validation_message: githubLoginValidation.validation_message,
+          }
+        : {}),
     }
   }
 

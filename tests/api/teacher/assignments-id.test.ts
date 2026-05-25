@@ -160,6 +160,48 @@ describe('GET /api/teacher/assignments/[id]', () => {
         }
       }
 
+      if (table === 'assignment_submission_requirements') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                order: vi.fn().mockResolvedValue({
+                  data: [],
+                  error: null,
+                }),
+              })),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'assignment_submission_artifacts') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: 'artifact-1',
+                  assignment_doc_id: 'doc-1',
+                  requirement_id: 'req-1',
+                  student_id: 'student-1',
+                  type: 'link',
+                  url: 'https://demo.example.com',
+                  storage_path: null,
+                  metadata_json: {},
+                  validation_status: 'valid',
+                  validation_message: null,
+                  validated_at: '2026-03-10T09:35:00.000Z',
+                  created_at: '2026-03-10T09:35:00.000Z',
+                  updated_at: '2026-03-10T09:35:00.000Z',
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -171,6 +213,7 @@ describe('GET /api/teacher/assignments/[id]', () => {
     expect(data.students).toHaveLength(1)
     expect(data.students[0].student_updated_at).toBe(historyCreatedAt)
     expect(data.students[0].artifacts).toEqual([
+      { type: 'link', url: 'https://demo.example.com' },
       { type: 'link', url: 'https://example.com/resource' },
       { type: 'image', url: 'https://cdn.example.com/submission-images/shot.png' },
     ])

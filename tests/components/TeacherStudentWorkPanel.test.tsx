@@ -66,21 +66,25 @@ function makeStudentWork(
     feedbackEntries?: Array<{ id: string; body: string; returned_at: string }>
     repoReviewResult?: Record<string, any> | null
     authenticityScore?: number | null
+    emptyContent?: boolean
+    submissionArtifacts?: Array<Record<string, any>>
   },
 ) {
   const doc = {
     id: `doc-${studentId}`,
     assignment_id: 'assignment-1',
     student_id: studentId,
-    content: {
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: [{ type: 'text', text: `Work for ${studentId}` }],
+    content: opts.emptyContent
+      ? { type: 'doc', content: [] }
+      : {
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: `Work for ${studentId}` }],
+            },
+          ],
         },
-      ],
-    },
     repo_url: null,
     github_username: null,
     is_submitted: true,
@@ -134,6 +138,7 @@ function makeStudentWork(
     classroom: { id: 'classroom-1', title: 'Classroom' },
     student: { id: studentId, email: `${studentId}@example.com`, name: studentId },
     doc,
+    submission_artifacts: opts.submissionArtifacts || [],
     status: 'submitted_on_time',
     feedback_entries: opts.feedbackEntries || [],
     repo_target: {
@@ -174,6 +179,8 @@ function mockFetchByStudent(
       feedbackEntries?: Array<{ id: string; body: string; returned_at: string }>
       repoReviewResult?: Record<string, any> | null
       authenticityScore?: number | null
+      emptyContent?: boolean
+      submissionArtifacts?: Array<Record<string, any>>
       historyEntries?: Array<Record<string, any>>
     }
   >,
@@ -334,6 +341,48 @@ describe('TeacherStudentWorkPanel', () => {
     expect(within(gradesSection).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
     const feedbackSection = screen.getByTestId('inspector-section-comments')
     expect(within(feedbackSection).getByRole('button', { name: 'Send comment' })).toBeInTheDocument()
+  })
+
+  it('renders structured artifacts when the written response is empty', async () => {
+    mockFetchByStudent({
+      'student-1': {
+        graded: false,
+        emptyContent: true,
+        submissionArtifacts: [
+          {
+            id: 'artifact-1',
+            assignment_doc_id: 'doc-student-1',
+            requirement_id: 'req-link',
+            student_id: 'student-1',
+            type: 'link',
+            url: 'https://demo.example.com',
+            storage_path: null,
+            metadata_json: {},
+            validation_status: 'valid',
+            validation_message: null,
+            validated_at: '2026-02-20T12:00:00Z',
+            created_at: '2026-02-20T12:00:00Z',
+            updated_at: '2026-02-20T12:00:00Z',
+          },
+        ],
+      },
+    })
+
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    expect(await screen.findByText('Submitted artifacts')).toBeInTheDocument()
+    expect(screen.getByText('demo.example.com')).toBeInTheDocument()
+    expect(screen.queryByText('No work submitted yet')).not.toBeInTheDocument()
   })
 
   it('uses edit-mode checkboxes to hide inspector cards outside edit mode', async () => {

@@ -309,6 +309,9 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Preserved existing requirement IDs on teacher edits so student artifacts remain attached; refreshed screenshot signed URLs from storage paths.
 - Added screenshot replacement cleanup for replaced files and failed DB writes.
 - Folded the atomic replacement RPC into the base assignment submission requirements migration and removed the unapplied follow-up migration.
+- Returned and rendered structured artifacts in the teacher individual work pane so artifact-only submissions do not appear empty.
+- Merged structured artifacts with rich-text artifacts in the teacher assignment roster instead of replacing rich-text artifacts.
+- Preserved inaccessible/invalid GitHub username validation state when saving account-level identity from repo artifacts.
 
 **Validation:**
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
@@ -325,4 +328,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=assignments'`
 - Focused Playwright screenshots: `/tmp/pika-teacher-requirements-modal.png`, `/tmp/pika-student-requirements-checklist-clean.png`
 - `pnpm test tests/unit/migration-filenames.test.ts`
+- `pnpm test tests/unit/assignment-submission-validation.test.ts tests/components/TeacherStudentWorkPanel.test.tsx tests/api/teacher/assignments-id.test.ts tests/api/assignment-docs/artifacts.test.ts tests/lib/assignment-submission-requirements.test.ts tests/lib/assignment-submission-artifacts.test.ts`
 - `git diff --check`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=assignments'`
+- Focused Playwright screenshot: `/tmp/pika-teacher-artifact-content-pane.png`

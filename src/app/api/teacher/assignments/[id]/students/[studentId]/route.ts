@@ -135,6 +135,7 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
       name: profile ? `${profile.first_name} ${profile.last_name}` : null,
     },
     doc,
+    submission_artifacts: structuredArtifacts,
     status,
     feedback_entries: feedbackEntries,
     repo_target: {

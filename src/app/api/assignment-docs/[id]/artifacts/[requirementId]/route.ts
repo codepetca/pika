@@ -9,6 +9,7 @@ import {
   loadUserGitHubIdentity,
 } from '@/lib/server/assignment-submission-artifacts'
 import {
+  getGitHubIdentityValidationFromArtifact,
   normalizeGitHubLogin,
   validateAssignmentSubmissionArtifactValue,
 } from '@/lib/server/assignment-submission-validation'
@@ -172,13 +173,14 @@ export const PUT = withErrorHandler('PutAssignmentSubmissionArtifact', async (re
   }
 
   if (requirement.type === 'repo_link' && githubLogin && body.save_github_login !== false) {
+    const identityValidation = getGitHubIdentityValidationFromArtifact(validation)
     await supabase
       .from('user_github_identities')
       .upsert({
         user_id: user.id,
         github_login: githubLogin,
-        validation_status: validation.validation_status === 'valid' ? 'valid' : 'unvalidated',
-        validation_message: validation.validation_status === 'valid' ? null : validation.validation_message,
+        validation_status: identityValidation.validation_status,
+        validation_message: identityValidation.validation_message,
         validated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' })
   }
