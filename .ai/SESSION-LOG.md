@@ -313,6 +313,9 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Merged structured artifacts with rich-text artifacts in the teacher assignment roster instead of replacing rich-text artifacts.
 - Preserved inaccessible/invalid GitHub username validation state when saving account-level identity from repo artifacts.
 
+**Follow-up:**
+- Add teacher-side image storage cleanup when a submission requirement is deleted. The DB cascade removes related `assignment_submission_artifacts` rows, but image objects referenced by those rows are not currently removed from storage in that delete path.
+
 **Validation:**
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `supabase migration up --local`
