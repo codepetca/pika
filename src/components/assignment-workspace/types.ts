@@ -6,6 +6,7 @@ import type {
   AssignmentRepoTarget,
   AssignmentRepoTargetSelectionMode,
   AssignmentRepoTargetValidationStatus,
+  AssignmentSubmissionArtifact,
   AssignmentStatus,
 } from '@/types'
 
@@ -16,6 +17,7 @@ export interface StudentWorkData {
   classroom: { id: string; title: string }
   student: { id: string; email: string; name: string | null }
   doc: AssignmentDoc | null
+  submission_artifacts?: AssignmentSubmissionArtifact[]
   status: AssignmentStatus
   feedback_entries: AssignmentFeedbackEntry[]
   repo_target: {

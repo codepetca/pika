@@ -8,6 +8,8 @@ import {
   saveAssignmentRepoTarget,
   validatePublicGitHubRepo,
 } from '@/lib/server/assignment-repo-targets'
+import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
+import { loadAssignmentSubmissionArtifactsForDoc } from '@/lib/server/assignment-submission-artifacts'
 import { assertTeacherOwnsAssignment } from '@/lib/server/repo-review'
 import { getServiceRoleClient } from '@/lib/supabase'
 
@@ -28,14 +30,21 @@ export const PUT = withErrorHandler('PutTeacherAssignmentRepoTarget', async (req
 
   const { data: existingDoc } = await supabase
     .from('assignment_docs')
-    .select('content, repo_url, github_username')
+    .select('id, content, repo_url, github_username')
     .eq('assignment_id', assignmentId)
     .eq('student_id', studentId)
     .maybeSingle()
 
+  const structuredArtifacts = existingDoc?.id
+    ? await loadAssignmentSubmissionArtifactsForDoc(supabase, existingDoc.id)
+    : []
+  const structuredCandidateRepos = submissionArtifactsToAssignmentArtifacts(structuredArtifacts)
+    .filter((artifact) => artifact.type === 'repo')
   let repoTarget = await loadAssignmentRepoTarget(assignmentId, studentId)
   const repoSelection = resolveAssignmentRepoTarget({
-    candidateRepos: extractRepoArtifactsFromContent(existingDoc?.content),
+    candidateRepos: structuredCandidateRepos.length > 0
+      ? structuredCandidateRepos
+      : extractRepoArtifactsFromContent(existingDoc?.content),
     submittedRepoUrl: existingDoc?.repo_url ?? null,
     submittedGitHubUsername: existingDoc?.github_username ?? null,
     target: repoTarget,

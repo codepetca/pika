@@ -68,6 +68,17 @@ function buildAssignmentDocsTable(docs: Array<{ id: string; student_id: string; 
   }
 }
 
+function buildAssignmentSubmissionArtifactsTable(artifacts: Array<Record<string, unknown>> = []) {
+  return {
+    select: vi.fn(() => ({
+      in: vi.fn(async () => ({
+        data: artifacts,
+        error: null,
+      })),
+    })),
+  }
+}
+
 function buildRunItemsTable(items: unknown[] = []) {
   return {
     select: vi.fn(() => ({
@@ -280,10 +291,12 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
         }),
       },
     ])
+    const assignmentSubmissionArtifactsTable = buildAssignmentSubmissionArtifactsTable()
 
     ;(mockSupabaseClient.from as any).mockImplementation((table: string) => {
       if (table === 'assignment_ai_grading_runs') return runsTable
       if (table === 'assignment_docs') return assignmentDocsTable
+      if (table === 'assignment_submission_artifacts') return assignmentSubmissionArtifactsTable
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -334,6 +347,74 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
             student_id: 'student-gradable',
             assignment_doc_id: 'doc-gradable',
             queue_position: 2,
+            status: 'queued',
+            skip_reason: null,
+          }),
+        ],
+      }),
+    )
+  })
+
+  it('queues artifact-only submissions when creating a background grading run', async () => {
+    const runsTable = buildRunsTable()
+    const assignmentDocsTable = buildAssignmentDocsTable([
+      {
+        id: 'doc-artifact-only',
+        student_id: 'student-artifact-only',
+        content: JSON.stringify({ type: 'doc', content: [] }),
+      },
+    ])
+    const assignmentSubmissionArtifactsTable = buildAssignmentSubmissionArtifactsTable([
+      {
+        id: 'artifact-1',
+        assignment_doc_id: 'doc-artifact-only',
+        requirement_id: 'requirement-1',
+        student_id: 'student-artifact-only',
+        type: 'link',
+        url: 'https://example.com/demo',
+        storage_path: null,
+        metadata_json: {},
+        validation_status: 'valid',
+        validation_message: null,
+        validated_at: '2026-05-25T12:00:00.000Z',
+        created_at: '2026-05-25T12:00:00.000Z',
+        updated_at: '2026-05-25T12:00:00.000Z',
+      },
+    ])
+
+    ;(mockSupabaseClient.from as any).mockImplementation((table: string) => {
+      if (table === 'assignment_ai_grading_runs') return runsTable
+      if (table === 'assignment_docs') return assignmentDocsTable
+      if (table === 'assignment_submission_artifacts') return assignmentSubmissionArtifactsTable
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    mockSupabaseClient.rpc.mockResolvedValue({
+      data: {
+        id: 'run-1',
+        assignment_id: 'assignment-1',
+        status: 'queued',
+        created_at: '2026-04-21T12:00:00.000Z',
+      },
+      error: null,
+    })
+
+    const result = await createOrResumeAssignmentAiGradingRun({
+      assignmentId: 'assignment-1',
+      teacherId: 'teacher-1',
+      studentIds: ['student-artifact-only'],
+    })
+
+    expect(result.kind).toBe('created')
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'create_assignment_ai_grading_run_atomic',
+      expect.objectContaining({
+        p_gradable_count: 1,
+        p_skipped_empty_count: 0,
+        p_item_rows: [
+          expect.objectContaining({
+            student_id: 'student-artifact-only',
+            assignment_doc_id: 'doc-artifact-only',
             status: 'queued',
             skip_reason: null,
           }),
