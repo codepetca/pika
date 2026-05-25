@@ -60,6 +60,7 @@ export type CourseBlueprintImportResult = {
   assignments: Array<{
     title: string
     instructions_markdown: string
+    submission_requirements?: CourseBlueprintAssignment['submission_requirements_json']
     default_due_days: number
     default_due_time: string
     points_possible: number | null
@@ -221,6 +222,7 @@ export function buildCourseBlueprintExportBundle(detail: CourseBlueprintDetail):
     id: assignment.id,
     title: assignment.title,
     instructions_markdown: assignment.instructions_markdown,
+    submission_requirements: assignment.submission_requirements_json || [],
     default_due_days: assignment.default_due_days,
     default_due_time: assignment.default_due_time,
     points_possible: assignment.points_possible,

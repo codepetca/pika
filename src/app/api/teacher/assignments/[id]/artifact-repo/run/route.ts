@@ -16,8 +16,10 @@ import {
   saveAssignmentRepoTarget,
   validatePublicGitHubRepo,
 } from '@/lib/server/assignment-repo-targets'
+import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
+import { loadAssignmentSubmissionArtifactsForDocs } from '@/lib/server/assignment-submission-artifacts'
 import { assertTeacherOwnsAssignment } from '@/lib/server/repo-review'
-import type { AssignmentRepoReviewConfig } from '@/types'
+import type { AssignmentRepoReviewConfig, AssignmentSubmissionArtifact } from '@/types'
 
 type GroupedStudent = {
   studentId: string
@@ -110,6 +112,17 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
   )
   const docMap = new Map((docs || []).map((doc) => [doc.student_id, doc]))
   const repoTargetMap = new Map((repoTargets || []).map((target) => [target.student_id, target]))
+  const docIds = (docs || [])
+    .map((doc) => doc.id)
+    .filter((id): id is string => typeof id === 'string')
+  const structuredArtifacts = await loadAssignmentSubmissionArtifactsForDocs(supabase, docIds)
+  const structuredArtifactsByDocId = new Map<string, AssignmentSubmissionArtifact[]>()
+  for (const artifact of structuredArtifacts) {
+    if (artifact.type !== 'repo_link') continue
+    const current = structuredArtifactsByDocId.get(artifact.assignment_doc_id) || []
+    current.push(artifact)
+    structuredArtifactsByDocId.set(artifact.assignment_doc_id, current)
+  }
 
   const skippedReasons = new Map<string, number>()
   const groups = new Map<string, { repoOwner: string; repoName: string; repoUrl: string; defaultBranch: string; students: GroupedStudent[] }>()
@@ -117,8 +130,14 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
   for (const enrollment of enrollments || []) {
     const studentId = enrollment.student_id
     const doc = docMap.get(studentId)
+    const structuredCandidateRepos = doc?.id
+      ? submissionArtifactsToAssignmentArtifacts(structuredArtifactsByDocId.get(doc.id) || [])
+          .filter((artifact) => artifact.type === 'repo')
+      : []
     const resolved = resolveAssignmentRepoTarget({
-      candidateRepos: extractRepoArtifactsFromContent(doc?.content),
+      candidateRepos: structuredCandidateRepos.length > 0
+        ? structuredCandidateRepos
+        : extractRepoArtifactsFromContent(doc?.content),
       submittedRepoUrl: typeof doc?.repo_url === 'string' ? doc.repo_url : null,
       submittedGitHubUsername: typeof doc?.github_username === 'string' ? doc.github_username : null,
       target: repoTargetMap.get(studentId) || null,

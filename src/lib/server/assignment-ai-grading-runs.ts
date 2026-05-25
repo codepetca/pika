@@ -5,8 +5,10 @@ import {
   isRetryableAssignmentAiGradingError,
 } from '@/lib/ai-grading'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
+import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
 import { analyzeAuthenticity } from '@/lib/authenticity'
 import { limitedMarkdownToPlainText } from '@/lib/limited-markdown'
+import { loadAssignmentSubmissionArtifactsForDoc } from '@/lib/server/assignment-submission-artifacts'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { parseContentField } from '@/lib/tiptap-content'
 import type {
@@ -319,7 +321,10 @@ export async function gradeAssignmentDocWithAi({
   telemetry,
 }: GradeAssignmentDocWithAiOptions): Promise<void> {
   const studentWork = parseContentField(assignmentDoc.content)
-  if (!hasGradableAssignmentSubmission(studentWork)) {
+  const submissionArtifacts = submissionArtifactsToAssignmentArtifacts(
+    await loadAssignmentSubmissionArtifactsForDoc(supabase, assignmentDoc.id)
+  )
+  if (!hasGradableAssignmentSubmission(studentWork, submissionArtifacts)) {
     await markAssignmentDocMissingGrade({
       supabase,
       assignmentId: assignment.id,
@@ -333,6 +338,7 @@ export async function gradeAssignmentDocWithAi({
     assignmentTitle: assignment.title,
     instructions: getAssignmentInstructionsText(assignment),
     studentWork,
+    submissionArtifacts,
     previousFeedback: assignmentDoc.feedback,
     requestTimeoutMs,
     telemetry: {
@@ -602,7 +608,10 @@ async function processAssignmentAiRunItem(opts: {
   }
 
   const studentWork = parseContentField(assignmentDoc.content)
-  if (!hasGradableAssignmentSubmission(studentWork)) {
+  const submissionArtifacts = submissionArtifactsToAssignmentArtifacts(
+    await loadAssignmentSubmissionArtifactsForDoc(supabase, assignmentDoc.id)
+  )
+  if (!hasGradableAssignmentSubmission(studentWork, submissionArtifacts)) {
     await markMissingGradeAndSkip('empty_doc')
     return
   }

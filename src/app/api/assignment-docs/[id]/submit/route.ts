@@ -7,6 +7,14 @@ import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import { analyzeAuthenticity } from '@/lib/authenticity'
 import { withErrorHandler } from '@/lib/api-handler'
 import { hasAssignmentSubmissionContent } from '@/lib/assignments'
+import {
+  getSubmissionRequirementCompletion,
+  isSubmissionArtifactPresent,
+} from '@/lib/assignment-submission-requirements'
+import {
+  loadAssignmentSubmissionArtifactsForDoc,
+  loadAssignmentSubmissionRequirements,
+} from '@/lib/server/assignment-submission-artifacts'
 import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -75,9 +83,26 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     existingDoc.content = parseContentField(existingDoc.content)
   }
 
-  if (!existingDoc || !hasAssignmentSubmissionContent(existingDoc)) {
+  const submissionRequirements = existingDoc
+    ? await loadAssignmentSubmissionRequirements(supabase, assignmentId)
+    : []
+  const submissionArtifacts = existingDoc
+    ? await loadAssignmentSubmissionArtifactsForDoc(supabase, existingDoc.id)
+    : []
+  const submissionCompletion = getSubmissionRequirementCompletion(submissionRequirements, submissionArtifacts)
+
+  if (submissionRequirements.length > 0 && !submissionCompletion.canSubmit) {
     return NextResponse.json(
-      { error: 'No work to submit. Please write something first.' },
+      { error: 'Complete the required submissions before submitting.' },
+      { status: 400 }
+    )
+  }
+
+  const hasStructuredArtifacts = submissionArtifacts.some(isSubmissionArtifactPresent)
+
+  if (!existingDoc || (!hasAssignmentSubmissionContent(existingDoc) && !hasStructuredArtifacts)) {
+    return NextResponse.json(
+      { error: 'No work to submit. Please write something or add a required submission first.' },
       { status: 400 }
     )
   }

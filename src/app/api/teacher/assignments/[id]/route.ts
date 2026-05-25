@@ -14,6 +14,15 @@ import {
   ASSIGNMENT_SCHEDULE_DUE_DATE_ERROR,
   getFutureScheduledReleaseDueDateError,
 } from '@/lib/assignment-schedule-validation'
+import {
+  getSubmissionRequirementCompletion,
+  submissionArtifactsToAssignmentArtifacts,
+} from '@/lib/assignment-submission-requirements'
+import {
+  loadAssignmentSubmissionArtifactsForDocs,
+  loadAssignmentSubmissionRequirements,
+  replaceAssignmentSubmissionRequirements,
+} from '@/lib/server/assignment-submission-artifacts'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -95,6 +104,14 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
 
   const docMap = new Map(docs?.map((doc) => [doc.student_id, doc]) || [])
   const docIds = (docs || []).map((doc) => doc.id)
+  const submissionRequirements = await loadAssignmentSubmissionRequirements(supabase, id)
+  const structuredArtifacts = await loadAssignmentSubmissionArtifactsForDocs(supabase, docIds)
+  const structuredArtifactsByDocId = new Map<string, typeof structuredArtifacts>()
+  for (const artifact of structuredArtifacts) {
+    const current = structuredArtifactsByDocId.get(artifact.assignment_doc_id) || []
+    current.push(artifact)
+    structuredArtifactsByDocId.set(artifact.assignment_doc_id, current)
+  }
 
   const studentUpdatedAtByDocId = new Map<string, string>()
   if (docIds.length > 0) {
@@ -116,7 +133,11 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     const status = calculateAssignmentStatus(assignment, doc)
     const userEmail = (enrollment.users as unknown as { id: string; email: string }).email
     const profile = profileMap.get(enrollment.student_id) || null
-    const artifacts = doc ? extractAssignmentArtifacts(doc.content) : []
+    const studentStructuredArtifacts = doc ? (structuredArtifactsByDocId.get(doc.id) || []) : []
+    const artifacts = studentStructuredArtifacts.length > 0
+      ? submissionArtifactsToAssignmentArtifacts(studentStructuredArtifacts)
+      : doc ? extractAssignmentArtifacts(doc.content) : []
+    const completion = getSubmissionRequirementCompletion(submissionRequirements, studentStructuredArtifacts)
 
     return {
       student_id: enrollment.student_id,
@@ -138,9 +159,16 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
             returned_at: doc.returned_at,
             teacher_cleared_at: doc.teacher_cleared_at,
             feedback_returned_at: doc.feedback_returned_at,
-          }
+        }
         : null,
       artifacts,
+      submission_artifacts: studentStructuredArtifacts,
+      submission_completion: {
+        required_count: completion.requiredCount,
+        completed_required_count: completion.completedRequiredCount,
+        can_submit: completion.canSubmit,
+        blocking_count: completion.blockingRequirementIds.length,
+      },
     }
   })
 
@@ -165,6 +193,7 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
       is_draft: assignment.is_draft ?? false,
       released_at: assignment.released_at ?? null,
       track_authenticity: assignment.track_authenticity ?? true,
+      submission_requirements: submissionRequirements,
       created_by: assignment.created_by,
       created_at: assignment.created_at,
       updated_at: assignment.updated_at,
@@ -180,13 +209,14 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
   const user = await requireRole('teacher')
   const { id } = await context.params
   const body = await request.json()
-  const { title, instructions_markdown, rich_instructions, due_at, is_draft, released_at } = body as {
+  const { title, instructions_markdown, rich_instructions, due_at, is_draft, released_at, submission_requirements } = body as {
     title?: string
     instructions_markdown?: string
     rich_instructions?: unknown
     due_at?: string
     is_draft?: boolean
     released_at?: string | null
+    submission_requirements?: unknown
   }
 
   const supabase = getServiceRoleClient()
@@ -323,29 +353,44 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
     )
   }
 
-  if (Object.keys(updates).length === 0) {
+  const hasSubmissionRequirementsUpdate = Array.isArray(submission_requirements)
+  if (Object.keys(updates).length === 0 && !hasSubmissionRequirementsUpdate) {
     return NextResponse.json(
       { error: 'No updates provided' },
       { status: 400 }
     )
   }
 
-  const { data: assignment, error } = await supabase
-    .from('assignments')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single()
+  let assignment = existing
+  if (Object.keys(updates).length > 0) {
+    const { data: updatedAssignment, error } = await supabase
+      .from('assignments')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
 
-  if (error || !assignment) {
-    console.error('Error updating assignment:', error)
-    return NextResponse.json(
-      { error: 'Failed to update assignment' },
-      { status: 500 }
-    )
+    if (error || !updatedAssignment) {
+      console.error('Error updating assignment:', error)
+      return NextResponse.json(
+        { error: 'Failed to update assignment' },
+        { status: 500 }
+      )
+    }
+    assignment = updatedAssignment
   }
 
-  return NextResponse.json({ assignment })
+  const submissionRequirements = hasSubmissionRequirementsUpdate
+    ? await replaceAssignmentSubmissionRequirements(supabase, id, submission_requirements as any[])
+    : await loadAssignmentSubmissionRequirements(supabase, id)
+
+  return NextResponse.json({
+    assignment: {
+      ...assignment,
+      instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
+      submission_requirements: submissionRequirements,
+    },
+  })
 })
 
 // DELETE /api/teacher/assignments/[id] - Delete assignment

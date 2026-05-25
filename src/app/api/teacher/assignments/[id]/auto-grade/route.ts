@@ -4,11 +4,13 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { parseContentField } from '@/lib/tiptap-content'
+import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
 import {
   createOrResumeAssignmentAiGradingRun,
   gradeAssignmentDocWithAi,
   markAssignmentDocMissingGrade,
 } from '@/lib/server/assignment-ai-grading-runs'
+import { loadAssignmentSubmissionArtifactsForDoc } from '@/lib/server/assignment-submission-artifacts'
 import { assertTeacherOwnsAssignment } from '@/lib/server/repo-review'
 
 export const dynamic = 'force-dynamic'
@@ -104,7 +106,10 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
   }
 
   const studentWork = parseContentField(doc.content)
-  if (!hasGradableAssignmentSubmission(studentWork)) {
+  const submissionArtifacts = submissionArtifactsToAssignmentArtifacts(
+    await loadAssignmentSubmissionArtifactsForDoc(supabase, doc.id)
+  )
+  if (!hasGradableAssignmentSubmission(studentWork, submissionArtifacts)) {
     await markAssignmentDocMissingGrade({
       supabase,
       assignmentId: id,

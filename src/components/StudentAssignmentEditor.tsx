@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react'
+import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, Tooltip } from '@/ui'
 import { Card } from '@/ui/Card'
@@ -22,7 +22,21 @@ import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
 import { HistoryList } from '@/components/HistoryList'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
-import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentFeedbackEntry, TiptapContent } from '@/types'
+import { StudentAssignmentSubmissionChecklist } from '@/components/StudentAssignmentSubmissionChecklist'
+import {
+  getSubmissionRequirementCompletion,
+  isSubmissionArtifactPresent,
+} from '@/lib/assignment-submission-requirements'
+import type {
+  Assignment,
+  AssignmentDoc,
+  AssignmentDocHistoryEntry,
+  AssignmentFeedbackEntry,
+  AssignmentSubmissionArtifact,
+  AssignmentSubmissionRequirement,
+  TiptapContent,
+  UserGitHubIdentity,
+} from '@/types'
 
 export interface StudentAssignmentEditorHandle {
   submit: () => Promise<void>
@@ -57,6 +71,9 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const [assignment, setAssignment] = useState<Assignment | null>(null)
   const [doc, setDoc] = useState<AssignmentDoc | null>(null)
   const [feedbackEntries, setFeedbackEntries] = useState<AssignmentFeedbackEntry[]>([])
+  const [submissionRequirements, setSubmissionRequirements] = useState<AssignmentSubmissionRequirement[]>([])
+  const [submissionArtifacts, setSubmissionArtifacts] = useState<AssignmentSubmissionArtifact[]>([])
+  const [githubIdentity, setGithubIdentity] = useState<UserGitHubIdentity | null>(null)
   const [content, setContent] = useState<TiptapContent>({ type: 'doc', content: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -98,6 +115,9 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       setAssignment(data.assignment)
       setDoc(data.doc)
       setFeedbackEntries(data.feedback_entries || [])
+      setSubmissionRequirements(data.submission_requirements || [])
+      setSubmissionArtifacts(data.submission_artifacts || [])
+      setGithubIdentity(data.github_identity || null)
       setContent(data.doc?.content || { type: 'doc', content: [] })
       lastSavedContentRef.current = JSON.stringify(data.doc?.content || { type: 'doc', content: [] })
 
@@ -398,10 +418,16 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   }
 
   // Compute state for imperative handle (before early returns)
+  const submissionCompletion = useMemo(
+    () => getSubmissionRequirementCompletion(submissionRequirements, submissionArtifacts),
+    [submissionArtifacts, submissionRequirements]
+  )
+  const hasStructuredSubmissionArtifact = submissionArtifacts.some(isSubmissionArtifactPresent)
+  const structuredRequirementsSatisfied = submissionRequirements.length === 0 || submissionCompletion.canSubmit
   const isSubmitted = doc?.is_submitted || false
-  const canSubmit = hasAssignmentSubmissionContent({
-    content,
-  }) && !previewEntry
+  const canSubmit = (
+    hasAssignmentSubmissionContent({ content }) || hasStructuredSubmissionArtifact
+  ) && structuredRequirementsSatisfied && !previewEntry
 
   // Expose imperative handle for parent components
   useImperativeHandle(ref, () => ({
@@ -504,6 +530,18 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
             <p className="text-text-muted whitespace-pre-wrap">{assignment.description}</p>
           )}
         </Card>
+      )}
+
+      {submissionRequirements.length > 0 && (
+        <StudentAssignmentSubmissionChecklist
+          assignmentId={assignmentId}
+          requirements={submissionRequirements}
+          artifacts={submissionArtifacts}
+          githubIdentity={githubIdentity}
+          disabled={isSubmitted || submitting || !!previewEntry}
+          onArtifactsChange={setSubmissionArtifacts}
+          onError={setError}
+        />
       )}
 
       {/* Editor with History Column */}

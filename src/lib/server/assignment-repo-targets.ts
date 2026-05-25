@@ -64,7 +64,7 @@ export function resolveAssignmentRepoTarget(opts: {
   const artifactRepoUrl = candidateRepo
     ? (candidateRepo.normalized_url || candidateRepo.url).trim() || null
     : null
-  const artifactGitHubUsername = candidateRepo?.repo_owner?.trim() || null
+  const artifactGitHubUsername = candidateRepo?.github_username?.trim() || candidateRepo?.repo_owner?.trim() || null
   const legacySubmittedRepoUrl = opts.submittedRepoUrl?.trim() || null
   const legacySubmittedGitHubUsername = opts.submittedGitHubUsername?.trim() || null
   const submittedRepoUrl = artifactRepoUrl || legacySubmittedRepoUrl
