@@ -7,72 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-21 — Gradebook scroll containment
-
-**Completed:**
-- Fixed the teacher gradebook matrix so its table panel fills the workspace and owns both horizontal and vertical overflow.
-- Removed the flush table wrapper that clipped horizontal overflow before the gradebook scroll pane could expose it.
-- Kept the gradebook viewport-constrained in both grades and settings modes so long student lists and many assessment columns remain reachable.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm lint`
-- Mocked long-grid Playwright check with 48 students and 32 assessment columns; verified `gradebook-student-scroll-pane` can scroll on both axes and captured `/tmp/pika-gradebook-scroll-after.png` and `/tmp/pika-gradebook-settings-scroll-after.png`.
-- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=gradebook"`
-- Reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`.
-
-## 2026-05-21 — Returned assignment timing freeze
-
-**Completed:**
-- Fixed returned assignment timing so student-facing labels freeze against preserved `submitted_at` even after teacher return clears `is_submitted`.
-- Added regression coverage for returned late work with `is_submitted: false`, preserved `submitted_at`, and `returned_at`.
-- Rebuilt the fix on a fresh branch from current `origin/main` to avoid carrying stale already-merged commits.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/assignments.test.ts tests/components/StudentAssignmentsTab.test.tsx`
-- `pnpm seed`
-- `pnpm e2e:auth`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/85d6177d-f695-4df2-bbad-2946876d8e16?tab=assignments"`
-- Reviewed `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, and `/tmp/pika-teacher-loaded.png`.
-- `pnpm test`
-
-## 2026-05-21 — Developer feedback helper
-
-**Completed:**
-- Added a private Supabase-backed developer feedback candidate queue for sanitized Pika improvement requests extracted from daily logs.
-- Extended the nightly log summary cron to opportunistically extract and dedupe developer candidates without blocking summary generation.
-- Added the agent-operated `scripts/dev-feedback.mjs` helper, `$pika-dev-feedback` Codex skill, and Claude `/dev-feedback` mirror command for numbered approve/dismiss/work-on flows.
-- Kept the existing Send Feedback UI in place and routed direct bug/feature submissions into the same developer triage queue with sanitized page metadata.
-- Updated docs, env examples, and feature inventory for the new developer feedback workflow.
-
-**Validation:**
-- `pnpm test tests/unit/developer-log-feedback.test.ts tests/api/feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
-- `/usr/bin/python3 /Users/stew/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/pika-dev-feedback`
-- `node scripts/dev-feedback.mjs help`
-- `node scripts/features.mjs validate`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test tests/unit/ai-startup-docs.test.ts`
-- `pnpm test`
-- `git diff --check`
-
-## 2026-05-21 — Developer feedback PR review fixes
-
-**Completed:**
-- Moved daily-log feedback candidate dedupe/merge into an atomic Supabase RPC to avoid dropped or lost concurrent classroom signals.
-- Hardened `/api/feedback` request validation so malformed JSON shapes return 400 instead of falling through to 500.
-- Added focused tests for the RPC storage path and malformed direct feedback bodies.
-
-**Validation:**
-- `pnpm test tests/unit/developer-log-feedback.test.ts tests/api/feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `node scripts/features.mjs validate`
-- `pnpm test`
-- `git diff --check`
-
 ## 2026-05-21 — Worktree env symlink guidance
 
 **Completed:**
@@ -323,6 +257,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm test`
+
+## 2026-05-25 — Assignment artifact storage cleanup follow-up
+
+**Completed:**
+- Added best-effort teacher-side cleanup for `assignment-artifacts` image objects when image submission requirements are removed.
+- Added best-effort cleanup for image artifact objects after teacher assignment deletion succeeds.
+- Preserved storage objects when an image requirement is edited/reordered/renamed with the same requirement ID and type.
+- Added chunked Storage `remove()` calls with failure logging that does not fail successful teacher mutations.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/teacher/assignments-id.test.ts`
+- `pnpm test tests/lib/assignment-submission-artifacts.test.ts tests/api/assignment-docs/artifacts.test.ts`
+- `pnpm lint`
+- `pnpm build`
 - `pnpm build`
 - `pnpm exec vitest run tests/unit/assignment-submission-validation.test.ts`
 - `pnpm exec vitest run tests/lib/assignment-submission-artifacts.test.ts tests/unit/assignment-submission-validation.test.ts`
@@ -340,3 +289,57 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm test`
+
+## 2026-05-25 — Supabase RLS/Auth hardening for WorkOS
+
+**Completed:**
+- Added migration `075_auth_rls_hardening.sql` with `users.workos_user_id` unique mapping while preserving local UUID user IDs.
+- Enabled RLS and explicit no-direct-access policies on announcements, announcement reads, gradebook settings, quiz score overrides, and report-card tables.
+- Revoked direct public table/sequence/function grants from `anon` and `authenticated`, preserved `service_role`, and hardened migration-owner default privileges.
+- Removed direct authenticated upload/delete storage policies for legacy public buckets while keeping public read behavior.
+- Set stable `search_path` on existing public functions surfaced by Supabase security advisors.
+- Updated architecture/AI guidance for the server-route authorization model and WorkOS posture.
+
+**Validation:**
+- `psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -1 -f supabase/migrations/075_auth_rls_hardening.sql`
+- Metadata checks for RLS, grants, policies, default privileges, and WorkOS index.
+- `supabase db lint --local --schema public,storage --fail-on none` (passes with pre-existing warnings only)
+- `supabase db advisors --local --type security --level warn --fail-on none`
+- `pnpm test tests/api/teacher/announcements.test.ts tests/api/teacher/announcements-id.test.ts tests/api/student/announcements.test.ts tests/api/teacher/gradebook.test.ts tests/api/teacher/gradebook-quiz-overrides.test.ts tests/unit/auth-rls-hardening-migration.test.ts tests/unit/migration-filenames.test.ts`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `git diff --check`
+
+## 2026-05-25 — Assignment artifact open behavior
+
+**Completed:**
+- Changed assignment artifact pills so a single artifact opens directly as an external link.
+- Replaced the multi-artifact preview carousel with a narrow chooser dialog listing each artifact as a direct external link.
+- Added component coverage for direct-link mode and the multi-artifact chooser.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test -- tests/components/AssignmentArtifactsCell.test.tsx` (ran full suite; pass)
+- `pnpm lint`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=assignments&assignmentId=f2bc083c-cec5-4b36-8659-603f84e11ff6'`
+- Playwright interaction smoke: multi-artifact chooser opens; single-artifact row opens `https://github.com/codepetca/pika`
+- Screenshot: `/tmp/pika-teacher-artifact-chooser.png`
+
+## 2026-05-25 — Assignment student table artifact UX
+
+**Completed:**
+- Rebased `codex/assignment-artifact-open-behavior` onto `origin/main` after assignment submission requirements landed.
+- Updated the teacher assignment student table to use compact `First`, `Last`, `Status`, and `Grade` columns with keyboard/pointer resize handles.
+- Converted artifact cells to icon-number pills so the table shows repo/link/image type plus `1`, `2`, `3`, etc. without URL text.
+- Changed artifact pill hover tooltips to show the full artifact set as a compact stacked list, with the hovered item highlighted.
+- Kept single artifacts opening directly and multi-artifact rows opening the narrow chooser dialog.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/AssignmentArtifactsCell.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a'`
+- Playwright interaction smoke: first-column resize changed from `72` to `88`; first artifact pill text was `1`; chooser showed `4 work items`.
+- Playwright hover smoke: artifact tooltip showed `4 artifacts` as a stacked list.
+- Screenshots: `/tmp/pika-teacher-ready.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-artifact-icon-chooser.png`, `/tmp/pika-teacher-artifact-tooltip-list.png`

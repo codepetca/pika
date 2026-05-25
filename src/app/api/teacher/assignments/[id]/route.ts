@@ -19,8 +19,11 @@ import {
   submissionArtifactsToAssignmentArtifacts,
 } from '@/lib/assignment-submission-requirements'
 import {
+  collectAssignmentImageArtifactStoragePaths,
+  collectRemovedImageArtifactStoragePaths,
   loadAssignmentSubmissionArtifactsForDocs,
   loadAssignmentSubmissionRequirements,
+  removeAssignmentArtifactStorageObjects,
   replaceAssignmentSubmissionRequirements,
 } from '@/lib/server/assignment-submission-artifacts'
 
@@ -376,6 +379,10 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
     )
   }
 
+  const removedRequirementImageStoragePaths = hasSubmissionRequirementsUpdate
+    ? await collectRemovedImageArtifactStoragePaths(supabase, id, submission_requirements as any[])
+    : []
+
   let assignment = existing
   if (Object.keys(updates).length > 0) {
     const { data: updatedAssignment, error } = await supabase
@@ -398,6 +405,14 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
   const submissionRequirements = hasSubmissionRequirementsUpdate
     ? await replaceAssignmentSubmissionRequirements(supabase, id, submission_requirements as any[])
     : await loadAssignmentSubmissionRequirements(supabase, id)
+
+  if (hasSubmissionRequirementsUpdate && removedRequirementImageStoragePaths.length > 0) {
+    await removeAssignmentArtifactStorageObjects(
+      supabase,
+      removedRequirementImageStoragePaths,
+      `assignment:${id}:removed-submission-requirements`
+    )
+  }
 
   return NextResponse.json({
     assignment: {
@@ -447,6 +462,8 @@ export const DELETE = withErrorHandler('DeleteTeacherAssignment', async (request
     )
   }
 
+  const assignmentImageStoragePaths = await collectAssignmentImageArtifactStoragePaths(supabase, id)
+
   const { error } = await supabase
     .from('assignments')
     .delete()
@@ -457,6 +474,14 @@ export const DELETE = withErrorHandler('DeleteTeacherAssignment', async (request
     return NextResponse.json(
       { error: 'Failed to delete assignment' },
       { status: 500 }
+    )
+  }
+
+  if (assignmentImageStoragePaths.length > 0) {
+    await removeAssignmentArtifactStorageObjects(
+      supabase,
+      assignmentImageStoragePaths,
+      `assignment:${id}:delete`
     )
   }
 
