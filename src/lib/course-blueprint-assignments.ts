@@ -1,7 +1,16 @@
+import {
+  DEFAULT_REQUIREMENT_LABELS,
+  isAssignmentSubmissionRequirementType,
+  normalizeAssignmentSubmissionRequirementDrafts,
+  type AssignmentSubmissionRequirementDraft,
+} from '@/lib/assignment-submission-requirements'
+
 export interface CourseBlueprintAssignmentMarkdownRecord {
   id?: string
   title: string
   instructions_markdown: string
+  submission_requirements?: AssignmentSubmissionRequirementDraft[]
+  submission_requirements_json?: AssignmentSubmissionRequirementDraft[]
   default_due_days: number
   default_due_time: string
   points_possible: number | null
@@ -34,6 +43,23 @@ export function courseBlueprintAssignmentsToMarkdown(
       lines.push(assignment.instructions_markdown.trim())
       lines.push('')
     }
+    const submissionRequirements = normalizeAssignmentSubmissionRequirementDrafts(
+      assignment.submission_requirements || assignment.submission_requirements_json || []
+    )
+    if (submissionRequirements.length > 0) {
+      lines.push('### Submission Requirements')
+      submissionRequirements.forEach((requirement) => {
+        const requiredLabel = requirement.required === false ? 'optional' : 'required'
+        const instructions = requirement.instructions?.trim()
+        lines.push([
+          `- ${requirement.type}`,
+          requirement.label?.trim() || DEFAULT_REQUIREMENT_LABELS[requirement.type],
+          requiredLabel,
+          ...(instructions ? [instructions] : []),
+        ].join(' | '))
+      })
+      lines.push('')
+    }
     lines.push('---')
     lines.push('')
   })
@@ -58,6 +84,7 @@ export function markdownToCourseBlueprintAssignments(
 
   let current: Partial<CourseBlueprintAssignmentMarkdownRecord> | null = null
   let instructionLines: string[] = []
+  let section: 'instructions' | 'requirements' = 'instructions'
   let lineNumber = 0
   let startLine = 0
 
@@ -105,6 +132,7 @@ export function markdownToCourseBlueprintAssignments(
       id: existing?.id,
       title,
       instructions_markdown: instructionLines.join('\n').trim(),
+      submission_requirements: normalizeAssignmentSubmissionRequirementDrafts(current.submission_requirements || []),
       default_due_days: defaultDueDays,
       default_due_time: defaultDueTime,
       points_possible:
@@ -118,12 +146,13 @@ export function markdownToCourseBlueprintAssignments(
 
     current = null
     instructionLines = []
+    section = 'instructions'
   }
 
   for (const line of lines) {
     lineNumber += 1
 
-    const titleMatch = line.match(/^##\s*(.*?)(?:\s+\[DRAFT\])?$/)
+    const titleMatch = line.match(/^##(?!#)\s*(.*?)(?:\s+\[DRAFT\])?$/)
     if (titleMatch) {
       flushAssignment()
       startLine = lineNumber
@@ -133,7 +162,9 @@ export function markdownToCourseBlueprintAssignments(
         include_in_final: true,
         default_due_days: 0,
         default_due_time: '23:59',
+        submission_requirements: [],
       }
+      section = 'instructions'
       continue
     }
 
@@ -141,6 +172,49 @@ export function markdownToCourseBlueprintAssignments(
 
     if (line.trim() === '---') {
       flushAssignment()
+      continue
+    }
+
+    if (/^###\s+Submission Requirements\s*$/i.test(line.trim())) {
+      section = 'requirements'
+      continue
+    }
+
+    if (/^###\s+Instructions\s*$/i.test(line.trim())) {
+      section = 'instructions'
+      continue
+    }
+
+    if (section === 'requirements') {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+
+      const requirementMatch = trimmed.match(/^-\s*(.+)$/)
+      if (!requirementMatch) {
+        warnings.push(`Ignoring unrecognized submission requirement at line ${lineNumber}`)
+        continue
+      }
+
+      const parts = requirementMatch[1].split('|').map((part) => part.trim())
+      const type = parts[0]
+      if (!isAssignmentSubmissionRequirementType(type)) {
+        errors.push(`Submission requirement at line ${lineNumber} has invalid type "${type}"`)
+        continue
+      }
+
+      const requiredValue = (parts[2] || 'required').toLowerCase()
+      const requirement: AssignmentSubmissionRequirementDraft = {
+        type,
+        label: parts[1] || DEFAULT_REQUIREMENT_LABELS[type],
+        required: !['optional', 'false', 'no'].includes(requiredValue),
+        instructions: parts.slice(3).join(' | ').trim(),
+        position: current.submission_requirements?.length || 0,
+        validation_policy_json: {},
+      }
+      current.submission_requirements = [
+        ...(current.submission_requirements || []),
+        requirement,
+      ]
       continue
     }
 

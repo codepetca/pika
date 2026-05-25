@@ -34,6 +34,7 @@ import type {
 } from '@/types'
 import type { QuizDraftContent, TestDraftContent } from '@/lib/server/assessment-drafts'
 import { isMissingAssessmentDraftsError } from '@/lib/server/assessment-drafts'
+import { normalizeAssignmentSubmissionRequirementDrafts } from '@/lib/assignment-submission-requirements'
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 
@@ -336,6 +337,8 @@ export async function syncCourseBlueprintAssignments(
     id?: string
     title: string
     instructions_markdown: string
+    submission_requirements?: CourseBlueprintAssignment['submission_requirements_json']
+    submission_requirements_json?: CourseBlueprintAssignment['submission_requirements_json']
     default_due_days: number
     default_due_time: string
     points_possible: number | null
@@ -377,7 +380,17 @@ export async function syncCourseBlueprintAssignments(
     const { error } = await supabase.from('course_blueprint_assignments').insert(
       creates.map((assignment) => ({
         course_blueprint_id: blueprintId,
-        ...assignment,
+        title: assignment.title,
+        instructions_markdown: assignment.instructions_markdown,
+        submission_requirements_json: normalizeAssignmentSubmissionRequirementDrafts(
+          assignment.submission_requirements || assignment.submission_requirements_json || []
+        ),
+        default_due_days: assignment.default_due_days,
+        default_due_time: assignment.default_due_time,
+        points_possible: assignment.points_possible,
+        include_in_final: assignment.include_in_final,
+        is_draft: assignment.is_draft,
+        position: assignment.position,
       }))
     )
     if (error) return { ok: false as const, status: 500, error: 'Failed to create blueprint assignments' }
@@ -389,6 +402,9 @@ export async function syncCourseBlueprintAssignments(
       .update({
         title: assignment.title,
         instructions_markdown: assignment.instructions_markdown,
+        submission_requirements_json: normalizeAssignmentSubmissionRequirementDrafts(
+          assignment.submission_requirements || assignment.submission_requirements_json || []
+        ),
         default_due_days: assignment.default_due_days,
         default_due_time: assignment.default_due_time,
         points_possible: assignment.points_possible,
@@ -768,8 +784,39 @@ async function cloneBlueprintIntoClassroom(
         created_by: teacherId,
       }
     })
-    const { error } = await supabase.from('assignments').insert(insertAssignments)
+    const { data: createdAssignments, error } = await supabase
+      .from('assignments')
+      .insert(insertAssignments)
+      .select('id, title, position')
     if (error) throw new Error('Failed to clone blueprint assignments')
+
+    const createdByPosition = new Map(
+      (createdAssignments || []).map((assignment: { id: string; title: string; position: number }) => [
+        `${assignment.position}:${assignment.title}`,
+        assignment.id,
+      ])
+    )
+    const submissionRequirementRows = blueprintDetail.assignments.flatMap((assignment) => {
+      const assignmentId = createdByPosition.get(`${assignment.position}:${assignment.title}`)
+      if (!assignmentId) return []
+      return normalizeAssignmentSubmissionRequirementDrafts(assignment.submission_requirements_json || [])
+        .map((requirement) => ({
+          assignment_id: assignmentId,
+          type: requirement.type,
+          label: requirement.label,
+          instructions: requirement.instructions,
+          required: requirement.required,
+          position: requirement.position,
+          validation_policy_json: requirement.validation_policy_json,
+        }))
+    })
+
+    if (submissionRequirementRows.length > 0) {
+      const { error: requirementsError } = await supabase
+        .from('assignment_submission_requirements')
+        .insert(submissionRequirementRows)
+      if (requirementsError) throw new Error('Failed to clone blueprint assignment submission requirements')
+    }
   }
 
   for (const assessment of blueprintDetail.assessments) {

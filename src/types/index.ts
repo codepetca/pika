@@ -198,6 +198,46 @@ export interface Assignment {
   created_by: string
   created_at: string
   updated_at: string
+  submission_requirements?: AssignmentSubmissionRequirement[]
+}
+
+export type AssignmentSubmissionRequirementType = 'repo_link' | 'link' | 'image'
+
+export type AssignmentArtifactValidationStatus =
+  | 'missing'
+  | 'pending'
+  | 'valid'
+  | 'warning'
+  | 'invalid'
+  | 'inaccessible'
+
+export interface AssignmentSubmissionRequirement {
+  id: string
+  assignment_id: string
+  type: AssignmentSubmissionRequirementType
+  label: string
+  instructions: string
+  required: boolean
+  position: number
+  validation_policy_json: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface AssignmentSubmissionArtifact {
+  id: string
+  assignment_doc_id: string
+  requirement_id: string
+  student_id: string
+  type: AssignmentSubmissionRequirementType
+  url: string | null
+  storage_path: string | null
+  metadata_json: Record<string, unknown>
+  validation_status: AssignmentArtifactValidationStatus
+  validation_message: string | null
+  validated_at: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface AuthenticityFlag {
@@ -236,6 +276,10 @@ export interface AssignmentDoc {
   authenticity_flags: AuthenticityFlag[] | null
   created_at: string
   updated_at: string
+}
+
+export interface AssignmentDocWithArtifacts extends AssignmentDoc {
+  submission_artifacts?: AssignmentSubmissionArtifact[]
 }
 
 export type AssignmentDocHistoryTrigger = 'autosave' | 'blur' | 'submit' | 'baseline' | 'restore'
@@ -508,6 +552,9 @@ export interface UserGitHubIdentity {
   user_id: string
   github_login: string | null
   commit_emails: string[]
+  validation_status?: 'unvalidated' | 'valid' | 'invalid' | 'inaccessible'
+  validation_message?: string | null
+  validated_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -636,6 +683,14 @@ export interface CourseBlueprintAssignment {
   course_blueprint_id: string
   title: string
   instructions_markdown: string
+  submission_requirements_json: Array<{
+    type: AssignmentSubmissionRequirementType
+    label?: string | null
+    instructions?: string | null
+    required?: boolean | null
+    position?: number | null
+    validation_policy_json?: Record<string, unknown> | null
+  }>
   default_due_days: number
   default_due_time: string
   points_possible: number | null

@@ -7,6 +7,10 @@ import { calculateAssignmentStats } from '@/lib/assignments'
 import { withErrorHandler } from '@/lib/api-handler'
 import { isMissingAssignmentTeacherClearedAtColumnError } from '@/lib/server/assignments'
 import { isMissingSurveysTableError } from '@/lib/server/surveys'
+import {
+  loadAssignmentSubmissionRequirements,
+  replaceAssignmentSubmissionRequirements,
+} from '@/lib/server/assignment-submission-artifacts'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -97,10 +101,12 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
           : withMailboxTracking.data || []
 
       const stats = calculateAssignmentStats(assignment.due_at, docs, totalStudents || 0)
+      const submissionRequirements = await loadAssignmentSubmissionRequirements(supabase, assignment.id)
 
       return {
         ...assignment,
         instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
+        submission_requirements: submissionRequirements,
         stats,
       }
     })
@@ -113,7 +119,7 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
 export const POST = withErrorHandler('PostTeacherAssignments', async (request, context) => {
   const user = await requireRole('teacher')
   const body = await request.json()
-  const { classroom_id, title, instructions_markdown, rich_instructions, due_at } = body
+  const { classroom_id, title, instructions_markdown, rich_instructions, due_at, submission_requirements } = body
 
   if (!classroom_id) {
     return NextResponse.json(
@@ -235,5 +241,14 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
     )
   }
 
-  return NextResponse.json({ assignment }, { status: 201 })
+  const submissionRequirements = Array.isArray(submission_requirements)
+    ? await replaceAssignmentSubmissionRequirements(supabase, assignment.id, submission_requirements)
+    : []
+
+  return NextResponse.json({
+    assignment: {
+      ...assignment,
+      submission_requirements: submissionRequirements,
+    },
+  }, { status: 201 })
 })

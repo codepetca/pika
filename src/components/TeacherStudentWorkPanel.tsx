@@ -7,6 +7,8 @@ import { RichTextViewer } from '@/components/editor'
 import { TeacherWorkInspector } from '@/components/assignment-workspace/TeacherWorkInspector'
 import { useTeacherStudentWorkController } from '@/components/assignment-workspace/useTeacherStudentWorkController'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
+import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
+import { summarizeArtifactUrl, type AssignmentArtifact } from '@/lib/assignment-artifacts'
 import {
   ASSIGNMENT_GRADING_LAYOUT,
   clampAssignmentWorkspacePaneLayout,
@@ -48,6 +50,44 @@ export interface TeacherAssignmentGradeTemplate {
   scoreWorkflow: string
   feedbackDraft: string
   gradeMode: 'draft' | 'graded'
+}
+
+function SubmittedArtifactsList({ artifacts }: { artifacts: AssignmentArtifact[] }) {
+  if (artifacts.length === 0) return null
+
+  return (
+    <div className="shrink-0 border-t border-border bg-surface px-4 py-3">
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+        Submitted artifacts
+      </h3>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {artifacts.map((artifact, index) => (
+          <a
+            key={`${artifact.url}:${index}`}
+            href={artifact.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group overflow-hidden rounded-md border border-border bg-surface-2 hover:bg-surface-hover"
+          >
+            {artifact.type === 'image' ? (
+              <div
+                className="h-28 border-b border-border bg-surface bg-contain bg-center bg-no-repeat"
+                style={{ backgroundImage: `url("${encodeURI(artifact.url)}")` }}
+              />
+            ) : null}
+            <div className="min-w-0 px-3 py-2">
+              <div className="text-xs font-medium text-text-default">
+                {artifact.type === 'repo' ? 'Repo link' : artifact.type === 'image' ? 'Image' : 'Public link'}
+              </div>
+              <div className="truncate text-xs text-text-muted group-hover:text-text-default">
+                {summarizeArtifactUrl(artifact.url)}
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function AssignmentWorkspacePaneFrame({
@@ -248,6 +288,8 @@ export function TeacherStudentWorkPanel({
   }
 
   const displayContent = previewContent || data.doc?.content
+  const submittedArtifacts = submissionArtifactsToAssignmentArtifacts(data.submission_artifacts || [])
+  const hasSubmittedArtifacts = submittedArtifacts.length > 0
   const inspector = (
     <TeacherWorkInspector
       data={data}
@@ -306,15 +348,16 @@ export function TeacherStudentWorkPanel({
           </div>
         </div>
       )}
-      {displayContent && !isEmpty(displayContent) ? (
-        <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto">
+        {displayContent && !isEmpty(displayContent) ? (
           <RichTextViewer content={displayContent} fillHeight chrome="flush" />
-        </div>
-      ) : (
-        <div className="flex h-32 items-center justify-center text-text-muted">
-          No work submitted yet
-        </div>
-      )}
+        ) : !hasSubmittedArtifacts ? (
+          <div className="flex h-32 items-center justify-center text-text-muted">
+            No work submitted yet
+          </div>
+        ) : null}
+        <SubmittedArtifactsList artifacts={submittedArtifacts} />
+      </div>
     </div>
   )
 

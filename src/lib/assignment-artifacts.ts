@@ -9,6 +9,7 @@ export interface AssignmentArtifact {
   repo_owner?: string
   repo_name?: string
   normalized_url?: string
+  github_username?: string
 }
 
 const HTTP_PROTOCOLS = new Set(['http:', 'https:'])

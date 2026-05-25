@@ -12,6 +12,11 @@ import {
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import { withErrorHandler } from '@/lib/api-handler'
 import { loadAssignmentFeedbackEntries } from '@/lib/server/assignment-feedback'
+import {
+  loadAssignmentSubmissionArtifactsForDoc,
+  loadAssignmentSubmissionRequirements,
+  loadUserGitHubIdentity,
+} from '@/lib/server/assignment-submission-artifacts'
 import type { AssignmentDocHistoryEntry, AssignmentDocHistoryTrigger, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -30,6 +35,25 @@ function buildHistoryMetrics(
     char_count: countCharacters(content),
     paste_word_count: pasteWordCount,
     keystroke_count: keystrokeCount,
+  }
+}
+
+async function loadStudentSubmissionContext(
+  supabase: ReturnType<typeof getServiceRoleClient>,
+  assignmentId: string,
+  docId: string | null,
+  studentId: string
+) {
+  const [submissionRequirements, submissionArtifacts, githubIdentity] = await Promise.all([
+    loadAssignmentSubmissionRequirements(supabase, assignmentId),
+    docId ? loadAssignmentSubmissionArtifactsForDoc(supabase, docId) : Promise.resolve([]),
+    loadUserGitHubIdentity(supabase, studentId),
+  ])
+
+  return {
+    submission_requirements: submissionRequirements,
+    submission_artifacts: submissionArtifacts,
+    github_identity: githubIdentity,
   }
 }
 
@@ -112,6 +136,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
           }
           // Race condition: another request created the doc, so this wasn't first view
           const feedbackEntries = raced ? await loadAssignmentFeedbackEntries(assignmentId, user.id) : []
+          const submissionContext = await loadStudentSubmissionContext(supabase, assignmentId, raced?.id ?? null, user.id)
           return NextResponse.json({
             assignment: {
               ...assignment,
@@ -119,6 +144,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
             },
             doc: raced ? sanitizeDocForStudent(raced) : raced,
             feedback_entries: feedbackEntries,
+            ...submissionContext,
             wasFirstView: false,
           })
         }
@@ -131,6 +157,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
       }
 
       // New doc created = first view
+      const submissionContext = await loadStudentSubmissionContext(supabase, assignmentId, created.id, user.id)
       return NextResponse.json({
         assignment: {
           ...assignment,
@@ -138,6 +165,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
         },
         doc: created,
         feedback_entries: [],
+        ...submissionContext,
         wasFirstView: true,
       })
     }
@@ -170,6 +198,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
   }
 
   const feedbackEntries = await loadAssignmentFeedbackEntries(assignmentId, user.id)
+  const submissionContext = await loadStudentSubmissionContext(supabase, assignmentId, existingDoc.id, user.id)
 
   return NextResponse.json({
     assignment: {
@@ -178,6 +207,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
     },
     doc: sanitizeDocForStudent(existingDoc),
     feedback_entries: feedbackEntries,
+    ...submissionContext,
     wasFirstView,
   })
 })

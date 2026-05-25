@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
+import { AssignmentSubmissionRequirementsEditor } from '@/components/AssignmentSubmissionRequirementsEditor'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
+import type { AssignmentSubmissionRequirementDraft } from '@/lib/assignment-submission-requirements'
 import { getRelativeDueDate } from '@/lib/assignment-relative-date'
 import { ConfirmDialog, ContentDialog, DialogPanel, SplitButton } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
@@ -24,12 +26,37 @@ type AssignmentEditorValues = {
   title: string
   instructionsMarkdown: string
   dueAt: string
+  submissionRequirements: AssignmentSubmissionRequirementDraft[]
 }
 
 function getDisplayedAssignmentTitle(title: string): string {
   return /^Untitled(?:\b|\s*\()/.test(title)
     ? ''
     : title
+}
+
+function getAssignmentRequirementDrafts(assignment: Assignment | null | undefined): AssignmentSubmissionRequirementDraft[] {
+  return (assignment?.submission_requirements || []).map((requirement) => ({
+    id: requirement.id,
+    type: requirement.type,
+    label: requirement.label,
+    instructions: requirement.instructions,
+    required: requirement.required,
+    position: requirement.position,
+    validation_policy_json: requirement.validation_policy_json,
+  }))
+}
+
+function serializeRequirementDrafts(requirements: AssignmentSubmissionRequirementDraft[]): string {
+  return JSON.stringify(requirements.map((requirement, index) => ({
+    id: requirement.id ?? null,
+    type: requirement.type,
+    label: requirement.label?.trim() || '',
+    instructions: requirement.instructions?.trim() || '',
+    required: requirement.required !== false,
+    position: index,
+    validation_policy_json: requirement.validation_policy_json ?? {},
+  })))
 }
 
 function validateAssignmentValues(values: AssignmentEditorValues): string | null {
@@ -106,6 +133,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
   const [showInstructionsPreview, setShowInstructionsPreview] = useState(false)
+  const [submissionRequirements, setSubmissionRequirements] = useState<AssignmentSubmissionRequirementDraft[]>([])
 
   const defaultDueAt = addDaysToDateString(getTodayInToronto(), 1)
   const { dueAt, error, updateDueDate, setDueAt, setError } = useAssignmentDateValidation(defaultDueAt)
@@ -119,6 +147,14 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   const pendingValuesRef = useRef<AssignmentEditorValues | null>(null)
 
   const isCreateMode = !assignment
+
+  const buildEditorValues = useCallback((overrides?: Partial<AssignmentEditorValues>): AssignmentEditorValues => ({
+    title,
+    instructionsMarkdown,
+    dueAt,
+    submissionRequirements,
+    ...overrides,
+  }), [dueAt, instructionsMarkdown, submissionRequirements, title])
 
   const resetInstructionsHistory = useCallback((value: string) => {
     instructionsHistoryRef.current = [value]
@@ -189,10 +225,12 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       const resolvedInstructions = getAssignmentInstructionsMarkdown(assignment)
       const nextInstructionsMarkdown = resolvedInstructions.markdown
       const nextDueAt = formatDateInToronto(new Date(assignment.due_at))
+      const nextRequirements = getAssignmentRequirementDrafts(assignment)
 
       setCurrentAssignment(assignment)
       setTitle(nextTitle)
       setInstructionsMarkdown(nextInstructionsMarkdown)
+      setSubmissionRequirements(nextRequirements)
       resetInstructionsHistory(nextInstructionsMarkdown)
       setMarkdownWarning(
         resolvedInstructions.hasLossyConversion
@@ -214,6 +252,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         title: nextTitle,
         instructionsMarkdown: nextInstructionsMarkdown,
         dueAt: nextDueAt,
+        submissionRequirements: nextRequirements,
       }
       setSaveStatus('saved')
     } else {
@@ -221,6 +260,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       setCurrentAssignment(null)
       setTitle('')
       setInstructionsMarkdown('')
+      setSubmissionRequirements([])
       resetInstructionsHistory('')
       setMarkdownWarning(null)
       setDueAt(defaultDueAt)
@@ -277,6 +317,9 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     if (values.instructionsMarkdown !== saved.instructionsMarkdown) {
       changes.instructions_markdown = values.instructionsMarkdown
     }
+    if (serializeRequirementDrafts(values.submissionRequirements) !== serializeRequirementDrafts(saved.submissionRequirements)) {
+      changes.submission_requirements = values.submissionRequirements
+    }
 
     return Object.keys(changes).length > 0 ? changes : null
   }, [])
@@ -294,6 +337,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           title: values.title.trim() || `Untitled (${format(nowInToronto(), 'yyyy-MM-dd HH:mm:ss')})`,
           instructions_markdown: values.instructionsMarkdown,
           due_at: toTorontoEndOfDayIso(values.dueAt),
+          submission_requirements: values.submissionRequirements,
         }),
       })
 
@@ -318,16 +362,18 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     if (!creating) return
 
     const createDraft = async () => {
-      const initialValues = { title: '', instructionsMarkdown: '', dueAt: defaultDueAt }
+      const initialValues = { title: '', instructionsMarkdown: '', dueAt: defaultDueAt, submissionRequirements: [] }
       const newAssignment = await createAssignment(initialValues)
       setCreating(false)
 
       if (newAssignment) {
         const resolvedInstructions = getAssignmentInstructionsMarkdown(newAssignment)
         const nextTitle = getDisplayedAssignmentTitle(newAssignment.title)
+        const nextRequirements = getAssignmentRequirementDrafts(newAssignment)
         setCurrentAssignment(newAssignment)
         setTitle(nextTitle)
         setInstructionsMarkdown(resolvedInstructions.markdown)
+        setSubmissionRequirements(nextRequirements)
         resetInstructionsHistory(resolvedInstructions.markdown)
         setMarkdownWarning(
           resolvedInstructions.hasLossyConversion
@@ -340,6 +386,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           title: nextTitle,
           instructionsMarkdown: resolvedInstructions.markdown,
           dueAt: assignmentDueAt,
+          submissionRequirements: nextRequirements,
         }
         setSaveStatus('saved')
 
@@ -413,7 +460,9 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         const updatedAssignment = data.assignment as Assignment
         savedAssignment = updatedAssignment
         const resolvedInstructions = getAssignmentInstructionsMarkdown(updatedAssignment)
+        const updatedRequirements = getAssignmentRequirementDrafts(updatedAssignment)
         setCurrentAssignment(updatedAssignment)
+        setSubmissionRequirements(updatedRequirements)
         setMarkdownWarning(
           resolvedInstructions.hasLossyConversion
             ? resolvedInstructions.warnings.join(' ')
@@ -423,6 +472,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           title: values.title,
           instructionsMarkdown: resolvedInstructions.markdown,
           dueAt: values.dueAt,
+          submissionRequirements: updatedRequirements,
         }
       }
 
@@ -487,25 +537,25 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     isApplyingInstructionsHistoryRef.current = true
     setInstructionsMarkdown(value)
     setMarkdownWarning(null)
-    scheduleAutosave({ title, instructionsMarkdown: value, dueAt })
+    scheduleAutosave(buildEditorValues({ instructionsMarkdown: value }))
     requestAnimationFrame(() => {
       isApplyingInstructionsHistoryRef.current = false
     })
-  }, [dueAt, scheduleAutosave, title])
+  }, [buildEditorValues, scheduleAutosave])
 
   function handleTitleChange(newTitle: string) {
     setTitle(newTitle)
     if (newTitle.trim() && error === RELEASE_TITLE_ERROR) {
       setError('')
     }
-    scheduleAutosave({ title: newTitle, instructionsMarkdown, dueAt })
+    scheduleAutosave(buildEditorValues({ title: newTitle }))
   }
 
   function handleInstructionsMarkdownChange(newInstructionsMarkdown: string) {
     setInstructionsMarkdown(newInstructionsMarkdown)
     pushInstructionsHistory(newInstructionsMarkdown)
     setMarkdownWarning(null)
-    scheduleAutosave({ title, instructionsMarkdown: newInstructionsMarkdown, dueAt })
+    scheduleAutosave(buildEditorValues({ instructionsMarkdown: newInstructionsMarkdown }))
   }
 
   function handleInstructionsUndo() {
@@ -525,13 +575,18 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   function handleDueAtChange(newDueAt: string) {
     updateDueDate(newDueAt)
     const validationError = validateAssignmentEditorValues(
-      { title, instructionsMarkdown, dueAt: newDueAt },
+      buildEditorValues({ dueAt: newDueAt }),
       currentAssignment
     )
     if (validationError) {
       setError(validationError)
     }
-    scheduleAutosave({ title, instructionsMarkdown, dueAt: newDueAt })
+    scheduleAutosave(buildEditorValues({ dueAt: newDueAt }))
+  }
+
+  function handleSubmissionRequirementsChange(nextRequirements: AssignmentSubmissionRequirementDraft[]) {
+    setSubmissionRequirements(nextRequirements)
+    scheduleAutosave(buildEditorValues({ submissionRequirements: nextRequirements }))
   }
 
   function flushAutosave() {
@@ -556,7 +611,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
 
     if ((saveStatus === 'unsaved' || pendingValuesRef.current) && currentAssignment) {
-      const valuesToSave = pendingValuesRef.current ?? { title, instructionsMarkdown, dueAt }
+      const valuesToSave = pendingValuesRef.current ?? buildEditorValues()
       const validationError = validateAssignmentEditorValues(valuesToSave, currentAssignment)
       if (validationError) {
         setError(validationError)
@@ -595,7 +650,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
     pendingValuesRef.current = null
     setSaving(true)
-    await saveChanges({ title, instructionsMarkdown, dueAt }, { closeAfter: true })
+    await saveChanges(buildEditorValues(), { closeAfter: true })
     setSaving(false)
   }
 
@@ -642,7 +697,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
     // If there are unsaved changes, save before closing
     if (saveStatus === 'unsaved' || pendingValuesRef.current) {
-      const valuesToSave = pendingValuesRef.current ?? { title, instructionsMarkdown, dueAt }
+      const valuesToSave = pendingValuesRef.current ?? buildEditorValues()
       await saveChanges(valuesToSave, { closeAfter: true })
     } else {
       if (currentAssignment) {
@@ -719,6 +774,13 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           markdownWarning={markdownWarning}
           canUndoInstructions={instructionsHistoryIndexRef.current > 0}
           canRedoInstructions={instructionsHistoryIndexRef.current < instructionsHistoryRef.current.length - 1}
+          extraFields={(
+            <AssignmentSubmissionRequirementsEditor
+              requirements={submissionRequirements}
+              onChange={handleSubmissionRequirementsChange}
+              disabled={saving || releasing || creating}
+            />
+          )}
           statusContent={(
             <span className="inline-flex items-center gap-2">
               {saveStatusContent}
