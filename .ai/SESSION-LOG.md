@@ -303,8 +303,11 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added account-level GitHub identity storage/validation and reused it for repo requirements.
 - Added teacher assignment modal controls for adding, editing, ordering, and removing requirements.
 - Added blueprint assignment markdown support via `### Submission Requirements`, plus blueprint storage and classroom instantiation into assignment requirements.
-- Hardened public-link validation against private/local DNS targets and redirects.
+- Removed server-side fetching of arbitrary public-link artifacts; generic links are format-validated only.
+- Blocked invalid/inaccessible submitted artifacts from satisfying required submission gates.
+- Added atomic requirement replacement RPC so teacher requirement edits cannot partially delete student artifacts.
 - Preserved existing requirement IDs on teacher edits so student artifacts remain attached; refreshed screenshot signed URLs from storage paths.
+- Added screenshot replacement cleanup for replaced files and failed DB writes.
 
 **Validation:**
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
@@ -315,5 +318,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm exec vitest run tests/unit/assignment-submission-validation.test.ts`
 - `pnpm exec vitest run tests/lib/assignment-submission-artifacts.test.ts tests/unit/assignment-submission-validation.test.ts`
+- `pnpm exec vitest run tests/unit/assignment-submission-validation.test.ts tests/lib/assignment-submission-requirements.test.ts tests/lib/assignment-submission-artifacts.test.ts tests/api/assignment-docs/artifacts.test.ts`
+- `psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -c "begin;" -c "with target_assignment as (select id from public.assignments limit 1), replaced as (select r.* from target_assignment t cross join lateral public.replace_assignment_submission_requirements_atomic(t.id, '[{\"type\":\"link\",\"label\":\"Smoke public link\",\"required\":true,\"position\":0}]'::jsonb) r) select count(*) as replaced_count from replaced;" -c "rollback;"`
+- `psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -c "select has_function_privilege('anon', 'public.replace_assignment_submission_requirements_atomic(uuid, jsonb)', 'execute') as anon_execute, has_function_privilege('authenticated', 'public.replace_assignment_submission_requirements_atomic(uuid, jsonb)', 'execute') as authenticated_execute, has_function_privilege('service_role', 'public.replace_assignment_submission_requirements_atomic(uuid, jsonb)', 'execute') as service_role_execute;"`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=assignments'`
 - Focused Playwright screenshots: `/tmp/pika-teacher-requirements-modal.png`, `/tmp/pika-student-requirements-checklist-clean.png`

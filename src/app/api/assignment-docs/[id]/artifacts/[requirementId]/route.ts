@@ -208,6 +208,13 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
     return NextResponse.json({ error: validationError }, { status: 400 })
   }
 
+  const { data: previousArtifact } = await supabase
+    .from('assignment_submission_artifacts')
+    .select('id, storage_path')
+    .eq('assignment_doc_id', doc.id)
+    .eq('requirement_id', requirement.id)
+    .maybeSingle()
+
   const ext = file.name.split('.').pop() || 'png'
   const storagePath = `${user.id}/${assignmentId}/${requirement.id}-${Date.now()}-${crypto.randomUUID()}.${ext}`
   const buffer = Buffer.from(await file.arrayBuffer())
@@ -255,10 +262,20 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
     .single()
 
   if (error || !artifact) {
+    await supabase.storage
+      .from(ASSIGNMENT_ARTIFACTS_BUCKET)
+      .remove([storagePath])
+
     if (isMissingAssignmentSubmissionSchemaError(error)) {
       return NextResponse.json({ error: 'Submission artifacts are not available yet.' }, { status: 503 })
     }
     throw new Error('Failed to save image artifact')
+  }
+
+  if (previousArtifact?.storage_path && previousArtifact.storage_path !== storagePath) {
+    await supabase.storage
+      .from(ASSIGNMENT_ARTIFACTS_BUCKET)
+      .remove([previousArtifact.storage_path])
   }
 
   return NextResponse.json({ artifact: await withSignedImageUrl(supabase, artifact as AssignmentSubmissionArtifact) })

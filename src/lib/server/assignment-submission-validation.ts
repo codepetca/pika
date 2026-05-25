@@ -1,4 +1,3 @@
-import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import { parseGitHubRepoReference } from '@/lib/github-repos'
 import { validatePublicGitHubRepo } from '@/lib/server/assignment-repo-targets'
@@ -8,8 +7,6 @@ import type {
 } from '@/types'
 
 const GITHUB_API_BASE = 'https://api.github.com'
-const PUBLIC_LINK_TIMEOUT_MS = 5000
-const PUBLIC_LINK_MAX_REDIRECTS = 5
 
 export type ArtifactValidationResult = {
   validation_status: AssignmentArtifactValidationStatus
@@ -25,12 +22,6 @@ export function normalizeGitHubLogin(value: string | null | undefined): string |
     return null
   }
   return login
-}
-
-class BlockedPublicLinkTargetError extends Error {
-  constructor() {
-    super('Blocked private or local public link target.')
-  }
 }
 
 function normalizeHostnameForIpCheck(hostname: string): string {
@@ -109,52 +100,6 @@ export function isBlockedPublicLinkHostname(hostname: string): boolean {
     normalized.endsWith('.local') ||
     isBlockedIpAddress(normalized)
   )
-}
-
-async function resolvesToBlockedPublicLinkAddress(hostname: string): Promise<boolean> {
-  const normalized = normalizeHostnameForIpCheck(hostname)
-  if (isIP(normalized)) return isBlockedIpAddress(normalized)
-
-  try {
-    const records = await lookup(normalized, { all: true, verbatim: true })
-    return records.some((record) => isBlockedIpAddress(record.address))
-  } catch {
-    return false
-  }
-}
-
-async function assertAllowedPublicLinkTarget(url: string): Promise<void> {
-  const parsed = new URL(url)
-  if (
-    (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
-    isBlockedPublicLinkHostname(parsed.hostname) ||
-    await resolvesToBlockedPublicLinkAddress(parsed.hostname)
-  ) {
-    throw new BlockedPublicLinkTargetError()
-  }
-}
-
-async function fetchPublicLink(url: string, method: 'HEAD' | 'GET', signal: AbortSignal): Promise<Response> {
-  let currentUrl = url
-  for (let redirectCount = 0; redirectCount <= PUBLIC_LINK_MAX_REDIRECTS; redirectCount += 1) {
-    await assertAllowedPublicLinkTarget(currentUrl)
-    const response = await fetch(currentUrl, {
-      method,
-      redirect: 'manual',
-      signal,
-      cache: 'no-store',
-    })
-
-    if (response.status < 300 || response.status >= 400) {
-      return response
-    }
-
-    const location = response.headers.get('location')
-    if (!location) return response
-    currentUrl = new URL(location, currentUrl).href
-  }
-
-  return new Response('', { status: 508 })
 }
 
 export function normalizePublicUrl(value: string | null | undefined): string | null {
@@ -298,47 +243,10 @@ export async function validateAssignmentSubmissionArtifactValue(opts: {
     }
   }
 
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), PUBLIC_LINK_TIMEOUT_MS)
-  try {
-    let response = await fetchPublicLink(normalizedUrl, 'HEAD', controller.signal)
-
-    if (response.status === 405) {
-      response = await fetchPublicLink(normalizedUrl, 'GET', controller.signal)
-    }
-
-    if (!response.ok) {
-      return {
-        validation_status: 'inaccessible',
-        validation_message: 'Pika could not reach this link. Check that it opens publicly.',
-        metadata_json: { http_status: response.status },
-        normalized_url: normalizedUrl,
-      }
-    }
-
-    return {
-      validation_status: 'valid',
-      validation_message: null,
-      metadata_json: { http_status: response.status },
-      normalized_url: normalizedUrl,
-    }
-  } catch (error) {
-    if (error instanceof BlockedPublicLinkTargetError) {
-      return {
-        validation_status: 'invalid',
-        validation_message: 'Enter a public URL that does not resolve to a private or local address.',
-        metadata_json: {},
-        normalized_url: null,
-      }
-    }
-
-    return {
-      validation_status: 'inaccessible',
-      validation_message: 'Pika could not reach this link. Check that it opens publicly.',
-      metadata_json: {},
-      normalized_url: normalizedUrl,
-    }
-  } finally {
-    clearTimeout(timeout)
+  return {
+    validation_status: 'valid',
+    validation_message: null,
+    metadata_json: { validation: 'format_only' },
+    normalized_url: normalizedUrl,
   }
 }

@@ -89,14 +89,15 @@ describe('getSubmissionRequirementCompletion', () => {
     expect(completion.missingRequiredRequirementIds).toEqual(['req-1'])
   })
 
-  it('allows submit with inaccessible warnings but blocks invalid artifacts', () => {
+  it('blocks invalid and inaccessible artifacts', () => {
     const inaccessibleCompletion = getSubmissionRequirementCompletion([
       requirement({ id: 'req-1' }),
     ], [
       artifact({ requirement_id: 'req-1', validation_status: 'inaccessible' }),
     ])
 
-    expect(inaccessibleCompletion.canSubmit).toBe(true)
+    expect(inaccessibleCompletion.canSubmit).toBe(false)
+    expect(inaccessibleCompletion.blockingRequirementIds).toEqual(['req-1'])
 
     const invalidCompletion = getSubmissionRequirementCompletion([
       requirement({ id: 'req-1' }),

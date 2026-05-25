@@ -88,7 +88,7 @@ export function isSubmissionArtifactBlocking(
 ): boolean {
   if (!artifact) return true
   if (!isSubmissionArtifactPresent(artifact)) return true
-  return artifact.validation_status === 'invalid'
+  return artifact.validation_status === 'invalid' || artifact.validation_status === 'inaccessible'
 }
 
 export function getSubmissionArtifactStatusLabel(

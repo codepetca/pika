@@ -1,19 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   isBlockedPublicLinkHostname,
   normalizeGitHubLogin,
   normalizePublicUrl,
   validateAssignmentSubmissionArtifactValue,
 } from '@/lib/server/assignment-submission-validation'
-
-const dnsMocks = vi.hoisted(() => ({
-  lookup: vi.fn(),
-}))
-
-vi.mock('node:dns/promises', () => ({
-  ...dnsMocks,
-  default: dnsMocks,
-}))
 
 vi.mock('@/lib/server/assignment-repo-targets', () => ({
   validatePublicGitHubRepo: vi.fn(async (repoUrl: string) => ({
@@ -27,11 +18,6 @@ vi.mock('@/lib/server/assignment-repo-targets', () => ({
 }))
 
 describe('assignment submission validation helpers', () => {
-  beforeEach(() => {
-    dnsMocks.lookup.mockReset()
-    dnsMocks.lookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }] as never)
-  })
-
   it('normalizes GitHub logins without accepting invalid names', () => {
     expect(normalizeGitHubLogin('@student-dev')).toBe('student-dev')
     expect(normalizeGitHubLogin('-bad')).toBeNull()
@@ -73,61 +59,22 @@ describe('assignment submission validation helpers', () => {
     vi.unstubAllGlobals()
   })
 
-  it('marks public links inaccessible without blocking the artifact format', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404 })))
+  it('validates public links by format without server-side fetching arbitrary URLs', async () => {
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
 
     const result = await validateAssignmentSubmissionArtifactValue({
       type: 'link',
       url: 'https://example.com/missing',
     })
 
-    expect(result.validation_status).toBe('inaccessible')
-    expect(result.normalized_url).toBe('https://example.com/missing')
-
-    vi.unstubAllGlobals()
-  })
-
-  it('rejects public links that resolve to private addresses before fetching them', async () => {
-    dnsMocks.lookup.mockResolvedValue([{ address: '10.0.0.8', family: 4 }] as never)
-    const fetchSpy = vi.fn()
-    vi.stubGlobal('fetch', fetchSpy)
-
-    const result = await validateAssignmentSubmissionArtifactValue({
-      type: 'link',
-      url: 'https://student-demo.example',
-    })
-
     expect(result).toEqual({
-      validation_status: 'invalid',
-      validation_message: 'Enter a public URL that does not resolve to a private or local address.',
-      metadata_json: {},
-      normalized_url: null,
+      validation_status: 'valid',
+      validation_message: null,
+      metadata_json: { validation: 'format_only' },
+      normalized_url: 'https://example.com/missing',
     })
     expect(fetchSpy).not.toHaveBeenCalled()
-
-    vi.unstubAllGlobals()
-  })
-
-  it('rejects public links that redirect to private addresses', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('', {
-        status: 302,
-        headers: { location: 'http://192.168.1.20/admin' },
-      })),
-    )
-
-    const result = await validateAssignmentSubmissionArtifactValue({
-      type: 'link',
-      url: 'https://student-demo.example',
-    })
-
-    expect(result).toEqual({
-      validation_status: 'invalid',
-      validation_message: 'Enter a public URL that does not resolve to a private or local address.',
-      metadata_json: {},
-      normalized_url: null,
-    })
 
     vi.unstubAllGlobals()
   })

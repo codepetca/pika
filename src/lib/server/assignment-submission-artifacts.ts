@@ -30,7 +30,8 @@ export function isMissingAssignmentSubmissionSchemaError(error: unknown): error 
   return (
     combined.includes('assignment_submission_requirements') ||
     combined.includes('assignment_submission_artifacts') ||
-    combined.includes('user_github_identities')
+    combined.includes('user_github_identities') ||
+    combined.includes('replace_assignment_submission_requirements_atomic')
   )
 }
 
@@ -136,98 +137,18 @@ export async function replaceAssignmentSubmissionRequirements(
   const normalized = normalizeAssignmentSubmissionRequirementDrafts(drafts)
 
   try {
-    const requirementsQuery = supabase.from('assignment_submission_requirements')
-    if (!requirementsQuery) return []
-    const { data: existingRequirements, error: existingError } = await requirementsQuery
-      .select('*')
-      .eq('assignment_id', assignmentId)
+    if (!supabase.rpc) return []
+    const { data, error } = await supabase.rpc('replace_assignment_submission_requirements_atomic', {
+      p_assignment_id: assignmentId,
+      p_requirements: normalized,
+    })
 
-    if (existingError) {
-      if (isMissingAssignmentSubmissionSchemaError(existingError)) return []
-      throw new Error('Failed to load assignment submission requirements')
+    if (error) {
+      if (isMissingAssignmentSubmissionSchemaError(error)) return []
+      throw new Error('Failed to save assignment submission requirements')
     }
 
-    const existingById = new Map(
-      ((existingRequirements || []) as AssignmentSubmissionRequirement[])
-        .map((requirement) => [requirement.id, requirement])
-    )
-    const preservedIds = new Set(
-      normalized
-        .filter((requirement) => {
-          const existing = requirement.id ? existingById.get(requirement.id) : null
-          return Boolean(existing && existing.type === requirement.type)
-        })
-        .map((requirement) => requirement.id as string)
-    )
-    const removedIds = ((existingRequirements || []) as AssignmentSubmissionRequirement[])
-      .filter((requirement) => !preservedIds.has(requirement.id))
-      .map((requirement) => requirement.id)
-
-    if (removedIds.length > 0) {
-      const deleteQuery = supabase.from('assignment_submission_requirements')
-      if (!deleteQuery) return []
-      const { error: deleteError } = await deleteQuery
-        .delete()
-        .eq('assignment_id', assignmentId)
-        .in('id', removedIds)
-
-      if (deleteError) {
-        if (isMissingAssignmentSubmissionSchemaError(deleteError)) return []
-        throw new Error('Failed to clear assignment submission requirements')
-      }
-    }
-
-    if (normalized.length === 0) return []
-
-    const preservedRows = normalized
-      .filter((requirement) => requirement.id && preservedIds.has(requirement.id))
-      .map((requirement) => ({
-        id: requirement.id,
-        assignment_id: assignmentId,
-        type: requirement.type,
-        label: requirement.label,
-        instructions: requirement.instructions,
-        required: requirement.required,
-        position: requirement.position,
-        validation_policy_json: requirement.validation_policy_json,
-      }))
-    const newRows = normalized
-      .filter((requirement) => !requirement.id || !preservedIds.has(requirement.id))
-      .map((requirement) => ({
-        assignment_id: assignmentId,
-        type: requirement.type,
-        label: requirement.label,
-        instructions: requirement.instructions,
-        required: requirement.required,
-        position: requirement.position,
-        validation_policy_json: requirement.validation_policy_json,
-      }))
-
-    if (preservedRows.length > 0) {
-      const upsertQuery = supabase.from('assignment_submission_requirements')
-      if (!upsertQuery) return []
-      const { error } = await upsertQuery
-        .upsert(preservedRows, { onConflict: 'id' })
-
-      if (error) {
-        if (isMissingAssignmentSubmissionSchemaError(error)) return []
-        throw new Error('Failed to save assignment submission requirements')
-      }
-    }
-
-    if (newRows.length > 0) {
-      const insertQuery = supabase.from('assignment_submission_requirements')
-      if (!insertQuery) return []
-      const { error } = await insertQuery
-        .insert(newRows)
-
-      if (error) {
-        if (isMissingAssignmentSubmissionSchemaError(error)) return []
-        throw new Error('Failed to save assignment submission requirements')
-      }
-    }
-
-    return loadAssignmentSubmissionRequirements(supabase, assignmentId)
+    return (data || []) as AssignmentSubmissionRequirement[]
   } catch (error) {
     if (isMissingAssignmentSubmissionSchemaError(error)) return []
     throw error
