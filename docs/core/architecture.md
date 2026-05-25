@@ -98,11 +98,12 @@ tests/                             # Vitest unit + API suites
   `border-border`, `text-primary`, `text-danger`, `text-success`, `text-warning`
 - Full token reference: `src/ui/README.md` | Design rules: `docs/core/design.md`
 
-### Authentication (Primary)
+### Authentication (Current And WorkOS-Ready)
 - **Signup**: `/api/auth/signup` stores a verification code (mock-emailed); `/verify-signup` validates; `/create-password` hashes password (bcrypt), sets session.
 - **Login**: `/api/auth/login` with email/password.
 - **Forgot/Reset**: `/api/auth/forgot-password` issues reset code; `/reset-password/verify` + `/confirm` update password.
 - **Session**: iron-session cookie (`pika_session`), HTTP-only, SameSite=Lax, secure in production.
+- **WorkOS migration posture**: keep `public.users.id` as Pika's internal UUID user id. Store the external WorkOS AuthKit id in `public.users.workos_user_id` and map WorkOS sessions to local users before authorization checks.
 
 ### Attendance Logic
 - Statuses: `present` or `absent` only. Presence is determined by existence of an entry for a class day where `is_class_day=true`.
@@ -116,8 +117,8 @@ tests/                             # Vitest unit + API suites
 
 ### Route Protection
 - Role check via `requireRole('student' | 'teacher')` in API routes.
-- Classroom ownership/enrollment enforced in route logic and RLS.
-- Service role Supabase client used in API routes; iron-session used for identity.
+- Classroom ownership/enrollment enforced in route logic using the local Pika user id.
+- Server routes use the Supabase service-role client and iron-session identity. Browser-side Supabase table/RPC access is not a supported app data path.
 
 ### API Route Error Handling (Required Pattern)
 All API routes **must** use the `withErrorHandler` wrapper from `@/lib/api-handler`:
@@ -339,10 +340,10 @@ Existing indexes (migration 038):
 
 ---
 
-## Database Schema (Migrations 001–045+)
+## Database Schema (Migrations 001–075+)
 
 ### Core
-- `users` — `id`, `email`, `role`, `email_verified_at`, `password_hash`, timestamps
+- `users` — `id`, `email`, `role`, `email_verified_at`, `password_hash`, `workos_user_id`, timestamps
 - `verification_codes` — signup/reset codes with expiry/attempts
 - `student_profiles` — student metadata linked to `users`
 - `classrooms` — owned by teacher (`teacher_id`); `name`, `join_code`, `allow_enrollment`
@@ -375,9 +376,11 @@ Existing indexes (migration 038):
 - `developer_feedback_candidates` — server-managed, sanitized Pika improvement candidates from daily logs and direct Send Feedback submissions for developer review
 
 **RLS Highlights**
-- Auth tables (`verification_codes`) are server-managed only (service role).
-- All other tables: RLS disabled; app enforces ownership/enrollment via `requireRole` + service role checks.
-- Assignments/docs: teachers of the classroom read-all; students read/write their own docs only.
+- `public` is exposed through Supabase's Data API, so public tables should have RLS enabled even when app traffic is server-routed.
+- App data access is server-managed: API routes authorize with `requireAuth()` / `requireRole()` and use the service-role Supabase client.
+- `anon` and `authenticated` direct table/RPC privileges are revoked by the auth hardening migration; new direct browser data paths must be explicitly designed and reviewed.
+- Some legacy RLS policies still contain `auth.uid()` expressions as defense-in-depth for old Supabase-auth-compatible paths. Do not deepen this pattern for new app authorization, because WorkOS AuthKit sessions do not populate Supabase Auth context automatically.
+- Server-managed tables that have no supported direct access path use explicit no-direct-access policies.
 
 ---
 
@@ -400,7 +403,8 @@ Existing indexes (migration 038):
 ## Deployment Notes
 
 - Vercel for frontend + API; Supabase for DB.
-- Use service role key server-side only; publishable key client-side.
+- Use the Supabase service-role/secret key server-side only. Do not expose it to browsers.
+- Supabase public-read storage URLs are product behavior for legacy public buckets, but uploads/deletes should go through server API routes.
 - Iron-session cookie (`pika_session`) must be secure in production with a 32+ char secret.
 
 ---

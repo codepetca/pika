@@ -40,7 +40,8 @@ Inspect or modify source only after the startup set and the docs required by you
 - Platform: Next.js App Router, Supabase, Tailwind CSS, Vitest, Vercel
 - Vercel cron guardrail: on the Hobby plan, cron schedules must run at most once per day; do not add sub-daily repo-managed Vercel cron jobs
 - Timezone: all deadline and attendance logic uses `America/Toronto`
-- Auth: email verification codes plus password login; no OAuth providers
+- Auth: current runtime uses email verification codes plus password login; upcoming WorkOS AuthKit work must map WorkOS users to `public.users.workos_user_id` while preserving local `public.users.id` UUIDs
+- Supabase access: app authorization belongs in server routes via `requireAuth()` / `requireRole()` and the service-role client; do not add new browser-side Supabase table/RPC access without explicit review
 - Architecture: keep business logic out of UI components; prefer `src/lib/*` and server-side modules
 - API routes: use `withErrorHandler` from `@/lib/api-handler`
 - Repeated client-side reads: use `fetchJSONWithCache` from `@/lib/request-cache`
