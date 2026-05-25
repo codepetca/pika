@@ -12,7 +12,84 @@ vi.mock('@/lib/server/assignment-ai-grading-runs', () => ({
   getActiveAssignmentAiGradingRunSummary: vi.fn(async () => null),
 }))
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = {
+  from: vi.fn(),
+  rpc: vi.fn(),
+  storage: { from: vi.fn() },
+}
+
+function makeAssignment(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'a-1',
+    title: 'Assignment 1',
+    description: 'Write it up',
+    instructions_markdown: 'Write it up',
+    rich_instructions: null,
+    due_at: '2099-03-10T23:59:00.000Z',
+    position: 0,
+    is_draft: false,
+    released_at: null,
+    track_authenticity: true,
+    created_by: 'teacher-1',
+    created_at: '2026-03-01T00:00:00.000Z',
+    updated_at: '2026-03-02T00:00:00.000Z',
+    classrooms: { teacher_id: 'teacher-1', archived_at: null },
+    ...overrides,
+  }
+}
+
+function makeRequirement(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'req-link',
+    assignment_id: 'a-1',
+    type: 'link',
+    label: 'Public link',
+    instructions: '',
+    required: true,
+    position: 0,
+    validation_policy_json: {},
+    created_at: '2026-05-01T00:00:00.000Z',
+    updated_at: '2026-05-01T00:00:00.000Z',
+    ...overrides,
+  }
+}
+
+function makeAssignmentSelectTable(existing = makeAssignment()) {
+  return {
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({ data: existing, error: null }),
+      })),
+    })),
+  }
+}
+
+function makeRequirementsTable(requirements: unknown[]) {
+  return {
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        order: vi.fn(() => ({
+          order: vi.fn().mockResolvedValue({ data: requirements, error: null }),
+        })),
+      })),
+    })),
+  }
+}
+
+function makeImageArtifactsTable(paths: string[]) {
+  return {
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        not: vi.fn(() => ({
+          in: vi.fn().mockResolvedValue({
+            data: paths.map((storage_path) => ({ storage_path })),
+            error: null,
+          }),
+        })),
+      })),
+    })),
+  }
+}
 
 describe('GET /api/teacher/assignments/[id]', () => {
   beforeEach(() => { vi.clearAllMocks() })
@@ -443,6 +520,83 @@ describe('PATCH /api/teacher/assignments/[id]', () => {
     expect(response.status).toBe(200)
     expect(capturedUpdate).toEqual({ is_draft: true, released_at: null })
   })
+
+  it('removes image artifact storage after an image requirement is removed', async () => {
+    const remove = vi.fn(async () => ({ error: null }))
+    const remainingRequirement = makeRequirement({ id: 'req-link', type: 'link', label: 'Demo link' })
+    ;(mockSupabaseClient.rpc as any) = vi.fn(async () => ({
+      data: [remainingRequirement],
+      error: null,
+    }))
+    ;(mockSupabaseClient.storage as any) = {
+      from: vi.fn(() => ({ remove })),
+    }
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') return makeAssignmentSelectTable()
+      if (table === 'assignment_submission_requirements') {
+        return makeRequirementsTable([
+          makeRequirement({ id: 'req-image', type: 'image', label: 'Screenshot', position: 0 }),
+          makeRequirement({ id: 'req-link', type: 'link', label: 'Demo link', position: 1 }),
+        ])
+      }
+      if (table === 'assignment_submission_artifacts') {
+        return makeImageArtifactsTable(['student-1/a-1/req-image.png'])
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a-1', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        submission_requirements: [
+          { id: 'req-link', type: 'link', label: 'Demo link', position: 0 },
+        ],
+      }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'a-1' } })
+
+    expect(response.status).toBe(200)
+    expect(remove).toHaveBeenCalledWith(['student-1/a-1/req-image.png'])
+  })
+
+  it('preserves image artifact storage when the image requirement id is kept', async () => {
+    const remove = vi.fn(async () => ({ error: null }))
+    const updatedRequirement = makeRequirement({ id: 'req-image', type: 'image', label: 'Updated screenshot' })
+    ;(mockSupabaseClient.rpc as any) = vi.fn(async () => ({
+      data: [updatedRequirement],
+      error: null,
+    }))
+    ;(mockSupabaseClient.storage as any) = {
+      from: vi.fn(() => ({ remove })),
+    }
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') return makeAssignmentSelectTable()
+      if (table === 'assignment_submission_requirements') {
+        return makeRequirementsTable([
+          makeRequirement({ id: 'req-image', type: 'image', label: 'Screenshot', position: 0 }),
+        ])
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a-1', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        submission_requirements: [
+          { id: 'req-image', type: 'image', label: 'Updated screenshot', position: 1 },
+        ],
+      }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'a-1' } })
+
+    expect(response.status).toBe(200)
+    expect(remove).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('assignment_submission_artifacts')
+  })
 })
 
 describe('DELETE /api/teacher/assignments/[id]', () => {
@@ -471,5 +625,101 @@ describe('DELETE /api/teacher/assignments/[id]', () => {
 
     const response = await DELETE(request, { params: { id: 'a-1' } })
     expect(response.status).toBe(403)
+  })
+
+  it('removes related image artifact storage after deleting an assignment', async () => {
+    const remove = vi.fn(async () => ({ error: null }))
+    const deleteEq = vi.fn(async () => ({ error: null }))
+    ;(mockSupabaseClient.storage as any) = {
+      from: vi.fn(() => ({ remove })),
+    }
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({ data: makeAssignment(), error: null }),
+            })),
+          })),
+          delete: vi.fn(() => ({
+            eq: deleteEq,
+          })),
+        }
+      }
+      if (table === 'assignment_submission_requirements') {
+        return makeRequirementsTable([
+          makeRequirement({ id: 'req-image', type: 'image', label: 'Screenshot' }),
+          makeRequirement({ id: 'req-link', type: 'link', label: 'Demo link' }),
+        ])
+      }
+      if (table === 'assignment_submission_artifacts') {
+        return makeImageArtifactsTable(['student-1/a-1/req-image.png'])
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a-1', {
+      method: 'DELETE',
+    })
+
+    const response = await DELETE(request, { params: { id: 'a-1' } })
+
+    expect(response.status).toBe(200)
+    expect(deleteEq).toHaveBeenCalledWith('id', 'a-1')
+    expect(remove).toHaveBeenCalledWith(['student-1/a-1/req-image.png'])
+    expect(remove.mock.invocationCallOrder[0]).toBeGreaterThan(deleteEq.mock.invocationCallOrder[0])
+  })
+
+  it('logs storage removal failures without failing a successful assignment delete', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const removeError = { message: 'storage unavailable' }
+    const remove = vi.fn(async () => ({ error: removeError }))
+    const deleteEq = vi.fn(async () => ({ error: null }))
+    ;(mockSupabaseClient.storage as any) = {
+      from: vi.fn(() => ({ remove })),
+    }
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({ data: makeAssignment(), error: null }),
+            })),
+          })),
+          delete: vi.fn(() => ({
+            eq: deleteEq,
+          })),
+        }
+      }
+      if (table === 'assignment_submission_requirements') {
+        return makeRequirementsTable([
+          makeRequirement({ id: 'req-image', type: 'image', label: 'Screenshot' }),
+        ])
+      }
+      if (table === 'assignment_submission_artifacts') {
+        return makeImageArtifactsTable(['student-1/a-1/req-image.png'])
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a-1', {
+      method: 'DELETE',
+    })
+
+    const response = await DELETE(request, { params: { id: 'a-1' } })
+
+    expect(response.status).toBe(200)
+    expect(remove).toHaveBeenCalledWith(['student-1/a-1/req-image.png'])
+    expect(consoleError).toHaveBeenCalledWith(
+      'Failed to remove assignment artifact storage objects:',
+      expect.objectContaining({
+        context: 'assignment:a-1:delete',
+        error: removeError,
+        paths: ['student-1/a-1/req-image.png'],
+      })
+    )
+    consoleError.mockRestore()
   })
 })

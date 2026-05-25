@@ -7,21 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-21 — Gradebook scroll containment
-
-**Completed:**
-- Fixed the teacher gradebook matrix so its table panel fills the workspace and owns both horizontal and vertical overflow.
-- Removed the flush table wrapper that clipped horizontal overflow before the gradebook scroll pane could expose it.
-- Kept the gradebook viewport-constrained in both grades and settings modes so long student lists and many assessment columns remain reachable.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm lint`
-- Mocked long-grid Playwright check with 48 students and 32 assessment columns; verified `gradebook-student-scroll-pane` can scroll on both axes and captured `/tmp/pika-gradebook-scroll-after.png` and `/tmp/pika-gradebook-settings-scroll-after.png`.
-- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/5fcf845d-220d-4321-8409-5afe9e9459c3?tab=gradebook"`
-- Reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`.
-
 ## 2026-05-21 — Returned assignment timing freeze
 
 **Completed:**
@@ -323,6 +308,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm test`
+
+## 2026-05-25 — Assignment artifact storage cleanup follow-up
+
+**Completed:**
+- Added best-effort teacher-side cleanup for `assignment-artifacts` image objects when image submission requirements are removed.
+- Added best-effort cleanup for image artifact objects after teacher assignment deletion succeeds.
+- Preserved storage objects when an image requirement is edited/reordered/renamed with the same requirement ID and type.
+- Added chunked Storage `remove()` calls with failure logging that does not fail successful teacher mutations.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/teacher/assignments-id.test.ts`
+- `pnpm test tests/lib/assignment-submission-artifacts.test.ts tests/api/assignment-docs/artifacts.test.ts`
+- `pnpm lint`
+- `pnpm build`
 - `pnpm build`
 - `pnpm exec vitest run tests/unit/assignment-submission-validation.test.ts`
 - `pnpm exec vitest run tests/lib/assignment-submission-artifacts.test.ts tests/unit/assignment-submission-validation.test.ts`
