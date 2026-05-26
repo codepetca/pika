@@ -119,6 +119,12 @@ export function ThreePanelProvider({
     return () => window.removeEventListener('resize', checkDesktop)
   }, [])
 
+  useEffect(() => {
+    if (!isDesktop) return
+    setMobileLeftOpen(false)
+    setMobileRightOpen(false)
+  }, [isDesktop])
+
   // Force right sidebar open on desktop when desktopAlwaysOpen is true
   const desktopAlwaysOpen = config.rightSidebar.desktopAlwaysOpen ?? false
   const effectiveRightOpen = desktopAlwaysOpen && isDesktop ? true : rightOpen
@@ -167,6 +173,8 @@ export function ThreePanelProvider({
     setMobileLeftOpen(false)
     setMobileRightOpen(false)
   }, [])
+  const effectiveMobileLeftOpen = mobileLeftOpen && !isDesktop
+  const effectiveMobileRightOpen = mobileRightOpen && !isDesktop
 
   // Calculate CSS widths
   const widths = useMemo(() => {
@@ -206,8 +214,8 @@ export function ThreePanelProvider({
       routeKey,
       widths,
       mobileDrawer: {
-        isLeftOpen: mobileLeftOpen,
-        isRightOpen: mobileRightOpen,
+        isLeftOpen: effectiveMobileLeftOpen,
+        isRightOpen: effectiveMobileRightOpen,
         openLeft: openMobileLeft,
         openRight: openMobileRight,
         close: closeMobileDrawer,
@@ -226,8 +234,8 @@ export function ThreePanelProvider({
       config,
       routeKey,
       widths,
-      mobileLeftOpen,
-      mobileRightOpen,
+      effectiveMobileLeftOpen,
+      effectiveMobileRightOpen,
       openMobileLeft,
       openMobileRight,
       closeMobileDrawer,

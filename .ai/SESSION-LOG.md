@@ -7,18 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-23 — Gradebook Final column separator
-
-**Completed:**
-- Added a strong separator before the Final grade column across gradebook header, student, and summary rows.
-- Covered the separator with focused gradebook component expectations.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=gradebook'`
-
 ## 2026-05-23 — Gradebook Final column resize
 
 **Completed:**
@@ -389,3 +377,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-05-26 — Mobile navigation drawer labels
+
+**Completed:**
+- Made the classroom mobile navigation drawer show tab labels beside icons even when the persisted desktop left rail is collapsed.
+- Kept desktop collapsed-rail behavior icon-only with screen-reader labels and tooltips.
+- Closed mobile drawer state when the viewport crosses to the desktop breakpoint so stale mobile state cannot affect the desktop rail.
+- Added NavItems regression coverage for mobile-open labels and desktop-collapsed hidden labels.
+
+**Validation:**
+- `pnpm test tests/components/NavItems.test.tsx`
+- `pnpm test tests/components/NavItems.test.tsx tests/components/ThreePanelProvider.test.tsx`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861"`
+- Playwright mobile drawer assertions for teacher and student labels.
+- Screenshots: `/tmp/pika-teacher-mobile-menu.png`, `/tmp/pika-student-mobile-menu.png`
+- `pnpm lint`
+- `pnpm test`
