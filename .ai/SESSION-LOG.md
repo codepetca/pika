@@ -7,25 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-25 — Assignment student table artifact UX
-
-**Completed:**
-- Rebased `codex/assignment-artifact-open-behavior` onto `origin/main` after assignment submission requirements landed.
-- Updated the teacher assignment student table to use compact `First`, `Last`, `Status`, and `Grade` columns with keyboard/pointer resize handles.
-- Converted artifact cells to icon-number pills so the table shows repo/link/image type plus `1`, `2`, `3`, etc. without URL text.
-- Changed artifact pill hover tooltips to show the full artifact set as a compact stacked list, with the hovered item highlighted.
-- Kept single artifacts opening directly and multi-artifact rows opening the narrow chooser dialog.
-
-**Validation:**
-- `pnpm exec vitest run tests/components/AssignmentArtifactsCell.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx`
-- `pnpm lint`
-- `pnpm exec tsc --noEmit`
-- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
-- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a'`
-- Playwright interaction smoke: first-column resize changed from `72` to `88`; first artifact pill text was `1`; chooser showed `4 work items`.
-- Playwright hover smoke: artifact tooltip showed `4 artifacts` as a stacked list.
-- Screenshots: `/tmp/pika-teacher-ready.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-artifact-icon-chooser.png`, `/tmp/pika-teacher-artifact-tooltip-list.png`
-
 ## 2026-05-25 — Assignment artifact hover dropdown links
 
 **Completed:**
@@ -368,5 +349,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/lib/server/course-blueprints.test.ts tests/api/teacher/course-blueprints-route.test.ts`
 - `git diff --check`
 - `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-05-26 — GitHub identity API coverage
+
+**Completed:**
+- Added focused API coverage for `GET/PATCH /api/account/github-identity`.
+- Covered auth failures, null/saved identity loads, username normalization and format rejection, validation outcome persistence, missing storage 503s, and unexpected save failures.
+- Asserted the Supabase upsert payload and `onConflict: 'user_id'` contract for saved GitHub identities.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/account/github-identity.test.ts`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm test tests/api/account/github-identity.test.ts tests/unit/api-route-standards.test.ts`
 - `pnpm test`
 - `pnpm build`
