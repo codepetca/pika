@@ -7,22 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-25 — Assignment artifact hover dropdown links
-
-**Completed:**
-- Made assignment artifact hover lists interactive so the pointer can move from an artifact pill into the dropdown.
-- Converted hover-list artifact rows into external links while preserving the existing pill-click chooser/direct-link behavior.
-- Added component coverage for clicking a hover-list artifact without opening the chooser or bubbling to parent row handlers.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/AssignmentArtifactsCell.test.tsx`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a'`
-- Playwright hover smoke: hovered artifact pill, moved into dropdown link, verified trial click to `https://github.com/vercel/next.js/tree/canary`.
-- Screenshots: `/tmp/pika-teacher-loaded.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-artifacts-hover.png`
-- `pnpm test`
-
 ## 2026-05-26 — Nested GitHub artifact classification
 
 **Completed:**
@@ -365,5 +349,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `pnpm lint`
 - `pnpm test tests/api/account/github-identity.test.ts tests/unit/api-route-standards.test.ts`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-05-26 — Archived gradebook mutation guards
+
+**Completed:**
+- Blocked gradebook assessment-weight PATCH requests when the classroom is archived while preserving read access.
+- Blocked manual quiz override writes for archived classrooms by loading `archived_at` through the joined classroom relation.
+- Added API regression coverage proving both archived paths return 403 before update/upsert work.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/teacher/gradebook.test.ts tests/api/teacher/gradebook-quiz-overrides.test.ts`
+- `git diff --check`
+- `pnpm lint`
 - `pnpm test`
 - `pnpm build`

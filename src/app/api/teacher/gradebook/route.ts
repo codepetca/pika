@@ -214,7 +214,11 @@ function getTestGradebookStatus(input: {
   return null
 }
 
-async function assertTeacherOwnsClassroom(teacherId: string, classroomId: string) {
+async function assertTeacherOwnsClassroom(
+  teacherId: string,
+  classroomId: string,
+  options?: { checkArchived?: boolean }
+) {
   const supabase = getServiceRoleClient()
   const { data, error } = await supabase
     .from('classrooms')
@@ -224,6 +228,9 @@ async function assertTeacherOwnsClassroom(teacherId: string, classroomId: string
 
   if (error || !data) return { ok: false as const, status: 404 as const, error: 'Classroom not found' }
   if (data.teacher_id !== teacherId) return { ok: false as const, status: 403 as const, error: 'Forbidden' }
+  if (options?.checkArchived && data.archived_at) {
+    return { ok: false as const, status: 403 as const, error: 'Classroom is archived' }
+  }
   return { ok: true as const, classroom: data }
 }
 
@@ -1089,7 +1096,7 @@ export const PATCH = withErrorHandler('PatchGradebook', async (request: NextRequ
     return NextResponse.json({ error: 'classroom_id is required' }, { status: 400 })
   }
 
-  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
+  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId, { checkArchived: true })
   if (!ownership.ok) {
     return NextResponse.json({ error: ownership.error }, { status: ownership.status })
   }
