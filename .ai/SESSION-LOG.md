@@ -7,22 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-22 — Gradebook identity column fixes
-
-**Completed:**
-- Defaulted the gradebook ID column to hidden while keeping it available in settings.
-- Added a strong separator after the last rendered identity column, including the First-only case.
-- Replaced fixed identity widths/sticky offsets with resizable First, Last, and ID column widths.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm test`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=gradebook'`
-- Playwright first-only separator and drag check on the seeded gradebook page
-
 ## 2026-05-23 — Gradebook Final column separator
 
 **Completed:**
@@ -387,3 +371,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook'`
 - Screenshots reviewed: `/tmp/pika-teacher.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-detail.png`, `/tmp/pika-teacher-dark.png`
+
+## 2026-05-26 — Assignment unsubmit return-state guard
+
+**Completed:**
+- Added a shared assignment rule that only allows student unsubmit before the first teacher return.
+- Blocked `/api/assignment-docs/[id]/unsubmit` from clearing submitted state after returned work, preserving teacher return queues for returned/resubmitted cycles.
+- Updated student assignment action bars to hide `Unsubmit` when the returned submission state is no longer mutable.
+- Moved repeated student assignment reads through `fetchJSONWithCache` with zero TTL so the audit pattern is satisfied without caching the first-view side effect.
+
+**Validation:**
+- `pnpm test tests/api/assignment-docs/unsubmit.test.ts tests/unit/assignments.test.ts tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm test tests/api/assignment-docs tests/api/student/assignments.test.ts tests/components/StudentAssignmentsTab.test.tsx tests/components/StudentAssignmentEditor.feedback-card.test.tsx tests/unit/assignments.test.ts`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=71f8b37f-831b-4e90-89f9-f04981a97d6a'`
+- Visual follow-up screenshots: `/tmp/pika-student-assignment-returned.png`, `/tmp/pika-teacher-assignment-loaded.png`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`

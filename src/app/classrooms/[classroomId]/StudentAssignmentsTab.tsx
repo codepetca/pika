@@ -52,7 +52,12 @@ export function StudentAssignmentsTab({
   const [hasLoaded, setHasLoaded] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
-  const [editorState, setEditorState] = useState({ isSubmitted: false, canSubmit: false, submitting: false })
+  const [editorState, setEditorState] = useState({
+    isSubmitted: false,
+    canSubmit: false,
+    canUnsubmit: false,
+    submitting: false,
+  })
   const editorRef = useRef<StudentAssignmentEditorHandle>(null)
   const wasActiveRef = useRef(isActive)
   const showBlockingSpinner = useDelayedBusy(
@@ -259,16 +264,18 @@ export function StudentAssignmentsTab({
             </div>
           }
           trailing={
-            <Button
-              size="sm"
-              variant={editorState.isSubmitted ? 'secondary' : 'primary'}
-              onClick={editorState.isSubmitted ? handleUnsubmit : handleSubmit}
-              disabled={editorState.submitting || (!editorState.isSubmitted && !editorState.canSubmit)}
-            >
-              {editorState.submitting
-                ? (editorState.isSubmitted ? 'Unsubmitting...' : 'Submitting...')
-                : (editorState.isSubmitted ? 'Unsubmit' : 'Submit')}
-            </Button>
+            !editorState.isSubmitted || editorState.canUnsubmit ? (
+              <Button
+                size="sm"
+                variant={editorState.isSubmitted ? 'secondary' : 'primary'}
+                onClick={editorState.isSubmitted ? handleUnsubmit : handleSubmit}
+                disabled={editorState.submitting || (!editorState.isSubmitted && !editorState.canSubmit)}
+              >
+                {editorState.submitting
+                  ? (editorState.isSubmitted ? 'Unsubmitting...' : 'Submitting...')
+                  : (editorState.isSubmitted ? 'Unsubmit' : 'Submit')}
+              </Button>
+            ) : null
           }
         />
       ) : selectedMaterial ? (
