@@ -10,14 +10,23 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
-import { ChevronDown, ChevronUp, Copy, Mail, Pencil, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Copy, Mail, Settings, X } from 'lucide-react'
 import type {
   GradebookAssessmentCell,
   GradebookAssessmentColumn,
   Classroom,
   GradebookStudentSummary,
 } from '@/types'
-import { Input, SplitButton, Tooltip, type SplitButtonOption, useAppMessage } from '@/ui'
+import {
+  Button,
+  Input,
+  SegmentedControl,
+  SplitButton,
+  Tooltip,
+  type SegmentedControlOption,
+  type SplitButtonOption,
+  useAppMessage,
+} from '@/ui'
 import {
   AssessmentStatusIndicator,
   getGradebookAssessmentStatusDisplay,
@@ -1615,107 +1624,89 @@ export function TeacherGradebookTab({
   }
 
   const isSettingsActive = columnEditorOpen
-  const scoreDisplayOptions: SplitButtonOption[] = [
+  const scoreDisplayOptions = [
     {
-      id: 'show-percent',
+      value: 'percent',
       label: 'Show %',
-      onSelect: () => handleScoreDisplayModeChange('percent'),
-      checked: scoreDisplayMode === 'percent',
     },
     {
-      id: 'show-raw',
+      value: 'raw',
       label: 'Show Raw',
-      onSelect: () => handleScoreDisplayModeChange('raw'),
-      checked: scoreDisplayMode === 'raw',
+    },
+  ] satisfies Array<SegmentedControlOption<ScoreDisplayMode>>
+  const gradebookEmailOptions: SplitButtonOption[] = [
+    {
+      id: 'copy-selected-emails',
+      label: `Copy emails (${selectedStudentEmails.length})`,
+      icon: <Copy className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => {
+        void copySelectedEmailsToClipboard()
+      },
+      disabled: selectedStudentEmails.length === 0,
+    },
+    {
+      id: 'gmail-selected-students',
+      label: 'Gmail',
+      icon: <Mail className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => openGmail(selectedStudentEmails),
+      disabled: selectedStudentEmails.length === 0,
+    },
+    {
+      id: 'outlook-selected-students',
+      label: 'Outlook',
+      icon: <Mail className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => openOutlook(selectedStudentEmails),
+      disabled: selectedStudentEmails.length === 0,
     },
   ]
-  const settingsActionOption: SplitButtonOption = {
-    id: 'toggle-settings',
-    label: isSettingsActive ? 'Hide settings' : 'Settings',
-    icon: isSettingsActive ? (
-      <X className="h-4 w-4" aria-hidden="true" />
-    ) : (
-      <Pencil className="h-4 w-4" aria-hidden="true" />
-    ),
-    onSelect: () => handleSettingsActiveChange(!isSettingsActive),
-  }
-  const gradebookActionOptions: SplitButtonOption[] = someStudentsSelected
-    ? [
-        settingsActionOption,
-        ...scoreDisplayOptions,
-        {
-          id: 'copy-selected-emails',
-          label: `Copy selected emails (${selectedStudentEmails.length})`,
-          icon: <Copy className="h-4 w-4" aria-hidden="true" />,
-          onSelect: () => {
-            void copySelectedEmailsToClipboard()
-          },
-          disabled: selectedStudentEmails.length === 0,
-          dividerBefore: true,
-        },
-        {
-          id: 'gmail-selected-students',
-          label: 'Gmail',
-          icon: <Mail className="h-4 w-4" aria-hidden="true" />,
-          onSelect: () => openGmail(selectedStudentEmails),
-          disabled: selectedStudentEmails.length === 0,
-        },
-        {
-          id: 'outlook-selected-students',
-          label: 'Outlook',
-          icon: <Mail className="h-4 w-4" aria-hidden="true" />,
-          onSelect: () => openOutlook(selectedStudentEmails),
-          disabled: selectedStudentEmails.length === 0,
-        },
-      ]
-    : [
-        ...scoreDisplayOptions,
-        {
-          id: 'email-placeholder',
-          label: 'Select students to email',
-          onSelect: () => {},
-          disabled: true,
-          dividerBefore: true,
-        },
-      ]
 
   const actionBar = (
     <TeacherWorkSurfaceActionBar
       center={
-        <SplitButton
-          label={
-            someStudentsSelected ? (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                <Mail className="h-4 w-4" aria-hidden="true" />
-                <span>Email ({selectedStudentEmails.length})</span>
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                {isSettingsActive ? (
-                  <X className="h-4 w-4" aria-hidden="true" />
-                ) : (
-                  <Pencil className="h-4 w-4" aria-hidden="true" />
-                )}
-                <span>{isSettingsActive ? 'Done' : 'Settings'}</span>
-              </span>
-            )
-          }
-          onPrimaryClick={() => {
-            if (someStudentsSelected) {
-              openDefaultEmail(selectedStudentEmails)
-              return
-            }
-            handleSettingsActiveChange(!isSettingsActive)
-          }}
-          options={gradebookActionOptions}
-          variant="surface"
-          size="sm"
-          toggleAriaLabel="Gradebook actions"
-          menuPlacement="down"
-          primaryButtonProps={{
-            'aria-pressed': !someStudentsSelected ? isSettingsActive : undefined,
-          }}
-        />
+        <div className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-1.5">
+          {someStudentsSelected ? (
+            <SplitButton
+              label={
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                  <Mail className="h-4 w-4" aria-hidden="true" />
+                  <span>Email ({selectedStudentEmails.length})</span>
+                </span>
+              }
+              onPrimaryClick={() => openDefaultEmail(selectedStudentEmails)}
+              options={gradebookEmailOptions}
+              disabled={selectedStudentEmails.length === 0}
+              size="sm"
+              toggleAriaLabel="Gradebook email actions"
+              menuPlacement="down"
+            />
+          ) : null}
+          <SegmentedControl
+            ariaLabel="Gradebook score display"
+            value={scoreDisplayMode}
+            options={scoreDisplayOptions}
+            onChange={handleScoreDisplayModeChange}
+            className="h-9"
+          />
+          <Tooltip content={isSettingsActive ? 'Hide gradebook settings' : 'Show gradebook settings'}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label="Gradebook settings"
+              aria-pressed={isSettingsActive}
+              title="Gradebook settings"
+              className={[
+                'h-9 w-9 px-0',
+                isSettingsActive
+                  ? 'border-primary/40 bg-info-bg text-primary shadow-inner hover:bg-info-bg-hover hover:text-primary'
+                  : '',
+              ].join(' ')}
+              onClick={() => handleSettingsActiveChange(!isSettingsActive)}
+            >
+              <Settings className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </Tooltip>
+        </div>
       }
       centerPlacement="floating"
       centerClassName="z-[70]"

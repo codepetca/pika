@@ -7,19 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-24 — Student exam away-focus e2e
-
-**Completed:**
-- Added focused Playwright coverage for a student active test away/focus restoration cycle.
-- Verified the open-response draft stays visible and mounted after focus returns.
-- Asserted student focus telemetry records one away/focus event in both API detail and the visible exam summary.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (first run failed until dependencies were installed and session log was trimmed)
-- `bash scripts/verify-env.sh`
-- `pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop`
-- `pnpm lint`
-
 ## 2026-05-23 — Roster delete action in FAB menu
 
 **Completed:**
@@ -400,3 +387,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Screenshots: `/tmp/pika-teacher-mobile-menu.png`, `/tmp/pika-student-mobile-menu.png`
 - `pnpm lint`
 - `pnpm test`
+
+## 2026-05-26 — Gradebook action cluster consistency
+
+**Completed:**
+- Replaced the gradebook all-purpose split-button with a focused floating action cluster: contextual email split-button, persistent score-display segmented control, and icon-only settings toggle.
+- Kept email actions hidden until students are selected, matching the roster pattern and avoiding disabled placeholder actions.
+- Updated gradebook component coverage for the new score-display, email, and settings controls.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm vitest run tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm tsc --noEmit`
+- `pnpm e2e:auth`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook'`
+- Screenshots reviewed: `/tmp/pika-teacher.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-gradebook-selected.png`, `/tmp/pika-teacher-mobile-gradebook-selected.png`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
