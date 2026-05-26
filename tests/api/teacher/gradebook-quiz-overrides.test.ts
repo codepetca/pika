@@ -70,7 +70,7 @@ describe('PATCH /api/teacher/gradebook/quiz-overrides', () => {
                   id: 'quiz-1',
                   classroom_id: 'classroom-1',
                   points_possible: 10,
-                  classrooms: { teacher_id: 'teacher-1' },
+                  classrooms: { teacher_id: 'teacher-1', archived_at: null },
                 },
                 error: null,
               }),
@@ -110,5 +110,53 @@ describe('PATCH /api/teacher/gradebook/quiz-overrides', () => {
 
     expect(response.status).toBe(200)
     expect(data).toEqual({ success: true })
+  })
+
+  it('rejects quiz overrides for archived classrooms before saving', async () => {
+    const upsert = vi.fn()
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'quizzes') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'quiz-1',
+                  classroom_id: 'classroom-1',
+                  points_possible: 10,
+                  classrooms: {
+                    teacher_id: 'teacher-1',
+                    archived_at: '2026-05-01T12:00:00.000Z',
+                  },
+                },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      if (table === 'quiz_student_scores') {
+        return { upsert }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/gradebook/quiz-overrides', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          quiz_id: 'quiz-1',
+          student_id: 'student-1',
+          manual_override_score: 8,
+        }),
+      })
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(data).toEqual({ error: 'Classroom is archived' })
+    expect(upsert).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('classroom_enrollments')
   })
 })
