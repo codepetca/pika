@@ -79,6 +79,7 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
   const entryIdRef = useRef<string | null>(null)
   const entryVersionRef = useRef(1)
   const todayRef = useRef('')
+  const hasLocalEditSinceLoadRef = useRef(false)
 
   useEffect(() => {
     async function load() {
@@ -113,6 +114,7 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
           const loadedContent = resolveEntryContent(todayEntry)
           setContent(loadedContent)
           lastSavedContentRef.current = JSON.stringify(loadedContent)
+          hasLocalEditSinceLoadRef.current = false
           setSaveStatus('saved')
           setSaveError('')
           setConflictEntry(null)
@@ -124,16 +126,30 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
           setHistoryEntries(cached)
           const todayEntry = cached.find((e: Entry) => e.date === todayDate) || null
           applyEntryState(todayEntry)
-          await lessonPlanPromise
-          return
+          setLoading(false)
         }
 
-        const entriesPromise = fetch(
-          `/api/student/entries?classroom_id=${classroom.id}&limit=${historyLimit}`
-        )
-          .then(r => r.json())
+        const entriesUrl = `/api/student/entries?classroom_id=${classroom.id}&limit=${historyLimit}`
+        const entriesPromise = fetch(entriesUrl)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('Failed to load entries')
+            }
+            return response.json()
+          })
           .then(data => {
             const entries: Entry[] = data.entries || []
+            if (hasLocalEditSinceLoadRef.current) {
+              setHistoryEntries(prev => {
+                const currentTodayEntry = prev.find((e: Entry) => e.date === todayDate) || null
+                const next = currentTodayEntry
+                  ? upsertEntryIntoHistory(entries, currentTodayEntry, historyLimit)
+                  : entries
+                safeSessionSetJson(historyCacheKey, next)
+                return next
+              })
+              return
+            }
             setHistoryEntries(entries)
             safeSessionSetJson(historyCacheKey, entries)
             const todayEntry = entries.find((e: Entry) => e.date === todayDate) || null
@@ -326,6 +342,26 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
 
   function handleContentChange(newContent: TiptapContent) {
     setContent(newContent)
+
+    const newContentStr = JSON.stringify(newContent)
+    if (newContentStr === lastSavedContentRef.current || (!entryIdRef.current && isEmpty(newContent))) {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = null
+      }
+      if (throttledSaveTimeoutRef.current) {
+        clearTimeout(throttledSaveTimeoutRef.current)
+        throttledSaveTimeoutRef.current = null
+      }
+      lastSavedContentRef.current = newContentStr
+      pendingContentRef.current = null
+      hasLocalEditSinceLoadRef.current = false
+      setSaveStatus('saved')
+      setSaveError('')
+      return
+    }
+
+    hasLocalEditSinceLoadRef.current = true
     setSaveStatus('unsaved')
     pendingContentRef.current = newContent
 
@@ -359,6 +395,7 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
     const serverContent = resolveEntryContent(conflictEntry)
     setContent(serverContent)
     lastSavedContentRef.current = JSON.stringify(serverContent)
+    hasLocalEditSinceLoadRef.current = false
     entryIdRef.current = conflictEntry.id
     entryVersionRef.current = conflictEntry.version ?? entryVersionRef.current
     setSaveStatus('saved')

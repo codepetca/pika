@@ -113,6 +113,16 @@ function mockJson(data: any, ok = true) {
   return Promise.resolve({ ok, json: () => Promise.resolve(data) }) as any
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+  return { promise, resolve, reject }
+}
+
 describe('StudentTodayTab history section', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -191,17 +201,53 @@ describe('StudentTodayTab history section', () => {
     expect(screen.queryByText('Tue Dec 16')).not.toBeInTheDocument()
   })
 
-  it('uses sessionStorage cache for entries', async () => {
+  it('keeps an empty new entry marked saved', async () => {
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+        return mockJson({ entries: [] })
+      }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lesson_plans: [] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+
+    const editor = await screen.findByLabelText('Write something...')
+    expect(screen.getByText('Saved')).toBeInTheDocument()
+
+    fireEvent.change(editor, { target: { value: '' } })
+
+    expect(screen.getByText('Saved')).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/student/entries',
+      expect.objectContaining({ method: 'PATCH' })
+    )
+  })
+
+  it('renders cached entries immediately and refreshes them in the background', async () => {
     const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 12 })
     window.sessionStorage.setItem(cacheKey, JSON.stringify(entries))
+    const refreshedEntries = [
+      entries[0],
+      {
+        ...entries[1],
+        id: 'e2-refreshed',
+        text: 'Refreshed log from the server.',
+      },
+    ] as Entry[]
+    const entriesRequest = deferred<any>()
 
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
       if (url.startsWith(`/api/student/entries?`)) {
-        return mockJson({ entries })
+        return entriesRequest.promise
       }
       if (url.includes('/lesson-plans')) {
-        return mockJson({ lessonPlans: [] })
+        return mockJson({ lesson_plans: [] })
       }
       throw new Error(`Unhandled fetch: ${url}`)
     })
@@ -210,13 +256,115 @@ describe('StudentTodayTab history section', () => {
     render(<StudentTodayTab classroom={classroom} />)
     await screen.findByText('Past logs')
     expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()
+    expect(screen.getByText(entries[1].text)).toBeInTheDocument()
+
+    const entryFetchCalls = fetchMock.mock.calls.filter(([arg]) =>
+      String(arg).includes('/api/student/entries?')
+    )
+    expect(entryFetchCalls).toHaveLength(1)
+
+    entriesRequest.resolve(await mockJson({ entries: refreshedEntries }))
+
+    expect(await screen.findByText('Refreshed log from the server.')).toBeInTheDocument()
+    expect(window.sessionStorage.getItem(cacheKey)).toContain('Refreshed log from the server.')
+  })
+
+  it('does not overwrite local edits when the background refresh completes', async () => {
+    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 12 })
+    const cachedEntries = [
+      {
+        ...entries[0],
+        text: 'Cached today entry.',
+      },
+      entries[1],
+    ] as Entry[]
+    const refreshedEntries = [
+      {
+        ...entries[0],
+        text: 'Server refreshed today entry.',
+        version: 2,
+      },
+      {
+        ...entries[1],
+        text: 'Server refreshed past entry.',
+      },
+    ] as Entry[]
+    window.sessionStorage.setItem(cacheKey, JSON.stringify(cachedEntries))
+    const entriesRequest = deferred<any>()
+
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?`)) {
+        return entriesRequest.promise
+      }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lesson_plans: [] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+
+    const editor = await screen.findByLabelText('Write something...')
+    expect(editor).toHaveValue('Cached today entry.')
+
+    fireEvent.change(editor, { target: { value: 'Local unsaved draft.' } })
+    entriesRequest.resolve(await mockJson({ entries: refreshedEntries }))
 
     await waitFor(() => {
-      const entryFetchCalls = fetchMock.mock.calls.filter(([arg]) =>
-        String(arg).includes('/api/student/entries?')
-      )
-      expect(entryFetchCalls).toHaveLength(0)
+      expect(window.sessionStorage.getItem(cacheKey)).toContain('Server refreshed past entry.')
     })
+    expect(window.sessionStorage.getItem(cacheKey)).toContain('Cached today entry.')
+    expect(window.sessionStorage.getItem(cacheKey)).not.toContain('Server refreshed today entry.')
+    expect(editor).toHaveValue('Local unsaved draft.')
+  })
+
+  it('applies refreshed today content after a local edit is reverted', async () => {
+    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 12 })
+    const cachedEntries = [
+      {
+        ...entries[0],
+        text: 'Cached today entry.',
+      },
+      entries[1],
+    ] as Entry[]
+    const refreshedEntries = [
+      {
+        ...entries[0],
+        text: 'Server refreshed today entry.',
+        version: 2,
+      },
+      entries[1],
+    ] as Entry[]
+    window.sessionStorage.setItem(cacheKey, JSON.stringify(cachedEntries))
+    const entriesRequest = deferred<any>()
+
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?`)) {
+        return entriesRequest.promise
+      }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lesson_plans: [] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+
+    const editor = await screen.findByLabelText('Write something...')
+    expect(editor).toHaveValue('Cached today entry.')
+
+    fireEvent.change(editor, { target: { value: 'Temporary local draft.' } })
+    fireEvent.change(editor, { target: { value: 'Cached today entry.' } })
+    entriesRequest.resolve(await mockJson({ entries: refreshedEntries }))
+
+    await waitFor(() => {
+      expect(editor).toHaveValue('Server refreshed today entry.')
+    })
+    expect(window.sessionStorage.getItem(cacheKey)).toContain('Server refreshed today entry.')
   })
 
   it('saves against the current Toronto date when the mounted date is stale', async () => {
