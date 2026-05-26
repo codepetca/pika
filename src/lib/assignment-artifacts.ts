@@ -1,5 +1,5 @@
 import type { TiptapContent, TiptapMark, TiptapNode } from '@/types'
-import { parseGitHubRepoReference } from '@/lib/github-repos'
+import { parseGitHubRepoRootReference } from '@/lib/github-repos'
 
 export type AssignmentArtifactType = 'image' | 'link' | 'repo'
 
@@ -145,7 +145,7 @@ export function extractAssignmentArtifactsFromContent(
   const byUrl = new Map<string, AssignmentArtifact>()
 
   const pushUrl = (url: string, source: ArtifactSource) => {
-    const parsedRepo = source === 'image' || isLikelyImageUrl(url) ? null : parseGitHubRepoReference(url)
+    const parsedRepo = source === 'image' || isLikelyImageUrl(url) ? null : parseGitHubRepoRootReference(url)
     const nextArtifact: AssignmentArtifact =
       source === 'image' || isLikelyImageUrl(url)
         ? { type: 'image', url }

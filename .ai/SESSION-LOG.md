@@ -7,34 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-21 — Worktree env symlink guidance
-
-**Completed:**
-- Created the missing `.env.local` symlink in the developer feedback worktree so local Next dev uses the shared Pika env file.
-- Updated startup guidance to require each worktree to symlink `.env.local` to `$HOME/Repos/.env/pika/.env.local`.
-- Updated the Codex session-start script to create the missing symlink before running environment verification.
-- Added regression coverage for the symlink guidance and session-start repair behavior.
-
-**Validation:**
-- `pnpm test tests/unit/ai-startup-docs.test.ts`
-- `bash -n .codex/skills/pika-session-start/scripts/session_start.sh scripts/verify-env.sh scripts/pika`
-- `node scripts/features.mjs validate`
-- `git diff --check`
-
-## 2026-05-21 — Send Feedback modal simplification
-
-**Completed:**
-- Removed visible Category and Description labels from the Send Feedback modal while preserving accessible control names.
-- Removed the build/version info row from the modal.
-- Disabled the modal footer Close button for Send Feedback, leaving the header X close affordance.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/UserMenu.test.tsx tests/ui/Dialog.test.tsx tests/api/feedback.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- Playwright screenshots: `/tmp/pika-feedback-teacher.png`, `/tmp/pika-feedback-student-mobile.png`
-
 ## 2026-05-21 — Developer feedback re-review fixes
 
 **Completed:**
@@ -343,3 +315,38 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Playwright interaction smoke: first-column resize changed from `72` to `88`; first artifact pill text was `1`; chooser showed `4 work items`.
 - Playwright hover smoke: artifact tooltip showed `4 artifacts` as a stacked list.
 - Screenshots: `/tmp/pika-teacher-ready.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-artifact-icon-chooser.png`, `/tmp/pika-teacher-artifact-tooltip-list.png`
+
+## 2026-05-25 — Assignment artifact hover dropdown links
+
+**Completed:**
+- Made assignment artifact hover lists interactive so the pointer can move from an artifact pill into the dropdown.
+- Converted hover-list artifact rows into external links while preserving the existing pill-click chooser/direct-link behavior.
+- Added component coverage for clicking a hover-list artifact without opening the chooser or bubbling to parent row handlers.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/AssignmentArtifactsCell.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a'`
+- Playwright hover smoke: hovered artifact pill, moved into dropdown link, verified trial click to `https://github.com/vercel/next.js/tree/canary`.
+- Screenshots: `/tmp/pika-teacher-loaded.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-artifacts-hover.png`
+- `pnpm test`
+
+## 2026-05-26 — Nested GitHub artifact classification
+
+**Completed:**
+- Constrained inferred repo artifacts to root GitHub repository URLs only.
+- Kept nested GitHub URLs such as `/tree`, `/blob`, and `/issues` classified as normal links.
+- Preserved explicit structured `repo_link` artifacts and root GitHub repo links as repo artifacts.
+- Moved root-repo detection into the shared GitHub helper, fixed exact GitHub host matching, and blocked known GitHub product routes such as `/orgs`, `/topics`, and `/settings` from repo detection.
+
+**Validation:**
+- `pnpm test tests/lib/assignment-artifacts.test.ts tests/unit/assignment-repo-targets.test.ts tests/components/AssignmentArtifactsCell.test.tsx`
+- `pnpm test tests/lib/assignment-artifacts.test.ts tests/unit/select-and-github-repos.test.tsx tests/unit/assignment-repo-targets.test.ts tests/components/AssignmentArtifactsCell.test.tsx`
+- `pnpm test tests/unit/assignment-submission-validation.test.ts tests/unit/repo-review.test.ts tests/unit/repo-review-validation.test.ts tests/api/assignment-docs/artifacts.test.ts`
+- `pnpm lint`
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` after a full-suite timeout in that unrelated file
+- `pnpm test tests/api/auth/verify-signup.test.ts` after a second full-suite timeout in that unrelated file
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a'`
+- Playwright artifact smoke: root `github.com/codepetca/pika` stayed `Repo`; nested `github.com/vercel/next.js/tree/canary` rendered/clicked as `Link`.
+- Screenshots: `/tmp/pika-teacher-artifact-types-loaded.png`, `/tmp/pika-artifact-link-hover.png`, `/tmp/pika-artifact-root-vs-link-hover.png`
