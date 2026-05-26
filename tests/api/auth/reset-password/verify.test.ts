@@ -12,6 +12,8 @@ vi.mock('@/lib/supabase', () => ({
 
 vi.mock('@/lib/crypto', () => ({
   verifyCode: vi.fn(async (code: string, hash: string) => code === 'ABC12' && hash === 'hashed_ABC12'),
+  generateHandoffToken: vi.fn(() => 'reset-handoff-token-abcdefghijklmnopqrstuvwxyz1234567890'),
+  hashHandoffToken: vi.fn((token: string) => `hashed_${token}`),
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -78,10 +80,14 @@ describe('POST /api/auth/reset-password/verify', () => {
     expect(response.status).toBe(401)
   })
 
-  it('should verify code and mark as used', async () => {
-    const mockUpdate = vi.fn(() => ({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    }))
+  it('should verify code and issue a reset handoff token', async () => {
+    const codeUpdateBuilder: any = {
+      eq: vi.fn(() => codeUpdateBuilder),
+      is: vi.fn(() => codeUpdateBuilder),
+      select: vi.fn(() => codeUpdateBuilder),
+      maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'code-1' }, error: null }),
+    }
+    const codeUpdate = vi.fn(() => codeUpdateBuilder)
 
     const mockFrom = vi.fn((table: string) => {
       if (table === 'users') {
@@ -110,7 +116,7 @@ describe('POST /api/auth/reset-password/verify', () => {
               error: null,
             }),
           })),
-          update: mockUpdate,
+          update: codeUpdate,
         }
       }
     })
@@ -127,5 +133,12 @@ describe('POST /api/auth/reset-password/verify', () => {
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
     expect(data.userId).toBe('user-1')
+    expect(data.handoffToken).toBe('reset-handoff-token-abcdefghijklmnopqrstuvwxyz1234567890')
+    expect(codeUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      used_at: expect.any(String),
+      handoff_token_hash: 'hashed_reset-handoff-token-abcdefghijklmnopqrstuvwxyz1234567890',
+      handoff_expires_at: expect.any(String),
+      handoff_consumed_at: null,
+    }))
   })
 })

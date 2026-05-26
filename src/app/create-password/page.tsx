@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, FormEvent, Suspense } from 'react'
+import { useEffect, useState, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AppMessageFallback, Input, Button, FormField } from '@/ui'
+
+const SIGNUP_HANDOFF_TOKEN_STORAGE_KEY = 'pika.signupHandoffToken'
 
 function CreatePasswordForm() {
   const router = useRouter()
@@ -10,10 +12,25 @@ function CreatePasswordForm() {
   const emailFromUrl = searchParams.get('email') || ''
 
   const [email] = useState(emailFromUrl)
+  const [handoffToken, setHandoffToken] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    try {
+      const stored = window.sessionStorage.getItem(SIGNUP_HANDOFF_TOKEN_STORAGE_KEY)
+      if (!stored) return
+
+      const parsed = JSON.parse(stored) as { email?: string; token?: string }
+      if (parsed.email === email && parsed.token) {
+        setHandoffToken(parsed.token)
+      }
+    } catch {
+      window.sessionStorage.removeItem(SIGNUP_HANDOFF_TOKEN_STORAGE_KEY)
+    }
+  }, [email])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -24,7 +41,7 @@ function CreatePasswordForm() {
       const response = await fetch('/api/auth/create-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, passwordConfirmation }),
+        body: JSON.stringify({ email, password, passwordConfirmation, handoffToken }),
       })
 
       const data = await response.json()
@@ -33,7 +50,7 @@ function CreatePasswordForm() {
         throw new Error(data.error || 'Failed to create password')
       }
 
-      // Redirect based on user role
+      window.sessionStorage.removeItem(SIGNUP_HANDOFF_TOKEN_STORAGE_KEY)
       router.push(data.redirectUrl)
     } catch (err: any) {
       setError(err.message || 'An error occurred')

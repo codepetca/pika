@@ -7,27 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-24 — Atomic selected test-work delete
-
-**Completed:**
-- Added migration `072_atomic_test_work_bulk_delete.sql` with `delete_student_test_attempts_atomic(p_test_id, p_student_ids)`.
-- Added a bulk selected test-work delete route that validates all selected students are enrolled and calls one RPC.
-- Updated the teacher Tests selected-delete flow to POST once instead of looping per-student DELETE calls.
-- Added API, migration, and component coverage for success, validation, missing-RPC guidance, and retry-safe failure state.
-
-**Validation:**
-- `pnpm test tests/api/teacher/tests-student-attempts-bulk-delete.test.ts tests/unit/test-work-bulk-delete-migration.test.ts tests/components/TeacherTestsTab.test.tsx`
-- `pnpm test tests/api/teacher/tests-student-attempt-delete.test.ts tests/api/teacher/tests-student-attempts-bulk-delete.test.ts tests/unit/test-work-bulk-delete-migration.test.ts tests/unit/migration-filenames.test.ts`
-- `pnpm lint`
-- `supabase migration list --local`
-- `supabase db lint --local --fail-on error` (passes; existing warning on `public.unsubmit_test_attempts_atomic` unused parameter)
-- `supabase migration up --local`
-- `supabase db query --local "select public.delete_student_test_attempts_atomic('00000000-0000-0000-0000-000000000001'::uuid, array['00000000-0000-0000-0000-000000000002'::uuid]) as result;"`
-- `pnpm build`
-- `pnpm test`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=tests'`
-- Focused Playwright screenshot: `/tmp/pika-test-work-bulk-delete-dialog.png`
-
 ## 2026-05-25 — Assignment submission requirements MVP
 
 **Completed:**
@@ -402,4 +381,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm test`
 - `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+
+## 2026-05-26 — Auth password handoff binding
+
+**Completed:**
+- Bound signup password creation and password reset confirmation to short-lived one-time handoff tokens issued only after code verification.
+- Stored only hashed handoff tokens on `verification_codes`, with expiry and consumed timestamps guarded by a filtered update.
+- Passed signup handoff tokens through `sessionStorage` instead of URL query strings and kept reset handoff tokens in page state.
+- Added migration `076_add_auth_handoff_tokens.sql` plus auth API and crypto coverage for missing, invalid/reused, and valid token paths.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/crypto.test.ts tests/api/auth/verify-signup.test.ts tests/api/auth/create-password.test.ts tests/api/auth/reset-password/verify.test.ts tests/api/auth/reset-password/confirm.test.ts`
+- `pnpm tsc --noEmit`
+- `pnpm test tests/api/auth`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test tests/unit/migration-filenames.test.ts`
+- `pnpm test`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
