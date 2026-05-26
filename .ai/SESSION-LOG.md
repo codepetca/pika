@@ -7,29 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-21 — Developer feedback idempotent last-seen fix
-
-**Completed:**
-- Updated the developer feedback candidate upsert so duplicate classroom/date reruns preserve `last_seen_at` and `last_seen_date`.
-- Tightened the migration regression test to cover ranking timestamp preservation, not just count preservation.
-
-**Validation:**
-- `pnpm test tests/unit/developer-log-feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `git diff --check`
-
-## 2026-05-21 — Developer feedback migration filename
-
-**Completed:**
-- Renamed the developer feedback migration from the timestamped Supabase filename to Pika's sequential migration convention: `070_developer_feedback_candidates.sql`.
-- Updated the migration regression test to read the renamed file.
-
-**Validation:**
-- `pnpm test tests/unit/developer-log-feedback.test.ts`
-- Migration duplicate-prefix check
-- Migration filename convention check
-
 ## 2026-05-21 — Migration filename CI guard
 
 **Completed:**
@@ -351,6 +328,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `E2E_BASE_URL=http://localhost:3003 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=today'`
 - Warm screenshots reviewed: `/tmp/pika-student-today-final.png`, `/tmp/pika-teacher-mobile-warm.png`
+
 ## 2026-05-26 — Teacher artifact table refresh
 
 **Completed:**
@@ -383,6 +361,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Switched the required-submissions add control to the shared green `SplitButton` success variant.
 - Updated required-submission split add labels to read `+ Link`, `+ Repo`, and `+ Image` with each type icon after the label.
 - Changed the required-submissions primary add label to `+ Add` and made that primary side open the type dropdown instead of defaulting to a link submission.
+- Replaced the required-submissions image option camera glyph with Lucide's image icon.
 
 **Validation:**
 - `pnpm test tests/components/AssignmentModal.test.tsx`
@@ -401,3 +380,4 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Green split button screenshot: `/tmp/pika-assignment-modal-green-submission-split-desktop.png`
 - Updated green split button label screenshots: `/tmp/pika-assignment-modal-green-submission-split-label-desktop.png`, `/tmp/pika-assignment-modal-green-submission-split-label-mobile.png`
 - Generic add dropdown screenshots: `/tmp/pika-assignment-modal-add-submission-dropdown-desktop.png`, `/tmp/pika-assignment-modal-add-submission-dropdown-mobile.png`
+- Image icon dropdown screenshots: `/tmp/pika-assignment-modal-image-icon-dropdown-desktop.png`, `/tmp/pika-assignment-modal-image-icon-dropdown-mobile.png`

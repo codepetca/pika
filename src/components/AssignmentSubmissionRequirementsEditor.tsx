@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Camera, FolderGit2, GripVertical, Link2, Trash2 } from 'lucide-react'
+import { FolderGit2, GripVertical, ImageIcon, Link2, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Button, ConfirmDialog, FormField, Input, SplitButton, Tooltip, TooltipProvider, cn } from '@/ui'
 import {
@@ -43,7 +43,7 @@ const TYPE_OPTIONS: Array<{
 
 function RequirementIcon({ type }: { type: AssignmentSubmissionRequirementType }) {
   if (type === 'repo_link') return <FolderGit2 className="h-4 w-4" aria-hidden="true" />
-  if (type === 'image') return <Camera className="h-4 w-4" aria-hidden="true" />
+  if (type === 'image') return <ImageIcon className="h-4 w-4" aria-hidden="true" />
   return <Link2 className="h-4 w-4" aria-hidden="true" />
 }
 
