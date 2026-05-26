@@ -9,7 +9,9 @@ import {
   getNextTeacherCourseBlueprintPosition,
   hydrateCourseBlueprint,
   importCourseBlueprintBundle,
+  syncCourseBlueprintAssignments,
   syncCourseBlueprintAssessments,
+  syncCourseBlueprintLessonTemplates,
   updateCourseBlueprint,
 } from '@/lib/server/course-blueprints'
 import {
@@ -223,6 +225,185 @@ describe('course-blueprints server helpers', () => {
 
     expect(deleteBuilder.in).toHaveBeenCalledWith('id', ['q-2'])
     expect(updateBuilder.eq).toHaveBeenCalledWith('id', 'q-1')
+  })
+
+  it('rejects unknown assignment update IDs before deleting existing blueprint assignments', async () => {
+    const deleteBuilder = makeQueryBuilder({ data: null, error: null })
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [
+        makeQueryBuilder({ data: { id: 'b-1', teacher_id: 'teacher-1' }, error: null }),
+      ],
+      course_blueprint_assignments: [
+        makeQueryBuilder({
+          data: [{ id: 'a-1' }, { id: 'a-2' }],
+          error: null,
+        }),
+        deleteBuilder,
+      ],
+    })
+
+    await expect(syncCourseBlueprintAssignments('teacher-1', 'b-1', [{
+      id: 'stale-assignment-id',
+      title: 'Updated Essay',
+      instructions_markdown: 'Updated instructions',
+      default_due_days: 1,
+      default_due_time: '23:59',
+      points_possible: 10,
+      include_in_final: true,
+      is_draft: false,
+      position: 0,
+    }])).resolves.toEqual({
+      ok: false,
+      status: 400,
+      error: 'Cannot update unknown blueprint assignment',
+    })
+
+    expect(deleteBuilder.delete).not.toHaveBeenCalled()
+  })
+
+  it('rejects unknown assessment update IDs before deleting existing blueprint assessments', async () => {
+    const deleteBuilder = makeQueryBuilder({ data: null, error: null })
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [
+        makeQueryBuilder({ data: { id: 'b-1', teacher_id: 'teacher-1' }, error: null }),
+      ],
+      course_blueprint_assessments: [
+        makeQueryBuilder({
+          data: [
+            { id: 'q-1', assessment_type: 'quiz' },
+            { id: 'q-2', assessment_type: 'quiz' },
+          ],
+          error: null,
+        }),
+        deleteBuilder,
+      ],
+    })
+
+    await expect(syncCourseBlueprintAssessments(
+      'teacher-1',
+      'b-1',
+      [{
+        id: 'stale-assessment-id',
+        assessment_type: 'quiz',
+        title: 'Updated Quiz',
+        content: { title: 'Updated Quiz', show_results: true, questions: [] } as any,
+        documents: [],
+        position: 0,
+      }],
+      { replaceTypes: ['quiz'] },
+    )).resolves.toEqual({
+      ok: false,
+      status: 400,
+      error: 'Cannot update unknown blueprint assessment',
+    })
+
+    expect(deleteBuilder.delete).not.toHaveBeenCalled()
+  })
+
+  it('rejects assessment type drift before deleting existing blueprint assessments', async () => {
+    const deleteBuilder = makeQueryBuilder({ data: null, error: null })
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [
+        makeQueryBuilder({ data: { id: 'b-1', teacher_id: 'teacher-1' }, error: null }),
+      ],
+      course_blueprint_assessments: [
+        makeQueryBuilder({
+          data: [
+            { id: 'q-1', assessment_type: 'quiz' },
+            { id: 'q-2', assessment_type: 'quiz' },
+          ],
+          error: null,
+        }),
+        deleteBuilder,
+      ],
+    })
+
+    await expect(syncCourseBlueprintAssessments(
+      'teacher-1',
+      'b-1',
+      [{
+        id: 'q-1',
+        assessment_type: 'test',
+        title: 'Updated Test',
+        content: { title: 'Updated Test', questions: [] } as any,
+        documents: [],
+        position: 0,
+      }],
+    )).resolves.toEqual({
+      ok: false,
+      status: 400,
+      error: 'Cannot change blueprint assessment type during bulk sync',
+    })
+
+    expect(deleteBuilder.delete).not.toHaveBeenCalled()
+  })
+
+  it('rejects assessment updates outside the selected replacement type before deleting rows', async () => {
+    const deleteBuilder = makeQueryBuilder({ data: null, error: null })
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [
+        makeQueryBuilder({ data: { id: 'b-1', teacher_id: 'teacher-1' }, error: null }),
+      ],
+      course_blueprint_assessments: [
+        makeQueryBuilder({
+          data: [
+            { id: 'q-1', assessment_type: 'quiz' },
+            { id: 't-1', assessment_type: 'test' },
+          ],
+          error: null,
+        }),
+        deleteBuilder,
+      ],
+    })
+
+    await expect(syncCourseBlueprintAssessments(
+      'teacher-1',
+      'b-1',
+      [{
+        id: 't-1',
+        assessment_type: 'test',
+        title: 'Updated Test',
+        content: { title: 'Updated Test', questions: [] } as any,
+        documents: [],
+        position: 0,
+      }],
+      { replaceTypes: ['quiz'] },
+    )).resolves.toEqual({
+      ok: false,
+      status: 400,
+      error: 'Cannot update a blueprint assessment outside the selected assessment type',
+    })
+
+    expect(deleteBuilder.delete).not.toHaveBeenCalled()
+  })
+
+  it('rejects unknown lesson template update IDs before deleting existing lesson templates', async () => {
+    const deleteBuilder = makeQueryBuilder({ data: null, error: null })
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [
+        makeQueryBuilder({ data: { id: 'b-1', teacher_id: 'teacher-1' }, error: null }),
+      ],
+      course_blueprint_lesson_templates: [
+        makeQueryBuilder({
+          data: [{ id: 'l-1' }, { id: 'l-2' }],
+          error: null,
+        }),
+        deleteBuilder,
+      ],
+    })
+
+    await expect(syncCourseBlueprintLessonTemplates('teacher-1', 'b-1', [{
+      id: 'stale-lesson-id',
+      title: 'Updated Lesson',
+      content_markdown: 'Updated markdown',
+      position: 0,
+    }])).resolves.toEqual({
+      ok: false,
+      status: 400,
+      error: 'Cannot update unknown lesson template',
+    })
+
+    expect(deleteBuilder.delete).not.toHaveBeenCalled()
   })
 
   it('loads detail hydration and deletes owned blueprints', async () => {

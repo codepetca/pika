@@ -7,21 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-25 — Assignment artifact open behavior
-
-**Completed:**
-- Changed assignment artifact pills so a single artifact opens directly as an external link.
-- Replaced the multi-artifact preview carousel with a narrow chooser dialog listing each artifact as a direct external link.
-- Added component coverage for direct-link mode and the multi-artifact chooser.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test -- tests/components/AssignmentArtifactsCell.test.tsx` (ran full suite; pass)
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=assignments&assignmentId=f2bc083c-cec5-4b36-8659-603f84e11ff6'`
-- Playwright interaction smoke: multi-artifact chooser opens; single-artifact row opens `https://github.com/codepetca/pika`
-- Screenshot: `/tmp/pika-teacher-artifact-chooser.png`
-
 ## 2026-05-25 — Assignment student table artifact UX
 
 **Completed:**
@@ -370,3 +355,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test`
 - `pnpm build`
 - `git diff --check`
+
+## 2026-05-26 — Blueprint bulk sync stale-id guards
+
+**Completed:**
+- Rejected unknown blueprint assignment, assessment, and lesson template update IDs before bulk sync computes deletions.
+- Rejected assessment updates outside the selected replacement type and rejected quiz/test type drift before deleting rows.
+- Added regression coverage proving stale IDs fail with 400s and do not call the delete builder.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/lib/server/course-blueprints.test.ts tests/api/teacher/course-blueprints-route.test.ts`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
