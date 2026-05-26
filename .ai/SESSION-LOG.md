@@ -7,36 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-23 — Gradebook Final column resize
-
-**Completed:**
-- Made the Final grade column resizable from the separator line before it.
-- Kept the Final column width synchronized across header, student rows, and summary rows.
-- Added keyboard-accessible resize coverage for the Final column.
-
-**Validation:**
-- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=gradebook'`
-- Playwright Final separator drag check on the seeded gradebook page
-
-## 2026-05-23 — Gradebook split FAB actions
-
-**Completed:**
-- Replaced the gradebook floating score/settings controls with a split-button FAB.
-- Moved Show % / Show Raw into the split menu and kept Settings as the no-selection primary action.
-- Added selected-student actions for default email, Gmail, Outlook, and copying selected student emails.
-- Refactored the shared SplitButton menu options to support checked states, leading icons, and dividers; gradebook uses those shared props for the score/email grouping.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/ui/SplitButton.test.tsx tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm test`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=gradebook'`
-- Playwright checks for unselected and selected gradebook action menus, including checked score state and divider count
-
 ## 2026-05-24 — Student exam away-focus e2e
 
 **Completed:**
@@ -343,6 +313,26 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/timezone.test.ts tests/unit/server-repo-review.test.ts tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts`
 - `pnpm test tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-grade-selected.test.ts tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id.test.ts tests/api/teacher/assignments-id-students-studentId.test.ts`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-05-26 — Gradebook category settings retirement
+
+**Completed:**
+- Stopped the in-app gradebook route from loading legacy category settings that no longer affect final calculations.
+- Kept per-assessment weight PATCH support and now rejects retired category-weight updates with a clear response.
+- Updated published actual-course grading summaries to use the same per-assessment weights instead of `gradebook_settings`.
+- Carried `gradebook_weight` through classroom blueprint source data for actual course site grading.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/teacher/gradebook.test.ts tests/unit/gradebook.test.ts`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/hooks/useGradebookData.test.ts`
+- `pnpm test tests/api/teacher/gradebook.test.ts tests/unit/gradebook.test.ts tests/lib/server/course-sites.test.ts tests/lib/server/classroom-blueprint-source.test.ts`
+- `pnpm tsc --noEmit`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
 - `pnpm lint`
 - `pnpm test`
 - `pnpm build`

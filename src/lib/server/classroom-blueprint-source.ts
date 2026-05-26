@@ -23,6 +23,7 @@ export type ClassroomBlueprintSource = {
     default_due_days: number
     default_due_time: string
     points_possible: number | null
+    gradebook_weight: number | null
     include_in_final: boolean
     is_draft: boolean
     position: number
@@ -33,6 +34,7 @@ export type ClassroomBlueprintSource = {
     content: QuizDraftContent
     documents: TestDocument[]
     points_possible: number | null
+    gradebook_weight: number | null
     include_in_final: boolean
     position: number
   }>
@@ -42,6 +44,7 @@ export type ClassroomBlueprintSource = {
     content: TestDraftContent
     documents: TestDocument[]
     points_possible: number | null
+    gradebook_weight: number | null
     include_in_final: boolean
     position: number
   }>
@@ -211,6 +214,7 @@ export async function loadClassroomBlueprintSource(
         default_due_days: 0,
         default_due_time: '23:59',
         points_possible: assignment.points_possible ?? null,
+        gradebook_weight: assignment.gradebook_weight ?? null,
         include_in_final: assignment.include_in_final ?? true,
         is_draft: !!assignment.is_draft,
         position: assignment.position ?? 0,
@@ -223,6 +227,7 @@ export async function loadClassroomBlueprintSource(
           content: quiz.content,
           documents: [],
           points_possible: quiz.points_possible ?? null,
+          gradebook_weight: quiz.gradebook_weight ?? null,
           include_in_final: quiz.include_in_final !== false,
           position: quiz.position ?? 0,
         })),
@@ -234,6 +239,7 @@ export async function loadClassroomBlueprintSource(
           content: test.content,
           documents: Array.isArray(test.documents) ? (test.documents as TestDocument[]) : [],
           points_possible: test.points_possible ?? null,
+          gradebook_weight: test.gradebook_weight ?? null,
           include_in_final: test.include_in_final !== false,
           position: test.position ?? 0,
         })),
