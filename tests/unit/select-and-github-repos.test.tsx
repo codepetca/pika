@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { Select } from '@/ui'
-import { normalizeGitHubRepoUrl } from '@/lib/github-repos'
+import { normalizeGitHubRepoUrl, parseGitHubRepoRootReference } from '@/lib/github-repos'
 
 describe('Select', () => {
   it('renders placeholder and options with the expected disabled states', () => {
@@ -53,5 +53,20 @@ describe('normalizeGitHubRepoUrl', () => {
 
   it('returns null for invalid repository references', () => {
     expect(normalizeGitHubRepoUrl('not a repo')).toBeNull()
+    expect(normalizeGitHubRepoUrl('https://www.example.com/codepetca/pika')).toBeNull()
+    expect(normalizeGitHubRepoUrl('https://github.com/orgs/codepetca')).toBeNull()
+    expect(normalizeGitHubRepoUrl('https://github.com/topics/react')).toBeNull()
+  })
+})
+
+describe('parseGitHubRepoRootReference', () => {
+  it('accepts only root GitHub repository URLs', () => {
+    expect(parseGitHubRepoRootReference('https://github.com/codepetca/pika')).toEqual({
+      owner: 'codepetca',
+      name: 'pika',
+      normalizedUrl: 'https://github.com/codepetca/pika',
+    })
+    expect(parseGitHubRepoRootReference('https://github.com/codepetca/pika/issues/1')).toBeNull()
+    expect(parseGitHubRepoRootReference('https://github.com/orgs/codepetca')).toBeNull()
   })
 })

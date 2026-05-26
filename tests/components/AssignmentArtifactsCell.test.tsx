@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactElement } from 'react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { AssignmentArtifactsCell } from '@/components/AssignmentArtifactsCell'
 import type { AssignmentArtifact } from '@/lib/assignment-artifacts'
 import { TooltipProvider } from '@/ui'
@@ -98,6 +98,33 @@ describe('AssignmentArtifactsCell', () => {
     expect(screen.getAllByText(/Link . example.com\/docs/).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/Image . cdn.example.com\/submission-images/).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/Repo . github.com\/codepetca\/pika/).length).toBeGreaterThan(0)
+  })
+
+  it('allows clicking artifact links from the hover list without opening the chooser', async () => {
+    const user = userEvent.setup()
+    const onParentClick = vi.fn()
+    const artifacts: AssignmentArtifact[] = [
+      { type: 'link', url: 'https://example.com/docs' },
+      { type: 'image', url: 'https://cdn.example.com/submission-images/pic.png' },
+    ]
+
+    renderWithTooltipProvider(
+      <div onClick={onParentClick}>
+        <AssignmentArtifactsCell artifacts={artifacts} isCompact />
+      </div>
+    )
+    await user.hover(screen.getByRole('button', { name: /artifact 2 is image/i }))
+
+    const tooltipLinks = await screen.findAllByRole('link', {
+      name: /open artifact 2: image . cdn\.example\.com\/submission-images/i,
+    })
+    const tooltipLink = tooltipLinks[0]
+    expect(tooltipLink).toHaveAttribute('href', 'https://cdn.example.com/submission-images/pic.png')
+
+    await user.click(tooltipLink)
+
+    expect(onParentClick).not.toHaveBeenCalled()
+    expect(screen.queryByText('Open artifact')).not.toBeInTheDocument()
   })
 
   it('labels repo artifacts distinctly in direct-link mode', () => {

@@ -2332,6 +2332,7 @@ export function TeacherTestsTab({
           disabled:
             batchSelectedCount === 0 ||
             isCombinedTestActionsBusy,
+          destructive: true,
         },
       ]}
       variant="secondary"

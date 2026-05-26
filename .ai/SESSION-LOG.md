@@ -7,86 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-21 — Worktree env symlink guidance
-
-**Completed:**
-- Created the missing `.env.local` symlink in the developer feedback worktree so local Next dev uses the shared Pika env file.
-- Updated startup guidance to require each worktree to symlink `.env.local` to `$HOME/Repos/.env/pika/.env.local`.
-- Updated the Codex session-start script to create the missing symlink before running environment verification.
-- Added regression coverage for the symlink guidance and session-start repair behavior.
-
-**Validation:**
-- `pnpm test tests/unit/ai-startup-docs.test.ts`
-- `bash -n .codex/skills/pika-session-start/scripts/session_start.sh scripts/verify-env.sh scripts/pika`
-- `node scripts/features.mjs validate`
-- `git diff --check`
-
-## 2026-05-21 — Send Feedback modal simplification
-
-**Completed:**
-- Removed visible Category and Description labels from the Send Feedback modal while preserving accessible control names.
-- Removed the build/version info row from the modal.
-- Disabled the modal footer Close button for Send Feedback, leaving the header X close affordance.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/UserMenu.test.tsx tests/ui/Dialog.test.tsx tests/api/feedback.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- Playwright screenshots: `/tmp/pika-feedback-teacher.png`, `/tmp/pika-feedback-student-mobile.png`
-
-## 2026-05-21 — Developer feedback re-review fixes
-
-**Completed:**
-- Redacted direct identifiers from model-produced daily-log feedback candidate fields before storage.
-- Added `source_keys` tracking to the developer feedback migration so nightly reruns do not inflate signal or entry counts for an already-seen classroom/date source.
-- Restored `.ai/features.json` append-only entries and widened the startup-doc budget guard to fit the appended feature inventory.
-
-**Validation:**
-- `pnpm test tests/unit/developer-log-feedback.test.ts tests/api/feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/developer-log-feedback.test.ts tests/api/feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `bash scripts/verify-env.sh`
-- `node scripts/features.mjs validate`
-- `git diff --check`
-
-## 2026-05-21 — Developer feedback idempotent last-seen fix
-
-**Completed:**
-- Updated the developer feedback candidate upsert so duplicate classroom/date reruns preserve `last_seen_at` and `last_seen_date`.
-- Tightened the migration regression test to cover ranking timestamp preservation, not just count preservation.
-
-**Validation:**
-- `pnpm test tests/unit/developer-log-feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `git diff --check`
-
-## 2026-05-21 — Developer feedback migration filename
-
-**Completed:**
-- Renamed the developer feedback migration from the timestamped Supabase filename to Pika's sequential migration convention: `070_developer_feedback_candidates.sql`.
-- Updated the migration regression test to read the renamed file.
-
-**Validation:**
-- `pnpm test tests/unit/developer-log-feedback.test.ts`
-- Migration duplicate-prefix check
-- Migration filename convention check
-
-## 2026-05-21 — Migration filename CI guard
-
-**Completed:**
-- Added a Vitest guard for Supabase migration filenames so CI rejects non-`NNN_snake_case.sql` files.
-- The guard also rejects duplicate migration prefixes and gaps in the numeric sequence.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/migration-filenames.test.ts`
-- `pnpm test tests/unit/migration-filenames.test.ts tests/unit/ai-startup-docs.test.ts`
-- `pnpm lint`
-- `git diff --check`
-
 ## 2026-05-22 — Assignment student list scroll persistence
 
 **Completed:**
@@ -343,3 +263,126 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Playwright interaction smoke: first-column resize changed from `72` to `88`; first artifact pill text was `1`; chooser showed `4 work items`.
 - Playwright hover smoke: artifact tooltip showed `4 artifacts` as a stacked list.
 - Screenshots: `/tmp/pika-teacher-ready.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-artifact-icon-chooser.png`, `/tmp/pika-teacher-artifact-tooltip-list.png`
+
+## 2026-05-25 — Assignment artifact hover dropdown links
+
+**Completed:**
+- Made assignment artifact hover lists interactive so the pointer can move from an artifact pill into the dropdown.
+- Converted hover-list artifact rows into external links while preserving the existing pill-click chooser/direct-link behavior.
+- Added component coverage for clicking a hover-list artifact without opening the chooser or bubbling to parent row handlers.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/AssignmentArtifactsCell.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a'`
+- Playwright hover smoke: hovered artifact pill, moved into dropdown link, verified trial click to `https://github.com/vercel/next.js/tree/canary`.
+- Screenshots: `/tmp/pika-teacher-loaded.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-artifacts-hover.png`
+- `pnpm test`
+
+## 2026-05-26 — Nested GitHub artifact classification
+
+**Completed:**
+- Constrained inferred repo artifacts to root GitHub repository URLs only.
+- Kept nested GitHub URLs such as `/tree`, `/blob`, and `/issues` classified as normal links.
+- Preserved explicit structured `repo_link` artifacts and root GitHub repo links as repo artifacts.
+- Moved root-repo detection into the shared GitHub helper, fixed exact GitHub host matching, and blocked known GitHub product routes such as `/orgs`, `/topics`, and `/settings` from repo detection.
+
+**Validation:**
+- `pnpm test tests/lib/assignment-artifacts.test.ts tests/unit/assignment-repo-targets.test.ts tests/components/AssignmentArtifactsCell.test.tsx`
+- `pnpm test tests/lib/assignment-artifacts.test.ts tests/unit/select-and-github-repos.test.tsx tests/unit/assignment-repo-targets.test.ts tests/components/AssignmentArtifactsCell.test.tsx`
+- `pnpm test tests/unit/assignment-submission-validation.test.ts tests/unit/repo-review.test.ts tests/unit/repo-review-validation.test.ts tests/api/assignment-docs/artifacts.test.ts`
+- `pnpm lint`
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` after a full-suite timeout in that unrelated file
+- `pnpm test tests/api/auth/verify-signup.test.ts` after a second full-suite timeout in that unrelated file
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a'`
+- Playwright artifact smoke: root `github.com/codepetca/pika` stayed `Repo`; nested `github.com/vercel/next.js/tree/canary` rendered/clicked as `Link`.
+- Screenshots: `/tmp/pika-teacher-artifact-types-loaded.png`, `/tmp/pika-artifact-link-hover.png`, `/tmp/pika-artifact-root-vs-link-hover.png`
+
+## 2026-05-26 — Student daily log background refresh
+
+**Completed:**
+- Changed the student Today tab so sessionStorage history is only an instant preview, not the final source of truth.
+- Added a direct capped background `/api/student/entries?limit=12` refresh on mount to update cross-device daily logs.
+- Guarded the editor so an in-flight refresh cannot overwrite a local edit started by the student.
+- Fixed the reverted-edit edge case so a refresh can apply server content after local text returns to the saved value.
+- Updated StudentTodayTab history coverage for preview-first refresh and local-edit protection.
+
+**Validation:**
+- `pnpm test tests/components/StudentTodayTabHistory.test.tsx`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3003 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=today'`
+- Warm screenshots reviewed: `/tmp/pika-student-today-final.png`, `/tmp/pika-teacher-mobile-warm.png`
+
+## 2026-05-26 — Teacher artifact table refresh
+
+**Completed:**
+- Added a refresh control to the teacher assignment workspace action bar so teachers can re-query selected assignment details after students submit structured artifacts.
+- Kept the refresh scoped to the selected assignment detail endpoint that already merges structured submission artifacts into the student table artifact cells.
+- Added component coverage confirming the action bar refresh performs a second assignment-detail fetch.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a'`
+- Playwright screenshot after settled teacher load: `/tmp/pika-teacher-refresh-submissions.png`
+
+## 2026-05-26 — Assignment modal title row cleanup
+
+**Completed:**
+- Moved assignment preview into the title row beside the title and due-date controls.
+- Moved assignment autosave status into the title label row above the textbox.
+- Removed the separate Instructions label above the markdown editor.
+- Moved the required submissions editor above the instructions textarea.
+- Compressed the required submissions empty state into a one-line card with an icon split button for Link, Repo, and Image submissions.
+- Changed the primary split-button label to `+` plus the link icon and `link`.
+- Removed the required-submissions `None` / item-count subline so the card header stays single-line.
+- Hid the per-submission Label and Instructions captions while keeping accessible labels; new submissions show the default label inside the textbox and `Optional helper text` as the helper textbox placeholder.
+- Made required-submission rows draggable from their grip handles and removed the up/down arrow reorder buttons.
+- Stabilized required-submission sortable IDs so rows keep identity during drop animations.
+- Guarded assignment autosave responses so older saves cannot replace newer local required-submission edits while a drag/reorder is in progress.
+- Added a confirmation dialog before removing persisted required submissions; unsaved newly added rows still remove immediately.
+- Switched the required-submissions add control to the shared green `SplitButton` success variant.
+- Updated required-submission split add labels to read `+ Link`, `+ Repo`, and `+ Image` with each type icon after the label.
+- Changed the required-submissions primary add label to `+ Add` and made that primary side open the type dropdown instead of defaulting to a link submission.
+- Replaced the required-submissions image option camera glyph with Lucide's image icon.
+
+**Validation:**
+- `pnpm test tests/components/AssignmentModal.test.tsx`
+- `pnpm test tests/ui/SplitButton.test.tsx tests/components/AssignmentModal.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
+- Modal screenshots: `/tmp/pika-assignment-modal-teacher.png`, `/tmp/pika-assignment-modal-teacher-mobile.png`
+- Required submissions screenshots: `/tmp/pika-assignment-modal-required-submissions.png`, `/tmp/pika-assignment-modal-required-submissions-menu.png`, `/tmp/pika-assignment-modal-required-submissions-mobile.png`, `/tmp/pika-assignment-modal-required-submissions-menu-mobile.png`, `/tmp/pika-assignment-modal-required-submissions-added-desktop.png`, `/tmp/pika-assignment-modal-required-submissions-added-mobile.png`
+- Final required submissions screenshots: `/tmp/pika-assignment-modal-required-submissions-final-desktop.png`, `/tmp/pika-assignment-modal-required-submissions-final-mobile.png`, `/tmp/pika-assignment-modal-required-submissions-final-menu.png`
+- Drag smoke screenshot: `/tmp/pika-assignment-modal-required-submissions-dragged.png`
+- Mobile draggable screenshot: `/tmp/pika-assignment-modal-required-submissions-draggable-mobile.png`
+- Stable drag screenshots: `/tmp/pika-assignment-modal-required-submissions-stable-before.png`, `/tmp/pika-assignment-modal-required-submissions-stable-during.png`, `/tmp/pika-assignment-modal-required-submissions-stable-after.png`
+- Settled student screenshot after UI verify timeout: `/tmp/pika-student-settled.png`
+- Removal confirmation screenshots: `/tmp/pika-teacher-settled.png`, `/tmp/pika-assignment-modal-remove-required-submission-confirm.png`
+- Green split button screenshot: `/tmp/pika-assignment-modal-green-submission-split-desktop.png`
+- Updated green split button label screenshots: `/tmp/pika-assignment-modal-green-submission-split-label-desktop.png`, `/tmp/pika-assignment-modal-green-submission-split-label-mobile.png`
+- Generic add dropdown screenshots: `/tmp/pika-assignment-modal-add-submission-dropdown-desktop.png`, `/tmp/pika-assignment-modal-add-submission-dropdown-mobile.png`
+- Image icon dropdown screenshots: `/tmp/pika-assignment-modal-image-icon-dropdown-desktop.png`, `/tmp/pika-assignment-modal-image-icon-dropdown-mobile.png`
+
+## 2026-05-26 — Split-button destructive action placement
+
+**Completed:**
+- Added a `destructive` split-button option flag and centralized menu rendering so destructive options appear last under a separator.
+- Marked assignment delete, test-work delete, and roster removal split-button actions as destructive.
+- Added focused SplitButton coverage for reordering a destructive option supplied before normal actions.
+- Stabilized the assignment refresh test by waiting for the initial detail request before clicking refresh.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/ui/SplitButton.test.tsx tests/components/TeacherRosterTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Playwright menu smoke: roster, assignment, and test action dropdowns all placed Remove/Delete last under a separator.
+- Screenshots: `/tmp/pika-roster-actions-menu.png`, `/tmp/pika-assignment-actions-menu.png`, `/tmp/pika-test-actions-menu.png`
+- `pnpm test`
+- `pnpm test:coverage`
