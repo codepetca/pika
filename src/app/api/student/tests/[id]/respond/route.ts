@@ -12,7 +12,7 @@ import {
   validateTestResponsesAgainstQuestions,
   type TestResponses,
 } from '@/lib/test-attempts'
-import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
+import { hasAnyMeaningfulTestResponse, hasMeaningfulTestResponse } from '@/lib/test-responses'
 import { insertVersionedBaselineHistory } from '@/lib/server/versioned-history'
 import { withErrorHandler } from '@/lib/api-handler'
 
@@ -73,11 +73,16 @@ export const POST = withErrorHandler('PostStudentTestRespond', async (request, c
     return NextResponse.json({ error: 'This test is closed for grading' }, { status: 400 })
   }
 
-  const { data: existingResponses } = await supabase
+  const { data: existingResponses, error: existingResponsesError } = await supabase
     .from('test_responses')
-    .select('selected_option, response_text')
+    .select('id, selected_option, response_text')
     .eq('test_id', testId)
     .eq('student_id', user.id)
+
+  if (existingResponsesError) {
+    console.error('Error fetching existing test responses:', existingResponsesError)
+    return NextResponse.json({ error: 'Failed to submit responses' }, { status: 500 })
+  }
 
   if (hasAnyMeaningfulTestResponse(existingResponses)) {
     return NextResponse.json({ error: 'You have already responded to this test' }, { status: 400 })
@@ -140,11 +145,31 @@ export const POST = withErrorHandler('PostStudentTestRespond', async (request, c
     }
   })
 
+  const placeholderResponseIds = (existingResponses || [])
+    .filter((response) => !hasMeaningfulTestResponse(response))
+    .map((response) => response.id)
+    .filter((id): id is string => typeof id === 'string' && id.length > 0)
+
+  if (placeholderResponseIds.length > 0) {
+    const { error: deletePlaceholderError } = await supabase
+      .from('test_responses')
+      .delete()
+      .in('id', placeholderResponseIds)
+
+    if (deletePlaceholderError) {
+      console.error('Error clearing placeholder test responses:', deletePlaceholderError)
+      return NextResponse.json({ error: 'Failed to submit responses' }, { status: 500 })
+    }
+  }
+
   const { error: insertError } = await supabase
     .from('test_responses')
-    .upsert(responsesToInsert, { onConflict: 'question_id,student_id' })
+    .insert(responsesToInsert)
 
   if (insertError) {
+    if (insertError.code === '23505') {
+      return NextResponse.json({ error: 'You have already responded to this test' }, { status: 400 })
+    }
     console.error('Error inserting test responses:', insertError)
     return NextResponse.json({ error: 'Failed to submit responses' }, { status: 500 })
   }
@@ -164,6 +189,7 @@ export const POST = withErrorHandler('PostStudentTestRespond', async (request, c
         .from('test_attempts')
         .update(attemptUpdatePayload)
         .eq('id', testAttemptId)
+        .eq('is_submitted', false)
 
       if (updateAttemptError) {
         console.error('Error updating submitted test attempt:', updateAttemptError)
