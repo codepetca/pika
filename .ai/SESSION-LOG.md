@@ -7,25 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Nested GitHub artifact classification
-
-**Completed:**
-- Constrained inferred repo artifacts to root GitHub repository URLs only.
-- Kept nested GitHub URLs such as `/tree`, `/blob`, and `/issues` classified as normal links.
-- Preserved explicit structured `repo_link` artifacts and root GitHub repo links as repo artifacts.
-- Moved root-repo detection into the shared GitHub helper, fixed exact GitHub host matching, and blocked known GitHub product routes such as `/orgs`, `/topics`, and `/settings` from repo detection.
-
-**Validation:**
-- `pnpm test tests/lib/assignment-artifacts.test.ts tests/unit/assignment-repo-targets.test.ts tests/components/AssignmentArtifactsCell.test.tsx`
-- `pnpm test tests/lib/assignment-artifacts.test.ts tests/unit/select-and-github-repos.test.tsx tests/unit/assignment-repo-targets.test.ts tests/components/AssignmentArtifactsCell.test.tsx`
-- `pnpm test tests/unit/assignment-submission-validation.test.ts tests/unit/repo-review.test.ts tests/unit/repo-review-validation.test.ts tests/api/assignment-docs/artifacts.test.ts`
-- `pnpm lint`
-- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` after a full-suite timeout in that unrelated file
-- `pnpm test tests/api/auth/verify-signup.test.ts` after a second full-suite timeout in that unrelated file
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a'`
-- Playwright artifact smoke: root `github.com/codepetca/pika` stayed `Repo`; nested `github.com/vercel/next.js/tree/canary` rendered/clicked as `Link`.
-- Screenshots: `/tmp/pika-teacher-artifact-types-loaded.png`, `/tmp/pika-artifact-link-hover.png`, `/tmp/pika-artifact-root-vs-link-hover.png`
-
 ## 2026-05-26 — Student daily log background refresh
 
 **Completed:**
@@ -362,6 +343,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm test tests/api/teacher/gradebook.test.ts tests/api/teacher/gradebook-quiz-overrides.test.ts`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-05-26 — Assignment duplicate-submit timestamp guard
+
+**Completed:**
+- Preserved the original `submitted_at` value when an already-submitted assignment doc receives a duplicate submit request.
+- Kept fresh timestamps for first submissions and later resubmissions after the doc has been returned/unsubmitted.
+- Added API regression coverage proving duplicate submit writes the first timestamp back instead of replacing it.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/assignment-docs/submit.test.ts`
 - `git diff --check`
 - `pnpm lint`
 - `pnpm test`

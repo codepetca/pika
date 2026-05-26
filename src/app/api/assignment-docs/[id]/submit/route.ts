@@ -58,7 +58,7 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
   // Check if doc exists
   const { data: existingDoc, error: docError } = await supabase
     .from('assignment_docs')
-    .select('id, student_id, content')
+    .select('id, student_id, content, is_submitted, submitted_at')
     .eq('assignment_id', assignmentId)
     .eq('student_id', user.id)
     .single()
@@ -107,12 +107,16 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     )
   }
 
+  const submittedAt = existingDoc.is_submitted && existingDoc.submitted_at
+    ? existingDoc.submitted_at
+    : new Date().toISOString()
+
   // Update to submitted state
   const { data: doc, error } = await supabase
     .from('assignment_docs')
     .update({
       is_submitted: true,
-      submitted_at: new Date().toISOString()
+      submitted_at: submittedAt
     })
     .eq('id', existingDoc.id)
     .select()

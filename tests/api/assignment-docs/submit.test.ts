@@ -306,6 +306,93 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
     expect(authenticityUpdate).toHaveBeenCalledWith('id', 'doc-1')
   })
 
+  it('preserves the first submitted_at timestamp on duplicate submit', async () => {
+    const historyInsert = vi.fn(async () => ({ error: null }))
+    const originalSubmittedAt = '2026-04-20T14:30:00.000Z'
+    const submittedContent = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Finished work' }] }],
+    }
+    const updateDoc = vi.fn((payload: Record<string, unknown>) => ({
+      eq: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'doc-1',
+              student_id: 'student-1',
+              content: submittedContent,
+              is_submitted: true,
+              submitted_at: payload.submitted_at,
+            },
+            error: null,
+          }),
+        })),
+      })),
+    }))
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'assign-1', classroom_id: 'class-1', is_draft: false, released_at: null },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'doc-1',
+                    student_id: 'student-1',
+                    content: submittedContent,
+                    is_submitted: true,
+                    submitted_at: originalSubmittedAt,
+                  },
+                  error: null,
+                }),
+              })),
+            })),
+          })),
+          update: updateDoc,
+        }
+      }
+
+      if (table === 'assignment_doc_history') {
+        return {
+          insert: historyInsert,
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+            })),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await POST(new NextRequest('http://localhost:3000/api/assignment-docs/assign-1/submit', {
+      method: 'POST',
+    }), { params: { id: 'assign-1' } })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(updateDoc).toHaveBeenCalledWith({
+      is_submitted: true,
+      submitted_at: originalSubmittedAt,
+    })
+    expect(data.doc.submitted_at).toBe(originalSubmittedAt)
+  })
+
   it('still returns the submitted doc when history or authenticity side effects fail', async () => {
     const submittedContent = {
       type: 'doc',
