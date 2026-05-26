@@ -7,38 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-25 — Assignment artifact storage cleanup follow-up
-
-**Completed:**
-- Added best-effort teacher-side cleanup for `assignment-artifacts` image objects when image submission requirements are removed.
-- Added best-effort cleanup for image artifact objects after teacher assignment deletion succeeds.
-- Preserved storage objects when an image requirement is edited/reordered/renamed with the same requirement ID and type.
-- Added chunked Storage `remove()` calls with failure logging that does not fail successful teacher mutations.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/teacher/assignments-id.test.ts`
-- `pnpm test tests/lib/assignment-submission-artifacts.test.ts tests/api/assignment-docs/artifacts.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm build`
-- `pnpm exec vitest run tests/unit/assignment-submission-validation.test.ts`
-- `pnpm exec vitest run tests/lib/assignment-submission-artifacts.test.ts tests/unit/assignment-submission-validation.test.ts`
-- `pnpm exec vitest run tests/unit/assignment-submission-validation.test.ts tests/lib/assignment-submission-requirements.test.ts tests/lib/assignment-submission-artifacts.test.ts tests/api/assignment-docs/artifacts.test.ts`
-- `psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -c "begin;" -c "with target_assignment as (select id from public.assignments limit 1), replaced as (select r.* from target_assignment t cross join lateral public.replace_assignment_submission_requirements_atomic(t.id, '[{\"type\":\"link\",\"label\":\"Smoke public link\",\"required\":true,\"position\":0}]'::jsonb) r) select count(*) as replaced_count from replaced;" -c "rollback;"`
-- `psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -c "select has_function_privilege('anon', 'public.replace_assignment_submission_requirements_atomic(uuid, jsonb)', 'execute') as anon_execute, has_function_privilege('authenticated', 'public.replace_assignment_submission_requirements_atomic(uuid, jsonb)', 'execute') as authenticated_execute, has_function_privilege('service_role', 'public.replace_assignment_submission_requirements_atomic(uuid, jsonb)', 'execute') as service_role_execute;"`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=assignments'`
-- Focused Playwright screenshots: `/tmp/pika-teacher-requirements-modal.png`, `/tmp/pika-student-requirements-checklist-clean.png`
-- `pnpm test tests/unit/migration-filenames.test.ts`
-- `pnpm test tests/unit/assignment-submission-validation.test.ts tests/components/TeacherStudentWorkPanel.test.tsx tests/api/teacher/assignments-id.test.ts tests/api/assignment-docs/artifacts.test.ts tests/lib/assignment-submission-requirements.test.ts tests/lib/assignment-submission-artifacts.test.ts`
-- `git diff --check`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=assignments'`
-- Focused Playwright screenshot: `/tmp/pika-teacher-artifact-content-pane.png`
-- `pnpm exec vitest run tests/lib/assignment-ai-grading-runs.test.ts tests/unit/ai-grading.test.ts`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm test`
-
 ## 2026-05-25 — Supabase RLS/Auth hardening for WorkOS
 
 **Completed:**
@@ -390,3 +358,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `git diff --check`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
+
+## 2026-05-26 — Test grading mobile table fit
+
+**Completed:**
+- Constrained the teacher test grading student table on mobile/tablet by keeping actionable columns visible and moving telemetry columns to desktop widths.
+- Added truncation for long student names and tightened mobile header spacing to avoid wrapped labels.
+- Added component coverage for the responsive table constraints.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests&testId=210e30d4-f085-4c86-94d3-ee14bb66fd03&testMode=grading&testStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
+- Screenshots reviewed: `/tmp/pika-teacher.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-student.png`
+- Playwright overflow check: teacher mobile `documentScrollWidth=390`, `bodyScrollWidth=390`, viewport `390`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `git diff --check`

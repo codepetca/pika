@@ -1051,6 +1051,33 @@ describe('TeacherTestsTab', () => {
     expect(within(inspectorScrollPane).getByTestId('mock-test-grading-panel')).toBeInTheDocument()
   })
 
+  it('keeps the grading student table constrained on mobile widths', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    const studentScrollPane = await screen.findByTestId('test-grading-student-scroll-pane')
+    const table = within(studentScrollPane).getByRole('table')
+    expect(table).toHaveClass('table-fixed')
+    expect(table).toHaveClass('lg:table-auto')
+
+    const row = screen.getByTestId('test-grading-student-row-student-1')
+    expect(within(row).getByText('Alice Zephyr').closest('td')).toHaveClass('max-w-0')
+    expect(within(row).getByLabelText(/Exits \d+\./).closest('td')).toHaveClass('hidden')
+    expect(within(row).getByLabelText(/Away time/).closest('td')).toHaveClass('hidden')
+
+    expect(screen.getByText('Last', { selector: 'span.cursor-help' }).closest('th')).toHaveClass('hidden')
+    expect(screen.getByLabelText('Exits column').closest('th')).toHaveClass('lg:table-cell')
+    expect(screen.getByLabelText('Away column').closest('th')).toHaveClass('lg:table-cell')
+  })
+
   it('clears the selected grading row with Escape', async () => {
     fetchMock
       .mockResolvedValueOnce({
