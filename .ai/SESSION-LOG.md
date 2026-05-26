@@ -7,35 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-25 — Assignment submission requirements MVP
-
-**Completed:**
-- Added assignment-level structured submission requirements for `repo_link`, `link`, and `image` with Supabase tables, RLS, and private image storage.
-- Added student artifact APIs and UI checklist; required artifacts now gate submission and can feed grading/repo-review flows.
-- Added account-level GitHub identity storage/validation and reused it for repo requirements.
-- Added teacher assignment modal controls for adding, editing, ordering, and removing requirements.
-- Added blueprint assignment markdown support via `### Submission Requirements`, plus blueprint storage and classroom instantiation into assignment requirements.
-- Removed server-side fetching of arbitrary public-link artifacts; generic links are format-validated only.
-- Blocked invalid/inaccessible submitted artifacts from satisfying required submission gates.
-- Added atomic requirement replacement RPC so teacher requirement edits cannot partially delete student artifacts.
-- Preserved existing requirement IDs on teacher edits so student artifacts remain attached; refreshed screenshot signed URLs from storage paths.
-- Added screenshot replacement cleanup for replaced files and failed DB writes.
-- Folded the atomic replacement RPC into the base assignment submission requirements migration and removed the unapplied follow-up migration.
-- Returned and rendered structured artifacts in the teacher individual work pane so artifact-only submissions do not appear empty.
-- Merged structured artifacts with rich-text artifacts in the teacher assignment roster instead of replacing rich-text artifacts.
-- Preserved inaccessible/invalid GitHub username validation state when saving account-level identity from repo artifacts.
-- Fixed background assignment AI grading run creation so artifact-only submissions are queued instead of being skipped as empty.
-
-**Follow-up:**
-- Add teacher-side image storage cleanup when a submission requirement is deleted. The DB cascade removes related `assignment_submission_artifacts` rows, but image objects referenced by those rows are not currently removed from storage in that delete path.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `supabase migration up --local`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm test`
-
 ## 2026-05-25 — Assignment artifact storage cleanup follow-up
 
 **Completed:**
@@ -401,4 +372,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm test tests/unit/migration-filenames.test.ts`
 - `pnpm test`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+
+## 2026-05-26 — Request cache invalidation races
+
+**Completed:**
+- Added unit coverage for `fetchJSONWithCache` TTL reuse, in-flight dedupe, direct invalidation, prefix invalidation, and stale rejection races.
+- Prevented invalidated pending requests from repopulating deleted cache entries after they resolve.
+- Prevented invalidated pending rejections from deleting newer cached values for the same key.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/request-cache.test.ts`
+- `pnpm tsc --noEmit`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `git diff --check`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
