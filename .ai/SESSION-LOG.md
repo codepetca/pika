@@ -7,19 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-23 — Draft question sync helper
-
-**Completed:**
-- Refactored quiz/test draft question syncing to use a shared helper in `src/lib/server/assessment-drafts.ts` (keeps behavior + error strings the same, reduces drift risk).
-- Added unit coverage for the quiz sync insert-failure path.
-- Draft PR: https://github.com/codepetca/pika/pull/619
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/unit/assessment-drafts.test.ts`
-- `pnpm test`
-- `pnpm lint`
-
 ## 2026-05-22 — Gradebook identity column fixes
 
 **Completed:**
@@ -387,3 +374,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-05-26 — Gradebook assessment font weight cleanup
+
+**Completed:**
+- Reduced gradebook assessment column labels, score cells, summary score cells, and selected-student assessment detail rows to regular font weight.
+- Kept student names and final marks emphasized so the gradebook still has clear scan anchors.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook'`
+- Screenshots reviewed: `/tmp/pika-teacher.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-detail.png`, `/tmp/pika-teacher-dark.png`
