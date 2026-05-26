@@ -100,10 +100,11 @@ describe('POST /api/student/tests/[id]/respond', () => {
   })
 
   it('submits responses and updates an existing test attempt', async () => {
-    const responsesUpsert = vi.fn().mockResolvedValue({ error: null })
-    const attemptsUpdate = vi.fn(() => ({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    }))
+    const responsesInsert = vi.fn().mockResolvedValue({ error: null })
+    const attemptsUpdateQuery = {
+      eq: vi.fn(() => attemptsUpdateQuery),
+    }
+    const attemptsUpdate = vi.fn(() => attemptsUpdateQuery)
     const historyInsert = vi.fn(() => ({
       select: vi.fn(() => ({
         single: vi.fn().mockResolvedValue({
@@ -133,7 +134,7 @@ describe('POST /api/student/tests/[id]/respond', () => {
         }
         return {
           select: vi.fn(() => query),
-          upsert: responsesUpsert,
+          insert: responsesInsert,
         }
       }
       if (table === 'test_questions') {
@@ -165,16 +166,23 @@ describe('POST /api/student/tests/[id]/respond', () => {
 
     expect(response.status).toBe(201)
     expect(data.success).toBe(true)
-    expect(responsesUpsert).toHaveBeenCalledOnce()
-    expect(responsesUpsert).toHaveBeenCalledWith(expect.any(Array), {
-      onConflict: 'question_id,student_id',
-    })
+    expect(responsesInsert).toHaveBeenCalledOnce()
+    expect(responsesInsert).toHaveBeenCalledWith(expect.any(Array))
     expect(attemptsUpdate).toHaveBeenCalledOnce()
+    expect(attemptsUpdateQuery.eq).toHaveBeenCalledWith('id', 'attempt-1')
+    expect(attemptsUpdateQuery.eq).toHaveBeenCalledWith('is_submitted', false)
     expect(historyInsert).toHaveBeenCalledOnce()
   })
 
   it('allows submit when only placeholder graded rows exist', async () => {
-    const responsesUpsert = vi.fn().mockResolvedValue({ error: null })
+    const responsesInsert = vi.fn().mockResolvedValue({ error: null })
+    const placeholderDeleteIn = vi.fn().mockResolvedValue({ error: null })
+    const placeholderDelete = vi.fn(() => ({
+      in: placeholderDeleteIn,
+    }))
+    const attemptsUpdateQuery = {
+      eq: vi.fn(() => attemptsUpdateQuery),
+    }
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_attempts') {
@@ -186,9 +194,7 @@ describe('POST /api/student/tests/[id]/respond', () => {
               error: null,
             }),
           })),
-          update: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({ error: null }),
-          })),
+          update: vi.fn(() => attemptsUpdateQuery),
         }
       }
       if (table === 'test_responses') {
@@ -197,12 +203,13 @@ describe('POST /api/student/tests/[id]/respond', () => {
             eq: vi.fn().mockReturnThis(),
             then: vi.fn((resolve: any) =>
               resolve({
-                data: [{ selected_option: null, response_text: '   ' }],
+                data: [{ id: 'placeholder-response-1', selected_option: null, response_text: '   ' }],
                 error: null,
               })
             ),
           })),
-          upsert: responsesUpsert,
+          delete: placeholderDelete,
+          insert: responsesInsert,
         }
       }
       if (table === 'test_questions') {
@@ -240,6 +247,70 @@ describe('POST /api/student/tests/[id]/respond', () => {
 
     expect(response.status).toBe(201)
     expect(data.success).toBe(true)
-    expect(responsesUpsert).toHaveBeenCalledOnce()
+    expect(placeholderDeleteIn).toHaveBeenCalledWith('id', ['placeholder-response-1'])
+    expect(responsesInsert).toHaveBeenCalledOnce()
+  })
+
+  it('returns already responded when final response insert hits a unique constraint', async () => {
+    const responsesInsert = vi.fn().mockResolvedValue({
+      error: {
+        code: '23505',
+        message: 'duplicate key value violates unique constraint',
+      },
+    })
+    const attemptsUpdate = vi.fn(() => ({
+      eq: vi.fn().mockReturnThis(),
+    }))
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { id: 'attempt-1', is_submitted: false, responses: {} },
+              error: null,
+            }),
+          })),
+          update: attemptsUpdate,
+        }
+      }
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            then: vi.fn((resolve: any) =>
+              resolve({
+                data: [],
+                error: null,
+              })
+            ),
+          })),
+          insert: responsesInsert,
+        }
+      }
+      if (table === 'test_questions') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [{ id: 'q-1', options: ['A', 'B'] }],
+              error: null,
+            }),
+          })),
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await POST(
+      buildRequest({ responses: { 'q-1': 1 } }),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toContain('already responded')
+    expect(responsesInsert).toHaveBeenCalledOnce()
+    expect(attemptsUpdate).not.toHaveBeenCalled()
   })
 })

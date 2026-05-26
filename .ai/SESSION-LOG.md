@@ -7,27 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-23 — Roster delete action in FAB menu
-
-**Completed:**
-- Moved roster removal from the details pane into the floating roster actions dropdown.
-- Added an atomic roster removal RPC plus a bulk-delete action route so selected multi-row removal is one server-side operation.
-- Updated the existing single-row DELETE route to use the same atomic roster removal path.
-- Added component coverage for opening the roster FAB dropdown, choosing Remove student/students, and confirming deletion.
-- Updated retry behavior so failed bulk deletion keeps the full selected set pending instead of retrying partial client-side deletes.
-
-**Validation:**
-- `pnpm test tests/components/TeacherRosterTab.test.tsx`
-- `pnpm lint`
-- `pnpm test tests/components/TeacherRosterTab.test.tsx tests/api/teacher/roster-rosterId.test.ts`
-- `pnpm test tests/components/TeacherRosterTab.test.tsx tests/api/teacher/roster-rosterId.test.ts tests/api/teacher/roster-bulk-delete.test.ts tests/unit/roster-removal-migration.test.ts tests/unit/migration-filenames.test.ts`
-- `psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f supabase/migrations/071_atomic_roster_bulk_removal.sql`
-- `select public.remove_classroom_roster_entries_atomic('00000000-0000-0000-0000-000000000000'::uuid, array[]::uuid[])`
-- `git diff --check`
-- Targeted Playwright screenshot: `/tmp/pika-roster-multi-delete-dropdown.png`
-- `E2E_BASE_URL=http://127.0.0.1:3100 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=roster'`
-- Playwright screenshots: `/tmp/pika-roster-dropdown.png`, `/tmp/pika-roster-remove-confirm.png`, `/tmp/pika-roster-dropdown-dark.png`
-
 ## 2026-05-24 — Atomic selected test-work delete
 
 **Completed:**
@@ -405,3 +384,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-05-26 — Student test submit overwrite guard
+
+**Completed:**
+- Changed student test final submission to insert response rows instead of upserting over existing final answers.
+- Mapped unique response conflicts to the existing "already responded" response and skipped attempt finalization after the conflict.
+- Preserved the first-submit path for blank placeholder grading rows by deleting those placeholder rows by id before final insert.
+- Added API coverage for insert-only submission, placeholder cleanup, unique-conflict handling, and conditional attempt finalization.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/student/tests-respond.test.ts`
+- `pnpm tsc --noEmit`
+- `pnpm test tests/api/student/tests-respond.test.ts tests/api/student/tests-attempt.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-session-status.test.ts tests/api/student/tests-results.test.ts tests/api/student/tests-history.test.ts tests/api/student/tests-focus-events.test.ts tests/api/teacher/tests-results.test.ts tests/api/teacher/tests-return.test.ts`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
