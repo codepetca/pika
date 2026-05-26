@@ -7,22 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-21 — Developer feedback re-review fixes
-
-**Completed:**
-- Redacted direct identifiers from model-produced daily-log feedback candidate fields before storage.
-- Added `source_keys` tracking to the developer feedback migration so nightly reruns do not inflate signal or entry counts for an already-seen classroom/date source.
-- Restored `.ai/features.json` append-only entries and widened the startup-doc budget guard to fit the appended feature inventory.
-
-**Validation:**
-- `pnpm test tests/unit/developer-log-feedback.test.ts tests/api/feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/developer-log-feedback.test.ts tests/api/feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `bash scripts/verify-env.sh`
-- `node scripts/features.mjs validate`
-- `git diff --check`
-
 ## 2026-05-21 — Developer feedback idempotent last-seen fix
 
 **Completed:**
@@ -350,3 +334,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a'`
 - Playwright artifact smoke: root `github.com/codepetca/pika` stayed `Repo`; nested `github.com/vercel/next.js/tree/canary` rendered/clicked as `Link`.
 - Screenshots: `/tmp/pika-teacher-artifact-types-loaded.png`, `/tmp/pika-artifact-link-hover.png`, `/tmp/pika-artifact-root-vs-link-hover.png`
+
+## 2026-05-26 — Student daily log background refresh
+
+**Completed:**
+- Changed the student Today tab so sessionStorage history is only an instant preview, not the final source of truth.
+- Added a direct capped background `/api/student/entries?limit=12` refresh on mount to update cross-device daily logs.
+- Guarded the editor so an in-flight refresh cannot overwrite a local edit started by the student.
+- Fixed the reverted-edit edge case so a refresh can apply server content after local text returns to the saved value.
+- Updated StudentTodayTab history coverage for preview-first refresh and local-edit protection.
+
+**Validation:**
+- `pnpm test tests/components/StudentTodayTabHistory.test.tsx`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3003 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=today'`
+- Warm screenshots reviewed: `/tmp/pika-student-today-final.png`, `/tmp/pika-teacher-mobile-warm.png`
