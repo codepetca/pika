@@ -239,6 +239,48 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
     )
   })
 
+  it('returns 403 when returning work from an archived classroom', async () => {
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'assignment-1',
+                  classroom_id: 'classroom-1',
+                  classrooms: {
+                    teacher_id: 'teacher-1',
+                    archived_at: '2026-05-01T12:00:00.000Z',
+                  },
+                },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table in test: ${table}`)
+    })
+
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
+      method: 'POST',
+      body: JSON.stringify({
+        student_ids: ['student-1'],
+      }),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const body = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(body.error).toBe('Classroom is archived')
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+  })
+
   it('returns graded missing work even when it was never submitted', async () => {
     const docs = [
       {

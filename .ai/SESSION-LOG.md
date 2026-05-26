@@ -7,22 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-22 — Assignment student list scroll persistence
-
-**Completed:**
-- Persisted assignment student-list scroll memory to session storage for the teacher assignment workspace.
-- Made scroll restoration run across the next layout frames so split-pane refreshes and route reloads do not leave the list at the top.
-- Added hook regression coverage for session-backed scroll restoration after remount.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/hooks/useScrollPositionMemory.test.tsx`
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=assignments&assignmentId=1bd43274-afe7-472c-90c9-5b704d83e4b2&assignmentStudentId=e0d9c4e7-2a88-4428-bd15-ba87f2d935b7"`
-- Targeted Playwright long-list check: selected Student65 and reloaded; `scrollTop` remained `1500`.
-
 ## 2026-05-23 — Draft question sync helper
 
 **Completed:**
@@ -386,3 +370,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Screenshots: `/tmp/pika-roster-actions-menu.png`, `/tmp/pika-assignment-actions-menu.png`, `/tmp/pika-test-actions-menu.png`
 - `pnpm test`
 - `pnpm test:coverage`
+
+## 2026-05-26 — Critical risk fixes
+
+**Completed:**
+- Fixed `getTodayInToronto()` to format the current instant directly in `America/Toronto`, avoiding UTC-host double conversion.
+- Added archived-classroom mutation guards for assignment grading, selected grading, return, feedback return, AI grading, AI grading ticks, repo target overrides, and artifact repo analysis.
+- Preserved read-only assignment ownership checks for archived classrooms while adding a mutation-specific guard.
+- Added regression coverage for the UTC-host Toronto date edge and archived assignment mutation rejection.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/timezone.test.ts tests/unit/server-repo-review.test.ts tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts`
+- `pnpm test tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-grade-selected.test.ts tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id.test.ts tests/api/teacher/assignments-id-students-studentId.test.ts`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
