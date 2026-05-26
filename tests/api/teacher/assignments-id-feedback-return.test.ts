@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/assignments/[id]/feedback-return/route'
 
-const { appendAssignmentFeedbackEntry, assertTeacherOwnsAssignment } = vi.hoisted(() => ({
+const { appendAssignmentFeedbackEntry, assertTeacherCanMutateAssignment } = vi.hoisted(() => ({
   appendAssignmentFeedbackEntry: vi.fn(),
-  assertTeacherOwnsAssignment: vi.fn(),
+  assertTeacherCanMutateAssignment: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -24,7 +24,7 @@ vi.mock('@/lib/server/assignment-feedback', () => ({
 }))
 
 vi.mock('@/lib/server/repo-review', () => ({
-  assertTeacherOwnsAssignment,
+  assertTeacherCanMutateAssignment,
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
@@ -33,7 +33,7 @@ describe('POST /api/teacher/assignments/[id]/feedback-return', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     appendAssignmentFeedbackEntry.mockResolvedValue({ id: 'entry-1' })
-    assertTeacherOwnsAssignment.mockResolvedValue({
+    assertTeacherCanMutateAssignment.mockResolvedValue({
       id: 'assignment-1',
       classroom_id: 'classroom-1',
     })

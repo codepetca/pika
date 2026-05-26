@@ -18,7 +18,7 @@ import {
 } from '@/lib/server/assignment-repo-targets'
 import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
 import { loadAssignmentSubmissionArtifactsForDocs } from '@/lib/server/assignment-submission-artifacts'
-import { assertTeacherOwnsAssignment } from '@/lib/server/repo-review'
+import { assertTeacherCanMutateAssignment } from '@/lib/server/repo-review'
 import type { AssignmentRepoReviewConfig, AssignmentSubmissionArtifact } from '@/types'
 
 type GroupedStudent = {
@@ -53,7 +53,7 @@ function createConfigForResolvedRepo(opts: {
 export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis', async (request, context) => {
   const user = await requireRole('teacher')
   const { id: assignmentId } = await context.params
-  const assignment = await assertTeacherOwnsAssignment(user.id, assignmentId)
+  const assignment = await assertTeacherCanMutateAssignment(user.id, assignmentId)
   const body: unknown = await request.json()
   const studentIds = Array.isArray((body as { student_ids?: unknown[] })?.student_ids)
     ? ((body as { student_ids: unknown[] }).student_ids.filter((value: unknown): value is string => typeof value === 'string'))
@@ -349,18 +349,18 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
 
       analyzedStudents += results.length
       repoGroups += 1
-    } catch (error) {
+    } catch (analysisError) {
       await supabase
         .from('assignment_repo_review_runs')
         .update({
           status: 'failed',
           completed_at: new Date().toISOString(),
           warnings_json: [
-            { code: 'run-failed', message: error instanceof Error ? error.message : 'Repo analysis failed' },
+            { code: 'run-failed', message: analysisError instanceof Error ? analysisError.message : 'Repo analysis failed' },
           ],
         })
         .eq('id', run.id)
-      throw error
+      throw analysisError
     }
   }
 

@@ -139,6 +139,52 @@ describe('POST /api/teacher/assignments/[id]/grade', () => {
     expect(response.status).toBe(400)
   })
 
+  it('returns 403 when grading an assignment in an archived classroom', async () => {
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'assignment-1',
+                  classroom_id: 'classroom-1',
+                  classrooms: {
+                    teacher_id: 'teacher-1',
+                    archived_at: '2026-05-01T12:00:00.000Z',
+                  },
+                },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table in test: ${table}`)
+    })
+
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/grade', {
+      method: 'POST',
+      body: JSON.stringify({
+        student_id: 'student-1',
+        score_completion: 8,
+        score_thinking: 8,
+        score_workflow: 8,
+        feedback: 'Archived class',
+      }),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const body = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(body.error).toBe('Classroom is archived')
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+  })
+
   it('saves as draft when save_mode is draft (clears graded fields)', async () => {
     let capturedUpsertPayload: Record<string, unknown> | null = null
 

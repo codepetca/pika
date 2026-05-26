@@ -37,3 +37,13 @@ export async function assertTeacherOwnsAssignment(teacherId: string, assignmentI
 
   return data as AssignmentWithClassroom
 }
+
+export async function assertTeacherCanMutateAssignment(teacherId: string, assignmentId: string): Promise<AssignmentWithClassroom> {
+  const assignment = await assertTeacherOwnsAssignment(teacherId, assignmentId)
+
+  if (assignment.classrooms.archived_at) {
+    throw new ApiError(403, 'Classroom is archived')
+  }
+
+  return assignment
+}

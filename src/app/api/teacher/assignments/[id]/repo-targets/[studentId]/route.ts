@@ -10,13 +10,13 @@ import {
 } from '@/lib/server/assignment-repo-targets'
 import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
 import { loadAssignmentSubmissionArtifactsForDoc } from '@/lib/server/assignment-submission-artifacts'
-import { assertTeacherOwnsAssignment } from '@/lib/server/repo-review'
+import { assertTeacherCanMutateAssignment } from '@/lib/server/repo-review'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 export const PUT = withErrorHandler('PutTeacherAssignmentRepoTarget', async (request, context) => {
   const user = await requireRole('teacher')
   const { id: assignmentId, studentId } = await context.params
-  await assertTeacherOwnsAssignment(user.id, assignmentId)
+  await assertTeacherCanMutateAssignment(user.id, assignmentId)
 
   const body = await request.json()
   const selectionMode = body.selection_mode === 'teacher_override' ? 'teacher_override'

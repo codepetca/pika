@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler, apiErrors } from '@/lib/api-handler'
 import { appendAssignmentFeedbackEntry } from '@/lib/server/assignment-feedback'
-import { assertTeacherOwnsAssignment } from '@/lib/server/repo-review'
+import { assertTeacherCanMutateAssignment } from '@/lib/server/repo-review'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 export const POST = withErrorHandler('PostTeacherAssignmentFeedbackReturn', async (request, context) => {
   const user = await requireRole('teacher')
   const { id: assignmentId } = await context.params
-  const assignment = await assertTeacherOwnsAssignment(user.id, assignmentId)
+  const assignment = await assertTeacherCanMutateAssignment(user.id, assignmentId)
   const body = await request.json()
   const studentId = typeof body.student_id === 'string' ? body.student_id : ''
 

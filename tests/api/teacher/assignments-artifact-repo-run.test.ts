@@ -9,7 +9,7 @@ const {
   mockResolveAssignmentRepoTarget,
   mockSaveAssignmentRepoTarget,
   mockValidatePublicGitHubRepo,
-  mockAssertTeacherOwnsAssignment,
+  mockAssertTeacherCanMutateAssignment,
 } = vi.hoisted(() => ({
   mockSupabaseClient: { from: vi.fn() },
   mockAnalyzeRepoReviewAssignment: vi.fn(),
@@ -18,7 +18,7 @@ const {
   mockResolveAssignmentRepoTarget: vi.fn(),
   mockSaveAssignmentRepoTarget: vi.fn(),
   mockValidatePublicGitHubRepo: vi.fn(),
-  mockAssertTeacherOwnsAssignment: vi.fn(),
+  mockAssertTeacherCanMutateAssignment: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -49,7 +49,7 @@ vi.mock('@/lib/server/assignment-repo-targets', () => ({
 }))
 
 vi.mock('@/lib/server/repo-review', () => ({
-  assertTeacherOwnsAssignment: mockAssertTeacherOwnsAssignment,
+  assertTeacherCanMutateAssignment: mockAssertTeacherCanMutateAssignment,
 }))
 
 import { POST } from '@/app/api/teacher/assignments/[id]/artifact-repo/run/route'
@@ -145,7 +145,7 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
     vi.clearAllMocks()
     mockSupabaseClient.from.mockReset()
     mockExtractRepoArtifactsFromContent.mockReturnValue([])
-    mockAssertTeacherOwnsAssignment.mockResolvedValue({
+    mockAssertTeacherCanMutateAssignment.mockResolvedValue({
       id: 'assignment-1',
       classroom_id: 'classroom-1',
       title: 'Repo review',

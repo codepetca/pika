@@ -115,7 +115,8 @@ export async function loadTeacherOwnedAssignmentForGrade(opts: {
     .select(`
       *,
       classrooms!inner (
-        teacher_id
+        teacher_id,
+        archived_at
       )
     `)
     .eq('id', assignmentId)
@@ -127,6 +128,10 @@ export async function loadTeacherOwnedAssignmentForGrade(opts: {
 
   if (assignment.classrooms.teacher_id !== teacherId) {
     throw new ApiError(403, 'Unauthorized')
+  }
+
+  if (assignment.classrooms.archived_at) {
+    throw new ApiError(403, 'Classroom is archived')
   }
 
   return assignment
