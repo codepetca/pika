@@ -34,6 +34,7 @@ export interface SplitButtonProps {
   disabled?: boolean
   className?: string
   toggleAriaLabel?: string
+  toggleButtonClassName?: string
   menuPlacement?: 'up' | 'down'
   primaryButtonProps?: Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onClick' | 'type'>
 }
@@ -47,6 +48,7 @@ export function SplitButton({
   disabled = false,
   className,
   toggleAriaLabel = 'More actions',
+  toggleButtonClassName,
   menuPlacement = 'up',
   primaryButtonProps,
 }: SplitButtonProps) {
@@ -123,7 +125,7 @@ export function SplitButton({
           })
         }}
         disabled={disabled || options.length === 0}
-        className="rounded-l-none border-l border-black/15 px-3"
+        className={cn('rounded-l-none border-l border-black/15 px-3', toggleButtonClassName)}
       >
         <ChevronDown className="h-4 w-4" aria-hidden="true" />
       </Button>

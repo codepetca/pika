@@ -86,6 +86,7 @@ describe('AssignmentModal', () => {
       expect(screen.queryByText('Author Markdown')).not.toBeInTheDocument()
       expect(screen.queryByText(/Legacy Rich Text Editor/i)).not.toBeInTheDocument()
       expect(screen.queryByText(/Supported markdown:/i)).not.toBeInTheDocument()
+      expect(screen.queryByText('Instructions')).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Heading' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled()
       expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled()
@@ -153,6 +154,46 @@ describe('AssignmentModal', () => {
       expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
       expect(screen.getByPlaceholderText('Assignment instructions')).toHaveValue('Original instructions')
+    })
+
+    it('places required submissions above instructions with compact split add actions', () => {
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={baseAssignment}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      const requiredSubmissions = screen.getByText('Required submissions')
+      const requirementsGroup = within(screen.getByRole('group', { name: 'Required submissions' }))
+      const instructions = screen.getByPlaceholderText('Assignment instructions')
+
+      expect(requiredSubmissions.compareDocumentPosition(instructions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(requirementsGroup.queryByText('None')).not.toBeInTheDocument()
+      expect(screen.queryByText('No structured submissions required.')).not.toBeInTheDocument()
+
+      const addLinkButton = requirementsGroup.getByRole('button', { name: 'Add link submission' })
+      expect(addLinkButton).toHaveTextContent('+')
+      expect(addLinkButton).toHaveTextContent('link')
+
+      fireEvent.click(addLinkButton)
+
+      expect(requirementsGroup.getByDisplayValue('Public link')).toBeInTheDocument()
+      expect(requirementsGroup.getByPlaceholderText('Optional helper text')).toBeInTheDocument()
+      expect(requirementsGroup.queryByText('1 item')).not.toBeInTheDocument()
+      expect(requirementsGroup.queryByRole('button', { name: 'Move requirement up' })).not.toBeInTheDocument()
+      expect(requirementsGroup.queryByRole('button', { name: 'Move requirement down' })).not.toBeInTheDocument()
+
+      fireEvent.click(requirementsGroup.getByRole('button', { name: 'Choose submission type' }))
+      expect(screen.getByRole('menuitem', { name: 'Image' })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Repo' }))
+
+      expect(requirementsGroup.getByDisplayValue('Repo link')).toBeInTheDocument()
+      expect(requirementsGroup.queryByText('2 items')).not.toBeInTheDocument()
+      expect(requirementsGroup.getAllByRole('button', { name: /Drag to reorder/ })).toHaveLength(2)
     })
 
     it('shows save status indicator', () => {
