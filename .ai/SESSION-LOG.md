@@ -7,26 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-25 — Supabase RLS/Auth hardening for WorkOS
-
-**Completed:**
-- Added migration `075_auth_rls_hardening.sql` with `users.workos_user_id` unique mapping while preserving local UUID user IDs.
-- Enabled RLS and explicit no-direct-access policies on announcements, announcement reads, gradebook settings, quiz score overrides, and report-card tables.
-- Revoked direct public table/sequence/function grants from `anon` and `authenticated`, preserved `service_role`, and hardened migration-owner default privileges.
-- Removed direct authenticated upload/delete storage policies for legacy public buckets while keeping public read behavior.
-- Set stable `search_path` on existing public functions surfaced by Supabase security advisors.
-- Updated architecture/AI guidance for the server-route authorization model and WorkOS posture.
-
-**Validation:**
-- `psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -1 -f supabase/migrations/075_auth_rls_hardening.sql`
-- Metadata checks for RLS, grants, policies, default privileges, and WorkOS index.
-- `supabase db lint --local --schema public,storage --fail-on none` (passes with pre-existing warnings only)
-- `supabase db advisors --local --type security --level warn --fail-on none`
-- `pnpm test tests/api/teacher/announcements.test.ts tests/api/teacher/announcements-id.test.ts tests/api/student/announcements.test.ts tests/api/teacher/gradebook.test.ts tests/api/teacher/gradebook-quiz-overrides.test.ts tests/unit/auth-rls-hardening-migration.test.ts tests/unit/migration-filenames.test.ts`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `git diff --check`
-
 ## 2026-05-25 — Assignment artifact open behavior
 
 **Completed:**
@@ -372,6 +352,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests&testId=210e30d4-f085-4c86-94d3-ee14bb66fd03&testMode=grading&testStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
 - Screenshots reviewed: `/tmp/pika-teacher.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-student.png`
 - Playwright overflow check: teacher mobile `documentScrollWidth=390`, `bodyScrollWidth=390`, viewport `390`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `git diff --check`
+
+## 2026-05-26 — Action bar viewport and menu coverage
+
+**Completed:**
+- Added direct `PageActionBar` coverage for desktop action groups, mobile overflow menu containers, menu ordering, destructive grouping, disabled items, selection close, Escape close, and outside-click close.
+- Expanded teacher work-surface floating action cluster coverage for viewport max-width, fixed placement, visual chrome, floating center actions, and inline center actions.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/PageActionBar.test.tsx tests/components/TeacherWorkSurfaceActionBar.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx`
 - `pnpm lint`
 - `pnpm test`
 - `pnpm build`
