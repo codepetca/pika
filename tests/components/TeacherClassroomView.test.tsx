@@ -1084,9 +1084,9 @@ describe('TeacherClassroomView', () => {
     )
 
     await waitFor(() => {
+      expect(detailFetchCount).toBe(1)
       expect(screen.getByRole('button', { name: 'Refresh submissions' })).toBeEnabled()
     })
-    expect(detailFetchCount).toBe(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Refresh submissions' }))
 

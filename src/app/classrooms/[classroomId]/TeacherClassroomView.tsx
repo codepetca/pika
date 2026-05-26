@@ -2179,6 +2179,7 @@ export function TeacherClassroomView({
                 }
               },
               disabled: !activeSelectedAssignmentData || selectedAssignmentLoading || isReadOnly || isDeleting,
+              destructive: true,
             },
             {
               id: 'grade-selected',

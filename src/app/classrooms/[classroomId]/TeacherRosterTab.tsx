@@ -387,6 +387,7 @@ export function TeacherRosterTab({ classroom }: Props) {
         label: <span className="text-danger">{getRemovalMenuLabel(removalTargetRows.length)}</span>,
         onSelect: () => openRemoveStudentDialog(removalTargetRows),
         disabled: isReadOnly || loading || isRemoving,
+        destructive: true,
       })
     }
 
@@ -402,6 +403,7 @@ export function TeacherRosterTab({ classroom }: Props) {
       label: <span className="text-danger">{getRemovalMenuLabel(removalTargetRows.length)}</span>,
       onSelect: () => openRemoveStudentDialog(removalTargetRows),
       disabled: isReadOnly || loading || isRemoving || removalTargetRows.length === 0,
+      destructive: true,
     })
 
     rosterActionOptions.push(
