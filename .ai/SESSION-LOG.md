@@ -7,18 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-23 — Gradebook Final column separator
-
-**Completed:**
-- Added a strong separator before the Final grade column across gradebook header, student, and summary rows.
-- Covered the separator with focused gradebook component expectations.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e285be41-5add-4baf-8ac7-d476ec365cad?tab=gradebook'`
-
 ## 2026-05-23 — Gradebook Final column resize
 
 **Completed:**
@@ -355,6 +343,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/timezone.test.ts tests/unit/server-repo-review.test.ts tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts`
 - `pnpm test tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-grade-selected.test.ts tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id.test.ts tests/api/teacher/assignments-id-students-studentId.test.ts`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-05-26 — API route error-handler drift cleanup
+
+**Completed:**
+- Migrated the classroom reorder route and test clear-open-grades route from manual `try/catch` blocks to `withErrorHandler`.
+- Preserved existing validation, access, and database error response behavior while centralizing auth/unknown error handling.
+- Added a unit standards test that scans every API `route.ts` export and fails on unwrapped HTTP handlers, while allowing aliases to already wrapped handlers.
+
+**Validation:**
+- `pnpm test tests/api/teacher/tests-clear-open-grades.test.ts tests/api/teacher/classrooms-reorder.test.ts tests/unit/api-route-standards.test.ts`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm tsc --noEmit`
 - `pnpm lint`
 - `pnpm test`
 - `pnpm build`
