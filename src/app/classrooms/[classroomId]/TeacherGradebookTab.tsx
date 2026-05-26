@@ -438,10 +438,10 @@ function StudentAssessmentPanel({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="rounded-sm bg-surface-2 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-text-default">
+                        <span className="rounded-sm bg-surface-2 px-1.5 py-0.5 text-xs font-normal tabular-nums text-text-default">
                           {column.code}
                         </span>
-                        <span className="truncate text-sm font-semibold text-text-default" title={column.title}>
+                        <span className="truncate text-sm font-normal text-text-default" title={column.title}>
                           {column.title}
                         </span>
                       </div>
@@ -460,7 +460,7 @@ function StudentAssessmentPanel({
                     </div>
                     <div className="shrink-0 text-right">
                       <div className={[
-                        'text-sm font-semibold tabular-nums',
+                        'text-sm font-normal tabular-nums',
                         cell?.is_graded ? 'text-text-default' : 'text-text-muted',
                       ].join(' ')}>
                         {primaryScore}
@@ -1026,7 +1026,7 @@ function AssessmentMatrixTable({
                       <span
                         tabIndex={0}
                         className={[
-                          'inline-flex min-h-10 min-w-12 flex-col items-center justify-center rounded-sm px-1.5 py-0.5 font-semibold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                          'inline-flex min-h-10 min-w-12 flex-col items-center justify-center rounded-sm px-1.5 py-0.5 font-normal tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-primary',
                           column.is_draft || !column.include_in_final
                             ? 'text-text-muted'
                             : 'text-text-default',
@@ -1038,7 +1038,7 @@ function AssessmentMatrixTable({
                         ].filter(Boolean).join(', ')}
                       >
                         <span>{column.code}</span>
-                        <span className="mt-0.5 min-h-3 text-[10px] font-medium leading-none text-text-muted">
+                        <span className="mt-0.5 min-h-3 text-[10px] font-normal leading-none text-text-muted">
                           {!hidden && column.due_at ? formatTorontoDateShort(column.due_at) : ''}
                         </span>
                       </span>
@@ -1119,7 +1119,7 @@ function AssessmentMatrixTable({
                         <span
                           className={[
                             'block truncate text-sm',
-                            column.key === 'id' || hidden ? '' : 'font-medium text-text-default',
+                            column.key === 'id' || hidden ? '' : 'font-semibold text-text-default',
                           ].join(' ')}
                           title={value === '—' ? undefined : value}
                         >
@@ -1139,7 +1139,7 @@ function AssessmentMatrixTable({
                       >
                         <span
                           className={[
-                            cell?.is_graded ? 'font-semibold' : '',
+                            'font-normal',
                             hidden || !cell?.is_graded ? 'text-text-muted' : 'text-text-default',
                           ].join(' ')}
                         >
@@ -1214,7 +1214,7 @@ function AssessmentMatrixTable({
                           key={`average:${column.assessment_type}:${column.assessment_id}`}
                           align="center"
                           className={[
-                            'min-w-16 px-2 text-xs font-semibold tabular-nums',
+                            'min-w-16 px-2 text-xs font-normal tabular-nums',
                             editColumnBorderClass,
                             hidden ? 'text-text-muted' : 'text-text-default',
                           ].join(' ')}
@@ -1278,7 +1278,7 @@ function AssessmentMatrixTable({
                           key={`median:${column.assessment_type}:${column.assessment_id}`}
                           align="center"
                           className={[
-                            'min-w-16 px-2 text-xs font-semibold tabular-nums',
+                            'min-w-16 px-2 text-xs font-normal tabular-nums',
                             editColumnBorderClass,
                             hidden ? 'text-text-muted' : 'text-text-default',
                           ].join(' ')}
