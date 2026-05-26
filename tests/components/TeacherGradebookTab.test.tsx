@@ -351,6 +351,29 @@ describe('TeacherGradebookTab', () => {
     })
   })
 
+  it('clears selected email actions when gradebook settings mode opens', async () => {
+    const onSectionChange = vi.fn()
+
+    renderGradebook('grades', onSectionChange)
+
+    expect(await screen.findByText('Ada')).toBeInTheDocument()
+    const adaSelect = screen.getByRole('checkbox', { name: 'Select Ada Lovelace' })
+    fireEvent.click(adaSelect)
+    expect(screen.getByRole('button', { name: 'Email (1)' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gradebook settings' }))
+
+    expect(onSectionChange).toHaveBeenCalledWith('settings')
+    expect(screen.queryByRole('button', { name: 'Email (1)' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Gradebook email actions' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Select Ada Lovelace' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gradebook settings' }))
+
+    expect(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' })).not.toBeChecked()
+    expect(screen.queryByRole('button', { name: 'Email (1)' })).not.toBeInTheDocument()
+  })
+
   it('renders edit controls with assessment weights only', async () => {
     renderGradebook('settings')
 
