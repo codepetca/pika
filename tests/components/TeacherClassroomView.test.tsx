@@ -1056,6 +1056,45 @@ describe('TeacherClassroomView', () => {
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
   })
 
+  it('refreshes selected assignment details from the workspace action bar', async () => {
+    let detailFetchCount = 0
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        detailFetchCount += 1
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1'),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    render(
+      <TeacherClassroomView
+        classroom={classroom}
+        selectedAssignmentId="assignment-1"
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Refresh submissions' })).toBeEnabled()
+    })
+    expect(detailFetchCount).toBe(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh submissions' }))
+
+    await waitFor(() => {
+      expect(detailFetchCount).toBe(2)
+    })
+  })
+
   it('keeps draft and scheduled assignments opening the editor in normal mode', async () => {
     mockIsVisibleAtNow.mockReturnValue(false)
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {

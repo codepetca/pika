@@ -27,13 +27,15 @@ export interface SplitButtonOption {
 
 export interface SplitButtonProps {
   label: ReactNode
-  onPrimaryClick: () => void
+  onPrimaryClick?: () => void
   options: SplitButtonOption[]
+  primaryOpensMenu?: boolean
   variant?: NonNullable<ButtonProps['variant']>
   size?: NonNullable<ButtonProps['size']>
   disabled?: boolean
   className?: string
   toggleAriaLabel?: string
+  toggleButtonClassName?: string
   menuPlacement?: 'up' | 'down'
   primaryButtonProps?: Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onClick' | 'type'>
 }
@@ -42,11 +44,13 @@ export function SplitButton({
   label,
   onPrimaryClick,
   options,
+  primaryOpensMenu = false,
   variant = 'primary',
   size = 'sm',
   disabled = false,
   className,
   toggleAriaLabel = 'More actions',
+  toggleButtonClassName,
   menuPlacement = 'up',
   primaryButtonProps,
 }: SplitButtonProps) {
@@ -94,14 +98,32 @@ export function SplitButton({
     onSelect()
   }
 
+  function toggleMenu() {
+    setIsOpen((prev) => {
+      if (prev) clearOptionHover()
+      return !prev
+    })
+  }
+
   return (
     <div ref={containerRef} className={cn('relative inline-flex', className)}>
       <Button
         type="button"
         variant={variant}
         size={size}
-        onClick={onPrimaryClick}
-        disabled={disabled}
+        aria-haspopup={primaryOpensMenu ? 'menu' : undefined}
+        aria-controls={primaryOpensMenu ? menuId : undefined}
+        aria-expanded={primaryOpensMenu ? isOpen : undefined}
+        onClick={(event) => {
+          if (!primaryOpensMenu) {
+            onPrimaryClick?.()
+            return
+          }
+
+          event.stopPropagation()
+          toggleMenu()
+        }}
+        disabled={disabled || (primaryOpensMenu && options.length === 0)}
         className={cn('rounded-r-none', primaryClassName)}
         {...restPrimaryButtonProps}
       >
@@ -117,13 +139,10 @@ export function SplitButton({
         aria-label={toggleAriaLabel}
         onClick={(event) => {
           event.stopPropagation()
-          setIsOpen((prev) => {
-            if (prev) clearOptionHover()
-            return !prev
-          })
+          toggleMenu()
         }}
         disabled={disabled || options.length === 0}
-        className="rounded-l-none border-l border-black/15 px-3"
+        className={cn('rounded-l-none border-l border-black/15 px-3', toggleButtonClassName)}
       >
         <ChevronDown className="h-4 w-4" aria-hidden="true" />
       </Button>

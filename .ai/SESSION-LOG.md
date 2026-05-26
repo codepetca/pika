@@ -7,29 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-21 — Developer feedback idempotent last-seen fix
-
-**Completed:**
-- Updated the developer feedback candidate upsert so duplicate classroom/date reruns preserve `last_seen_at` and `last_seen_date`.
-- Tightened the migration regression test to cover ranking timestamp preservation, not just count preservation.
-
-**Validation:**
-- `pnpm test tests/unit/developer-log-feedback.test.ts tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `git diff --check`
-
-## 2026-05-21 — Developer feedback migration filename
-
-**Completed:**
-- Renamed the developer feedback migration from the timestamped Supabase filename to Pika's sequential migration convention: `070_developer_feedback_candidates.sql`.
-- Updated the migration regression test to read the renamed file.
-
-**Validation:**
-- `pnpm test tests/unit/developer-log-feedback.test.ts`
-- Migration duplicate-prefix check
-- Migration filename convention check
-
 ## 2026-05-21 — Migration filename CI guard
 
 **Completed:**
@@ -351,3 +328,56 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `E2E_BASE_URL=http://localhost:3003 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=today'`
 - Warm screenshots reviewed: `/tmp/pika-student-today-final.png`, `/tmp/pika-teacher-mobile-warm.png`
+
+## 2026-05-26 — Teacher artifact table refresh
+
+**Completed:**
+- Added a refresh control to the teacher assignment workspace action bar so teachers can re-query selected assignment details after students submit structured artifacts.
+- Kept the refresh scoped to the selected assignment detail endpoint that already merges structured submission artifacts into the student table artifact cells.
+- Added component coverage confirming the action bar refresh performs a second assignment-detail fetch.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a'`
+- Playwright screenshot after settled teacher load: `/tmp/pika-teacher-refresh-submissions.png`
+
+## 2026-05-26 — Assignment modal title row cleanup
+
+**Completed:**
+- Moved assignment preview into the title row beside the title and due-date controls.
+- Moved assignment autosave status into the title label row above the textbox.
+- Removed the separate Instructions label above the markdown editor.
+- Moved the required submissions editor above the instructions textarea.
+- Compressed the required submissions empty state into a one-line card with an icon split button for Link, Repo, and Image submissions.
+- Changed the primary split-button label to `+` plus the link icon and `link`.
+- Removed the required-submissions `None` / item-count subline so the card header stays single-line.
+- Hid the per-submission Label and Instructions captions while keeping accessible labels; new submissions show the default label inside the textbox and `Optional helper text` as the helper textbox placeholder.
+- Made required-submission rows draggable from their grip handles and removed the up/down arrow reorder buttons.
+- Stabilized required-submission sortable IDs so rows keep identity during drop animations.
+- Guarded assignment autosave responses so older saves cannot replace newer local required-submission edits while a drag/reorder is in progress.
+- Added a confirmation dialog before removing persisted required submissions; unsaved newly added rows still remove immediately.
+- Switched the required-submissions add control to the shared green `SplitButton` success variant.
+- Updated required-submission split add labels to read `+ Link`, `+ Repo`, and `+ Image` with each type icon after the label.
+- Changed the required-submissions primary add label to `+ Add` and made that primary side open the type dropdown instead of defaulting to a link submission.
+- Replaced the required-submissions image option camera glyph with Lucide's image icon.
+
+**Validation:**
+- `pnpm test tests/components/AssignmentModal.test.tsx`
+- `pnpm test tests/ui/SplitButton.test.tsx tests/components/AssignmentModal.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
+- Modal screenshots: `/tmp/pika-assignment-modal-teacher.png`, `/tmp/pika-assignment-modal-teacher-mobile.png`
+- Required submissions screenshots: `/tmp/pika-assignment-modal-required-submissions.png`, `/tmp/pika-assignment-modal-required-submissions-menu.png`, `/tmp/pika-assignment-modal-required-submissions-mobile.png`, `/tmp/pika-assignment-modal-required-submissions-menu-mobile.png`, `/tmp/pika-assignment-modal-required-submissions-added-desktop.png`, `/tmp/pika-assignment-modal-required-submissions-added-mobile.png`
+- Final required submissions screenshots: `/tmp/pika-assignment-modal-required-submissions-final-desktop.png`, `/tmp/pika-assignment-modal-required-submissions-final-mobile.png`, `/tmp/pika-assignment-modal-required-submissions-final-menu.png`
+- Drag smoke screenshot: `/tmp/pika-assignment-modal-required-submissions-dragged.png`
+- Mobile draggable screenshot: `/tmp/pika-assignment-modal-required-submissions-draggable-mobile.png`
+- Stable drag screenshots: `/tmp/pika-assignment-modal-required-submissions-stable-before.png`, `/tmp/pika-assignment-modal-required-submissions-stable-during.png`, `/tmp/pika-assignment-modal-required-submissions-stable-after.png`
+- Settled student screenshot after UI verify timeout: `/tmp/pika-student-settled.png`
+- Removal confirmation screenshots: `/tmp/pika-teacher-settled.png`, `/tmp/pika-assignment-modal-remove-required-submission-confirm.png`
+- Green split button screenshot: `/tmp/pika-assignment-modal-green-submission-split-desktop.png`
+- Updated green split button label screenshots: `/tmp/pika-assignment-modal-green-submission-split-label-desktop.png`, `/tmp/pika-assignment-modal-green-submission-split-label-mobile.png`
+- Generic add dropdown screenshots: `/tmp/pika-assignment-modal-add-submission-dropdown-desktop.png`, `/tmp/pika-assignment-modal-add-submission-dropdown-mobile.png`
+- Image icon dropdown screenshots: `/tmp/pika-assignment-modal-image-icon-dropdown-desktop.png`, `/tmp/pika-assignment-modal-image-icon-dropdown-mobile.png`

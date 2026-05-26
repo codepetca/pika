@@ -157,43 +157,11 @@ export function AssignmentForm({
         titleDisabled={disabled}
         titleInputRef={titleInputRef}
         titleInputClassName="flex-1"
+        titleStatus={statusContent}
         onTitleChange={onTitleChange}
         onTitleBlur={onBlur}
         afterTitle={(
-          <div className="w-[6.25rem] space-y-1 sm:w-[8.25rem]">
-            {(() => {
-              const relative = getRelativeDueDate(dueAt, classDays)
-              const labelText = relative ? `Due ${relative.text}` : 'Due Date'
-              const colorClass = relative
-                ? relative.isPast
-                  ? 'text-warning'
-                  : 'text-primary'
-                : 'text-text-muted'
-              return (
-                <div className={`truncate text-sm font-medium ${colorClass}`}>
-                  {labelText}
-                </div>
-              )
-            })()}
-            <div className="flex">
-              <DateActionBar
-                value={dueAt}
-                onChange={onDueAtChange}
-                layout="compact"
-              />
-            </div>
-          </div>
-        )}
-        actions={topRowActions}
-      />
-
-      <div className={fillHeight ? 'flex min-h-0 flex-1 flex-col space-y-1' : 'space-y-1'}>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <label className="block text-sm font-medium text-text-default">
-            Instructions
-          </label>
-          <div className="flex items-center gap-3">
-            {statusContent}
+          <div className="flex items-end gap-2">
             {onPreviewInstructions && (
               <Button
                 type="button"
@@ -201,14 +169,44 @@ export function AssignmentForm({
                 size="sm"
                 onClick={onPreviewInstructions}
                 disabled={disabled}
-                className="gap-1.5"
+                className="h-9 w-9 px-0 sm:w-auto sm:px-3 sm:gap-1.5"
+                aria-label="Preview"
               >
                 <Eye className="h-4 w-4" aria-hidden="true" />
-                Preview
+                <span className="hidden sm:inline">Preview</span>
               </Button>
             )}
+            <div className="w-[6.25rem] space-y-1 sm:w-[8.25rem]">
+              {(() => {
+                const relative = getRelativeDueDate(dueAt, classDays)
+                const labelText = relative ? `Due ${relative.text}` : 'Due Date'
+                const colorClass = relative
+                  ? relative.isPast
+                    ? 'text-warning'
+                    : 'text-primary'
+                  : 'text-text-muted'
+                return (
+                  <div className={`truncate text-sm font-medium ${colorClass}`}>
+                    {labelText}
+                  </div>
+                )
+              })()}
+              <div className="flex">
+                <DateActionBar
+                  value={dueAt}
+                  onChange={onDueAtChange}
+                  layout="compact"
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        )}
+        actions={topRowActions}
+      />
+
+      {extraFields}
+
+      <div className={fillHeight ? 'flex min-h-0 flex-1 flex-col' : ''}>
         <div className={fillHeight ? 'flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border-strong' : 'rounded-lg border border-border-strong overflow-hidden'}>
           {markdownWarning && (
             <div className="border-b border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
@@ -254,8 +252,6 @@ export function AssignmentForm({
           />
         </div>
       </div>
-
-      {extraFields}
 
       {error && <p className="text-sm text-warning">{error}</p>}
     </div>

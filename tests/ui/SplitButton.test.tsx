@@ -45,6 +45,26 @@ describe('SplitButton', () => {
     expect(screen.queryByRole('menuitem', { name: 'Schedule' })).not.toBeInTheDocument()
   })
 
+  it('can use the primary button to open the menu', () => {
+    const onPrimaryClick = vi.fn()
+
+    render(
+      <SplitButton
+        label="Add"
+        onPrimaryClick={onPrimaryClick}
+        primaryOpensMenu
+        options={[
+          { id: 'link', label: 'Link', onSelect: vi.fn() },
+        ]}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(screen.getByRole('menuitem', { name: 'Link' })).toBeInTheDocument()
+    expect(onPrimaryClick).not.toHaveBeenCalled()
+  })
+
   it('renders dropdown below when menuPlacement is down', () => {
     render(
       <SplitButton

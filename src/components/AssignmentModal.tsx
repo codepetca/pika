@@ -59,6 +59,13 @@ function serializeRequirementDrafts(requirements: AssignmentSubmissionRequiremen
   })))
 }
 
+function areAssignmentEditorValuesEqual(a: AssignmentEditorValues, b: AssignmentEditorValues): boolean {
+  return a.title === b.title
+    && a.instructionsMarkdown === b.instructionsMarkdown
+    && a.dueAt === b.dueAt
+    && serializeRequirementDrafts(a.submissionRequirements) === serializeRequirementDrafts(b.submissionRequirements)
+}
+
 function validateAssignmentValues(values: AssignmentEditorValues): string | null {
   if (!values.dueAt) return 'Due date is required.'
 
@@ -459,6 +466,11 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
         const updatedAssignment = data.assignment as Assignment
         savedAssignment = updatedAssignment
+        const latestPendingValues = pendingValuesRef.current
+        if (latestPendingValues && !areAssignmentEditorValuesEqual(latestPendingValues, values)) {
+          return
+        }
+
         const resolvedInstructions = getAssignmentInstructionsMarkdown(updatedAssignment)
         const updatedRequirements = getAssignmentRequirementDrafts(updatedAssignment)
         setCurrentAssignment(updatedAssignment)
