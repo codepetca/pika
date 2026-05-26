@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode, Ref } from 'react'
+import { useId, type ReactNode, type Ref } from 'react'
 import { X } from 'lucide-react'
 import { Button, DialogPanel, FormField, Input } from '@/ui'
 import { cn } from '@/ui/utils'
@@ -27,6 +27,7 @@ interface CreationModalTopRowProps {
   titleInputRef?: Ref<HTMLInputElement>
   titleInputClassName?: string
   titleFieldClassName?: string
+  titleStatus?: ReactNode
   afterTitle?: ReactNode
   actions?: ReactNode
   className?: string
@@ -108,6 +109,7 @@ export function CreationModalTopRow({
   titleInputRef,
   titleInputClassName,
   titleFieldClassName,
+  titleStatus,
   afterTitle,
   actions,
   className,
@@ -115,27 +117,56 @@ export function CreationModalTopRow({
   onTitleBlur,
 }: CreationModalTopRowProps) {
   const gridClassName = getTopRowGridClassName(Boolean(afterTitle), Boolean(actions))
+  const titleFieldId = useId()
+  const titleErrorId = titleError ? `${titleFieldId}-error` : undefined
+  const titleInput = (
+    <Input
+      ref={titleInputRef}
+      id={titleFieldId}
+      type="text"
+      value={title}
+      onChange={(event) => onTitleChange(event.target.value)}
+      onBlur={onTitleBlur}
+      required={titleRequired}
+      disabled={titleDisabled}
+      placeholder={titlePlaceholder}
+      hasError={Boolean(titleError)}
+      aria-invalid={titleError ? 'true' : undefined}
+      aria-describedby={titleErrorId}
+      className={titleInputClassName}
+    />
+  )
 
   return (
     <div className={cn('grid items-end gap-1.5 sm:gap-2', gridClassName, className)}>
-      <FormField
-        label={titleLabel}
-        required={titleRequired}
-        error={titleError}
-        className={cn('min-w-0 max-w-[22rem] sm:max-w-[24rem]', titleFieldClassName)}
-      >
-        <Input
-          ref={titleInputRef}
-          type="text"
-          value={title}
-          onChange={(event) => onTitleChange(event.target.value)}
-          onBlur={onTitleBlur}
+      {titleStatus ? (
+        <div className={cn('min-w-0 max-w-[22rem] sm:max-w-[24rem]', titleFieldClassName)}>
+          <div className="mb-1 flex min-h-5 items-center justify-between gap-2">
+            <label htmlFor={titleFieldId} className="block text-sm font-medium text-text-default">
+              {titleLabel}
+              {titleRequired && <span className="ml-1 text-danger">*</span>}
+            </label>
+            <div className="min-w-0 shrink-0">
+              {titleStatus}
+            </div>
+          </div>
+          {titleInput}
+          {titleError && (
+            <p id={titleErrorId} className="mt-1 text-sm text-danger" role="alert">
+              {titleError}
+            </p>
+          )}
+        </div>
+      ) : (
+        <FormField
+          label={titleLabel}
           required={titleRequired}
-          disabled={titleDisabled}
-          placeholder={titlePlaceholder}
-          className={titleInputClassName}
-        />
-      </FormField>
+          error={titleError}
+          className={cn('min-w-0 max-w-[22rem] sm:max-w-[24rem]', titleFieldClassName)}
+        >
+          {titleInput}
+        </FormField>
+      )}
 
       {afterTitle}
 

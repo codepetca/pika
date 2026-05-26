@@ -32,6 +32,7 @@ import {
   MessageSquare,
   Pencil,
   Plus,
+  RefreshCw,
   Send,
   Table,
   Trash2,
@@ -1166,6 +1167,11 @@ export function TeacherClassroomView({
       : null
   }, [selectedAssignmentData, selection])
 
+  const handleRefreshSelectedAssignment = useCallback(() => {
+    if (selection.mode !== 'assignment') return
+    setRefreshCounter((count) => count + 1)
+  }, [selection])
+
   const activeAssignmentAiRun = useMemo(() => {
     if (selection.mode !== 'assignment' || !assignmentAiGradingRun) return null
     return assignmentAiGradingRun.assignment_id === selection.assignmentId
@@ -2173,6 +2179,7 @@ export function TeacherClassroomView({
                 }
               },
               disabled: !activeSelectedAssignmentData || selectedAssignmentLoading || isReadOnly || isDeleting,
+              destructive: true,
             },
             {
               id: 'grade-selected',
@@ -2334,6 +2341,22 @@ export function TeacherClassroomView({
             </span>
             <span className="sr-only">{splitPaneViewLabel}</span>
           </Button>
+        </span>
+      </Tooltip>
+      <Tooltip content="Refresh submissions">
+        <span className="inline-flex">
+          <button
+            type="button"
+            className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
+            onClick={handleRefreshSelectedAssignment}
+            disabled={selectedAssignmentLoading}
+            aria-label="Refresh submissions"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${selectedAssignmentLoading ? 'animate-spin' : ''}`}
+              aria-hidden="true"
+            />
+          </button>
         </span>
       </Tooltip>
       {classPaneActions}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { SplitButton } from '@/ui'
 
 describe('SplitButton', () => {
@@ -43,6 +43,26 @@ describe('SplitButton', () => {
     expect(onSelectSchedule).toHaveBeenCalledOnce()
     expect(onPrimaryClick).not.toHaveBeenCalled()
     expect(screen.queryByRole('menuitem', { name: 'Schedule' })).not.toBeInTheDocument()
+  })
+
+  it('can use the primary button to open the menu', () => {
+    const onPrimaryClick = vi.fn()
+
+    render(
+      <SplitButton
+        label="Add"
+        onPrimaryClick={onPrimaryClick}
+        primaryOpensMenu
+        options={[
+          { id: 'link', label: 'Link', onSelect: vi.fn() },
+        ]}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(screen.getByRole('menuitem', { name: 'Link' })).toBeInTheDocument()
+    expect(onPrimaryClick).not.toHaveBeenCalled()
   })
 
   it('renders dropdown below when menuPlacement is down', () => {
@@ -108,5 +128,32 @@ describe('SplitButton', () => {
     expect(screen.getByRole('menuitemradio', { name: 'Show Raw' })).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByRole('separator')).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Copy emails' })).toBeInTheDocument()
+  })
+
+  it('moves destructive menu options to the bottom under a separator', () => {
+    render(
+      <SplitButton
+        label="Actions"
+        onPrimaryClick={vi.fn()}
+        options={[
+          { id: 'delete-item', label: 'Delete', onSelect: vi.fn(), destructive: true },
+          { id: 'copy', label: 'Copy', onSelect: vi.fn() },
+          { id: 'archive', label: 'Archive', onSelect: vi.fn() },
+        ]}
+        toggleAriaLabel="More actions"
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+
+    const menu = screen.getByRole('menu')
+    const items = within(menu).getAllByRole('menuitem')
+    expect(items.map((item) => item.textContent)).toEqual(['Copy', 'Archive', 'Delete'])
+
+    const children = Array.from(menu.children)
+    expect(children[0]).toBe(items[0])
+    expect(children[1]).toBe(items[1])
+    expect(children[2]).toHaveAttribute('role', 'separator')
+    expect(children[3]).toBe(items[2])
   })
 })
