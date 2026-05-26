@@ -4,6 +4,8 @@ import { useState, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AppMessageFallback, Input, Button, FormField, useAppMessage } from '@/ui'
 
+const SIGNUP_HANDOFF_TOKEN_STORAGE_KEY = 'pika.signupHandoffToken'
+
 function VerifySignupForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -33,7 +35,11 @@ function VerifySignupForm() {
         throw new Error(data.error || 'Invalid code')
       }
 
-      // Redirect to create password page
+      window.sessionStorage.setItem(
+        SIGNUP_HANDOFF_TOKEN_STORAGE_KEY,
+        JSON.stringify({ email, token: data.handoffToken }),
+      )
+
       router.push(`/create-password?email=${encodeURIComponent(email)}`)
     } catch (err: any) {
       setError(err.message || 'An error occurred')

@@ -1,6 +1,8 @@
 import bcrypt from 'bcryptjs'
+import { createHash, randomBytes } from 'crypto'
 
 const VERIFICATION_CODE_LENGTH = 5 // For email verification (signup/reset)
+const HANDOFF_TOKEN_BYTES = 32
 const SALT_ROUNDS = 10
 
 /**
@@ -33,6 +35,20 @@ export async function hashCode(code: string): Promise<string> {
  */
 export async function verifyCode(plainCode: string, hashedCode: string): Promise<boolean> {
   return bcrypt.compare(plainCode, hashedCode)
+}
+
+/**
+ * Generates an opaque one-time token for the verified-code to password handoff.
+ */
+export function generateHandoffToken(): string {
+  return randomBytes(HANDOFF_TOKEN_BYTES).toString('base64url')
+}
+
+/**
+ * Hashes one-time handoff tokens before storage.
+ */
+export function hashHandoffToken(token: string): string {
+  return createHash('sha256').update(token, 'utf8').digest('hex')
 }
 
 /**

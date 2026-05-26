@@ -4,6 +4,10 @@ import { z } from 'zod'
  * Shared email validation: required string, email format, lowercased and trimmed.
  */
 const emailField = z.string().email('Invalid email format').transform(v => v.toLowerCase().trim())
+const handoffTokenField = z.preprocess(
+  value => (typeof value === 'string' ? value.trim() : ''),
+  z.string().min(32, 'Verification session is required'),
+)
 
 /**
  * POST /api/auth/signup
@@ -27,6 +31,7 @@ export const createPasswordSchema = z.object({
   email: emailField,
   password: z.string().min(8, 'Password must be at least 8 characters'),
   passwordConfirmation: z.string().min(1, 'Password confirmation is required'),
+  handoffToken: handoffTokenField,
 }).refine(data => data.password === data.passwordConfirmation, {
   message: 'Passwords do not match',
   path: ['passwordConfirmation'],
@@ -62,6 +67,7 @@ export const resetPasswordConfirmSchema = z.object({
   email: emailField,
   password: z.string().min(8, 'Password must be at least 8 characters'),
   passwordConfirmation: z.string().min(1, 'Password confirmation is required'),
+  handoffToken: handoffTokenField,
 }).refine(data => data.password === data.passwordConfirmation, {
   message: 'Passwords do not match',
   path: ['passwordConfirmation'],

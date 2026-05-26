@@ -13,6 +13,7 @@ function ResetPasswordForm() {
   const [step, setStep] = useState<'verify' | 'reset'>('verify')
   const [email, setEmail] = useState(emailFromUrl)
   const [code, setCode] = useState('')
+  const [handoffToken, setHandoffToken] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [loading, setLoading] = useState(false)
@@ -38,7 +39,7 @@ function ResetPasswordForm() {
         throw new Error(data.error || 'Invalid code')
       }
 
-      // Move to password reset step
+      setHandoffToken(data.handoffToken)
       setStep('reset')
       setLoading(false)
     } catch (err: any) {
@@ -56,7 +57,7 @@ function ResetPasswordForm() {
       const response = await fetch('/api/auth/reset-password/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, passwordConfirmation }),
+        body: JSON.stringify({ email, password, passwordConfirmation, handoffToken }),
       })
 
       const data = await response.json()
@@ -75,6 +76,7 @@ function ResetPasswordForm() {
 
   async function handleResendCode() {
     try {
+      setHandoffToken('')
       await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { hashPassword } from '@/lib/crypto'
+import { hashHandoffToken, hashPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { resetPasswordConfirmSchema } from '@/lib/validations/auth'
 
 export const POST = withErrorHandler('ResetPasswordConfirm', async (request: NextRequest) => {
-  const { email: normalizedEmail, password } = resetPasswordConfirmSchema.parse(await request.json())
+  const { email: normalizedEmail, password, handoffToken } = resetPasswordConfirmSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
 
@@ -21,21 +21,24 @@ export const POST = withErrorHandler('ResetPasswordConfirm', async (request: Nex
     throw new ApiError(404, 'User not found')
   }
 
-  // Verify that user has a recent used reset code
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
-
-  const { data: recentCode } = await supabase
+  const now = new Date().toISOString()
+  const { data: consumedHandoff, error: handoffError } = await supabase
     .from('verification_codes')
-    .select('id, used_at')
+    .update({ handoff_consumed_at: now })
     .eq('user_id', user.id)
     .eq('purpose', 'reset_password')
-    .not('used_at', 'is', null)
-    .gte('used_at', fiveMinutesAgo.toISOString())
-    .order('used_at', { ascending: false })
-    .limit(1)
-    .single()
+    .eq('handoff_token_hash', hashHandoffToken(handoffToken))
+    .is('handoff_consumed_at', null)
+    .gt('handoff_expires_at', now)
+    .select('id')
+    .maybeSingle()
 
-  if (!recentCode) {
+  if (handoffError) {
+    console.error('Error consuming reset handoff token:', handoffError)
+    throw new ApiError(500, 'Failed to reset password')
+  }
+
+  if (!consumedHandoff) {
     throw new ApiError(401, 'Password reset session expired. Please request a new code.')
   }
 
