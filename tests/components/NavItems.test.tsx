@@ -12,10 +12,12 @@ type MockNotifications = {
 }
 
 let mockNotifications: MockNotifications | null = null
+let mockLeftSidebarExpanded = true
+let mockMobileLeftOpen = false
 
 vi.mock('@/components/layout/ThreePanelProvider', () => ({
-  useLeftSidebar: () => ({ isExpanded: true }),
-  useMobileDrawer: () => ({ close: vi.fn() }),
+  useLeftSidebar: () => ({ isExpanded: mockLeftSidebarExpanded }),
+  useMobileDrawer: () => ({ isLeftOpen: mockMobileLeftOpen, close: vi.fn() }),
 }))
 
 vi.mock('@/components/StudentNotificationsProvider', () => ({
@@ -56,6 +58,8 @@ function renderNav(role: 'student' | 'teacher', activeTab = 'today') {
 describe('NavItems notification dots', () => {
   beforeEach(() => {
     mockNotifications = baseNotifications()
+    mockLeftSidebarExpanded = true
+    mockMobileLeftOpen = false
   })
 
   it('shows dot and aria-label suffix for student today tab with new activity', () => {
@@ -98,6 +102,34 @@ describe('NavItems notification dots', () => {
     expect(assignmentsLink).not.toHaveAttribute('aria-expanded')
     expect(screen.getAllByRole('link', { name: 'Classwork' })).toHaveLength(1)
     expect(screen.queryByRole('button', { name: /assignment/i })).toBeNull()
+  })
+
+  it('shows nav labels in the mobile drawer when the desktop rail is collapsed', () => {
+    mockLeftSidebarExpanded = false
+    mockMobileLeftOpen = true
+
+    renderNav('teacher', 'attendance')
+
+    const dailyLabel = screen.getByText('Daily')
+    const dailyLink = screen.getByRole('link', { name: 'Daily' })
+
+    expect(dailyLabel).not.toHaveClass('sr-only')
+    expect(dailyLink).toHaveClass('gap-3')
+    expect(dailyLink).toHaveClass('px-3')
+    expect(dailyLink).not.toHaveClass('justify-center')
+  })
+
+  it('keeps nav labels visually hidden when the desktop rail is collapsed', () => {
+    mockLeftSidebarExpanded = false
+
+    renderNav('teacher', 'attendance')
+
+    const dailyLabel = screen.getByText('Daily')
+    const dailyLink = screen.getByRole('link', { name: 'Daily' })
+
+    expect(dailyLabel).toHaveClass('sr-only')
+    expect(dailyLink).toHaveClass('justify-center')
+    expect(dailyLink).not.toHaveClass('gap-3')
   })
 
   it('renders student assignments as a plain nav item instead of a nested assignment list', () => {

@@ -121,8 +121,9 @@ export function NavItems({
   updateSearchParams,
 }: NavItemsProps) {
   const { isExpanded } = useLeftSidebar()
-  const { close: closeMobileDrawer } = useMobileDrawer()
+  const { isLeftOpen, close: closeMobileDrawer } = useMobileDrawer()
   const notifications = useStudentNotifications()
+  const showLabels = isExpanded || isLeftOpen
 
   // Compute pulse states for student tabs
   const showTodayPulse =
@@ -195,7 +196,7 @@ export function NavItems({
         const isActive = activeTab === item.id
         const Icon = item.icon
         const href = tabHref(classroomId, item.id)
-        const layoutClass = getLayoutClass(!isExpanded)
+        const layoutClass = getLayoutClass(!showLabels)
 
         // Regular nav items
         const shouldPulse =
@@ -235,12 +236,12 @@ export function NavItems({
             ].join(' ')}
           >
             <NavIconWithDot Icon={Icon} showDot={shouldPulse} />
-            {isExpanded && <span className="truncate">{item.label}</span>}
-            {!isExpanded && <span className="sr-only">{item.label}</span>}
+            {showLabels && <span className="truncate">{item.label}</span>}
+            {!showLabels && <span className="sr-only">{item.label}</span>}
           </a>
         )
 
-        return !isExpanded ? (
+        return !showLabels ? (
           <Tooltip key={item.id} content={item.label}>{navLink}</Tooltip>
         ) : (
           <span key={item.id}>{navLink}</span>
