@@ -45,6 +45,10 @@ function ArtifactsTooltipList({
   artifacts: AssignmentArtifact[]
   activeIndex: number
 }) {
+  const handleArtifactClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.stopPropagation()
+  }
+
   return (
     <div className="w-72 max-w-[calc(100vw-2rem)]">
       <div className="mb-1 text-[11px] font-semibold text-text-muted">
@@ -52,13 +56,19 @@ function ArtifactsTooltipList({
       </div>
       <div className="space-y-1">
         {artifacts.map((artifact, index) => (
-          <div
+          <a
             key={`${artifact.url}:${index}`}
+            href={artifact.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleArtifactClick}
+            aria-label={`Open artifact ${index + 1}: ${getArtifactTypeLabel(artifact)} . ${getArtifactSummary(artifact)}`}
             className={[
               'flex min-w-0 items-start gap-2 rounded-md border px-2 py-1.5',
               index === activeIndex
                 ? 'border-primary/40 bg-surface-selected'
                 : 'border-border bg-surface-2',
+              'hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface',
             ].join(' ')}
           >
             <span className="mt-0.5 inline-flex h-5 min-w-8 shrink-0 items-center justify-center gap-1 rounded-full border border-border bg-surface text-[11px] font-medium text-text-default">
@@ -73,7 +83,7 @@ function ArtifactsTooltipList({
                 {artifact.url}
               </span>
             </span>
-          </div>
+          </a>
         ))}
       </div>
     </div>
@@ -107,6 +117,7 @@ export function AssignmentArtifactsCell({
           <Tooltip
             key={`${artifact.url}:${index}`}
             content={<ArtifactsTooltipList artifacts={artifacts} activeIndex={index} />}
+            interactive
             side="bottom"
             align="start"
           >

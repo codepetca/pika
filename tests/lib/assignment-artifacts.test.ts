@@ -113,7 +113,7 @@ describe('extractAssignmentArtifacts', () => {
     ])
   })
 
-  it('classifies supported GitHub repo links as repo artifacts', () => {
+  it('classifies root GitHub repo links as repo artifacts', () => {
     const content: TiptapContent = {
       type: 'doc',
       content: [
@@ -122,7 +122,7 @@ describe('extractAssignmentArtifacts', () => {
           content: [
             {
               type: 'text',
-              text: 'Repo https://github.com/codepetca/pika/issues/1 and root https://github.com/openai/openai-node.git',
+              text: 'Root repo https://github.com/openai/openai-node.git',
             },
           ],
         },
@@ -132,17 +132,107 @@ describe('extractAssignmentArtifacts', () => {
     expect(extractAssignmentArtifacts(content)).toEqual([
       {
         type: 'repo',
-        url: 'https://github.com/codepetca/pika/issues/1',
-        repo_owner: 'codepetca',
-        repo_name: 'pika',
-        normalized_url: 'https://github.com/codepetca/pika',
-      },
-      {
-        type: 'repo',
         url: 'https://github.com/openai/openai-node.git',
         repo_owner: 'openai',
         repo_name: 'openai-node',
         normalized_url: 'https://github.com/openai/openai-node',
+      },
+    ])
+  })
+
+  it('keeps nested GitHub URLs as link artifacts', () => {
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Issue https://github.com/codepetca/pika/issues/1 branch https://github.com/vercel/next.js/tree/canary file https://github.com/openai/openai-node/blob/master/README.md',
+            },
+          ],
+        },
+      ],
+    }
+
+    expect(extractAssignmentArtifacts(content)).toEqual([
+      {
+        type: 'link',
+        url: 'https://github.com/codepetca/pika/issues/1',
+      },
+      {
+        type: 'link',
+        url: 'https://github.com/vercel/next.js/tree/canary',
+      },
+      {
+        type: 'link',
+        url: 'https://github.com/openai/openai-node/blob/master/README.md',
+      },
+    ])
+  })
+
+  it('keeps GitHub product pages as link artifacts', () => {
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Org https://github.com/orgs/codepetca topic https://github.com/topics/react settings https://github.com/settings/profile',
+            },
+          ],
+        },
+      ],
+    }
+
+    expect(extractAssignmentArtifacts(content)).toEqual([
+      {
+        type: 'link',
+        url: 'https://github.com/orgs/codepetca',
+      },
+      {
+        type: 'link',
+        url: 'https://github.com/topics/react',
+      },
+      {
+        type: 'link',
+        url: 'https://github.com/settings/profile',
+      },
+    ])
+  })
+
+  it('classifies root GitHub links inside link marks as repo artifacts', () => {
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Click here',
+              marks: [
+                {
+                  type: 'link',
+                  attrs: { href: 'https://github.com/codepetca/pika' },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+
+    expect(extractAssignmentArtifacts(content)).toEqual([
+      {
+        type: 'repo',
+        url: 'https://github.com/codepetca/pika',
+        repo_owner: 'codepetca',
+        repo_name: 'pika',
+        normalized_url: 'https://github.com/codepetca/pika',
       },
     ])
   })
