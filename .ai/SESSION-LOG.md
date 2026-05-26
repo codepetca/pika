@@ -7,19 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-21 — Migration filename CI guard
-
-**Completed:**
-- Added a Vitest guard for Supabase migration filenames so CI rejects non-`NNN_snake_case.sql` files.
-- The guard also rejects duplicate migration prefixes and gaps in the numeric sequence.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/migration-filenames.test.ts`
-- `pnpm test tests/unit/migration-filenames.test.ts tests/unit/ai-startup-docs.test.ts`
-- `pnpm lint`
-- `git diff --check`
-
 ## 2026-05-22 — Assignment student list scroll persistence
 
 **Completed:**
@@ -381,3 +368,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Updated green split button label screenshots: `/tmp/pika-assignment-modal-green-submission-split-label-desktop.png`, `/tmp/pika-assignment-modal-green-submission-split-label-mobile.png`
 - Generic add dropdown screenshots: `/tmp/pika-assignment-modal-add-submission-dropdown-desktop.png`, `/tmp/pika-assignment-modal-add-submission-dropdown-mobile.png`
 - Image icon dropdown screenshots: `/tmp/pika-assignment-modal-image-icon-dropdown-desktop.png`, `/tmp/pika-assignment-modal-image-icon-dropdown-mobile.png`
+
+## 2026-05-26 — Split-button destructive action placement
+
+**Completed:**
+- Added a `destructive` split-button option flag and centralized menu rendering so destructive options appear last under a separator.
+- Marked assignment delete, test-work delete, and roster removal split-button actions as destructive.
+- Added focused SplitButton coverage for reordering a destructive option supplied before normal actions.
+- Stabilized the assignment refresh test by waiting for the initial detail request before clicking refresh.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/ui/SplitButton.test.tsx tests/components/TeacherRosterTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Playwright menu smoke: roster, assignment, and test action dropdowns all placed Remove/Delete last under a separator.
+- Screenshots: `/tmp/pika-roster-actions-menu.png`, `/tmp/pika-assignment-actions-menu.png`, `/tmp/pika-test-actions-menu.png`
+- `pnpm test`
+- `pnpm test:coverage`
