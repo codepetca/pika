@@ -8,6 +8,12 @@ import type { Classroom, AssignmentWithStatus, ClassworkMaterial } from '@/types
 
 const mockPush = vi.fn()
 let searchParamsMap = new Map<string, string>()
+let mockEditorState = {
+  isSubmitted: false,
+  canSubmit: false,
+  canUnsubmit: false,
+  submitting: false,
+}
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -26,12 +32,10 @@ vi.mock('@/components/StudentAssignmentEditor', () => ({
     useImperativeHandle(ref, () => ({
       submit: vi.fn(),
       unsubmit: vi.fn(),
-      isSubmitted: false,
-      canSubmit: false,
-      submitting: false,
+      ...mockEditorState,
     }))
     useEffect(() => {
-      props.onStateChange?.({ isSubmitted: false, canSubmit: false, submitting: false })
+      props.onStateChange?.(mockEditorState)
     }, [props.onStateChange])
     return <div data-testid="student-editor">Editor</div>
   }),
@@ -114,6 +118,12 @@ describe('StudentAssignmentsTab', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
     searchParamsMap = new Map()
+    mockEditorState = {
+      isSubmitted: false,
+      canSubmit: false,
+      canUnsubmit: false,
+      submitting: false,
+    }
     mockPush.mockClear()
   })
 
@@ -240,6 +250,45 @@ describe('StudentAssignmentsTab', () => {
       expect(screen.getByRole('button', { name: 'Instructions' })).toBeInTheDocument()
     })
     expect(screen.queryByRole('button', { name: 'Repo' })).not.toBeInTheDocument()
+  })
+
+  it('hides Unsubmit after submitted work has been returned', async () => {
+    mockEditorState = {
+      isSubmitted: true,
+      canSubmit: false,
+      canUnsubmit: false,
+      submitting: false,
+    }
+    const viewed = makeAssignment({
+      doc: {
+        id: 'doc-1',
+        assignment_id: 'asgn-1',
+        student_id: 'stu-1',
+        content: { type: 'doc', content: [] },
+        is_submitted: true,
+        submitted_at: '2024-10-23T12:00:00Z',
+        returned_at: '2024-10-22T12:00:00Z',
+        teacher_cleared_at: '2024-10-22T12:00:00Z',
+        viewed_at: '2024-06-01T00:00:00Z',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      } as any,
+    })
+    searchParamsMap.set('assignmentId', 'asgn-1')
+    mockFetchAssignments([viewed])
+
+    render(
+      <StudentAssignmentsTab
+        classroom={classroom}
+        selectedAssignmentId={searchParamsMap.get('assignmentId') ?? null}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Instructions' })).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('button', { name: 'Unsubmit' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Submit' })).not.toBeInTheDocument()
   })
 
   it('renders materials and assignments in shared classwork order', async () => {
