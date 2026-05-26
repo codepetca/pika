@@ -18,7 +18,8 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Camera, FolderGit2, GripVertical, Link2, Trash2 } from 'lucide-react'
-import { Button, FormField, Input, SplitButton, Tooltip, TooltipProvider, cn } from '@/ui'
+import { useRef, useState } from 'react'
+import { Button, ConfirmDialog, FormField, Input, SplitButton, Tooltip, TooltipProvider, cn } from '@/ui'
 import {
   DEFAULT_REQUIREMENT_LABELS,
   type AssignmentSubmissionRequirementDraft,
@@ -46,6 +47,19 @@ function RequirementIcon({ type }: { type: AssignmentSubmissionRequirementType }
   return <Link2 className="h-4 w-4" aria-hidden="true" />
 }
 
+function AddRequirementLabel({ type, label }: {
+  type: AssignmentSubmissionRequirementType
+  label: string
+}) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span aria-hidden="true">+</span>
+      {label}
+      <RequirementIcon type={type} />
+    </span>
+  )
+}
+
 function withPositions(requirements: AssignmentSubmissionRequirementDraft[]) {
   return requirements.map((requirement, position) => ({ ...requirement, position }))
 }
@@ -57,7 +71,7 @@ interface SortableRequirementRowProps {
   totalRequirements: number
   disabled: boolean
   onUpdate: (index: number, patch: Partial<AssignmentSubmissionRequirementDraft>) => void
-  onRemove: (index: number) => void
+  onRemove: (index: number, sortableId: string) => void
 }
 
 function SortableRequirementRow({
@@ -147,7 +161,7 @@ function SortableRequirementRow({
             size="sm"
             className="px-2 text-danger"
             disabled={disabled}
-            onClick={() => onRemove(index)}
+            onClick={() => onRemove(index, sortableId)}
             aria-label="Remove requirement"
           >
             <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -163,6 +177,9 @@ export function AssignmentSubmissionRequirementsEditor({
   onChange,
   disabled = false,
 }: AssignmentSubmissionRequirementsEditorProps) {
+  const nextSortableIdRef = useRef(0)
+  const sortableIdsRef = useRef<string[]>([])
+  const [pendingRemoval, setPendingRemoval] = useState<{ sortableId: string; label: string } | null>(null)
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -173,7 +190,21 @@ export function AssignmentSubmissionRequirementsEditor({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   )
-  const sortableIds = requirements.map((_, index) => `requirement-${index}`)
+
+  if (sortableIdsRef.current.length < requirements.length) {
+    sortableIdsRef.current = [
+      ...sortableIdsRef.current,
+      ...Array.from({ length: requirements.length - sortableIdsRef.current.length }, () => {
+        const id = `requirement-${nextSortableIdRef.current}`
+        nextSortableIdRef.current += 1
+        return id
+      }),
+    ]
+  } else if (sortableIdsRef.current.length > requirements.length) {
+    sortableIdsRef.current = sortableIdsRef.current.slice(0, requirements.length)
+  }
+
+  const sortableIds = sortableIdsRef.current
 
   function updateRequirement(index: number, patch: Partial<AssignmentSubmissionRequirementDraft>) {
     onChange(requirements.map((requirement, currentIndex) =>
@@ -184,6 +215,9 @@ export function AssignmentSubmissionRequirementsEditor({
   }
 
   function addRequirement(type: AssignmentSubmissionRequirementType) {
+    const sortableId = `requirement-${nextSortableIdRef.current}`
+    nextSortableIdRef.current += 1
+    sortableIdsRef.current = [...sortableIdsRef.current, sortableId]
     onChange([
       ...requirements,
       {
@@ -198,9 +232,35 @@ export function AssignmentSubmissionRequirementsEditor({
   }
 
   function removeRequirement(index: number) {
+    sortableIdsRef.current = sortableIdsRef.current.filter((_, currentIndex) => currentIndex !== index)
     onChange(
       withPositions(requirements.filter((_, currentIndex) => currentIndex !== index))
     )
+  }
+
+  function requestRemoveRequirement(index: number, sortableId: string) {
+    const requirement = requirements[index]
+    if (!requirement) return
+
+    if (requirement.id) {
+      setPendingRemoval({
+        sortableId,
+        label: requirement.label || DEFAULT_REQUIREMENT_LABELS[requirement.type],
+      })
+      return
+    }
+
+    removeRequirement(index)
+  }
+
+  function confirmPendingRemoval() {
+    if (!pendingRemoval) return
+
+    const index = sortableIdsRef.current.indexOf(pendingRemoval.sortableId)
+    setPendingRemoval(null)
+    if (index === -1) return
+
+    removeRequirement(index)
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -213,6 +273,7 @@ export function AssignmentSubmissionRequirementsEditor({
     const newIndex = sortableIds.indexOf(String(over.id))
     if (oldIndex === -1 || newIndex === -1) return
 
+    sortableIdsRef.current = arrayMove(sortableIdsRef.current, oldIndex, newIndex)
     onChange(withPositions(arrayMove(requirements, oldIndex, newIndex)))
   }
 
@@ -227,27 +288,25 @@ export function AssignmentSubmissionRequirementsEditor({
             label={(
               <span className="inline-flex items-center gap-1">
                 <span aria-hidden="true">+</span>
-                <Link2 className="h-4 w-4" aria-hidden="true" />
-                link
+                Add
               </span>
             )}
-            onPrimaryClick={() => addRequirement('link')}
+            primaryOpensMenu
             options={TYPE_OPTIONS.map((option) => ({
               id: option.type,
-              label: option.label,
-              icon: <RequirementIcon type={option.type} />,
+              label: <AddRequirementLabel type={option.type} label={option.label} />,
               onSelect: () => addRequirement(option.type),
             }))}
-            variant="secondary"
+            variant="success"
             size="sm"
             disabled={disabled}
             menuPlacement="down"
             toggleAriaLabel="Choose submission type"
             toggleButtonClassName="!px-2"
             primaryButtonProps={{
-              'aria-label': 'Add link submission',
+              'aria-label': 'Add submission',
               className: 'justify-center gap-1 !px-2',
-              title: 'Add public link submission',
+              title: 'Add required submission',
             }}
           />
         </div>
@@ -269,7 +328,7 @@ export function AssignmentSubmissionRequirementsEditor({
                     totalRequirements={requirements.length}
                     disabled={disabled}
                     onUpdate={updateRequirement}
-                    onRemove={removeRequirement}
+                    onRemove={requestRemoveRequirement}
                   />
                 ))}
               </div>
@@ -277,6 +336,16 @@ export function AssignmentSubmissionRequirementsEditor({
           </DndContext>
         ) : null}
       </div>
+      <ConfirmDialog
+        isOpen={Boolean(pendingRemoval)}
+        title="Remove required submission?"
+        description={pendingRemoval ? `This removes "${pendingRemoval.label}" from the assignment.` : undefined}
+        confirmLabel="Remove"
+        cancelLabel="Keep"
+        confirmVariant="danger"
+        onCancel={() => setPendingRemoval(null)}
+        onConfirm={confirmPendingRemoval}
+      />
     </TooltipProvider>
   )
 }

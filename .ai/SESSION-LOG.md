@@ -377,6 +377,12 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Removed the required-submissions `None` / item-count subline so the card header stays single-line.
 - Hid the per-submission Label and Instructions captions while keeping accessible labels; new submissions show the default label inside the textbox and `Optional helper text` as the helper textbox placeholder.
 - Made required-submission rows draggable from their grip handles and removed the up/down arrow reorder buttons.
+- Stabilized required-submission sortable IDs so rows keep identity during drop animations.
+- Guarded assignment autosave responses so older saves cannot replace newer local required-submission edits while a drag/reorder is in progress.
+- Added a confirmation dialog before removing persisted required submissions; unsaved newly added rows still remove immediately.
+- Switched the required-submissions add control to the shared green `SplitButton` success variant.
+- Updated required-submission split add labels to read `+ Link`, `+ Repo`, and `+ Image` with each type icon after the label.
+- Changed the required-submissions primary add label to `+ Add` and made that primary side open the type dropdown instead of defaulting to a link submission.
 
 **Validation:**
 - `pnpm test tests/components/AssignmentModal.test.tsx`
@@ -389,3 +395,9 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Final required submissions screenshots: `/tmp/pika-assignment-modal-required-submissions-final-desktop.png`, `/tmp/pika-assignment-modal-required-submissions-final-mobile.png`, `/tmp/pika-assignment-modal-required-submissions-final-menu.png`
 - Drag smoke screenshot: `/tmp/pika-assignment-modal-required-submissions-dragged.png`
 - Mobile draggable screenshot: `/tmp/pika-assignment-modal-required-submissions-draggable-mobile.png`
+- Stable drag screenshots: `/tmp/pika-assignment-modal-required-submissions-stable-before.png`, `/tmp/pika-assignment-modal-required-submissions-stable-during.png`, `/tmp/pika-assignment-modal-required-submissions-stable-after.png`
+- Settled student screenshot after UI verify timeout: `/tmp/pika-student-settled.png`
+- Removal confirmation screenshots: `/tmp/pika-teacher-settled.png`, `/tmp/pika-assignment-modal-remove-required-submission-confirm.png`
+- Green split button screenshot: `/tmp/pika-assignment-modal-green-submission-split-desktop.png`
+- Updated green split button label screenshots: `/tmp/pika-assignment-modal-green-submission-split-label-desktop.png`, `/tmp/pika-assignment-modal-green-submission-split-label-mobile.png`
+- Generic add dropdown screenshots: `/tmp/pika-assignment-modal-add-submission-dropdown-desktop.png`, `/tmp/pika-assignment-modal-add-submission-dropdown-mobile.png`
