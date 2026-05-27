@@ -42,13 +42,6 @@ type GradebookAssessmentCell = {
   status?: GradebookAssessmentStatus | null
 }
 
-type GradebookSettingsRow = {
-  use_weights: boolean
-  assignments_weight: number
-  quizzes_weight: number
-  tests_weight?: number | null
-}
-
 function mentionsMissingField(
   error: { code?: string; message?: string; details?: string; hint?: string } | null | undefined,
   field: string
@@ -68,16 +61,6 @@ function isMissingTableError(
   if (!error) return false
   const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
   return error.code === 'PGRST205' || combined.includes('could not find the table') || combined.includes('does not exist')
-}
-
-function normalizeSettings(row: GradebookSettingsRow | null | undefined) {
-  if (!row) return DEFAULT_SETTINGS
-  return {
-    use_weights: row.use_weights,
-    assignments_weight: Number(row.assignments_weight ?? DEFAULT_SETTINGS.assignments_weight),
-    quizzes_weight: Number(row.quizzes_weight ?? DEFAULT_SETTINGS.quizzes_weight),
-    tests_weight: Number(row.tests_weight ?? 0),
-  }
 }
 
 function round2(value: number): number {
@@ -231,7 +214,11 @@ function getTestGradebookStatus(input: {
   return null
 }
 
-async function assertTeacherOwnsClassroom(teacherId: string, classroomId: string) {
+async function assertTeacherOwnsClassroom(
+  teacherId: string,
+  classroomId: string,
+  options?: { checkArchived?: boolean }
+) {
   const supabase = getServiceRoleClient()
   const { data, error } = await supabase
     .from('classrooms')
@@ -241,6 +228,9 @@ async function assertTeacherOwnsClassroom(teacherId: string, classroomId: string
 
   if (error || !data) return { ok: false as const, status: 404 as const, error: 'Classroom not found' }
   if (data.teacher_id !== teacherId) return { ok: false as const, status: 403 as const, error: 'Forbidden' }
+  if (options?.checkArchived && data.archived_at) {
+    return { ok: false as const, status: 403 as const, error: 'Classroom is archived' }
+  }
   return { ok: true as const, classroom: data }
 }
 
@@ -259,35 +249,6 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
   }
 
   const supabase = getServiceRoleClient()
-
-  const { data: settingsWithTests, error: settingsWithTestsError } = await supabase
-    .from('gradebook_settings')
-    .select('use_weights, assignments_weight, quizzes_weight, tests_weight')
-    .eq('classroom_id', classroomId)
-    .maybeSingle()
-
-  let settingsRow = settingsWithTests as GradebookSettingsRow | null
-  if (settingsWithTestsError) {
-    if (!mentionsMissingField(settingsWithTestsError, 'tests_weight')) {
-      console.error('Error loading gradebook settings:', settingsWithTestsError)
-      return NextResponse.json({ error: 'Failed to load gradebook settings' }, { status: 500 })
-    }
-
-    const { data: legacySettingsRow, error: legacySettingsError } = await supabase
-      .from('gradebook_settings')
-      .select('use_weights, assignments_weight, quizzes_weight')
-      .eq('classroom_id', classroomId)
-      .maybeSingle()
-
-    if (legacySettingsError) {
-      console.error('Error loading legacy gradebook settings:', settingsWithTestsError, legacySettingsError)
-      return NextResponse.json({ error: 'Failed to load gradebook settings' }, { status: 500 })
-    }
-
-    settingsRow = legacySettingsRow as GradebookSettingsRow | null
-  }
-
-  const settings = normalizeSettings(settingsRow)
 
   const { data: enrollments, error: enrollmentError } = await supabase
     .from('classroom_enrollments')
@@ -914,9 +875,9 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
     const testRows = testRowsByStudent.get(studentId) || []
     const calc = calculateFinalPercent({
       useWeights: false,
-      assignmentsWeight: settings.assignments_weight,
-      quizzesWeight: settings.quizzes_weight,
-      testsWeight: settings.tests_weight,
+      assignmentsWeight: DEFAULT_SETTINGS.assignments_weight,
+      quizzesWeight: DEFAULT_SETTINGS.quizzes_weight,
+      testsWeight: DEFAULT_SETTINGS.tests_weight,
       assignments: assignmentRows,
       quizzes: quizRows,
       tests: testRows,
@@ -1064,7 +1025,7 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
     .filter((value): value is number => value != null)
 
   return NextResponse.json({
-    settings,
+    settings: DEFAULT_SETTINGS,
     assessment_columns: assessmentColumns,
     students,
     selected_student: selectedStudent
@@ -1135,7 +1096,7 @@ export const PATCH = withErrorHandler('PatchGradebook', async (request: NextRequ
     return NextResponse.json({ error: 'classroom_id is required' }, { status: 400 })
   }
 
-  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
+  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId, { checkArchived: true })
   if (!ownership.ok) {
     return NextResponse.json({ error: ownership.error }, { status: ownership.status })
   }
@@ -1144,6 +1105,11 @@ export const PATCH = withErrorHandler('PatchGradebook', async (request: NextRequ
     body.assessment_type != null ||
     body.assessment_id != null ||
     body.gradebook_weight != null
+  const hasLegacyCategorySettingsUpdate =
+    body.use_weights != null ||
+    body.assignments_weight != null ||
+    body.quizzes_weight != null ||
+    body.tests_weight != null
 
   if (hasAssessmentWeightUpdate) {
     if (!isGradebookAssessmentType(body.assessment_type)) {
@@ -1201,65 +1167,12 @@ export const PATCH = withErrorHandler('PatchGradebook', async (request: NextRequ
     })
   }
 
-  const useWeights = body.use_weights == null ? DEFAULT_SETTINGS.use_weights : Boolean(body.use_weights)
-  const assignmentsWeight = body.assignments_weight == null
-    ? DEFAULT_SETTINGS.assignments_weight
-    : Number(body.assignments_weight)
-  const quizzesWeight = body.quizzes_weight == null
-    ? DEFAULT_SETTINGS.quizzes_weight
-    : Number(body.quizzes_weight)
-  const testsWeight = body.tests_weight == null
-    ? DEFAULT_SETTINGS.tests_weight
-    : Number(body.tests_weight)
-
-  if (!Number.isInteger(assignmentsWeight) || assignmentsWeight < 0 || assignmentsWeight > 100) {
-    return NextResponse.json({ error: 'assignments_weight must be an integer 0-100' }, { status: 400 })
+  if (hasLegacyCategorySettingsUpdate) {
+    return NextResponse.json(
+      { error: 'Category gradebook weights are retired; update assessment weights instead' },
+      { status: 410 }
+    )
   }
 
-  if (!Number.isInteger(quizzesWeight) || quizzesWeight < 0 || quizzesWeight > 100) {
-    return NextResponse.json({ error: 'quizzes_weight must be an integer 0-100' }, { status: 400 })
-  }
-
-  if (!Number.isInteger(testsWeight) || testsWeight < 0 || testsWeight > 100) {
-    return NextResponse.json({ error: 'tests_weight must be an integer 0-100' }, { status: 400 })
-  }
-
-  if (useWeights && assignmentsWeight + quizzesWeight + testsWeight !== 100) {
-    return NextResponse.json({ error: 'assignments_weight + quizzes_weight + tests_weight must equal 100' }, { status: 400 })
-  }
-
-  const supabase = getServiceRoleClient()
-  let { data, error } = await supabase
-    .from('gradebook_settings')
-    .upsert({
-      classroom_id: classroomId,
-      use_weights: useWeights,
-      assignments_weight: assignmentsWeight,
-      quizzes_weight: quizzesWeight,
-      tests_weight: testsWeight,
-    }, { onConflict: 'classroom_id' })
-    .select('use_weights, assignments_weight, quizzes_weight, tests_weight')
-    .single()
-
-  if (error && mentionsMissingField(error, 'tests_weight')) {
-    const legacyResult = await supabase
-      .from('gradebook_settings')
-      .upsert({
-        classroom_id: classroomId,
-        use_weights: useWeights,
-        assignments_weight: assignmentsWeight,
-        quizzes_weight: quizzesWeight,
-      }, { onConflict: 'classroom_id' })
-      .select('use_weights, assignments_weight, quizzes_weight')
-      .single()
-    data = legacyResult.data ? { ...legacyResult.data, tests_weight: 0 } : legacyResult.data
-    error = legacyResult.error
-  }
-
-  if (error || !data) {
-    console.error('Error saving gradebook settings:', error)
-    return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 })
-  }
-
-  return NextResponse.json({ settings: normalizeSettings(data as GradebookSettingsRow) })
+  return NextResponse.json({ error: 'No gradebook update provided' }, { status: 400 })
 })

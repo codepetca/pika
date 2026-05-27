@@ -14,11 +14,13 @@ import {
   formatAssignmentTiming,
   formatDueDate,
   calculateAssignmentStatus,
+  canUnsubmitAssignmentDoc,
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
   hasAssignmentSubmissionContent,
 } from '@/lib/assignments'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
+import { fetchJSONWithCache } from '@/lib/request-cache'
 import { formatInTimeZone } from 'date-fns-tz'
 import { HistoryList } from '@/components/HistoryList'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
@@ -43,6 +45,7 @@ export interface StudentAssignmentEditorHandle {
   unsubmit: () => Promise<void>
   isSubmitted: boolean
   canSubmit: boolean
+  canUnsubmit: boolean
   submitting: boolean
 }
 
@@ -51,7 +54,21 @@ interface Props {
   assignmentId: string
   variant?: 'standalone' | 'embedded'
   onExit?: () => void
-  onStateChange?: (state: { isSubmitted: boolean; canSubmit: boolean; submitting: boolean }) => void
+  onStateChange?: (state: { isSubmitted: boolean; canSubmit: boolean; canUnsubmit: boolean; submitting: boolean }) => void
+}
+
+type AssignmentDocResponse = {
+  assignment: Assignment
+  doc: AssignmentDoc | null
+  feedback_entries?: AssignmentFeedbackEntry[]
+  submission_requirements?: AssignmentSubmissionRequirement[]
+  submission_artifacts?: AssignmentSubmissionArtifact[]
+  github_identity?: UserGitHubIdentity | null
+  wasFirstView?: boolean
+}
+
+type AssignmentDocHistoryResponse = {
+  history?: AssignmentDocHistoryEntry[]
 }
 
 export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle, Props>(function StudentAssignmentEditor({
@@ -105,12 +122,20 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     setLoading(true)
     setError('')
     try {
-      const response = await fetch(`/api/assignment-docs/${assignmentId}`)
-      const data = await response.json()
+      const data = await fetchJSONWithCache<AssignmentDocResponse>(
+        `assignment-doc:${assignmentId}`,
+        async () => {
+          const response = await fetch(`/api/assignment-docs/${assignmentId}`)
+          const data = await response.json()
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to load assignment')
-      }
+          if (!response.ok) {
+            throw new Error(data.error || 'Failed to load assignment')
+          }
+
+          return data
+        },
+        0,
+      )
 
       setAssignment(data.assignment)
       setDoc(data.doc)
@@ -137,11 +162,18 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     setHistoryLoading(true)
     setHistoryError('')
     try {
-      const response = await fetch(`/api/assignment-docs/${assignmentId}/history`)
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to load history')
-      }
+      const data = await fetchJSONWithCache<AssignmentDocHistoryResponse>(
+        `assignment-doc-history:${assignmentId}`,
+        async () => {
+          const response = await fetch(`/api/assignment-docs/${assignmentId}/history`)
+          const data = await response.json()
+          if (!response.ok) {
+            throw new Error(data.error || 'Failed to load history')
+          }
+          return data
+        },
+        0,
+      )
       setHistoryEntries(data.history || [])
     } catch (err: any) {
       setHistoryError(err.message || 'Failed to load history')
@@ -425,6 +457,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const hasStructuredSubmissionArtifact = submissionArtifacts.some(isSubmissionArtifactPresent)
   const structuredRequirementsSatisfied = submissionRequirements.length === 0 || submissionCompletion.canSubmit
   const isSubmitted = doc?.is_submitted || false
+  const canUnsubmit = canUnsubmitAssignmentDoc(doc)
   const canSubmit = (
     hasAssignmentSubmissionContent({ content }) || hasStructuredSubmissionArtifact
   ) && structuredRequirementsSatisfied && !previewEntry
@@ -435,13 +468,14 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     unsubmit: handleUnsubmit,
     isSubmitted,
     canSubmit,
+    canUnsubmit,
     submitting,
-  }), [handleSubmit, handleUnsubmit, isSubmitted, canSubmit, submitting])
+  }), [handleSubmit, handleUnsubmit, isSubmitted, canSubmit, canUnsubmit, submitting])
 
   // Notify parent of state changes
   useEffect(() => {
-    onStateChange?.({ isSubmitted, canSubmit, submitting })
-  }, [isSubmitted, canSubmit, submitting, onStateChange])
+    onStateChange?.({ isSubmitted, canSubmit, canUnsubmit, submitting })
+  }, [isSubmitted, canSubmit, canUnsubmit, submitting, onStateChange])
 
   if (loading) {
     if (isEmbedded) {
@@ -862,15 +896,15 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
               <span className={`px-3 py-1 rounded text-sm font-medium ${getAssignmentStatusBadgeClass(status)}`}>
                 {getAssignmentStatusLabel(status)}
               </span>
-              {isSubmitted ? (
+              {canUnsubmit ? (
                 <Button size="sm" onClick={handleUnsubmit} variant="secondary" disabled={submitting || !!previewEntry}>
                   {submitting ? 'Unsubmitting...' : 'Unsubmit'}
                 </Button>
-              ) : (
+              ) : !isSubmitted ? (
                 <Button size="sm" onClick={handleSubmit} disabled={submitting || !canSubmit}>
                   {submitting ? 'Submitting...' : 'Submit'}
                 </Button>
-              )}
+              ) : null}
             </div>
           </div>
         }

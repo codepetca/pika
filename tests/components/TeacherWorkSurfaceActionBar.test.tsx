@@ -31,6 +31,9 @@ describe('TeacherWorkSurfaceFloatingActionCluster', () => {
     )
 
     const cluster = screen.getByRole('button', { name: 'Jump to today' }).parentElement
+    expect(cluster).toHaveClass('fixed', 'top-[3.25rem]', 'z-40', 'w-max')
+    expect(cluster?.className).toContain('max-w-[calc(100vw-1rem)]')
+    expect(cluster).toHaveClass('rounded-lg', 'bg-surface/95', 'shadow-elevated', 'backdrop-blur')
     expect(cluster).toHaveClass('left-1/2')
     expect(cluster?.className).toContain('lg:left-[var(--main-content-center-x,50%)]')
     expect(cluster?.className).toContain('lg:transition-[left]')
@@ -50,5 +53,24 @@ describe('TeacherWorkSurfaceFloatingActionCluster', () => {
     const label = screen.getByText('May 2026')
     expect(label).toBeInTheDocument()
     expect(label).toHaveClass('justify-self-start', 'font-semibold', 'text-text-default')
+
+    const floatingCluster = screen.getByRole('button', { name: 'Tue May 5' }).parentElement
+    expect(floatingCluster).toHaveClass('fixed')
+    expect(floatingCluster?.className).toContain('max-w-[calc(100vw-1rem)]')
+  })
+
+  it('keeps inline center actions in the normal grid flow', () => {
+    render(
+      <TeacherWorkSurfaceActionBar
+        label="Assignments"
+        center={<button type="button">New Assignment</button>}
+        trailing={<button type="button">Settings</button>}
+      />,
+    )
+
+    const center = screen.getByRole('button', { name: 'New Assignment' }).parentElement
+    expect(center).toHaveClass('justify-self-center')
+    expect(center).not.toHaveClass('fixed')
+    expect(screen.getByRole('button', { name: 'Settings' }).parentElement).toHaveClass('justify-self-end')
   })
 })

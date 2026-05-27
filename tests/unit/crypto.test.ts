@@ -3,6 +3,8 @@ import {
   generateVerificationCode,
   hashCode,
   verifyCode,
+  generateHandoffToken,
+  hashHandoffToken,
   hashPassword,
   verifyPassword,
   validatePassword,
@@ -53,6 +55,25 @@ describe('crypto utilities', () => {
     it('should use Math.random to choose characters', () => {
       vi.spyOn(Math, 'random').mockReturnValue(0)
       expect(generateVerificationCode()).toBe('AAAAA')
+    })
+  })
+
+  describe('handoff tokens', () => {
+    it('should generate a high-entropy URL-safe token', () => {
+      const token = generateHandoffToken()
+
+      expect(token.length).toBeGreaterThanOrEqual(32)
+      expect(token).toMatch(/^[A-Za-z0-9_-]+$/)
+    })
+
+    it('should hash handoff tokens deterministically without storing the token itself', () => {
+      const token = 'handoff-token-abcdefghijklmnopqrstuvwxyz1234567890'
+      const hash = hashHandoffToken(token)
+
+      expect(hash).not.toBe(token)
+      expect(hash).toHaveLength(64)
+      expect(hash).toBe(hashHandoffToken(token))
+      expect(hash).not.toBe(hashHandoffToken(`${token}-different`))
     })
   })
 

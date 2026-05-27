@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { verifyCode } from '@/lib/crypto'
+import { generateHandoffToken, hashHandoffToken, verifyCode } from '@/lib/crypto'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { verifySignupSchema } from '@/lib/validations/auth'
 
 const MAX_VERIFICATION_ATTEMPTS = 5
+const HANDOFF_TOKEN_TTL_MS = 10 * 60 * 1000
 
 export const POST = withErrorHandler('VerifySignup', async (request: NextRequest) => {
   const { email: normalizedEmail, code: normalizedCode } = verifySignupSchema.parse(await request.json())
@@ -74,20 +75,44 @@ export const POST = withErrorHandler('VerifySignup', async (request: NextRequest
     throw new ApiError(401, 'Invalid code')
   }
 
-  // Mark code as used and verify email
-  await supabase
+  const usedAt = new Date()
+  const handoffToken = generateHandoffToken()
+  const { data: markedCode, error: markCodeError } = await supabase
     .from('verification_codes')
-    .update({ used_at: new Date().toISOString() })
+    .update({
+      used_at: usedAt.toISOString(),
+      handoff_token_hash: hashHandoffToken(handoffToken),
+      handoff_expires_at: new Date(usedAt.getTime() + HANDOFF_TOKEN_TTL_MS).toISOString(),
+      handoff_consumed_at: null,
+    })
     .eq('id', validCode.id)
+    .is('used_at', null)
+    .select('id')
+    .maybeSingle()
 
-  await supabase
+  if (markCodeError) {
+    console.error('Error marking verification code as used:', markCodeError)
+    throw new ApiError(500, 'Internal server error')
+  }
+
+  if (!markedCode) {
+    throw new ApiError(401, 'Invalid or expired code')
+  }
+
+  const { error: verifyEmailError } = await supabase
     .from('users')
-    .update({ email_verified_at: new Date().toISOString() })
+    .update({ email_verified_at: usedAt.toISOString() })
     .eq('id', user.id)
+
+  if (verifyEmailError) {
+    console.error('Error marking email as verified:', verifyEmailError)
+    throw new ApiError(500, 'Internal server error')
+  }
 
   return NextResponse.json({
     success: true,
     message: 'Email verified successfully',
     userId: user.id,
+    handoffToken,
   })
 })

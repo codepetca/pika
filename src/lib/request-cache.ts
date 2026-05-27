@@ -22,16 +22,21 @@ export async function fetchJSONWithCache<T>(
     return current.pending as Promise<T>
   }
 
-  const pending = fetcher()
+  let pending: Promise<T>
+  pending = fetcher()
     .then((value) => {
-      cache.set(key, {
-        value,
-        expiresAt: Date.now() + ttlMs,
-      })
+      if (cache.get(key)?.pending === pending) {
+        cache.set(key, {
+          value,
+          expiresAt: Date.now() + ttlMs,
+        })
+      }
       return value
     })
     .catch((error) => {
-      cache.delete(key)
+      if (cache.get(key)?.pending === pending) {
+        cache.delete(key)
+      }
       throw error
     })
 

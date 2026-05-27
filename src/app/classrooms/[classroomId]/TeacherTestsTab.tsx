@@ -296,6 +296,7 @@ export function TeacherTestsTab({
   onTestGradingDataRefresh,
   onTestGradingContextChange,
   onRequestTestPreview,
+  onRequestDelete,
 }: Props) {
   const apiBasePath = '/api/teacher/tests'
   const isReadOnly = !!classroom.archived_at
@@ -1968,10 +1969,10 @@ export function TeacherTestsTab({
           data-testid="test-grading-student-scroll-pane"
           onScroll={preserveGradingStudentTableScrollPosition}
         >
-          <DataTable density="tight" className="text-sm">
+          <DataTable density="tight" className="table-fixed text-sm lg:table-auto">
             <DataTableHead>
               <DataTableRow>
-                <DataTableHeaderCell className="w-10 px-3 py-2">
+                <DataTableHeaderCell className="w-9 px-2 py-2 sm:w-10 sm:px-3">
                   <input
                     type="checkbox"
                     checked={batchAllSelected}
@@ -1980,34 +1981,34 @@ export function TeacherTestsTab({
                     aria-label="Select all students"
                   />
                 </DataTableHeaderCell>
-                <DataTableHeaderCell className="px-3 py-2">
+                <DataTableHeaderCell className="min-w-0 px-2 py-2 sm:px-3">
                   <button
                     type="button"
                     onClick={() => {
                       setGradingSortColumn((prev) => (prev === 'last_name' ? 'first_name' : 'last_name'))
                     }}
-                    className="inline-flex items-center gap-2 text-left text-text-muted hover:text-text-default"
+                    className="inline-flex w-full min-w-0 items-center gap-1 text-left text-text-muted hover:text-text-default sm:gap-2"
                     aria-label={
                       gradingSortColumn === 'last_name'
                         ? 'Sort students by first name'
                         : 'Sort students by last name'
                     }
                   >
-                    <span>Student</span>
-                    <span className="text-xs font-medium text-text-muted">
+                    <span className="truncate">Student</span>
+                    <span className="hidden text-xs font-medium text-text-muted sm:inline">
                       {gradingSortColumn === 'last_name' ? 'Last' : 'First'}
                     </span>
                   </button>
                 </DataTableHeaderCell>
-                <DataTableHeaderCell className="px-3 py-2">Status</DataTableHeaderCell>
-                <DataTableHeaderCell className="px-3 py-2">Access</DataTableHeaderCell>
-                <DataTableHeaderCell className="px-3 py-2">Score</DataTableHeaderCell>
-                <DataTableHeaderCell className="px-3 py-2">
+                <DataTableHeaderCell className="w-14 whitespace-nowrap px-1.5 py-2 text-xs sm:w-20 sm:px-3 sm:text-sm">Status</DataTableHeaderCell>
+                <DataTableHeaderCell className="w-14 whitespace-nowrap px-1.5 py-2 text-xs sm:w-20 sm:px-3 sm:text-sm">Access</DataTableHeaderCell>
+                <DataTableHeaderCell className="w-16 whitespace-nowrap px-1.5 py-2 text-xs sm:w-20 sm:px-3 sm:text-sm">Score</DataTableHeaderCell>
+                <DataTableHeaderCell className="hidden px-3 py-2 lg:table-cell">
                   <Tooltip content="Most recent recorded in-test activity time (Toronto).">
                     <span className="cursor-help">Last</span>
                   </Tooltip>
                 </DataTableHeaderCell>
-                <DataTableHeaderCell className="px-3 py-2">
+                <DataTableHeaderCell className="hidden px-3 py-2 lg:table-cell">
                   <Tooltip
                     content={
                       <div className="space-y-0.5">
@@ -2023,7 +2024,7 @@ export function TeacherTestsTab({
                     </span>
                   </Tooltip>
                 </DataTableHeaderCell>
-                <DataTableHeaderCell className="px-3 py-2">
+                <DataTableHeaderCell className="hidden px-3 py-2 lg:table-cell">
                   <Tooltip content="Total time this student was away from the test route.">
                     <span className="inline-flex cursor-help items-center" aria-label="Away column">
                       <ClockAlert className="h-4 w-4" />
@@ -2109,7 +2110,7 @@ export function TeacherTestsTab({
                     }
                     onClick={() => handleGradingStudentSelect(student.student_id)}
                   >
-                    <DataTableCell className="px-3 py-2">
+                    <DataTableCell className="px-2 py-2 sm:px-3">
                       <input
                         type="checkbox"
                         checked={batchSelectedIds.has(student.student_id)}
@@ -2119,10 +2120,10 @@ export function TeacherTestsTab({
                         aria-label={`Select ${student.name || 'student'}`}
                       />
                     </DataTableCell>
-                    <DataTableCell className="px-3 py-2">
-                      <div className="font-medium text-text-default">{student.name || 'Student'}</div>
+                    <DataTableCell className="min-w-0 max-w-0 px-2 py-2 sm:px-3 lg:max-w-none">
+                      <div className="truncate font-medium text-text-default">{student.name || 'Student'}</div>
                     </DataTableCell>
-                    <DataTableCell className="px-3 py-2">
+                    <DataTableCell className="px-2 py-2 sm:px-3">
                       {student.status === 'submitted' ? (
                         <Tooltip content={canUnsubmitStudent ? `${statusMeta.label}. Click to mark ${studentLabel} unsubmitted.` : statusMeta.label}>
                           <button
@@ -2150,7 +2151,7 @@ export function TeacherTestsTab({
                         </Tooltip>
                       )}
                     </DataTableCell>
-                    <DataTableCell className="px-3 py-2">
+                    <DataTableCell className="px-2 py-2 sm:px-3">
                       <Tooltip content={`${accessTooltip}. ${accessActionTooltip}`}>
                         <button
                           type="button"
@@ -2166,10 +2167,10 @@ export function TeacherTestsTab({
                         </button>
                       </Tooltip>
                     </DataTableCell>
-                    <DataTableCell className="px-3 py-2 text-text-default">{scoreLabel}</DataTableCell>
+                    <DataTableCell className="px-2 py-2 text-text-default sm:px-3">{scoreLabel}</DataTableCell>
                     <DataTableCell
                       className={[
-                        'px-3 py-2 tabular-nums',
+                        'hidden px-3 py-2 tabular-nums lg:table-cell',
                         formattedLastActivity.isPm ? 'font-semibold text-text-default' : 'text-text-muted',
                       ].join(' ')}
                     >
@@ -2184,7 +2185,7 @@ export function TeacherTestsTab({
                         </span>
                       </Tooltip>
                     </DataTableCell>
-                    <DataTableCell className="px-3 py-2 text-xs tabular-nums">
+                    <DataTableCell className="hidden px-3 py-2 text-xs tabular-nums lg:table-cell">
                       <Tooltip
                         content={
                           <div className="space-y-0.5">
@@ -2203,7 +2204,7 @@ export function TeacherTestsTab({
                         </span>
                       </Tooltip>
                     </DataTableCell>
-                    <DataTableCell className="px-3 py-2 text-xs text-text-muted tabular-nums">
+                    <DataTableCell className="hidden px-3 py-2 text-xs text-text-muted tabular-nums lg:table-cell">
                       <Tooltip content={`Away from test route for ${awayLabel} total.`}>
                         <span
                           className="cursor-help"
@@ -2331,6 +2332,26 @@ export function TeacherTestsTab({
           },
           disabled:
             batchSelectedCount === 0 ||
+            isCombinedTestActionsBusy,
+          destructive: true,
+        },
+        {
+          id: 'delete-test',
+          label: (
+            <span className="inline-flex items-center gap-2 whitespace-nowrap text-danger">
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              <span>Delete Test</span>
+            </span>
+          ),
+          onSelect: () => {
+            if (onRequestDelete) {
+              onRequestDelete()
+              return
+            }
+            setPendingDeleteTest(selectedTestWorkspace)
+          },
+          disabled:
+            isReadOnly ||
             isCombinedTestActionsBusy,
           destructive: true,
         },

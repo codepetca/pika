@@ -11,7 +11,7 @@ import {
   markAssignmentDocMissingGrade,
 } from '@/lib/server/assignment-ai-grading-runs'
 import { loadAssignmentSubmissionArtifactsForDoc } from '@/lib/server/assignment-submission-artifacts'
-import { assertTeacherOwnsAssignment } from '@/lib/server/repo-review'
+import { assertTeacherCanMutateAssignment } from '@/lib/server/repo-review'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -34,7 +34,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
     return NextResponse.json({ error: 'Cannot auto-grade more than 100 students at once' }, { status: 400 })
   }
 
-  const assignment = await assertTeacherOwnsAssignment(user.id, id)
+  const assignment = await assertTeacherCanMutateAssignment(user.id, id)
   const supabase = getServiceRoleClient()
   const { data: enrollments, error: enrollmentError } = await supabase
     .from('classroom_enrollments')
@@ -136,11 +136,11 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
         studentId,
       },
     })
-  } catch (error) {
+  } catch (gradingError) {
     return NextResponse.json({
       graded_count: 0,
       skipped_count: 1,
-      errors: [error instanceof Error ? `${studentId}: ${error.message}` : `${studentId}: Auto-grade failed`],
+      errors: [gradingError instanceof Error ? `${studentId}: ${gradingError.message}` : `${studentId}: Auto-grade failed`],
     })
   }
 

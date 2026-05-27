@@ -120,6 +120,7 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
             title: 'Essay',
             instructions_markdown: 'New instructions',
             points_possible: 30,
+            gradebook_weight: 10,
             include_in_final: true,
             is_draft: false,
             position: 0,
@@ -138,6 +139,7 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
             status: 'published',
             show_results: true,
             points_possible: 10,
+            gradebook_weight: 20,
             include_in_final: true,
             position: 0,
           },
@@ -156,6 +158,7 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
             documents: [],
             show_results: false,
             points_possible: 60,
+            gradebook_weight: 70,
             include_in_final: true,
             position: 0,
           },
@@ -268,15 +271,16 @@ describe('course-sites server helpers', () => {
           tests: [expect.objectContaining({ title: 'Unit Test' })],
           grading: expect.objectContaining({
             mode: 'weighted',
+            mode_label: 'Weighted by assessment',
             categories: expect.arrayContaining([
-              expect.objectContaining({ id: 'assignments', weight_percent: 50 }),
+              expect.objectContaining({ id: 'assignments', weight_percent: 10 }),
               expect.objectContaining({ id: 'quizzes', weight_percent: 20 }),
-              expect.objectContaining({ id: 'tests', weight_percent: 30 }),
+              expect.objectContaining({ id: 'tests', weight_percent: 70 }),
             ]),
             items: expect.arrayContaining([
-              expect.objectContaining({ title: 'Essay', course_weight_percent: 50 }),
+              expect.objectContaining({ title: 'Essay', course_weight_percent: 10 }),
               expect.objectContaining({ title: 'Quiz 1', course_weight_percent: 20 }),
-              expect.objectContaining({ title: 'Unit Test', course_weight_percent: 30 }),
+              expect.objectContaining({ title: 'Unit Test', course_weight_percent: 70 }),
             ]),
           }),
           lesson_plans: [expect.objectContaining({ title: 'Lesson 1 (2026-04-16)' })],
@@ -289,6 +293,7 @@ describe('course-sites server helpers', () => {
       expect(result.site.assignments).toHaveLength(1)
       expect(result.site.lesson_plans).toHaveLength(1)
       expect(result.site.announcements).toHaveLength(1)
+      expect(mockSupabase.from).not.toHaveBeenCalledWith('gradebook_settings')
     }
   })
 

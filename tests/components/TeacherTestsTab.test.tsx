@@ -375,7 +375,7 @@ describe('TeacherTestsTab', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
     expect(screen.queryByRole('menuitem', { name: 'Manage Attempts' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'Delete Test' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Delete Test' })).toBeEnabled()
     expect(screen.getByRole('menuitem', { name: /Delete Selected/ })).toBeDisabled()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Test' }))
 
@@ -386,6 +386,23 @@ describe('TeacherTestsTab', () => {
       'aria-pressed',
       'false'
     )
+  })
+
+  it('requests selected test deletion from the selected test actions menu', async () => {
+    const onRequestDelete = vi.fn()
+
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
+    renderTab({ onRequestDelete })
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete Test' }))
+
+    expect(onRequestDelete).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('Delete test?')).not.toBeInTheDocument()
   })
 
   it('disables status actions while markdown edits are pending in the edit modal', async () => {
@@ -1049,6 +1066,33 @@ describe('TeacherTestsTab', () => {
     expect(inspectorScrollPane).toHaveClass('min-h-0')
     expect(inspectorScrollPane).toHaveClass('overflow-y-auto')
     expect(within(inspectorScrollPane).getByTestId('mock-test-grading-panel')).toBeInTheDocument()
+  })
+
+  it('keeps the grading student table constrained on mobile widths', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    const studentScrollPane = await screen.findByTestId('test-grading-student-scroll-pane')
+    const table = within(studentScrollPane).getByRole('table')
+    expect(table).toHaveClass('table-fixed')
+    expect(table).toHaveClass('lg:table-auto')
+
+    const row = screen.getByTestId('test-grading-student-row-student-1')
+    expect(within(row).getByText('Alice Zephyr').closest('td')).toHaveClass('max-w-0')
+    expect(within(row).getByLabelText(/Exits \d+\./).closest('td')).toHaveClass('hidden')
+    expect(within(row).getByLabelText(/Away time/).closest('td')).toHaveClass('hidden')
+
+    expect(screen.getByText('Last', { selector: 'span.cursor-help' }).closest('th')).toHaveClass('hidden')
+    expect(screen.getByLabelText('Exits column').closest('th')).toHaveClass('lg:table-cell')
+    expect(screen.getByLabelText('Away column').closest('th')).toHaveClass('lg:table-cell')
   })
 
   it('clears the selected grading row with Escape', async () => {
@@ -2415,7 +2459,7 @@ describe('TeacherTestsTab', () => {
 
     expect(screen.queryByRole('menuitem', { name: 'AI Prompt' })).not.toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Delete' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'Delete Test' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Delete Test' })).toBeEnabled()
     expect(screen.getByRole('menuitem', { name: /Delete Selected/ })).toBeDisabled()
     expect(screen.queryByRole('menuitem', { name: 'Clear Open Grades' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Grading strategy')).not.toBeInTheDocument()

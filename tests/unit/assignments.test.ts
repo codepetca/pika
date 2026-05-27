@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
+  canUnsubmitAssignmentDoc,
   calculateAssignmentStatus,
   calculateAssignmentStats,
   getAssignmentStatusLabel,
@@ -841,6 +842,24 @@ describe('assignment utilities', () => {
 
     it('does not treat resubmitted work as already returned', () => {
       expect(isAssignmentAlreadyReturnedWithoutResubmission({
+        is_submitted: true,
+        submitted_at: '2026-04-21T12:00:00.000Z',
+        returned_at: '2026-04-20T13:00:00.000Z',
+        teacher_cleared_at: '2026-04-20T13:00:00.000Z',
+      })).toBe(false)
+    })
+
+    it('allows unsubmit before the first teacher return', () => {
+      expect(canUnsubmitAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2026-04-20T12:00:00.000Z',
+        returned_at: null,
+        teacher_cleared_at: null,
+      })).toBe(true)
+    })
+
+    it('blocks unsubmit after a teacher return, including resubmitted work', () => {
+      expect(canUnsubmitAssignmentDoc({
         is_submitted: true,
         submitted_at: '2026-04-21T12:00:00.000Z',
         returned_at: '2026-04-20T13:00:00.000Z',

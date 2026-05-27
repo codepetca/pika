@@ -4,6 +4,7 @@ import { isOnTime, formatDateInToronto, getTodayInToronto, nowInToronto } from '
 describe('timezone utilities', () => {
   afterEach(() => {
     vi.useRealTimers()
+    vi.unstubAllEnvs()
   })
 
   describe('isOnTime', () => {
@@ -84,6 +85,14 @@ describe('timezone utilities', () => {
       const now = nowInToronto()
       expect(now).toBeInstanceOf(Date)
       expect(getTodayInToronto()).toBe('2024-11-15')
+    })
+
+    it('should return the Toronto date on a UTC host without double-converting', () => {
+      vi.stubEnv('TZ', 'UTC')
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2024-11-16T05:30:00Z')) // 2024-11-16 00:30 in Toronto (UTC-5)
+
+      expect(getTodayInToronto()).toBe('2024-11-16')
     })
   })
 })

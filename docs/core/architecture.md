@@ -99,9 +99,9 @@ tests/                             # Vitest unit + API suites
 - Full token reference: `src/ui/README.md` | Design rules: `docs/core/design.md`
 
 ### Authentication (Current And WorkOS-Ready)
-- **Signup**: `/api/auth/signup` stores a verification code (mock-emailed); `/verify-signup` validates; `/create-password` hashes password (bcrypt), sets session.
+- **Signup**: `/api/auth/signup` stores a verification code (mock-emailed); `/verify-signup` validates and issues a short-lived one-time handoff token; `/create-password` requires that token before hashing the password (bcrypt) and setting the session.
 - **Login**: `/api/auth/login` with email/password.
-- **Forgot/Reset**: `/api/auth/forgot-password` issues reset code; `/reset-password/verify` + `/confirm` update password.
+- **Forgot/Reset**: `/api/auth/forgot-password` issues reset code; `/reset-password/verify` issues a short-lived one-time handoff token; `/confirm` requires that token before updating the password.
 - **Session**: iron-session cookie (`pika_session`), HTTP-only, SameSite=Lax, secure in production.
 - **WorkOS migration posture**: keep `public.users.id` as Pika's internal UUID user id. Store the external WorkOS AuthKit id in `public.users.workos_user_id` and map WorkOS sessions to local users before authorization checks.
 
