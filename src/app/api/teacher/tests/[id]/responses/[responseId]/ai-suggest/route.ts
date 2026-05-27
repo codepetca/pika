@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { assertTeacherOwnsTest, validateSelectedTestStudentEnrollment } from '@/lib/server/tests'
 import {
   getTestOpenResponseGradingModel,
   prepareTestOpenResponseGradingContext,
@@ -30,6 +30,7 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
       id,
       test_id,
       question_id,
+      student_id,
       response_text,
       test_questions!inner (
         id,
@@ -50,6 +51,24 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
 
   if (responseError || !responseRow) {
     return NextResponse.json({ error: 'Response not found' }, { status: 404 })
+  }
+
+  const responseStudentId = typeof responseRow.student_id === 'string' ? responseRow.student_id : ''
+  if (!responseStudentId) {
+    return NextResponse.json({ error: 'Response not found' }, { status: 404 })
+  }
+
+  const enrollmentValidation = await validateSelectedTestStudentEnrollment(
+    supabase,
+    access.test.classroom_id,
+    [responseStudentId]
+  )
+  if (!enrollmentValidation.ok) {
+    console.error('Error validating response student enrollment for AI suggest:', enrollmentValidation.error)
+    return NextResponse.json({ error: 'Failed to validate student enrollment' }, { status: 500 })
+  }
+  if (enrollmentValidation.missingStudentIds.length > 0) {
+    return NextResponse.json({ error: 'Student is not enrolled in this classroom' }, { status: 400 })
   }
 
   const question = Array.isArray(responseRow.test_questions)
