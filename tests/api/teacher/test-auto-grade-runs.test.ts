@@ -126,5 +126,27 @@ describe('test auto-grade run routes', () => {
       testId: 'test-1',
       runId: 'run-1',
     })
+    expect(assertTeacherOwnsTest).toHaveBeenCalledWith('teacher-1', 'test-1', { checkArchived: true })
+  })
+
+  it('rejects ticking a run for an archived classroom before mutating grades', async () => {
+    assertTeacherOwnsTest.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      error: 'Classroom is archived',
+    })
+
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade-runs/run-1/tick', {
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ id: 'test-1', runId: 'run-1' }) },
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(data.error).toBe('Classroom is archived')
+    expect(assertTeacherOwnsTest).toHaveBeenCalledWith('teacher-1', 'test-1', { checkArchived: true })
+    expect(tickTestAiGradingRun).not.toHaveBeenCalled()
   })
 })

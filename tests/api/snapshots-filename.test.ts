@@ -1,17 +1,49 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/snapshots/[filename]/route'
 
-const { readFileMock } = vi.hoisted(() => ({
+const { readFileMock, requireAuthMock } = vi.hoisted(() => ({
   readFileMock: vi.fn(),
+  requireAuthMock: vi.fn(),
 }))
 
 vi.mock('node:fs/promises', () => ({
   readFile: readFileMock,
   default: { readFile: readFileMock },
 }))
+vi.mock('@/lib/auth', () => ({ requireAuth: requireAuthMock }))
+
+const originalEnableUiGallery = process.env.ENABLE_UI_GALLERY
 
 describe('GET /api/snapshots/[filename]', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    process.env.ENABLE_UI_GALLERY = 'true'
+    requireAuthMock.mockResolvedValue({ id: 'user-1' })
+  })
+
+  afterEach(() => {
+    if (originalEnableUiGallery === undefined) {
+      delete process.env.ENABLE_UI_GALLERY
+    } else {
+      process.env.ENABLE_UI_GALLERY = originalEnableUiGallery
+    }
+  })
+
+  it('returns 404 before reading files when the UI gallery is disabled', async () => {
+    delete process.env.ENABLE_UI_GALLERY
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/snapshots/view.png'),
+      { params: { filename: 'view.png' } }
+    )
+
+    expect(response.status).toBe(404)
+    await expect(response.text()).resolves.toBe('Not found')
+    expect(requireAuthMock).not.toHaveBeenCalled()
+    expect(readFileMock).not.toHaveBeenCalled()
+  })
+
   it('rejects invalid filenames', async () => {
     const response = await GET(
       new NextRequest('http://localhost:3000/api/snapshots/../../secret.txt'),
