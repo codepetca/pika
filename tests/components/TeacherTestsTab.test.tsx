@@ -375,7 +375,7 @@ describe('TeacherTestsTab', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
     expect(screen.queryByRole('menuitem', { name: 'Manage Attempts' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'Delete Test' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Delete Test' })).toBeEnabled()
     expect(screen.getByRole('menuitem', { name: /Delete Selected/ })).toBeDisabled()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Test' }))
 
@@ -386,6 +386,23 @@ describe('TeacherTestsTab', () => {
       'aria-pressed',
       'false'
     )
+  })
+
+  it('requests selected test deletion from the selected test actions menu', async () => {
+    const onRequestDelete = vi.fn()
+
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
+    renderTab({ onRequestDelete })
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete Test' }))
+
+    expect(onRequestDelete).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('Delete test?')).not.toBeInTheDocument()
   })
 
   it('disables status actions while markdown edits are pending in the edit modal', async () => {
@@ -2442,7 +2459,7 @@ describe('TeacherTestsTab', () => {
 
     expect(screen.queryByRole('menuitem', { name: 'AI Prompt' })).not.toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Delete' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'Delete Test' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Delete Test' })).toBeEnabled()
     expect(screen.getByRole('menuitem', { name: /Delete Selected/ })).toBeDisabled()
     expect(screen.queryByRole('menuitem', { name: 'Clear Open Grades' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Grading strategy')).not.toBeInTheDocument()

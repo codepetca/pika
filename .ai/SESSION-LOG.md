@@ -7,20 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Teacher artifact table refresh
-
-**Completed:**
-- Added a refresh control to the teacher assignment workspace action bar so teachers can re-query selected assignment details after students submit structured artifacts.
-- Kept the refresh scoped to the selected assignment detail endpoint that already merges structured submission artifacts into the student table artifact cells.
-- Added component coverage confirming the action bar refresh performs a second assignment-detail fetch.
-
-**Validation:**
-- `pnpm test tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a'`
-- Playwright screenshot after settled teacher load: `/tmp/pika-teacher-refresh-submissions.png`
-
 ## 2026-05-26 — Assignment modal title row cleanup
 
 **Completed:**
@@ -358,6 +344,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/components/TeacherGradebookTab.test.tsx`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook&gradebookSection=settings'`
 - Browser regression screenshot: `/tmp/pika-teacher-gradebook-settings-after-selection.png`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-05-26 — Selected test delete action
+
+**Completed:**
+- Added a destructive `Delete Test` action to the selected test workspace actions menu.
+- Wired the selected-workspace delete action through the existing `onRequestDelete` callback, with the component's internal delete confirmation as fallback.
+- Updated component coverage for the selected-test action menu and delete callback path.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests&testId=210e30d4-f085-4c86-94d3-ee14bb66fd03&testMode=grading'`
+- Browser menu screenshot: `/tmp/pika-teacher-tests-delete-action-menu.png`
 - `git diff --check`
 - `pnpm lint`
 - `pnpm test`
