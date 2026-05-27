@@ -6,6 +6,7 @@ import {
   getEffectiveStudentTestAccess,
   getTestStudentAvailabilityMap,
   isMissingTestAttemptReturnColumnsError,
+  validateSelectedTestStudentEnrollment,
 } from '@/lib/server/tests'
 import { finalizeUnsubmittedTestAttemptsOnClose } from '@/lib/server/finalize-test-attempts'
 import { withErrorHandler } from '@/lib/api-handler'
@@ -77,6 +78,24 @@ export const POST = withErrorHandler('ReturnTeacherTest', async (request, contex
   }
 
   const supabase = getServiceRoleClient()
+  const enrollmentValidation = await validateSelectedTestStudentEnrollment(
+    supabase,
+    access.test.classroom_id,
+    studentIds,
+  )
+
+  if (!enrollmentValidation.ok) {
+    console.error('Error validating selected students for test return:', enrollmentValidation.error)
+    return NextResponse.json({ error: 'Failed to validate selected students' }, { status: 500 })
+  }
+
+  if (enrollmentValidation.missingStudentIds.length > 0) {
+    return NextResponse.json(
+      { error: 'One or more selected students are not enrolled in this classroom' },
+      { status: 400 },
+    )
+  }
+
   const availabilityResult = await getTestStudentAvailabilityMap(supabase, testId, studentIds)
   if (availabilityResult.error && !availabilityResult.missingTable) {
     console.error('Error loading test access for return:', availabilityResult.error)

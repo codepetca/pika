@@ -7,22 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — API route error-handler drift cleanup
-
-**Completed:**
-- Migrated the classroom reorder route and test clear-open-grades route from manual `try/catch` blocks to `withErrorHandler`.
-- Preserved existing validation, access, and database error response behavior while centralizing auth/unknown error handling.
-- Added a unit standards test that scans every API `route.ts` export and fails on unwrapped HTTP handlers, while allowing aliases to already wrapped handlers.
-
-**Validation:**
-- `pnpm test tests/api/teacher/tests-clear-open-grades.test.ts tests/api/teacher/classrooms-reorder.test.ts tests/unit/api-route-standards.test.ts`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `pnpm tsc --noEmit`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-05-26 — Gradebook assessment font weight cleanup
 
 **Completed:**
@@ -347,3 +331,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=attendance'`
 - Browser screenshots: `/tmp/pika-teacher-daily-selected-history.png`, `/tmp/pika-teacher-daily-empty-selected-history.png`
+
+## 2026-05-27 — Phase four audit fixes
+
+**Completed:**
+- Added selected-student classroom enrollment validation to the teacher test return route before availability checks, finalization, response reads, or the return RPC.
+- Scoped teacher test result aggregation and open-response stats to currently enrolled classroom students.
+- Normalized the shared feedback dialog to use `@/ui` primitives for the dialog import, category segmented control, and submit button.
+- Updated focused API and integration coverage for selected test return/results enrollment scoping.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-results.test.ts`
+- `pnpm test tests/api/integration/test-return-visibility-flow.test.ts`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Feedback dialog screenshots: `/tmp/pika-feedback-teacher-desktop-light-idle.png`, `/tmp/pika-feedback-teacher-desktop-light-error.png`, `/tmp/pika-feedback-teacher-desktop-light-submitting.png`, `/tmp/pika-feedback-teacher-desktop-light-success.png`, `/tmp/pika-feedback-teacher-mobile-dark-idle.png`, `/tmp/pika-feedback-student-desktop-dark-idle.png`, `/tmp/pika-feedback-student-mobile-light-error.png`
+- `pnpm test`
+- `pnpm build`

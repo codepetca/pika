@@ -62,6 +62,10 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
   }
 
   const classroomStudentIds = [...new Set((enrollments || []).map((row) => row.student_id))]
+  const classroomStudentIdSet = new Set(classroomStudentIds)
+  const enrolledResponses = (responses || []).filter((response) =>
+    classroomStudentIdSet.has(response.student_id)
+  )
   const availabilityResult = await getTestStudentAvailabilityMap(supabase, testId, classroomStudentIds)
   if (availabilityResult.error && !availabilityResult.missingTable) {
     console.error('Error fetching test student availability:', availabilityResult.error)
@@ -89,7 +93,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
   const openGradedCounts = new Map<string, number>()
   const openUngradedCounts = new Map<string, number>()
 
-  for (const response of responses || []) {
+  for (const response of enrolledResponses) {
     const question = questionById.get(response.question_id)
     if (!question) continue
     if (!studentAnswers[response.student_id]) studentAnswers[response.student_id] = {}
@@ -405,7 +409,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
   const multipleChoiceQuestions = (questions || []).filter(
     (question) => question.question_type !== 'open_response'
   )
-  const multipleChoiceResponses = (responses || []).flatMap((response) => {
+  const multipleChoiceResponses = enrolledResponses.flatMap((response) => {
     if (typeof response.selected_option !== 'number') return []
     return [{
       id: response.id,
@@ -430,7 +434,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
 
   let gradedOpenResponses = 0
   let ungradedOpenResponses = 0
-  for (const response of responses || []) {
+  for (const response of enrolledResponses) {
     if (!openQuestionIds.has(response.question_id)) continue
     const hasScore = typeof response.score === 'number'
     if (hasScore) {
