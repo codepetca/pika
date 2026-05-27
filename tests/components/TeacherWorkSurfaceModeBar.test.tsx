@@ -12,6 +12,8 @@ describe('TeacherWorkSurfaceModeBar', () => {
         ]}
         activeMode="overview"
         onModeChange={vi.fn()}
+        getTabId={(mode) => `mode-${mode}-tab`}
+        getPanelId={(mode) => `mode-${mode}-panel`}
         center={<button type="button">AI Grade</button>}
         status={<span>Updating</span>}
         trailing={<button type="button">Edit assignment</button>}
@@ -20,7 +22,10 @@ describe('TeacherWorkSurfaceModeBar', () => {
 
     expect(screen.getByRole('tablist', { name: 'Workspace modes' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Class' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Class' })).toHaveAttribute('id', 'mode-overview-tab')
+    expect(screen.getByRole('tab', { name: 'Class' })).toHaveAttribute('aria-controls', 'mode-overview-panel')
     expect(screen.getByRole('tab', { name: 'Individual' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('tab', { name: 'Individual' })).toHaveAttribute('aria-controls', 'mode-details-panel')
     expect(screen.getByRole('button', { name: 'AI Grade' })).toBeInTheDocument()
     expect(screen.getByText('Updating')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Edit assignment' })).toBeInTheDocument()

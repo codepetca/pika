@@ -13,6 +13,8 @@ interface TeacherWorkSurfaceModeBarProps<TMode extends string = string> {
   modes: readonly TeacherWorkSurfaceMode<TMode>[]
   activeMode: TMode
   onModeChange: (mode: TMode) => void
+  getTabId?: (mode: TMode) => string
+  getPanelId?: (mode: TMode) => string
   center?: ReactNode
   trailing?: ReactNode
   status?: ReactNode
@@ -23,6 +25,8 @@ export function TeacherWorkSurfaceModeBar<TMode extends string = string>({
   modes,
   activeMode,
   onModeChange,
+  getTabId,
+  getPanelId,
   center,
   trailing,
   status,
@@ -30,7 +34,7 @@ export function TeacherWorkSurfaceModeBar<TMode extends string = string>({
 }: TeacherWorkSurfaceModeBarProps<TMode>) {
   const tabListId = useId()
 
-  const getTabId = (modeId: TMode) => `${tabListId}-${modeId}`
+  const resolveTabId = (modeId: TMode) => getTabId?.(modeId) ?? `${tabListId}-${modeId}`
 
   const selectMode = (mode: TeacherWorkSurfaceMode<TMode>) => {
     if (mode.disabled) return
@@ -40,7 +44,7 @@ export function TeacherWorkSurfaceModeBar<TMode extends string = string>({
   const moveToMode = (mode: TeacherWorkSurfaceMode<TMode>) => {
     if (mode.disabled) return
 
-    document.getElementById(getTabId(mode.id))?.focus()
+    document.getElementById(resolveTabId(mode.id))?.focus()
     onModeChange(mode.id)
   }
 
@@ -93,7 +97,7 @@ export function TeacherWorkSurfaceModeBar<TMode extends string = string>({
           return (
             <button
               key={mode.id}
-              id={getTabId(mode.id)}
+              id={resolveTabId(mode.id)}
               type="button"
               role="tab"
               className={[
@@ -106,6 +110,7 @@ export function TeacherWorkSurfaceModeBar<TMode extends string = string>({
               onClick={() => selectMode(mode)}
               onKeyDown={(event) => handleTabKeyDown(event, index)}
               aria-selected={isActive}
+              aria-controls={getPanelId?.(mode.id)}
               aria-disabled={mode.disabled || undefined}
               tabIndex={isActive && !mode.disabled ? 0 : -1}
               disabled={mode.disabled}
