@@ -30,7 +30,7 @@ export const PATCH = withErrorHandler('PatchQuizOverride', async (request) => {
 
   const { data: quiz, error: quizError } = await supabase
     .from('quizzes')
-    .select('id, classroom_id, points_possible, classrooms!inner(teacher_id)')
+    .select('id, classroom_id, points_possible, classrooms!inner(teacher_id, archived_at)')
     .eq('id', quizId)
     .single()
 
@@ -45,6 +45,9 @@ export const PATCH = withErrorHandler('PatchQuizOverride', async (request) => {
   const classroomRelation = Array.isArray(quiz.classrooms) ? quiz.classrooms[0] : quiz.classrooms
   if (!classroomRelation || classroomRelation.teacher_id !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  if (classroomRelation.archived_at) {
+    return NextResponse.json({ error: 'Classroom is archived' }, { status: 403 })
   }
 
   const max = Number(quiz.points_possible ?? 100)

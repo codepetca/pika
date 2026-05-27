@@ -1,5 +1,5 @@
 import { format, parse } from 'date-fns'
-import { toZonedTime, fromZonedTime } from 'date-fns-tz'
+import { toZonedTime, fromZonedTime, formatInTimeZone } from 'date-fns-tz'
 
 const TIMEZONE = 'America/Toronto'
 
@@ -64,5 +64,5 @@ export function isOnTime(updatedAt: Date, dateString: string): boolean {
  * Gets today's date in Toronto timezone as YYYY-MM-DD
  */
 export function getTodayInToronto(): string {
-  return formatDateInToronto(nowInToronto())
+  return formatInTimeZone(new Date(), TIMEZONE, 'yyyy-MM-dd')
 }

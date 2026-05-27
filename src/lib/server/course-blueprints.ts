@@ -362,6 +362,12 @@ export async function syncCourseBlueprintAssignments(
 
   const creates = assignments.filter((assignment) => !assignment.id)
   const updates = assignments.filter((assignment) => assignment.id)
+  const existingIds = new Set((existingAssignments || []).map((assignment) => assignment.id as string))
+  const unknownUpdate = updates.find((assignment) => !existingIds.has(assignment.id!))
+  if (unknownUpdate) {
+    return { ok: false as const, status: 400, error: 'Cannot update unknown blueprint assignment' }
+  }
+
   const incomingIds = new Set(updates.map((assignment) => assignment.id!))
   const deleteIds = (existingAssignments || [])
     .map((assignment) => assignment.id as string)
@@ -450,8 +456,36 @@ export async function syncCourseBlueprintAssessments(
 
   const creates = assessments.filter((assessment) => !assessment.id)
   const updates = assessments.filter((assessment) => assessment.id)
+  const existingAssessmentTypesById = new Map(
+    (existingAssessments || []).map((assessment) => [
+      assessment.id as string,
+      assessment.assessment_type as 'quiz' | 'test',
+    ])
+  )
+  const unknownUpdate = updates.find((assessment) => !existingAssessmentTypesById.has(assessment.id!))
+  if (unknownUpdate) {
+    return { ok: false as const, status: 400, error: 'Cannot update unknown blueprint assessment' }
+  }
+
   const incomingIds = new Set(updates.map((assessment) => assessment.id!))
   const replaceTypes = options?.replaceTypes ? new Set(options.replaceTypes) : null
+  const outOfScopeUpdate = replaceTypes
+    ? updates.find((assessment) => !replaceTypes.has(existingAssessmentTypesById.get(assessment.id!)!))
+    : undefined
+  if (outOfScopeUpdate) {
+    return {
+      ok: false as const,
+      status: 400,
+      error: 'Cannot update a blueprint assessment outside the selected assessment type',
+    }
+  }
+  const typeChange = updates.find(
+    (assessment) => existingAssessmentTypesById.get(assessment.id!) !== assessment.assessment_type
+  )
+  if (typeChange) {
+    return { ok: false as const, status: 400, error: 'Cannot change blueprint assessment type during bulk sync' }
+  }
+
   const deleteIds = (existingAssessments || [])
     .filter((assessment) => {
       const assessmentType = assessment.assessment_type as 'quiz' | 'test'
@@ -526,6 +560,12 @@ export async function syncCourseBlueprintLessonTemplates(
 
   const creates = lessonTemplates.filter((lesson) => !lesson.id)
   const updates = lessonTemplates.filter((lesson) => lesson.id)
+  const existingIds = new Set((existingLessons || []).map((lesson) => lesson.id as string))
+  const unknownUpdate = updates.find((lesson) => !existingIds.has(lesson.id!))
+  if (unknownUpdate) {
+    return { ok: false as const, status: 400, error: 'Cannot update unknown lesson template' }
+  }
+
   const incomingIds = new Set(updates.map((lesson) => lesson.id!))
   const deleteIds = (existingLessons || [])
     .map((lesson) => lesson.id as string)

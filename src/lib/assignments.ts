@@ -113,6 +113,14 @@ export function isAssignmentAlreadyReturnedWithoutResubmission(
   return new Date(doc.submitted_at).getTime() <= new Date(fullReturnAt).getTime()
 }
 
+export function canUnsubmitAssignmentDoc(
+  doc: AssignmentReturnDoc | null | undefined
+): boolean {
+  if (!doc?.is_submitted) return false
+
+  return !getAssignmentFullReturnAt(doc)
+}
+
 /**
  * Calculate the status of an assignment for a student
  *

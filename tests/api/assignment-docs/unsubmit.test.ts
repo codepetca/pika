@@ -94,7 +94,15 @@ describe('POST /api/assignment-docs/[id]/unsubmit', () => {
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
             single: vi.fn().mockResolvedValue({
-              data: { id: 'doc-1', student_id: 'student-1', assignment_id: 'assign-1' },
+              data: {
+                id: 'doc-1',
+                student_id: 'student-1',
+                assignment_id: 'assign-1',
+                is_submitted: true,
+                submitted_at: '2026-05-01T12:00:00.000Z',
+                returned_at: null,
+                teacher_cleared_at: null,
+              },
               error: null,
             }),
           })),
@@ -119,5 +127,55 @@ describe('POST /api/assignment-docs/[id]/unsubmit', () => {
 
     const response = await POST(request, { params: { id: 'assign-1' } })
     expect(response.status).toBe(200)
+  })
+
+  it('rejects unsubmit after a returned assignment has been resubmitted', async () => {
+    const update = vi.fn()
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'assign-1', classroom_id: 'class-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: 'doc-1',
+                student_id: 'student-1',
+                assignment_id: 'assign-1',
+                is_submitted: true,
+                submitted_at: '2026-05-02T12:00:00.000Z',
+                returned_at: '2026-05-01T12:00:00.000Z',
+                teacher_cleared_at: '2026-05-01T12:00:00.000Z',
+              },
+              error: null,
+            }),
+          })),
+          update,
+        }
+      }
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-1/unsubmit', {
+      method: 'POST',
+    })
+
+    const response = await POST(request, { params: { id: 'assign-1' } })
+    const body = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(body.error).toBe('Returned submissions cannot be unsubmitted')
+    expect(update).not.toHaveBeenCalled()
   })
 })

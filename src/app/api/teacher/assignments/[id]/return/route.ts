@@ -7,6 +7,7 @@ import {
   getAssignmentRubricState,
   isAssignmentAlreadyReturnedWithoutResubmission,
 } from '@/lib/assignments'
+import { loadTeacherOwnedAssignmentForGrade } from '@/lib/server/assignment-grades'
 import { isMissingAssignmentTeacherClearedAtColumnError } from '@/lib/server/assignments'
 
 export const dynamic = 'force-dynamic'
@@ -77,20 +78,11 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
 
   const supabase = getServiceRoleClient()
 
-  // Verify teacher owns this assignment
-  const { data: assignment, error: assignmentError } = await supabase
-    .from('assignments')
-    .select('*, classrooms!inner(teacher_id)')
-    .eq('id', id)
-    .single()
-
-  if (assignmentError || !assignment) {
-    return NextResponse.json({ error: 'Assignment not found' }, { status: 404 })
-  }
-
-  if (assignment.classrooms.teacher_id !== user.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
+  const assignment = await loadTeacherOwnedAssignmentForGrade({
+    supabase,
+    assignmentId: id,
+    teacherId: user.id,
+  })
 
   const { data: docs, error: docsError } = await supabase
     .from('assignment_docs')

@@ -3,6 +3,7 @@ import { render, screen, act } from '@testing-library/react'
 import { useState } from 'react'
 import {
   ThreePanelProvider,
+  useMobileDrawer,
   useRightSidebar,
 } from '@/components/layout/ThreePanelProvider'
 import type { RouteKey } from '@/lib/layout-config'
@@ -41,6 +42,26 @@ function SidebarStatus() {
       <span data-testid="open">{String(isOpen)}</span>
     </div>
   )
+}
+
+function MobileDrawerStatus() {
+  const { isLeftOpen, openLeft } = useMobileDrawer()
+
+  return (
+    <div>
+      <button onClick={openLeft}>open-left-drawer</button>
+      <span data-testid="mobile-left-open">{String(isLeftOpen)}</span>
+    </div>
+  )
+}
+
+function setViewportWidth(width: number) {
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    writable: true,
+    value: width,
+  })
+  window.dispatchEvent(new Event('resize'))
 }
 
 describe('ThreePanelProvider right sidebar sync on routeKey change', () => {
@@ -149,5 +170,27 @@ describe('ThreePanelProvider right sidebar sync on routeKey change', () => {
 
     expect(screen.getByTestId('enabled').textContent).toBe('false')
     expect(screen.getByTestId('open').textContent).toBe('false')
+  })
+
+  it('closes mobile drawer state when crossing to the desktop breakpoint', () => {
+    act(() => {
+      setViewportWidth(390)
+    })
+
+    render(
+      <ThreePanelProvider routeKey="attendance" initialLeftExpanded={false}>
+        <MobileDrawerStatus />
+      </ThreePanelProvider>,
+    )
+
+    act(() => {
+      screen.getByText('open-left-drawer').click()
+    })
+    expect(screen.getByTestId('mobile-left-open').textContent).toBe('true')
+
+    act(() => {
+      setViewportWidth(1024)
+    })
+    expect(screen.getByTestId('mobile-left-open').textContent).toBe('false')
   })
 })

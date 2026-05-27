@@ -14,6 +14,8 @@ vi.mock('@/lib/supabase', () => ({
 
 vi.mock('@/lib/crypto', () => ({
   verifyCode: vi.fn(async (code: string, hash: string) => code === 'ABC12' && hash === 'hashed_ABC12'),
+  generateHandoffToken: vi.fn(() => 'signup-handoff-token-abcdefghijklmnopqrstuvwxyz1234567890'),
+  hashHandoffToken: vi.fn((token: string) => `hashed_${token}`),
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
@@ -145,10 +147,17 @@ describe('POST /api/auth/verify-signup', () => {
       expect(data.error).toBe('Invalid or expired code')
     })
 
-    it('should verify code and mark email as verified', async () => {
-      const mockUpdate = vi.fn(() => ({
+    it('should verify code and issue a password handoff token', async () => {
+      const userUpdate = vi.fn(() => ({
         eq: vi.fn().mockResolvedValue({ error: null }),
       }))
+      const codeUpdateBuilder: any = {
+        eq: vi.fn(() => codeUpdateBuilder),
+        is: vi.fn(() => codeUpdateBuilder),
+        select: vi.fn(() => codeUpdateBuilder),
+        maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'code-1' }, error: null }),
+      }
+      const codeUpdate = vi.fn(() => codeUpdateBuilder)
 
       const mockFrom = vi.fn((table: string) => {
         if (table === 'users') {
@@ -161,7 +170,7 @@ describe('POST /api/auth/verify-signup', () => {
                 }),
               })),
             })),
-            update: mockUpdate,
+            update: userUpdate,
           }
         } else if (table === 'verification_codes') {
           return {
@@ -180,7 +189,7 @@ describe('POST /api/auth/verify-signup', () => {
                 error: null,
               }),
             })),
-            update: mockUpdate,
+            update: codeUpdate,
           }
         }
       })
@@ -199,7 +208,15 @@ describe('POST /api/auth/verify-signup', () => {
         success: true,
         message: 'Email verified successfully',
         userId: 'user-1',
+        handoffToken: 'signup-handoff-token-abcdefghijklmnopqrstuvwxyz1234567890',
       })
+      expect(codeUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        used_at: expect.any(String),
+        handoff_token_hash: 'hashed_signup-handoff-token-abcdefghijklmnopqrstuvwxyz1234567890',
+        handoff_expires_at: expect.any(String),
+        handoff_consumed_at: null,
+      }))
+      expect(userUpdate).toHaveBeenCalledWith({ email_verified_at: expect.any(String) })
     })
   })
 })

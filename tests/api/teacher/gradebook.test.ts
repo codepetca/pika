@@ -525,7 +525,7 @@ describe('GET /api/teacher/gradebook', () => {
     expect(body.students[0].final_percent).toBe(50)
   })
 
-  it('returns 500 when gradebook settings cannot be loaded', async () => {
+  it('does not load legacy category settings for gradebook calculations', async () => {
     ;(mockSupabaseClient.from as any) = buildMockFrom({
       settingsError: { message: 'database unavailable' },
     })
@@ -534,8 +534,14 @@ describe('GET /api/teacher/gradebook', () => {
     const response = await GET(request)
     const body = await response.json()
 
-    expect(response.status).toBe(500)
-    expect(body.error).toBe('Failed to load gradebook settings')
+    expect(response.status).toBe(200)
+    expect(body.settings).toEqual({
+      use_weights: false,
+      assignments_weight: 50,
+      quizzes_weight: 20,
+      tests_weight: 30,
+    })
+    expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('gradebook_settings')
   })
 
   it('includes all assignments (graded/ungraded/future) in selected student details by assignment order', async () => {
@@ -842,7 +848,7 @@ describe('PATCH /api/teacher/gradebook', () => {
     vi.clearAllMocks()
   })
 
-  it('allows non-100 weights when use_weights is false', async () => {
+  it('rejects legacy category settings updates', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classrooms') {
         return {
@@ -850,19 +856,6 @@ describe('PATCH /api/teacher/gradebook', () => {
             eq: vi.fn(() => ({
               single: vi.fn().mockResolvedValue({
                 data: { id: 'c1', teacher_id: 'teacher-1', archived_at: null },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'gradebook_settings') {
-        return {
-          upsert: vi.fn(() => ({
-            select: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { use_weights: false, assignments_weight: 10, quizzes_weight: 20, tests_weight: 30 },
                 error: null,
               }),
             })),
@@ -887,13 +880,9 @@ describe('PATCH /api/teacher/gradebook', () => {
     const response = await PATCH(request)
     const body = await response.json()
 
-    expect(response.status).toBe(200)
-    expect(body.settings).toEqual({
-      use_weights: false,
-      assignments_weight: 10,
-      quizzes_weight: 20,
-      tests_weight: 30,
-    })
+    expect(response.status).toBe(410)
+    expect(body.error).toBe('Category gradebook weights are retired; update assessment weights instead')
+    expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('gradebook_settings')
   })
 
   it('updates an individual assessment weight', async () => {
@@ -948,5 +937,48 @@ describe('PATCH /api/teacher/gradebook', () => {
       assessment_type: 'assignment',
       weight: 20,
     })
+  })
+
+  it('rejects assessment weight updates for archived classrooms', async () => {
+    const update = vi.fn()
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'c1', teacher_id: 'teacher-1', archived_at: '2026-05-01T12:00:00.000Z' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'assignments') {
+        return { update }
+      }
+
+      throw new Error(`Unexpected table in test: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        classroom_id: 'c1',
+        assessment_type: 'assignment',
+        assessment_id: 'a1',
+        gradebook_weight: 20,
+      }),
+    })
+
+    const response = await PATCH(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(body.error).toBe('Classroom is archived')
+    expect(update).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('assignments')
   })
 })

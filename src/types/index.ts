@@ -25,6 +25,9 @@ export interface VerificationCode {
   expires_at: string
   attempts: number
   used_at: string | null
+  handoff_token_hash: string | null
+  handoff_expires_at: string | null
+  handoff_consumed_at: string | null
   created_at: string
 }
 

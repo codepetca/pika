@@ -6,7 +6,8 @@ const { getAssignmentAiGradingRunSummary, tickAssignmentAiGradingRun } = vi.hois
   tickAssignmentAiGradingRun: vi.fn(),
 }))
 
-const { assertTeacherOwnsAssignment } = vi.hoisted(() => ({
+const { assertTeacherCanMutateAssignment, assertTeacherOwnsAssignment } = vi.hoisted(() => ({
+  assertTeacherCanMutateAssignment: vi.fn(),
   assertTeacherOwnsAssignment: vi.fn(),
 }))
 
@@ -15,6 +16,7 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('@/lib/server/repo-review', () => ({
+  assertTeacherCanMutateAssignment,
   assertTeacherOwnsAssignment,
 }))
 
@@ -33,6 +35,11 @@ describe('assignment auto-grade run routes', () => {
       id: 'assignment-1',
       classroom_id: 'classroom-1',
       classrooms: { teacher_id: 'teacher-1' },
+    })
+    assertTeacherCanMutateAssignment.mockResolvedValue({
+      id: 'assignment-1',
+      classroom_id: 'classroom-1',
+      classrooms: { teacher_id: 'teacher-1', archived_at: null },
     })
   })
 

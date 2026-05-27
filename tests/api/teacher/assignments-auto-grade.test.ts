@@ -11,8 +11,8 @@ const {
   markAssignmentDocMissingGrade: vi.fn(),
 }))
 
-const { assertTeacherOwnsAssignment } = vi.hoisted(() => ({
-  assertTeacherOwnsAssignment: vi.fn(),
+const { assertTeacherCanMutateAssignment } = vi.hoisted(() => ({
+  assertTeacherCanMutateAssignment: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase', () => ({
@@ -34,7 +34,7 @@ vi.mock('@/lib/server/assignment-ai-grading-runs', () => ({
 }))
 
 vi.mock('@/lib/server/repo-review', () => ({
-  assertTeacherOwnsAssignment,
+  assertTeacherCanMutateAssignment,
 }))
 
 import { POST } from '@/app/api/teacher/assignments/[id]/auto-grade/route'
@@ -79,7 +79,7 @@ function mockAutoGradeTables(opts: {
 describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    assertTeacherOwnsAssignment.mockResolvedValue({
+    assertTeacherCanMutateAssignment.mockResolvedValue({
       id: 'assignment-1',
       classroom_id: 'classroom-1',
       title: 'Portfolio Site',

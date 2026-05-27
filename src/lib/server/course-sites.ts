@@ -66,6 +66,10 @@ export type PublishedCourseSiteGradingSummary = {
   items: PublishedCourseSiteGradingItem[]
 }
 
+type WeightedPublishedCourseSiteGradingItem = PublishedCourseSiteGradingItem & {
+  assessment_weight: number
+}
+
 export type PublishedActualCourseSiteData = {
   classroom: Classroom
   resources: ClassroomResources | null
@@ -186,64 +190,9 @@ function getNumber(value: unknown, fallback: number | null = null) {
   return fallback
 }
 
-function isMissingGradebookSettingsTableError(error: any) {
-  const text = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase()
-  return error?.code === 'PGRST205' || text.includes('gradebook_settings') || text.includes('could not find the table')
-}
-
-function mentionsMissingGradebookField(error: any, field: string) {
-  const text = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase()
-  return text.includes(field.toLowerCase()) && (
-    error?.code === '42703' ||
-    error?.code === 'PGRST204' ||
-    text.includes('column')
-  )
-}
-
-async function loadCourseSiteGradebookSettings(classroomId: string) {
-  const supabase = getSupabase()
-  const { data, error } = await supabase
-    .from('gradebook_settings')
-    .select('use_weights, assignments_weight, quizzes_weight, tests_weight')
-    .eq('classroom_id', classroomId)
-    .maybeSingle()
-
-  if (!error) {
-    return {
-      use_weights: !!data?.use_weights,
-      assignments_weight: getNumber(data?.assignments_weight, 50) ?? 50,
-      quizzes_weight: getNumber(data?.quizzes_weight, 20) ?? 20,
-      tests_weight: getNumber(data?.tests_weight, 30) ?? 30,
-    }
-  }
-
-  if (mentionsMissingGradebookField(error, 'tests_weight')) {
-    const { data: legacyData, error: legacyError } = await supabase
-      .from('gradebook_settings')
-      .select('use_weights, assignments_weight, quizzes_weight')
-      .eq('classroom_id', classroomId)
-      .maybeSingle()
-
-    if (!legacyError) {
-      return {
-        use_weights: !!legacyData?.use_weights,
-        assignments_weight: getNumber(legacyData?.assignments_weight, 70) ?? 70,
-        quizzes_weight: getNumber(legacyData?.quizzes_weight, 30) ?? 30,
-        tests_weight: 0,
-      }
-    }
-  }
-
-  if (!isMissingGradebookSettingsTableError(error)) {
-    console.error('Error loading course site gradebook settings:', error)
-  }
-
-  return {
-    use_weights: false,
-    assignments_weight: 50,
-    quizzes_weight: 20,
-    tests_weight: 30,
-  }
+function getAssessmentWeight(value: unknown) {
+  const parsed = getNumber(value, 10) ?? 10
+  return parsed > 0 ? parsed : 10
 }
 
 function getTestPointsPossible(test: Record<string, any>) {
@@ -258,18 +207,18 @@ function getTestPointsPossible(test: Record<string, any>) {
 }
 
 function buildCourseSiteGradingSummary(
-  settings: Awaited<ReturnType<typeof loadCourseSiteGradebookSettings>>,
   assignments: Array<Record<string, any>>,
   quizzes: Array<Record<string, any>>,
   tests: Array<Record<string, any>>
 ): PublishedCourseSiteGradingSummary | null {
-  const items: PublishedCourseSiteGradingItem[] = [
+  const items: WeightedPublishedCourseSiteGradingItem[] = [
     ...assignments.map((assignment, index) => ({
       key: `assignment:${assignment.position ?? index}:${assignment.title}`,
       category: 'assignments' as const,
       category_label: 'Assignments',
       title: String(assignment.title || 'Untitled assignment'),
       points_possible: getNumber(assignment.points_possible, null),
+      assessment_weight: getAssessmentWeight(assignment.gradebook_weight),
       include_in_final: assignment.include_in_final !== false,
       course_weight_percent: null,
       category_weight_percent: null,
@@ -280,6 +229,7 @@ function buildCourseSiteGradingSummary(
       category_label: 'Quizzes',
       title: String(quiz.title || 'Untitled quiz'),
       points_possible: getNumber(quiz.points_possible, 100),
+      assessment_weight: getAssessmentWeight(quiz.gradebook_weight),
       include_in_final: quiz.include_in_final !== false,
       course_weight_percent: null,
       category_weight_percent: null,
@@ -290,6 +240,7 @@ function buildCourseSiteGradingSummary(
       category_label: 'Tests',
       title: String(test.title || 'Untitled test'),
       points_possible: getTestPointsPossible(test),
+      assessment_weight: getAssessmentWeight(test.gradebook_weight),
       include_in_final: test.include_in_final !== false,
       course_weight_percent: null,
       category_weight_percent: null,
@@ -310,13 +261,18 @@ function buildCourseSiteGradingSummary(
       .filter((item) => item.category === 'tests')
       .reduce((sum, item) => sum + Number(item.points_possible), 0),
   }
-  const totalPoints = categoryPoints.assignments + categoryPoints.quizzes + categoryPoints.tests
-
-  const configuredWeights = {
-    assignments: settings.assignments_weight,
-    quizzes: settings.quizzes_weight,
-    tests: settings.tests_weight,
+  const categoryWeights = {
+    assignments: includedItems
+      .filter((item) => item.category === 'assignments')
+      .reduce((sum, item) => sum + item.assessment_weight, 0),
+    quizzes: includedItems
+      .filter((item) => item.category === 'quizzes')
+      .reduce((sum, item) => sum + item.assessment_weight, 0),
+    tests: includedItems
+      .filter((item) => item.category === 'tests')
+      .reduce((sum, item) => sum + item.assessment_weight, 0),
   }
+  const totalWeight = categoryWeights.assignments + categoryWeights.quizzes + categoryWeights.tests
 
   const categories = ([
     ['assignments', 'Assignments'],
@@ -326,11 +282,7 @@ function buildCourseSiteGradingSummary(
     .reduce<PublishedCourseSiteGradingCategory[]>((next, [id, label]) => {
       const points = categoryPoints[id]
       if (points <= 0) return next
-      const weight = settings.use_weights
-        ? configuredWeights[id]
-        : totalPoints > 0
-          ? (points / totalPoints) * 100
-          : null
+      const weight = totalWeight > 0 ? (categoryWeights[id] / totalWeight) * 100 : null
       next.push({
         id,
         label,
@@ -342,18 +294,14 @@ function buildCourseSiteGradingSummary(
     }, [])
 
   const weightedItems = items.map((item) => {
-    if (!item.include_in_final || item.points_possible == null || item.points_possible <= 0) return item
+    const { assessment_weight, ...publicItem } = item
+    if (!item.include_in_final || item.points_possible == null || item.points_possible <= 0) return publicItem
     const points = Number(item.points_possible)
-    const pointsInCategory = categoryPoints[item.category]
-    const categoryWeight = settings.use_weights
-      ? configuredWeights[item.category]
-      : totalPoints > 0
-        ? (pointsInCategory / totalPoints) * 100
-        : 0
-    const categoryWeightPercent = pointsInCategory > 0 ? (points / pointsInCategory) * 100 : null
-    const courseWeightPercent = pointsInCategory > 0 ? categoryWeight * (points / pointsInCategory) : null
+    const weightInCategory = categoryWeights[item.category]
+    const categoryWeightPercent = weightInCategory > 0 ? (assessment_weight / weightInCategory) * 100 : null
+    const courseWeightPercent = totalWeight > 0 ? (assessment_weight / totalWeight) * 100 : null
     return {
-      ...item,
+      ...publicItem,
       points_possible: roundCourseWeight(points),
       course_weight_percent: courseWeightPercent == null ? null : roundCourseWeight(courseWeightPercent),
       category_weight_percent: categoryWeightPercent == null ? null : roundCourseWeight(categoryWeightPercent),
@@ -361,8 +309,8 @@ function buildCourseSiteGradingSummary(
   })
 
   return {
-    mode: settings.use_weights ? 'weighted' : 'points',
-    mode_label: settings.use_weights ? 'Weighted by category' : 'Points-based grading',
+    mode: 'weighted',
+    mode_label: 'Weighted by assessment',
     categories,
     items: weightedItems,
   }
@@ -415,7 +363,6 @@ export async function getPublishedActualCourseSite(
   const assignments = sourceResult.source.assignments.filter((assignment) => !assignment.is_draft)
   const quizzes = sourceResult.source.quizzes
   const tests = sourceResult.source.tests
-  const gradebookSettings = await loadCourseSiteGradebookSettings(classroom.id)
 
   return {
     ok: true,
@@ -426,7 +373,7 @@ export async function getPublishedActualCourseSite(
       assignments,
       quizzes,
       tests,
-      grading: buildCourseSiteGradingSummary(gradebookSettings, assignments, quizzes, tests),
+      grading: buildCourseSiteGradingSummary(assignments, quizzes, tests),
       lesson_plans: sourceResult.source.lesson_templates.filter((lesson) => {
         if (!maxLessonDate) return true
         const match = lesson.title.match(/\((\d{4}-\d{2}-\d{2})\)$/)
