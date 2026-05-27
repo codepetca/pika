@@ -7,26 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Auth password handoff binding
-
-**Completed:**
-- Bound signup password creation and password reset confirmation to short-lived one-time handoff tokens issued only after code verification.
-- Stored only hashed handoff tokens on `verification_codes`, with expiry and consumed timestamps guarded by a filtered update.
-- Passed signup handoff tokens through `sessionStorage` instead of URL query strings and kept reset handoff tokens in page state.
-- Added migration `076_add_auth_handoff_tokens.sql` plus auth API and crypto coverage for missing, invalid/reused, and valid token paths.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/crypto.test.ts tests/api/auth/verify-signup.test.ts tests/api/auth/create-password.test.ts tests/api/auth/reset-password/verify.test.ts tests/api/auth/reset-password/confirm.test.ts`
-- `pnpm tsc --noEmit`
-- `pnpm test tests/api/auth`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test tests/unit/migration-filenames.test.ts`
-- `pnpm test`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-
 ## 2026-05-26 — Request cache invalidation races
 
 **Completed:**
@@ -355,3 +335,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3015 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests&testId=210e30d4-f085-4c86-94d3-ee14bb66fd03&testMode=authoring'`
 - `E2E_BASE_URL=http://localhost:3015 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
 - Reviewed screenshots: `/tmp/pika-test-question-editor-teacher-fixed.png`, `/tmp/pika-test-question-editor-teacher-mobile-fixed.png`, `/tmp/pika-survey-code-editor-teacher.png`, `/tmp/pika-survey-code-editor-teacher-mobile.png`, plus teacher/student/teacher-mobile captures from the verifier.
+
+## 2026-05-27 — Teacher assessment enrollment scoping
+
+**Completed:**
+- Scoped teacher quiz result aggregates and responder hydration to current classroom enrollments.
+- Scoped teacher survey result aggregates, text/link responses, and responder hydration to current classroom enrollments.
+- Scoped teacher quiz and survey list response stats to enrolled student IDs before counting respondents.
+- Added paginated enrollment ID loading to avoid Supabase row-cap truncation.
+- Added fail-closed enrollment/response-stat query handling and regressions with stale/unenrolled response rows.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/api/teacher/quizzes-results.test.ts tests/api/teacher/quizzes-route.test.ts tests/api/teacher/surveys-route.test.ts tests/api/teacher/surveys-results.test.ts --reporter=verbose`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm run test:coverage`
+- `pnpm build`
+- `git diff --check`
