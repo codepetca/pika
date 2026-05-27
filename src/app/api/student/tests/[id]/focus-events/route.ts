@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { summarizeQuizFocusEvents } from '@/lib/quizzes'
-import { assertStudentCanAccessTest } from '@/lib/server/tests'
+import {
+  assertStudentCanAccessTest,
+  getEffectiveStudentTestAccess,
+  getTestStudentAvailabilityState,
+} from '@/lib/server/tests'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
@@ -51,13 +55,6 @@ export const POST = withErrorHandler('PostStudentTestFocusEvent', async (request
 
   const supabase = getServiceRoleClient()
 
-  if (test.status !== 'active') {
-    return NextResponse.json(
-      { error: 'Focus telemetry is only available while the test is active' },
-      { status: 400 }
-    )
-  }
-
   const { data: existingAttempt, error: existingAttemptError } = await supabase
     .from('test_attempts')
     .select('id, is_submitted')
@@ -74,6 +71,31 @@ export const POST = withErrorHandler('PostStudentTestFocusEvent', async (request
     return NextResponse.json(
       { error: 'Focus telemetry is only available before submitting the test' },
       { status: 400 }
+    )
+  }
+
+  const availabilityResult = await getTestStudentAvailabilityState(supabase, testId, user.id)
+  if (availabilityResult.error && !availabilityResult.missingTable) {
+    console.error('Error fetching student test access for focus event:', availabilityResult.error)
+    return NextResponse.json({ error: 'Failed to save focus event' }, { status: 500 })
+  }
+  const accessState = getEffectiveStudentTestAccess({
+    testStatus: test.status,
+    accessState: availabilityResult.state,
+    hasSubmitted: existingAttempt?.is_submitted === true,
+  })
+
+  if (!accessState.can_start_or_continue) {
+    if (accessState.access_source !== 'student') {
+      return NextResponse.json(
+        { error: 'Focus telemetry is only available while the test is active' },
+        { status: 400 }
+      )
+    }
+
+    return NextResponse.json(
+      { error: 'Focus telemetry is only available while the test is open for you' },
+      { status: 403 }
     )
   }
 
