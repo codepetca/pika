@@ -52,6 +52,27 @@ vi.mock('@/lib/server/test-ai-grading-runs', () => ({
 
 const mockSupabaseClient = { from: vi.fn() }
 
+type TestResponseFixture = { student_id: string } & Record<string, unknown>
+
+function mockTestResponsesQuery(
+  rows: TestResponseFixture[],
+  onStudentIds?: (studentIds: string[]) => void
+) {
+  return {
+    select: vi.fn(() => ({
+      eq: vi.fn().mockReturnThis(),
+      in: vi.fn((column: string, studentIds: string[]) => {
+        expect(column).toBe('student_id')
+        onStudentIds?.(studentIds)
+        return Promise.resolve({
+          data: rows.filter((row) => studentIds.includes(row.student_id)),
+          error: null,
+        })
+      }),
+    })),
+  }
+}
+
 describe('GET /api/teacher/tests/[id]/results', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -85,28 +106,21 @@ describe('GET /api/teacher/tests/[id]/results', () => {
       }
 
       if (table === 'test_responses') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  id: 'response-1',
-                  test_id: 'test-1',
-                  question_id: 'question-1',
-                  student_id: 'student-1',
-                  selected_option: 0,
-                  response_text: null,
-                  score: 1,
-                  feedback: null,
-                  graded_at: null,
-                  graded_by: null,
-                  submitted_at: '2026-01-01T00:00:00.000Z',
-                },
-              ],
-              error: null,
-            }),
-          })),
-        }
+        return mockTestResponsesQuery([
+          {
+            id: 'response-1',
+            test_id: 'test-1',
+            question_id: 'question-1',
+            student_id: 'student-1',
+            selected_option: 0,
+            response_text: null,
+            score: 1,
+            feedback: null,
+            graded_at: null,
+            graded_by: null,
+            submitted_at: '2026-01-01T00:00:00.000Z',
+          },
+        ])
       }
 
       if (table === 'classroom_enrollments') {
@@ -199,6 +213,8 @@ describe('GET /api/teacher/tests/[id]/results', () => {
   })
 
   it('ignores unenrolled response rows in result aggregates and open-response counts', async () => {
+    let testResponseStudentIds: string[] | null = null
+
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_questions') {
         return {
@@ -236,67 +252,65 @@ describe('GET /api/teacher/tests/[id]/results', () => {
       }
 
       if (table === 'test_responses') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  id: 'response-enrolled-mc',
-                  test_id: 'test-1',
-                  question_id: 'question-mc-1',
-                  student_id: 'student-1',
-                  selected_option: 0,
-                  response_text: null,
-                  score: 1,
-                  feedback: null,
-                  graded_at: null,
-                  graded_by: null,
-                  submitted_at: '2026-01-01T00:00:00.000Z',
-                },
-                {
-                  id: 'response-enrolled-open',
-                  test_id: 'test-1',
-                  question_id: 'question-open-1',
-                  student_id: 'student-1',
-                  selected_option: null,
-                  response_text: 'Partially answered',
-                  score: null,
-                  feedback: null,
-                  graded_at: null,
-                  graded_by: null,
-                  submitted_at: '2026-01-01T00:00:00.000Z',
-                },
-                {
-                  id: 'response-outside-mc',
-                  test_id: 'test-1',
-                  question_id: 'question-mc-1',
-                  student_id: 'student-outside',
-                  selected_option: 1,
-                  response_text: null,
-                  score: 0,
-                  feedback: null,
-                  graded_at: null,
-                  graded_by: null,
-                  submitted_at: '2026-01-01T00:00:00.000Z',
-                },
-                {
-                  id: 'response-outside-open',
-                  test_id: 'test-1',
-                  question_id: 'question-open-1',
-                  student_id: 'student-outside',
-                  selected_option: null,
-                  response_text: 'Outside response',
-                  score: 5,
-                  feedback: 'Good',
-                  graded_at: '2026-01-01T00:10:00.000Z',
-                  graded_by: 'teacher-1',
-                  submitted_at: '2026-01-01T00:00:00.000Z',
-                },
-              ],
-              error: null,
-            }),
-          })),
-        }
+        return mockTestResponsesQuery(
+          [
+            {
+              id: 'response-enrolled-mc',
+              test_id: 'test-1',
+              question_id: 'question-mc-1',
+              student_id: 'student-1',
+              selected_option: 0,
+              response_text: null,
+              score: 1,
+              feedback: null,
+              graded_at: null,
+              graded_by: null,
+              submitted_at: '2026-01-01T00:00:00.000Z',
+            },
+            {
+              id: 'response-enrolled-open',
+              test_id: 'test-1',
+              question_id: 'question-open-1',
+              student_id: 'student-1',
+              selected_option: null,
+              response_text: 'Partially answered',
+              score: null,
+              feedback: null,
+              graded_at: null,
+              graded_by: null,
+              submitted_at: '2026-01-01T00:00:00.000Z',
+            },
+            {
+              id: 'response-outside-mc',
+              test_id: 'test-1',
+              question_id: 'question-mc-1',
+              student_id: 'student-outside',
+              selected_option: 1,
+              response_text: null,
+              score: 0,
+              feedback: null,
+              graded_at: null,
+              graded_by: null,
+              submitted_at: '2026-01-01T00:00:00.000Z',
+            },
+            {
+              id: 'response-outside-open',
+              test_id: 'test-1',
+              question_id: 'question-open-1',
+              student_id: 'student-outside',
+              selected_option: null,
+              response_text: 'Outside response',
+              score: 5,
+              feedback: 'Good',
+              graded_at: '2026-01-01T00:10:00.000Z',
+              graded_by: 'teacher-1',
+              submitted_at: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+          (studentIds) => {
+            testResponseStudentIds = studentIds
+          }
+        )
       }
 
       if (table === 'classroom_enrollments') {
@@ -376,6 +390,7 @@ describe('GET /api/teacher/tests/[id]/results', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
+    expect(testResponseStudentIds).toEqual(['student-1'])
     expect(data.students).toHaveLength(1)
     expect(data.students[0].student_id).toBe('student-1')
     expect(data.students[0].answers).not.toHaveProperty('student-outside')
@@ -420,14 +435,7 @@ describe('GET /api/teacher/tests/[id]/results', () => {
       }
 
       if (table === 'test_responses') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [],
-              error: null,
-            }),
-          })),
-        }
+        return mockTestResponsesQuery([])
       }
 
       if (table === 'classroom_enrollments') {
@@ -574,14 +582,7 @@ describe('GET /api/teacher/tests/[id]/results', () => {
       }
 
       if (table === 'test_responses') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [],
-              error: null,
-            }),
-          })),
-        }
+        return mockTestResponsesQuery([])
       }
 
       if (table === 'classroom_enrollments') {

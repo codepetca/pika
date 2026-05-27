@@ -41,16 +41,6 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
   }
 
-  const { data: responses, error: responsesError } = await supabase
-    .from('test_responses')
-    .select('id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, graded_by, submitted_at')
-    .eq('test_id', testId)
-
-  if (responsesError) {
-    console.error('Error fetching test responses:', responsesError)
-    return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
-  }
-
   const { data: enrollments, error: enrollmentsError } = await supabase
     .from('classroom_enrollments')
     .select('student_id')
@@ -63,6 +53,20 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
 
   const classroomStudentIds = [...new Set((enrollments || []).map((row) => row.student_id))]
   const classroomStudentIdSet = new Set(classroomStudentIds)
+  const { data: responses, error: responsesError } =
+    classroomStudentIds.length > 0
+      ? await supabase
+          .from('test_responses')
+          .select('id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, graded_by, submitted_at')
+          .eq('test_id', testId)
+          .in('student_id', classroomStudentIds)
+      : { data: [], error: null }
+
+  if (responsesError) {
+    console.error('Error fetching test responses:', responsesError)
+    return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
+  }
+
   const enrolledResponses = (responses || []).filter((response) =>
     classroomStudentIdSet.has(response.student_id)
   )
