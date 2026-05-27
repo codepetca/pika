@@ -12,7 +12,7 @@ export const POST = withErrorHandler('PostTeacherTestAutoGradeRunTick', async (r
   const user = await requireRole('teacher')
   const { id: testId, runId } = await context.params
 
-  const access = await assertTeacherOwnsTest(user.id, testId)
+  const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
   }

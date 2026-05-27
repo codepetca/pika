@@ -7,45 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Assignment modal title row cleanup
-
-**Completed:**
-- Moved assignment preview into the title row beside the title and due-date controls.
-- Moved assignment autosave status into the title label row above the textbox.
-- Removed the separate Instructions label above the markdown editor.
-- Moved the required submissions editor above the instructions textarea.
-- Compressed the required submissions empty state into a one-line card with an icon split button for Link, Repo, and Image submissions.
-- Changed the primary split-button label to `+` plus the link icon and `link`.
-- Removed the required-submissions `None` / item-count subline so the card header stays single-line.
-- Hid the per-submission Label and Instructions captions while keeping accessible labels; new submissions show the default label inside the textbox and `Optional helper text` as the helper textbox placeholder.
-- Made required-submission rows draggable from their grip handles and removed the up/down arrow reorder buttons.
-- Stabilized required-submission sortable IDs so rows keep identity during drop animations.
-- Guarded assignment autosave responses so older saves cannot replace newer local required-submission edits while a drag/reorder is in progress.
-- Added a confirmation dialog before removing persisted required submissions; unsaved newly added rows still remove immediately.
-- Switched the required-submissions add control to the shared green `SplitButton` success variant.
-- Updated required-submission split add labels to read `+ Link`, `+ Repo`, and `+ Image` with each type icon after the label.
-- Changed the required-submissions primary add label to `+ Add` and made that primary side open the type dropdown instead of defaulting to a link submission.
-- Replaced the required-submissions image option camera glyph with Lucide's image icon.
-
-**Validation:**
-- `pnpm test tests/components/AssignmentModal.test.tsx`
-- `pnpm test tests/ui/SplitButton.test.tsx tests/components/AssignmentModal.test.tsx`
-- `pnpm lint`
-- `git diff --check`
-- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
-- Modal screenshots: `/tmp/pika-assignment-modal-teacher.png`, `/tmp/pika-assignment-modal-teacher-mobile.png`
-- Required submissions screenshots: `/tmp/pika-assignment-modal-required-submissions.png`, `/tmp/pika-assignment-modal-required-submissions-menu.png`, `/tmp/pika-assignment-modal-required-submissions-mobile.png`, `/tmp/pika-assignment-modal-required-submissions-menu-mobile.png`, `/tmp/pika-assignment-modal-required-submissions-added-desktop.png`, `/tmp/pika-assignment-modal-required-submissions-added-mobile.png`
-- Final required submissions screenshots: `/tmp/pika-assignment-modal-required-submissions-final-desktop.png`, `/tmp/pika-assignment-modal-required-submissions-final-mobile.png`, `/tmp/pika-assignment-modal-required-submissions-final-menu.png`
-- Drag smoke screenshot: `/tmp/pika-assignment-modal-required-submissions-dragged.png`
-- Mobile draggable screenshot: `/tmp/pika-assignment-modal-required-submissions-draggable-mobile.png`
-- Stable drag screenshots: `/tmp/pika-assignment-modal-required-submissions-stable-before.png`, `/tmp/pika-assignment-modal-required-submissions-stable-during.png`, `/tmp/pika-assignment-modal-required-submissions-stable-after.png`
-- Settled student screenshot after UI verify timeout: `/tmp/pika-student-settled.png`
-- Removal confirmation screenshots: `/tmp/pika-teacher-settled.png`, `/tmp/pika-assignment-modal-remove-required-submission-confirm.png`
-- Green split button screenshot: `/tmp/pika-assignment-modal-green-submission-split-desktop.png`
-- Updated green split button label screenshots: `/tmp/pika-assignment-modal-green-submission-split-label-desktop.png`, `/tmp/pika-assignment-modal-green-submission-split-label-mobile.png`
-- Generic add dropdown screenshots: `/tmp/pika-assignment-modal-add-submission-dropdown-desktop.png`, `/tmp/pika-assignment-modal-add-submission-dropdown-mobile.png`
-- Image icon dropdown screenshots: `/tmp/pika-assignment-modal-image-icon-dropdown-desktop.png`, `/tmp/pika-assignment-modal-image-icon-dropdown-mobile.png`
-
 ## 2026-05-26 — Split-button destructive action placement
 
 **Completed:**
@@ -365,3 +326,25 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-05-27 — Phase two systems and UI audit fixes
+
+**Completed:**
+- Blocked teacher entry detail reads across classroom ownership boundaries.
+- Gated snapshot list/file APIs behind the UI gallery flag plus authentication, and marked them dynamic.
+- Made student notification active-test counts respect selected-student availability and grading closure.
+- Required archived-classroom ownership checks for test AI grading run ticks.
+- Removed the roster tab's dead global right-sidebar route and aligned selected-student email actions with the gradebook pattern.
+- Updated focused API/component coverage for each fixed audit finding.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/teacher/entry-id.test.ts`
+- `pnpm test tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
+- `pnpm test tests/api/teacher/test-auto-grade-runs.test.ts tests/api/student/notifications.test.ts tests/components/TeacherRosterTab.test.tsx tests/unit/layout-config.test.ts`
+- `pnpm test tests/components/ThreePanelProvider.test.tsx tests/unit/layout-config.test.ts`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=roster'`
+- Browser selected-row screenshots: `/tmp/pika-roster-selected-desktop.png`, `/tmp/pika-roster-selected-mobile.png`, `/tmp/pika-roster-selected-email-menu-desktop.png`, `/tmp/pika-roster-selected-email-menu-mobile.png`

@@ -6,6 +6,11 @@ import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import { withErrorHandler } from '@/lib/api-handler'
+import {
+  getEffectiveStudentTestAccess,
+  isMissingTestAttemptClosureColumnsError,
+  isMissingTestStudentAvailabilityError,
+} from '@/lib/server/tests'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -139,7 +144,7 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
 
     const { data: activeRows, error: activeError } = await supabase
       .from('tests')
-      .select('id')
+      .select('id, status')
       .eq('classroom_id', classroomId)
       .eq('status', 'active')
 
@@ -181,25 +186,94 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
       respondedIds.add(row.test_id)
     }
 
-    const { data: submittedAttempts, error: attemptsError } = await supabase
-      .from('test_attempts')
-      .select('test_id, is_submitted')
-      .eq('student_id', user.id)
-      .in('test_id', activeIds)
+    type AttemptRow = {
+      test_id: string
+      is_submitted: boolean
+      closed_for_grading_at: string | null
+    }
+    let submittedAttempts: AttemptRow[] | null = null
+    let attemptsError: { code?: string; message?: string; details?: string | null; hint?: string | null } | null = null
+
+    {
+      const latestAttemptsResult = await supabase
+        .from('test_attempts')
+        .select('test_id, is_submitted, closed_for_grading_at')
+        .eq('student_id', user.id)
+        .in('test_id', activeIds)
+
+      submittedAttempts = (latestAttemptsResult.data as AttemptRow[] | null) || null
+      attemptsError = latestAttemptsResult.error
+    }
+
+    if (attemptsError && isMissingTestAttemptClosureColumnsError(attemptsError)) {
+      const legacyAttemptsResult = await supabase
+        .from('test_attempts')
+        .select('test_id, is_submitted')
+        .eq('student_id', user.id)
+        .in('test_id', activeIds)
+
+      submittedAttempts = ((legacyAttemptsResult.data as Array<{ test_id: string; is_submitted: boolean }> | null) || [])
+        .map((attempt) => ({
+          ...attempt,
+          closed_for_grading_at: null,
+        }))
+      attemptsError = legacyAttemptsResult.error
+    }
 
     if (attemptsError && attemptsError.code !== 'PGRST205') {
       console.error('Error fetching test_attempts:', attemptsError)
       return { count: 0, error: true }
     }
 
+    const lockedForGradingIds = new Set<string>()
     for (const attempt of submittedAttempts || []) {
       if (attempt.is_submitted && attempt.test_id) {
         respondedIds.add(attempt.test_id)
       }
+      if (attempt.closed_for_grading_at && attempt.test_id) {
+        lockedForGradingIds.add(attempt.test_id)
+      }
+    }
+
+    const availabilityByTestId = new Map<string, 'open' | 'closed'>()
+    let availabilityRows: Array<{ test_id: string; state: unknown }> | null = null
+    let availabilityError: any = null
+    try {
+      const availabilityResult = await supabase
+        .from('test_student_availability')
+        .select('test_id, state')
+        .eq('student_id', user.id)
+        .in('test_id', activeIds)
+      availabilityRows = availabilityResult.data
+      availabilityError = availabilityResult.error
+    } catch (error) {
+      availabilityError = error
+    }
+
+    const mockMissingAvailability =
+      `${availabilityError?.message || availabilityError || ''}`.includes('Unexpected table: test_student_availability')
+    if (availabilityError && !isMissingTestStudentAvailabilityError(availabilityError) && !mockMissingAvailability) {
+      console.error('Error fetching selected student test access:', availabilityError)
+      return { count: 0, error: true }
+    }
+
+    for (const row of availabilityRows || []) {
+      if (row.state === 'open' || row.state === 'closed') {
+        availabilityByTestId.set(row.test_id, row.state)
+      }
     }
 
     return {
-      count: activeIds.filter((id) => !respondedIds.has(id)).length,
+      count: (activeRows || []).filter((test) => {
+        const access = getEffectiveStudentTestAccess({
+          testStatus: 'active',
+          accessState: availabilityByTestId.get(test.id) ?? null,
+          hasSubmitted: respondedIds.has(test.id),
+          returnedAt: null,
+          isLockedForGrading: lockedForGradingIds.has(test.id),
+        })
+        return access.can_start_or_continue
+      }).length,
       error: false,
     }
   }

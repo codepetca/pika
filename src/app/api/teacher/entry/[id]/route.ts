@@ -11,7 +11,7 @@ export const revalidate = 0
  * Fetches a specific entry (for teacher to view)
  */
 export const GET = withErrorHandler('GetTeacherEntry', async (_request, context) => {
-  await requireRole('teacher')
+  const user = await requireRole('teacher')
 
   const { id } = await context.params
   const supabase = getServiceRoleClient()
@@ -20,7 +20,8 @@ export const GET = withErrorHandler('GetTeacherEntry', async (_request, context)
     .from('entries')
     .select(`
       *,
-      student:users!student_id(email)
+      student:users!student_id(email),
+      classroom:classrooms!inner(teacher_id)
     `)
     .eq('id', id)
     .single()
@@ -40,5 +41,14 @@ export const GET = withErrorHandler('GetTeacherEntry', async (_request, context)
     )
   }
 
-  return NextResponse.json({ entry })
+  const classroom = Array.isArray(entry.classroom) ? entry.classroom[0] : entry.classroom
+  if (!classroom || classroom.teacher_id !== user.id) {
+    return NextResponse.json(
+      { error: 'Forbidden' },
+      { status: 403 }
+    )
+  }
+
+  const { classroom: _classroom, ...safeEntry } = entry
+  return NextResponse.json({ entry: safeEntry })
 })
