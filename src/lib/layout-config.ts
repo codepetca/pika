@@ -97,7 +97,7 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
     mainContent: { maxWidth: 'full' },
   },
   roster: {
-    rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: 320 },
+    rightSidebar: { enabled: false, defaultOpen: false, defaultWidth: 320 },
     mainContent: { maxWidth: 'wide' },
   },
   gradebook: {

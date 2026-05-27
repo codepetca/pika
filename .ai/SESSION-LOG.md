@@ -7,147 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Assignment modal title row cleanup
-
-**Completed:**
-- Moved assignment preview into the title row beside the title and due-date controls.
-- Moved assignment autosave status into the title label row above the textbox.
-- Removed the separate Instructions label above the markdown editor.
-- Moved the required submissions editor above the instructions textarea.
-- Compressed the required submissions empty state into a one-line card with an icon split button for Link, Repo, and Image submissions.
-- Changed the primary split-button label to `+` plus the link icon and `link`.
-- Removed the required-submissions `None` / item-count subline so the card header stays single-line.
-- Hid the per-submission Label and Instructions captions while keeping accessible labels; new submissions show the default label inside the textbox and `Optional helper text` as the helper textbox placeholder.
-- Made required-submission rows draggable from their grip handles and removed the up/down arrow reorder buttons.
-- Stabilized required-submission sortable IDs so rows keep identity during drop animations.
-- Guarded assignment autosave responses so older saves cannot replace newer local required-submission edits while a drag/reorder is in progress.
-- Added a confirmation dialog before removing persisted required submissions; unsaved newly added rows still remove immediately.
-- Switched the required-submissions add control to the shared green `SplitButton` success variant.
-- Updated required-submission split add labels to read `+ Link`, `+ Repo`, and `+ Image` with each type icon after the label.
-- Changed the required-submissions primary add label to `+ Add` and made that primary side open the type dropdown instead of defaulting to a link submission.
-- Replaced the required-submissions image option camera glyph with Lucide's image icon.
-
-**Validation:**
-- `pnpm test tests/components/AssignmentModal.test.tsx`
-- `pnpm test tests/ui/SplitButton.test.tsx tests/components/AssignmentModal.test.tsx`
-- `pnpm lint`
-- `git diff --check`
-- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
-- Modal screenshots: `/tmp/pika-assignment-modal-teacher.png`, `/tmp/pika-assignment-modal-teacher-mobile.png`
-- Required submissions screenshots: `/tmp/pika-assignment-modal-required-submissions.png`, `/tmp/pika-assignment-modal-required-submissions-menu.png`, `/tmp/pika-assignment-modal-required-submissions-mobile.png`, `/tmp/pika-assignment-modal-required-submissions-menu-mobile.png`, `/tmp/pika-assignment-modal-required-submissions-added-desktop.png`, `/tmp/pika-assignment-modal-required-submissions-added-mobile.png`
-- Final required submissions screenshots: `/tmp/pika-assignment-modal-required-submissions-final-desktop.png`, `/tmp/pika-assignment-modal-required-submissions-final-mobile.png`, `/tmp/pika-assignment-modal-required-submissions-final-menu.png`
-- Drag smoke screenshot: `/tmp/pika-assignment-modal-required-submissions-dragged.png`
-- Mobile draggable screenshot: `/tmp/pika-assignment-modal-required-submissions-draggable-mobile.png`
-- Stable drag screenshots: `/tmp/pika-assignment-modal-required-submissions-stable-before.png`, `/tmp/pika-assignment-modal-required-submissions-stable-during.png`, `/tmp/pika-assignment-modal-required-submissions-stable-after.png`
-- Settled student screenshot after UI verify timeout: `/tmp/pika-student-settled.png`
-- Removal confirmation screenshots: `/tmp/pika-teacher-settled.png`, `/tmp/pika-assignment-modal-remove-required-submission-confirm.png`
-- Green split button screenshot: `/tmp/pika-assignment-modal-green-submission-split-desktop.png`
-- Updated green split button label screenshots: `/tmp/pika-assignment-modal-green-submission-split-label-desktop.png`, `/tmp/pika-assignment-modal-green-submission-split-label-mobile.png`
-- Generic add dropdown screenshots: `/tmp/pika-assignment-modal-add-submission-dropdown-desktop.png`, `/tmp/pika-assignment-modal-add-submission-dropdown-mobile.png`
-- Image icon dropdown screenshots: `/tmp/pika-assignment-modal-image-icon-dropdown-desktop.png`, `/tmp/pika-assignment-modal-image-icon-dropdown-mobile.png`
-
-## 2026-05-26 — Split-button destructive action placement
-
-**Completed:**
-- Added a `destructive` split-button option flag and centralized menu rendering so destructive options appear last under a separator.
-- Marked assignment delete, test-work delete, and roster removal split-button actions as destructive.
-- Added focused SplitButton coverage for reordering a destructive option supplied before normal actions.
-- Stabilized the assignment refresh test by waiting for the initial detail request before clicking refresh.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/ui/SplitButton.test.tsx tests/components/TeacherRosterTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- Playwright menu smoke: roster, assignment, and test action dropdowns all placed Remove/Delete last under a separator.
-- Screenshots: `/tmp/pika-roster-actions-menu.png`, `/tmp/pika-assignment-actions-menu.png`, `/tmp/pika-test-actions-menu.png`
-- `pnpm test`
-- `pnpm test:coverage`
-
-## 2026-05-26 — Critical risk fixes
-
-**Completed:**
-- Fixed `getTodayInToronto()` to format the current instant directly in `America/Toronto`, avoiding UTC-host double conversion.
-- Added archived-classroom mutation guards for assignment grading, selected grading, return, feedback return, AI grading, AI grading ticks, repo target overrides, and artifact repo analysis.
-- Preserved read-only assignment ownership checks for archived classrooms while adding a mutation-specific guard.
-- Added regression coverage for the UTC-host Toronto date edge and archived assignment mutation rejection.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/timezone.test.ts tests/unit/server-repo-review.test.ts tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts`
-- `pnpm test tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-grade-selected.test.ts tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id.test.ts tests/api/teacher/assignments-id-students-studentId.test.ts`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-
-## 2026-05-26 — Gradebook category settings retirement
-
-**Completed:**
-- Stopped the in-app gradebook route from loading legacy category settings that no longer affect final calculations.
-- Kept per-assessment weight PATCH support and now rejects retired category-weight updates with a clear response.
-- Updated published actual-course grading summaries to use the same per-assessment weights instead of `gradebook_settings`.
-- Carried `gradebook_weight` through classroom blueprint source data for actual course site grading.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/teacher/gradebook.test.ts tests/unit/gradebook.test.ts`
-- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/hooks/useGradebookData.test.ts`
-- `pnpm test tests/api/teacher/gradebook.test.ts tests/unit/gradebook.test.ts tests/lib/server/course-sites.test.ts tests/lib/server/classroom-blueprint-source.test.ts`
-- `pnpm tsc --noEmit`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-
-## 2026-05-26 — API route error-handler drift cleanup
-
-**Completed:**
-- Migrated the classroom reorder route and test clear-open-grades route from manual `try/catch` blocks to `withErrorHandler`.
-- Preserved existing validation, access, and database error response behavior while centralizing auth/unknown error handling.
-- Added a unit standards test that scans every API `route.ts` export and fails on unwrapped HTTP handlers, while allowing aliases to already wrapped handlers.
-
-**Validation:**
-- `pnpm test tests/api/teacher/tests-clear-open-grades.test.ts tests/api/teacher/classrooms-reorder.test.ts tests/unit/api-route-standards.test.ts`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `pnpm tsc --noEmit`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-
-## 2026-05-26 — Gradebook assessment font weight cleanup
-
-**Completed:**
-- Reduced gradebook assessment column labels, score cells, summary score cells, and selected-student assessment detail rows to regular font weight.
-- Kept student names and final marks emphasized so the gradebook still has clear scan anchors.
-
-**Validation:**
-- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook'`
-- Screenshots reviewed: `/tmp/pika-teacher.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-detail.png`, `/tmp/pika-teacher-dark.png`
-
-## 2026-05-26 — Assignment unsubmit return-state guard
-
-**Completed:**
-- Added a shared assignment rule that only allows student unsubmit before the first teacher return.
-- Blocked `/api/assignment-docs/[id]/unsubmit` from clearing submitted state after returned work, preserving teacher return queues for returned/resubmitted cycles.
-- Updated student assignment action bars to hide `Unsubmit` when the returned submission state is no longer mutable.
-- Moved repeated student assignment reads through `fetchJSONWithCache` with zero TTL so the audit pattern is satisfied without caching the first-view side effect.
-
-**Validation:**
-- `pnpm test tests/api/assignment-docs/unsubmit.test.ts tests/unit/assignments.test.ts tests/components/StudentAssignmentsTab.test.tsx`
-- `pnpm test tests/api/assignment-docs tests/api/student/assignments.test.ts tests/components/StudentAssignmentsTab.test.tsx tests/components/StudentAssignmentEditor.feedback-card.test.tsx tests/unit/assignments.test.ts`
-- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=71f8b37f-831b-4e90-89f9-f04981a97d6a'`
-- Visual follow-up screenshots: `/tmp/pika-student-assignment-returned.png`, `/tmp/pika-teacher-assignment-loaded.png`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-05-26 — Mobile navigation drawer labels
 
 **Completed:**
@@ -286,6 +145,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test`
 - `pnpm build`
 
+## 2026-05-27 — Assignment student table scroll preservation
+
+**Completed:**
+- Preserved the teacher assignment student table scroll position across lower-row student selection, refresh loading, and row updates from grading/comment actions.
+- Prevented temporary assignment-detail loading states from overwriting the saved scroll position with a clamped `0`.
+- Added component regression coverage for refresh loading clamping the class-pane scroll upward.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/hooks/useScrollPositionMemory.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=71f8b37f-831b-4e90-89f9-f04981a97d6a'`
+- Teacher recapture after workspace load: `/tmp/pika-teacher.png`
+- `pnpm test`
+- `pnpm build`
+
 ## 2026-05-26 — GitHub identity API coverage
 
 **Completed:**
@@ -365,3 +240,113 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-05-27 — Phase two systems and UI audit fixes
+
+**Completed:**
+- Blocked teacher entry detail reads across classroom ownership boundaries.
+- Gated snapshot list/file APIs behind the UI gallery flag plus authentication, and marked them dynamic.
+- Made student notification active-test counts respect selected-student availability and grading closure.
+- Required archived-classroom ownership checks for test AI grading run ticks.
+- Removed the roster tab's dead global right-sidebar route and aligned selected-student email actions with the gradebook pattern.
+- Updated focused API/component coverage for each fixed audit finding.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/teacher/entry-id.test.ts`
+- `pnpm test tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
+- `pnpm test tests/api/teacher/test-auto-grade-runs.test.ts tests/api/student/notifications.test.ts tests/components/TeacherRosterTab.test.tsx tests/unit/layout-config.test.ts`
+- `pnpm test tests/components/ThreePanelProvider.test.tsx tests/unit/layout-config.test.ts`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=roster'`
+- Browser selected-row screenshots: `/tmp/pika-roster-selected-desktop.png`, `/tmp/pika-roster-selected-mobile.png`, `/tmp/pika-roster-selected-email-menu-desktop.png`, `/tmp/pika-roster-selected-email-menu-mobile.png`
+
+## 2026-05-27 — Phase three audit fixes
+
+**Completed:**
+- Added shared selected-student enrollment validation for teacher test mutation routes.
+- Blocked test AI auto-grade run creation and open-response grade clearing when any selected student is outside the test classroom.
+- Normalized teacher settings controls toward `@/ui` primitives: shared segmented section switcher, cards, `FormField`, `Input`, `Select`, and a FormField-compatible textarea.
+- Fixed the syllabus lesson-plan visibility select's accessible label and added settings switcher coverage.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-clear-open-grades.test.ts tests/unit/test-student-access.test.ts`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=settings&section=general'`
+- Browser screenshots: `/tmp/pika-settings-general-full-desktop.png`, `/tmp/pika-settings-general-full-mobile.png`, `/tmp/pika-settings-class-days-desktop.png`, `/tmp/pika-settings-class-days-mobile.png`, `/tmp/pika-settings-general-dark-desktop.png`
+- `pnpm test tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-clear-open-grades.test.ts tests/unit/test-student-access.test.ts`
+- `pnpm build`
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm test`
+
+## 2026-05-27 — Daily log history selected date clarity
+
+**Completed:**
+- Changed the teacher Daily student-log inspector to keep entries in newest-first chronological order instead of pinning the selected entry above newer logs.
+- Highlighted the selected date in place with a selected-card treatment and bold date label.
+- Added an in-order highlighted `No log for this date.` row for selected dates without a student log.
+- Added focused component coverage for chronological selected entries, empty selected dates, and removal of the old `Selected date -` label.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/StudentLogHistory.test.tsx tests/components/TeacherAttendanceTab.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `git diff --check`
+- `pnpm build`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=attendance'`
+- Browser screenshots: `/tmp/pika-teacher-daily-selected-history.png`, `/tmp/pika-teacher-daily-empty-selected-history.png`
+
+## 2026-05-27 — Phase four audit fixes
+
+**Completed:**
+- Added selected-student classroom enrollment validation to the teacher test return route before availability checks, finalization, response reads, or the return RPC.
+- Scoped teacher test result aggregation and open-response stats to currently enrolled classroom students.
+- Normalized the shared feedback dialog to use `@/ui` primitives for the dialog import, category segmented control, and submit button.
+- Updated focused API and integration coverage for selected test return/results enrollment scoping.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-results.test.ts`
+- `pnpm test tests/api/integration/test-return-visibility-flow.test.ts`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Feedback dialog screenshots: `/tmp/pika-feedback-teacher-desktop-light-idle.png`, `/tmp/pika-feedback-teacher-desktop-light-error.png`, `/tmp/pika-feedback-teacher-desktop-light-submitting.png`, `/tmp/pika-feedback-teacher-desktop-light-success.png`, `/tmp/pika-feedback-teacher-mobile-dark-idle.png`, `/tmp/pika-feedback-student-desktop-dark-idle.png`, `/tmp/pika-feedback-student-mobile-light-error.png`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-05-27 — Test results enrolled response query
+
+**Completed:**
+- Loaded classroom enrollments before teacher test response reads.
+- Scoped the service-role `test_responses` query to current classroom `student_id`s and skipped the query when no students are enrolled.
+- Kept the defensive in-memory response filter and updated route coverage to assert the scoped response query.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/api/teacher/tests-results.test.ts`
+- `pnpm vitest run tests/api/teacher/tests-results.test.ts tests/api/integration/test-return-visibility-flow.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+
+## 2026-05-27 — Required submission artifact display
+
+**Completed:**
+- Preserved structured required-submission artifacts as first-class teacher table items before adding free-floating content artifacts.
+- Added requirement title/metadata to teacher artifact display objects so student detail cards show labels like `Published demo` instead of generic `Public link`.
+- Highlighted required-submission artifact pills/cards and kept ordinary content-extracted artifacts visually regular.
+- Added regression coverage for multi-artifact teacher rows, required-submission labels, and student detail artifact titles.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/lib/assignment-submission-requirements.test.ts tests/api/teacher/assignments-id.test.ts tests/components/AssignmentArtifactsCell.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx -- --testTimeout=10000`
+- `pnpm test tests/components/AssignmentArtifactsCell.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx -- --testTimeout=10000`
+- `pnpm lint`
+- `pnpm test`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a&assignmentStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
+- Browser screenshots: `/tmp/pika-teacher-details-artifacts.png`, `/tmp/pika-student-loaded.png`, `/tmp/pika-teacher-mobile.png`

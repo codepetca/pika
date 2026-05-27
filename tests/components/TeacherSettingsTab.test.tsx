@@ -89,6 +89,31 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
     expect(screen.getByText('Course overview and outline editing is hidden by your display setting.')).toBeInTheDocument()
   })
 
+  it('exposes the syllabus lesson-plan visibility select with an accessible label', () => {
+    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+
+    expect(screen.getByLabelText('Lesson plan visibility on syllabus')).toHaveValue('current_week')
+  })
+
+  it('uses the shared section switcher for general and class-days settings', () => {
+    const onSectionChange = vi.fn()
+    render(
+      <TeacherSettingsTab
+        classroom={mockClassroom}
+        sectionParam="general"
+        onSectionChange={onSectionChange}
+      />,
+      { wrapper: Wrapper }
+    )
+
+    const sectionSwitcher = screen.getByRole('group', { name: 'Settings section' })
+    expect(within(sectionSwitcher).getByRole('button', { name: 'General' })).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(within(sectionSwitcher).getByRole('button', { name: 'Class Days' }))
+
+    expect(onSectionChange).toHaveBeenCalledWith('class-days')
+  })
+
   it('saves on blur when value has changed', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({

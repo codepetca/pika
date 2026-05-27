@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -53,6 +53,77 @@ describe('AssignmentArtifactsCell', () => {
     expect(artifactLink).toHaveTextContent('1')
     fireEvent.click(artifactLink)
     expect(screen.queryByText('Open artifact')).not.toBeInTheDocument()
+  })
+
+  it('labels required submission artifacts with requirement titles', () => {
+    const artifacts: AssignmentArtifact[] = [
+      {
+        type: 'link',
+        url: 'https://demo.example.com',
+        title: 'Published demo',
+        is_required_submission: true,
+        requirement_id: 'req-demo',
+        requirement_required: true,
+      },
+      {
+        type: 'repo',
+        url: 'https://github.com/codepetca/pika',
+        title: 'Source repo',
+        is_required_submission: true,
+        requirement_id: 'req-repo',
+        requirement_required: true,
+      },
+      { type: 'link', url: 'https://example.com/free-note' },
+    ]
+
+    renderWithTooltipProvider(<AssignmentArtifactsCell artifacts={artifacts} isCompact />)
+
+    const publishedDemoButton = screen.getByRole('button', {
+      name: /required submission artifact 1 is published demo/i,
+    })
+    const sourceRepoButton = screen.getByRole('button', {
+      name: /required submission artifact 2 is source repo/i,
+    })
+    const freeNoteButton = screen.getByRole('button', {
+      name: /^View work items; artifact 3 is Link/i,
+    })
+
+    expect(within(publishedDemoButton).getByText('R')).toBeInTheDocument()
+    expect(within(sourceRepoButton).getByText('R')).toBeInTheDocument()
+    expect(within(freeNoteButton).queryByText('R')).not.toBeInTheDocument()
+    expect(freeNoteButton).not.toHaveAccessibleName(/required submission/i)
+
+    fireEvent.click(publishedDemoButton)
+
+    expect(screen.getByText(/Published demo . demo.example.com/i)).toBeInTheDocument()
+    expect(screen.getByText(/Source repo . github.com\/codepetca\/pika/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/^Required submission \./)).toHaveLength(2)
+  })
+
+  it('includes required submission status in hover list link labels', async () => {
+    const user = userEvent.setup()
+    const artifacts: AssignmentArtifact[] = [
+      {
+        type: 'link',
+        url: 'https://demo.example.com',
+        title: 'Published demo',
+        is_required_submission: true,
+        requirement_id: 'req-demo',
+        requirement_required: true,
+      },
+      { type: 'link', url: 'https://example.com/free-note' },
+    ]
+
+    renderWithTooltipProvider(<AssignmentArtifactsCell artifacts={artifacts} isCompact />)
+    await user.hover(screen.getByRole('button', {
+      name: /required submission artifact 1 is published demo/i,
+    }))
+
+    const tooltipLinks = await screen.findAllByRole('link', {
+      name: /open required submission artifact 1: published demo/i,
+    })
+    expect(tooltipLinks.length).toBeGreaterThan(0)
+    expect(tooltipLinks[0]).toHaveAttribute('href', 'https://demo.example.com')
   })
 
   it('opens a narrow chooser dialog for multiple artifacts', () => {

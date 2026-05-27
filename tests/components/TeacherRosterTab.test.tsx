@@ -183,6 +183,32 @@ describe('TeacherRosterTab', () => {
     expect(getIndividualDeleteCalls(fetchMock)).toHaveLength(0)
   })
 
+  it('keeps roster management separate from selected-student email actions', async () => {
+    const user = userEvent.setup()
+    mockRosterFetch()
+
+    renderRoster()
+
+    await screen.findByText('Ada')
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Grace Hopper' }))
+
+    expect(screen.getByRole('button', { name: '+ Students' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Email \(2\)/ })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Roster actions' }))
+    expect(screen.getByRole('menuitem', { name: '+ CSV' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Remove students' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: /Gmail/ })).not.toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'Roster email actions' }))
+    expect(screen.getByRole('menuitem', { name: 'Copy emails (2)' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Gmail' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Outlook' })).toBeInTheDocument()
+  })
+
   it('keeps the full selected set pending when bulk removal fails', async () => {
     const user = userEvent.setup()
     let failBulkOnce = true

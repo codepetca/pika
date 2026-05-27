@@ -650,6 +650,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     <StudentLogHistory
       studentId={selectedRow.student_id}
       classroomId={classroom.id}
+      selectedDate={selectedDate}
       selectedEntry={selectedRow.entry}
       initialEntries={selectedRow.history_preview}
     />

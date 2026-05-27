@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
+import { FolderGit2, Image as ImageIcon, Link2 } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherWorkInspector } from '@/components/assignment-workspace/TeacherWorkInspector'
@@ -55,36 +56,98 @@ export interface TeacherAssignmentGradeTemplate {
 function SubmittedArtifactsList({ artifacts }: { artifacts: AssignmentArtifact[] }) {
   if (artifacts.length === 0) return null
 
+  function getArtifactFallbackLabel(artifact: AssignmentArtifact) {
+    if (artifact.type === 'repo') return 'Repo link'
+    if (artifact.type === 'image') return 'Image'
+    return 'Public link'
+  }
+
+  function getArtifactKindLabel(artifact: AssignmentArtifact) {
+    if (artifact.type === 'repo') return 'Repo'
+    if (artifact.type === 'image') return 'Image'
+    return 'Link'
+  }
+
+  function getArtifactTitle(artifact: AssignmentArtifact) {
+    return artifact.title?.trim() || getArtifactFallbackLabel(artifact)
+  }
+
+  function isRequiredSubmissionArtifact(artifact: AssignmentArtifact) {
+    return artifact.is_required_submission === true
+  }
+
+  function getSubmissionArtifactStatusLabel(artifact: AssignmentArtifact) {
+    if (isRequiredSubmissionArtifact(artifact)) return 'Required submission'
+    if (artifact.requirement_id) return 'Optional submission'
+    return null
+  }
+
+  function SubmittedArtifactIcon({ artifact }: { artifact: AssignmentArtifact }) {
+    const className = [
+      'h-4 w-4',
+      isRequiredSubmissionArtifact(artifact) ? 'text-primary' : 'text-text-muted',
+    ].join(' ')
+    if (artifact.type === 'repo') return <FolderGit2 className={className} aria-hidden="true" />
+    if (artifact.type === 'image') return <ImageIcon className={className} aria-hidden="true" />
+    return <Link2 className={className} aria-hidden="true" />
+  }
+
   return (
     <div className="shrink-0 border-t border-border bg-surface px-4 py-3">
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
         Submitted artifacts
       </h3>
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        {artifacts.map((artifact, index) => (
-          <a
-            key={`${artifact.url}:${index}`}
-            href={artifact.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group overflow-hidden rounded-md border border-border bg-surface-2 hover:bg-surface-hover"
-          >
-            {artifact.type === 'image' ? (
-              <div
-                className="h-28 border-b border-border bg-surface bg-contain bg-center bg-no-repeat"
-                style={{ backgroundImage: `url("${encodeURI(artifact.url)}")` }}
-              />
-            ) : null}
-            <div className="min-w-0 px-3 py-2">
-              <div className="text-xs font-medium text-text-default">
-                {artifact.type === 'repo' ? 'Repo link' : artifact.type === 'image' ? 'Image' : 'Public link'}
+        {artifacts.map((artifact, index) => {
+          const statusLabel = getSubmissionArtifactStatusLabel(artifact)
+          const isRequiredSubmission = isRequiredSubmissionArtifact(artifact)
+
+          return (
+            <a
+              key={`${artifact.url}:${index}`}
+              href={artifact.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={[
+                'group overflow-hidden rounded-md border bg-surface-2 hover:bg-surface-hover',
+                isRequiredSubmission ? 'border-primary/50' : 'border-border',
+              ].join(' ')}
+            >
+              {artifact.type === 'image' ? (
+                <div
+                  className="h-28 border-b border-border bg-surface bg-contain bg-center bg-no-repeat"
+                  style={{ backgroundImage: `url("${encodeURI(artifact.url)}")` }}
+                />
+              ) : null}
+              <div className="flex min-w-0 items-start gap-2 px-3 py-2">
+                <span className={[
+                  'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border',
+                  isRequiredSubmission
+                    ? 'border-primary/50 bg-info-bg'
+                    : 'border-border bg-surface',
+                ].join(' ')}>
+                  <SubmittedArtifactIcon artifact={artifact} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs font-medium text-text-default">
+                    {getArtifactTitle(artifact)}
+                  </div>
+                  <div className="truncate text-xs text-text-muted group-hover:text-text-default">
+                    {getArtifactKindLabel(artifact)} . {summarizeArtifactUrl(artifact.url)}
+                  </div>
+                  {statusLabel ? (
+                    <div className={[
+                      'mt-1 text-[11px] font-medium',
+                      isRequiredSubmission ? 'text-primary' : 'text-text-muted',
+                    ].join(' ')}>
+                      {statusLabel}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-              <div className="truncate text-xs text-text-muted group-hover:text-text-default">
-                {summarizeArtifactUrl(artifact.url)}
-              </div>
-            </div>
-          </a>
-        ))}
+            </a>
+          )
+        })}
       </div>
     </div>
   )
@@ -288,7 +351,10 @@ export function TeacherStudentWorkPanel({
   }
 
   const displayContent = previewContent || data.doc?.content
-  const submittedArtifacts = submissionArtifactsToAssignmentArtifacts(data.submission_artifacts || [])
+  const submittedArtifacts = submissionArtifactsToAssignmentArtifacts(
+    data.submission_artifacts || [],
+    data.assignment.submission_requirements || [],
+  )
   const hasSubmittedArtifacts = submittedArtifacts.length > 0
   const inspector = (
     <TeacherWorkInspector

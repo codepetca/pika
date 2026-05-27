@@ -6,6 +6,10 @@ export type AssignmentArtifactType = 'image' | 'link' | 'repo'
 export interface AssignmentArtifact {
   type: AssignmentArtifactType
   url: string
+  title?: string
+  is_required_submission?: boolean
+  requirement_id?: string
+  requirement_required?: boolean
   repo_owner?: string
   repo_name?: string
   normalized_url?: string
