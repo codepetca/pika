@@ -7,21 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Blueprint bulk sync stale-id guards
-
-**Completed:**
-- Rejected unknown blueprint assignment, assessment, and lesson template update IDs before bulk sync computes deletions.
-- Rejected assessment updates outside the selected replacement type and rejected quiz/test type drift before deleting rows.
-- Added regression coverage proving stale IDs fail with 400s and do not call the delete builder.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/lib/server/course-blueprints.test.ts tests/api/teacher/course-blueprints-route.test.ts`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-05-27 — Assignment student table scroll preservation
 
 **Completed:**
@@ -354,3 +339,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm run test:coverage`
 - `pnpm build`
 - `git diff --check`
+
+## 2026-05-27 — Required submission highlight polish
+
+**Completed:**
+- Removed the visible `R` marker from required-submission artifact pills in the teacher assignment student table.
+- Kept required artifact pills/cards blue without the primary outline treatment, including a stronger full-pill fill in the teacher student table.
+- Renamed the student work content section from `Submitted artifacts` to `Required submissions`.
+- Removed per-card `Required submission`/`Optional submission` labels from the content area and added dashed missing cards for unmet required submissions.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/AssignmentArtifactsCell.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm test tests/components/AssignmentArtifactsCell.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=4ff75b59-3189-4240-ac5a-dd3e750467bf&assignmentStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
+- Screenshots reviewed: `/tmp/pika-teacher-ready.png`, `/tmp/pika-teacher-content.png`, `/tmp/pika-teacher-content-mobile.png`, `/tmp/pika-student.png`, `/tmp/pika-pr671-required-pill-table.png`

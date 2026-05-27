@@ -52,17 +52,6 @@ function getArtifactIconClassName(artifact: AssignmentArtifact) {
   ].join(' ')
 }
 
-function RequiredSubmissionMarker() {
-  return (
-    <span
-      aria-hidden="true"
-      className="rounded-[3px] border border-primary/30 px-0.5 text-[9px] font-semibold uppercase leading-3 text-primary"
-    >
-      R
-    </span>
-  )
-}
-
 function ArtifactTypeIcon({ artifact }: { artifact: AssignmentArtifact }) {
   const className = getArtifactIconClassName(artifact)
 
@@ -172,10 +161,10 @@ export function AssignmentArtifactsCell({
               const isRequiredSubmission = isRequiredSubmissionArtifact(artifact)
               const requiredLabel = isRequiredSubmission ? 'required submission ' : ''
               const pillClassName = [
-                'inline-flex h-6 min-w-9 items-center justify-center gap-1 rounded-full border px-1.5 text-xs font-medium hover:bg-surface-hover',
+                'inline-flex h-6 min-w-9 items-center justify-center gap-1 rounded-full border px-1.5 text-xs font-medium',
                 isRequiredSubmission
-                  ? 'border-primary/50 bg-info-bg text-primary'
-                  : 'border-border bg-surface-2 text-text-default',
+                  ? 'border-transparent bg-info-bg-hover text-primary hover:bg-info-bg-hover'
+                  : 'border-border bg-surface-2 text-text-default hover:bg-surface-hover',
               ].join(' ')
 
               return hasMultipleArtifacts ? (
@@ -187,7 +176,6 @@ export function AssignmentArtifactsCell({
                 >
                   <ArtifactTypeIcon artifact={artifact} />
                   <span>{index + 1}</span>
-                  {isRequiredSubmission ? <RequiredSubmissionMarker /> : null}
                 </button>
               ) : (
                 <a
@@ -200,7 +188,6 @@ export function AssignmentArtifactsCell({
                 >
                   <ArtifactTypeIcon artifact={artifact} />
                   <span>{index + 1}</span>
-                  {isRequiredSubmission ? <RequiredSubmissionMarker /> : null}
                 </a>
               )
             })()}
