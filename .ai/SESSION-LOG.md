@@ -7,24 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Split-button destructive action placement
-
-**Completed:**
-- Added a `destructive` split-button option flag and centralized menu rendering so destructive options appear last under a separator.
-- Marked assignment delete, test-work delete, and roster removal split-button actions as destructive.
-- Added focused SplitButton coverage for reordering a destructive option supplied before normal actions.
-- Stabilized the assignment refresh test by waiting for the initial detail request before clicking refresh.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/ui/SplitButton.test.tsx tests/components/TeacherRosterTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- Playwright menu smoke: roster, assignment, and test action dropdowns all placed Remove/Delete last under a separator.
-- Screenshots: `/tmp/pika-roster-actions-menu.png`, `/tmp/pika-assignment-actions-menu.png`, `/tmp/pika-test-actions-menu.png`
-- `pnpm test`
-- `pnpm test:coverage`
-
 ## 2026-05-26 — Critical risk fixes
 
 **Completed:**
@@ -244,6 +226,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/lib/server/course-blueprints.test.ts tests/api/teacher/course-blueprints-route.test.ts`
 - `git diff --check`
 - `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-05-27 — Assignment student table scroll preservation
+
+**Completed:**
+- Preserved the teacher assignment student table scroll position across lower-row student selection, refresh loading, and row updates from grading/comment actions.
+- Prevented temporary assignment-detail loading states from overwriting the saved scroll position with a clamped `0`.
+- Added component regression coverage for refresh loading clamping the class-pane scroll upward.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/hooks/useScrollPositionMemory.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=71f8b37f-831b-4e90-89f9-f04981a97d6a'`
+- Teacher recapture after workspace load: `/tmp/pika-teacher.png`
 - `pnpm test`
 - `pnpm build`
 
