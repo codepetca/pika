@@ -7,23 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Student daily log background refresh
-
-**Completed:**
-- Changed the student Today tab so sessionStorage history is only an instant preview, not the final source of truth.
-- Added a direct capped background `/api/student/entries?limit=12` refresh on mount to update cross-device daily logs.
-- Guarded the editor so an in-flight refresh cannot overwrite a local edit started by the student.
-- Fixed the reverted-edit edge case so a refresh can apply server content after local text returns to the saved value.
-- Updated StudentTodayTab history coverage for preview-first refresh and local-edit protection.
-
-**Validation:**
-- `pnpm test tests/components/StudentTodayTabHistory.test.tsx`
-- `pnpm lint`
-- `pnpm exec tsc --noEmit`
-- `git diff --check`
-- `E2E_BASE_URL=http://localhost:3003 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=today'`
-- Warm screenshots reviewed: `/tmp/pika-student-today-final.png`, `/tmp/pika-teacher-mobile-warm.png`
-
 ## 2026-05-26 — Teacher artifact table refresh
 
 **Completed:**
@@ -358,6 +341,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm test tests/api/assignment-docs/submit.test.ts`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-05-26 — Gradebook settings clears hidden email selection
+
+**Completed:**
+- Cleared selected gradebook students whenever settings mode opens.
+- Hid selected-student email actions while gradebook settings mode is active.
+- Added component regression coverage for selecting a student, entering settings, and returning to grades without stale selection.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook&gradebookSection=settings'`
+- Browser regression screenshot: `/tmp/pika-teacher-gradebook-settings-after-selection.png`
 - `git diff --check`
 - `pnpm lint`
 - `pnpm test`

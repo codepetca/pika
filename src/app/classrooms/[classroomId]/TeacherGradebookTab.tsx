@@ -1379,7 +1379,7 @@ export function TeacherGradebookTab({
     [selectedStudentId, students],
   )
   const rowKeys = useMemo(() => sortedStudents.map((student) => student.student_id), [sortedStudents])
-  const { selectedIds, toggleSelect, toggleSelectAll, allSelected } = useStudentSelection(rowKeys)
+  const { selectedIds, toggleSelect, toggleSelectAll, allSelected, clearSelection } = useStudentSelection(rowKeys)
   const selectedStudents = useMemo(
     () => sortedStudents.filter((student) => selectedIds.has(student.student_id)),
     [selectedIds, sortedStudents],
@@ -1451,8 +1451,11 @@ export function TeacherGradebookTab({
 
   useEffect(() => {
     setColumnEditorOpen(section === 'settings')
-    if (section === 'settings') setSelectedStudentId(null)
-  }, [section])
+    if (section === 'settings') {
+      setSelectedStudentId(null)
+      clearSelection()
+    }
+  }, [clearSelection, section])
 
   useEffect(() => {
     if (!selectedStudentId) return
@@ -1461,7 +1464,10 @@ export function TeacherGradebookTab({
   }, [selectedStudentId, students])
 
   function handleSettingsActiveChange(active: boolean) {
-    if (active) setSelectedStudentId(null)
+    if (active) {
+      setSelectedStudentId(null)
+      clearSelection()
+    }
     setColumnEditorOpen(active)
     onSectionChange(active ? 'settings' : 'grades')
   }
@@ -1624,6 +1630,7 @@ export function TeacherGradebookTab({
   }
 
   const isSettingsActive = columnEditorOpen
+  const showSelectedStudentEmailActions = someStudentsSelected && !isSettingsActive
   const scoreDisplayOptions = [
     {
       value: 'percent',
@@ -1664,7 +1671,7 @@ export function TeacherGradebookTab({
     <TeacherWorkSurfaceActionBar
       center={
         <div className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-1.5">
-          {someStudentsSelected ? (
+          {showSelectedStudentEmailActions ? (
             <SplitButton
               label={
                 <span className="inline-flex items-center gap-2 whitespace-nowrap">
