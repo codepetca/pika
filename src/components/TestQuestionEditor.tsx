@@ -94,8 +94,12 @@ export function TestQuestionEditor({
   const [error, setError] = useState('')
   const [isAnswerSectionOpen, setIsAnswerSectionOpen] = useState(variant !== 'card')
   const codeToggleId = `question-${question.id}-code-toggle`
+  const defaultPointsId = `question-${question.id}-points`
   const toggleLabel = `${isExpanded ? 'Collapse' : 'Expand'} question ${questionNumber}`
   const questionPlaceholder = `Question ${questionNumber}`
+  const questionPromptLabel = `Question ${questionNumber} prompt`
+  const answerKeyLabel = `Question ${questionNumber} answer key`
+  const sampleSolutionLabel = `Question ${questionNumber} sample solution`
   const pointsLabel = `${Number.parseInt(state.points, 10) || question.points || defaultPointsForQuestionType(state.question_type)} pts`
   const collapsedSummary = summarizeHeaderLine(state.question_text)
 
@@ -211,49 +215,56 @@ export function TestQuestionEditor({
       }
     >
       <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Answer Options</p>
-      {state.options.map((option, index) => (
-        <div key={index} className="flex items-center gap-2">
-          <input
-            type="radio"
-            name={`correct-option-${question.id}`}
-            checked={state.correct_option === index}
-            disabled={!isEditable}
-            onChange={() => {
-              updateState({ correct_option: index })
-              setTimeout(() => handleSave(), 0)
-            }}
-            className="h-4 w-4"
-          />
-          {isEditable ? (
-            <Input
-              type="text"
-              value={option}
-              onChange={(event) => updateOption(index, event.target.value)}
-              onBlur={() => handleSave()}
-              placeholder={`Option ${String.fromCharCode(65 + index)}`}
-              className="flex-1"
-            />
-          ) : (
-            <div className="flex-1 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default">
-              {option}
-            </div>
-          )}
-          {isEditable && state.options.length > 2 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                removeOption(index)
+      {state.options.map((option, index) => {
+        const optionLetter = String.fromCharCode(65 + index)
+
+        return (
+          <div key={index} className="flex items-center gap-2">
+            <input
+              type="radio"
+              name={`correct-option-${question.id}`}
+              checked={state.correct_option === index}
+              disabled={!isEditable}
+              aria-label={`Question ${questionNumber} option ${optionLetter} correct answer`}
+              onChange={() => {
+                updateState({ correct_option: index })
                 setTimeout(() => handleSave(), 0)
               }}
-              className="p-1 text-text-muted hover:text-danger"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          ) : null}
-        </div>
-      ))}
+              className="h-4 w-4"
+            />
+            {isEditable ? (
+              <Input
+                type="text"
+                value={option}
+                onChange={(event) => updateOption(index, event.target.value)}
+                onBlur={() => handleSave()}
+                aria-label={`Question ${questionNumber} option ${optionLetter}`}
+                placeholder={`Option ${optionLetter}`}
+                className="flex-1"
+              />
+            ) : (
+              <div className="flex-1 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default">
+                {option}
+              </div>
+            )}
+            {isEditable && state.options.length > 2 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label={`Remove question ${questionNumber} option ${optionLetter}`}
+                onClick={() => {
+                  removeOption(index)
+                  setTimeout(() => handleSave(), 0)
+                }}
+                className="p-1 text-text-muted hover:text-danger"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            ) : null}
+          </div>
+        )
+      })}
       {isEditable && state.options.length < MAX_QUIZ_OPTIONS ? (
         <Button type="button" variant="secondary" size="sm" onClick={addOption} className="gap-1.5">
           <Plus className="h-4 w-4" />
@@ -308,6 +319,7 @@ export function TestQuestionEditor({
                       value={state.answer_key}
                       onChange={(event) => updateState({ answer_key: event.target.value })}
                       onBlur={() => handleSave()}
+                      aria-label={answerKeyLabel}
                       placeholder="Enter an optional answer key for AI-assisted grading..."
                       rows={4}
                       className="w-full min-h-[96px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
@@ -326,6 +338,7 @@ export function TestQuestionEditor({
                     value={state.answer_key}
                     onChange={(event) => updateState({ answer_key: event.target.value })}
                     onBlur={() => handleSave()}
+                    aria-label={answerKeyLabel}
                     placeholder="Enter an optional answer key for AI-assisted grading..."
                     rows={4}
                     className="w-full min-h-[96px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
@@ -334,6 +347,7 @@ export function TestQuestionEditor({
                     value={state.sample_solution}
                     onChange={(event) => updateState({ sample_solution: event.target.value })}
                     onBlur={() => handleSave()}
+                    aria-label={sampleSolutionLabel}
                     placeholder="Optional sample solution. Coding sample solutions will be shown to students when the returned test is released."
                     rows={6}
                     className="w-full min-h-[128px] resize-y rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
@@ -347,6 +361,7 @@ export function TestQuestionEditor({
                       value={state.sample_solution}
                       onChange={(event) => updateState({ sample_solution: event.target.value })}
                       onBlur={() => handleSave()}
+                      aria-label={sampleSolutionLabel}
                       placeholder="Optional sample solution. Coding sample solutions will be shown to students when the returned test is released."
                       rows={6}
                       className="w-full min-h-[128px] resize-y rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
@@ -379,6 +394,7 @@ export function TestQuestionEditor({
           value={state.question_text}
           onChange={(event) => updateState({ question_text: event.target.value })}
           onBlur={() => handleSave()}
+          aria-label={questionPromptLabel}
           placeholder={questionPlaceholder}
           rows={5}
           className="w-full min-h-[144px] resize-y rounded-md border border-border bg-surface px-4 py-3 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
@@ -444,7 +460,7 @@ export function TestQuestionEditor({
             ) : null}
           </button>
 
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
+          <div className="flex basis-full flex-wrap items-center justify-end gap-3 pl-6 sm:ml-auto sm:basis-auto sm:pl-0">
             {isEditable ? (
               <>
                 <label
@@ -535,6 +551,7 @@ export function TestQuestionEditor({
                     value={state.question_text}
                     onChange={(event) => updateState({ question_text: event.target.value })}
                     onBlur={() => handleSave()}
+                    aria-label={questionPromptLabel}
                     placeholder={questionPlaceholder}
                     rows={4}
                     className="block w-full min-h-[112px] resize-y border-0 bg-surface px-4 py-4 text-sm text-text-default placeholder:text-text-muted focus:outline-none focus:ring-0"
@@ -594,6 +611,7 @@ export function TestQuestionEditor({
                 value={state.question_text}
                 onChange={(event) => updateState({ question_text: event.target.value })}
                 onBlur={() => handleSave()}
+                aria-label={questionPromptLabel}
                 placeholder={questionPlaceholder}
                 rows={3}
                 className="w-full min-h-[88px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
@@ -623,15 +641,17 @@ export function TestQuestionEditor({
         {isEditable ? (
           <div className="w-full min-w-0 space-y-2 rounded-md border border-border bg-surface-2 p-2.5 md:self-start">
             <div className="grid min-w-0 grid-cols-[1fr_52px] items-center gap-2">
-              <label className="text-[11px] font-medium uppercase leading-none tracking-wide text-text-muted">
+              <label htmlFor={defaultPointsId} className="text-[11px] font-medium uppercase leading-none tracking-wide text-text-muted">
                 Points
               </label>
               <Input
+                id={defaultPointsId}
                 type="text"
                 inputMode="decimal"
                 value={state.points}
                 onChange={(event) => updateState({ points: event.target.value })}
                 onBlur={() => handleSave()}
+                aria-label={`Question ${questionNumber} points`}
                 className="h-8 min-w-0 w-full px-2 text-sm"
               />
             </div>

@@ -7,25 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Student test submit overwrite guard
-
-**Completed:**
-- Changed student test final submission to insert response rows instead of upserting over existing final answers.
-- Mapped unique response conflicts to the existing "already responded" response and skipped attempt finalization after the conflict.
-- Preserved the first-submit path for blank placeholder grading rows by deleting those placeholder rows by id before final insert.
-- Added API coverage for insert-only submission, placeholder cleanup, unique-conflict handling, and conditional attempt finalization.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/student/tests-respond.test.ts`
-- `pnpm tsc --noEmit`
-- `pnpm test tests/api/student/tests-respond.test.ts tests/api/student/tests-attempt.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-session-status.test.ts tests/api/student/tests-results.test.ts tests/api/student/tests-history.test.ts tests/api/student/tests-focus-events.test.ts tests/api/teacher/tests-results.test.ts tests/api/teacher/tests-return.test.ts`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-
 ## 2026-05-26 — Auth password handoff binding
 
 **Completed:**
@@ -352,3 +333,25 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm test`
 - `git diff --check`
+
+## 2026-05-27 — Assessment authoring accessibility audit
+
+**Completed:**
+- Added accessible names for quiz/test question prompts, options, answer keys, sample solutions, correct-answer radios, remove buttons, markdown editors, and quiz delete controls.
+- Replaced the assessment workspace mode strip with the shared tab-style `TeacherWorkSurfaceModeBar`.
+- Wired the shared mode bar tabs to labelled `tabpanel` content after PR review flagged the incomplete ARIA tab pattern.
+- Fixed a narrow mobile overlap in the test question accordion header after visual review.
+- Added focused component coverage for mode tab semantics and authoring control names.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/components/QuizDetailPanel.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/TeacherWorkSurfaceModeBar.test.tsx --reporter=verbose`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3015 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
+- `E2E_BASE_URL=http://localhost:3015 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests&testId=210e30d4-f085-4c86-94d3-ee14bb66fd03&testMode=authoring'`
+- `E2E_BASE_URL=http://localhost:3015 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
+- Reviewed screenshots: `/tmp/pika-test-question-editor-teacher-fixed.png`, `/tmp/pika-test-question-editor-teacher-mobile-fixed.png`, `/tmp/pika-survey-code-editor-teacher.png`, `/tmp/pika-survey-code-editor-teacher-mobile.png`, plus teacher/student/teacher-mobile captures from the verifier.

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Plus, Trash2, GripVertical } from 'lucide-react'
-import { Input } from '@/ui'
+import { Button, Input } from '@/ui'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { MAX_QUIZ_OPTIONS, validateQuizOptions } from '@/lib/quizzes'
 import type { QuizQuestion } from '@/types'
@@ -42,6 +42,7 @@ export function QuizQuestionEditor({
   const [options, setOptions] = useState<string[]>(question.options)
   const [focusedField, setFocusedField] = useState<'text' | number | null>(null)
   const [error, setError] = useState('')
+  const questionLabel = `Question ${questionNumber} prompt`
 
   const newOptionRef = useRef<HTMLInputElement>(null)
   const justAddedOption = useRef(false)
@@ -149,17 +150,20 @@ export function QuizQuestionEditor({
               value={text}
               onChange={(e) => setText(e.target.value)}
               onBlur={handleTextBlur}
+              aria-label={questionLabel}
               placeholder="Enter question"
               className="text-sm"
               autoFocus
             />
           ) : isEditable ? (
-            <p
-              className="text-sm text-text-default cursor-text hover:bg-surface-2 rounded px-1 -mx-1"
+            <button
+              type="button"
+              className="block w-full rounded px-1 -mx-1 text-left text-sm text-text-default hover:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-primary"
               onClick={() => setFocusedField('text')}
+              aria-label={`Edit ${questionLabel.toLowerCase()}`}
             >
               {text}
-            </p>
+            </button>
           ) : (
             <QuestionMarkdown content={text} />
           )}
@@ -177,15 +181,22 @@ export function QuizQuestionEditor({
                     value={option}
                     onChange={(e) => handleOptionChange(index, e.target.value)}
                     onBlur={() => handleOptionBlur(index)}
+                    aria-label={`Question ${questionNumber} option ${String.fromCharCode(65 + index)}`}
                     placeholder={`Option ${String.fromCharCode(65 + index)}`}
                     className="flex-1 text-sm"
                     autoFocus
                   />
-                ) : (
-                  <span
-                    className={`text-sm text-text-muted flex-1 ${isEditable ? 'cursor-text hover:bg-surface-2 rounded px-1 -mx-1' : ''}`}
-                    onClick={isEditable ? () => setFocusedField(index) : undefined}
+                ) : isEditable ? (
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 rounded px-1 -mx-1 text-left text-sm text-text-muted hover:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                    onClick={() => setFocusedField(index)}
+                    aria-label={`Edit question ${questionNumber} option ${String.fromCharCode(65 + index)}`}
                   >
+                    {option || <span className="italic text-text-muted">Empty option</span>}
+                  </button>
+                ) : (
+                  <span className="min-w-0 flex-1 text-sm text-text-muted">
                     {option || <span className="italic text-text-muted">Empty option</span>}
                   </span>
                 )}
@@ -206,13 +217,16 @@ export function QuizQuestionEditor({
         </div>
 
         {isEditable && (
-          <button
+          <Button
             type="button"
             onClick={() => onDelete(question.id)}
-            className="p-1 text-text-muted hover:text-danger"
+            variant="ghost"
+            size="sm"
+            aria-label={`Delete question ${questionNumber}`}
+            className="h-8 w-8 shrink-0 p-0 text-text-muted hover:text-danger"
           >
             <Trash2 className="h-4 w-4" />
-          </button>
+          </Button>
         )}
       </div>
 
