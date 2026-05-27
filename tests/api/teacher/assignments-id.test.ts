@@ -243,7 +243,26 @@ describe('GET /api/teacher/assignments/[id]', () => {
             eq: vi.fn(() => ({
               order: vi.fn(() => ({
                 order: vi.fn().mockResolvedValue({
-                  data: [],
+                  data: [
+                    makeRequirement({
+                      id: 'req-1',
+                      type: 'link',
+                      label: 'Project page',
+                      position: 0,
+                    }),
+                    makeRequirement({
+                      id: 'req-2',
+                      type: 'link',
+                      label: 'Backup page',
+                      position: 1,
+                    }),
+                    makeRequirement({
+                      id: 'req-3',
+                      type: 'repo_link',
+                      label: 'Source repo',
+                      position: 2,
+                    }),
+                  ],
                   error: null,
                 }),
               })),
@@ -263,9 +282,43 @@ describe('GET /api/teacher/assignments/[id]', () => {
                   requirement_id: 'req-1',
                   student_id: 'student-1',
                   type: 'link',
-                  url: 'https://demo.example.com',
+                  url: 'https://example.com/resource',
                   storage_path: null,
                   metadata_json: {},
+                  validation_status: 'valid',
+                  validation_message: null,
+                  validated_at: '2026-03-10T09:35:00.000Z',
+                  created_at: '2026-03-10T09:35:00.000Z',
+                  updated_at: '2026-03-10T09:35:00.000Z',
+                },
+                {
+                  id: 'artifact-2',
+                  assignment_doc_id: 'doc-1',
+                  requirement_id: 'req-2',
+                  student_id: 'student-1',
+                  type: 'link',
+                  url: 'https://example.com/resource',
+                  storage_path: null,
+                  metadata_json: {},
+                  validation_status: 'valid',
+                  validation_message: null,
+                  validated_at: '2026-03-10T09:35:00.000Z',
+                  created_at: '2026-03-10T09:35:00.000Z',
+                  updated_at: '2026-03-10T09:35:00.000Z',
+                },
+                {
+                  id: 'artifact-3',
+                  assignment_doc_id: 'doc-1',
+                  requirement_id: 'req-3',
+                  student_id: 'student-1',
+                  type: 'repo_link',
+                  url: 'https://github.com/codepetca/pika',
+                  storage_path: null,
+                  metadata_json: {
+                    repo_owner: 'codepetca',
+                    repo_name: 'pika',
+                    normalized_url: 'https://github.com/codepetca/pika',
+                  },
                   validation_status: 'valid',
                   validation_message: null,
                   validated_at: '2026-03-10T09:35:00.000Z',
@@ -290,10 +343,41 @@ describe('GET /api/teacher/assignments/[id]', () => {
     expect(data.students).toHaveLength(1)
     expect(data.students[0].student_updated_at).toBe(historyCreatedAt)
     expect(data.students[0].artifacts).toEqual([
-      { type: 'link', url: 'https://demo.example.com' },
-      { type: 'link', url: 'https://example.com/resource' },
+      {
+        type: 'link',
+        url: 'https://example.com/resource',
+        title: 'Project page',
+        is_required_submission: true,
+        requirement_id: 'req-1',
+        requirement_required: true,
+      },
+      {
+        type: 'link',
+        url: 'https://example.com/resource',
+        title: 'Backup page',
+        is_required_submission: true,
+        requirement_id: 'req-2',
+        requirement_required: true,
+      },
+      {
+        type: 'repo',
+        url: 'https://github.com/codepetca/pika',
+        title: 'Source repo',
+        is_required_submission: true,
+        requirement_id: 'req-3',
+        requirement_required: true,
+        repo_owner: 'codepetca',
+        repo_name: 'pika',
+        normalized_url: 'https://github.com/codepetca/pika',
+      },
       { type: 'image', url: 'https://cdn.example.com/submission-images/shot.png' },
     ])
+    expect(data.students[0].submission_completion).toEqual({
+      required_count: 3,
+      completed_required_count: 3,
+      can_submit: true,
+      blocking_count: 0,
+    })
     expect(data.students[0].doc).toEqual({
       is_submitted: true,
       submitted_at: submittedAt,

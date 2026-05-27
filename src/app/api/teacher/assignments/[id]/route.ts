@@ -34,14 +34,17 @@ function mergeAssignmentArtifacts(
   structuredArtifacts: AssignmentArtifact[],
   contentArtifacts: AssignmentArtifact[]
 ): AssignmentArtifact[] {
-  const byUrl = new Map<string, AssignmentArtifact>()
+  const merged = [...structuredArtifacts]
+  const structuredUrls = new Set(structuredArtifacts.map((artifact) => artifact.url).filter(Boolean))
+  const contentUrls = new Set<string>()
 
-  for (const artifact of [...structuredArtifacts, ...contentArtifacts]) {
-    if (!artifact.url || byUrl.has(artifact.url)) continue
-    byUrl.set(artifact.url, artifact)
+  for (const artifact of contentArtifacts) {
+    if (!artifact.url || structuredUrls.has(artifact.url) || contentUrls.has(artifact.url)) continue
+    contentUrls.add(artifact.url)
+    merged.push(artifact)
   }
 
-  return Array.from(byUrl.values())
+  return merged
 }
 
 // GET /api/teacher/assignments/[id] - Get assignment details with all student submissions
@@ -152,7 +155,7 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     const profile = profileMap.get(enrollment.student_id) || null
     const studentStructuredArtifacts = doc ? (structuredArtifactsByDocId.get(doc.id) || []) : []
     const artifacts = mergeAssignmentArtifacts(
-      submissionArtifactsToAssignmentArtifacts(studentStructuredArtifacts),
+      submissionArtifactsToAssignmentArtifacts(studentStructuredArtifacts, submissionRequirements),
       doc ? extractAssignmentArtifacts(doc.content) : []
     )
     const completion = getSubmissionRequirementCompletion(submissionRequirements, studentStructuredArtifacts)

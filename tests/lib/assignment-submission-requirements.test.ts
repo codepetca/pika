@@ -133,6 +133,10 @@ describe('submissionArtifactsToAssignmentArtifacts', () => {
       {
         type: 'repo',
         url: 'https://github.com/codepetca/pika',
+        title: 'Repo link',
+        is_required_submission: true,
+        requirement_id: 'req-1',
+        requirement_required: true,
         repo_owner: 'codepetca',
         repo_name: 'pika',
         normalized_url: 'https://github.com/codepetca/pika',
@@ -140,6 +144,36 @@ describe('submissionArtifactsToAssignmentArtifacts', () => {
       {
         type: 'image',
         url: 'https://signed.example.com/image.png',
+        title: 'Screenshot',
+        is_required_submission: true,
+        requirement_id: 'req-2',
+        requirement_required: true,
+      },
+    ])
+  })
+
+  it('uses requirement labels for teacher artifact display metadata', () => {
+    expect(submissionArtifactsToAssignmentArtifacts([
+      artifact({
+        requirement_id: 'req-demo',
+        type: 'link',
+        url: 'https://demo.example.com',
+      }),
+    ], [
+      requirement({
+        id: 'req-demo',
+        type: 'link',
+        label: 'Published demo',
+        required: false,
+      }),
+    ])).toEqual([
+      {
+        type: 'link',
+        url: 'https://demo.example.com',
+        title: 'Published demo',
+        is_required_submission: false,
+        requirement_id: 'req-demo',
+        requirement_required: false,
       },
     ])
   })
