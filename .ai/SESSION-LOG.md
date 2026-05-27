@@ -7,43 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Critical risk fixes
-
-**Completed:**
-- Fixed `getTodayInToronto()` to format the current instant directly in `America/Toronto`, avoiding UTC-host double conversion.
-- Added archived-classroom mutation guards for assignment grading, selected grading, return, feedback return, AI grading, AI grading ticks, repo target overrides, and artifact repo analysis.
-- Preserved read-only assignment ownership checks for archived classrooms while adding a mutation-specific guard.
-- Added regression coverage for the UTC-host Toronto date edge and archived assignment mutation rejection.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/timezone.test.ts tests/unit/server-repo-review.test.ts tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts`
-- `pnpm test tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-grade-selected.test.ts tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id.test.ts tests/api/teacher/assignments-id-students-studentId.test.ts`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-
-## 2026-05-26 — Gradebook category settings retirement
-
-**Completed:**
-- Stopped the in-app gradebook route from loading legacy category settings that no longer affect final calculations.
-- Kept per-assessment weight PATCH support and now rejects retired category-weight updates with a clear response.
-- Updated published actual-course grading summaries to use the same per-assessment weights instead of `gradebook_settings`.
-- Carried `gradebook_weight` through classroom blueprint source data for actual course site grading.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/teacher/gradebook.test.ts tests/unit/gradebook.test.ts`
-- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/hooks/useGradebookData.test.ts`
-- `pnpm test tests/api/teacher/gradebook.test.ts tests/unit/gradebook.test.ts tests/lib/server/course-sites.test.ts tests/lib/server/classroom-blueprint-source.test.ts`
-- `pnpm tsc --noEmit`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-05-26 — API route error-handler drift cleanup
 
 **Completed:**
@@ -365,3 +328,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx`
 - `pnpm test`
+
+## 2026-05-27 — Daily log history selected date clarity
+
+**Completed:**
+- Changed the teacher Daily student-log inspector to keep entries in newest-first chronological order instead of pinning the selected entry above newer logs.
+- Highlighted the selected date in place with a selected-card treatment and bold date label.
+- Added an in-order highlighted `No log for this date.` row for selected dates without a student log.
+- Added focused component coverage for chronological selected entries, empty selected dates, and removal of the old `Selected date -` label.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/StudentLogHistory.test.tsx tests/components/TeacherAttendanceTab.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `git diff --check`
+- `pnpm build`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=attendance'`
+- Browser screenshots: `/tmp/pika-teacher-daily-selected-history.png`, `/tmp/pika-teacher-daily-empty-selected-history.png`
