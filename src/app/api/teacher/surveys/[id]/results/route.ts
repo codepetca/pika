@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { aggregateSurveyResults } from '@/lib/surveys'
+import { getClassroomStudentIds } from '@/lib/server/classrooms'
 import { assertTeacherOwnsSurvey } from '@/lib/server/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { SurveyQuestion, SurveyResponse } from '@/types'
@@ -31,10 +32,23 @@ export const GET = withErrorHandler('GetTeacherSurveyResults', async (_request, 
     return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
   }
 
-  const { data: responses, error: responsesError } = await supabase
-    .from('survey_responses')
-    .select('*')
-    .eq('survey_id', surveyId)
+  const classroomStudentsResult = await getClassroomStudentIds(supabase, survey.classroom_id)
+  if (classroomStudentsResult.error) {
+    console.error('Error fetching classroom enrollments:', classroomStudentsResult.error)
+    return NextResponse.json({ error: 'Failed to fetch classroom enrollments' }, { status: 500 })
+  }
+
+  const responseResult = classroomStudentsResult.studentIds.length > 0
+    ? await supabase
+      .from('survey_responses')
+      .select('*')
+      .eq('survey_id', surveyId)
+      .in('student_id', classroomStudentsResult.studentIds)
+    : { data: [], error: null }
+  const { data: responseRows, error: responsesError } = responseResult
+  const responses = (responseRows || []).filter((response) =>
+    classroomStudentsResult.studentIdSet.has(response.student_id)
+  )
 
   if (responsesError) {
     console.error('Error fetching survey responses:', responsesError)
@@ -72,7 +86,7 @@ export const GET = withErrorHandler('GetTeacherSurveyResults', async (_request, 
 
   const results = aggregateSurveyResults(
     (questions || []) as SurveyQuestion[],
-    (responses || []) as SurveyResponse[]
+    responses as SurveyResponse[]
   ).map((result) => ({
     ...result,
     responses: result.responses.map((response) => {
@@ -96,11 +110,6 @@ export const GET = withErrorHandler('GetTeacherSurveyResults', async (_request, 
     })
     .sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email))
 
-  const { count: totalStudents } = await supabase
-    .from('classroom_enrollments')
-    .select('*', { count: 'exact', head: true })
-    .eq('classroom_id', survey.classroom_id)
-
   return NextResponse.json({
     survey: {
       id: survey.id,
@@ -120,7 +129,7 @@ export const GET = withErrorHandler('GetTeacherSurveyResults', async (_request, 
     results,
     responders,
     stats: {
-      total_students: totalStudents || 0,
+      total_students: classroomStudentsResult.totalStudents,
       responded: responderIds.length,
     },
   })

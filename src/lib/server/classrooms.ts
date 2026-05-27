@@ -106,23 +106,53 @@ export async function assertStudentCanAccessClassroom(
 export async function getClassroomStudentIds(
   supabase: any,
   classroomId: string
-): Promise<{ studentIds: string[]; studentIdSet: Set<string>; error: unknown }> {
-  const { data, error } = await supabase
-    .from('classroom_enrollments')
-    .select('student_id')
-    .eq('classroom_id', classroomId)
+): Promise<{ studentIds: string[]; studentIdSet: Set<string>; totalStudents: number; error: unknown }> {
+  const pageSize = 1000
+  const studentIds = new Set<string>()
+  let totalStudents: number | null = null
+  let offset = 0
 
-  if (error) {
-    return { studentIds: [], studentIdSet: new Set(), error }
+  while (true) {
+    let query = supabase
+      .from('classroom_enrollments')
+      .select('student_id', { count: 'exact' })
+      .eq('classroom_id', classroomId)
+
+    const supportsRange = typeof query.range === 'function'
+    if (typeof query.order === 'function') {
+      query = query.order('student_id', { ascending: true })
+    }
+    if (supportsRange) {
+      query = query.range(offset, offset + pageSize - 1)
+    }
+
+    const { data, error, count } = await query
+
+    if (error) {
+      return { studentIds: [], studentIdSet: new Set(), totalStudents: 0, error }
+    }
+
+    if (typeof count === 'number') {
+      totalStudents = count
+    }
+
+    for (const row of (data || []) as Array<{ student_id: unknown }>) {
+      if (typeof row.student_id === 'string' && row.student_id.length > 0) {
+        studentIds.add(row.student_id)
+      }
+    }
+
+    if (!supportsRange || (data || []).length < pageSize) break
+    if (totalStudents !== null && offset + pageSize >= totalStudents) break
+    offset += pageSize
   }
 
-  const studentIds = Array.from(
-    new Set(
-      ((data || []) as Array<{ student_id: unknown }>)
-        .map((row) => row.student_id)
-        .filter((studentId): studentId is string => typeof studentId === 'string' && studentId.length > 0)
-    )
-  )
+  const sortedStudentIds = Array.from(studentIds)
 
-  return { studentIds, studentIdSet: new Set(studentIds), error: null }
+  return {
+    studentIds: sortedStudentIds,
+    studentIdSet: new Set(sortedStudentIds),
+    totalStudents: totalStudents ?? sortedStudentIds.length,
+    error: null,
+  }
 }
