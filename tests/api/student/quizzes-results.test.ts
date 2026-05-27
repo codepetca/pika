@@ -118,6 +118,203 @@ describe('GET /api/student/quizzes/[id]/results', () => {
     await expect(response.json()).resolves.toEqual({ error: 'Failed to fetch questions' })
   })
 
+  it('returns 500 when classroom enrollment loading fails before aggregation', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'quiz_responses') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            limit: vi.fn().mockResolvedValue({ data: [{ id: 'response-1' }], error: null }),
+          })),
+        }
+      }
+
+      if (table === 'quiz_questions') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: 'question-1',
+                  question_text: '2 + 2 = ?',
+                  options: ['4', '5'],
+                  correct_option: 0,
+                  position: 0,
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ data: null, error: { message: 'boom' } }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/student/quizzes/quiz-1/results'),
+      { params: Promise.resolve({ id: 'quiz-1' }) }
+    )
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to fetch responses' })
+  })
+
+  it('returns 500 when scoped response loading fails', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'quiz_responses') {
+        return {
+          select: vi.fn((columns: string) => {
+            if (columns === 'id') {
+              return {
+                eq: vi.fn().mockReturnThis(),
+                limit: vi.fn().mockResolvedValue({ data: [{ id: 'response-1' }], error: null }),
+              }
+            }
+
+            if (columns === '*') {
+              return {
+                eq: vi.fn().mockReturnThis(),
+                in: vi.fn().mockResolvedValue({ data: null, error: { message: 'boom' } }),
+              }
+            }
+
+            throw new Error(`Unexpected quiz_responses columns: ${columns}`)
+          }),
+        }
+      }
+
+      if (table === 'quiz_questions') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: 'question-1',
+                  question_text: '2 + 2 = ?',
+                  options: ['4', '5'],
+                  correct_option: 0,
+                  position: 0,
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [{ student_id: 'student-1' }],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/student/quizzes/quiz-1/results'),
+      { params: Promise.resolve({ id: 'quiz-1' }) }
+    )
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to fetch responses' })
+  })
+
+  it('skips aggregate response loading when the classroom enrollment list is empty', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'quiz_responses') {
+        return {
+          select: vi.fn((columns: string) => {
+            if (columns === 'id') {
+              return {
+                eq: vi.fn().mockReturnThis(),
+                limit: vi.fn().mockResolvedValue({ data: [{ id: 'response-1' }], error: null }),
+              }
+            }
+
+            if (columns === '*') {
+              throw new Error('Aggregate responses should not be loaded without enrolled students')
+            }
+
+            return {
+              eq: vi.fn().mockReturnThis(),
+              then: vi.fn((resolve: (value: unknown) => unknown) =>
+                resolve({
+                  data: [{ question_id: 'question-1', selected_option: 0 }],
+                  error: null,
+                })
+              ),
+            }
+          }),
+        }
+      }
+
+      if (table === 'quiz_questions') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: 'question-1',
+                  question_text: '2 + 2 = ?',
+                  options: ['4', '5'],
+                  correct_option: 0,
+                  position: 0,
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/student/quizzes/quiz-1/results'),
+      { params: Promise.resolve({ id: 'quiz-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.results).toEqual([
+      {
+        question_id: 'question-1',
+        question_text: '2 + 2 = ?',
+        options: ['4', '5'],
+        counts: [0, 0],
+        total_responses: 0,
+      },
+    ])
+    expect(data.my_responses).toEqual({ 'question-1': 0 })
+  })
+
   it('returns aggregated results and the student response map', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'quiz_responses') {
@@ -132,12 +329,18 @@ describe('GET /api/student/quizzes/[id]/results', () => {
 
             if (columns === '*') {
               return {
-                eq: vi.fn().mockResolvedValue({
-                  data: [
-                    { question_id: 'question-1', selected_option: 0, student_id: 'student-1' },
-                    { question_id: 'question-1', selected_option: 1, student_id: 'student-2' },
-                  ],
-                  error: null,
+                eq: vi.fn().mockReturnThis(),
+                in: vi.fn((column: string, studentIds: string[]) => {
+                  expect(column).toBe('student_id')
+                  expect(studentIds).toEqual(['student-1', 'student-2'])
+                  return Promise.resolve({
+                    data: [
+                      { question_id: 'question-1', selected_option: 0, student_id: 'student-1' },
+                      { question_id: 'question-1', selected_option: 1, student_id: 'student-2' },
+                      { question_id: 'question-1', selected_option: 1, student_id: 'student-removed' },
+                    ],
+                    error: null,
+                  })
                 }),
               }
             }
@@ -170,6 +373,20 @@ describe('GET /api/student/quizzes/[id]/results', () => {
                   correct_option: 0,
                   position: 0,
                 },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [
+                { student_id: 'student-1' },
+                { student_id: 'student-2' },
               ],
               error: null,
             }),

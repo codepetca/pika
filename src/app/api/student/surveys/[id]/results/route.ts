@@ -4,6 +4,7 @@ import { withErrorHandler } from '@/lib/api-handler'
 import { assertStudentCanAccessSurvey } from '@/lib/server/surveys'
 import { aggregateSurveyResults, canStudentViewSurveyResults } from '@/lib/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { getClassroomStudentIds } from '@/lib/server/classrooms'
 import type { SurveyQuestion, SurveyResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -35,19 +36,33 @@ export const GET = withErrorHandler('GetStudentSurveyResults', async (_request, 
     return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
   }
 
-  const { data: responses, error: responsesError } = await supabase
-    .from('survey_responses')
-    .select('*')
-    .eq('survey_id', surveyId)
+  const classroomStudentsResult = await getClassroomStudentIds(supabase, survey.classroom_id)
+  if (classroomStudentsResult.error) {
+    console.error('Error fetching classroom enrollments for survey results:', classroomStudentsResult.error)
+    return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
+  }
+
+  const { data: responses, error: responsesError } =
+    classroomStudentsResult.studentIds.length > 0
+      ? await supabase
+          .from('survey_responses')
+          .select('*')
+          .eq('survey_id', surveyId)
+          .in('student_id', classroomStudentsResult.studentIds)
+      : { data: [], error: null }
 
   if (responsesError) {
     console.error('Error fetching survey responses:', responsesError)
     return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
   }
 
+  const scopedResponses = (responses || []).filter((response) =>
+    classroomStudentsResult.studentIdSet.has(response.student_id)
+  )
+
   const results = aggregateSurveyResults(
     (questions || []) as SurveyQuestion[],
-    (responses || []) as SurveyResponse[]
+    scopedResponses as SurveyResponse[]
   ).map((result) => ({
     ...result,
     responses: result.responses.map((response) => ({

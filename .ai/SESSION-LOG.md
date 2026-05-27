@@ -7,24 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Gradebook action cluster consistency
-
-**Completed:**
-- Replaced the gradebook all-purpose split-button with a focused floating action cluster: contextual email split-button, persistent score-display segmented control, and icon-only settings toggle.
-- Kept email actions hidden until students are selected, matching the roster pattern and avoiding disabled placeholder actions.
-- Updated gradebook component coverage for the new score-display, email, and settings controls.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm vitest run tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm tsc --noEmit`
-- `pnpm e2e:auth`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook'`
-- Screenshots reviewed: `/tmp/pika-teacher.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-gradebook-selected.png`, `/tmp/pika-teacher-mobile-gradebook-selected.png`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-05-26 — Student test submit overwrite guard
 
 **Completed:**
@@ -354,3 +336,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - UI screenshots reviewed from `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png` for each tab run.
 - `pnpm test`
 - `bash scripts/verify-env.sh`
+
+## 2026-05-27 — Student quiz/survey result enrollment scoping
+
+**Completed:**
+- Scoped student quiz result aggregates to current classroom enrollments before aggregating class responses.
+- Scoped student survey result aggregates and text/link response lists to current classroom enrollments.
+- Kept defensive in-memory filtering after scoped Supabase `.in('student_id', ...)` response reads.
+- Added API regressions that include stale/unenrolled response rows and assert enrolled-only result payloads.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/api/student/quizzes-results.test.ts tests/api/student/surveys-route.test.ts --reporter=verbose`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- `git diff --check`
