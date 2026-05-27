@@ -2,6 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/tests/[id]/responses/[responseId]/ai-suggest/route'
 
+const {
+  mockAssertTeacherOwnsTest,
+  mockValidateSelectedTestStudentEnrollment,
+} = vi.hoisted(() => ({
+  mockAssertTeacherOwnsTest: vi.fn(),
+  mockValidateSelectedTestStudentEnrollment: vi.fn(),
+}))
+
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
 }))
@@ -15,15 +23,8 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('@/lib/server/tests', () => ({
-  assertTeacherOwnsTest: vi.fn(async () => ({
-    ok: true,
-    test: {
-      id: 'test-1',
-      title: 'Unit Test',
-      classroom_id: 'classroom-1',
-      classrooms: { archived_at: null },
-    },
-  })),
+  assertTeacherOwnsTest: mockAssertTeacherOwnsTest,
+  validateSelectedTestStudentEnrollment: mockValidateSelectedTestStudentEnrollment,
 }))
 
 const getTestOpenResponseGradingModel = vi.fn(() => 'gpt-5-nano')
@@ -49,23 +50,23 @@ const mockSupabaseClient = { from: vi.fn() }
 describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAssertTeacherOwnsTest.mockResolvedValue({
+      ok: true,
+      test: {
+        id: 'test-1',
+        title: 'Unit Test',
+        classroom_id: 'classroom-1',
+        classrooms: { archived_at: null },
+      },
+    })
+    mockValidateSelectedTestStudentEnrollment.mockResolvedValue({
+      ok: true,
+      enrolledStudentIds: new Set(['student-1']),
+      missingStudentIds: [],
+    })
   })
 
-  it('returns suggestion with grading metadata and uses answer_key context', async () => {
-    prepareTestOpenResponseGradingContext.mockResolvedValue({
-      model: 'gpt-5-nano',
-      grading_basis: 'teacher_key',
-      reference_answers: [],
-      reference_answers_source: 'teacher_key',
-    })
-    suggestTestOpenResponseGradeWithContext.mockResolvedValue({
-      score: 3.75,
-      feedback: 'Good foundation. Add membrane specifics.',
-      grading_basis: 'teacher_key',
-      reference_answers: [],
-      model: 'gpt-5-nano',
-    })
-
+  function setupResponseRow() {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table !== 'test_responses') {
         throw new Error(`Unexpected table: ${table}`)
@@ -78,6 +79,7 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
               id: 'response-1',
               test_id: 'test-1',
               question_id: 'question-1',
+              student_id: 'student-1',
               response_text: 'Water moves to balance concentration.',
               test_questions: {
                 id: 'question-1',
@@ -99,6 +101,24 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
         })),
       }
     })
+  }
+
+  it('returns suggestion with grading metadata and uses answer_key context', async () => {
+    prepareTestOpenResponseGradingContext.mockResolvedValue({
+      model: 'gpt-5-nano',
+      grading_basis: 'teacher_key',
+      reference_answers: [],
+      reference_answers_source: 'teacher_key',
+    })
+    suggestTestOpenResponseGradeWithContext.mockResolvedValue({
+      score: 3.75,
+      feedback: 'Good foundation. Add membrane specifics.',
+      grading_basis: 'teacher_key',
+      reference_answers: [],
+      model: 'gpt-5-nano',
+    })
+
+    setupResponseRow()
 
     const response = await POST(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1/responses/response-1/ai-suggest', {
@@ -109,6 +129,11 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
     const data = await response.json()
 
     expect(response.status).toBe(200)
+    expect(mockValidateSelectedTestStudentEnrollment).toHaveBeenCalledWith(
+      mockSupabaseClient,
+      'classroom-1',
+      ['student-1']
+    )
     expect(prepareTestOpenResponseGradingContext).toHaveBeenCalledWith(
       expect.objectContaining({
         answerKey: expect.stringContaining('semi-permeable membrane'),
@@ -124,5 +149,48 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
         model: 'gpt-5-nano',
       })
     )
+  })
+
+  it('rejects suggestions when the response student is no longer enrolled', async () => {
+    setupResponseRow()
+    mockValidateSelectedTestStudentEnrollment.mockResolvedValueOnce({
+      ok: true,
+      enrolledStudentIds: new Set(),
+      missingStudentIds: ['student-1'],
+    })
+
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/responses/response-1/ai-suggest', {
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ id: 'test-1', responseId: 'response-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('Student is not enrolled in this classroom')
+    expect(prepareTestOpenResponseGradingContext).not.toHaveBeenCalled()
+    expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when response student enrollment validation errors', async () => {
+    setupResponseRow()
+    mockValidateSelectedTestStudentEnrollment.mockResolvedValueOnce({
+      ok: false,
+      error: { message: 'boom' },
+    })
+
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/responses/response-1/ai-suggest', {
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ id: 'test-1', responseId: 'response-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe('Failed to validate student enrollment')
+    expect(prepareTestOpenResponseGradingContext).not.toHaveBeenCalled()
+    expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
   })
 })

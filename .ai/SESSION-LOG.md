@@ -7,20 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Action bar viewport and menu coverage
-
-**Completed:**
-- Added direct `PageActionBar` coverage for desktop action groups, mobile overflow menu containers, menu ordering, destructive grouping, disabled items, selection close, Escape close, and outside-click close.
-- Expanded teacher work-surface floating action cluster coverage for viewport max-width, fixed placement, visual chrome, floating center actions, and inline center actions.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/PageActionBar.test.tsx tests/components/TeacherWorkSurfaceActionBar.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `git diff --check`
-
 ## 2026-05-26 — Blueprint bulk sync stale-id guards
 
 **Completed:**
@@ -346,6 +332,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm vitest run tests/api/teacher/assignments-repo-targets-studentId.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts --reporter=verbose`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm run test:coverage`
+- `pnpm build`
+- `git diff --check`
+
+## 2026-05-27 — Test response enrollment validation
+
+**Completed:**
+- Validated the response student remains enrolled before teacher response grading updates.
+- Validated the response student remains enrolled before manual AI grade suggestions or reference-cache writes.
+- Bound response grade updates to the validated `student_id` as well as response and test ids.
+- Added API regressions for stale response students and enrollment validation failures in both routes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/api/teacher/tests-responses-grade.test.ts tests/api/teacher/tests-ai-suggest.test.ts --reporter=verbose`
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm lint`
 - `pnpm run test:coverage`

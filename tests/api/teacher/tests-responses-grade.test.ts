@@ -2,6 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { PATCH } from '@/app/api/teacher/tests/[id]/responses/[responseId]/route'
 
+const {
+  mockAssertTeacherOwnsTest,
+  mockValidateSelectedTestStudentEnrollment,
+} = vi.hoisted(() => ({
+  mockAssertTeacherOwnsTest: vi.fn(),
+  mockValidateSelectedTestStudentEnrollment: vi.fn(),
+}))
+
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
 }))
@@ -15,15 +23,8 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('@/lib/server/tests', () => ({
-  assertTeacherOwnsTest: vi.fn(async () => ({
-    ok: true,
-    test: {
-      id: 'test-1',
-      title: 'Unit Test',
-      classroom_id: 'classroom-1',
-      classrooms: { archived_at: null },
-    },
-  })),
+  assertTeacherOwnsTest: mockAssertTeacherOwnsTest,
+  validateSelectedTestStudentEnrollment: mockValidateSelectedTestStudentEnrollment,
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
@@ -31,6 +32,20 @@ const mockSupabaseClient = { from: vi.fn() }
 describe('PATCH /api/teacher/tests/[id]/responses/[responseId]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAssertTeacherOwnsTest.mockResolvedValue({
+      ok: true,
+      test: {
+        id: 'test-1',
+        title: 'Unit Test',
+        classroom_id: 'classroom-1',
+        classrooms: { archived_at: null },
+      },
+    })
+    mockValidateSelectedTestStudentEnrollment.mockResolvedValue({
+      ok: true,
+      enrolledStudentIds: new Set(['student-1']),
+      missingStudentIds: [],
+    })
   })
 
   function mockResponseRow(
@@ -41,6 +56,7 @@ describe('PATCH /api/teacher/tests/[id]/responses/[responseId]', () => {
       id: 'response-1',
       test_id: 'test-1',
       question_id: 'question-1',
+      student_id: 'student-1',
       score: null,
       feedback: null,
       response_text: questionType === 'open_response' ? 'Water moves to balance concentration.' : null,
@@ -75,19 +91,23 @@ describe('PATCH /api/teacher/tests/[id]/responses/[responseId]', () => {
     })
   }
 
-  it('persists AI grading metadata when saving a suggested grade', async () => {
-    const updateSpy = vi.fn((payload: Record<string, unknown>) => ({
-      eq: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          select: vi.fn(() => ({
-            single: vi.fn().mockResolvedValue({
-              data: { id: 'response-1', ...payload },
-              error: null,
-            }),
-          })),
+  function createUpdateSpy() {
+    return vi.fn((payload: Record<string, unknown>) => {
+      const chain: any = {
+        eq: vi.fn(() => chain),
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'response-1', ...payload },
+            error: null,
+          }),
         })),
-      })),
-    }))
+      }
+      return chain
+    })
+  }
+
+  it('persists AI grading metadata when saving a suggested grade', async () => {
+    const updateSpy = createUpdateSpy()
 
     setupSupabase(updateSpy)
 
@@ -107,6 +127,11 @@ describe('PATCH /api/teacher/tests/[id]/responses/[responseId]', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
+    expect(mockValidateSelectedTestStudentEnrollment).toHaveBeenCalledWith(
+      mockSupabaseClient,
+      'classroom-1',
+      ['student-1']
+    )
     expect(updateSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         score: 4,
@@ -116,22 +141,12 @@ describe('PATCH /api/teacher/tests/[id]/responses/[responseId]', () => {
         ai_model: 'gpt-5-nano',
       })
     )
+    expect(updateSpy.mock.results[0]?.value.eq).toHaveBeenCalledWith('student_id', 'student-1')
     expect(data.response.ai_grading_basis).toBe('generated_reference')
   })
 
   it('allows saving a score without feedback', async () => {
-    const updateSpy = vi.fn((payload: Record<string, unknown>) => ({
-      eq: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          select: vi.fn(() => ({
-            single: vi.fn().mockResolvedValue({
-              data: { id: 'response-1', ...payload },
-              error: null,
-            }),
-          })),
-        })),
-      })),
-    }))
+    const updateSpy = createUpdateSpy()
     setupSupabase(updateSpy)
 
     const response = await PATCH(
@@ -157,18 +172,7 @@ describe('PATCH /api/teacher/tests/[id]/responses/[responseId]', () => {
   })
 
   it('clears score, feedback, and grading metadata', async () => {
-    const updateSpy = vi.fn((payload: Record<string, unknown>) => ({
-      eq: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          select: vi.fn(() => ({
-            single: vi.fn().mockResolvedValue({
-              data: { id: 'response-1', ...payload },
-              error: null,
-            }),
-          })),
-        })),
-      })),
-    }))
+    const updateSpy = createUpdateSpy()
     setupSupabase(updateSpy)
 
     const response = await PATCH(
@@ -196,18 +200,7 @@ describe('PATCH /api/teacher/tests/[id]/responses/[responseId]', () => {
   })
 
   it('allows manual score overrides for multiple-choice responses', async () => {
-    const updateSpy = vi.fn((payload: Record<string, unknown>) => ({
-      eq: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          select: vi.fn(() => ({
-            single: vi.fn().mockResolvedValue({
-              data: { id: 'response-1', ...payload },
-              error: null,
-            }),
-          })),
-        })),
-      })),
-    }))
+    const updateSpy = createUpdateSpy()
     setupSupabase(updateSpy, { questionType: 'multiple_choice', points: 2 })
 
     const response = await PATCH(
@@ -229,5 +222,54 @@ describe('PATCH /api/teacher/tests/[id]/responses/[responseId]', () => {
       })
     )
     expect(data.response.score).toBe(1.5)
+  })
+
+  it('rejects grading when the response student is no longer enrolled', async () => {
+    const updateSpy = createUpdateSpy()
+    setupSupabase(updateSpy)
+    mockValidateSelectedTestStudentEnrollment.mockResolvedValueOnce({
+      ok: true,
+      enrolledStudentIds: new Set(),
+      missingStudentIds: ['student-1'],
+    })
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/responses/response-1', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          score: 3,
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1', responseId: 'response-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('Student is not enrolled in this classroom')
+    expect(updateSpy).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when response student enrollment validation errors', async () => {
+    const updateSpy = createUpdateSpy()
+    setupSupabase(updateSpy)
+    mockValidateSelectedTestStudentEnrollment.mockResolvedValueOnce({
+      ok: false,
+      error: { message: 'boom' },
+    })
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/responses/response-1', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          score: 3,
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1', responseId: 'response-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe('Failed to validate student enrollment')
+    expect(updateSpy).not.toHaveBeenCalled()
   })
 })
