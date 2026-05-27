@@ -7,19 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Gradebook assessment font weight cleanup
-
-**Completed:**
-- Reduced gradebook assessment column labels, score cells, summary score cells, and selected-student assessment detail rows to regular font weight.
-- Kept student names and final marks emphasized so the gradebook still has clear scan anchors.
-
-**Validation:**
-- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook'`
-- Screenshots reviewed: `/tmp/pika-teacher.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-detail.png`, `/tmp/pika-teacher-dark.png`
-
 ## 2026-05-26 — Assignment unsubmit return-state guard
 
 **Completed:**
@@ -349,3 +336,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Feedback dialog screenshots: `/tmp/pika-feedback-teacher-desktop-light-idle.png`, `/tmp/pika-feedback-teacher-desktop-light-error.png`, `/tmp/pika-feedback-teacher-desktop-light-submitting.png`, `/tmp/pika-feedback-teacher-desktop-light-success.png`, `/tmp/pika-feedback-teacher-mobile-dark-idle.png`, `/tmp/pika-feedback-student-desktop-dark-idle.png`, `/tmp/pika-feedback-student-mobile-light-error.png`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-05-27 — Test results enrolled response query
+
+**Completed:**
+- Loaded classroom enrollments before teacher test response reads.
+- Scoped the service-role `test_responses` query to current classroom `student_id`s and skipped the query when no students are enrolled.
+- Kept the defensive in-memory response filter and updated route coverage to assert the scoped response query.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/api/teacher/tests-results.test.ts`
+- `pnpm vitest run tests/api/teacher/tests-results.test.ts tests/api/integration/test-return-visibility-flow.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
