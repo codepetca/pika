@@ -16,7 +16,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 export const PUT = withErrorHandler('PutTeacherAssignmentRepoTarget', async (request, context) => {
   const user = await requireRole('teacher')
   const { id: assignmentId, studentId } = await context.params
-  await assertTeacherCanMutateAssignment(user.id, assignmentId)
+  const assignment = await assertTeacherCanMutateAssignment(user.id, assignmentId)
 
   const body = await request.json()
   const selectionMode = body.selection_mode === 'teacher_override' ? 'teacher_override'
@@ -27,6 +27,20 @@ export const PUT = withErrorHandler('PutTeacherAssignmentRepoTarget', async (req
     : ''
 
   const supabase = getServiceRoleClient()
+
+  const { data: enrollment, error: enrollmentError } = await supabase
+    .from('classroom_enrollments')
+    .select('id')
+    .eq('classroom_id', assignment.classroom_id)
+    .eq('student_id', studentId)
+    .maybeSingle()
+
+  if (enrollmentError) {
+    throw new Error('Failed to validate student enrollment')
+  }
+  if (!enrollment) {
+    throw apiErrors.badRequest('Student is not enrolled in this classroom')
+  }
 
   const { data: existingDoc } = await supabase
     .from('assignment_docs')
