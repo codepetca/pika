@@ -25,6 +25,36 @@ type AccessResult<T> =
   | { ok: true; test: T }
   | { ok: false; status: number; error: string }
 
+export async function validateSelectedTestStudentEnrollment(
+  supabase: any,
+  classroomId: string,
+  studentIds: string[],
+): Promise<
+  | { ok: true; enrolledStudentIds: Set<string>; missingStudentIds: string[] }
+  | { ok: false; error: unknown }
+> {
+  const { data: enrollmentRows, error } = await supabase
+    .from('classroom_enrollments')
+    .select('student_id')
+    .eq('classroom_id', classroomId)
+    .in('student_id', studentIds)
+
+  if (error) {
+    return { ok: false, error }
+  }
+
+  const enrolledStudentIds = new Set<string>(
+    ((enrollmentRows || []) as Array<{ student_id: unknown }>)
+      .map((row) => row.student_id)
+      .filter((studentId): studentId is string => typeof studentId === 'string'),
+  )
+  return {
+    ok: true,
+    enrolledStudentIds,
+    missingStudentIds: studentIds.filter((studentId) => !enrolledStudentIds.has(studentId)),
+  }
+}
+
 export type EffectiveStudentTestAccess = {
   access_state: TestStudentAvailabilityState | null
   effective_access: TestStudentAvailabilityState

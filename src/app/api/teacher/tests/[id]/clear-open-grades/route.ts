@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withErrorHandler } from '@/lib/api-handler'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { assertTeacherOwnsTest, validateSelectedTestStudentEnrollment } from '@/lib/server/tests'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -41,6 +41,24 @@ export const POST = withErrorHandler('ClearTestOpenResponseGrades', async (reque
   }
 
   const supabase = getServiceRoleClient()
+  const enrollmentValidation = await validateSelectedTestStudentEnrollment(
+    supabase,
+    access.test.classroom_id,
+    studentIds,
+  )
+
+  if (!enrollmentValidation.ok) {
+    console.error('Error validating selected students for clearing open-response grades:', enrollmentValidation.error)
+    return NextResponse.json({ error: 'Failed to validate selected students' }, { status: 500 })
+  }
+
+  if (enrollmentValidation.missingStudentIds.length > 0) {
+    return NextResponse.json(
+      { error: 'One or more selected students are not enrolled in this classroom' },
+      { status: 400 },
+    )
+  }
+
   const { data: openQuestionRows, error: openQuestionError } = await supabase
     .from('test_questions')
     .select('id')

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
-import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { assertTeacherOwnsTest, validateSelectedTestStudentEnrollment } from '@/lib/server/tests'
+import { getServiceRoleClient } from '@/lib/supabase'
 import {
   createOrResumeTestAiGradingRun,
   type TestAiGradingNoopSummary,
@@ -56,6 +57,25 @@ export const POST = withErrorHandler('PostTeacherTestAutoGrade', async (request,
   const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
+  }
+
+  const supabase = getServiceRoleClient()
+  const enrollmentValidation = await validateSelectedTestStudentEnrollment(
+    supabase,
+    access.test.classroom_id,
+    studentIds,
+  )
+
+  if (!enrollmentValidation.ok) {
+    console.error('Error validating selected students for test auto-grade:', enrollmentValidation.error)
+    return NextResponse.json({ error: 'Failed to validate selected students' }, { status: 500 })
+  }
+
+  if (enrollmentValidation.missingStudentIds.length > 0) {
+    return NextResponse.json(
+      { error: 'One or more selected students are not enrolled in this classroom' },
+      { status: 400 },
+    )
   }
 
   const runResult = await createOrResumeTestAiGradingRun({

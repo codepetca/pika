@@ -7,6 +7,7 @@ import {
   getTestStudentAvailabilityState,
   isMissingTestAttemptClosureColumnsError,
   isMissingTestStudentAvailabilityError,
+  validateSelectedTestStudentEnrollment,
 } from '@/lib/server/tests'
 
 const mockSupabaseClient = vi.hoisted(() => ({ from: vi.fn() }))
@@ -59,6 +60,24 @@ function mockAvailabilityClient(result: {
         error: result.error ?? null,
       }
     }),
+  }
+  return {
+    from: vi.fn(() => ({
+      select: vi.fn(() => query),
+    })),
+  }
+}
+
+function mockEnrollmentClient(result: {
+  data?: Array<{ student_id: string }> | null
+  error?: unknown
+}) {
+  const query: any = {
+    eq: vi.fn(() => query),
+    in: vi.fn(async () => ({
+      data: result.data ?? null,
+      error: result.error ?? null,
+    })),
   }
   return {
     from: vi.fn(() => ({
@@ -231,6 +250,43 @@ describe('student availability helpers', () => {
       state: 'closed',
       missingTable: false,
       error: null,
+    })
+  })
+})
+
+describe('validateSelectedTestStudentEnrollment', () => {
+  it('returns enrolled and missing selected student ids', async () => {
+    const supabase = mockEnrollmentClient({
+      data: [{ student_id: 'student-1' }, { student_id: 'student-3' }],
+    })
+
+    const result = await validateSelectedTestStudentEnrollment(supabase, 'classroom-1', [
+      'student-1',
+      'student-2',
+      'student-3',
+    ])
+
+    expect(supabase.from).toHaveBeenCalledWith('classroom_enrollments')
+    expect(result).toMatchObject({
+      ok: true,
+      missingStudentIds: ['student-2'],
+    })
+    if (result.ok) {
+      expect(result.enrolledStudentIds.has('student-1')).toBe(true)
+      expect(result.enrolledStudentIds.has('student-3')).toBe(true)
+    }
+  })
+
+  it('returns validation errors without hiding them', async () => {
+    const supabase = mockEnrollmentClient({
+      error: { message: 'lookup failed' },
+    })
+
+    await expect(
+      validateSelectedTestStudentEnrollment(supabase, 'classroom-1', ['student-1']),
+    ).resolves.toEqual({
+      ok: false,
+      error: { message: 'lookup failed' },
     })
   })
 })
