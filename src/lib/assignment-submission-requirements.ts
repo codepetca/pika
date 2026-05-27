@@ -164,14 +164,28 @@ export function getSubmissionRequirementCompletion(
   }
 }
 
+function getRequirementArtifactFields(
+  artifact: AssignmentSubmissionArtifact,
+  requirement?: AssignmentSubmissionRequirement | null
+) {
+  return {
+    title: requirement?.label?.trim() || DEFAULT_REQUIREMENT_LABELS[artifact.type],
+    is_required_submission: requirement?.required ?? true,
+    requirement_id: artifact.requirement_id,
+    requirement_required: requirement?.required ?? true,
+  }
+}
+
 export function submissionArtifactToAssignmentArtifact(
-  artifact: AssignmentSubmissionArtifact
+  artifact: AssignmentSubmissionArtifact,
+  requirement?: AssignmentSubmissionRequirement | null
 ): AssignmentArtifact | null {
   const url = artifact.url?.trim()
   if (!url) return null
+  const requirementFields = getRequirementArtifactFields(artifact, requirement)
 
   if (artifact.type === 'image') {
-    return { type: 'image', url }
+    return { type: 'image', url, ...requirementFields }
   }
 
   if (artifact.type === 'repo_link') {
@@ -191,6 +205,7 @@ export function submissionArtifactToAssignmentArtifact(
     return {
       type: 'repo',
       url,
+      ...requirementFields,
       repo_owner: repoOwner,
       repo_name: repoName,
       normalized_url: normalizedUrl,
@@ -198,13 +213,19 @@ export function submissionArtifactToAssignmentArtifact(
     }
   }
 
-  return { type: 'link', url }
+  return { type: 'link', url, ...requirementFields }
 }
 
 export function submissionArtifactsToAssignmentArtifacts(
-  artifacts: AssignmentSubmissionArtifact[]
+  artifacts: AssignmentSubmissionArtifact[],
+  requirements: AssignmentSubmissionRequirement[] = []
 ): AssignmentArtifact[] {
+  const requirementsById = new Map(requirements.map((requirement) => [requirement.id, requirement]))
+
   return artifacts
-    .map(submissionArtifactToAssignmentArtifact)
+    .map((artifact) => submissionArtifactToAssignmentArtifact(
+      artifact,
+      requirementsById.get(artifact.requirement_id) ?? null
+    ))
     .filter((artifact): artifact is AssignmentArtifact => artifact !== null)
 }

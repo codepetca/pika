@@ -68,6 +68,7 @@ function makeStudentWork(
     authenticityScore?: number | null
     emptyContent?: boolean
     submissionArtifacts?: Array<Record<string, any>>
+    submissionRequirements?: Array<Record<string, any>>
   },
 ) {
   const doc = {
@@ -131,6 +132,7 @@ function makeStudentWork(
       is_draft: false,
       released_at: '2026-02-18T12:00:00Z',
       track_authenticity: true,
+      submission_requirements: opts.submissionRequirements || [],
       created_by: 'teacher-1',
       created_at: '2026-02-20T12:00:00Z',
       updated_at: '2026-02-20T12:00:00Z',
@@ -181,6 +183,7 @@ function mockFetchByStudent(
       authenticityScore?: number | null
       emptyContent?: boolean
       submissionArtifacts?: Array<Record<string, any>>
+      submissionRequirements?: Array<Record<string, any>>
       historyEntries?: Array<Record<string, any>>
     }
   >,
@@ -381,8 +384,129 @@ describe('TeacherStudentWorkPanel', () => {
     )
 
     expect(await screen.findByText('Submitted artifacts')).toBeInTheDocument()
-    expect(screen.getByText('demo.example.com')).toBeInTheDocument()
+    expect(screen.getByText(/Link . demo.example.com/i)).toBeInTheDocument()
     expect(screen.queryByText('No work submitted yet')).not.toBeInTheDocument()
+  })
+
+  it('renders submission artifact titles, kinds, and required status in student details', async () => {
+    mockFetchByStudent({
+      'student-1': {
+        graded: false,
+        emptyContent: true,
+        submissionRequirements: [
+          {
+            id: 'req-demo',
+            assignment_id: 'assignment-1',
+            type: 'link',
+            label: 'Published demo',
+            instructions: '',
+            required: true,
+            position: 0,
+            validation_policy_json: {},
+            created_at: '2026-02-20T12:00:00Z',
+            updated_at: '2026-02-20T12:00:00Z',
+          },
+          {
+            id: 'req-repo',
+            assignment_id: 'assignment-1',
+            type: 'repo_link',
+            label: 'Source repo',
+            instructions: '',
+            required: true,
+            position: 1,
+            validation_policy_json: {},
+            created_at: '2026-02-20T12:00:00Z',
+            updated_at: '2026-02-20T12:00:00Z',
+          },
+          {
+            id: 'req-screenshot',
+            assignment_id: 'assignment-1',
+            type: 'image',
+            label: 'Process screenshot',
+            instructions: '',
+            required: false,
+            position: 2,
+            validation_policy_json: {},
+            created_at: '2026-02-20T12:00:00Z',
+            updated_at: '2026-02-20T12:00:00Z',
+          },
+        ],
+        submissionArtifacts: [
+          {
+            id: 'artifact-1',
+            assignment_doc_id: 'doc-student-1',
+            requirement_id: 'req-demo',
+            student_id: 'student-1',
+            type: 'link',
+            url: 'https://demo.example.com',
+            storage_path: null,
+            metadata_json: {},
+            validation_status: 'valid',
+            validation_message: null,
+            validated_at: '2026-02-20T12:00:00Z',
+            created_at: '2026-02-20T12:00:00Z',
+            updated_at: '2026-02-20T12:00:00Z',
+          },
+          {
+            id: 'artifact-2',
+            assignment_doc_id: 'doc-student-1',
+            requirement_id: 'req-repo',
+            student_id: 'student-1',
+            type: 'repo_link',
+            url: 'https://github.com/codepetca/pika',
+            storage_path: null,
+            metadata_json: {
+              repo_owner: 'codepetca',
+              repo_name: 'pika',
+              normalized_url: 'https://github.com/codepetca/pika',
+            },
+            validation_status: 'valid',
+            validation_message: null,
+            validated_at: '2026-02-20T12:00:00Z',
+            created_at: '2026-02-20T12:00:00Z',
+            updated_at: '2026-02-20T12:00:00Z',
+          },
+          {
+            id: 'artifact-3',
+            assignment_doc_id: 'doc-student-1',
+            requirement_id: 'req-screenshot',
+            student_id: 'student-1',
+            type: 'image',
+            url: 'https://cdn.example.com/submission-images/process.png',
+            storage_path: 'student-1/assignment-1/process.png',
+            metadata_json: {},
+            validation_status: 'valid',
+            validation_message: null,
+            validated_at: '2026-02-20T12:00:00Z',
+            created_at: '2026-02-20T12:00:00Z',
+            updated_at: '2026-02-20T12:00:00Z',
+          },
+        ],
+      },
+    })
+
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    expect(await screen.findByText('Submitted artifacts')).toBeInTheDocument()
+    expect(screen.getByText('Published demo')).toBeInTheDocument()
+    expect(screen.getByText('Source repo')).toBeInTheDocument()
+    expect(screen.getByText('Process screenshot')).toBeInTheDocument()
+    expect(screen.getByText(/Link . demo.example.com/i)).toBeInTheDocument()
+    expect(screen.getByText(/Repo . github.com\/codepetca\/pika/i)).toBeInTheDocument()
+    expect(screen.getByText(/Image . cdn.example.com\/submission-images/i)).toBeInTheDocument()
+    expect(screen.getAllByText('Required submission')).toHaveLength(2)
+    expect(screen.getByText('Optional submission')).toBeInTheDocument()
+    expect(screen.queryByText('Public link')).not.toBeInTheDocument()
   })
 
   it('uses edit-mode checkboxes to hide inspector cards outside edit mode', async () => {

@@ -8,7 +8,10 @@ import {
   resolveAssignmentRepoTarget,
 } from '@/lib/server/assignment-repo-targets'
 import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
-import { loadAssignmentSubmissionArtifactsForDoc } from '@/lib/server/assignment-submission-artifacts'
+import {
+  loadAssignmentSubmissionArtifactsForDoc,
+  loadAssignmentSubmissionRequirements,
+} from '@/lib/server/assignment-submission-artifacts'
 import { loadAssignmentFeedbackEntries } from '@/lib/server/assignment-feedback'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { parseContentField } from '@/lib/tiptap-content'
@@ -93,7 +96,11 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
   const structuredArtifacts = doc?.id
     ? await loadAssignmentSubmissionArtifactsForDoc(supabase, doc.id)
     : []
-  const structuredCandidateRepos = submissionArtifactsToAssignmentArtifacts(structuredArtifacts)
+  const submissionRequirements = await loadAssignmentSubmissionRequirements(supabase, assignmentId)
+  const structuredCandidateRepos = submissionArtifactsToAssignmentArtifacts(
+    structuredArtifacts,
+    submissionRequirements,
+  )
     .filter((artifact) => artifact.type === 'repo')
 
   const status = calculateAssignmentStatus(assignment, doc)
@@ -124,6 +131,7 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
       instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
       due_at: assignment.due_at,
       position: assignment.position ?? 0,
+      submission_requirements: submissionRequirements,
       created_by: assignment.created_by,
       created_at: assignment.created_at,
       updated_at: assignment.updated_at,
