@@ -229,6 +229,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test`
 - `pnpm build`
 
+## 2026-05-27 — Assignment student table scroll preservation
+
+**Completed:**
+- Preserved the teacher assignment student table scroll position across lower-row student selection, refresh loading, and row updates from grading/comment actions.
+- Prevented temporary assignment-detail loading states from overwriting the saved scroll position with a clamped `0`.
+- Added component regression coverage for refresh loading clamping the class-pane scroll upward.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/hooks/useScrollPositionMemory.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=71f8b37f-831b-4e90-89f9-f04981a97d6a'`
+- Teacher recapture after workspace load: `/tmp/pika-teacher.png`
+- `pnpm test`
+- `pnpm build`
+
 ## 2026-05-26 — GitHub identity API coverage
 
 **Completed:**

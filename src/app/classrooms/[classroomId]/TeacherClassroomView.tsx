@@ -686,6 +686,7 @@ export function TeacherClassroomView({
   const [gradeSelectedTemplate, setGradeSelectedTemplate] =
     useState<TeacherAssignmentGradeTemplate | null>(null)
   const [gradeSelectedRefreshCounter, setGradeSelectedRefreshCounter] = useState(0)
+  const [classPaneRestoreCounter, setClassPaneRestoreCounter] = useState(0)
   const [refreshCounter, setRefreshCounter] = useState(0)
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const wasActiveRef = useRef(isActive)
@@ -1166,11 +1167,6 @@ export function TeacherClassroomView({
       ? selectedAssignmentData
       : null
   }, [selectedAssignmentData, selection])
-
-  const handleRefreshSelectedAssignment = useCallback(() => {
-    if (selection.mode !== 'assignment') return
-    setRefreshCounter((count) => count + 1)
-  }, [selection])
 
   const activeAssignmentAiRun = useMemo(() => {
     if (selection.mode !== 'assignment' || !assignmentAiGradingRun) return null
@@ -1813,7 +1809,7 @@ export function TeacherClassroomView({
     preserveScrollPosition: preserveClassPaneScrollPosition,
   } = useScrollPositionMemory<HTMLDivElement>({
     key: selectedAssignmentId,
-    enabled: splitPaneView !== 'content-grading',
+    enabled: splitPaneView !== 'content-grading' && !selectedAssignmentLoading,
     storageKey: selectedAssignmentId
       ? `teacher-assignment-student-scroll:${classroom.id}:${selectedAssignmentId}`
       : null,
@@ -1821,8 +1817,20 @@ export function TeacherClassroomView({
       activeSelectedStudentId ?? 'none',
       currentStudentRows.length,
       selectedAssignmentLoading ? 'loading' : 'ready',
+      classPaneRestoreCounter,
     ].join(':'),
   })
+
+  const queueClassPaneScrollRestore = useCallback(() => {
+    preserveClassPaneScrollPosition()
+    setClassPaneRestoreCounter((count) => count + 1)
+  }, [preserveClassPaneScrollPosition])
+
+  const handleRefreshSelectedAssignment = useCallback(() => {
+    if (selection.mode !== 'assignment') return
+    queueClassPaneScrollRestore()
+    setRefreshCounter((count) => count + 1)
+  }, [queueClassPaneScrollRestore, selection])
 
   const handleGoPrevStudent = useCallback(() => {
     if (selectedStudentIndex <= 0) return
@@ -1967,6 +1975,7 @@ export function TeacherClassroomView({
       const detail = customEvent.detail
       if (!detail?.assignmentId || !detail?.studentId || !detail?.doc) return
       const updatedDoc = detail.doc
+      queueClassPaneScrollRestore()
 
       setSelectedAssignmentData((prev) => {
         if (!prev || prev.assignment.id !== detail.assignmentId) return prev
@@ -1992,7 +2001,7 @@ export function TeacherClassroomView({
 
     window.addEventListener(TEACHER_GRADE_UPDATED_EVENT, onGradeUpdated)
     return () => window.removeEventListener(TEACHER_GRADE_UPDATED_EVENT, onGradeUpdated)
-  }, [])
+  }, [queueClassPaneScrollRestore])
 
   function toggleSort(column: 'first' | 'last' | 'status') {
     setSortState((prev) => toggleSortState(prev, column))
@@ -2101,7 +2110,7 @@ export function TeacherClassroomView({
       rows={currentStudentRows}
       selectedStudentId={activeSelectedStudentId}
       onSelectStudent={(studentId) => {
-        preserveClassPaneScrollPosition()
+        queueClassPaneScrollRestore()
         setIndividualHeaderMeta(null)
         setSelectedStudentAndNavigate(studentId)
       }}
