@@ -296,6 +296,7 @@ export function TeacherTestsTab({
   onTestGradingDataRefresh,
   onTestGradingContextChange,
   onRequestTestPreview,
+  onRequestDelete,
 }: Props) {
   const apiBasePath = '/api/teacher/tests'
   const isReadOnly = !!classroom.archived_at
@@ -2331,6 +2332,26 @@ export function TeacherTestsTab({
           },
           disabled:
             batchSelectedCount === 0 ||
+            isCombinedTestActionsBusy,
+          destructive: true,
+        },
+        {
+          id: 'delete-test',
+          label: (
+            <span className="inline-flex items-center gap-2 whitespace-nowrap text-danger">
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              <span>Delete Test</span>
+            </span>
+          ),
+          onSelect: () => {
+            if (onRequestDelete) {
+              onRequestDelete()
+              return
+            }
+            setPendingDeleteTest(selectedTestWorkspace)
+          },
+          disabled:
+            isReadOnly ||
             isCombinedTestActionsBusy,
           destructive: true,
         },
