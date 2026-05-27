@@ -1223,12 +1223,17 @@ describe('assignment utilities', () => {
   // ==========================================================================
 
   describe('sanitizeDocForStudent', () => {
-    it('should return doc unchanged when returned_at is set', () => {
+    it('should preserve returned grade fields while stripping draft-only fields', () => {
       const doc = createMockAssignmentDoc({
         score_completion: 8,
         score_thinking: 7,
         score_workflow: 9,
         feedback: 'Good work',
+        teacher_feedback_draft: 'Do not show this draft',
+        teacher_feedback_draft_updated_at: '2024-10-21T11:00:00Z',
+        ai_feedback_suggestion: 'Suggested feedback',
+        ai_feedback_suggested_at: '2024-10-21T11:30:00Z',
+        ai_feedback_model: 'gpt-5-nano',
         graded_at: '2024-10-21T10:00:00Z',
         graded_by: 'teacher',
         returned_at: '2024-10-21T14:00:00Z',
@@ -1243,6 +1248,11 @@ describe('assignment utilities', () => {
       expect(result.graded_at).toBe('2024-10-21T10:00:00Z')
       expect(result.graded_by).toBe('teacher')
       expect(result.returned_at).toBe('2024-10-21T14:00:00Z')
+      expect(result.teacher_feedback_draft).toBeNull()
+      expect(result.teacher_feedback_draft_updated_at).toBeNull()
+      expect(result.ai_feedback_suggestion).toBeNull()
+      expect(result.ai_feedback_suggested_at).toBeNull()
+      expect(result.ai_feedback_model).toBeNull()
     })
 
     it('should strip all grade fields when returned_at is null', () => {

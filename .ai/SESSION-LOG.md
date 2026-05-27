@@ -7,23 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Mobile navigation drawer labels
-
-**Completed:**
-- Made the classroom mobile navigation drawer show tab labels beside icons even when the persisted desktop left rail is collapsed.
-- Kept desktop collapsed-rail behavior icon-only with screen-reader labels and tooltips.
-- Closed mobile drawer state when the viewport crosses to the desktop breakpoint so stale mobile state cannot affect the desktop rail.
-- Added NavItems regression coverage for mobile-open labels and desktop-collapsed hidden labels.
-
-**Validation:**
-- `pnpm test tests/components/NavItems.test.tsx`
-- `pnpm test tests/components/NavItems.test.tsx tests/components/ThreePanelProvider.test.tsx`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861"`
-- Playwright mobile drawer assertions for teacher and student labels.
-- Screenshots: `/tmp/pika-teacher-mobile-menu.png`, `/tmp/pika-student-mobile-menu.png`
-- `pnpm lint`
-- `pnpm test`
-
 ## 2026-05-26 — Gradebook action cluster consistency
 
 **Completed:**
@@ -350,3 +333,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a&assignmentStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
 - Browser screenshots: `/tmp/pika-teacher-details-artifacts.png`, `/tmp/pika-student-loaded.png`, `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-27 — Next systems/UI audit slice
+
+**Completed:**
+- Hardened student test document snapshot access to respect draft status, selected-student availability, submitted work, grading lock state, and returned work.
+- Scoped student test result aggregates to currently enrolled students whose attempts have been returned.
+- Kept returned assignment grade/feedback fields visible while stripping teacher-only draft feedback and AI suggestion fields.
+- Added accessible names for student survey link/text responses, student open-response test answers, and teacher announcement body textareas.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/api/student/tests-documents-snapshot.test.ts tests/api/student/tests-results.test.ts tests/unit/assignments.test.ts tests/api/student/assignments.test.ts tests/components/StudentSurveyPanel.test.tsx tests/components/StudentQuizForm.test.tsx tests/components/AnnouncementsMarkdown.test.tsx`
+- `pnpm vitest run tests/api/integration/test-return-visibility-flow.test.ts --reporter=verbose`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=announcements'`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
+- UI screenshots reviewed from `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png` for each tab run.
+- `pnpm test`
+- `bash scripts/verify-env.sh`

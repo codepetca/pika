@@ -27,18 +27,21 @@ vi.mock('@/lib/server/classrooms', () => ({
   })),
 }))
 
-vi.mock('@/lib/assignments', () => ({
-  calculateAssignmentStatus: vi.fn((assignment, doc) => {
-    if (doc?.is_submitted) return 'submitted'
-    if (doc) return 'in-progress'
-    return 'not-started'
-  }),
-  isAssignmentVisibleToStudents: vi.fn((assignment) => (
-    !assignment.is_draft &&
-    (!assignment.released_at || new Date(assignment.released_at).getTime() <= Date.now())
-  )),
-  sanitizeDocForStudent: vi.fn((doc) => doc),
-}))
+vi.mock('@/lib/assignments', async () => {
+  const actual = await vi.importActual<any>('@/lib/assignments')
+  return {
+    ...actual,
+    calculateAssignmentStatus: vi.fn((assignment, doc) => {
+      if (doc?.is_submitted) return 'submitted'
+      if (doc) return 'in-progress'
+      return 'not-started'
+    }),
+    isAssignmentVisibleToStudents: vi.fn((assignment) => (
+      !assignment.is_draft &&
+      (!assignment.released_at || new Date(assignment.released_at).getTime() <= Date.now())
+    )),
+  }
+})
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -411,6 +414,86 @@ describe('GET /api/student/assignments', () => {
 
       expect(data.assignments[0].doc).not.toBeNull()
       expect(data.assignments[0].doc.id).toBe('doc-1')
+    })
+
+    it('should sanitize returned docs before sending them to students', async () => {
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'enrollment-1' },
+                error: null,
+              }),
+            })),
+          }
+        } else if (table === 'assignments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  order: vi.fn().mockResolvedValue({
+                    data: [{ id: 'assignment-1', title: 'Test' }],
+                    error: null,
+                  }),
+                })),
+              })),
+            })),
+          }
+        } else if (table === 'assignment_docs') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                in: vi.fn().mockResolvedValue({
+                  data: [
+                    {
+                      id: 'doc-1',
+                      assignment_id: 'assignment-1',
+                      student_id: 'student-1',
+                      is_submitted: true,
+                      submitted_at: '2024-10-20T12:00:00Z',
+                      returned_at: '2024-10-21T12:00:00Z',
+                      score_completion: 8,
+                      score_thinking: 7,
+                      score_workflow: 9,
+                      feedback: 'Released feedback',
+                      teacher_feedback_draft: 'Teacher-only draft',
+                      teacher_feedback_draft_updated_at: '2024-10-21T11:00:00Z',
+                      ai_feedback_suggestion: 'AI suggestion',
+                      ai_feedback_suggested_at: '2024-10-21T11:30:00Z',
+                      ai_feedback_model: 'gpt-5-nano',
+                    },
+                  ],
+                  error: null,
+                }),
+              })),
+            })),
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/assignments?classroom_id=classroom-1')
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.assignments[0].doc).toEqual(
+        expect.objectContaining({
+          score_completion: 8,
+          score_thinking: 7,
+          score_workflow: 9,
+          feedback: 'Released feedback',
+          returned_at: '2024-10-21T12:00:00Z',
+          teacher_feedback_draft: null,
+          teacher_feedback_draft_updated_at: null,
+          ai_feedback_suggestion: null,
+          ai_feedback_suggested_at: null,
+          ai_feedback_model: null,
+        })
+      )
     })
 
     it('should include null doc when none exists', async () => {

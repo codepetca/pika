@@ -324,6 +324,7 @@ export function StudentSurveyPanel({
                   ) : question.question_type === 'link' ? (
                     <Input
                       type="url"
+                      aria-label={`${question.question_text} response`}
                       value={textValue}
                       onChange={(event) =>
                         setResponses((current) => ({
@@ -339,6 +340,7 @@ export function StudentSurveyPanel({
                     />
                   ) : (
                     <textarea
+                      aria-label={`${question.question_text} response`}
                       value={textValue}
                       onChange={(event) =>
                         setResponses((current) => ({

@@ -102,12 +102,16 @@ vi.mock('@/lib/auth', () => ({
   }),
 }))
 
-vi.mock('@/lib/server/classrooms', () => ({
-  assertStudentCanAccessClassroom: vi.fn(async () => ({
-    ok: true,
-    classroom: { id: 'classroom-1', archived_at: null },
-  })),
-}))
+vi.mock('@/lib/server/classrooms', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/server/classrooms')>('@/lib/server/classrooms')
+  return {
+    ...actual,
+    assertStudentCanAccessClassroom: vi.fn(async () => ({
+      ok: true,
+      classroom: { id: 'classroom-1', archived_at: null },
+    })),
+  }
+})
 
 vi.mock('@/lib/server/tests', async () => {
   const actual = await vi.importActual<typeof import('@/lib/server/tests')>('@/lib/server/tests')

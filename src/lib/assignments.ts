@@ -426,13 +426,16 @@ const DRAFT_ONLY_FIELDS = [
  */
 export function sanitizeDocForStudent<T extends Record<string, any>>(doc: T): T {
   if (!doc) return doc
-  if (doc.returned_at) return doc // Student can see grades after return
 
   const sanitized = { ...doc }
-  for (const field of GRADE_FIELDS) {
+  for (const field of DRAFT_ONLY_FIELDS) {
     ;(sanitized as any)[field] = null
   }
-  for (const field of DRAFT_ONLY_FIELDS) {
+  if (doc.returned_at) {
+    return sanitized
+  }
+
+  for (const field of GRADE_FIELDS) {
     ;(sanitized as any)[field] = null
   }
   if (!doc.feedback_returned_at) {
