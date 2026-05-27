@@ -7,24 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Test grading mobile table fit
-
-**Completed:**
-- Constrained the teacher test grading student table on mobile/tablet by keeping actionable columns visible and moving telemetry columns to desktop widths.
-- Added truncation for long student names and tightened mobile header spacing to avoid wrapped labels.
-- Added component coverage for the responsive table constraints.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests&testId=210e30d4-f085-4c86-94d3-ee14bb66fd03&testMode=grading&testStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
-- Screenshots reviewed: `/tmp/pika-teacher.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-student.png`
-- Playwright overflow check: teacher mobile `documentScrollWidth=390`, `bodyScrollWidth=390`, viewport `390`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `git diff --check`
-
 ## 2026-05-26 — Action bar viewport and menu coverage
 
 **Completed:**
@@ -348,6 +330,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm vitest run tests/api/teacher/assignments-id-return.test.ts --reporter=verbose`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm run test:coverage`
+- `pnpm build`
+- `git diff --check`
+
+## 2026-05-27 — Assignment repo target enrollment validation
+
+**Completed:**
+- Validated current classroom enrollment before teacher repo-target override reads, deletes, or saves.
+- Failed closed on enrollment query errors and returned the existing not-enrolled bad request for stale students.
+- Added API coverage for unenrolled overrides, enrollment query failures, enrolled override saves, and override resets.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/api/teacher/assignments-repo-targets-studentId.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts --reporter=verbose`
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm lint`
 - `pnpm run test:coverage`
