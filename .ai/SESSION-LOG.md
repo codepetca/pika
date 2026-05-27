@@ -7,23 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Request cache invalidation races
-
-**Completed:**
-- Added unit coverage for `fetchJSONWithCache` TTL reuse, in-flight dedupe, direct invalidation, prefix invalidation, and stale rejection races.
-- Prevented invalidated pending requests from repopulating deleted cache entries after they resolve.
-- Prevented invalidated pending rejections from deleting newer cached values for the same key.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/request-cache.test.ts`
-- `pnpm tsc --noEmit`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `git diff --check`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-
 ## 2026-05-26 — Test grading mobile table fit
 
 **Completed:**
@@ -348,6 +331,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm vitest run tests/api/teacher/quizzes-results.test.ts tests/api/teacher/quizzes-route.test.ts tests/api/teacher/surveys-route.test.ts tests/api/teacher/surveys-results.test.ts --reporter=verbose`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm run test:coverage`
+- `pnpm build`
+- `git diff --check`
+
+## 2026-05-27 — Assignment return enrollment validation
+
+**Completed:**
+- Validated selected student enrollment before loading or mutating assignment return docs.
+- Skipped assignment doc reads/updates for selected students who are no longer enrolled.
+- Preserved unavailable-student response semantics while adding explicit not-enrolled counts and ids.
+- Added regressions for enrollment query failures, fully unenrolled selections, and stale existing assignment docs.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/api/teacher/assignments-id-return.test.ts --reporter=verbose`
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm lint`
 - `pnpm run test:coverage`
