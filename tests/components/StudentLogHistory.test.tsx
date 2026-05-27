@@ -78,12 +78,104 @@ describe('StudentLogHistory', () => {
 
     expect(screen.getByText('Selected day log appears immediately.')).toBeInTheDocument()
     expect(screen.getByText('Preview history appears immediately.')).toBeInTheDocument()
+    expect(screen.queryByText(/Selected date/)).not.toBeInTheDocument()
+    expect(
+      screen.getByText('Selected day log appears immediately.').closest('[aria-current="date"]')
+    ).not.toBeNull()
     expect(fetchMock).toHaveBeenCalledTimes(1)
 
     request.resolve(await mockJson({ entries: [exactEntry] }))
 
     await screen.findByText('Exact fetched history appears after refresh.')
     expect(screen.getByText('Selected day log appears immediately.')).toBeInTheDocument()
+  })
+
+  it('keeps the selected entry in chronological order instead of pinning it', () => {
+    const selectedEntry = entry({
+      id: 'selected-older-entry',
+      student_id: 'student-chronology',
+      classroom_id: 'classroom-chronology',
+      date: '2026-03-14',
+      text: 'Selected older day.',
+    })
+    const newerEntry = entry({
+      id: 'newer-entry',
+      student_id: 'student-chronology',
+      classroom_id: 'classroom-chronology',
+      date: '2026-03-16',
+      text: 'Newer history stays first.',
+    })
+    const olderEntry = entry({
+      id: 'older-entry',
+      student_id: 'student-chronology',
+      classroom_id: 'classroom-chronology',
+      date: '2026-03-13',
+      text: 'Older history stays after.',
+    })
+    const request = deferred<any>()
+    vi.stubGlobal('fetch', vi.fn(() => request.promise))
+
+    const { container } = render(
+      <StudentLogHistory
+        studentId="student-chronology"
+        classroomId="classroom-chronology"
+        selectedDate="2026-03-14"
+        selectedEntry={selectedEntry}
+        initialEntries={[selectedEntry, newerEntry, olderEntry]}
+      />
+    )
+
+    const text = container.textContent || ''
+    expect(text.indexOf('Newer history stays first.')).toBeLessThan(
+      text.indexOf('Selected older day.')
+    )
+    expect(text.indexOf('Selected older day.')).toBeLessThan(
+      text.indexOf('Older history stays after.')
+    )
+    expect(
+      screen.getByText('Selected older day.').closest('[aria-current="date"]')
+    ).not.toBeNull()
+    expect(screen.queryByText(/Selected date/)).not.toBeInTheDocument()
+  })
+
+  it('shows a selected no-log row at the selected date position', () => {
+    const newerEntry = entry({
+      id: 'newer-before-empty',
+      student_id: 'student-empty-date',
+      classroom_id: 'classroom-empty-date',
+      date: '2026-03-16',
+      text: 'Newer log.',
+    })
+    const olderEntry = entry({
+      id: 'older-after-empty',
+      student_id: 'student-empty-date',
+      classroom_id: 'classroom-empty-date',
+      date: '2026-03-14',
+      text: 'Older log.',
+    })
+    const request = deferred<any>()
+    vi.stubGlobal('fetch', vi.fn(() => request.promise))
+
+    const { container } = render(
+      <StudentLogHistory
+        studentId="student-empty-date"
+        classroomId="classroom-empty-date"
+        selectedDate="2026-03-15"
+        selectedEntry={null}
+        initialEntries={[newerEntry, olderEntry]}
+      />
+    )
+
+    const text = container.textContent || ''
+    expect(text.indexOf('Newer log.')).toBeLessThan(
+      text.indexOf('No log for this date.')
+    )
+    expect(text.indexOf('No log for this date.')).toBeLessThan(
+      text.indexOf('Older log.')
+    )
+    expect(
+      screen.getByText('No log for this date.').closest('[aria-current="date"]')
+    ).not.toBeNull()
   })
 
   it('filters blank selected entries and blank preview rows', async () => {

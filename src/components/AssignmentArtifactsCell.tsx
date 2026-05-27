@@ -14,7 +14,7 @@ interface AssignmentArtifactsCellProps {
 }
 
 function getArtifactLabel(artifact: AssignmentArtifact): string {
-  const prefix = artifact.type === 'image' ? 'Image' : artifact.type === 'repo' ? 'Repo' : 'Link'
+  const prefix = artifact.title?.trim() || (artifact.type === 'image' ? 'Image' : artifact.type === 'repo' ? 'Repo' : 'Link')
   return `${prefix} . ${summarizeArtifactUrl(artifact.url)}`
 }
 
@@ -23,19 +23,56 @@ function getArtifactSummary(artifact: AssignmentArtifact): string {
 }
 
 function getArtifactTypeLabel(artifact: AssignmentArtifact): string {
+  if (artifact.title?.trim()) return artifact.title.trim()
   if (artifact.type === 'image') return 'Image'
   if (artifact.type === 'repo') return 'Repo'
   return 'Link'
 }
 
+function getArtifactKindLabel(artifact: AssignmentArtifact): string {
+  if (artifact.type === 'image') return 'Image'
+  if (artifact.type === 'repo') return 'Repo'
+  return 'Link'
+}
+
+function isRequiredSubmissionArtifact(artifact: AssignmentArtifact): boolean {
+  return artifact.is_required_submission === true
+}
+
+function getSubmissionArtifactStatusLabel(artifact: AssignmentArtifact): string | null {
+  if (isRequiredSubmissionArtifact(artifact)) return 'Required submission'
+  if (artifact.requirement_id) return 'Optional submission'
+  return null
+}
+
+function getArtifactIconClassName(artifact: AssignmentArtifact) {
+  return [
+    'h-3.5 w-3.5 shrink-0',
+    isRequiredSubmissionArtifact(artifact) ? 'text-primary' : 'text-text-muted',
+  ].join(' ')
+}
+
+function RequiredSubmissionMarker() {
+  return (
+    <span
+      aria-hidden="true"
+      className="rounded-[3px] border border-primary/30 px-0.5 text-[9px] font-semibold uppercase leading-3 text-primary"
+    >
+      R
+    </span>
+  )
+}
+
 function ArtifactTypeIcon({ artifact }: { artifact: AssignmentArtifact }) {
+  const className = getArtifactIconClassName(artifact)
+
   if (artifact.type === 'image') {
-    return <ImageIcon className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+    return <ImageIcon className={className} aria-hidden="true" />
   }
   if (artifact.type === 'repo') {
-    return <FolderGit2 className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+    return <FolderGit2 className={className} aria-hidden="true" />
   }
-  return <Link2 className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+  return <Link2 className={className} aria-hidden="true" />
 }
 
 function ArtifactsTooltipList({
@@ -55,36 +92,46 @@ function ArtifactsTooltipList({
         {artifacts.length} artifact{artifacts.length === 1 ? '' : 's'}
       </div>
       <div className="space-y-1">
-        {artifacts.map((artifact, index) => (
-          <a
-            key={`${artifact.url}:${index}`}
-            href={artifact.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={handleArtifactClick}
-            aria-label={`Open artifact ${index + 1}: ${getArtifactTypeLabel(artifact)} . ${getArtifactSummary(artifact)}`}
-            className={[
-              'flex min-w-0 items-start gap-2 rounded-md border px-2 py-1.5',
-              index === activeIndex
-                ? 'border-primary/40 bg-surface-selected'
-                : 'border-border bg-surface-2',
-              'hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface',
-            ].join(' ')}
-          >
-            <span className="mt-0.5 inline-flex h-5 min-w-8 shrink-0 items-center justify-center gap-1 rounded-full border border-border bg-surface text-[11px] font-medium text-text-default">
-              <ArtifactTypeIcon artifact={artifact} />
-              {index + 1}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[11px] font-medium text-text-default">
-                {getArtifactTypeLabel(artifact)} . {getArtifactSummary(artifact)}
+        {artifacts.map((artifact, index) => {
+          const statusLabel = getSubmissionArtifactStatusLabel(artifact)
+          const isRequiredSubmission = isRequiredSubmissionArtifact(artifact)
+          const borderClass = isRequiredSubmission
+            ? 'border-primary/50'
+            : index === activeIndex
+              ? 'border-primary/40'
+              : 'border-border'
+          const surfaceClass = index === activeIndex ? 'bg-surface-selected' : 'bg-surface-2'
+
+          return (
+            <a
+              key={`${artifact.url}:${index}`}
+              href={artifact.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleArtifactClick}
+              aria-label={`Open ${statusLabel ? `${statusLabel.toLowerCase()} ` : ''}artifact ${index + 1}: ${getArtifactTypeLabel(artifact)} . ${getArtifactSummary(artifact)}`}
+              className={[
+                'flex min-w-0 items-start gap-2 rounded-md border px-2 py-1.5',
+                borderClass,
+                surfaceClass,
+                'hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface',
+              ].join(' ')}
+            >
+              <span className="mt-0.5 inline-flex h-5 min-w-8 shrink-0 items-center justify-center gap-1 rounded-full border border-border bg-surface text-[11px] font-medium text-text-default">
+                <ArtifactTypeIcon artifact={artifact} />
+                {index + 1}
               </span>
-              <span className="block truncate text-[11px] text-text-muted">
-                {artifact.url}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[11px] font-medium text-text-default">
+                  {getArtifactTypeLabel(artifact)} . {getArtifactSummary(artifact)}
+                </span>
+                <span className="block truncate text-[11px] text-text-muted">
+                  {statusLabel ?? getArtifactKindLabel(artifact)} . {artifact.url}
+                </span>
               </span>
-            </span>
-          </a>
-        ))}
+            </a>
+          )
+        })}
       </div>
     </div>
   )
@@ -121,29 +168,42 @@ export function AssignmentArtifactsCell({
             side="bottom"
             align="start"
           >
-            {hasMultipleArtifacts ? (
-              <button
-                type="button"
-                onClick={handleOpenChooser}
-                className="inline-flex h-6 min-w-9 items-center justify-center gap-1 rounded-full border border-border bg-surface-2 px-1.5 text-xs font-medium text-text-default hover:bg-surface-hover"
-                aria-label={`View work items; artifact ${index + 1} is ${getArtifactLabel(artifact)}`}
-              >
-                <ArtifactTypeIcon artifact={artifact} />
-                <span>{index + 1}</span>
-              </button>
-            ) : (
-              <a
-                href={artifact.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={handleOpenSingle}
-                className="inline-flex h-6 min-w-9 items-center justify-center gap-1 rounded-full border border-border bg-surface-2 px-1.5 text-xs font-medium text-text-default hover:bg-surface-hover"
-                aria-label={`Open artifact ${index + 1}: ${getArtifactLabel(artifact)}`}
-              >
-                <ArtifactTypeIcon artifact={artifact} />
-                <span>{index + 1}</span>
-              </a>
-            )}
+            {(() => {
+              const isRequiredSubmission = isRequiredSubmissionArtifact(artifact)
+              const requiredLabel = isRequiredSubmission ? 'required submission ' : ''
+              const pillClassName = [
+                'inline-flex h-6 min-w-9 items-center justify-center gap-1 rounded-full border px-1.5 text-xs font-medium hover:bg-surface-hover',
+                isRequiredSubmission
+                  ? 'border-primary/50 bg-info-bg text-primary'
+                  : 'border-border bg-surface-2 text-text-default',
+              ].join(' ')
+
+              return hasMultipleArtifacts ? (
+                <button
+                  type="button"
+                  onClick={handleOpenChooser}
+                  className={pillClassName}
+                  aria-label={`View work items; ${requiredLabel}artifact ${index + 1} is ${getArtifactLabel(artifact)}`}
+                >
+                  <ArtifactTypeIcon artifact={artifact} />
+                  <span>{index + 1}</span>
+                  {isRequiredSubmission ? <RequiredSubmissionMarker /> : null}
+                </button>
+              ) : (
+                <a
+                  href={artifact.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleOpenSingle}
+                  className={pillClassName}
+                  aria-label={`Open ${requiredLabel}artifact ${index + 1}: ${getArtifactLabel(artifact)}`}
+                >
+                  <ArtifactTypeIcon artifact={artifact} />
+                  <span>{index + 1}</span>
+                  {isRequiredSubmission ? <RequiredSubmissionMarker /> : null}
+                </a>
+              )
+            })()}
           </Tooltip>
         ))}
       </div>
@@ -157,29 +217,39 @@ export function AssignmentArtifactsCell({
         showFooterClose={false}
       >
         <div className="space-y-2">
-          {artifacts.map((artifact, index) => (
-            <a
-              key={`${artifact.url}:${index}`}
-              href={artifact.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setIsChooserOpen(false)}
-              className="flex min-w-0 items-center gap-3 rounded-md border border-border bg-surface p-2.5 text-left hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface"
-            >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface-2">
-                <ArtifactTypeIcon artifact={artifact} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-text-default">
-                  {getArtifactTypeLabel(artifact)} . {getArtifactSummary(artifact)}
+          {artifacts.map((artifact, index) => {
+            const statusLabel = getSubmissionArtifactStatusLabel(artifact)
+            const isRequiredSubmission = isRequiredSubmissionArtifact(artifact)
+
+            return (
+              <a
+                key={`${artifact.url}:${index}`}
+                href={artifact.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setIsChooserOpen(false)}
+                className="flex min-w-0 items-center gap-3 rounded-md border border-border bg-surface p-2.5 text-left hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface"
+              >
+                <span className={[
+                  'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border',
+                  isRequiredSubmission
+                    ? 'border-primary/50 bg-info-bg'
+                    : 'border-border bg-surface-2',
+                ].join(' ')}>
+                  <ArtifactTypeIcon artifact={artifact} />
                 </span>
-                <span className="mt-0.5 block truncate text-xs text-text-muted">
-                  {artifact.url}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-text-default">
+                    {getArtifactTypeLabel(artifact)} . {getArtifactSummary(artifact)}
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs text-text-muted">
+                    {statusLabel ?? getArtifactKindLabel(artifact)} . {artifact.url}
+                  </span>
                 </span>
-              </span>
-              <ExternalLink className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
-            </a>
-          ))}
+                <ExternalLink className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+              </a>
+            )
+          })}
         </div>
       </ContentDialog>
     </>

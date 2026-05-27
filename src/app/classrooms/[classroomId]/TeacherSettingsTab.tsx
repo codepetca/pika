@@ -1,9 +1,21 @@
 'use client'
 
-import { useMemo, useState, useId } from 'react'
+import { forwardRef, useMemo, useState, useId, type ReactNode, type TextareaHTMLAttributes } from 'react'
 import { useRouter } from 'next/navigation'
 import { Info } from 'lucide-react'
-import { Button, ConfirmDialog, DialogPanel, FormField, Input, Tooltip, useAppMessage } from '@/ui'
+import {
+  Button,
+  Card,
+  ConfirmDialog,
+  DialogPanel,
+  FormField,
+  Input,
+  SegmentedControl,
+  Select,
+  Tooltip,
+  cn,
+  useAppMessage,
+} from '@/ui'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG, slugifyCourseSiteValue } from '@/lib/course-site-publishing'
@@ -20,6 +32,23 @@ function generateJoinCode() {
 
 type SettingsSection = 'general' | 'class-days'
 
+const SETTINGS_SECTION_OPTIONS: Array<{ value: SettingsSection; label: string }> = [
+  { value: 'general', label: 'General' },
+  { value: 'class-days', label: 'Class Days' },
+]
+
+const LESSON_PLAN_VISIBILITY_OPTIONS = [
+  { value: 'current_week', label: 'Current week (and all previous)' },
+  { value: 'one_week_ahead', label: '1 week ahead' },
+  { value: 'all', label: 'All (no restrictions)' },
+]
+
+const SYLLABUS_LESSON_PLAN_SCOPE_OPTIONS = [
+  { value: 'current_week', label: 'Current week (and earlier)' },
+  { value: 'one_week_ahead', label: 'One week ahead' },
+  { value: 'all', label: 'All lesson plans' },
+]
+
 function visibleActualSiteConfig(config: ActualCourseSiteConfig | null | undefined): ActualCourseSiteConfig {
   return {
     ...(config || DEFAULT_ACTUAL_COURSE_SITE_CONFIG),
@@ -33,6 +62,50 @@ interface Props {
   onSectionChange?: (section: SettingsSection) => void
 }
 
+function SettingsPanel({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <Card padding="md" className={cn('space-y-3 shadow-none', className)}>
+      {children}
+    </Card>
+  )
+}
+
+function SettingsHeading({ title, tooltip }: { title: string; tooltip?: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="text-sm font-semibold text-text-default">{title}</div>
+      {tooltip ? (
+        <Tooltip content={tooltip} side="right">
+          <span className="text-text-muted cursor-help">
+            <Info size={14} />
+          </span>
+        </Tooltip>
+      ) : null}
+    </div>
+  )
+}
+
+interface SettingsTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  hasError?: boolean
+}
+
+const SettingsTextarea = forwardRef<HTMLTextAreaElement, SettingsTextareaProps>(function SettingsTextarea(
+  { hasError, className, ...props },
+  ref,
+) {
+  return (
+    <textarea
+      ref={ref}
+      className={cn(
+        'w-full rounded-control border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:bg-surface-2 disabled:cursor-not-allowed',
+        hasError ? 'border-danger' : 'border-border',
+        className,
+      )}
+      {...props}
+    />
+  )
+})
+
 export function TeacherSettingsTab({
   classroom,
   sectionParam,
@@ -45,6 +118,7 @@ export function TeacherSettingsTab({
   const actualSiteSlugId = useId()
   const actualOverviewId = useId()
   const actualOutlineId = useId()
+  const actualLessonPlanScopeId = useId()
   const showMarkdownId = useId()
   const isReadOnly = !!classroom.archived_at
   const { showMarkdown, mounted: markdownMounted, setShowMarkdown } = useMarkdownPreference()
@@ -269,48 +343,23 @@ export function TeacherSettingsTab({
 
   return (
     <PageLayout>
-      {/* Sub-tab navigation */}
-      <div className="mb-2 flex border-b border-border">
-        <button
-          type="button"
-          onClick={() => onSectionChange('general')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            section === 'general'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-text-muted hover:text-text-default hover:border-border'
-          }`}
-        >
-          General
-        </button>
-        <button
-          type="button"
-          onClick={() => onSectionChange('class-days')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            section === 'class-days'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-text-muted hover:text-text-default hover:border-border'
-          }`}
-        >
-          Class Days
-        </button>
+      <div className="mb-2">
+        <SegmentedControl
+          ariaLabel="Settings section"
+          value={section}
+          options={SETTINGS_SECTION_OPTIONS}
+          onChange={onSectionChange}
+          className="[&_button]:min-h-11"
+        />
       </div>
 
       {section === 'general' ? (
         <PageContent className="space-y-4 pt-0">
-            <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <label htmlFor={titleId} className="text-sm font-semibold text-text-default">
-                  Course Name
-                </label>
-                <Tooltip content="Name shown to students and in reports" side="right">
-                  <span className="text-text-muted cursor-help">
-                    <Info size={14} />
-                  </span>
-                </Tooltip>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-stretch gap-3">
-                <input
-                  id={titleId}
+          <SettingsPanel>
+            <SettingsHeading title="Course Name" tooltip="Name shown to students and in reports" />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+              <FormField label="Course Name" htmlFor={titleId} hideLabel error={titleError} className="flex-1">
+                <Input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -322,295 +371,248 @@ export function TeacherSettingsTab({
                     }
                   }}
                   disabled={titleSaving || isReadOnly}
-                  className="flex-1 rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   placeholder="Enter course name"
                 />
-                {titleSaving && <span className="text-sm text-text-muted self-center">Saving...</span>}
-              </div>
-              {titleError && <div className="text-sm text-danger">{titleError}</div>}
+              </FormField>
+              {titleSaving && <span className="text-sm text-text-muted sm:pt-2">Saving...</span>}
+            </div>
+          </SettingsPanel>
+
+          <SettingsPanel>
+            <SettingsHeading title="Join Code" tooltip="Students must be on the roster to join" />
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                onClick={() => copyWithNotice('Join code', joinCode)}
+                aria-label="Copy join code"
+                className="w-full justify-start font-mono text-base font-semibold sm:w-auto"
+              >
+                {joinCode}
+              </Button>
+
+              <Button
+                variant="secondary"
+                onClick={() => setShowRegenerateConfirm(true)}
+                disabled={isRegenerating || isReadOnly}
+                className="w-full sm:w-auto"
+              >
+                {isRegenerating ? 'Generating...' : 'New code'}
+              </Button>
+
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                onClick={() => copyWithNotice('Join link', joinLink)}
+                aria-label="Copy join link"
+                title={joinLink}
+                className="w-full min-w-0 justify-start font-mono text-xs sm:flex-1"
+              >
+                <span className="min-w-0 truncate">{joinLink}</span>
+              </Button>
             </div>
 
-            <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="text-sm font-semibold text-text-default">Join Code</div>
-                <Tooltip content="Students must be on the roster to join" side="right">
-                  <span className="text-text-muted cursor-help">
-                    <Info size={14} />
-                  </span>
-                </Tooltip>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-stretch gap-3">
-                <button
-                  type="button"
-                  className="w-full sm:w-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-left font-mono text-base font-semibold text-text-default hover:bg-surface-hover"
-                  onClick={() => copyWithNotice('Join code', joinCode)}
-                  aria-label="Copy join code"
-                >
-                  {joinCode}
-                </button>
-
-                <Button
-                  variant="secondary"
-                  onClick={() => setShowRegenerateConfirm(true)}
-                  disabled={isRegenerating || isReadOnly}
-                  className="w-full sm:w-auto"
-                >
-                  {isRegenerating ? 'Generating…' : 'New code'}
-                </Button>
-
-                <button
-                  type="button"
-                  className="w-full flex-1 rounded-md border border-border bg-surface-2 px-3 py-2 text-left font-mono text-xs text-text-default hover:bg-surface-hover truncate"
-                  onClick={() => copyWithNotice('Join link', joinLink)}
-                  aria-label="Copy join link"
-                  title={joinLink}
-                >
-                  {joinLink}
-                </button>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2 border-t border-border">
-                <input
-                  id={allowEnrollmentId}
-                  type="checkbox"
-                  checked={allowEnrollment}
-                  onChange={(e) => saveAllowEnrollment(e.target.checked)}
-                  disabled={saving || isReadOnly}
-                  className="h-4 w-4"
-                />
-                <label htmlFor={allowEnrollmentId} className="text-sm text-text-default">
-                  Allow joining
-                </label>
-                {saving && <span className="text-sm text-text-muted">Saving...</span>}
-              </div>
-
-              {joinCodeError && <div className="text-sm text-danger">{joinCodeError}</div>}
-              {enrollmentError && <div className="text-sm text-danger">{enrollmentError}</div>}
+            <div className="flex items-center gap-3 border-t border-border pt-2">
+              <input
+                id={allowEnrollmentId}
+                type="checkbox"
+                checked={allowEnrollment}
+                onChange={(e) => saveAllowEnrollment(e.target.checked)}
+                disabled={saving || isReadOnly}
+                className="h-4 w-4"
+              />
+              <label htmlFor={allowEnrollmentId} className="text-sm text-text-default">
+                Allow joining
+              </label>
+              {saving && <span className="text-sm text-text-muted">Saving...</span>}
             </div>
 
-            <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="text-sm font-semibold text-text-default">Calendar Visibility</div>
-                <Tooltip content="Control how far ahead students can see lesson plans" side="right">
-                  <span className="text-text-muted cursor-help">
-                    <Info size={14} />
-                  </span>
-                </Tooltip>
-              </div>
+            {joinCodeError && <div className="text-sm text-danger">{joinCodeError}</div>}
+            {enrollmentError && <div className="text-sm text-danger">{enrollmentError}</div>}
+          </SettingsPanel>
 
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <label htmlFor={visibilityId} className="sr-only">
-                  Calendar visibility
-                </label>
-                <select
-                  id={visibilityId}
+          <SettingsPanel>
+            <SettingsHeading title="Calendar Visibility" tooltip="Control how far ahead students can see lesson plans" />
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+              <FormField label="Calendar visibility" htmlFor={visibilityId} hideLabel error={visibilityError} className="sm:max-w-md">
+                <Select
+                  options={LESSON_PLAN_VISIBILITY_OPTIONS}
                   value={lessonPlanVisibility}
                   onChange={(e) => saveLessonPlanVisibility(e.target.value as LessonPlanVisibility)}
                   disabled={visibilitySaving || isReadOnly}
-                  className="rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="current_week">Current week (and all previous)</option>
-                  <option value="one_week_ahead">1 week ahead</option>
-                  <option value="all">All (no restrictions)</option>
-                </select>
-                {visibilitySaving && <span className="text-sm text-text-muted">Saving...</span>}
-              </div>
-
-              {visibilityError && <div className="text-sm text-danger">{visibilityError}</div>}
-            </div>
-
-            <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
-              <div className="text-sm font-semibold text-text-default">Display</div>
-
-              <label htmlFor={showMarkdownId} className="flex items-center gap-3 text-sm text-text-default">
-                <input
-                  id={showMarkdownId}
-                  type="checkbox"
-                  checked={markdownMounted ? showMarkdown : true}
-                  onChange={(event) => setShowMarkdown(event.target.checked)}
-                  className="h-4 w-4"
                 />
-                Show markdown
-              </label>
+              </FormField>
+              {visibilitySaving && <span className="text-sm text-text-muted sm:pt-2">Saving...</span>}
             </div>
+          </SettingsPanel>
 
-            <div className="bg-surface rounded-lg border border-border p-4 space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="text-sm font-semibold text-text-default">Public Syllabus</div>
-                <Tooltip content="Publish the public syllabus page for this classroom" side="right">
-                  <span className="text-text-muted cursor-help">
-                    <Info size={14} />
-                  </span>
-                </Tooltip>
-              </div>
+          <SettingsPanel>
+            <div className="text-sm font-semibold text-text-default">Display</div>
 
-              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr),auto]">
-                <div>
-                  <label htmlFor={actualSiteSlugId} className="mb-2 block text-sm text-text-muted">
-                    Syllabus slug
-                  </label>
-                  <Input
-                    id={actualSiteSlugId}
-                    value={actualSiteSlug}
-                    onChange={(e) => setActualSiteSlug(slugifyCourseSiteValue(e.target.value))}
-                    disabled={siteSaving || isReadOnly}
-                    placeholder="career-studies-period-1"
-                  />
-                </div>
-                <div className="flex items-end">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={siteSaving || isReadOnly}
-                    onClick={() => setActualSiteSlug(slugifyCourseSiteValue(title || classroom.title))}
-                  >
-                    Generate
-                  </Button>
-                </div>
-              </div>
+            <label htmlFor={showMarkdownId} className="flex items-center gap-3 text-sm text-text-default">
+              <input
+                id={showMarkdownId}
+                type="checkbox"
+                checked={markdownMounted ? showMarkdown : true}
+                onChange={(event) => setShowMarkdown(event.target.checked)}
+                className="h-4 w-4"
+              />
+              Show markdown
+            </label>
+          </SettingsPanel>
 
-              <label className="flex items-center gap-3 text-sm text-text-default">
-                <input
-                  type="checkbox"
-                  checked={actualSitePublished}
-                  onChange={(e) => setActualSitePublished(e.target.checked)}
+          <SettingsPanel className="space-y-4">
+            <SettingsHeading title="Public Syllabus" tooltip="Publish the public syllabus page for this classroom" />
+
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr),auto]">
+              <FormField label="Syllabus slug" htmlFor={actualSiteSlugId}>
+                <Input
+                  value={actualSiteSlug}
+                  onChange={(e) => setActualSiteSlug(slugifyCourseSiteValue(e.target.value))}
                   disabled={siteSaving || isReadOnly}
-                  className="h-4 w-4"
+                  placeholder="career-studies-period-1"
                 />
-                Publish this classroom syllabus
-              </label>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                {(
-                  [
-                    ['overview', 'Overview'],
-                    ['outline', 'Outline'],
-                    ['assignments', 'Assignments'],
-                    ['tests', 'Tests'],
-                    ['lesson_plans', 'Lesson plans'],
-                    ['announcements', 'Announcements'],
-                  ] as Array<[keyof ActualCourseSiteConfig, string]>
-                ).map(([key, label]) => (
-                  <label key={key} className="flex items-center gap-3 text-sm text-text-default">
-                    <input
-                      type="checkbox"
-                      checked={typeof actualSiteConfig[key] === 'boolean' ? (actualSiteConfig[key] as boolean) : false}
-                      onChange={(e) =>
-                        setActualSiteConfig((current) => ({
-                          ...current,
-                          [key]: e.target.checked,
-                        }))
-                      }
-                      disabled={siteSaving || isReadOnly}
-                      className="h-4 w-4"
-                    />
-                    {label}
-                  </label>
-                ))}
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm text-text-muted">Lesson plan visibility on syllabus</label>
-                <select
-                  value={actualSiteConfig.lesson_plan_scope}
-                  onChange={(e) =>
-                    setActualSiteConfig((current) => ({
-                      ...current,
-                      lesson_plan_scope: e.target.value as ActualCourseSiteConfig['lesson_plan_scope'],
-                    }))
-                  }
-                  disabled={siteSaving || isReadOnly}
-                  className="rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="current_week">Current week (and earlier)</option>
-                  <option value="one_week_ahead">One week ahead</option>
-                  <option value="all">All lesson plans</option>
-                </select>
-              </div>
-
-              {showMarkdown ? (
-                <>
-                  <div>
-                    <label htmlFor={actualOverviewId} className="mb-2 block text-sm text-text-muted">
-                      Course overview
-                    </label>
-                    <textarea
-                      id={actualOverviewId}
-                      value={courseOverviewMarkdown}
-                      onChange={(e) => setCourseOverviewMarkdown(e.target.value)}
-                      disabled={siteSaving || isReadOnly}
-                      className="min-h-[140px] w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor={actualOutlineId} className="mb-2 block text-sm text-text-muted">
-                      Course outline
-                    </label>
-                    <textarea
-                      id={actualOutlineId}
-                      value={courseOutlineMarkdown}
-                      onChange={(e) => setCourseOutlineMarkdown(e.target.value)}
-                      disabled={siteSaving || isReadOnly}
-                      className="min-h-[160px] w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </>
-              ) : (
-                <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-muted">
-                  Course overview and outline editing is hidden by your display setting.
-                </div>
-              )}
-
-              {actualSitePublished && actualSiteSlug ? (
-                <div className="text-sm text-text-muted">
-                  Syllabus URL:{' '}
-                  <a
-                    href={`/actual/${actualSiteSlug}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary underline"
-                  >
-                    {`/actual/${actualSiteSlug}`}
-                  </a>
-                </div>
-              ) : null}
-
-              <div className="flex flex-wrap gap-3">
-                <Button type="button" onClick={saveActualSiteSettings} disabled={siteSaving || isReadOnly}>
-                  {siteSaving ? 'Saving…' : 'Save Syllabus'}
-                </Button>
-              </div>
-
-              {siteError && <div className="text-sm text-danger">{siteError}</div>}
-            </div>
-
-            <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="text-sm font-semibold text-text-default">Course Blueprint</div>
-                <Tooltip content="Save this classroom's teacher-authored course content as a reusable course blueprint" side="right">
-                  <span className="text-text-muted cursor-help">
-                    <Info size={14} />
-                  </span>
-                </Tooltip>
-              </div>
-
-              <p className="text-sm text-text-muted">
-                Save the classroom overview, outline, resources, assignments, tests, and lesson plans as a reusable course blueprint. Students, submissions, grades, and attendance stay out of the blueprint.
-              </p>
-
-              <div className="flex flex-wrap gap-3">
+              </FormField>
+              <div className="flex items-end">
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={openCreateBlueprintDialog}
-                  disabled={blueprintBusy || isReadOnly}
+                  disabled={siteSaving || isReadOnly}
+                  onClick={() => setActualSiteSlug(slugifyCourseSiteValue(title || classroom.title))}
                 >
-                  {blueprintBusy ? 'Working...' : 'Save as Course Blueprint'}
+                  Generate
                 </Button>
               </div>
             </div>
+
+            <label className="flex items-center gap-3 text-sm text-text-default">
+              <input
+                type="checkbox"
+                checked={actualSitePublished}
+                onChange={(e) => setActualSitePublished(e.target.checked)}
+                disabled={siteSaving || isReadOnly}
+                className="h-4 w-4"
+              />
+              Publish this classroom syllabus
+            </label>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              {(
+                [
+                  ['overview', 'Overview'],
+                  ['outline', 'Outline'],
+                  ['assignments', 'Assignments'],
+                  ['tests', 'Tests'],
+                  ['lesson_plans', 'Lesson plans'],
+                  ['announcements', 'Announcements'],
+                ] as Array<[keyof ActualCourseSiteConfig, string]>
+              ).map(([key, label]) => (
+                <label key={key} className="flex items-center gap-3 text-sm text-text-default">
+                  <input
+                    type="checkbox"
+                    checked={typeof actualSiteConfig[key] === 'boolean' ? (actualSiteConfig[key] as boolean) : false}
+                    onChange={(e) =>
+                      setActualSiteConfig((current) => ({
+                        ...current,
+                        [key]: e.target.checked,
+                      }))
+                    }
+                    disabled={siteSaving || isReadOnly}
+                    className="h-4 w-4"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+
+            <FormField label="Lesson plan visibility on syllabus" htmlFor={actualLessonPlanScopeId}>
+              <Select
+                options={SYLLABUS_LESSON_PLAN_SCOPE_OPTIONS}
+                value={actualSiteConfig.lesson_plan_scope}
+                onChange={(e) =>
+                  setActualSiteConfig((current) => ({
+                    ...current,
+                    lesson_plan_scope: e.target.value as ActualCourseSiteConfig['lesson_plan_scope'],
+                  }))
+                }
+                disabled={siteSaving || isReadOnly}
+              />
+            </FormField>
+
+            {showMarkdown ? (
+              <>
+                <FormField label="Course overview" htmlFor={actualOverviewId}>
+                  <SettingsTextarea
+                    value={courseOverviewMarkdown}
+                    onChange={(e) => setCourseOverviewMarkdown(e.target.value)}
+                    disabled={siteSaving || isReadOnly}
+                    className="min-h-[140px] font-mono"
+                  />
+                </FormField>
+
+                <FormField label="Course outline" htmlFor={actualOutlineId}>
+                  <SettingsTextarea
+                    value={courseOutlineMarkdown}
+                    onChange={(e) => setCourseOutlineMarkdown(e.target.value)}
+                    disabled={siteSaving || isReadOnly}
+                    className="min-h-[160px] font-mono"
+                  />
+                </FormField>
+              </>
+            ) : (
+              <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-muted">
+                Course overview and outline editing is hidden by your display setting.
+              </div>
+            )}
+
+            {actualSitePublished && actualSiteSlug ? (
+              <div className="text-sm text-text-muted">
+                Syllabus URL:{' '}
+                <a
+                  href={`/actual/${actualSiteSlug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary underline"
+                >
+                  {`/actual/${actualSiteSlug}`}
+                </a>
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-3">
+              <Button type="button" onClick={saveActualSiteSettings} disabled={siteSaving || isReadOnly}>
+                {siteSaving ? 'Saving...' : 'Save Syllabus'}
+              </Button>
+            </div>
+
+            {siteError && <div className="text-sm text-danger">{siteError}</div>}
+          </SettingsPanel>
+
+          <SettingsPanel>
+            <SettingsHeading
+              title="Course Blueprint"
+              tooltip="Save this classroom's teacher-authored course content as a reusable course blueprint"
+            />
+
+            <p className="text-sm text-text-muted">
+              Save the classroom overview, outline, resources, assignments, tests, and lesson plans as a reusable course blueprint. Students, submissions, grades, and attendance stay out of the blueprint.
+            </p>
+
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={openCreateBlueprintDialog}
+                disabled={blueprintBusy || isReadOnly}
+              >
+                {blueprintBusy ? 'Working...' : 'Save as Course Blueprint'}
+              </Button>
+            </div>
+          </SettingsPanel>
 
             <ConfirmDialog
               isOpen={showRegenerateConfirm}

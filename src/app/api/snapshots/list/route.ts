@@ -8,10 +8,20 @@ import { NextResponse } from 'next/server'
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { withErrorHandler } from '@/lib/api-handler'
+import { requireAuth } from '@/lib/auth'
 
 const SNAPSHOTS_DIR = join(process.cwd(), 'e2e', '__snapshots__', 'ui-snapshots.spec.ts-snapshots')
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export const GET = withErrorHandler('GetSnapshotList', async () => {
+  if (process.env.ENABLE_UI_GALLERY !== 'true') {
+    return new NextResponse('Not found', { status: 404 })
+  }
+
+  await requireAuth()
+
   try {
     const files = await readdir(SNAPSHOTS_DIR)
     const snapshots = files

@@ -538,6 +538,10 @@ function clearSelectionCookie() {
   document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=; Path=/; Max-Age=0; SameSite=Lax`
 }
 
+function clearAssignmentWorkspaceStudentCookie(assignmentId = 'assignment-1') {
+  document.cookie = `${encodeURIComponent(`pika_assignment_workspace_student:${classroom.id}:${assignmentId}`)}=; Path=/; Max-Age=0; SameSite=Lax`
+}
+
 function expectAssignmentSplitPaneIndicator({
   index,
   icon,
@@ -592,6 +596,7 @@ describe('TeacherClassroomView', () => {
     mockStudentSelectionState.selectedCount = 0
     window.sessionStorage.clear()
     clearSelectionCookie()
+    clearAssignmentWorkspaceStudentCookie()
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {
         return Promise.resolve({
@@ -617,6 +622,7 @@ describe('TeacherClassroomView', () => {
     vi.restoreAllMocks()
     window.sessionStorage.clear()
     clearSelectionCookie()
+    clearAssignmentWorkspaceStudentCookie()
   })
 
   it('does not reopen a stale assignment cookie when URL selection is on summary', async () => {
@@ -2134,6 +2140,90 @@ describe('TeacherClassroomView', () => {
     fireEvent.scroll(scrollPane)
 
     fireEvent.click(screen.getAllByText('student-25')[0])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-25')
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('assignment-student-scroll-pane')).toHaveProperty('scrollTop', 520)
+    })
+  })
+
+  it('preserves the class-pane scroll position when refreshing submissions clamps the pane upward', async () => {
+    const detailPayload = {
+      assignment: makeAssignmentDetails('assignment-1', 'Assignment One', 'student-01').assignment,
+      students: Array.from({ length: 30 }, (_, index) =>
+        makeStudentSubmissionRow(`student-${String(index + 1).padStart(2, '0')}`),
+      ),
+    }
+    const refreshResponse = createDeferred<{
+      ok: boolean
+      json: () => Promise<typeof detailPayload>
+    }>()
+    let assignmentFetchCount = 0
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        assignmentFetchCount += 1
+        if (assignmentFetchCount === 1) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => detailPayload,
+          })
+        }
+        return refreshResponse.promise
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-01')
+    })
+
+    const scrollPane = screen.getByTestId('assignment-student-scroll-pane') as HTMLDivElement
+    scrollPane.scrollTop = 520
+    fireEvent.scroll(scrollPane)
+
+    fireEvent.click(screen.getAllByText('student-25')[0])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-25')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh submissions' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('assignment-student-scroll-pane')).toBeInTheDocument()
+    })
+
+    const loadingScrollPane = screen.getByTestId('assignment-student-scroll-pane') as HTMLDivElement
+    loadingScrollPane.scrollTop = 0
+    fireEvent.scroll(loadingScrollPane)
+
+    await act(async () => {
+      refreshResponse.resolve({
+        ok: true,
+        json: async () => detailPayload,
+      })
+      await refreshResponse.promise
+    })
 
     await waitFor(() => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-25')

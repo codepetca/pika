@@ -21,7 +21,7 @@ import {
   TableCard,
 } from '@/components/DataTable'
 import type { Classroom } from '@/types'
-import { Check, Pencil, X } from 'lucide-react'
+import { Check, Copy, Mail, Pencil, X } from 'lucide-react'
 import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { compareByNameFields, toggleSort } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
@@ -356,48 +356,16 @@ export function TeacherRosterTab({ classroom }: Props) {
     }`
   }
 
-  const rosterActionOptions: SplitButtonOption[] = someSelected
-    ? [
-        {
-          id: 'add-students',
-          label: '+ Students',
-          onSelect: () => setAddModalOpen(true),
-          disabled: isReadOnly || loading,
-        },
-        {
-          id: 'upload-csv',
-          label: '+ CSV',
-          onSelect: () => setUploadModalOpen(true),
-          disabled: isReadOnly || loading,
-        },
-      ]
-    : [
-        {
-          id: 'upload-csv',
-          label: '+ CSV',
-          onSelect: () => setUploadModalOpen(true),
-          disabled: isReadOnly || loading,
-        },
-      ]
+  const rosterActionOptions: SplitButtonOption[] = [
+    {
+      id: 'upload-csv',
+      label: '+ CSV',
+      onSelect: () => setUploadModalOpen(true),
+      disabled: isReadOnly || loading,
+    },
+  ]
 
-  if (!someSelected) {
-    if (removalTargetRows.length > 0) {
-      rosterActionOptions.push({
-        id: 'remove-student',
-        label: <span className="text-danger">{getRemovalMenuLabel(removalTargetRows.length)}</span>,
-        onSelect: () => openRemoveStudentDialog(removalTargetRows),
-        disabled: isReadOnly || loading || isRemoving,
-        destructive: true,
-      })
-    }
-
-    rosterActionOptions.push({
-      id: 'email-placeholder',
-      label: 'Select students to email',
-      onSelect: () => {},
-      disabled: true,
-    })
-  } else {
+  if (removalTargetRows.length > 0) {
     rosterActionOptions.push({
       id: 'remove-student',
       label: <span className="text-danger">{getRemovalMenuLabel(removalTargetRows.length)}</span>,
@@ -405,71 +373,96 @@ export function TeacherRosterTab({ classroom }: Props) {
       disabled: isReadOnly || loading || isRemoving || removalTargetRows.length === 0,
       destructive: true,
     })
+  }
 
-    rosterActionOptions.push(
+  const selectedEmailOptions: SplitButtonOption[] = [
+    {
+      id: 'copy-student-emails',
+      label: `Copy emails (${selectedStudentEmails.length})`,
+      icon: <Copy className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => copyToClipboard(selectedStudentEmails, 'Student emails'),
+      disabled: selectedStudentEmails.length === 0,
+    },
+    {
+      id: 'gmail-students',
+      label: 'Gmail',
+      icon: <Mail className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => openGmail(selectedStudentEmails),
+      disabled: selectedStudentEmails.length === 0,
+    },
+    {
+      id: 'outlook-students',
+      label: 'Outlook',
+      icon: <Mail className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => openOutlook(selectedStudentEmails),
+      disabled: selectedStudentEmails.length === 0,
+    },
+  ]
+
+  if (selectedCounselorEmails.length > 0) {
+    const allEmails = [...selectedStudentEmails, ...selectedCounselorEmails]
+    selectedEmailOptions.push(
       {
-        id: 'copy-student-emails',
-        label: `Copy emails (${selectedStudentEmails.length})`,
-        onSelect: () => copyToClipboard(selectedStudentEmails, 'Student emails'),
+        id: 'copy-counselor-emails',
+        label: `Copy counselors (${selectedCounselorEmails.length})`,
+        icon: <Copy className="h-4 w-4" aria-hidden="true" />,
+        onSelect: () => copyToClipboard(selectedCounselorEmails, 'Counselor emails'),
+        dividerBefore: true,
       },
       {
-        id: 'gmail-students',
-        label: 'Gmail',
-        onSelect: () => openGmail(selectedStudentEmails),
+        id: 'copy-all-emails',
+        label: `Copy all emails (${allEmails.length})`,
+        icon: <Copy className="h-4 w-4" aria-hidden="true" />,
+        onSelect: () => copyToClipboard(allEmails, 'All emails'),
       },
       {
-        id: 'outlook-students',
-        label: 'Outlook',
-        onSelect: () => openOutlook(selectedStudentEmails),
+        id: 'gmail-all',
+        label: 'Gmail all',
+        icon: <Mail className="h-4 w-4" aria-hidden="true" />,
+        onSelect: () => openGmail(allEmails),
+      },
+      {
+        id: 'outlook-all',
+        label: 'Outlook all',
+        icon: <Mail className="h-4 w-4" aria-hidden="true" />,
+        onSelect: () => openOutlook(allEmails),
       },
     )
-
-    if (selectedCounselorEmails.length > 0) {
-      const allEmails = [...selectedStudentEmails, ...selectedCounselorEmails]
-      rosterActionOptions.push(
-        {
-          id: 'copy-counselor-emails',
-          label: `Copy counselors (${selectedCounselorEmails.length})`,
-          onSelect: () => copyToClipboard(selectedCounselorEmails, 'Counselor emails'),
-        },
-        {
-          id: 'copy-all-emails',
-          label: `Copy all emails (${allEmails.length})`,
-          onSelect: () => copyToClipboard(allEmails, 'All emails'),
-        },
-        {
-          id: 'gmail-all',
-          label: 'Gmail all',
-          onSelect: () => openGmail(allEmails),
-        },
-        {
-          id: 'outlook-all',
-          label: 'Outlook all',
-          onSelect: () => openOutlook(allEmails),
-        },
-      )
-    }
   }
 
   const actionBar = (
     <TeacherWorkSurfaceActionBar
       center={
-        <SplitButton
-          label={someSelected ? `Email (${selectedStudentEmails.length})` : '+ Students'}
-          onPrimaryClick={() => {
-            if (someSelected) {
-              openDefaultEmail(selectedStudentEmails)
-              return
-            }
-            if (isReadOnly || loading) return
-            setAddModalOpen(true)
-          }}
-          options={rosterActionOptions}
-          disabled={!someSelected && (isReadOnly || loading)}
-          size="sm"
-          toggleAriaLabel="Roster actions"
-          menuPlacement="down"
-        />
+        <div className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-1.5">
+          <SplitButton
+            label="+ Students"
+            onPrimaryClick={() => {
+              if (isReadOnly || loading) return
+              setAddModalOpen(true)
+            }}
+            options={rosterActionOptions}
+            disabled={isReadOnly || loading}
+            size="sm"
+            toggleAriaLabel="Roster actions"
+            menuPlacement="down"
+          />
+          {someSelected ? (
+            <SplitButton
+              label={
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                  <Mail className="h-4 w-4" aria-hidden="true" />
+                  <span>Email ({selectedStudentEmails.length})</span>
+                </span>
+              }
+              onPrimaryClick={() => openDefaultEmail(selectedStudentEmails)}
+              options={selectedEmailOptions}
+              disabled={selectedStudentEmails.length === 0}
+              size="sm"
+              toggleAriaLabel="Roster email actions"
+              menuPlacement="down"
+            />
+          ) : null}
+        </div>
       }
       centerPlacement="floating"
     />

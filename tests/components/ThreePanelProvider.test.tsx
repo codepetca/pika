@@ -21,6 +21,7 @@ function TestHarness({ initialRouteKey }: { initialRouteKey: RouteKey }) {
     <>
       <button onClick={() => setRouteKey('today')}>go-today</button>
       <button onClick={() => setRouteKey('assignments-student')}>go-assignments</button>
+      <button onClick={() => setRouteKey('assignments-teacher-list')}>go-teacher-list</button>
       <button onClick={() => setRouteKey('assignments-teacher-viewing')}>go-teacher-viewing</button>
       <button onClick={() => setRouteKey('tests-teacher')}>go-tests</button>
       <button onClick={() => setRouteKey('roster')}>go-roster</button>
@@ -150,9 +151,9 @@ describe('ThreePanelProvider right sidebar sync on routeKey change', () => {
     // assignments-teacher-viewing: enabled=true, defaultOpen=true
     expect(screen.getByTestId('open').textContent).toBe('true')
 
-    // Switch to roster: enabled=true, defaultOpen=false
+    // Switch to teacher assignment list: enabled=true, defaultOpen=false
     act(() => {
-      screen.getByText('go-roster').click()
+      screen.getByText('go-teacher-list').click()
     })
 
     expect(screen.getByTestId('enabled').textContent).toBe('true')

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { entryHasContent } from '@/lib/attendance'
 import { fetchJSONWithCache } from '@/lib/request-cache'
@@ -9,6 +9,7 @@ import type { Entry } from '@/types'
 interface Props {
   studentId: string
   classroomId: string
+  selectedDate?: string | null
   selectedEntry?: Entry | null
   initialEntries?: Entry[]
 }
@@ -24,12 +25,14 @@ const EMPTY_ENTRIES: Entry[] = []
 export function StudentLogHistory({
   studentId,
   classroomId,
+  selectedDate = null,
   selectedEntry = null,
   initialEntries = EMPTY_ENTRIES,
 }: Props) {
   const [entries, setEntries] = useState<Entry[]>([])
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(false)
+  const selectedBlockRef = useRef<HTMLDivElement | null>(null)
   const previewEntries = useMemo(
     () => normalizeEntries(initialEntries),
     [initialEntries]
@@ -37,7 +40,7 @@ export function StudentLogHistory({
   const selectedDisplayEntry = selectedEntry && entryHasContent(selectedEntry)
     ? selectedEntry
     : null
-  const selectedEntryId = selectedDisplayEntry?.id ?? null
+  const selectedDateToHighlight = selectedDisplayEntry?.date ?? selectedDate ?? null
 
   useEffect(() => {
     let cancelled = false
@@ -117,10 +120,22 @@ export function StudentLogHistory({
       .finally(() => setLoading(false))
   }
 
-  const historyEntries = selectedEntryId
-    ? entries.filter(entry => entry.id !== selectedEntryId)
-    : entries
-  const isEmpty = !selectedDisplayEntry && historyEntries.length === 0 && !loading
+  const historyEntries = useMemo(() => {
+    const sourceEntries = selectedDisplayEntry
+      ? [...entries, selectedDisplayEntry]
+      : entries
+    return normalizeEntries(sourceEntries)
+  }, [entries, selectedDisplayEntry])
+  const displayItems = useMemo(
+    () => buildDisplayItems(historyEntries, selectedDateToHighlight, !selectedDisplayEntry),
+    [historyEntries, selectedDateToHighlight, selectedDisplayEntry]
+  )
+  const isEmpty = !selectedDateToHighlight && displayItems.length === 0 && !loading
+
+  useEffect(() => {
+    if (!selectedDateToHighlight) return
+    selectedBlockRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [studentId, classroomId, selectedDateToHighlight, displayItems.length])
 
   return (
     <div className="p-4 space-y-3">
@@ -128,12 +143,15 @@ export function StudentLogHistory({
         <p className="text-sm text-text-muted">No entries.</p>
       )}
 
-      {selectedDisplayEntry && (
-        <EntryBlock entry={selectedDisplayEntry} label="Selected date" />
-      )}
-
-      {historyEntries.map(entry => (
-        <EntryBlock key={entry.id} entry={entry} />
+      {displayItems.map(item => (
+        <EntryBlock
+          key={item.kind === 'entry' ? item.entry.id : `selected-empty:${item.date}`}
+          ref={item.isSelected ? selectedBlockRef : undefined}
+          date={item.date}
+          text={item.kind === 'entry' ? item.entry.text : 'No log for this date.'}
+          isSelected={item.isSelected}
+          isEmpty={item.kind === 'empty-selected'}
+        />
       ))}
 
       {loading && (
@@ -155,18 +173,69 @@ export function StudentLogHistory({
   )
 }
 
-function EntryBlock({ entry, label }: { entry: Entry; label?: string }) {
+type DisplayItem =
+  | { kind: 'entry'; entry: Entry; date: string; isSelected: boolean }
+  | { kind: 'empty-selected'; date: string; isSelected: true }
+
+const EntryBlock = forwardRef<HTMLDivElement, {
+  date: string
+  text: string
+  isSelected: boolean
+  isEmpty: boolean
+}>(function EntryBlock({ date, text, isSelected, isEmpty }, ref) {
   return (
-    <div>
-      <p className="text-xs text-text-muted mb-1">
-        {label ? `${label} - ` : ''}
-        {formatDate(entry.date)}
+    <div
+      ref={ref}
+      aria-current={isSelected ? 'date' : undefined}
+      className={[
+        isSelected
+          ? 'rounded-md border border-primary bg-info-bg px-3 py-2'
+          : '',
+      ].join(' ')}
+    >
+      <p className={[
+        'mb-1 text-xs',
+        isSelected ? 'font-semibold text-text-default' : 'text-text-muted',
+      ].join(' ')}
+      >
+        {formatDate(date)}
       </p>
-      <p className="text-sm text-text-default whitespace-pre-wrap">
-        {entry.text}
+      <p className={[
+        'text-sm whitespace-pre-wrap',
+        isEmpty ? 'text-text-muted italic' : 'text-text-default',
+      ].join(' ')}
+      >
+        {text}
       </p>
     </div>
   )
+})
+
+function buildDisplayItems(
+  entries: Entry[],
+  selectedDate: string | null,
+  shouldShowEmptySelectedDate: boolean
+): DisplayItem[] {
+  const items: DisplayItem[] = entries.map(entry => ({
+    kind: 'entry',
+    entry,
+    date: entry.date,
+    isSelected: selectedDate === entry.date,
+  }))
+
+  if (
+    selectedDate &&
+    shouldShowEmptySelectedDate &&
+    !items.some(item => item.date === selectedDate)
+  ) {
+    items.push({
+      kind: 'empty-selected',
+      date: selectedDate,
+      isSelected: true,
+    })
+  }
+
+  return items.sort(compareDisplayItemsNewestFirst)
 }
 
 function dedupeEntries(entries: Entry[]): Entry[] {
@@ -192,6 +261,19 @@ function sortEntriesNewestFirst(entries: Entry[]): Entry[] {
     if (dateCompare !== 0) return dateCompare
     return b.updated_at.localeCompare(a.updated_at)
   })
+}
+
+function compareDisplayItemsNewestFirst(a: DisplayItem, b: DisplayItem): number {
+  const dateCompare = b.date.localeCompare(a.date)
+  if (dateCompare !== 0) return dateCompare
+
+  if (a.kind === 'entry' && b.kind === 'entry') {
+    return b.entry.updated_at.localeCompare(a.entry.updated_at)
+  }
+
+  if (a.kind === 'empty-selected' && b.kind === 'entry') return -1
+  if (a.kind === 'entry' && b.kind === 'empty-selected') return 1
+  return 0
 }
 
 function formatDate(dateStr: string): string {

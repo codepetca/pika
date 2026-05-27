@@ -46,6 +46,7 @@ function createTableMock(config: {
   tests?: { data: any; error: any }
   test_attempts?: { data: any; error: any }
   test_responses?: { data: any; error: any }
+  test_student_availability?: { data: any; error: any }
   announcements?: { data: any; error: any }
   announcement_reads?: { data: any; error: any }
 }) {
@@ -53,6 +54,7 @@ function createTableMock(config: {
   const testsConfig = config.tests ?? { data: [], error: null }
   const testAttemptsConfig = config.test_attempts ?? { data: [], error: null }
   const testResponsesConfig = config.test_responses ?? { data: [], error: null }
+  const testStudentAvailabilityConfig = config.test_student_availability ?? { data: [], error: null }
   const announcementsConfig = config.announcements ?? { data: [], error: null }
   const announcementReadsConfig = config.announcement_reads ?? { data: [], error: null }
 
@@ -131,6 +133,15 @@ function createTableMock(config: {
           eq: vi.fn().mockReturnThis(),
           in: vi.fn().mockReturnThis(),
           then: vi.fn((resolve: any) => resolve(testAttemptsConfig)),
+        })),
+      }
+    }
+    if (table === 'test_student_availability') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
+          then: vi.fn((resolve: any) => resolve(testStudentAvailabilityConfig)),
         })),
       }
     }
@@ -535,6 +546,60 @@ describe('GET /api/student/notifications', () => {
 
       expect(response.status).toBe(200)
       expect(data.activeTestsCount).toBe(2)
+    })
+
+    it('should exclude active tests closed for this student', async () => {
+      ;(mockSupabaseClient.from as any) = createTableMock({
+        class_days: { data: { is_class_day: true }, error: null },
+        entries: { data: { id: 'entry-1' }, error: null },
+        assignments: { data: [], error: null },
+        quizzes: { data: [], error: null },
+        tests: { data: [{ id: 'test-1', status: 'active' }, { id: 'test-2', status: 'active' }], error: null },
+        test_responses: { data: [], error: null },
+        test_student_availability: {
+          data: [{ test_id: 'test-1', state: 'closed' }],
+          error: null,
+        },
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.activeTestsCount).toBe(1)
+    })
+
+    it('should exclude active tests closed for grading', async () => {
+      ;(mockSupabaseClient.from as any) = createTableMock({
+        class_days: { data: { is_class_day: true }, error: null },
+        entries: { data: { id: 'entry-1' }, error: null },
+        assignments: { data: [], error: null },
+        quizzes: { data: [], error: null },
+        tests: { data: [{ id: 'test-1', status: 'active' }], error: null },
+        test_responses: { data: [], error: null },
+        test_attempts: {
+          data: [{
+            test_id: 'test-1',
+            is_submitted: false,
+            closed_for_grading_at: '2026-05-27T12:00:00.000Z',
+          }],
+          error: null,
+        },
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.activeTestsCount).toBe(0)
     })
 
     it('should ignore placeholder graded test rows when counting unanswered tests', async () => {

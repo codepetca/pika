@@ -9,6 +9,15 @@ const { assertTeacherOwnsTest } = vi.hoisted(() => ({
   assertTeacherOwnsTest: vi.fn(),
 }))
 
+const { mockSupabaseClient, validateSelectedTestStudentEnrollment } = vi.hoisted(() => ({
+  mockSupabaseClient: {},
+  validateSelectedTestStudentEnrollment: vi.fn(),
+}))
+
+vi.mock('@/lib/supabase', () => ({
+  getServiceRoleClient: vi.fn(() => mockSupabaseClient),
+}))
+
 vi.mock('@/lib/auth', () => ({
   requireRole: vi.fn(async () => ({
     id: 'teacher-1',
@@ -19,6 +28,7 @@ vi.mock('@/lib/auth', () => ({
 
 vi.mock('@/lib/server/tests', () => ({
   assertTeacherOwnsTest,
+  validateSelectedTestStudentEnrollment,
 }))
 
 vi.mock('@/lib/server/test-ai-grading-runs', () => ({
@@ -62,6 +72,11 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
         completed_at: null,
         created_at: '2026-04-20T12:00:00.000Z',
       },
+    })
+    validateSelectedTestStudentEnrollment.mockResolvedValue({
+      ok: true,
+      enrolledStudentIds: new Set(['student-1', 'student-2']),
+      missingStudentIds: [],
     })
   })
 
@@ -121,6 +136,54 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
       studentIds: ['student-1', 'student-2'],
       promptGuidelineOverride: 'Use one strength and one next step.',
     })
+    expect(validateSelectedTestStudentEnrollment).toHaveBeenCalledWith(
+      mockSupabaseClient,
+      'classroom-1',
+      ['student-1', 'student-2'],
+    )
+  })
+
+  it('rejects selected students outside the test classroom before creating a run', async () => {
+    validateSelectedTestStudentEnrollment.mockResolvedValueOnce({
+      ok: true,
+      enrolledStudentIds: new Set(['student-1']),
+      missingStudentIds: ['student-2'],
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
+      method: 'POST',
+      body: JSON.stringify({
+        student_ids: ['student-1', 'student-2'],
+      }),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('One or more selected students are not enrolled in this classroom')
+    expect(createOrResumeTestAiGradingRun).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 when selected student enrollment validation fails', async () => {
+    validateSelectedTestStudentEnrollment.mockResolvedValueOnce({
+      ok: false,
+      error: { message: 'enrollment lookup failed' },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
+      method: 'POST',
+      body: JSON.stringify({
+        student_ids: ['student-1'],
+      }),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe('Failed to validate selected students')
+    expect(createOrResumeTestAiGradingRun).not.toHaveBeenCalled()
   })
 
   it('returns the active run when another selection is already in progress', async () => {
