@@ -160,9 +160,25 @@ describe('GET /api/student/surveys/[id]/results', () => {
           select: vi.fn((columns: string) => {
             if (columns !== '*') throw new Error(`Unexpected survey_responses columns: ${columns}`)
             return {
-              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+              eq: vi.fn().mockReturnThis(),
+              in: vi.fn((column: string, studentIds: string[]) => {
+                expect(column).toBe('student_id')
+                expect(studentIds).toEqual(['student-1'])
+                return Promise.resolve({ data: [], error: null })
+              }),
             }
           }),
+        }
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [{ student_id: 'student-1' }],
+              error: null,
+            }),
+          })),
         }
       }
 
@@ -212,50 +228,65 @@ describe('GET /api/student/surveys/[id]/results', () => {
 
             if (columns === '*') {
               return {
-                eq: vi.fn().mockResolvedValue({
-                  data: [
-                    {
-                      id: 'response-1',
-                      survey_id: 'survey-1',
-                      question_id: 'link-question',
-                      student_id: 'student-1',
-                      selected_option: null,
-                      response_text: 'https://example.com/game',
-                      submitted_at: '2026-01-01T00:00:00.000Z',
-                      updated_at: '2026-01-01T00:00:00.000Z',
-                    },
-                    {
-                      id: 'response-2',
-                      survey_id: 'survey-1',
-                      question_id: 'link-question',
-                      student_id: 'student-2',
-                      selected_option: null,
-                      response_text: 'https://example.com/other-game',
-                      submitted_at: '2026-01-02T00:00:00.000Z',
-                      updated_at: '2026-01-02T00:00:00.000Z',
-                    },
-                    {
-                      id: 'response-3',
-                      survey_id: 'survey-1',
-                      question_id: 'text-question',
-                      student_id: 'student-1',
-                      selected_option: null,
-                      response_text: 'Built in Godot',
-                      submitted_at: '2026-01-03T00:00:00.000Z',
-                      updated_at: '2026-01-03T00:00:00.000Z',
-                    },
-                    {
-                      id: 'response-4',
-                      survey_id: 'survey-1',
-                      question_id: 'text-question',
-                      student_id: 'student-2',
-                      selected_option: null,
-                      response_text: 'Built in Phaser',
-                      submitted_at: '2026-01-04T00:00:00.000Z',
-                      updated_at: '2026-01-04T00:00:00.000Z',
-                    },
-                  ],
-                  error: null,
+                eq: vi.fn().mockReturnThis(),
+                in: vi.fn((column: string, studentIds: string[]) => {
+                  expect(column).toBe('student_id')
+                  expect(studentIds).toEqual(['student-1', 'student-2'])
+                  return Promise.resolve({
+                    data: [
+                      {
+                        id: 'response-1',
+                        survey_id: 'survey-1',
+                        question_id: 'link-question',
+                        student_id: 'student-1',
+                        selected_option: null,
+                        response_text: 'https://example.com/game',
+                        submitted_at: '2026-01-01T00:00:00.000Z',
+                        updated_at: '2026-01-01T00:00:00.000Z',
+                      },
+                      {
+                        id: 'response-2',
+                        survey_id: 'survey-1',
+                        question_id: 'link-question',
+                        student_id: 'student-2',
+                        selected_option: null,
+                        response_text: 'https://example.com/other-game',
+                        submitted_at: '2026-01-02T00:00:00.000Z',
+                        updated_at: '2026-01-02T00:00:00.000Z',
+                      },
+                      {
+                        id: 'response-stale',
+                        survey_id: 'survey-1',
+                        question_id: 'link-question',
+                        student_id: 'student-removed',
+                        selected_option: null,
+                        response_text: 'https://example.com/removed-game',
+                        submitted_at: '2026-01-02T12:00:00.000Z',
+                        updated_at: '2026-01-02T12:00:00.000Z',
+                      },
+                      {
+                        id: 'response-3',
+                        survey_id: 'survey-1',
+                        question_id: 'text-question',
+                        student_id: 'student-1',
+                        selected_option: null,
+                        response_text: 'Built in Godot',
+                        submitted_at: '2026-01-03T00:00:00.000Z',
+                        updated_at: '2026-01-03T00:00:00.000Z',
+                      },
+                      {
+                        id: 'response-4',
+                        survey_id: 'survey-1',
+                        question_id: 'text-question',
+                        student_id: 'student-2',
+                        selected_option: null,
+                        response_text: 'Built in Phaser',
+                        submitted_at: '2026-01-04T00:00:00.000Z',
+                        updated_at: '2026-01-04T00:00:00.000Z',
+                      },
+                    ],
+                    error: null,
+                  })
                 }),
               }
             }
@@ -293,6 +324,20 @@ describe('GET /api/student/surveys/[id]/results', () => {
                   created_at: '2026-01-01T00:00:00.000Z',
                   updated_at: '2026-01-01T00:00:00.000Z',
                 },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [
+                { student_id: 'student-1' },
+                { student_id: 'student-2' },
               ],
               error: null,
             }),

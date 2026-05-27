@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { aggregateResults, canStudentViewResults } from '@/lib/quizzes'
 import { assertStudentCanAccessQuiz } from '@/lib/server/quizzes'
+import { getClassroomStudentIds } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { QuizQuestion, QuizResponse } from '@/types'
 
@@ -51,21 +52,34 @@ export const GET = withErrorHandler('GetStudentQuizResults', async (request, con
     return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
   }
 
-  // Fetch all responses
-  const { data: responses, error: responsesError } = await supabase
-    .from('quiz_responses')
-    .select('*')
-    .eq('quiz_id', quizId)
+  const classroomStudentsResult = await getClassroomStudentIds(supabase, quiz.classroom_id)
+  if (classroomStudentsResult.error) {
+    console.error('Error fetching classroom enrollments for quiz results:', classroomStudentsResult.error)
+    return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
+  }
+
+  const { data: responses, error: responsesError } =
+    classroomStudentsResult.studentIds.length > 0
+      ? await supabase
+          .from('quiz_responses')
+          .select('*')
+          .eq('quiz_id', quizId)
+          .in('student_id', classroomStudentsResult.studentIds)
+      : { data: [], error: null }
 
   if (responsesError) {
     console.error('Error fetching responses:', responsesError)
     return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
   }
 
+  const scopedResponses = (responses || []).filter((response) =>
+    classroomStudentsResult.studentIdSet.has(response.student_id)
+  )
+
   // Aggregate results
   const aggregated = aggregateResults(
     (questions || []) as QuizQuestion[],
-    (responses || []) as QuizResponse[]
+    scopedResponses as QuizResponse[]
   )
 
   // Get student's own responses
