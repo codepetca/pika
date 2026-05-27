@@ -496,6 +496,7 @@ export function StudentQuizForm({
                     {question.question_type === 'open_response' ? (
                       <div className="space-y-2">
                         <textarea
+                          aria-label={`Response for question ${index + 1}`}
                           value={openResponseText}
                           disabled={isInteractionLocked}
                           onChange={(event) =>

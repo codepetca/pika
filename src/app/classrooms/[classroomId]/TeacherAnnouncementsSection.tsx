@@ -435,6 +435,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
           </FormField>
           <textarea
             ref={newTextareaRef}
+            aria-label="Announcement body"
             value={newContent}
             onChange={(e) => setNewContent(e.target.value)}
             onKeyDown={handleNewKeyDown}
@@ -575,6 +576,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                     </FormField>
                     <textarea
                       ref={editTextareaRef}
+                      aria-label="Edit announcement body"
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
                       onKeyDown={handleEditKeyDown}

@@ -102,3 +102,27 @@ export async function assertStudentCanAccessClassroom(
 
   return { ok: true, classroom }
 }
+
+export async function getClassroomStudentIds(
+  supabase: any,
+  classroomId: string
+): Promise<{ studentIds: string[]; studentIdSet: Set<string>; error: unknown }> {
+  const { data, error } = await supabase
+    .from('classroom_enrollments')
+    .select('student_id')
+    .eq('classroom_id', classroomId)
+
+  if (error) {
+    return { studentIds: [], studentIdSet: new Set(), error }
+  }
+
+  const studentIds = Array.from(
+    new Set(
+      ((data || []) as Array<{ student_id: unknown }>)
+        .map((row) => row.student_id)
+        .filter((studentId): studentId is string => typeof studentId === 'string' && studentId.length > 0)
+    )
+  )
+
+  return { studentIds, studentIdSet: new Set(studentIds), error: null }
+}

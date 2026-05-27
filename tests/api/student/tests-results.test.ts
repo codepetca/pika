@@ -148,13 +148,32 @@ describe('GET /api/student/tests/[id]/results', () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_attempts') {
         return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            maybeSingle: vi.fn().mockResolvedValue({
-              data: { is_submitted: true, returned_at: '2026-03-05T11:00:00.000Z' },
-              error: null,
-            }),
-          })),
+          select: vi.fn((columns: string) => {
+            if (columns.includes('student_id')) {
+              return {
+                eq: vi.fn().mockReturnThis(),
+                in: vi.fn().mockResolvedValue({
+                  data: [
+                    { student_id: 'student-1', returned_at: '2026-03-05T11:00:00.000Z' },
+                    { student_id: 'student-2', returned_at: null },
+                  ],
+                  error: null,
+                }),
+              }
+            }
+
+            return {
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                  is_submitted: true,
+                  returned_at: '2026-03-05T11:00:00.000Z',
+                  closed_for_grading_at: null,
+                },
+                error: null,
+              }),
+            }
+          }),
         }
       }
 
@@ -176,6 +195,18 @@ describe('GET /api/student/tests/[id]/results', () => {
                   sample_solution: 'for (int i = 0; i < 5; i++) {\n  println(i);\n}',
                   position: 0,
                 },
+                {
+                  id: 'question-2',
+                  question_type: 'multiple_choice',
+                  question_text: 'Which loop keyword is valid?',
+                  options: ['for', 'repeatUntilDone'],
+                  correct_option: 0,
+                  points: 1,
+                  response_max_chars: 5000,
+                  response_monospace: false,
+                  sample_solution: null,
+                  position: 1,
+                },
               ],
               error: null,
             }),
@@ -187,9 +218,10 @@ describe('GET /api/student/tests/[id]/results', () => {
         return {
           select: vi.fn((columns: string) => ({
             eq: vi.fn().mockReturnThis(),
-            then: vi.fn((resolve: any) => {
+            in: vi.fn((column: string, studentIds: string[]) => {
+              expect(column).toBe('student_id')
               if (columns.includes('submitted_at')) {
-                resolve({
+                return Promise.resolve({
                   data: [
                     {
                       id: 'response-1',
@@ -203,12 +235,50 @@ describe('GET /api/student/tests/[id]/results', () => {
                       graded_at: '2026-03-06T12:00:00.000Z',
                       submitted_at: '2026-01-01T00:00:00.000Z',
                     },
+                    {
+                      id: 'response-2',
+                      test_id: 'test-1',
+                      question_id: 'question-2',
+                      student_id: 'student-1',
+                      selected_option: 0,
+                      response_text: null,
+                      score: null,
+                      feedback: null,
+                      graded_at: null,
+                      submitted_at: '2026-01-01T00:00:00.000Z',
+                    },
+                    {
+                      id: 'response-unreturned',
+                      test_id: 'test-1',
+                      question_id: 'question-2',
+                      student_id: 'student-2',
+                      selected_option: 1,
+                      response_text: null,
+                      score: 1,
+                      feedback: null,
+                      graded_at: null,
+                      submitted_at: '2026-01-01T00:00:00.000Z',
+                    },
+                    {
+                      id: 'response-outside',
+                      test_id: 'test-1',
+                      question_id: 'question-2',
+                      student_id: 'student-outside',
+                      selected_option: 1,
+                      response_text: null,
+                      score: 5,
+                      feedback: null,
+                      graded_at: null,
+                      submitted_at: '2026-01-01T00:00:00.000Z',
+                    },
                   ],
                   error: null,
                 })
-                return
               }
 
+              throw new Error(`Unexpected in() for test_responses columns: ${columns}`)
+            }),
+            then: vi.fn((resolve: any) => {
               if (columns.includes('question_id')) {
                 resolve({
                   data: [
@@ -220,6 +290,15 @@ describe('GET /api/student/tests/[id]/results', () => {
                       score: 4,
                       feedback: 'Good start',
                       graded_at: '2026-03-06T12:00:00.000Z',
+                    },
+                    {
+                      id: 'response-2',
+                      question_id: 'question-2',
+                      selected_option: 0,
+                      response_text: null,
+                      score: null,
+                      feedback: null,
+                      graded_at: null,
                     },
                   ],
                   error: null,
@@ -241,6 +320,20 @@ describe('GET /api/student/tests/[id]/results', () => {
         }
       }
 
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [
+                { student_id: 'student-1' },
+                { student_id: 'student-2' },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -255,5 +348,12 @@ describe('GET /api/student/tests/[id]/results', () => {
     expect(data.quiz.returned_at).toBe('2026-03-05T11:00:00.000Z')
     expect(data.summary.earned_points).toBe(4)
     expect(data.question_results[0].sample_solution).toContain('println')
+    expect(data.results[0]).toEqual(
+      expect.objectContaining({
+        question_id: 'question-2',
+        counts: [1, 0],
+        total_responses: 1,
+      })
+    )
   })
 })

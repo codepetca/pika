@@ -9,6 +9,7 @@ import {
   isMissingTestAttemptClosureColumnsError,
   isMissingTestAttemptReturnColumnsError,
 } from '@/lib/server/tests'
+import { getClassroomStudentIds } from '@/lib/server/classrooms'
 import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { QuizQuestion, QuizResponse } from '@/types'
@@ -117,20 +118,58 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
     return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
   }
 
-  const { data: responses, error: responsesError } = await supabase
-    .from('test_responses')
-    .select('id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, submitted_at')
-    .eq('test_id', testId)
+  const classroomStudentsResult = await getClassroomStudentIds(supabase, test.classroom_id)
+  if (classroomStudentsResult.error) {
+    console.error('Error fetching classroom enrollments for test results:', classroomStudentsResult.error)
+    return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
+  }
+
+  let returnedStudentIds: string[] = []
+  if (classroomStudentsResult.studentIds.length > 0) {
+    const { data: returnedAttempts, error: returnedAttemptsError } = await supabase
+      .from('test_attempts')
+      .select('student_id, returned_at')
+      .eq('test_id', testId)
+      .in('student_id', classroomStudentsResult.studentIds)
+
+    if (returnedAttemptsError) {
+      console.error('Error fetching returned test attempts:', returnedAttemptsError)
+      return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
+    }
+
+    returnedStudentIds = Array.from(
+      new Set(
+        (returnedAttempts || [])
+          .filter((attempt) => attempt.returned_at)
+          .map((attempt) => attempt.student_id)
+          .filter((studentId): studentId is string => typeof studentId === 'string')
+      )
+    )
+  }
+
+  const { data: responses, error: responsesError } =
+    returnedStudentIds.length > 0
+      ? await supabase
+          .from('test_responses')
+          .select('id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, submitted_at')
+          .eq('test_id', testId)
+          .in('student_id', returnedStudentIds)
+      : { data: [], error: null }
 
   if (responsesError) {
     console.error('Error fetching test responses:', responsesError)
     return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
   }
 
+  const returnedStudentIdSet = new Set(returnedStudentIds)
+  const returnedResponses = (responses || []).filter((response) =>
+    returnedStudentIdSet.has(response.student_id)
+  )
+
   const multipleChoiceQuestions = (questions || []).filter(
     (question) => question.question_type !== 'open_response'
   )
-  const multipleChoiceResponses = (responses || []).flatMap((response) => {
+  const multipleChoiceResponses = returnedResponses.flatMap((response) => {
     if (typeof response.selected_option !== 'number') return []
     return [{
       id: response.id,
