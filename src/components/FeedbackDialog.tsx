@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ContentDialog } from '@/ui/Dialog'
+import { Button, ContentDialog, SegmentedControl, type SegmentedControlOption } from '@/ui'
 
 interface FeedbackDialogProps {
   isOpen: boolean
@@ -9,6 +9,11 @@ interface FeedbackDialogProps {
 }
 
 type Category = 'bug' | 'suggestion'
+
+const categoryOptions: Array<SegmentedControlOption<Category>> = [
+  { value: 'bug', label: 'Bug report' },
+  { value: 'suggestion', label: 'Suggestion' },
+]
 
 export function FeedbackDialog({ isOpen, onClose }: FeedbackDialogProps) {
   const [category, setCategory] = useState<Category>('bug')
@@ -96,24 +101,13 @@ export function FeedbackDialog({ isOpen, onClose }: FeedbackDialogProps) {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
-          <fieldset aria-label="Feedback category">
-            <div className="flex gap-2">
-              {(['bug', 'suggestion'] as const).map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => setCategory(opt)}
-                  className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-                    category === opt
-                      ? 'border-border-strong bg-surface-2 text-text-default'
-                      : 'border-border bg-surface text-text-muted hover:bg-surface-hover'
-                  }`}
-                >
-                  {opt === 'bug' ? 'Bug report' : 'Suggestion'}
-                </button>
-              ))}
-            </div>
-          </fieldset>
+          <SegmentedControl<Category>
+            ariaLabel="Feedback category"
+            value={category}
+            options={categoryOptions}
+            onChange={setCategory}
+            className="w-full [&>button]:flex-1"
+          />
 
           <textarea
             id="feedback-description"
@@ -130,13 +124,13 @@ export function FeedbackDialog({ isOpen, onClose }: FeedbackDialogProps) {
             <p className="text-sm text-danger">{errorMsg}</p>
           )}
 
-          <button
+          <Button
             type="submit"
-            disabled={state === 'submitting'}
-            className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            fullWidth
+            loading={state === 'submitting'}
           >
-            {state === 'submitting' ? 'Sending…' : 'Send Feedback'}
-          </button>
+            {state === 'submitting' ? 'Sending' : 'Send Feedback'}
+          </Button>
         </form>
       )}
     </ContentDialog>

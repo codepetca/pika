@@ -68,6 +68,12 @@ const state = {
       returned_by: null as string | null,
     },
   ],
+  classroomEnrollments: [
+    {
+      classroom_id: 'classroom-1',
+      student_id: 'student-1',
+    },
+  ],
   testStudentAvailability: [] as Array<{
     test_id: string
     student_id: string
@@ -334,6 +340,40 @@ function setupSupabaseMock() {
         insert: vi.fn(async (rows: Array<Record<string, unknown>>) => {
           state.testAttempts.push(...(rows as any))
           return { error: null }
+        }),
+      }
+    }
+
+    if (table === 'classroom_enrollments') {
+      return {
+        select: vi.fn(() => {
+          const eqFilters: Record<string, string> = {}
+          const chain: any = {
+            eq: vi.fn((column: string, value: string) => {
+              eqFilters[column] = value
+              return chain
+            }),
+            in: vi.fn(async (column: string, values: string[]) => ({
+              data: state.classroomEnrollments
+                .filter((row) =>
+                  Object.entries(eqFilters).every(([key, val]) => String((row as any)[key]) === val)
+                )
+                .filter((row) => values.includes(String((row as any)[column])))
+                .map((row) => ({ student_id: row.student_id })),
+              error: null,
+            })),
+            then: vi.fn((resolve: any) =>
+              resolve({
+                data: state.classroomEnrollments
+                  .filter((row) =>
+                    Object.entries(eqFilters).every(([key, val]) => String((row as any)[key]) === val)
+                  )
+                  .map((row) => ({ student_id: row.student_id })),
+                error: null,
+              })
+            ),
+          }
+          return chain
         }),
       }
     }

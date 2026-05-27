@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/tests/[id]/return/route'
-import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { assertTeacherOwnsTest, validateSelectedTestStudentEnrollment } from '@/lib/server/tests'
 import { finalizeUnsubmittedTestAttemptsOnClose } from '@/lib/server/finalize-test-attempts'
 
 vi.mock('@/lib/supabase', () => ({
@@ -35,6 +35,11 @@ vi.mock('@/lib/server/tests', async () => {
       const message = `${error.message || ''}`.toLowerCase()
       return (error.code === 'PGRST204' || error.code === '42703') && message.includes('returned_at')
     }),
+    validateSelectedTestStudentEnrollment: vi.fn(async (_supabase: unknown, _classroomId: string, studentIds: string[]) => ({
+      ok: true,
+      enrolledStudentIds: new Set(studentIds),
+      missingStudentIds: [],
+    })),
   }
 })
 
@@ -67,6 +72,34 @@ describe('POST /api/teacher/tests/[id]/return', () => {
 
     expect(response.status).toBe(400)
     expect(data.error).toBe('student_ids array is required')
+  })
+
+  it('rejects selected students who are not enrolled before finalizing or returning work', async () => {
+    vi.mocked(validateSelectedTestStudentEnrollment).mockResolvedValueOnce({
+      ok: true,
+      enrolledStudentIds: new Set(['student-1']),
+      missingStudentIds: ['student-outside'],
+    })
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
+      method: 'POST',
+      body: JSON.stringify({ student_ids: ['student-1', 'student-outside'] }),
+    })
+    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('One or more selected students are not enrolled in this classroom')
+    expect(validateSelectedTestStudentEnrollment).toHaveBeenCalledWith(
+      mockSupabaseClient,
+      'classroom-1',
+      ['student-1', 'student-outside'],
+    )
+    expect(finalizeUnsubmittedTestAttemptsOnClose).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
   })
 
   it('returns only students whose open responses are fully graded', async () => {
