@@ -88,9 +88,12 @@ describe('AssignmentArtifactsCell', () => {
       name: /^View work items; artifact 3 is Link/i,
     })
 
-    expect(within(publishedDemoButton).getByText('R')).toBeInTheDocument()
-    expect(within(sourceRepoButton).getByText('R')).toBeInTheDocument()
+    expect(within(publishedDemoButton).queryByText('R')).not.toBeInTheDocument()
+    expect(within(sourceRepoButton).queryByText('R')).not.toBeInTheDocument()
     expect(within(freeNoteButton).queryByText('R')).not.toBeInTheDocument()
+    expect(publishedDemoButton).toHaveClass('bg-info-bg-hover')
+    expect(sourceRepoButton).toHaveClass('bg-info-bg-hover')
+    expect(freeNoteButton).not.toHaveClass('bg-info-bg-hover')
     expect(freeNoteButton).not.toHaveAccessibleName(/required submission/i)
 
     fireEvent.click(publishedDemoButton)

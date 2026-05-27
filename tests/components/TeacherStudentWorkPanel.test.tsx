@@ -383,7 +383,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    expect(await screen.findByText('Submitted artifacts')).toBeInTheDocument()
+    expect(await screen.findByText('Required submissions')).toBeInTheDocument()
     expect(screen.getByText(/Link . demo.example.com/i)).toBeInTheDocument()
     expect(screen.queryByText('No work submitted yet')).not.toBeInTheDocument()
   })
@@ -497,16 +497,57 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    expect(await screen.findByText('Submitted artifacts')).toBeInTheDocument()
+    expect(await screen.findByText('Required submissions')).toBeInTheDocument()
     expect(screen.getByText('Published demo')).toBeInTheDocument()
     expect(screen.getByText('Source repo')).toBeInTheDocument()
     expect(screen.getByText('Process screenshot')).toBeInTheDocument()
     expect(screen.getByText(/Link . demo.example.com/i)).toBeInTheDocument()
     expect(screen.getByText(/Repo . github.com\/codepetca\/pika/i)).toBeInTheDocument()
     expect(screen.getByText(/Image . cdn.example.com\/submission-images/i)).toBeInTheDocument()
-    expect(screen.getAllByText('Required submission')).toHaveLength(2)
-    expect(screen.getByText('Optional submission')).toBeInTheDocument()
+    expect(screen.queryByText('Required submission')).not.toBeInTheDocument()
+    expect(screen.queryByText('Optional submission')).not.toBeInTheDocument()
     expect(screen.queryByText('Public link')).not.toBeInTheDocument()
+  })
+
+  it('shows dashed cards for missing required submissions in student details', async () => {
+    mockFetchByStudent({
+      'student-1': {
+        graded: false,
+        emptyContent: true,
+        submissionRequirements: [
+          {
+            id: 'req-demo',
+            assignment_id: 'assignment-1',
+            type: 'link',
+            label: 'Published demo',
+            instructions: '',
+            required: true,
+            position: 0,
+            validation_policy_json: {},
+            created_at: '2026-02-20T12:00:00Z',
+            updated_at: '2026-02-20T12:00:00Z',
+          },
+        ],
+        submissionArtifacts: [],
+      },
+    })
+
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    expect(await screen.findByText('Required submissions')).toBeInTheDocument()
+    expect(screen.getByText('Published demo')).toBeInTheDocument()
+    expect(screen.getByText('Missing')).toBeInTheDocument()
+    expect(screen.queryByText('No work submitted yet')).not.toBeInTheDocument()
   })
 
   it('uses edit-mode checkboxes to hide inspector cards outside edit mode', async () => {
