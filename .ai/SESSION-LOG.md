@@ -7,24 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Split-button destructive action placement
-
-**Completed:**
-- Added a `destructive` split-button option flag and centralized menu rendering so destructive options appear last under a separator.
-- Marked assignment delete, test-work delete, and roster removal split-button actions as destructive.
-- Added focused SplitButton coverage for reordering a destructive option supplied before normal actions.
-- Stabilized the assignment refresh test by waiting for the initial detail request before clicking refresh.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/ui/SplitButton.test.tsx tests/components/TeacherRosterTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- Playwright menu smoke: roster, assignment, and test action dropdowns all placed Remove/Delete last under a separator.
-- Screenshots: `/tmp/pika-roster-actions-menu.png`, `/tmp/pika-assignment-actions-menu.png`, `/tmp/pika-test-actions-menu.png`
-- `pnpm test`
-- `pnpm test:coverage`
-
 ## 2026-05-26 — Critical risk fixes
 
 **Completed:**
@@ -348,3 +330,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=roster'`
 - Browser selected-row screenshots: `/tmp/pika-roster-selected-desktop.png`, `/tmp/pika-roster-selected-mobile.png`, `/tmp/pika-roster-selected-email-menu-desktop.png`, `/tmp/pika-roster-selected-email-menu-mobile.png`
+
+## 2026-05-27 — Phase three audit fixes
+
+**Completed:**
+- Added shared selected-student enrollment validation for teacher test mutation routes.
+- Blocked test AI auto-grade run creation and open-response grade clearing when any selected student is outside the test classroom.
+- Normalized teacher settings controls toward `@/ui` primitives: shared segmented section switcher, cards, `FormField`, `Input`, `Select`, and a FormField-compatible textarea.
+- Fixed the syllabus lesson-plan visibility select's accessible label and added settings switcher coverage.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-clear-open-grades.test.ts tests/unit/test-student-access.test.ts`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=settings&section=general'`
+- Browser screenshots: `/tmp/pika-settings-general-full-desktop.png`, `/tmp/pika-settings-general-full-mobile.png`, `/tmp/pika-settings-class-days-desktop.png`, `/tmp/pika-settings-class-days-mobile.png`, `/tmp/pika-settings-general-dark-desktop.png`
+- `pnpm test tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-clear-open-grades.test.ts tests/unit/test-student-access.test.ts`
+- `pnpm build`
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm test`
