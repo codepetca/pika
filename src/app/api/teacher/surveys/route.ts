@@ -9,6 +9,113 @@ import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+type SurveyQuestionStatsRow = {
+  survey_id: string
+}
+
+type SurveyResponseStatsRow = {
+  survey_id: string
+  student_id: string
+}
+
+const SURVEY_LIST_STATS_FILTER_CHUNK_SIZE = 50
+const SURVEY_LIST_STATS_PAGE_SIZE = 1000
+
+function chunkIds(ids: string[], chunkSize: number): string[][] {
+  const chunks: string[][] = []
+  for (let index = 0; index < ids.length; index += chunkSize) {
+    chunks.push(ids.slice(index, index + chunkSize))
+  }
+  return chunks
+}
+
+async function loadPagedRows<T>(buildQuery: () => any): Promise<{ rows: T[]; error: any }> {
+  const rows: T[] = []
+  let offset = 0
+
+  while (true) {
+    let query = buildQuery()
+    const supportsRange = typeof query.range === 'function'
+    if (supportsRange && typeof query.order === 'function') {
+      query = query.order('id', { ascending: true })
+    }
+    if (supportsRange) {
+      query = query.range(offset, offset + SURVEY_LIST_STATS_PAGE_SIZE - 1)
+    }
+
+    const { data, error } = await query
+    if (error) {
+      return { rows: [], error }
+    }
+
+    const pageRows = (data || []) as T[]
+    rows.push(...pageRows)
+
+    if (!supportsRange || pageRows.length < SURVEY_LIST_STATS_PAGE_SIZE) break
+    offset += SURVEY_LIST_STATS_PAGE_SIZE
+  }
+
+  return { rows, error: null }
+}
+
+async function loadSurveyQuestionRows(
+  supabase: any,
+  surveyIds: string[]
+): Promise<{ rows: SurveyQuestionStatsRow[]; error: any }> {
+  if (surveyIds.length === 0) {
+    return { rows: [], error: null }
+  }
+
+  const rows: SurveyQuestionStatsRow[] = []
+  for (const surveyIdChunk of chunkIds(surveyIds, SURVEY_LIST_STATS_FILTER_CHUNK_SIZE)) {
+    const result = await loadPagedRows<SurveyQuestionStatsRow>(() =>
+      supabase
+        .from('survey_questions')
+        .select('survey_id')
+        .in('survey_id', surveyIdChunk)
+    )
+
+    if (result.error) {
+      return { rows: [], error: result.error }
+    }
+
+    rows.push(...result.rows)
+  }
+
+  return { rows, error: null }
+}
+
+async function loadSurveyResponseRows(
+  supabase: any,
+  surveyIds: string[],
+  studentIds: string[]
+): Promise<{ rows: SurveyResponseStatsRow[]; error: any }> {
+  if (surveyIds.length === 0 || studentIds.length === 0) {
+    return { rows: [], error: null }
+  }
+
+  const rows: SurveyResponseStatsRow[] = []
+  for (const surveyIdChunk of chunkIds(surveyIds, SURVEY_LIST_STATS_FILTER_CHUNK_SIZE)) {
+    for (const studentIdChunk of chunkIds(studentIds, SURVEY_LIST_STATS_FILTER_CHUNK_SIZE)) {
+      const result = await loadPagedRows<SurveyResponseStatsRow>(() =>
+        supabase
+          .from('survey_responses')
+          .select('survey_id, student_id')
+          .in('survey_id', surveyIdChunk)
+          .in('student_id', studentIdChunk)
+      )
+
+      if (result.error) {
+        return { rows: [], error: result.error }
+      }
+
+      rows.push(...result.rows)
+    }
+  }
+
+  return { rows, error: null }
+}
+
 async function getNextClassworkPosition(classroomId: string) {
   const supabase = getServiceRoleClient()
   const [lastAssignmentResult, lastMaterialResult, lastSurveyResult] = await Promise.all([
@@ -92,10 +199,12 @@ export const GET = withErrorHandler('GetTeacherSurveys', async (request) => {
 
   const questionCountMap: Record<string, number> = {}
   if (surveyIds.length > 0) {
-    const { data: questionRows } = await supabase
-      .from('survey_questions')
-      .select('survey_id')
-      .in('survey_id', surveyIds)
+    const { rows: questionRows, error: questionRowsError } = await loadSurveyQuestionRows(supabase, surveyIds)
+
+    if (questionRowsError) {
+      console.error('Error fetching survey question stats:', questionRowsError)
+      return NextResponse.json({ error: 'Failed to fetch survey question stats' }, { status: 500 })
+    }
 
     for (const row of questionRows || []) {
       questionCountMap[row.survey_id] = (questionCountMap[row.survey_id] || 0) + 1
@@ -104,11 +213,10 @@ export const GET = withErrorHandler('GetTeacherSurveys', async (request) => {
 
   const respondentCountMap: Record<string, number> = {}
   if (surveyIds.length > 0 && classroomStudentsResult.studentIds.length > 0) {
-    const { data: responseRows, error: responseRowsError } = await supabase
-      .from('survey_responses')
-      .select('survey_id, student_id')
-      .in('survey_id', surveyIds)
-      .in('student_id', classroomStudentsResult.studentIds)
+    const {
+      rows: responseRows,
+      error: responseRowsError,
+    } = await loadSurveyResponseRows(supabase, surveyIds, classroomStudentsResult.studentIds)
 
     if (responseRowsError) {
       console.error('Error fetching survey response stats:', responseRowsError)
