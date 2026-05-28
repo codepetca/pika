@@ -7,21 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Archived gradebook mutation guards
-
-**Completed:**
-- Blocked gradebook assessment-weight PATCH requests when the classroom is archived while preserving read access.
-- Blocked manual quiz override writes for archived classrooms by loading `archived_at` through the joined classroom relation.
-- Added API regression coverage proving both archived paths return 403 before update/upsert work.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/teacher/gradebook.test.ts tests/api/teacher/gradebook-quiz-overrides.test.ts`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-05-26 — Assignment duplicate-submit timestamp guard
 
 **Completed:**
@@ -354,6 +339,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm lint`
 - `pnpm test -- --runInBand`
+- `pnpm build`
+- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
+- `git diff --check`
+
+## 2026-05-28 — Test list stats enrollment scoping
+
+**Completed:**
+- Scoped teacher test list respondent, submission, and availability stats to paginated current classroom enrollments.
+- Added chunked stats loaders for test questions, attempts, responses, availability overrides, and draft overlays to avoid oversized Supabase `.in()` filters on large test lists or rosters.
+- Returned a clear 500 when classroom enrollment loading fails instead of reporting empty stats.
+- Applied assessment draft overlays only to draft tests so active/closed list rows match canonical test metadata.
+- Added regressions for enrollment failures, current-enrollment scoping, 51x51 chunking, and stale draft overlays.
+
+**Validation:**
+- `pnpm vitest run tests/api/teacher/tests-route.test.ts --reporter=verbose`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm test`
 - `pnpm build`
 - `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
 - `git diff --check`
