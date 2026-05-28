@@ -7,21 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Assignment duplicate-submit timestamp guard
-
-**Completed:**
-- Preserved the original `submitted_at` value when an already-submitted assignment doc receives a duplicate submit request.
-- Kept fresh timestamps for first submissions and later resubmissions after the doc has been returned/unsubmitted.
-- Added API regression coverage proving duplicate submit writes the first timestamp back instead of replacing it.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/assignment-docs/submit.test.ts`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-05-26 — Gradebook settings clears hidden email selection
 
 **Completed:**
@@ -354,6 +339,26 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Validation:**
 - `pnpm vitest run tests/api/teacher/tests-route.test.ts --reporter=verbose`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
+- `git diff --check`
+
+## 2026-05-28 — Quiz list stats chunked pagination
+
+**Completed:**
+- Added chunked and paginated quiz question and response stats loading for teacher quiz lists.
+- Ordered paged quiz stat reads by stable row id to prevent offset pagination skips or duplicates.
+- Preserved enrolled-student scoping while preventing large quiz lists or rosters from exceeding Supabase `.in()` and default row-limit behavior.
+- Chunked assessment draft overlay reads and pinned the existing active-quiz overlay behavior to match quiz detail parity.
+- Returned a clear 500 when quiz question stat loading fails instead of silently reporting zero questions.
+- Added regressions for stat load failures, 51x51 filter chunking, paginated stat rows, and active-list draft overlays.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/api/teacher/quizzes-route.test.ts --reporter=verbose`
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm lint`
 - `pnpm test`
