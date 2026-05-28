@@ -7,22 +7,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — GitHub identity API coverage
-
-**Completed:**
-- Added focused API coverage for `GET/PATCH /api/account/github-identity`.
-- Covered auth failures, null/saved identity loads, username normalization and format rejection, validation outcome persistence, missing storage 503s, and unexpected save failures.
-- Asserted the Supabase upsert payload and `onConflict: 'user_id'` contract for saved GitHub identities.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/account/github-identity.test.ts`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm test tests/api/account/github-identity.test.ts tests/unit/api-route-standards.test.ts`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-05-26 — Archived gradebook mutation guards
 
 **Completed:**
@@ -355,4 +339,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm run test:coverage`
 - `pnpm build`
+- `git diff --check`
+
+## 2026-05-28 — Assignment list stats enrollment scoping
+
+**Completed:**
+- Scoped teacher assignment list stats to currently enrolled classroom students.
+- Reused `getClassroomStudentIds()` for paginated enrollment ids and total student count.
+- Bulk-loaded assignment docs by assignment ids and enrolled student ids, chunking large `.in()` filters to avoid oversized PostgREST URLs while preserving the `teacher_cleared_at` missing-column fallback.
+- Added regressions for withdrawn-student docs, large-roster chunking, fallback scoping, zero-enrollment stats, and enrollment lookup failures.
+
+**Validation:**
+- `pnpm vitest run tests/api/teacher/assignments.test.ts --reporter=verbose`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm test -- --runInBand`
+- `pnpm build`
+- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
 - `git diff --check`
