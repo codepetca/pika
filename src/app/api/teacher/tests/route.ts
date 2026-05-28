@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import {
+  assertTeacherCanMutateClassroom,
+  assertTeacherOwnsClassroom,
+  getClassroomStudentIds,
+} from '@/lib/server/classrooms'
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 import {
@@ -21,6 +25,131 @@ import type { TestStudentAvailabilityState } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+type TestAttemptStatsRow = {
+  test_id: string
+  student_id: string
+  is_submitted: boolean
+}
+
+type TestQuestionStatsRow = {
+  test_id: string
+}
+
+type TestResponseStatsRow = {
+  test_id: string
+  student_id: string
+  selected_option: unknown
+  response_text: unknown
+}
+
+type TestAvailabilityStatsRow = {
+  test_id: string
+  student_id: string
+  state: unknown
+}
+
+const TEST_LIST_STATS_FILTER_CHUNK_SIZE = 50
+
+function chunkIds(ids: string[], chunkSize: number): string[][] {
+  const chunks: string[][] = []
+  for (let index = 0; index < ids.length; index += chunkSize) {
+    chunks.push(ids.slice(index, index + chunkSize))
+  }
+  return chunks
+}
+
+async function loadStudentScopedTestRows<T>(
+  supabase: any,
+  options: {
+    table: string
+    columns: string
+    testIds: string[]
+    studentIds: string[]
+  }
+): Promise<{ rows: T[]; error: any }> {
+  const { table, columns, testIds, studentIds } = options
+  if (testIds.length === 0 || studentIds.length === 0) {
+    return { rows: [], error: null }
+  }
+
+  const rows: T[] = []
+  for (const testIdChunk of chunkIds(testIds, TEST_LIST_STATS_FILTER_CHUNK_SIZE)) {
+    for (const studentIdChunk of chunkIds(studentIds, TEST_LIST_STATS_FILTER_CHUNK_SIZE)) {
+      const { data, error } = await supabase
+        .from(table)
+        .select(columns)
+        .in('test_id', testIdChunk)
+        .in('student_id', studentIdChunk)
+
+      if (error) {
+        return { rows: [], error }
+      }
+
+      rows.push(...((data || []) as T[]))
+    }
+  }
+
+  return { rows, error: null }
+}
+
+async function loadTestQuestionRows(
+  supabase: any,
+  testIds: string[]
+): Promise<{ rows: TestQuestionStatsRow[]; error: any }> {
+  if (testIds.length === 0) {
+    return { rows: [], error: null }
+  }
+
+  const rows: TestQuestionStatsRow[] = []
+  for (const testIdChunk of chunkIds(testIds, TEST_LIST_STATS_FILTER_CHUNK_SIZE)) {
+    const { data, error } = await supabase
+      .from('test_questions')
+      .select('test_id')
+      .in('test_id', testIdChunk)
+
+    if (error) {
+      return { rows: [], error }
+    }
+
+    rows.push(...((data || []) as TestQuestionStatsRow[]))
+  }
+
+  return { rows, error: null }
+}
+
+async function loadTestAvailabilityRows(
+  supabase: any,
+  testIds: string[],
+  studentIds: string[]
+): Promise<{ rows: TestAvailabilityStatsRow[]; error: any }> {
+  if (testIds.length === 0 || studentIds.length === 0) {
+    return { rows: [], error: null }
+  }
+
+  const rows: TestAvailabilityStatsRow[] = []
+  for (const testIdChunk of chunkIds(testIds, TEST_LIST_STATS_FILTER_CHUNK_SIZE)) {
+    for (const studentIdChunk of chunkIds(studentIds, TEST_LIST_STATS_FILTER_CHUNK_SIZE)) {
+      try {
+        const result = await supabase
+          .from('test_student_availability')
+          .select('test_id, student_id, state')
+          .in('test_id', testIdChunk)
+          .in('student_id', studentIdChunk)
+
+        if (result.error) {
+          return { rows: [], error: result.error }
+        }
+
+        rows.push(...((result.data || []) as TestAvailabilityStatsRow[]))
+      } catch (error) {
+        return { rows: [], error }
+      }
+    }
+  }
+
+  return { rows, error: null }
+}
 
 // GET /api/teacher/tests?classroom_id=xxx - List tests for a classroom
 export const GET = withErrorHandler('GetTeacherTests', async (request) => {
@@ -60,20 +189,23 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
     return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
   }
 
-  const { data: enrollmentRows, count: totalStudents } = await supabase
-    .from('classroom_enrollments')
-    .select('student_id', { count: 'exact' })
-    .eq('classroom_id', classroomId)
-  const enrolledStudentIds = new Set((enrollmentRows || []).map((row) => row.student_id))
+  const classroomStudentsResult = await getClassroomStudentIds(supabase, classroomId)
+  if (classroomStudentsResult.error) {
+    console.error('Error fetching classroom enrollments:', classroomStudentsResult.error)
+    return NextResponse.json({ error: 'Failed to fetch classroom enrollments' }, { status: 500 })
+  }
 
   const testIds = (tests || []).map((t) => t.id)
+  const enrolledStudentIdList = classroomStudentsResult.studentIds
 
   const questionCountMap: Record<string, number> = {}
   if (testIds.length > 0) {
-    const { data: questionRows } = await supabase
-      .from('test_questions')
-      .select('test_id')
-      .in('test_id', testIds)
+    const { rows: questionRows, error: questionRowsError } = await loadTestQuestionRows(supabase, testIds)
+
+    if (questionRowsError) {
+      console.error('Error fetching test question stats:', questionRowsError)
+      return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
+    }
 
     for (const row of questionRows || []) {
       questionCountMap[row.test_id] = (questionCountMap[row.test_id] || 0) + 1
@@ -82,14 +214,19 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
 
   const respondentCountMap: Record<string, number> = {}
   const submittedCountMap: Record<string, number> = {}
-  if (testIds.length > 0) {
+  if (testIds.length > 0 && enrolledStudentIdList.length > 0) {
     const seen: Record<string, Set<string>> = {}
     const submittedSeen: Record<string, Set<string>> = {}
 
-    const { data: attemptRows, error: attemptRowsError } = await supabase
-      .from('test_attempts')
-      .select('test_id, student_id, is_submitted')
-      .in('test_id', testIds)
+    const {
+      rows: attemptRows,
+      error: attemptRowsError,
+    } = await loadStudentScopedTestRows<TestAttemptStatsRow>(supabase, {
+      table: 'test_attempts',
+      columns: 'test_id, student_id, is_submitted',
+      testIds,
+      studentIds: enrolledStudentIdList,
+    })
 
     if (attemptRowsError && attemptRowsError.code !== 'PGRST205') {
       console.error('Error fetching test attempts:', attemptRowsError)
@@ -98,17 +235,22 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
 
     for (const row of attemptRows || []) {
       if (!row.is_submitted) continue
-      if (!enrolledStudentIds.has(row.student_id)) continue
+      if (!classroomStudentsResult.studentIdSet.has(row.student_id)) continue
       if (!seen[row.test_id]) seen[row.test_id] = new Set()
       seen[row.test_id].add(row.student_id)
       if (!submittedSeen[row.test_id]) submittedSeen[row.test_id] = new Set()
       submittedSeen[row.test_id].add(row.student_id)
     }
 
-    const { data: responseRows, error: responseRowsError } = await supabase
-      .from('test_responses')
-      .select('test_id, student_id, selected_option, response_text')
-      .in('test_id', testIds)
+    const {
+      rows: responseRows,
+      error: responseRowsError,
+    } = await loadStudentScopedTestRows<TestResponseStatsRow>(supabase, {
+      table: 'test_responses',
+      columns: 'test_id, student_id, selected_option, response_text',
+      testIds,
+      studentIds: enrolledStudentIdList,
+    })
 
     if (responseRowsError) {
       console.error('Error fetching test responses:', responseRowsError)
@@ -117,7 +259,7 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
 
     for (const row of responseRows || []) {
       if (!hasMeaningfulTestResponse(row)) continue
-      if (!enrolledStudentIds.has(row.student_id)) continue
+      if (!classroomStudentsResult.studentIdSet.has(row.student_id)) continue
       if (!seen[row.test_id]) seen[row.test_id] = new Set()
       seen[row.test_id].add(row.student_id)
     }
@@ -130,22 +272,11 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
   }
 
   const availabilityByTestId = new Map<string, Map<string, TestStudentAvailabilityState>>()
-  const enrolledStudentIdList = Array.from(enrolledStudentIds)
   if (testIds.length > 0 && enrolledStudentIdList.length > 0) {
-    let availabilityRows: Array<{ test_id: string; student_id: string; state: unknown }> | null = null
-    let availabilityError: any = null
-
-    try {
-      const result = await supabase
-        .from('test_student_availability')
-        .select('test_id, student_id, state')
-        .in('test_id', testIds)
-        .in('student_id', enrolledStudentIdList)
-      availabilityRows = result.data
-      availabilityError = result.error
-    } catch (error) {
-      availabilityError = error
-    }
+    const {
+      rows: availabilityRows,
+      error: availabilityError,
+    } = await loadTestAvailabilityRows(supabase, testIds, enrolledStudentIdList)
 
     const isMissingAvailabilityTable =
       isMissingTestStudentAvailabilityError(availabilityError) ||
@@ -166,31 +297,34 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
 
   const draftByTestId: Record<string, TestDraftContent> = {}
   if (testIds.length > 0) {
-    try {
-      const { data: draftRows, error: draftError } = await supabase
-        .from('assessment_drafts')
-        .select('assessment_id, content')
-        .eq('assessment_type', 'test')
-        .in('assessment_id', testIds)
+    for (const testIdChunk of chunkIds(testIds, TEST_LIST_STATS_FILTER_CHUNK_SIZE)) {
+      try {
+        const { data: draftRows, error: draftError } = await supabase
+          .from('assessment_drafts')
+          .select('assessment_id, content')
+          .eq('assessment_type', 'test')
+          .in('assessment_id', testIdChunk)
 
-      if (draftError && !isMissingAssessmentDraftsError(draftError)) {
-        console.error('Error fetching test draft overlays:', draftError)
-      }
+        if (draftError && !isMissingAssessmentDraftsError(draftError)) {
+          console.error('Error fetching test draft overlays:', draftError)
+        }
 
-      for (const row of draftRows || []) {
-        const parsed = validateTestDraftContent(row.content, {
-          allowEmptyQuestionText: true,
-        })
-        if (!parsed.valid) continue
-        draftByTestId[row.assessment_id] = parsed.value
+        for (const row of draftRows || []) {
+          const parsed = validateTestDraftContent(row.content, {
+            allowEmptyQuestionText: true,
+          })
+          if (!parsed.valid) continue
+          draftByTestId[row.assessment_id] = parsed.value
+        }
+      } catch {
+        // Older test mocks may not implement this table query yet.
       }
-    } catch {
-      // Older test mocks may not implement this table query yet.
     }
   }
 
   const testsWithStats = (tests || []).map((test) => {
-    const totalStudentCount = totalStudents || 0
+    const totalStudentCount = classroomStudentsResult.totalStudents
+    const draft = test.status === 'draft' ? draftByTestId[test.id] : undefined
     let openAccessCount = 0
     let closedAccessCount = 0
 
@@ -214,8 +348,8 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
 
     return {
       ...test,
-      title: draftByTestId[test.id]?.title ?? test.title,
-      show_results: draftByTestId[test.id]?.show_results ?? test.show_results,
+      title: draft?.title ?? test.title,
+      show_results: draft?.show_results ?? test.show_results,
       assessment_type: 'test' as const,
       documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
       stats: {
@@ -224,7 +358,7 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
         submitted: submittedCountMap[test.id] || 0,
         open_access: openAccessCount,
         closed_access: closedAccessCount,
-        questions_count: (draftByTestId[test.id]?.questions.length ?? questionCountMap[test.id]) || 0,
+        questions_count: (draft?.questions.length ?? questionCountMap[test.id]) || 0,
       },
     }
   })
