@@ -8,23 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-26 — Selected test delete action
-
-**Completed:**
-- Added a destructive `Delete Test` action to the selected test workspace actions menu.
-- Wired the selected-workspace delete action through the existing `onRequestDelete` callback, with the component's internal delete confirmation as fallback.
-- Updated component coverage for the selected-test action menu and delete callback path.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests&testId=210e30d4-f085-4c86-94d3-ee14bb66fd03&testMode=grading'`
-- Browser menu screenshot: `/tmp/pika-teacher-tests-delete-action-menu.png`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-05-27 — Phase two systems and UI audit fixes
 
 **Completed:**
@@ -383,3 +366,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `rg -n '\$PIKA_WORKTREE|detached HEAD|latest 60 entries' .ai .claude .codex docs scripts tests /Users/stew/.codex/automations/pika-e2e-coverage-builder/automation.toml`
 - `git diff --check`
 - `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/trim-session-log.test.ts` could not run because this checkout is missing `node_modules` and `vitest`
+## 2026-05-30 — Simplify test schema-drift error shims
+
+**Completed:**
+- Extracted shared PostgREST error text normalization for schema-drift helpers in `src/lib/server/tests.ts`.
+- Added unit coverage for `details`/`hint` handling and case-insensitive matches.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm vitest run tests/unit/server-access.test.ts tests/unit/test-student-access.test.ts`
+- `pnpm test`
+- `pnpm lint`
+
+**PR:**
+- https://github.com/codepetca/pika/pull/677
