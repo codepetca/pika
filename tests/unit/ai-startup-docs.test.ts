@@ -78,13 +78,14 @@ describe('AI startup docs', () => {
     }
   })
 
-  it('keeps the rolling session log small', () => {
+  it('keeps the rolling session log bounded while preserving weekly evidence', () => {
     const sessionLog = readRepoFile('.ai/SESSION-LOG.md')
     const entryCount = sessionLog.match(/^## /gm)?.length ?? 0
 
     expect(sessionLog).toContain('Rolling recent session log')
+    expect(sessionLog).toContain('latest 60 entries')
     expect(entryCount).toBeGreaterThan(0)
-    expect(entryCount).toBeLessThanOrEqual(20)
+    expect(entryCount).toBeLessThanOrEqual(60)
     expect(readRepoFile('.ai/JOURNAL-ARCHIVE.md')).toContain('# Pika Project Journal')
   })
 
@@ -119,6 +120,20 @@ describe('AI startup docs', () => {
 
     for (const file of files) {
       expect(readRepoFile(file)).toContain('$HOME/Repos/.env/pika/.env.local')
+    }
+  })
+
+  it('documents detached HEAD handling in workflow prompts', () => {
+    const files = [
+      '.claude/commands/session-start.md',
+      '.claude/commands/follow-workflow.md',
+      '.claude/commands/commit-and-pr.md',
+      '.codex/prompts/follow-workflow.md',
+      '.codex/prompts/commit-and-pr.md',
+    ]
+
+    for (const file of files) {
+      expect(readRepoFile(file)).toContain('detached HEAD')
     }
   })
 
@@ -202,6 +217,28 @@ describe('AI startup docs', () => {
 
       expect(output).toContain('Created .env.local')
       expect(readlinkSync(join(repoRoot, '.env.local'))).toBe(canonicalEnv)
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('reports detached HEAD state during automated session-start', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-session-start/scripts/session_start.sh')
+
+    execFileSync('git', ['checkout', '--detach'], { cwd: repoRoot })
+
+    try {
+      const output = execFileSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          HOME: repoRoot,
+        },
+        encoding: 'utf8',
+      })
+
+      expect(output).toContain('Checkout: detached HEAD at')
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
     }

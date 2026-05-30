@@ -4,7 +4,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Rules:**
 - Append one concise entry for meaningful work at the end of a session.
-- Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 20 entries.
+- Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 60 entries.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
 ## 2026-05-26 — Selected test delete action
@@ -367,3 +368,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
 - `git diff --check`
+
+## 2026-05-29 — Workflow guardrails for detached HEAD and weekly evidence
+
+**Completed:**
+- Raised the default session-log retention from 20 to 60 entries and updated startup/workflow docs to preserve roughly a week of evidence for weekly automations.
+- Made session-start report `detached HEAD` explicitly and updated follow-workflow plus commit/PR prompts to handle detached checkouts safely.
+- Removed the stale `$PIKA_WORKTREE` assumption from the weekly Pika e2e coverage automation prompt and aligned it with `git rev-parse --show-toplevel`.
+- Added workflow-doc tests for detached-HEAD wording and the larger session-log retention default.
+
+**Validation:**
+- `node scripts/trim-session-log.mjs --help`
+- Detached fixture run: `bash .codex/skills/pika-session-start/scripts/session_start.sh` reported `Checkout: detached HEAD at <sha>`
+- `rg -n '\$PIKA_WORKTREE|detached HEAD|latest 60 entries' .ai .claude .codex docs scripts tests /Users/stew/.codex/automations/pika-e2e-coverage-builder/automation.toml`
+- `git diff --check`
+- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/trim-session-log.test.ts` could not run because this checkout is missing `node_modules` and `vitest`

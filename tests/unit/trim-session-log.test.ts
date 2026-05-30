@@ -42,6 +42,7 @@ describe('trim-session-log script', () => {
       const output = readFileSync(outputPath, 'utf8')
 
       expect(output).toContain('# Pika Session Log')
+      expect(output).toContain('latest 60 entries')
       expect(output).not.toContain('## 2026-05-01 - First')
       expect(output).toContain('## 2026-05-02 - Second')
       expect(output).toContain('## 2026-05-03 - Third')
@@ -86,5 +87,12 @@ describe('trim-session-log script', () => {
       rmSync(repoRoot, { recursive: true, force: true })
       rmSync(otherCwd, { recursive: true, force: true })
     }
+  })
+
+  it('defaults to a weekly evidence-sized retention window', () => {
+    const script = readFileSync(scriptPath, 'utf8')
+
+    expect(script).toContain('const DEFAULT_KEEP = 60')
+    expect(script).toContain('[--keep 60]')
   })
 })
