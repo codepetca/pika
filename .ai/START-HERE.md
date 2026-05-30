@@ -41,7 +41,7 @@ All agents operate from exactly one current repo checkout/worktree.
 ## End of Session (MANDATORY)
 
 1. Append a concise session entry to `.ai/SESSION-LOG.md`.
-2. Run `node scripts/trim-session-log.mjs` to keep only the latest 20 entries.
+2. Run `node scripts/trim-session-log.mjs` to keep only the latest 60 entries so weekly automations still have about a week of evidence.
 3. Update `.ai/features.json` if anything changed:
    ```bash
    node scripts/features.mjs pass <feature-id>
