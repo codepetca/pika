@@ -1,4 +1,5 @@
 import { getServiceRoleClient } from '@/lib/supabase'
+import { validateClassroomStudentIds } from '@/lib/server/classroom-enrollment-validation'
 import type { QuizStatus, TestStudentAvailabilityState } from '@/types'
 
 type PostgrestErrorLike = {
@@ -47,26 +48,7 @@ export async function validateSelectedTestStudentEnrollment(
   | { ok: true; enrolledStudentIds: Set<string>; missingStudentIds: string[] }
   | { ok: false; error: unknown }
 > {
-  const { data: enrollmentRows, error } = await supabase
-    .from('classroom_enrollments')
-    .select('student_id')
-    .eq('classroom_id', classroomId)
-    .in('student_id', studentIds)
-
-  if (error) {
-    return { ok: false, error }
-  }
-
-  const enrolledStudentIds = new Set<string>(
-    ((enrollmentRows || []) as Array<{ student_id: unknown }>)
-      .map((row) => row.student_id)
-      .filter((studentId): studentId is string => typeof studentId === 'string'),
-  )
-  return {
-    ok: true,
-    enrolledStudentIds,
-    missingStudentIds: studentIds.filter((studentId) => !enrolledStudentIds.has(studentId)),
-  }
+  return validateClassroomStudentIds(supabase, classroomId, studentIds)
 }
 
 export type EffectiveStudentTestAccess = {

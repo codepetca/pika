@@ -11,6 +11,7 @@ import {
 import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
 import { loadAssignmentSubmissionArtifactsForDoc } from '@/lib/server/assignment-submission-artifacts'
 import { assertTeacherCanMutateAssignment } from '@/lib/server/repo-review'
+import { validateClassroomStudentIds } from '@/lib/server/classroom-enrollment-validation'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 export const PUT = withErrorHandler('PutTeacherAssignmentRepoTarget', async (request, context) => {
@@ -27,18 +28,11 @@ export const PUT = withErrorHandler('PutTeacherAssignmentRepoTarget', async (req
     : ''
 
   const supabase = getServiceRoleClient()
-
-  const { data: enrollment, error: enrollmentError } = await supabase
-    .from('classroom_enrollments')
-    .select('id')
-    .eq('classroom_id', assignment.classroom_id)
-    .eq('student_id', studentId)
-    .maybeSingle()
-
-  if (enrollmentError) {
+  const enrollmentValidation = await validateClassroomStudentIds(supabase, assignment.classroom_id, [studentId])
+  if (!enrollmentValidation.ok) {
     throw new Error('Failed to validate student enrollment')
   }
-  if (!enrollment) {
+  if (enrollmentValidation.missingStudentIds.length > 0) {
     throw apiErrors.badRequest('Student is not enrolled in this classroom')
   }
 

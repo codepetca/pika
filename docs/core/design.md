@@ -26,6 +26,7 @@ For workflow-specific UI guidance and governed reuse decisions, use the UI canon
 - Color contrast meets WCAG 2.1 AA standards
 - Focus indicators visible
 - No color-only information
+- For composite interactions such as tabs, dialogs, segmented controls, menus, and split panes, also run the governed checklist in [`docs/guidance/ui/composite-widget-accessibility.md`](/docs/guidance/ui/composite-widget-accessibility.md)
 
 ### 4. Dark Mode Support (Required)
 - **All UI components MUST support both light and dark modes**

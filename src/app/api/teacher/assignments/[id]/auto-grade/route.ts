@@ -11,6 +11,7 @@ import {
   markAssignmentDocMissingGrade,
 } from '@/lib/server/assignment-ai-grading-runs'
 import { loadAssignmentSubmissionArtifactsForDoc } from '@/lib/server/assignment-submission-artifacts'
+import { validateClassroomStudentIds } from '@/lib/server/classroom-enrollment-validation'
 import { assertTeacherCanMutateAssignment } from '@/lib/server/repo-review'
 
 export const dynamic = 'force-dynamic'
@@ -36,18 +37,18 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
 
   const assignment = await assertTeacherCanMutateAssignment(user.id, id)
   const supabase = getServiceRoleClient()
-  const { data: enrollments, error: enrollmentError } = await supabase
-    .from('classroom_enrollments')
-    .select('student_id')
-    .eq('classroom_id', assignment.classroom_id)
-    .in('student_id', normalizedStudentIds)
+  const enrollmentValidation = await validateClassroomStudentIds(
+    supabase,
+    assignment.classroom_id,
+    normalizedStudentIds,
+  )
 
-  if (enrollmentError) {
-    console.error('Error validating enrollments for auto-grade:', enrollmentError)
+  if (!enrollmentValidation.ok) {
+    console.error('Error validating enrollments for auto-grade:', enrollmentValidation.error)
     return NextResponse.json({ error: 'Failed to validate student enrollment' }, { status: 500 })
   }
 
-  if (((enrollments as Array<{ student_id: string }> | null) ?? []).length !== normalizedStudentIds.length) {
+  if (enrollmentValidation.missingStudentIds.length > 0) {
     return NextResponse.json({ error: 'Student is not enrolled in this classroom' }, { status: 400 })
   }
 

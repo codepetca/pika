@@ -8,6 +8,7 @@ import {
   type QuizDraftContent,
 } from '@/lib/server/assessment-drafts'
 import { withErrorHandler } from '@/lib/api-handler'
+import { chunkValues, loadChunkedRows } from '@/lib/server/query-chunks'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -21,71 +22,19 @@ type QuizResponseStatsRow = {
   student_id: string
 }
 
-const QUIZ_LIST_STATS_FILTER_CHUNK_SIZE = 50
 const QUIZ_LIST_STATS_PAGE_SIZE = 1000
-
-function chunkIds(ids: string[], chunkSize: number): string[][] {
-  const chunks: string[][] = []
-  for (let index = 0; index < ids.length; index += chunkSize) {
-    chunks.push(ids.slice(index, index + chunkSize))
-  }
-  return chunks
-}
-
-async function loadPagedRows<T>(buildQuery: () => any): Promise<{ rows: T[]; error: any }> {
-  const rows: T[] = []
-  let offset = 0
-
-  while (true) {
-    let query = buildQuery()
-    const supportsRange = typeof query.range === 'function'
-    if (supportsRange && typeof query.order === 'function') {
-      query = query.order('id', { ascending: true })
-    }
-    if (supportsRange) {
-      query = query.range(offset, offset + QUIZ_LIST_STATS_PAGE_SIZE - 1)
-    }
-
-    const { data, error } = await query
-    if (error) {
-      return { rows: [], error }
-    }
-
-    const pageRows = (data || []) as T[]
-    rows.push(...pageRows)
-
-    if (!supportsRange || pageRows.length < QUIZ_LIST_STATS_PAGE_SIZE) break
-    offset += QUIZ_LIST_STATS_PAGE_SIZE
-  }
-
-  return { rows, error: null }
-}
 
 async function loadQuizQuestionRows(
   supabase: any,
   quizIds: string[]
 ): Promise<{ rows: QuizQuestionStatsRow[]; error: any }> {
-  if (quizIds.length === 0) {
-    return { rows: [], error: null }
-  }
-
-  const rows: QuizQuestionStatsRow[] = []
-  for (const quizIdChunk of chunkIds(quizIds, QUIZ_LIST_STATS_FILTER_CHUNK_SIZE)) {
-    const result = await loadPagedRows<QuizQuestionStatsRow>(() =>
-      supabase
-        .from('quiz_questions')
-        .select('quiz_id')
-        .in('quiz_id', quizIdChunk)
-    )
-
-    if (result.error) {
-      return { rows: [], error: result.error }
-    }
-
-    rows.push(...result.rows)
-  }
-
-  return { rows, error: null }
+  return loadChunkedRows<QuizQuestionStatsRow>({
+    supabase,
+    table: 'quiz_questions',
+    select: 'quiz_id',
+    filters: [{ column: 'quiz_id', values: quizIds }],
+    pageSize: QUIZ_LIST_STATS_PAGE_SIZE,
+  })
 }
 
 async function loadQuizResponseRows(
@@ -93,30 +42,16 @@ async function loadQuizResponseRows(
   quizIds: string[],
   studentIds: string[]
 ): Promise<{ rows: QuizResponseStatsRow[]; error: any }> {
-  if (quizIds.length === 0 || studentIds.length === 0) {
-    return { rows: [], error: null }
-  }
-
-  const rows: QuizResponseStatsRow[] = []
-  for (const quizIdChunk of chunkIds(quizIds, QUIZ_LIST_STATS_FILTER_CHUNK_SIZE)) {
-    for (const studentIdChunk of chunkIds(studentIds, QUIZ_LIST_STATS_FILTER_CHUNK_SIZE)) {
-      const result = await loadPagedRows<QuizResponseStatsRow>(() =>
-        supabase
-          .from('quiz_responses')
-          .select('quiz_id, student_id')
-          .in('quiz_id', quizIdChunk)
-          .in('student_id', studentIdChunk)
-      )
-
-      if (result.error) {
-        return { rows: [], error: result.error }
-      }
-
-      rows.push(...result.rows)
-    }
-  }
-
-  return { rows, error: null }
+  return loadChunkedRows<QuizResponseStatsRow>({
+    supabase,
+    table: 'quiz_responses',
+    select: 'quiz_id, student_id',
+    filters: [
+      { column: 'quiz_id', values: quizIds },
+      { column: 'student_id', values: studentIds },
+    ],
+    pageSize: QUIZ_LIST_STATS_PAGE_SIZE,
+  })
 }
 
 // GET /api/teacher/quizzes?classroom_id=xxx - List quizzes for a classroom
@@ -201,7 +136,7 @@ export const GET = withErrorHandler('GetTeacherQuizzes', async (request) => {
 
   const draftByQuizId: Record<string, QuizDraftContent> = {}
   if (quizIds.length > 0) {
-    for (const quizIdChunk of chunkIds(quizIds, QUIZ_LIST_STATS_FILTER_CHUNK_SIZE)) {
+    for (const quizIdChunk of chunkValues(quizIds)) {
       try {
         const { data: draftRows, error: draftError } = await supabase
           .from('assessment_drafts')

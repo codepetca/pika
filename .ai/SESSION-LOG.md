@@ -295,6 +295,90 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
 - `git diff --check`
 
+## 2026-05-29 — Skill progression map from PR review patterns
+
+**Completed:**
+- Reviewed recent merged PRs #665-#676 plus nearby audit-fix PRs for recurring review and self-review themes.
+- Identified repeat hotspots around enrollment-scoped authorization, PostgREST query sizing/pagination, accessibility semantics, and verification depth.
+- Wrote a concrete next-skill map anchored to those PR and review patterns for the automation memory.
+
+**Validation:**
+- `bash scripts/verify-env.sh` (failed only because `node_modules` is absent in this worktree)
+- `gh pr list --state merged --limit 12 --json number,title,mergedAt,url,author,reviewDecision`
+- `gh api graphql` against recent merged PR reviews
+
+## 2026-05-30 — Shared enrollment and list-stat guardrails
+
+**Completed:**
+- Added shared chunked/paged Supabase row loading in [`src/lib/server/query-chunks.ts`](/Users/stew/.codex/worktrees/f558/pika/src/lib/server/query-chunks.ts) to centralize filter chunking and stable pagination.
+- Added shared classroom enrollment validation in [`src/lib/server/classroom-enrollment-validation.ts`](/Users/stew/.codex/worktrees/f558/pika/src/lib/server/classroom-enrollment-validation.ts) and routed test enrollment checks through it.
+- Replaced duplicated list-stat loading logic in teacher quizzes, surveys, and tests routes with the shared loader.
+- Replaced duplicated classroom enrollment validation in assignment auto-grade and assignment repo-target routes with the shared validator.
+- Added focused regression coverage for chunked/paged row loading and 51-student enrollment validation boundaries.
+
+**Validation:**
+- `git diff --check`
+- Static readback of all touched server routes and new tests
+- Full test/lint/build not run because `node_modules` is absent in this worktree
+
+## 2026-05-30 — Accessibility and validation audit gates
+
+**Completed:**
+- Reviewed the shared guardrail refactor and found no blocking route/runtime issues on static inspection.
+- Added the governed composite-widget accessibility checklist in [`docs/guidance/ui/composite-widget-accessibility.md`](/Users/stew/.codex/worktrees/f558/pika/docs/guidance/ui/composite-widget-accessibility.md).
+- Wired the new checklist into the UI canon, design guidance, and audit prompt/skill docs.
+- Extended the Pika audit script to flag missing changed-test coverage for risky server/runtime work and composite-widget UI work, plus emit reminder output for required validation reporting.
+- Fixed one audit false positive by limiting the `manual-catch` violation to unwrapped route files instead of any wrapped route helper catch.
+- Added doc/prompt regression coverage in [`tests/unit/ui-guidance-docs.test.ts`](/Users/stew/.codex/worktrees/f558/pika/tests/unit/ui-guidance-docs.test.ts).
+
+**Validation:**
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- Full Vitest/lint/build still not run because `node_modules` is absent in this worktree
+
+## 2026-05-30 — Validation pass completed
+
+**Completed:**
+- Installed worktree dependencies with `pnpm install --frozen-lockfile`.
+- Ran focused validation for the new guardrail and guidance work.
+- Fixed one over-strict unit-test expectation in [`tests/unit/query-chunks.test.ts`](/Users/stew/.codex/worktrees/f558/pika/tests/unit/query-chunks.test.ts) after confirming the loader legitimately re-applies filter chunks across pagination pages.
+- Fixed one TypeScript build issue in [`src/lib/server/query-chunks.ts`](/Users/stew/.codex/worktrees/f558/pika/src/lib/server/query-chunks.ts) by adding an explicit recursive return type for the internal `visit` helper.
+
+**Validation:**
+- `pnpm install --frozen-lockfile`
+- `pnpm vitest run tests/unit/query-chunks.test.ts tests/unit/classroom-enrollment-validation.test.ts tests/unit/ui-guidance-docs.test.ts tests/api/teacher/assignments-auto-grade.test.ts --reporter=verbose`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+
+## 2026-05-30 — Path-aware audit test matching
+
+**Completed:**
+- Tightened the audit heuristic in [`audit.sh`](/Users/stew/.codex/worktrees/f558/pika/.codex/skills/pika-audit/scripts/audit.sh) so risky API changes require relevant changed tests under `tests/api` or `tests/integration`, while `src/lib/server/*` can still be satisfied by `tests/lib` or `tests/unit`.
+- Kept composite-widget matching scoped to `tests/components`, `tests/ui`, or `tests/integration`.
+- Added fixture-based regression tests in [`tests/unit/ai-startup-docs.test.ts`](/Users/stew/.codex/worktrees/f558/pika/tests/unit/ai-startup-docs.test.ts) proving that:
+  - a risky API change plus an unrelated unit test now fails audit,
+  - the same risky API change plus a relevant API test passes audit.
+- Updated audit guidance assertions in [`tests/unit/ui-guidance-docs.test.ts`](/Users/stew/.codex/worktrees/f558/pika/tests/unit/ui-guidance-docs.test.ts).
+
+**Validation:**
+- `pnpm vitest run tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts --reporter=verbose`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+
+## 2026-05-30 — Audit message alignment
+
+**Completed:**
+- Fixed the minor audit messaging mismatch so `missing-risk-tests` now reports path-specific expectations that match the actual rule:
+  - API routes mention `tests/api` / `tests/integration`
+  - server modules mention `tests/api` / `tests/integration` / `tests/lib` / `tests/unit`
+
+**Validation:**
+- `pnpm vitest run tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts --reporter=verbose`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+
 ## 2026-05-28 — Test list stats enrollment scoping
 
 **Completed:**
