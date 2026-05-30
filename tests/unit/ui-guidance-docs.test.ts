@@ -14,10 +14,13 @@ describe('ui guidance docs and prompts', () => {
     const aiInstructions = readRepoFile('docs/ai-instructions.md')
     const coreDesign = readRepoFile('docs/core/design.md')
     const designSystem = readRepoFile('docs/design-system.md')
+    const uiCanon = readRepoFile('docs/guidance/ui/README.md')
 
     expect(aiInstructions).toContain('docs/guidance/ui/README.md')
     expect(aiInstructions).toContain('docs/guidance/ui/stable.md')
     expect(coreDesign).toContain('UI canon')
+    expect(coreDesign).toContain('composite-widget-accessibility.md')
+    expect(uiCanon).toContain('composite-widget-accessibility.md')
     expect(designSystem).toContain('Historical reference only')
   })
 
@@ -36,5 +39,17 @@ describe('ui guidance docs and prompts', () => {
       expect(content).toContain('experimental guidance introduced: yes/no')
       expect(content).toContain('human promotion needed: yes/no')
     }
+  })
+
+  it('keeps the audit prompt aligned with the composite-widget accessibility gate', () => {
+    const auditPrompt = readRepoFile('.codex/prompts/audit.md')
+    const auditSkill = readRepoFile('.codex/skills/pika-audit/SKILL.md')
+
+    expect(auditPrompt).toContain('composite-widget-accessibility.md')
+    expect(auditPrompt).toContain('semantic/keyboard regression coverage added: yes/no')
+    expect(auditPrompt).toContain('full validation pass completed: yes/no')
+    expect(auditSkill).toContain('missing-a11y-tests')
+    expect(auditSkill).toContain('missing-risk-tests')
+    expect(auditSkill).toContain('without a relevant changed test')
   })
 })

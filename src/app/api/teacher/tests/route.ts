@@ -22,6 +22,7 @@ import {
 import { withErrorHandler } from '@/lib/api-handler'
 import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
 import type { TestStudentAvailabilityState } from '@/types'
+import { chunkValues, loadChunkedRows } from '@/lib/server/query-chunks'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -49,16 +50,6 @@ type TestAvailabilityStatsRow = {
   state: unknown
 }
 
-const TEST_LIST_STATS_FILTER_CHUNK_SIZE = 50
-
-function chunkIds(ids: string[], chunkSize: number): string[][] {
-  const chunks: string[][] = []
-  for (let index = 0; index < ids.length; index += chunkSize) {
-    chunks.push(ids.slice(index, index + chunkSize))
-  }
-  return chunks
-}
-
 async function loadStudentScopedTestRows<T>(
   supabase: any,
   options: {
@@ -69,53 +60,27 @@ async function loadStudentScopedTestRows<T>(
   }
 ): Promise<{ rows: T[]; error: any }> {
   const { table, columns, testIds, studentIds } = options
-  if (testIds.length === 0 || studentIds.length === 0) {
-    return { rows: [], error: null }
-  }
-
-  const rows: T[] = []
-  for (const testIdChunk of chunkIds(testIds, TEST_LIST_STATS_FILTER_CHUNK_SIZE)) {
-    for (const studentIdChunk of chunkIds(studentIds, TEST_LIST_STATS_FILTER_CHUNK_SIZE)) {
-      const { data, error } = await supabase
-        .from(table)
-        .select(columns)
-        .in('test_id', testIdChunk)
-        .in('student_id', studentIdChunk)
-
-      if (error) {
-        return { rows: [], error }
-      }
-
-      rows.push(...((data || []) as T[]))
-    }
-  }
-
-  return { rows, error: null }
+  return loadChunkedRows<T>({
+    supabase,
+    table,
+    select: columns,
+    filters: [
+      { column: 'test_id', values: testIds },
+      { column: 'student_id', values: studentIds },
+    ],
+  })
 }
 
 async function loadTestQuestionRows(
   supabase: any,
   testIds: string[]
 ): Promise<{ rows: TestQuestionStatsRow[]; error: any }> {
-  if (testIds.length === 0) {
-    return { rows: [], error: null }
-  }
-
-  const rows: TestQuestionStatsRow[] = []
-  for (const testIdChunk of chunkIds(testIds, TEST_LIST_STATS_FILTER_CHUNK_SIZE)) {
-    const { data, error } = await supabase
-      .from('test_questions')
-      .select('test_id')
-      .in('test_id', testIdChunk)
-
-    if (error) {
-      return { rows: [], error }
-    }
-
-    rows.push(...((data || []) as TestQuestionStatsRow[]))
-  }
-
-  return { rows, error: null }
+  return loadChunkedRows<TestQuestionStatsRow>({
+    supabase,
+    table: 'test_questions',
+    select: 'test_id',
+    filters: [{ column: 'test_id', values: testIds }],
+  })
 }
 
 async function loadTestAvailabilityRows(
@@ -123,32 +88,19 @@ async function loadTestAvailabilityRows(
   testIds: string[],
   studentIds: string[]
 ): Promise<{ rows: TestAvailabilityStatsRow[]; error: any }> {
-  if (testIds.length === 0 || studentIds.length === 0) {
-    return { rows: [], error: null }
+  try {
+    return await loadChunkedRows<TestAvailabilityStatsRow>({
+      supabase,
+      table: 'test_student_availability',
+      select: 'test_id, student_id, state',
+      filters: [
+        { column: 'test_id', values: testIds },
+        { column: 'student_id', values: studentIds },
+      ],
+    })
+  } catch (error) {
+    return { rows: [], error }
   }
-
-  const rows: TestAvailabilityStatsRow[] = []
-  for (const testIdChunk of chunkIds(testIds, TEST_LIST_STATS_FILTER_CHUNK_SIZE)) {
-    for (const studentIdChunk of chunkIds(studentIds, TEST_LIST_STATS_FILTER_CHUNK_SIZE)) {
-      try {
-        const result = await supabase
-          .from('test_student_availability')
-          .select('test_id, student_id, state')
-          .in('test_id', testIdChunk)
-          .in('student_id', studentIdChunk)
-
-        if (result.error) {
-          return { rows: [], error: result.error }
-        }
-
-        rows.push(...((result.data || []) as TestAvailabilityStatsRow[]))
-      } catch (error) {
-        return { rows: [], error }
-      }
-    }
-  }
-
-  return { rows, error: null }
 }
 
 // GET /api/teacher/tests?classroom_id=xxx - List tests for a classroom
@@ -297,7 +249,7 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
 
   const draftByTestId: Record<string, TestDraftContent> = {}
   if (testIds.length > 0) {
-    for (const testIdChunk of chunkIds(testIds, TEST_LIST_STATS_FILTER_CHUNK_SIZE)) {
+    for (const testIdChunk of chunkValues(testIds)) {
       try {
         const { data: draftRows, error: draftError } = await supabase
           .from('assessment_drafts')

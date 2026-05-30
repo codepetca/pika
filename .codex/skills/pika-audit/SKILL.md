@@ -19,6 +19,7 @@ Scan changed TypeScript files for codebase violations before committing. Catches
 3. Review any violations reported.
 4. Fix violations before committing (use `/migrate-error-handler` for withErrorHandler issues).
 5. Re-run audit to confirm clean.
+6. If the audit flags composite-widget or risky-behavior follow-up, include the required checklist/validation status in your final note.
 
 ## Violations Detected
 
@@ -30,6 +31,8 @@ Scan changed TypeScript files for codebase violations before committing. Catches
 | `duplicate-parseContentField` | Local `parseContentField` function | Import from `@/lib/tiptap-content` |
 | `console-log` | `console.log(` in non-test production code | Use `console.error`/`warn` or structured logging |
 | `uncached-fetch` | Raw read `fetch()` in classroom/client components | Use `fetchJSONWithCache`; raw mutation fetches are allowed |
+| `missing-risk-tests` | Risky server/runtime behavior changed without a relevant changed test | Add focused regression coverage in `tests/api`, `tests/integration`, `tests/lib`, or `tests/unit` |
+| `missing-a11y-tests` | Composite widget behavior changed without a relevant changed test | Add semantic/keyboard regression coverage in `tests/components`, `tests/ui`, or `tests/integration` |
 
 ## Script
 

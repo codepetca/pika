@@ -240,6 +240,47 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
     })
   })
 
+  it('chunks enrollment validation filters for more than 50 selected students', async () => {
+    const studentIds = Array.from({ length: 51 }, (_, index) => `student-${index + 1}`)
+    const inCalls: string[][] = []
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              in: vi.fn((_column: string, values: string[]) => {
+                inCalls.push(values)
+                return Promise.resolve({
+                  data: values.map((student_id) => ({ student_id })),
+                  error: null,
+                })
+              }),
+            })),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/auto-grade', {
+      method: 'POST',
+      body: JSON.stringify({
+        student_ids: studentIds,
+      }),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(202)
+    expect(data.mode).toBe('background')
+    expect(inCalls).toHaveLength(2)
+    expect(inCalls[0]).toHaveLength(50)
+    expect(inCalls[1]).toEqual(['student-51'])
+  })
+
   it('creates a missing grade when no assignment doc exists', async () => {
     mockAutoGradeTables({
       enrolledIds: ['student-1'],
