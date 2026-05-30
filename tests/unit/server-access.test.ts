@@ -395,6 +395,13 @@ describe('server access helpers', () => {
         })
       ).toBe(true)
 
+      expect(
+        isMissingTestResponseAiColumnsError({
+          code: 'PGRST204',
+          details: 'AI_MODEL missing from schema cache',
+        })
+      ).toBe(true)
+
       expect(isMissingTestResponseAiColumnsError({ code: '42703', message: 'column score does not exist' })).toBe(
         false
       )
