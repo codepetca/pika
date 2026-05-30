@@ -187,6 +187,12 @@ describe('test access migration shims', () => {
       code: 'PGRST204',
       hint: 'Test_Student_Availability missing from Schema Cache',
     })).toBe(true)
+    expect(isMissingTestStudentAvailabilityError({
+      code: 'PGRST204',
+      // Guard against future non-string error shapes (e.g. custom thrown errors).
+      message: 123 as any,
+      hint: 'test_student_availability not found in schema cache',
+    } as any)).toBe(true)
     expect(isMissingTestStudentAvailabilityError({ code: 'PGRST204', message: 'different table' })).toBe(false)
   })
 })

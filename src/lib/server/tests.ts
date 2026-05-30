@@ -9,7 +9,10 @@ type PostgrestErrorLike = {
 }
 
 function getPostgrestErrorText(error: PostgrestErrorLike): string {
-  return `${error.message ?? ''} ${error.details ?? ''} ${error.hint ?? ''}`.toLowerCase()
+  const message = String(error.message ?? '')
+  const details = String(error.details ?? '')
+  const hint = String(error.hint ?? '')
+  return `${message} ${details} ${hint}`.toLowerCase()
 }
 
 export type TestAccessRecord = {
