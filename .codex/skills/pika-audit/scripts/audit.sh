@@ -19,7 +19,9 @@ RISKY_BEHAVIOR_CHANGED=0
 COMPOSITE_WIDGET_CHANGED=0
 declare -a RISKY_FILES=()
 declare -a COMPOSITE_FILES=()
-declare -a TEST_FILES=()
+# Bash 3.2 with `set -u` treats empty array iteration as an unbound
+# variable. Keep a sentinel so no-test changes report audit violations.
+declare -a TEST_FILES=("__pika_no_changed_tests__")
 
 # Collect changed .ts/.tsx files
 CHANGED=$(git -C "$WORKTREE" diff --name-only HEAD 2>/dev/null || true)
@@ -89,15 +91,52 @@ missing_risk_test_message() {
 }
 
 has_relevant_test_for_composite_file() {
-  local _file="$1"
+  local file="$1"
+  local source_base source_stem source_stem_lower
   local test_file
+  local test_base test_stem test_stem_lower test_full
+
+  source_base="$(basename "$file")"
+  source_stem="${source_base%.*}"
+  source_stem_lower="$(printf '%s' "$source_stem" | tr '[:upper:]' '[:lower:]')"
 
   for test_file in "${TEST_FILES[@]}"; do
-    if test_file_matches_any "$test_file" "tests/components/" "tests/ui/" "tests/integration/"; then
+    if ! test_file_matches_any "$test_file" "tests/components/" "tests/ui/" "tests/integration/"; then
+      continue
+    fi
+
+    test_base="$(basename "$test_file")"
+    test_stem="${test_base%%.test.*}"
+    test_stem="${test_stem%%.spec.*}"
+    test_stem_lower="$(printf '%s' "$test_stem" | tr '[:upper:]' '[:lower:]')"
+    test_full="$WORKTREE/$test_file"
+
+    if is_generic_composite_stem "$source_stem"; then
+      if [[ "$test_stem_lower" == "$source_stem_lower" ]]; then
+        return 0
+      fi
+      continue
+    fi
+
+    if [[ "$test_stem_lower" == "$source_stem_lower"* || "$source_stem_lower" == "$test_stem_lower"* ]]; then
+      return 0
+    fi
+
+    if [[ -f "$test_full" ]] && grep -Fq "$source_stem" "$test_full" 2>/dev/null; then
       return 0
     fi
   done
 
+  return 1
+}
+
+is_generic_composite_stem() {
+  local stem="$1"
+  case "$stem" in
+    button|Button|index|Index|page|Page|menu|Menu|tab|Tab|tabs|Tabs|panel|Panel|dialog|Dialog|drawer|Drawer|popover|Popover|input|Input|select|Select|list|List|item|Item|row|Row|cell|Cell|table|Table|card|Card|form|Form|layout|Layout|shell|Shell)
+      return 0
+      ;;
+  esac
   return 1
 }
 
@@ -199,7 +238,7 @@ if [[ "$COMPOSITE_WIDGET_CHANGED" -eq 1 ]]; then
       report_violation \
         "missing-a11y-tests" \
         "$file" \
-        "composite widget semantics changed without a relevant changed test under tests/components, tests/ui, or tests/integration"
+        "composite widget semantics changed without a relevant changed test under tests/components, tests/ui, or tests/integration matching or referencing the changed component"
       break
     fi
   done

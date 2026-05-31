@@ -41,7 +41,7 @@ Use the audit to catch common drift early, then use human review for edge cases 
 | `console-log` | `console.log(` in non-test production code | Use `console.error`/`warn` or structured logging |
 | `uncached-fetch` | Raw read `fetch()` in classroom/client components | Use `fetchJSONWithCache`; raw mutation fetches are allowed |
 | `missing-risk-tests` | Risky API/server behavior changed without a relevant changed test | For `src/app/api/*`, add changed coverage in `tests/api` or `tests/integration`; for `src/lib/server/*`, add changed coverage in `tests/api`, `tests/integration`, `tests/lib`, or `tests/unit` |
-| `missing-a11y-tests` | Composite widget behavior changed without a relevant changed test | Add semantic/keyboard regression coverage in `tests/components`, `tests/ui`, or `tests/integration` |
+| `missing-a11y-tests` | Composite widget behavior changed without a relevant changed test | Add semantic/keyboard regression coverage in `tests/components`, `tests/ui`, or `tests/integration`; the changed test should match or reference the changed component |
 
 ## Script
 
