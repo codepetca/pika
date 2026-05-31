@@ -779,3 +779,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `VITEST_MAX_WORKERS=4 bash scripts/verify-env.sh`
 - `E2E_BASE_URL=http://localhost:3100 pnpm exec playwright test e2e/student-exam-mode.spec.ts -g "locks content only after sustained window loss"`
 - `pnpm lint`
+## 2026-05-31 — PageActionBar mobile menu focus
+
+**Completed:**
+- Added explicit focus management for the shared `PageActionBar` mobile overflow menu.
+- Connected the overflow trigger to its menu with `aria-controls`.
+- Moved focus to the first enabled menu item on open, added arrow/Home/End menu navigation, and restored focus to the trigger on Escape, outside close, and item selection.
+- Added component coverage for trigger/menu relationships, focus movement, keyboard navigation, and focus restoration.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/PageActionBar.test.tsx tests/ui/SplitButton.test.tsx`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3021 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh teacher/dashboard`
+- Manual Playwright mobile menu check: focus moved from `Course blueprints` to `Open classroom` with ArrowDown, Escape returned focus to `Open actions menu`, and the menu closed.
+- Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-page-actionbar-menu-mobile-viewport.png`, `/tmp/pika-page-actionbar-menu-mobile-keyboard.png`
