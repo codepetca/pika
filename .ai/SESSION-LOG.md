@@ -874,6 +874,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Disabled the external right sidebar for teacher assignment summary and workspace route keys.
 - Stopped rendering the classroom route's passive assignment sidebar fallback for teacher assignments.
 - Added coverage so teacher assignments match the tests work-surface rule: no external sidebar until an integrated workspace inspector is active.
+- Fixed review feedback so disabled right-sidebar routes clear stale mobile right-drawer state.
 
 **Validation:**
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
@@ -883,4 +884,4 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `git diff --check`
 - `E2E_BASE_URL=http://localhost:3025 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
-- Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`
+- Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-teacher-assignments-loaded.png`

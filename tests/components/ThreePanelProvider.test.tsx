@@ -38,11 +38,14 @@ function TestHarness({ initialRouteKey }: { initialRouteKey: RouteKey }) {
 
 function SidebarStatus() {
   const { isOpen, enabled, setOpen } = useRightSidebar()
+  const { isRightOpen, openRight } = useMobileDrawer()
   return (
     <div>
       <button type="button" onClick={() => setOpen(true)}>open-right-sidebar</button>
+      <button type="button" onClick={openRight}>open-mobile-right-drawer</button>
       <span data-testid="enabled">{String(enabled)}</span>
       <span data-testid="open">{String(isOpen)}</span>
+      <span data-testid="mobile-right-open">{String(isRightOpen)}</span>
     </div>
   )
 }
@@ -101,6 +104,35 @@ describe('ThreePanelProvider right sidebar sync on routeKey change', () => {
     })
     expect(screen.getByTestId('enabled').textContent).toBe('false')
     expect(screen.getByTestId('open').textContent).toBe('false')
+  })
+
+  it('clears mobile right drawer state when navigating through teacher assignment routes', () => {
+    act(() => {
+      setViewportWidth(390)
+    })
+
+    render(<TestHarness initialRouteKey="calendar-teacher" />)
+
+    act(() => {
+      screen.getByText('open-mobile-right-drawer').click()
+    })
+    expect(screen.getByTestId('mobile-right-open').textContent).toBe('true')
+
+    act(() => {
+      screen.getByText('go-teacher-list').click()
+    })
+    expect(screen.getByTestId('enabled').textContent).toBe('false')
+    expect(screen.getByTestId('mobile-right-open').textContent).toBe('false')
+
+    act(() => {
+      screen.getByText('go-calendar').click()
+    })
+    expect(screen.getByTestId('enabled').textContent).toBe('true')
+    expect(screen.getByTestId('mobile-right-open').textContent).toBe('false')
+
+    act(() => {
+      setViewportWidth(1024)
+    })
   })
 
   it('keeps the external sidebar disabled for teacher tests', () => {
