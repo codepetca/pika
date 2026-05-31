@@ -1384,7 +1384,7 @@ function ClassroomPageContent({
           </PageDensityProvider>
         </MainContent>
 
-        {!isTeacher && activeTab === 'today' ? null : (
+        {(!isTeacher && activeTab === 'today') || (isTeacher && activeTab === 'assignments') ? null : (
         <RightSidebar
           hideDesktopHeader={false}
           minimalMobileHeader={false}
@@ -1392,8 +1392,6 @@ function ClassroomPageContent({
             isTeacher && activeTab === 'calendar' && calendarSidebarState
               ? 'Calendar'
               : isTeacher && isAssessmentTab
-              ? ''
-              : isTeacher && activeTab === 'assignments'
               ? ''
               : activeTab === 'assignments'
               ? (selectedAssignment?.title || 'Instructions')
@@ -1416,10 +1414,6 @@ function ClassroomPageContent({
             <TeacherLessonCalendarSidebar {...calendarSidebarState} />
           ) : isTeacher && isAssessmentTab ? (
             null
-          ) : isTeacher && activeTab === 'assignments' ? (
-            <div className="p-4">
-              <p className="text-sm text-text-muted">Use the assignment workspace to review student work.</p>
-            </div>
           ) : activeTab === 'assignments' ? (
             <div>
               {selectedAssignment ? (

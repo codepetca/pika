@@ -110,6 +110,11 @@ export function ThreePanelProvider({
   const [mobileLeftOpen, setMobileLeftOpen] = useState(false)
   const [mobileRightOpen, setMobileRightOpen] = useState(false)
 
+  useEffect(() => {
+    if (config.rightSidebar.enabled) return
+    setMobileRightOpen(false)
+  }, [config.rightSidebar.enabled, routeKey])
+
   // Track if we're on desktop for desktopAlwaysOpen behavior
   const [isDesktop, setIsDesktop] = useState(false)
   useEffect(() => {
