@@ -450,6 +450,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `rg -n '\$PIKA_WORKTREE|detached HEAD|latest 60 entries' .ai .claude .codex docs scripts tests /Users/stew/.codex/automations/pika-e2e-coverage-builder/automation.toml`
 - `git diff --check`
 - `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/trim-session-log.test.ts` could not run because this checkout is missing `node_modules` and `vitest`
+
 ## 2026-05-30 — Simplify test schema-drift error shims
 
 **Completed:**
@@ -464,3 +465,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **PR:**
 - https://github.com/codepetca/pika/pull/677
+
+## 2026-05-30 — Gradebook bulk-read hardening
+
+**Completed:**
+- Added chunked and paginated loaders for teacher gradebook roster, profile, assignment doc, quiz, and test related reads.
+- Scoped assignment docs to currently enrolled students at query time so withdrawn-student docs cannot consume pages or affect current gradebook data.
+- Returned clear 500 responses for non-migration read failures that were previously swallowed into empty gradebook rows.
+- Preserved the `assignment_docs.teacher_cleared_at` missing-column fallback and optional test-table missing-table shims.
+- Added regressions for 51x51 filter chunking, >1000 related-row pagination, selected students beyond the first roster page, assignment-doc scoping, related-row failures, and migration fallbacks.
+- After rebasing onto the latest `main`, updated the assignment repo-target API test harness to match the shared chunked enrollment validator query shape.
+- Fixed PR review follow-up: legacy databases without `quiz_questions.correct_option` or `quiz_student_scores` now render the gradebook with quiz scoring/overrides empty instead of failing the route.
+
+**Validation:**
+- `pnpm vitest run tests/api/teacher/gradebook.test.ts --reporter=verbose`
+- `pnpm vitest run tests/api/teacher/assignments-repo-targets-studentId.test.ts --reporter=verbose`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
+- `git diff --check`
