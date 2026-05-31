@@ -506,3 +506,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
 - `git diff --check`
+
+## 2026-05-30 — Test results bulk-read hardening
+
+**Completed:**
+- Routed teacher test result reads through chunked, paginated loaders for roster, responses, student availability, attempts, users, profiles, and focus events.
+- Scoped test result reads by test id and currently enrolled student ids at query time while retaining defensive enrollment filtering.
+- Preserved legacy `test_attempts` return-column and closure-column fallbacks, including databases that are missing both sets of columns.
+- Returned explicit 500 responses for availability, user, profile, and focus-event load failures instead of silently rendering partial result data.
+- Preserved exact roster totals from the paginated enrollment helper and added deterministic student tie-break ordering.
+- Added route regressions for roster pagination beyond 1000 students, 51-student filter chunking, >1000 response-row pagination, availability migration fallback, attempt schema fallbacks, and hydration/focus failures.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/api/teacher/tests-results.test.ts --reporter=verbose`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
+- `git diff --check`
