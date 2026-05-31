@@ -748,3 +748,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3019 pnpm e2e:auth`
 - `E2E_BASE_URL=http://localhost:3019 pnpm e2e:verify assessment-ux-parity`
 - Reviewed screenshots: `/tmp/pika-assignment-list-desktop.png`, `/tmp/pika-assignment-editor-desktop.png`, `/tmp/pika-assignment-list-mobile.png`, `/tmp/pika-assignment-editor-mobile.png`, `artifacts/assessment-ux-parity/student-assignments-reference.png`
+
+## 2026-05-31 — Class-days shared loader cache
+
+**Completed:**
+- Added a shared client loader for classroom class-days backed by `fetchJSONWithCache`.
+- Routed `ClassDaysProvider` and fallback `useClassDays` reads through the shared loader to dedupe concurrent consumers.
+- Routed the teacher assignments summary class-days read through the same loader so non-OK class-days responses do not cache empty successes.
+- Invalidated the class-days cache on explicit provider refresh, class-days update events, and teacher calendar generate/toggle mutations.
+- Added latest-request guards so an older class-days response cannot overwrite state after a forced refresh.
+- Added direct context/hook coverage for cache deduplication, forced refresh, stale response ordering, update-event invalidation, failed responses, and avoiding double-fetches inside the provider.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/contexts/ClassDaysContext.test.tsx tests/components/TeacherAttendanceTab.test.tsx tests/components/StudentTodayTabHistory.test.tsx tests/components/StudentLessonCalendarTab.test.tsx`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test`
+- `pnpm build`
+- `git diff --check`
