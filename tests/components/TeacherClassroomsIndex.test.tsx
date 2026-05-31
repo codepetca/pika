@@ -72,10 +72,16 @@ describe('TeacherClassroomsIndex', () => {
     renderTeacherClassroomsIndex(classrooms)
 
     const editButton = screen.getByRole('button', { name: 'Edit' })
+    const bottomControls = screen.getByTestId('classroom-bottom-controls')
     const card = screen.getByTestId('classroom-card')
 
+    expect(bottomControls).toHaveClass('fixed', 'left-1/2', 'z-40', 'rounded-lg', 'bg-surface/95')
+    expect(bottomControls).toHaveClass('shadow-elevated', 'backdrop-blur')
+    expect(bottomControls.className).toContain('bottom-[calc(1rem+env(safe-area-inset-bottom))]')
+    expect(bottomControls.className).toContain('max-w-[40.5rem]')
+    expect(bottomControls).not.toHaveClass('rounded-card')
     expect(
-      within(screen.getByTestId('classroom-bottom-controls')).getByRole('button', { name: 'Edit' })
+      within(bottomControls).getByRole('button', { name: 'Edit' })
     ).toBe(editButton)
     expect(card.compareDocumentPosition(editButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
