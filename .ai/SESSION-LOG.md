@@ -767,3 +767,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test`
 - `pnpm build`
 - `git diff --check`
+
+## 2026-05-31 — Student exam-mode e2e telemetry coverage
+
+**Completed:**
+- Extended the existing student exam-mode Playwright flow for sustained window loss.
+- Asserted that a sustained resize records a window/full-screen exit and does not increment route-exit telemetry.
+- Preserved existing checks for content locking, restoration, and open-response draft survival.
+
+**Validation:**
+- `VITEST_MAX_WORKERS=4 bash scripts/verify-env.sh`
+- `E2E_BASE_URL=http://localhost:3100 pnpm exec playwright test e2e/student-exam-mode.spec.ts -g "locks content only after sustained window loss"`
+- `pnpm lint`
