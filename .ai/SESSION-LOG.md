@@ -885,3 +885,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `E2E_BASE_URL=http://localhost:3025 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
 - Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-teacher-assignments-loaded.png`
+
+## 2026-05-31 — UI sidebar guidance cleanup
+
+**Completed:**
+- Updated `docs/core/design.md` so the classroom shell treats `RightSidebar` as optional route-level chrome, not a default details pane.
+- Clarified the teacher work-surface canon: assignments/quizzes/tests should use integrated `TeacherWorkspaceSplit` inspectors only when active work justifies side-by-side panes.
+- Promoted the teacher workspace split audit language from proposed extraction to the current structural primitive and discouraged external right-sidebar substitutes for teacher work surfaces.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/layout-config.test.ts -- --runInBand`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`

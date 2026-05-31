@@ -248,6 +248,10 @@ an older joined split is explicitly desired.
 - The right sidebar should be closed or visually inactive by default in `entry` and `summary`.
 - Open the inspector only when the current workspace mode and current selection justify active side-by-side work.
 - Desktop split layouts are workspace tools, not default family chrome.
+- For teacher assignments, teacher quizzes, and teacher tests, prefer an integrated `TeacherWorkspaceSplit`
+  inside the selected workspace over the classroom route's external `RightSidebar`.
+- Keep the external route-level `RightSidebar` disabled for this family unless a future task explicitly
+  defines a route-level inspector that is not part of the selected work surface.
 
 ### Top-tab justification
 
@@ -316,7 +320,8 @@ If a screen shows unwanted pane or chrome behavior, check ownership in this orde
 Typical ownership examples:
 
 - summary/workspace transitions often live in the feature tab component
-- passive no-selection panes may live in `ClassroomPageClient`
+- passive no-selection panes may live in `ClassroomPageClient` or route config; remove them at the owner
+  that creates the empty pane instead of hiding them locally
 - persistent blank columns may be owned by route config in `src/lib/layout-config.ts`
 
 Do not paper over an outer-shell problem only inside the local tab component.
