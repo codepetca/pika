@@ -23,7 +23,7 @@ export function chunkValues<T>(values: T[], chunkSize = DEFAULT_FILTER_CHUNK_SIZ
   return chunks
 }
 
-async function loadPagedRows<T>(buildQuery: () => any, pageSize?: number, pageOrderColumn = 'id') {
+export async function loadPagedRows<T>(buildQuery: () => any, pageSize?: number, pageOrderColumn = 'id') {
   const rows: T[] = []
   let offset = 0
 

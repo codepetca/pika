@@ -566,3 +566,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
 - `git diff --check`
+
+## 2026-05-30 — Nightly log summary bulk-read hardening
+
+**Completed:**
+- Routed nightly log-summary active-classroom discovery through paginated entry reads.
+- Chunked class-day filtering for discovered classroom ids.
+- Loaded per-classroom enrollments before summary entries and scoped summary entry reads to currently enrolled students.
+- Paged enrollment, roster-name, and selected entry reads, and chunked student profile hydration.
+- Returned skip/failure for required profile reads instead of generating summaries with incomplete redaction context.
+- Added cron regressions for active-entry pagination, 51-classroom class-day chunking, scoped dense entry pagination, stale withdrawn-student exclusion, profile chunking, and profile-read failures.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/api/cron/nightly-log-summaries.test.ts --reporter=verbose`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
+- `git diff --check`
