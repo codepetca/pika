@@ -6,6 +6,7 @@ import type {
   AssignmentSubmissionArtifact,
   AssignmentSubmissionRequirement,
 } from '@/types'
+import { loadChunkedRows } from '@/lib/server/query-chunks'
 
 const ASSIGNMENT_ARTIFACTS_BUCKET = 'assignment-artifacts'
 const SIGNED_IMAGE_URL_EXPIRES_SECONDS = 60 * 60
@@ -112,18 +113,21 @@ export async function loadAssignmentSubmissionArtifactsForDocs(
   if (assignmentDocIds.length === 0) return []
 
   try {
-    const query = supabase.from('assignment_submission_artifacts')
-    if (!query) return []
-    const { data, error } = await query
-      .select('*')
-      .in('assignment_doc_id', assignmentDocIds)
+    if (typeof supabase.from !== 'function') return []
+    const { rows, error } = await loadChunkedRows<AssignmentSubmissionArtifact>({
+      supabase,
+      table: 'assignment_submission_artifacts',
+      select: '*',
+      filters: [{ column: 'assignment_doc_id', values: assignmentDocIds }],
+      pageSize: 1000,
+    })
 
     if (error) {
       if (isMissingAssignmentSubmissionSchemaError(error)) return []
       throw new Error('Failed to load assignment submission artifacts')
     }
 
-    return signArtifactImageUrls(supabase, (data || []) as AssignmentSubmissionArtifact[])
+    return signArtifactImageUrls(supabase, rows)
   } catch (error) {
     if (isMissingAssignmentSubmissionSchemaError(error)) return []
     throw error

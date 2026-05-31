@@ -586,3 +586,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
 - `git diff --check`
+
+## 2026-05-31 — Teacher assignment detail bulk-read hardening
+
+**Completed:**
+- Routed teacher assignment detail enrollment reads through pagination.
+- Chunked and paged student profile, assignment doc, doc-history, and structured submission artifact reads.
+- Scoped assignment docs to currently enrolled student ids so withdrawn-student docs cannot consume pages or drive artifact/history hydration.
+- Returned explicit 500s for profile, doc, history, and artifact read failures instead of rendering partial detail data.
+- Added regressions for >1000-student detail pagination, 51-student chunking, stale withdrawn-student doc exclusion, dense history pagination, read-failure handling, and artifact helper chunking/pagination.
+- Addressed subagent review follow-up by tightening paged-table mocks so missing filtered columns no longer pass rows through.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/teacher/assignments-id.test.ts tests/lib/assignment-submission-artifacts.test.ts tests/unit/query-chunks.test.ts -- --runInBand`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `pnpm test:coverage`
+- `git diff --check`
