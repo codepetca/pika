@@ -684,56 +684,37 @@ describe('assignment utilities', () => {
   // ==========================================================================
 
   describe('getAssignmentStatusBadgeClass', () => {
-    it('should return gray classes for not_started', () => {
-      const classes = getAssignmentStatusBadgeClass('not_started')
-      expect(classes).toContain('gray')
+    const rawPaletteUtilityPattern =
+      /\b(?:bg|text)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b/
+
+    it.each([
+      ['not_started', 'bg-surface-2', 'text-text-muted'],
+      ['in_progress', 'bg-warning-bg', 'text-warning'],
+      ['in_progress_late', 'bg-warning-bg', 'text-warning'],
+      ['submitted_on_time', 'bg-success-bg', 'text-success'],
+      ['submitted_late', 'bg-warning-bg', 'text-warning'],
+      ['graded', 'bg-success-bg', 'text-success'],
+      ['returned', 'bg-info-bg', 'text-primary'],
+      ['resubmitted', 'bg-warning-bg', 'text-warning'],
+    ] as const)('returns semantic badge classes for %s', (status, bgClass, textClass) => {
+      const classes = getAssignmentStatusBadgeClass(status)
+
+      expect(classes).toContain('inline-flex')
+      expect(classes).toContain('rounded-badge')
+      expect(classes).toContain('px-2.5')
+      expect(classes).toContain('text-xs')
+      expect(classes).toContain('font-semibold')
+      expect(classes).toContain(bgClass)
+      expect(classes).toContain(textClass)
+      expect(classes).not.toMatch(rawPaletteUtilityPattern)
     })
 
-    it('should return blue classes for in_progress', () => {
-      const classes = getAssignmentStatusBadgeClass('in_progress')
-      expect(classes).toContain('blue')
-    })
-
-    it('should return yellow classes for in_progress_late', () => {
-      const classes = getAssignmentStatusBadgeClass('in_progress_late')
-      expect(classes).toContain('yellow')
-    })
-
-    it('should return green classes for submitted_on_time', () => {
-      const classes = getAssignmentStatusBadgeClass('submitted_on_time')
-      expect(classes).toContain('green')
-    })
-
-    it('should return orange classes for submitted_late', () => {
-      const classes = getAssignmentStatusBadgeClass('submitted_late')
-      expect(classes).toContain('orange')
-    })
-
-    it('should return purple classes for graded', () => {
-      const classes = getAssignmentStatusBadgeClass('graded')
-      expect(classes).toContain('purple')
-    })
-
-    it('should return blue classes for returned', () => {
-      const classes = getAssignmentStatusBadgeClass('returned')
-      expect(classes).toContain('blue')
-    })
-
-    it('should return orange classes for resubmitted', () => {
-      const classes = getAssignmentStatusBadgeClass('resubmitted')
-      expect(classes).toContain('orange')
-    })
-
-    it('should return gray classes for invalid status', () => {
+    it('defaults invalid statuses to the muted semantic badge', () => {
       const classes = getAssignmentStatusBadgeClass('invalid_status' as any)
-      expect(classes).toContain('gray')
-    })
 
-    it('should return Tailwind utility classes', () => {
-      const classes = getAssignmentStatusBadgeClass('in_progress')
-      // Should have background and text classes
-      expect(classes).toMatch(/bg-\w+/)
-      expect(classes).toMatch(/text-\w+/)
+      expect(classes).toContain('bg-surface-2')
+      expect(classes).toContain('text-text-muted')
+      expect(classes).not.toMatch(rawPaletteUtilityPattern)
     })
   })
 
@@ -742,40 +723,30 @@ describe('assignment utilities', () => {
   // ==========================================================================
 
   describe('getAssignmentStatusIconClass', () => {
-    it('should return gray for not_started', () => {
-      expect(getAssignmentStatusIconClass('not_started')).toBe('text-gray-400')
+    const rawPaletteUtilityPattern =
+      /\btext-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b/
+
+    it.each([
+      ['not_started', 'text-text-muted'],
+      ['in_progress', 'text-warning'],
+      ['in_progress_late', 'text-warning'],
+      ['submitted_on_time', 'text-success'],
+      ['submitted_late', 'text-success'],
+      ['graded', 'text-success'],
+      ['returned', 'text-primary'],
+      ['resubmitted', 'text-warning'],
+    ] as const)('returns semantic icon class for %s', (status, iconClass) => {
+      const classes = getAssignmentStatusIconClass(status)
+
+      expect(classes).toBe(iconClass)
+      expect(classes).not.toMatch(rawPaletteUtilityPattern)
     })
 
-    it('should return yellow for in_progress', () => {
-      expect(getAssignmentStatusIconClass('in_progress')).toBe('text-yellow-500')
-    })
+    it('defaults invalid statuses to the muted semantic icon class', () => {
+      const classes = getAssignmentStatusIconClass('invalid_status' as any)
 
-    it('should return yellow for in_progress_late', () => {
-      expect(getAssignmentStatusIconClass('in_progress_late')).toBe('text-yellow-500')
-    })
-
-    it('should return green for submitted_on_time', () => {
-      expect(getAssignmentStatusIconClass('submitted_on_time')).toBe('text-green-500')
-    })
-
-    it('should return green for submitted_late', () => {
-      expect(getAssignmentStatusIconClass('submitted_late')).toBe('text-green-500')
-    })
-
-    it('should return purple for graded', () => {
-      expect(getAssignmentStatusIconClass('graded')).toBe('text-purple-500')
-    })
-
-    it('should return blue for returned', () => {
-      expect(getAssignmentStatusIconClass('returned')).toBe('text-blue-500')
-    })
-
-    it('should return orange for resubmitted', () => {
-      expect(getAssignmentStatusIconClass('resubmitted')).toBe('text-orange-500')
-    })
-
-    it('should return gray for invalid status', () => {
-      expect(getAssignmentStatusIconClass('invalid_status' as any)).toBe('text-gray-400')
+      expect(classes).toBe('text-text-muted')
+      expect(classes).not.toMatch(rawPaletteUtilityPattern)
     })
   })
 
