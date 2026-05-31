@@ -486,3 +486,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
 - `git diff --check`
+
+## 2026-05-30 — Quiz and survey results bulk-read hardening
+
+**Completed:**
+- Routed teacher quiz and survey result response reads through the shared chunked, paginated Supabase loader.
+- Scoped result reads by assessment id and currently enrolled student ids at query time while preserving stale-row filtering as a defensive guard.
+- Routed responder user/profile hydration through chunked, paginated reads and returned explicit 500s on hydration failures instead of silently dropping names or emails.
+- Added stable response ordering and responder id tie-breaks.
+- Added route regressions for 51-student chunking, >1000 response-row pagination, stale unenrolled rows, and responder hydration failures.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/api/teacher/quizzes-results.test.ts --reporter=verbose`
+- `pnpm vitest run tests/api/teacher/surveys-results.test.ts --reporter=verbose`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
+- `git diff --check`
