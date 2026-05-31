@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
+import { loadClassroomRoster } from '@/lib/server/classroom-roster'
+import { chunkValues, loadChunkedRows } from '@/lib/server/query-chunks'
 import type { Entry } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 const HISTORY_PREVIEW_LIMIT = 5
+const HISTORY_PREVIEW_STUDENT_CHUNK_SIZE = 50
+const TEACHER_LOG_PAGE_SIZE = 1000
 const ENTRY_SELECT = [
   'id',
   'student_id',
@@ -71,71 +75,37 @@ export const GET = withErrorHandler('GetTeacherLogs', async (request: NextReques
     )
   }
 
-  const { data: enrollments, error: enrollmentsError } = await supabase
-    .from('classroom_enrollments')
-    .select(`
-      student_id,
-      users!classroom_enrollments_student_id_fkey(
-        id,
-        email
-      )
-    `)
-    .eq('classroom_id', classroomId)
+  const rosterResult = await loadClassroomRoster(supabase, classroomId)
 
-  if (enrollmentsError) {
-    console.error('Error fetching enrollments:', enrollmentsError)
+  if (rosterResult.enrollmentsError) {
+    console.error('Error fetching enrollments:', rosterResult.enrollmentsError)
     return NextResponse.json(
       { error: 'Failed to fetch students' },
       { status: 500 }
     )
   }
 
-  const studentIds = (enrollments || []).map(e => e.student_id)
-  const { data: profiles, error: profilesError } = studentIds.length > 0
-    ? await supabase
-      .from('student_profiles')
-      .select('user_id, first_name, last_name')
-      .in('user_id', studentIds)
-    : { data: [], error: null }
-
-  if (profilesError) {
-    console.error('Error fetching student profiles:', profilesError)
+  if (rosterResult.profilesError) {
+    console.error('Error fetching student profiles:', rosterResult.profilesError)
+    return NextResponse.json(
+      { error: 'Failed to fetch student profiles' },
+      { status: 500 }
+    )
   }
 
-  const profileMap = new Map(
-    (profiles || []).map(p => [p.user_id, p])
-  )
+  const studentIds = rosterResult.studentIds
+  const students = rosterResult.students
+  const entriesResult = await loadTeacherLogEntriesForDate(supabase, classroomId, studentIds, date)
 
-  const students = (enrollments || [])
-    .map(e => {
-      const u = e.users as unknown as { id: string; email: string }
-      const profile = profileMap.get(u.id)
-      return {
-        id: u.id,
-        email: u.email,
-        first_name: profile?.first_name || '',
-        last_name: profile?.last_name || '',
-      }
-    })
-    .sort((a, b) => a.email.localeCompare(b.email))
-
-  const { data: entries, error: entriesError } = date
-    ? await supabase
-      .from('entries')
-      .select(ENTRY_SELECT)
-      .eq('classroom_id', classroomId)
-      .eq('date', date)
-    : { data: [], error: null }
-
-  if (entriesError) {
-    console.error('Error fetching entries:', entriesError)
+  if (entriesResult.error) {
+    console.error('Error fetching entries:', entriesResult.error)
     return NextResponse.json(
       { error: 'Failed to fetch entries' },
       { status: 500 }
     )
   }
 
-  const selectedEntries = (entries || []) as unknown as Entry[]
+  const selectedEntries = entriesResult.rows
   const entryByStudentId = new Map(
     selectedEntries.map(entry => [entry.student_id, entry])
   )
@@ -178,6 +148,30 @@ export const GET = withErrorHandler('GetTeacherLogs', async (request: NextReques
   })
 })
 
+async function loadTeacherLogEntriesForDate(
+  supabase: SupabaseClient,
+  classroomId: string,
+  studentIds: string[],
+  date: string | null,
+): Promise<{ rows: Entry[]; error: any }> {
+  if (!date || studentIds.length === 0) {
+    return { rows: [], error: null }
+  }
+
+  return loadChunkedRows<Entry>({
+    supabase,
+    table: 'entries',
+    select: ENTRY_SELECT,
+    filters: [
+      { column: 'classroom_id', values: [classroomId] },
+      { column: 'date', values: [date] },
+      { column: 'student_id', values: studentIds },
+    ],
+    pageSize: TEACHER_LOG_PAGE_SIZE,
+    pageOrderColumn: 'id',
+  })
+}
+
 async function fetchHistoryPreviewEntries(
   supabase: SupabaseClient,
   classroomId: string,
@@ -187,41 +181,61 @@ async function fetchHistoryPreviewEntries(
     return { entries: [], error: null }
   }
 
-  const { data, error } = await supabase.rpc('get_teacher_log_history_preview', {
-    p_classroom_id: classroomId,
-    p_student_ids: studentIds,
-    p_limit: HISTORY_PREVIEW_LIMIT,
-  })
+  const entries: Entry[] = []
+  for (const studentChunk of chunkValues(studentIds, HISTORY_PREVIEW_STUDENT_CHUNK_SIZE)) {
+    const { data, error } = await supabase.rpc('get_teacher_log_history_preview', {
+      p_classroom_id: classroomId,
+      p_student_ids: studentChunk,
+      p_limit: HISTORY_PREVIEW_LIMIT,
+    })
 
-  if (!error) {
-    return { entries: (data || []) as unknown as Entry[], error: null }
-  }
+    if (!error) {
+      entries.push(...((data || []) as unknown as Entry[]))
+      continue
+    }
 
-  if (!isMissingRpcError(error)) {
+    if (isMissingRpcError(error)) {
+      return fetchHistoryPreviewEntriesFallback(supabase, classroomId, studentIds)
+    }
+
     return { entries: [], error }
   }
 
-  console.warn('History preview RPC is unavailable; falling back to per-student preview queries')
-  const results = await Promise.all(
-    studentIds.map((studentId) =>
-      supabase
-        .from('entries')
-        .select(ENTRY_SELECT)
-        .eq('classroom_id', classroomId)
-        .eq('student_id', studentId)
-        .order('date', { ascending: false })
-        .order('updated_at', { ascending: false })
-        .limit(HISTORY_PREVIEW_LIMIT)
-    )
-  )
+  return { entries, error: null }
+}
 
-  const failed = results.find(result => result.error)
-  if (failed?.error) {
-    return { entries: [], error: failed.error }
+async function fetchHistoryPreviewEntriesFallback(
+  supabase: SupabaseClient,
+  classroomId: string,
+  studentIds: string[],
+): Promise<{ entries: Entry[]; error: unknown | null }> {
+  console.warn('History preview RPC is unavailable; falling back to per-student preview queries')
+  const entries: Entry[] = []
+
+  for (const studentChunk of chunkValues(studentIds, HISTORY_PREVIEW_STUDENT_CHUNK_SIZE)) {
+    const results = await Promise.all(
+      studentChunk.map((studentId) =>
+        supabase
+          .from('entries')
+          .select(ENTRY_SELECT)
+          .eq('classroom_id', classroomId)
+          .eq('student_id', studentId)
+          .order('date', { ascending: false })
+          .order('updated_at', { ascending: false })
+          .limit(HISTORY_PREVIEW_LIMIT)
+      )
+    )
+
+    const failed = results.find(result => result.error)
+    if (failed?.error) {
+      return { entries: [], error: failed.error }
+    }
+
+    entries.push(...results.flatMap(result => (result.data || []) as unknown as Entry[]))
   }
 
   return {
-    entries: results.flatMap(result => (result.data || []) as unknown as Entry[]),
+    entries,
     error: null,
   }
 }

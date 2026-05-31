@@ -546,3 +546,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
 - `git diff --check`
+
+## 2026-05-30 — Teacher logs bulk-read hardening
+
+**Completed:**
+- Extracted the paginated classroom roster/profile loader into a neutral server helper shared by attendance/export and teacher logs.
+- Routed teacher logs roster, profile, and selected-date entry reads through chunked, paginated Supabase loaders.
+- Scoped selected-date log entries by currently enrolled student ids at query time so stale withdrawn-student entries cannot consume pages or appear in teacher logs.
+- Returned an explicit 500 for student profile hydration failures instead of silently rendering blank names after a failed read.
+- Chunked history-preview RPC calls and bounded the missing-RPC fallback to per-student batches.
+- Added API regressions for >1000-student roster pagination, 51-student profile/entry chunking, dense selected-date entry pagination, stale-entry scoping, profile failure handling, and history-preview RPC fallback.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/api/teacher/logs.test.ts --reporter=verbose`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
+- `git diff --check`
