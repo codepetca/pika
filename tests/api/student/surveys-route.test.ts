@@ -25,6 +25,60 @@ const mockSurveyState = vi.hoisted(() => ({
   },
 }))
 
+type QueryLog = {
+  inCalls: Array<{ table: string; column: string; values: string[] }>
+  rangeCalls: Array<{ table: string; from: number; to: number }>
+}
+
+function createQueryLog(): QueryLog {
+  return { inCalls: [], rangeCalls: [] }
+}
+
+function mockPagedTable(
+  rows: Array<Record<string, any>>,
+  options: {
+    table?: string
+    log?: QueryLog
+    error?: any
+  } = {},
+) {
+  return {
+    select: vi.fn(() => {
+      const filters: Array<{ column: string; values: string[] }> = []
+      const filteredRows = () => rows.filter((row) =>
+        filters.every((filter) => {
+          if (!(filter.column in row)) return false
+          return filter.values.includes(String(row[filter.column]))
+        })
+      )
+      const resolveRows = (from: number, to: number) => {
+        if (options.error) return Promise.resolve({ data: null, error: options.error })
+        return Promise.resolve({ data: filteredRows().slice(from, to + 1), error: null })
+      }
+      const query: any = {
+        eq: vi.fn((column: string, value: string) => {
+          filters.push({ column, values: [String(value)] })
+          return query
+        }),
+        in: vi.fn((column: string, values: string[]) => {
+          filters.push({ column, values: values.map(String) })
+          if (options.table) {
+            options.log?.inCalls.push({ table: options.table, column, values: values.map(String) })
+          }
+          return query
+        }),
+        order: vi.fn(() => query),
+        range: vi.fn((from: number, to: number) => {
+          if (options.table) options.log?.rangeCalls.push({ table: options.table, from, to })
+          return resolveRows(from, to)
+        }),
+        then: vi.fn((resolve: any, reject: any) => resolveRows(0, rows.length - 1).then(resolve, reject)),
+      }
+      return query
+    }),
+  }
+}
+
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
 }))
@@ -147,12 +201,7 @@ describe('GET /api/student/surveys/[id]/results', () => {
   it('allows students to view class results before submitting when results are visible', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'survey_questions') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            order: vi.fn().mockResolvedValue({ data: [], error: null }),
-          })),
-        }
+        return mockPagedTable([])
       }
 
       if (table === 'survey_responses') {
@@ -297,38 +346,30 @@ describe('GET /api/student/surveys/[id]/results', () => {
       }
 
       if (table === 'survey_questions') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            order: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  id: 'link-question',
-                  survey_id: 'survey-1',
-                  question_type: 'link',
-                  question_text: 'Share your game',
-                  options: [],
-                  response_max_chars: 2048,
-                  position: 0,
-                  created_at: '2026-01-01T00:00:00.000Z',
-                  updated_at: '2026-01-01T00:00:00.000Z',
-                },
-                {
-                  id: 'text-question',
-                  survey_id: 'survey-1',
-                  question_type: 'short_text',
-                  question_text: 'What did you build?',
-                  options: [],
-                  response_max_chars: 500,
-                  position: 1,
-                  created_at: '2026-01-01T00:00:00.000Z',
-                  updated_at: '2026-01-01T00:00:00.000Z',
-                },
-              ],
-              error: null,
-            }),
-          })),
-        }
+        return mockPagedTable([
+          {
+            id: 'link-question',
+            survey_id: 'survey-1',
+            question_type: 'link',
+            question_text: 'Share your game',
+            options: [],
+            response_max_chars: 2048,
+            position: 0,
+            created_at: '2026-01-01T00:00:00.000Z',
+            updated_at: '2026-01-01T00:00:00.000Z',
+          },
+          {
+            id: 'text-question',
+            survey_id: 'survey-1',
+            question_type: 'short_text',
+            question_text: 'What did you build?',
+            options: [],
+            response_max_chars: 500,
+            position: 1,
+            created_at: '2026-01-01T00:00:00.000Z',
+            updated_at: '2026-01-01T00:00:00.000Z',
+          },
+        ])
       }
 
       if (table === 'classroom_enrollments') {
@@ -382,6 +423,138 @@ describe('GET /api/student/surveys/[id]/results', () => {
         submitted_at: '2026-01-04T00:00:00.000Z',
         updated_at: '2026-01-04T00:00:00.000Z',
       },
+    ])
+  })
+
+  it('returns 500 when scoped survey response loading fails', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'survey_questions') {
+        return mockPagedTable([
+          {
+            id: 'choice-question',
+            survey_id: 'survey-1',
+            question_type: 'multiple_choice',
+            question_text: 'Pick one',
+            options: ['A', 'B'],
+            response_max_chars: 500,
+            position: 0,
+            created_at: '2026-01-01T00:00:00.000Z',
+            updated_at: '2026-01-01T00:00:00.000Z',
+          },
+        ])
+      }
+
+      if (table === 'survey_responses') {
+        return mockPagedTable([], { error: { message: 'boom' } })
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [{ student_id: 'student-1' }],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET_SURVEY_RESULTS(
+      new NextRequest('http://localhost:3000/api/student/surveys/survey-1/results'),
+      { params: Promise.resolve({ id: 'survey-1' }) },
+    )
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to fetch responses' })
+  })
+
+  it('chunks enrolled student response filters and pages dense survey result rows', async () => {
+    const studentIds = Array.from({ length: 51 }, (_, index) => `student-${index}`)
+    const enrollments = studentIds.map((student_id) => ({ classroom_id: 'classroom-1', student_id }))
+    const responses = [
+      ...Array.from({ length: 1001 }, (_, index) => ({
+        id: `response-page-${index}`,
+        survey_id: 'survey-1',
+        question_id: 'choice-question',
+        student_id: 'student-0',
+        selected_option: 0,
+        response_text: null,
+        submitted_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      })),
+      {
+        id: 'response-last-chunk',
+        survey_id: 'survey-1',
+        question_id: 'choice-question',
+        student_id: 'student-50',
+        selected_option: 1,
+        response_text: null,
+        submitted_at: '2026-01-02T00:00:00.000Z',
+        updated_at: '2026-01-02T00:00:00.000Z',
+      },
+      {
+        id: 'response-stale',
+        survey_id: 'survey-1',
+        question_id: 'choice-question',
+        student_id: 'student-removed',
+        selected_option: 1,
+        response_text: null,
+        submitted_at: '2026-01-03T00:00:00.000Z',
+        updated_at: '2026-01-03T00:00:00.000Z',
+      },
+    ]
+    const log = createQueryLog()
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'survey_questions') {
+        return mockPagedTable([
+          {
+            id: 'choice-question',
+            survey_id: 'survey-1',
+            question_type: 'multiple_choice',
+            question_text: 'Pick one',
+            options: ['A', 'B'],
+            response_max_chars: 500,
+            position: 0,
+            created_at: '2026-01-01T00:00:00.000Z',
+            updated_at: '2026-01-01T00:00:00.000Z',
+          },
+        ])
+      }
+
+      if (table === 'survey_responses') {
+        return mockPagedTable(responses, { table, log })
+      }
+
+      if (table === 'classroom_enrollments') {
+        return mockPagedTable(enrollments, { table, log })
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET_SURVEY_RESULTS(
+      new NextRequest('http://localhost:3000/api/student/surveys/survey-1/results'),
+      { params: Promise.resolve({ id: 'survey-1' }) },
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.results[0]).toEqual(
+      expect.objectContaining({
+        counts: [1001, 1],
+        total_responses: 1002,
+      })
+    )
+    expect(log.inCalls.filter((call) => call.table === 'survey_responses').map((call) => call.values.length))
+      .toEqual([50, 50, 1])
+    expect(log.rangeCalls.filter((call) => call.table === 'survey_responses')).toEqual([
+      { table: 'survey_responses', from: 0, to: 999 },
+      { table: 'survey_responses', from: 1000, to: 1999 },
+      { table: 'survey_responses', from: 0, to: 999 },
     ])
   })
 })

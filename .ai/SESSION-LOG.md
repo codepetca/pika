@@ -606,3 +606,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm test:coverage`
 - `git diff --check`
+
+## 2026-05-31 — Student assessment results bulk-read hardening
+
+**Completed:**
+- Routed student quiz, survey, and test result question reads through paginated loaders.
+- Chunked and paged classroom-scoped quiz/survey response aggregation by currently enrolled student ids.
+- Chunked and paged returned-student test attempt discovery and returned test response aggregation.
+- Paged current-student quiz/test response reads used for visibility, response maps, and returned test detail summaries.
+- Preserved defense-in-depth filtering so stale or unenrolled student responses cannot affect aggregate result payloads.
+- Returned explicit 500s for current-student response read failures instead of treating failed reads as empty work.
+- Updated route and integration tests for paged Supabase mocks, dense result pagination, 51-student chunking, stale-response exclusion, and read-failure handling.
+
+**Validation:**
+- `pnpm test tests/api/student/quizzes-results.test.ts tests/api/student/surveys-route.test.ts tests/api/student/tests-results.test.ts -- --runInBand`
+- `pnpm test tests/api/integration/test-return-visibility-flow.test.ts -- --runInBand`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `git diff --check`

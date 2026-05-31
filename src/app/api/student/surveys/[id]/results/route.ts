@@ -5,10 +5,51 @@ import { assertStudentCanAccessSurvey } from '@/lib/server/surveys'
 import { aggregateSurveyResults, canStudentViewSurveyResults } from '@/lib/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getClassroomStudentIds } from '@/lib/server/classrooms'
+import { chunkValues, loadPagedRows } from '@/lib/server/query-chunks'
 import type { SurveyQuestion, SurveyResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+const STUDENT_SURVEY_RESULTS_PAGE_SIZE = 1000
+
+async function loadSurveyQuestions(
+  supabase: any,
+  surveyId: string
+): Promise<{ rows: SurveyQuestion[]; error: any }> {
+  return loadPagedRows<SurveyQuestion>(() =>
+    supabase
+      .from('survey_questions')
+      .select('*')
+      .eq('survey_id', surveyId),
+    STUDENT_SURVEY_RESULTS_PAGE_SIZE,
+    'position'
+  )
+}
+
+async function loadSurveyResponsesForStudents(
+  supabase: any,
+  surveyId: string,
+  studentIds: string[]
+): Promise<{ rows: SurveyResponse[]; error: any }> {
+  if (studentIds.length === 0) return { rows: [], error: null }
+
+  const rows: SurveyResponse[] = []
+  for (const studentIdChunk of chunkValues(studentIds)) {
+    const result = await loadPagedRows<SurveyResponse>(() =>
+      supabase
+        .from('survey_responses')
+        .select('*')
+        .eq('survey_id', surveyId)
+        .in('student_id', studentIdChunk),
+      STUDENT_SURVEY_RESULTS_PAGE_SIZE
+    )
+
+    if (result.error) return result
+    rows.push(...result.rows)
+  }
+
+  return { rows, error: null }
+}
 
 export const GET = withErrorHandler('GetStudentSurveyResults', async (_request, context) => {
   const user = await requireRole('student')
@@ -25,11 +66,7 @@ export const GET = withErrorHandler('GetStudentSurveyResults', async (_request, 
   }
 
   const supabase = getServiceRoleClient()
-  const { data: questions, error: questionsError } = await supabase
-    .from('survey_questions')
-    .select('*')
-    .eq('survey_id', surveyId)
-    .order('position', { ascending: true })
+  const { rows: questions, error: questionsError } = await loadSurveyQuestions(supabase, surveyId)
 
   if (questionsError) {
     console.error('Error fetching survey questions:', questionsError)
@@ -42,14 +79,11 @@ export const GET = withErrorHandler('GetStudentSurveyResults', async (_request, 
     return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
   }
 
-  const { data: responses, error: responsesError } =
-    classroomStudentsResult.studentIds.length > 0
-      ? await supabase
-          .from('survey_responses')
-          .select('*')
-          .eq('survey_id', surveyId)
-          .in('student_id', classroomStudentsResult.studentIds)
-      : { data: [], error: null }
+  const { rows: responses, error: responsesError } = await loadSurveyResponsesForStudents(
+    supabase,
+    surveyId,
+    classroomStudentsResult.studentIds
+  )
 
   if (responsesError) {
     console.error('Error fetching survey responses:', responsesError)
