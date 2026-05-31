@@ -5,17 +5,279 @@ import { aggregateResults, summarizeQuizFocusEvents } from '@/lib/quizzes'
 import {
   assertTeacherOwnsTest,
   getEffectiveStudentTestAccess,
-  getTestStudentAvailabilityMap,
   isMissingTestAttemptClosureColumnsError,
   isMissingTestAttemptReturnColumnsError,
+  isMissingTestStudentAvailabilityError,
 } from '@/lib/server/tests'
+import { getClassroomStudentIds } from '@/lib/server/classrooms'
+import { loadChunkedRows } from '@/lib/server/query-chunks'
 import { getActiveTestAiGradingRunSummary } from '@/lib/server/test-ai-grading-runs'
 import { normalizeTestResponses } from '@/lib/test-attempts'
-import type { QuizFocusSummary, QuizQuestion, QuizResponse } from '@/types'
+import type { QuizFocusSummary, QuizQuestion, QuizResponse, TestStudentAvailabilityState } from '@/types'
 import { withErrorHandler } from '@/lib/api-handler'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+const TEST_RESULTS_PAGE_SIZE = 1000
+
+type TestResponseResultRow = {
+  id: string
+  test_id: string
+  question_id: string
+  student_id: string
+  selected_option: number | null
+  response_text: string | null
+  score: number | null
+  feedback: string | null
+  graded_at: string | null
+  graded_by: string | null
+  submitted_at: string
+}
+
+type TestAttemptResultRow = {
+  student_id: string
+  is_submitted: boolean
+  submitted_at: string | null
+  returned_at: string | null
+  returned_by: string | null
+  closed_for_grading_at: string | null
+  closed_for_grading_by: string | null
+  updated_at: string
+  responses: unknown
+}
+
+type UserResultRow = {
+  id: string
+  email: string
+}
+
+type StudentProfileResultRow = {
+  user_id: string
+  first_name: string | null
+  last_name: string | null
+}
+
+type FocusEventResultRow = {
+  student_id: string
+  event_type: any
+  occurred_at: string
+}
+
+type AvailabilityResultRow = {
+  student_id: string
+  state: unknown
+}
+
+function isMissingAvailabilityTableError(error: any): boolean {
+  return (
+    isMissingTestStudentAvailabilityError(error) ||
+    `${error?.message || error || ''}`.includes('Unexpected table: test_student_availability')
+  )
+}
+
+async function loadStudentScopedRows<T>(
+  supabase: any,
+  table: string,
+  select: string,
+  testId: string,
+  studentIds: string[],
+): Promise<{ rows: T[]; error: any }> {
+  return loadChunkedRows<T>({
+    supabase,
+    table,
+    select,
+    filters: [
+      { column: 'test_id', values: [testId] },
+      { column: 'student_id', values: studentIds },
+    ],
+    pageSize: TEST_RESULTS_PAGE_SIZE,
+  })
+}
+
+async function loadTestResponses(
+  supabase: any,
+  testId: string,
+  studentIds: string[],
+): Promise<{ rows: TestResponseResultRow[]; error: any }> {
+  return loadStudentScopedRows<TestResponseResultRow>(
+    supabase,
+    'test_responses',
+    'id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, graded_by, submitted_at',
+    testId,
+    studentIds,
+  )
+}
+
+async function loadTestAttempts(
+  supabase: any,
+  testId: string,
+  studentIds: string[],
+): Promise<{ rows: TestAttemptResultRow[]; error: any }> {
+  async function loadAttemptsWithoutReturnOrClosure() {
+    const legacyResult = await loadStudentScopedRows<{
+      student_id: string
+      is_submitted: boolean
+      submitted_at: string | null
+      updated_at: string
+      responses: unknown
+    }>(
+      supabase,
+      'test_attempts',
+      'id, student_id, is_submitted, submitted_at, updated_at, responses',
+      testId,
+      studentIds,
+    )
+
+    return {
+      rows: legacyResult.rows.map((attempt) => ({
+        ...attempt,
+        returned_at: null,
+        returned_by: null,
+        closed_for_grading_at: null,
+        closed_for_grading_by: null,
+      })),
+      error: legacyResult.error,
+    }
+  }
+
+  const primaryResult = await loadStudentScopedRows<TestAttemptResultRow>(
+    supabase,
+    'test_attempts',
+    'id, student_id, is_submitted, submitted_at, returned_at, returned_by, closed_for_grading_at, closed_for_grading_by, updated_at, responses',
+    testId,
+    studentIds,
+  )
+  let attempts = primaryResult.rows
+  let attemptsError = primaryResult.error
+
+  if (attemptsError && isMissingTestAttemptReturnColumnsError(attemptsError)) {
+    const legacyResult = await loadAttemptsWithoutReturnOrClosure()
+    attempts = legacyResult.rows
+    attemptsError = legacyResult.error
+  }
+
+  if (attemptsError && isMissingTestAttemptClosureColumnsError(attemptsError)) {
+    const legacyResult = await loadStudentScopedRows<{
+      student_id: string
+      is_submitted: boolean
+      submitted_at: string | null
+      returned_at: string | null
+      returned_by: string | null
+      updated_at: string
+      responses: unknown
+    }>(
+      supabase,
+      'test_attempts',
+      'id, student_id, is_submitted, submitted_at, returned_at, returned_by, updated_at, responses',
+      testId,
+      studentIds,
+    )
+
+    attempts = legacyResult.rows.map((attempt) => ({
+      ...attempt,
+      closed_for_grading_at: null,
+      closed_for_grading_by: null,
+    }))
+    attemptsError = legacyResult.error
+
+    if (attemptsError && isMissingTestAttemptReturnColumnsError(attemptsError)) {
+      const baseLegacyResult = await loadAttemptsWithoutReturnOrClosure()
+      attempts = baseLegacyResult.rows
+      attemptsError = baseLegacyResult.error
+    }
+  }
+
+  return { rows: attempts || [], error: attemptsError }
+}
+
+async function loadUsers(
+  supabase: any,
+  studentIds: string[],
+): Promise<{ rows: UserResultRow[]; error: any }> {
+  return loadChunkedRows<UserResultRow>({
+    supabase,
+    table: 'users',
+    select: 'id, email',
+    filters: [{ column: 'id', values: studentIds }],
+    pageSize: TEST_RESULTS_PAGE_SIZE,
+  })
+}
+
+async function loadStudentProfiles(
+  supabase: any,
+  studentIds: string[],
+): Promise<{ rows: StudentProfileResultRow[]; error: any }> {
+  return loadChunkedRows<StudentProfileResultRow>({
+    supabase,
+    table: 'student_profiles',
+    select: 'id, user_id, first_name, last_name',
+    filters: [{ column: 'user_id', values: studentIds }],
+    pageSize: TEST_RESULTS_PAGE_SIZE,
+  })
+}
+
+async function loadFocusEvents(
+  supabase: any,
+  testId: string,
+  studentIds: string[],
+): Promise<{ rows: FocusEventResultRow[]; error: any }> {
+  return loadStudentScopedRows<FocusEventResultRow>(
+    supabase,
+    'test_focus_events',
+    'id, student_id, event_type, occurred_at',
+    testId,
+    studentIds,
+  )
+}
+
+async function loadStudentAvailabilityMap(
+  supabase: any,
+  testId: string,
+  studentIds: string[],
+): Promise<{
+  stateByStudentId: Map<string, TestStudentAvailabilityState>
+  missingTable: boolean
+  error: any
+}> {
+  const stateByStudentId = new Map<string, TestStudentAvailabilityState>()
+  if (studentIds.length === 0) {
+    return { stateByStudentId, missingTable: false, error: null }
+  }
+
+  let result: { rows: AvailabilityResultRow[]; error: any }
+  try {
+    result = await loadStudentScopedRows<AvailabilityResultRow>(
+      supabase,
+      'test_student_availability',
+      'id, student_id, state',
+      testId,
+      studentIds,
+    )
+  } catch (error) {
+    return {
+      stateByStudentId,
+      missingTable: isMissingAvailabilityTableError(error),
+      error,
+    }
+  }
+
+  if (result.error) {
+    return {
+      stateByStudentId,
+      missingTable: isMissingAvailabilityTableError(result.error),
+      error: result.error,
+    }
+  }
+
+  for (const row of result.rows || []) {
+    if (row.state === 'open' || row.state === 'closed') {
+      stateByStudentId.set(row.student_id, row.state)
+    }
+  }
+
+  return { stateByStudentId, missingTable: false, error: null }
+}
 
 // GET /api/teacher/tests/[id]/results - Get aggregated results
 export const GET = withErrorHandler('GetTeacherTestResults', async (request, context) => {
@@ -41,26 +303,18 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
   }
 
-  const { data: enrollments, error: enrollmentsError } = await supabase
-    .from('classroom_enrollments')
-    .select('student_id')
-    .eq('classroom_id', test.classroom_id)
-
-  if (enrollmentsError) {
-    console.error('Error fetching classroom enrollments:', enrollmentsError)
+  const classroomStudentsResult = await getClassroomStudentIds(supabase, test.classroom_id)
+  if (classroomStudentsResult.error) {
+    console.error('Error fetching classroom enrollments:', classroomStudentsResult.error)
     return NextResponse.json({ error: 'Failed to fetch enrollments' }, { status: 500 })
   }
 
-  const classroomStudentIds = [...new Set((enrollments || []).map((row) => row.student_id))]
-  const classroomStudentIdSet = new Set(classroomStudentIds)
-  const { data: responses, error: responsesError } =
+  const classroomStudentIds = classroomStudentsResult.studentIds
+  const classroomStudentIdSet = classroomStudentsResult.studentIdSet
+  const { rows: responses, error: responsesError } =
     classroomStudentIds.length > 0
-      ? await supabase
-          .from('test_responses')
-          .select('id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, graded_by, submitted_at')
-          .eq('test_id', testId)
-          .in('student_id', classroomStudentIds)
-      : { data: [], error: null }
+      ? await loadTestResponses(supabase, testId, classroomStudentIds)
+      : { rows: [], error: null }
 
   if (responsesError) {
     console.error('Error fetching test responses:', responsesError)
@@ -69,8 +323,8 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
 
   const enrolledResponses = (responses || []).filter((response) =>
     classroomStudentIdSet.has(response.student_id)
-  )
-  const availabilityResult = await getTestStudentAvailabilityMap(supabase, testId, classroomStudentIds)
+  ).sort((a, b) => a.id.localeCompare(b.id))
+  const availabilityResult = await loadStudentAvailabilityMap(supabase, testId, classroomStudentIds)
   if (availabilityResult.error && !availabilityResult.missingTable) {
     console.error('Error fetching test student availability:', availabilityResult.error)
     return NextResponse.json({ error: 'Failed to fetch student access' }, { status: 500 })
@@ -146,79 +400,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     }
   >()
   if (classroomStudentIds.length > 0) {
-    let attempts:
-      | Array<{
-          student_id: string
-          is_submitted: boolean
-          submitted_at: string | null
-          returned_at: string | null
-          returned_by: string | null
-          closed_for_grading_at: string | null
-          closed_for_grading_by: string | null
-          updated_at: string
-          responses: unknown
-        }>
-      | null = null
-    let attemptsError: { code?: string; message?: string; details?: string; hint?: string } | null = null
-
-    {
-      const attemptsWithReturnResult = await supabase
-        .from('test_attempts')
-        .select('student_id, is_submitted, submitted_at, returned_at, returned_by, closed_for_grading_at, closed_for_grading_by, updated_at, responses')
-        .eq('test_id', testId)
-        .in('student_id', classroomStudentIds)
-
-      attempts = (attemptsWithReturnResult.data as typeof attempts) || null
-      attemptsError = attemptsWithReturnResult.error
-    }
-
-    if (attemptsError && isMissingTestAttemptReturnColumnsError(attemptsError)) {
-      const legacyAttemptsResult = await supabase
-        .from('test_attempts')
-        .select('student_id, is_submitted, submitted_at, updated_at, responses')
-        .eq('test_id', testId)
-        .in('student_id', classroomStudentIds)
-
-      attempts =
-        ((legacyAttemptsResult.data as Array<{
-          student_id: string
-          is_submitted: boolean
-          submitted_at: string | null
-          updated_at: string
-          responses: unknown
-        }> | null) || []).map((attempt) => ({
-          ...attempt,
-          returned_at: null,
-          returned_by: null,
-          closed_for_grading_at: null,
-          closed_for_grading_by: null,
-        }))
-      attemptsError = legacyAttemptsResult.error
-    }
-
-    if (attemptsError && isMissingTestAttemptClosureColumnsError(attemptsError)) {
-      const legacyAttemptsResult = await supabase
-        .from('test_attempts')
-        .select('student_id, is_submitted, submitted_at, returned_at, returned_by, updated_at, responses')
-        .eq('test_id', testId)
-        .in('student_id', classroomStudentIds)
-
-      attempts =
-        ((legacyAttemptsResult.data as Array<{
-          student_id: string
-          is_submitted: boolean
-          submitted_at: string | null
-          returned_at: string | null
-          returned_by: string | null
-          updated_at: string
-          responses: unknown
-        }> | null) || []).map((attempt) => ({
-          ...attempt,
-          closed_for_grading_at: null,
-          closed_for_grading_by: null,
-        }))
-      attemptsError = legacyAttemptsResult.error
-    }
+    const { rows: attempts, error: attemptsError } = await loadTestAttempts(supabase, testId, classroomStudentIds)
 
     if (attemptsError && attemptsError.code !== 'PGRST205') {
       console.error('Error fetching test attempts:', attemptsError)
@@ -244,14 +426,18 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     { email: string; first_name: string | null; last_name: string | null; name: string | null }
   >()
   if (classroomStudentIds.length > 0) {
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, email')
-      .in('id', classroomStudentIds)
-    const { data: profiles } = await supabase
-      .from('student_profiles')
-      .select('user_id, first_name, last_name')
-      .in('user_id', classroomStudentIds)
+    const { rows: users, error: usersError } = await loadUsers(supabase, classroomStudentIds)
+    if (usersError) {
+      console.error('Error fetching test result users:', usersError)
+      return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
+    }
+
+    const { rows: profiles, error: profilesError } = await loadStudentProfiles(supabase, classroomStudentIds)
+    if (profilesError) {
+      console.error('Error fetching test result student profiles:', profilesError)
+      return NextResponse.json({ error: 'Failed to fetch student profiles' }, { status: 500 })
+    }
+
     const profileMap = new Map(
       (profiles || []).map((profile) => [profile.user_id, profile])
     )
@@ -270,12 +456,11 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
 
   const focusSummaryByStudent = new Map<string, QuizFocusSummary>()
   if (classroomStudentIds.length > 0) {
-    const { data: focusEvents } = await supabase
-      .from('test_focus_events')
-      .select('student_id, event_type, occurred_at')
-      .eq('test_id', testId)
-      .in('student_id', classroomStudentIds)
-      .order('occurred_at', { ascending: true })
+    const { rows: focusEvents, error: focusEventsError } = await loadFocusEvents(supabase, testId, classroomStudentIds)
+    if (focusEventsError) {
+      console.error('Error fetching test focus events:', focusEventsError)
+      return NextResponse.json({ error: 'Failed to fetch focus events' }, { status: 500 })
+    }
 
     const grouped = new Map<string, Array<{ event_type: any; occurred_at: string }>>()
     for (const row of focusEvents || []) {
@@ -397,7 +582,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
   students.sort((a, b) => {
     const left = a.name || a.email
     const right = b.name || b.email
-    return left.localeCompare(right)
+    return left.localeCompare(right) || a.student_id.localeCompare(b.student_id)
   })
 
   const responders = students
@@ -471,7 +656,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     students,
     responders,
     stats: {
-      total_students: classroomStudentIds.length,
+      total_students: classroomStudentsResult.totalStudents,
       responded: responders.length,
       open_questions_count: openQuestionIds.size,
       graded_open_responses: gradedOpenResponses,
