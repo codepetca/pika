@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { createContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { MoreVertical } from 'lucide-react'
 import { buttonVariants } from '@/ui/Button'
 import { cn } from '@/ui/utils'
@@ -95,19 +95,64 @@ export function PageStack({
 function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  const menuId = useId()
+
+  const getEnabledMenuItems = useCallback(() => {
+    return Array.from(
+      menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [],
+    ).filter((item) => !item.disabled)
+  }, [])
+
+  const closeMenu = useCallback((options?: { restoreFocus?: boolean }) => {
+    setOpen(false)
+    if (options?.restoreFocus) {
+      buttonRef.current?.focus()
+    }
+  }, [])
 
   useEffect(() => {
     if (!open) return
 
+    const enabledItems = getEnabledMenuItems()
+    enabledItems[0]?.focus()
+
     function onMouseDown(e: MouseEvent) {
       if (!containerRef.current) return
       if (e.target instanceof Node && !containerRef.current.contains(e.target)) {
-        setOpen(false)
+        closeMenu({ restoreFocus: true })
       }
     }
 
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') {
+        closeMenu({ restoreFocus: true })
+        return
+      }
+
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return
+
+      const enabledItems = getEnabledMenuItems()
+      if (enabledItems.length === 0) return
+
+      e.preventDefault()
+      const currentIndex = enabledItems.indexOf(document.activeElement as HTMLButtonElement)
+      const lastIndex = enabledItems.length - 1
+      const nextIndex =
+        e.key === 'Home'
+          ? 0
+          : e.key === 'End'
+            ? lastIndex
+            : e.key === 'ArrowUp'
+              ? currentIndex <= 0
+                ? lastIndex
+                : currentIndex - 1
+              : currentIndex === -1 || currentIndex === lastIndex
+                ? 0
+                : currentIndex + 1
+
+      enabledItems[nextIndex]?.focus()
     }
 
     document.addEventListener('mousedown', onMouseDown)
@@ -116,7 +161,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
       document.removeEventListener('mousedown', onMouseDown)
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [open])
+  }, [closeMenu, getEnabledMenuItems, open])
 
   const { normalItems, destructiveItems } = useMemo(() => {
     return {
@@ -130,11 +175,19 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
   return (
     <div className="relative" ref={containerRef}>
       <button
+        ref={buttonRef}
         type="button"
         className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          if (open) {
+            closeMenu({ restoreFocus: true })
+            return
+          }
+          setOpen(true)
+        }}
         aria-label="Open actions menu"
         aria-haspopup="menu"
+        aria-controls={menuId}
         aria-expanded={open}
       >
         <MoreVertical className="h-5 w-5 text-text-default" aria-hidden="true" />
@@ -142,6 +195,8 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
 
       {open && (
         <div
+          id={menuId}
+          ref={menuRef}
           role="menu"
           className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-md border border-border bg-surface shadow-lg"
         >
@@ -152,7 +207,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
               role="menuitem"
               disabled={item.disabled}
               onClick={() => {
-                setOpen(false)
+                closeMenu({ restoreFocus: true })
                 item.onSelect()
               }}
               className="w-full text-left px-3 py-2 text-sm text-text-default hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
@@ -170,7 +225,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
                   role="menuitem"
                   disabled={item.disabled}
                   onClick={() => {
-                    setOpen(false)
+                    closeMenu({ restoreFocus: true })
                     item.onSelect()
                   }}
                   className="w-full text-left px-3 py-2 text-sm text-danger hover:bg-danger-bg disabled:opacity-50 disabled:cursor-not-allowed"
