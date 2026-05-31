@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, waitFor, act } from '@testing-library/react'
-import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
+import {
+  StudentNotificationsProvider,
+  useStudentNotifications,
+} from '@/components/StudentNotificationsProvider'
 
 function notificationFetchCalls(fetchMock: ReturnType<typeof vi.fn>) {
   return fetchMock.mock.calls.filter(
@@ -21,6 +24,18 @@ describe('StudentNotificationsProvider', () => {
         unreadAnnouncementsCount: 0,
       }),
     })
+  }
+
+  function NotificationProbe() {
+    const notifications = useStudentNotifications()
+    return (
+      <button
+        type="button"
+        onClick={() => notifications?.decrementActiveTestsCount()}
+      >
+        tests:{notifications?.activeTestsCount ?? 0}
+      </button>
+    )
   }
 
   beforeEach(() => {
@@ -98,5 +113,35 @@ describe('StudentNotificationsProvider', () => {
 
     await new Promise((r) => setTimeout(r, 50))
     expect(notificationFetchCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('decrements one active test notification after a submission', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        hasTodayEntry: true,
+        unviewedAssignmentsCount: 0,
+        activeTestsCount: 2,
+        unreadAnnouncementsCount: 0,
+      }),
+    })
+
+    render(
+      <StudentNotificationsProvider classroomId="c1">
+        <NotificationProbe />
+      </StudentNotificationsProvider>
+    )
+
+    await waitFor(() => {
+      expect(document.body).toHaveTextContent('tests:2')
+    })
+
+    act(() => {
+      document.querySelector('button')?.dispatchEvent(
+        new MouseEvent('click', { bubbles: true })
+      )
+    })
+
+    expect(document.body).toHaveTextContent('tests:1')
   })
 })

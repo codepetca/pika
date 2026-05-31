@@ -35,6 +35,61 @@ vi.mock('@/lib/server/classrooms', () => ({
 
 const mockSupabaseClient = { from: vi.fn() }
 
+type QueryLog = {
+  inCalls: Array<{ table: string; column: string; values: string[] }>
+  rangeCalls: Array<{ table: string; from: number; to: number }>
+}
+
+function createQueryLog(): QueryLog {
+  return { inCalls: [], rangeCalls: [] }
+}
+
+function mockPagedTable(
+  rows: Array<Record<string, any>>,
+  options: {
+    table?: string
+    log?: QueryLog
+    error?: any
+  } = {},
+) {
+  return {
+    select: vi.fn(() => {
+      const filters: Array<{ column: string; values: string[] }> = []
+      const filteredRows = () => rows.filter((row) =>
+        filters.every((filter) => {
+          if (!(filter.column in row)) return false
+          return filter.values.includes(String(row[filter.column]))
+        })
+      )
+      const resolveRows = (from: number, to: number) => {
+        if (options.error) return Promise.resolve({ data: null, error: options.error })
+        return Promise.resolve({ data: filteredRows().slice(from, to + 1), error: null })
+      }
+      const query: any = {
+        eq: vi.fn((column: string, value: string | boolean) => {
+          filters.push({ column, values: [String(value)] })
+          return query
+        }),
+        in: vi.fn((column: string, values: string[]) => {
+          filters.push({ column, values: values.map(String) })
+          if (options.table) {
+            options.log?.inCalls.push({ table: options.table, column, values: values.map(String) })
+          }
+          return query
+        }),
+        or: vi.fn(() => query),
+        order: vi.fn(() => query),
+        range: vi.fn((from: number, to: number) => {
+          if (options.table) options.log?.rangeCalls.push({ table: options.table, from, to })
+          return resolveRows(from, to)
+        }),
+        then: vi.fn((resolve: any, reject: any) => resolveRows(0, rows.length - 1).then(resolve, reject)),
+      }
+      return query
+    }),
+  }
+}
+
 // Helper to create a mock that handles multiple tables
 function createTableMock(config: {
   class_days?: { data: any; error: any }
@@ -114,6 +169,7 @@ function createTableMock(config: {
       return {
         select: vi.fn(() => ({
           eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
           then: vi.fn((resolve: any) => resolve(testsConfig)),
         })),
       }
@@ -366,6 +422,42 @@ describe('GET /api/student/notifications', () => {
       expect(data.unviewedAssignmentsCount).toBe(0)
     })
 
+    it('should count viewed assignments when returned feedback is newer than the last view', async () => {
+      ;(mockSupabaseClient.from as any) = createTableMock({
+        class_days: { data: { is_class_day: true }, error: null },
+        entries: { data: { id: 'entry-1' }, error: null },
+        assignments: { data: [{ id: 'assignment-1' }, { id: 'assignment-2' }], error: null },
+        assignment_docs: {
+          data: [
+            {
+              assignment_id: 'assignment-1',
+              viewed_at: '2026-01-01T00:00:00.000Z',
+              returned_at: null,
+              feedback_returned_at: '2026-01-02T00:00:00.000Z',
+            },
+            {
+              assignment_id: 'assignment-2',
+              viewed_at: '2026-01-03T00:00:00.000Z',
+              returned_at: '2026-01-02T00:00:00.000Z',
+              feedback_returned_at: '2026-01-02T00:00:00.000Z',
+            },
+          ],
+          error: null,
+        },
+        quizzes: { data: [], error: null },
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.unviewedAssignmentsCount).toBe(1)
+    })
+
     it('should handle empty assignments list', async () => {
       ;(mockSupabaseClient.from as any) = createTableMock({
         class_days: { data: { is_class_day: true }, error: null },
@@ -384,6 +476,81 @@ describe('GET /api/student/notifications', () => {
       expect(response.status).toBe(200)
       expect(data.hasTodayEntry).toBe(false)
       expect(data.unviewedAssignmentsCount).toBe(0)
+    })
+
+    it('should page visible assignments and chunk assignment document reads', async () => {
+      const assignments = Array.from({ length: 1001 }, (_, index) => ({
+        id: `assignment-${index}`,
+        classroom_id: 'classroom-1',
+        is_draft: false,
+        released_at: null,
+      }))
+      const docs = [
+        {
+          assignment_id: 'assignment-0',
+          student_id: 'student-1',
+          viewed_at: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          assignment_id: 'assignment-1',
+          student_id: 'student-1',
+          viewed_at: null,
+        },
+        {
+          assignment_id: 'assignment-stale',
+          student_id: 'student-1',
+          viewed_at: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          assignment_id: 'assignment-2',
+          student_id: 'student-2',
+          viewed_at: '2026-01-01T00:00:00.000Z',
+        },
+      ]
+      const log = createQueryLog()
+
+      ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+        if (table === 'class_days') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({ data: { is_class_day: true }, error: null }),
+            })),
+          }
+        }
+        if (table === 'entries') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'entry-1' }, error: null }),
+            })),
+          }
+        }
+        if (table === 'assignments') return mockPagedTable(assignments, { table, log })
+        if (table === 'assignment_docs') return mockPagedTable(docs, { table, log })
+        if (table === 'tests') return mockPagedTable([], { table, log })
+        if (table === 'announcements') return mockPagedTable([], { table, log })
+
+        throw new Error(`Unexpected table: ${table}`)
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.unviewedAssignmentsCount).toBe(1000)
+      expect(log.rangeCalls.filter((call) => call.table === 'assignments')).toEqual([
+        { table: 'assignments', from: 0, to: 999 },
+        { table: 'assignments', from: 1000, to: 1999 },
+      ])
+      const assignmentDocChunks = log.inCalls.filter((call) => call.table === 'assignment_docs')
+      expect(assignmentDocChunks).toHaveLength(21)
+      expect(assignmentDocChunks[0].values).toHaveLength(50)
+      expect(assignmentDocChunks[20].values).toHaveLength(1)
     })
   })
 
@@ -466,6 +633,110 @@ describe('GET /api/student/notifications', () => {
         assignments: { data: [], error: null },
         quizzes: { data: [], error: null },
         tests: { data: null, error: { code: 'XX000', message: 'Database error' } },
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(data.error).toBe('Failed to check notifications')
+    })
+
+    it('should return 500 when test response loading fails', async () => {
+      ;(mockSupabaseClient.from as any) = createTableMock({
+        class_days: { data: { is_class_day: true }, error: null },
+        entries: { data: { id: 'entry-1' }, error: null },
+        assignments: { data: [], error: null },
+        tests: { data: [{ id: 'test-1', status: 'active' }], error: null },
+        test_responses: { data: null, error: { code: 'XX000', message: 'Database error' } },
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(data.error).toBe('Failed to check notifications')
+    })
+
+    it('should return 500 when test attempt loading fails', async () => {
+      ;(mockSupabaseClient.from as any) = createTableMock({
+        class_days: { data: { is_class_day: true }, error: null },
+        entries: { data: { id: 'entry-1' }, error: null },
+        assignments: { data: [], error: null },
+        tests: { data: [{ id: 'test-1', status: 'active' }], error: null },
+        test_responses: { data: [], error: null },
+        test_attempts: { data: null, error: { code: 'XX000', message: 'Database error' } },
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(data.error).toBe('Failed to check notifications')
+    })
+
+    it('should return 500 when selected test access loading fails', async () => {
+      ;(mockSupabaseClient.from as any) = createTableMock({
+        class_days: { data: { is_class_day: true }, error: null },
+        entries: { data: { id: 'entry-1' }, error: null },
+        assignments: { data: [], error: null },
+        tests: { data: [{ id: 'test-1', status: 'active' }], error: null },
+        test_responses: { data: [], error: null },
+        test_attempts: { data: [], error: null },
+        test_student_availability: { data: null, error: { code: 'XX000', message: 'Database error' } },
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(data.error).toBe('Failed to check notifications')
+    })
+
+    it('should return 500 when announcements query fails', async () => {
+      ;(mockSupabaseClient.from as any) = createTableMock({
+        class_days: { data: { is_class_day: true }, error: null },
+        entries: { data: { id: 'entry-1' }, error: null },
+        assignments: { data: [], error: null },
+        tests: { data: [], error: null },
+        announcements: { data: null, error: { message: 'Database error' } },
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(data.error).toBe('Failed to check notifications')
+    })
+
+    it('should return 500 when announcement read loading fails', async () => {
+      ;(mockSupabaseClient.from as any) = createTableMock({
+        class_days: { data: { is_class_day: true }, error: null },
+        entries: { data: { id: 'entry-1' }, error: null },
+        assignments: { data: [], error: null },
+        tests: { data: [], error: null },
+        announcements: { data: [{ id: 'announcement-1' }], error: null },
+        announcement_reads: { data: null, error: { message: 'Database error' } },
       })
 
       const request = new NextRequest(
@@ -573,6 +844,49 @@ describe('GET /api/student/notifications', () => {
       expect(data.activeTestsCount).toBe(1)
     })
 
+    it('should count closed tests reopened for this student', async () => {
+      const log = createQueryLog()
+      const baseFrom = createTableMock({
+        class_days: { data: { is_class_day: true }, error: null },
+        entries: { data: { id: 'entry-1' }, error: null },
+        assignments: { data: [], error: null },
+        quizzes: { data: [], error: null },
+      })
+
+      ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+        if (table === 'tests') {
+          return mockPagedTable(
+            [{ id: 'test-1', classroom_id: 'classroom-1', status: 'closed' }],
+            { table, log }
+          )
+        }
+        if (table === 'test_responses') return mockPagedTable([], { table, log })
+        if (table === 'test_attempts') return mockPagedTable([], { table, log })
+        if (table === 'test_student_availability') {
+          return mockPagedTable(
+            [{ test_id: 'test-1', student_id: 'student-1', state: 'open' }],
+            { table, log }
+          )
+        }
+        return baseFrom(table)
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.activeTestsCount).toBe(1)
+      expect(log.inCalls).toContainEqual({
+        table: 'tests',
+        column: 'status',
+        values: ['active', 'closed'],
+      })
+    })
+
     it('should exclude active tests closed for grading', async () => {
       ;(mockSupabaseClient.from as any) = createTableMock({
         class_days: { data: { is_class_day: true }, error: null },
@@ -624,6 +938,177 @@ describe('GET /api/student/notifications', () => {
 
       expect(response.status).toBe(200)
       expect(data.activeTestsCount).toBe(2)
+    })
+
+    it('should page active tests and chunk response, attempt, and availability reads', async () => {
+      const tests = Array.from({ length: 1001 }, (_, index) => ({
+        id: `test-${index}`,
+        classroom_id: 'classroom-1',
+        status: 'active',
+      }))
+      const testResponses = [
+        {
+          test_id: 'test-0',
+          student_id: 'student-1',
+          selected_option: 0,
+          response_text: null,
+        },
+        {
+          test_id: 'test-stale',
+          student_id: 'student-1',
+          selected_option: 0,
+          response_text: null,
+        },
+        {
+          test_id: 'test-3',
+          student_id: 'student-2',
+          selected_option: 0,
+          response_text: null,
+        },
+      ]
+      const testAttempts = [
+        {
+          test_id: 'test-1',
+          student_id: 'student-1',
+          is_submitted: true,
+          closed_for_grading_at: null,
+        },
+        {
+          test_id: 'test-4',
+          student_id: 'student-2',
+          is_submitted: true,
+          closed_for_grading_at: null,
+        },
+      ]
+      const availabilityRows = [
+        {
+          test_id: 'test-2',
+          student_id: 'student-1',
+          state: 'closed',
+        },
+        {
+          test_id: 'test-5',
+          student_id: 'student-2',
+          state: 'closed',
+        },
+      ]
+      const log = createQueryLog()
+
+      ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+        if (table === 'class_days') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({ data: { is_class_day: true }, error: null }),
+            })),
+          }
+        }
+        if (table === 'entries') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'entry-1' }, error: null }),
+            })),
+          }
+        }
+        if (table === 'assignments') return mockPagedTable([], { table, log })
+        if (table === 'tests') return mockPagedTable(tests, { table, log })
+        if (table === 'test_responses') return mockPagedTable(testResponses, { table, log })
+        if (table === 'test_attempts') return mockPagedTable(testAttempts, { table, log })
+        if (table === 'test_student_availability') {
+          return mockPagedTable(availabilityRows, { table, log })
+        }
+        if (table === 'announcements') return mockPagedTable([], { table, log })
+
+        throw new Error(`Unexpected table: ${table}`)
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.activeTestsCount).toBe(998)
+      expect(log.rangeCalls.filter((call) => call.table === 'tests')).toEqual([
+        { table: 'tests', from: 0, to: 999 },
+        { table: 'tests', from: 1000, to: 1999 },
+      ])
+      for (const table of ['test_responses', 'test_attempts', 'test_student_availability']) {
+        const chunks = log.inCalls.filter((call) => call.table === table)
+        expect(chunks).toHaveLength(21)
+        expect(chunks[0].values).toHaveLength(50)
+        expect(chunks[20].values).toHaveLength(1)
+      }
+    })
+  })
+
+  describe('announcement counts', () => {
+    it('should page announcements and chunk announcement read filters', async () => {
+      const announcements = Array.from({ length: 1001 }, (_, index) => ({
+        id: `announcement-${index}`,
+        classroom_id: 'classroom-1',
+      }))
+      const reads = [
+        {
+          announcement_id: 'announcement-0',
+          user_id: 'student-1',
+        },
+        {
+          announcement_id: 'announcement-stale',
+          user_id: 'student-1',
+        },
+        {
+          announcement_id: 'announcement-1',
+          user_id: 'student-2',
+        },
+      ]
+      const log = createQueryLog()
+
+      ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+        if (table === 'class_days') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({ data: { is_class_day: true }, error: null }),
+            })),
+          }
+        }
+        if (table === 'entries') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'entry-1' }, error: null }),
+            })),
+          }
+        }
+        if (table === 'assignments') return mockPagedTable([], { table, log })
+        if (table === 'tests') return mockPagedTable([], { table, log })
+        if (table === 'announcements') return mockPagedTable(announcements, { table, log })
+        if (table === 'announcement_reads') return mockPagedTable(reads, { table, log })
+
+        throw new Error(`Unexpected table: ${table}`)
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.unreadAnnouncementsCount).toBe(1000)
+      expect(log.rangeCalls.filter((call) => call.table === 'announcements')).toEqual([
+        { table: 'announcements', from: 0, to: 999 },
+        { table: 'announcements', from: 1000, to: 1999 },
+      ])
+      const readChunks = log.inCalls.filter((call) => call.table === 'announcement_reads')
+      expect(readChunks).toHaveLength(21)
+      expect(readChunks[0].values).toHaveLength(50)
+      expect(readChunks[20].values).toHaveLength(1)
     })
   })
 })
