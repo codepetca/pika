@@ -187,4 +187,25 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
     expect(screen.queryByRole('link', { name: 'https://github.com/codepetca/pika' })).not.toBeInTheDocument()
     expect(screen.queryByText('@student1-demo')).not.toBeInTheDocument()
   })
+
+  it('renders the embedded status badge with the shared assignment badge contract', async () => {
+    mockLoadResponses(makeDoc({ returned_at: '2026-02-15T00:00:00Z' }))
+
+    render(<StudentAssignmentEditor classroomId="classroom-1" assignmentId="assignment-1" variant="embedded" />)
+
+    const badge = await screen.findByTestId('assignment-status-badge')
+
+    expect(badge).toHaveTextContent('Returned')
+    expect(badge).toHaveClass(
+      'inline-flex',
+      'shrink-0',
+      'rounded-badge',
+      'px-2.5',
+      'text-xs',
+      'font-semibold',
+      'bg-info-bg',
+      'text-primary',
+    )
+    expect(badge.className).not.toMatch(/\b(?:bg|text)-(?:gray|blue|yellow|green|orange|purple)-\d{2,3}\b/)
+  })
 })

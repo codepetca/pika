@@ -727,3 +727,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `E2E_BASE_URL=http://localhost:3018 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-classrooms-edit-desktop.png`, `/tmp/pika-classrooms-edit-mobile.png`
+
+## 2026-05-31 — Assignment status badge consistency
+
+**Completed:**
+- Moved assignment status badge and icon helpers from raw Tailwind palette classes to semantic design tokens.
+- Made the assignment badge helper own the shared pill shape so student assignment list and editor badges stay aligned.
+- Added the shared status badge to the embedded student assignment editor header, which is the route students use from the assignments tab.
+- Added tests that assert semantic badge/icon contracts and reject raw palette utilities.
+- Used a read-only subagent audit to confirm the live editor route and screenshot path before visual verification.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/assignments.test.ts tests/components/StudentAssignmentsTab.test.tsx tests/components/StudentAssignmentEditor.feedback-card.test.tsx`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3019 pnpm e2e:auth`
+- `E2E_BASE_URL=http://localhost:3019 pnpm e2e:verify assessment-ux-parity`
+- Reviewed screenshots: `/tmp/pika-assignment-list-desktop.png`, `/tmp/pika-assignment-editor-desktop.png`, `/tmp/pika-assignment-list-mobile.png`, `/tmp/pika-assignment-editor-mobile.png`, `artifacts/assessment-ux-parity/student-assignments-reference.png`
