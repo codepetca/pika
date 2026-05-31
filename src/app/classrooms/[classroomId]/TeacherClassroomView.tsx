@@ -106,6 +106,7 @@ import {
 import { applyDirection, compareByNameFields, toggleSort as toggleSortState } from '@/lib/table-sort'
 import type { SortDirection } from '@/lib/table-sort'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchClassDaysForClassroom } from '@/lib/class-days-client'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { safeSessionGetJson, safeSessionSetJson } from '@/lib/client-storage'
 
@@ -706,7 +707,7 @@ export function TeacherClassroomView({
       setLoading(true)
     }
     try {
-      const [assignmentsData, materialsData, surveysData, classDaysRes] = await Promise.all([
+      const [assignmentsData, materialsData, surveysData, classDaysData] = await Promise.all([
         fetchJSONWithCache(
           `teacher-assignments:${classroom.id}`,
           async () => {
@@ -734,20 +735,15 @@ export function TeacherClassroomView({
           },
           20_000,
         ).catch(() => ({ surveys: [] })),
-        fetchJSONWithCache(
-          `class-days:${classroom.id}`,
-          async () => {
-            const response = await fetch(`/api/classrooms/${classroom.id}/class-days`)
-            if (!response.ok) return { class_days: [] }
-            return response.json().catch(() => ({ class_days: [] }))
-          },
-          20_000,
-        ),
+        fetchClassDaysForClassroom(classroom.id).catch((err) => {
+          console.error('Error loading class days:', err)
+          return []
+        }),
       ])
       setAssignments(assignmentsData.assignments || [])
       setMaterials(materialsData.materials || [])
       setSurveys(surveysData.surveys || [])
-      setClassDays(classDaysRes.class_days || [])
+      setClassDays(classDaysData)
       setHasLoadedOnce(true)
       window.dispatchEvent(
         new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {

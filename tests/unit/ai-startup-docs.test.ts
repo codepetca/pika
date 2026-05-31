@@ -48,6 +48,11 @@ function makeFixtureWorktree() {
   return repoRoot
 }
 
+function commitAll(repoRoot: string, message: string) {
+  execFileSync('git', ['add', '.'], { cwd: repoRoot })
+  execFileSync('git', ['commit', '-m', message], { cwd: repoRoot })
+}
+
 const requiredStartupFiles = [
   '.ai/START-HERE.md',
   '.ai/CURRENT.md',
@@ -78,13 +83,14 @@ describe('AI startup docs', () => {
     }
   })
 
-  it('keeps the rolling session log small', () => {
+  it('keeps the rolling session log bounded while preserving weekly evidence', () => {
     const sessionLog = readRepoFile('.ai/SESSION-LOG.md')
     const entryCount = sessionLog.match(/^## /gm)?.length ?? 0
 
     expect(sessionLog).toContain('Rolling recent session log')
+    expect(sessionLog).toContain('latest 60 entries')
     expect(entryCount).toBeGreaterThan(0)
-    expect(entryCount).toBeLessThanOrEqual(20)
+    expect(entryCount).toBeLessThanOrEqual(60)
     expect(readRepoFile('.ai/JOURNAL-ARCHIVE.md')).toContain('# Pika Project Journal')
   })
 
@@ -119,6 +125,20 @@ describe('AI startup docs', () => {
 
     for (const file of files) {
       expect(readRepoFile(file)).toContain('$HOME/Repos/.env/pika/.env.local')
+    }
+  })
+
+  it('documents detached HEAD handling in workflow prompts', () => {
+    const files = [
+      '.claude/commands/session-start.md',
+      '.claude/commands/follow-workflow.md',
+      '.claude/commands/commit-and-pr.md',
+      '.codex/prompts/follow-workflow.md',
+      '.codex/prompts/commit-and-pr.md',
+    ]
+
+    for (const file of files) {
+      expect(readRepoFile(file)).toContain('detached HEAD')
     }
   })
 
@@ -207,6 +227,28 @@ describe('AI startup docs', () => {
     }
   })
 
+  it('reports detached HEAD state during automated session-start', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-session-start/scripts/session_start.sh')
+
+    execFileSync('git', ['checkout', '--detach'], { cwd: repoRoot })
+
+    try {
+      const output = execFileSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          HOME: repoRoot,
+        },
+        encoding: 'utf8',
+      })
+
+      expect(output).toContain('Checkout: detached HEAD at')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
   it('rejects the hub checkout for automated session-start', () => {
     const homeRoot = mkdtempSync(join(tmpdir(), 'pika-session-hub-'))
     const hubRoot = join(homeRoot, 'Repos/pika')
@@ -248,6 +290,147 @@ describe('AI startup docs', () => {
       )
     } finally {
       rmSync(tempRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('makes the audit script reject risky changes with only unrelated changed tests', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+
+    mkdirSync(join(repoRoot, 'src/app/api/teacher/tests/[id]/auto-grade'), { recursive: true })
+    mkdirSync(join(repoRoot, 'tests/unit'), { recursive: true })
+    writeFileSync(
+      join(repoRoot, 'src/app/api/teacher/tests/[id]/auto-grade/route.ts'),
+      [
+        "import { withErrorHandler } from '@/lib/api-handler'",
+        '',
+        "export const POST = withErrorHandler('PostTeacherTestAutoGrade', async () => {",
+        "  return Response.json({ ok: true })",
+        '})',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/unit/unrelated-docs.test.ts'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('unrelated docs', () => {",
+        "  it('stays true', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+    commitAll(repoRoot, 'add risky route and unrelated unit test')
+
+    writeFileSync(
+      join(repoRoot, 'src/app/api/teacher/tests/[id]/auto-grade/route.ts'),
+      [
+        "import { withErrorHandler } from '@/lib/api-handler'",
+        '',
+        "export const POST = withErrorHandler('PostTeacherTestAutoGrade', async () => {",
+        "  return Response.json({ status: 'changed' })",
+        '})',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/unit/unrelated-docs.test.ts'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('unrelated docs', () => {",
+        "  it('still stays true', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).toContain('missing-risk-tests')
+      expect(`${result.stdout}\n${result.stderr}`).toContain('without a relevant changed test')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('allows risky changes when a relevant api test also changes', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+
+    mkdirSync(join(repoRoot, 'src/app/api/teacher/tests/[id]/auto-grade'), { recursive: true })
+    mkdirSync(join(repoRoot, 'tests/api/teacher'), { recursive: true })
+    writeFileSync(
+      join(repoRoot, 'src/app/api/teacher/tests/[id]/auto-grade/route.ts'),
+      [
+        "import { withErrorHandler } from '@/lib/api-handler'",
+        '',
+        "export const POST = withErrorHandler('PostTeacherTestAutoGrade', async () => {",
+        "  return Response.json({ ok: true })",
+        '})',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/api/teacher/tests-auto-grade.test.ts'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('teacher test auto-grade route', () => {",
+        "  it('stays true', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+    commitAll(repoRoot, 'add risky route and relevant api test')
+
+    writeFileSync(
+      join(repoRoot, 'src/app/api/teacher/tests/[id]/auto-grade/route.ts'),
+      [
+        "import { withErrorHandler } from '@/lib/api-handler'",
+        '',
+        "export const POST = withErrorHandler('PostTeacherTestAutoGrade', async () => {",
+        "  return Response.json({ status: 'changed' })",
+        '})',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/api/teacher/tests-auto-grade.test.ts'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('teacher test auto-grade route', () => {",
+        "  it('still stays true', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(result.status).toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain('missing-risk-tests')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
     }
   })
 })

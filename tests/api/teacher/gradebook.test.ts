@@ -7,21 +7,33 @@ vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1'
 
 const mockSupabaseClient = { from: vi.fn() }
 
+type SupabaseReadError = { code?: string; message?: string; details?: string; hint?: string }
+
 type GradebookFixture = {
   enrollments?: Array<{ student_id: string; users: { email: string } }>
   profiles?: Array<{ user_id: string; student_number?: string | null; first_name: string | null; last_name: string | null }>
+  profilesError?: SupabaseReadError | null
   assignments?: Array<any>
   docs?: Array<any>
+  docsError?: SupabaseReadError | null
+  docsTeacherClearedAtError?: SupabaseReadError | null
   quizzes?: Array<any>
   quizQuestions?: Array<any>
+  quizQuestionsCorrectOptionError?: SupabaseReadError | null
+  quizQuestionsError?: SupabaseReadError | null
   quizResponses?: Array<any>
+  quizResponsesError?: SupabaseReadError | null
   quizOverrides?: Array<any>
+  quizOverridesError?: SupabaseReadError | null
   tests?: Array<any>
   testQuestions?: Array<any>
+  testQuestionsError?: SupabaseReadError | null
   testResponses?: Array<any>
+  testResponsesError?: SupabaseReadError | null
   testAttempts?: Array<any>
+  testAttemptsError?: SupabaseReadError | null
   settings?: { use_weights: boolean; assignments_weight: number; quizzes_weight: number; tests_weight?: number } | null
-  settingsError?: { code?: string; message?: string; details?: string; hint?: string } | null
+  settingsError?: SupabaseReadError | null
 }
 
 function buildMockFrom(fixture: GradebookFixture) {
@@ -73,11 +85,12 @@ function buildMockFrom(fixture: GradebookFixture) {
       return {
         select: vi.fn(() => ({
           in: vi.fn().mockResolvedValue({
-            data:
-              fixture.profiles ?? [
-                { user_id: 'student-1', student_number: '1001', first_name: 'Student', last_name: 'One' },
-              ],
-            error: null,
+            data: fixture.profilesError
+              ? null
+              : fixture.profiles ?? [
+                  { user_id: 'student-1', student_number: '1001', first_name: 'Student', last_name: 'One' },
+                ],
+            error: fixture.profilesError ?? null,
           }),
         })),
       }
@@ -102,12 +115,19 @@ function buildMockFrom(fixture: GradebookFixture) {
 
     if (table === 'assignment_docs') {
       return {
-        select: vi.fn(() => ({
-          in: vi.fn().mockResolvedValue({
-            data: fixture.docs ?? [],
-            error: null,
-          }),
-        })),
+        select: vi.fn((selection: string) => {
+          const selectionError = fixture.docsError ?? (
+            selection.includes('teacher_cleared_at') ? fixture.docsTeacherClearedAtError ?? null : null
+          )
+          return {
+            in: vi.fn(() => ({
+              in: vi.fn().mockResolvedValue({
+                data: selectionError ? null : fixture.docs ?? [],
+                error: selectionError,
+              }),
+            })),
+          }
+        }),
       }
     }
 
@@ -124,12 +144,17 @@ function buildMockFrom(fixture: GradebookFixture) {
 
     if (table === 'quiz_questions') {
       return {
-        select: vi.fn(() => ({
-          in: vi.fn().mockResolvedValue({
-            data: fixture.quizQuestions ?? [],
-            error: null,
-          }),
-        })),
+        select: vi.fn((selection: string) => {
+          const selectionError = fixture.quizQuestionsError ?? (
+            selection.includes('correct_option') ? fixture.quizQuestionsCorrectOptionError ?? null : null
+          )
+          return {
+            in: vi.fn().mockResolvedValue({
+              data: selectionError ? null : fixture.quizQuestions ?? [],
+              error: selectionError,
+            }),
+          }
+        }),
       }
     }
 
@@ -138,8 +163,8 @@ function buildMockFrom(fixture: GradebookFixture) {
         select: vi.fn(() => ({
           in: vi.fn(() => ({
             in: vi.fn().mockResolvedValue({
-              data: fixture.quizResponses ?? [],
-              error: null,
+              data: fixture.quizResponsesError ? null : fixture.quizResponses ?? [],
+              error: fixture.quizResponsesError ?? null,
             }),
           })),
         })),
@@ -151,8 +176,8 @@ function buildMockFrom(fixture: GradebookFixture) {
         select: vi.fn(() => ({
           in: vi.fn(() => ({
             in: vi.fn().mockResolvedValue({
-              data: fixture.quizOverrides ?? [],
-              error: null,
+              data: fixture.quizOverridesError ? null : fixture.quizOverrides ?? [],
+              error: fixture.quizOverridesError ?? null,
             }),
           })),
         })),
@@ -174,8 +199,8 @@ function buildMockFrom(fixture: GradebookFixture) {
       return {
         select: vi.fn(() => ({
           in: vi.fn().mockResolvedValue({
-            data: fixture.testQuestions ?? [],
-            error: null,
+            data: fixture.testQuestionsError ? null : fixture.testQuestions ?? [],
+            error: fixture.testQuestionsError ?? null,
           }),
         })),
       }
@@ -186,8 +211,8 @@ function buildMockFrom(fixture: GradebookFixture) {
         select: vi.fn(() => ({
           in: vi.fn(() => ({
             in: vi.fn().mockResolvedValue({
-              data: fixture.testResponses ?? [],
-              error: null,
+              data: fixture.testResponsesError ? null : fixture.testResponses ?? [],
+              error: fixture.testResponsesError ?? null,
             }),
           })),
         })),
@@ -199,8 +224,8 @@ function buildMockFrom(fixture: GradebookFixture) {
         select: vi.fn(() => ({
           in: vi.fn(() => ({
             in: vi.fn().mockResolvedValue({
-              data: fixture.testAttempts ?? [],
-              error: null,
+              data: fixture.testAttemptsError ? null : fixture.testAttempts ?? [],
+              error: fixture.testAttemptsError ?? null,
             }),
           })),
         })),
@@ -208,6 +233,95 @@ function buildMockFrom(fixture: GradebookFixture) {
     }
 
     throw new Error(`Unexpected table in test: ${table}`)
+  })
+}
+
+type QueryTrace = {
+  inCalls: Array<{ table: string; column: string; values: string[] }>
+  orderCalls: Array<{ table: string; column: string; ascending?: boolean }>
+  rangeCalls: Array<{ table: string; from: number; to: number }>
+}
+
+function createTrace(): QueryTrace {
+  return { inCalls: [], orderCalls: [], rangeCalls: [] }
+}
+
+function buildPagedMockFrom(
+  rowsByTable: Record<string, Array<Record<string, any>>>,
+  trace: QueryTrace,
+  errors: Partial<Record<string, SupabaseReadError>> = {}
+) {
+  return vi.fn((table: string) => {
+    if (table === 'classrooms') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'c1', teacher_id: 'teacher-1', archived_at: null },
+              error: null,
+            }),
+          })),
+        })),
+      }
+    }
+
+    const createQuery = () => {
+      const filters: Array<{ column: string; values: any[] }> = []
+      const orders: Array<{ column: string; ascending: boolean }> = []
+
+      const resolveRows = (from?: number, to?: number) => {
+        const error = errors[table]
+        if (error) {
+          return { data: null, error }
+        }
+
+        let rows = [...(rowsByTable[table] || [])]
+        for (const filter of filters) {
+          rows = rows.filter((row) => filter.values.includes(row[filter.column]))
+        }
+
+        for (let index = orders.length - 1; index >= 0; index -= 1) {
+          const order = orders[index]
+          rows.sort((a, b) => {
+            const aValue = a[order.column]
+            const bValue = b[order.column]
+            const comparison = String(aValue ?? '').localeCompare(String(bValue ?? ''), undefined, { numeric: true })
+            return order.ascending ? comparison : -comparison
+          })
+        }
+
+        const data = from == null || to == null ? rows : rows.slice(from, to + 1)
+        return { data, error: null }
+      }
+
+      const query: any = {
+        eq: vi.fn((column: string, value: any) => {
+          filters.push({ column, values: [value] })
+          return query
+        }),
+        in: vi.fn((column: string, values: any[]) => {
+          trace.inCalls.push({ table, column, values: [...values] })
+          filters.push({ column, values: [...values] })
+          return query
+        }),
+        order: vi.fn((column: string, options?: { ascending?: boolean }) => {
+          trace.orderCalls.push({ table, column, ascending: options?.ascending })
+          orders.push({ column, ascending: options?.ascending ?? true })
+          return query
+        }),
+        range: vi.fn((from: number, to: number) => {
+          trace.rangeCalls.push({ table, from, to })
+          return Promise.resolve(resolveRows(from, to))
+        }),
+        then: (resolve: any, reject: any) => Promise.resolve(resolveRows()).then(resolve, reject),
+      }
+
+      return query
+    }
+
+    return {
+      select: vi.fn(() => createQuery()),
+    }
   })
 }
 
@@ -673,6 +787,359 @@ describe('GET /api/teacher/gradebook', () => {
     })
   })
 
+  it('chunks large gradebook filters and scopes assignment docs to enrolled students', async () => {
+    const trace = createTrace()
+    const studentIds = Array.from({ length: 51 }, (_, index) => `student-${String(index + 1).padStart(2, '0')}`)
+    const assignments = Array.from({ length: 51 }, (_, index) => ({
+      id: `assignment-${String(index + 1).padStart(2, '0')}`,
+      classroom_id: 'c1',
+      title: `Assignment ${index + 1}`,
+      due_at: '2025-01-01T12:00:00.000Z',
+      position: index + 1,
+      is_draft: false,
+      points_possible: 30,
+      include_in_final: true,
+      gradebook_weight: 10,
+    }))
+    const quizzes = Array.from({ length: 51 }, (_, index) => ({
+      id: `quiz-${String(index + 1).padStart(2, '0')}`,
+      classroom_id: 'c1',
+      title: `Quiz ${index + 1}`,
+      status: 'closed',
+      position: index + 1,
+      points_possible: 10,
+      include_in_final: true,
+      gradebook_weight: 10,
+    }))
+    const tests = Array.from({ length: 51 }, (_, index) => ({
+      id: `test-${String(index + 1).padStart(2, '0')}`,
+      classroom_id: 'c1',
+      title: `Test ${index + 1}`,
+      status: 'closed',
+      position: index + 1,
+      include_in_final: true,
+      gradebook_weight: 10,
+    }))
+
+    ;(mockSupabaseClient.from as any) = buildPagedMockFrom({
+      classroom_enrollments: studentIds.map((studentId, index) => ({
+        id: `enrollment-${String(index + 1).padStart(2, '0')}`,
+        classroom_id: 'c1',
+        student_id: studentId,
+        users: { email: `${studentId}@example.com` },
+      })),
+      student_profiles: studentIds.map((studentId, index) => ({
+        id: `profile-${String(index + 1).padStart(2, '0')}`,
+        user_id: studentId,
+        student_number: String(1000 + index),
+        first_name: 'Student',
+        last_name: String(index + 1),
+      })),
+      assignments,
+      assignment_docs: [
+        {
+          id: 'doc-first',
+          assignment_id: assignments[0].id,
+          student_id: studentIds[0],
+          score_completion: 3,
+          score_thinking: 3,
+          score_workflow: 3,
+        },
+        {
+          id: 'doc-last',
+          assignment_id: assignments[50].id,
+          student_id: studentIds[50],
+          score_completion: 6,
+          score_thinking: 6,
+          score_workflow: 6,
+        },
+        {
+          id: 'doc-withdrawn',
+          assignment_id: assignments[0].id,
+          student_id: 'withdrawn-student',
+          score_completion: 10,
+          score_thinking: 10,
+          score_workflow: 10,
+        },
+      ],
+      quizzes,
+      quiz_questions: [
+        { id: 'quiz-question-first', quiz_id: quizzes[0].id, correct_option: 1 },
+        { id: 'quiz-question-last', quiz_id: quizzes[50].id, correct_option: 1 },
+      ],
+      quiz_responses: [
+        { id: 'quiz-response-first', quiz_id: quizzes[0].id, question_id: 'quiz-question-first', student_id: studentIds[0], selected_option: 1 },
+        { id: 'quiz-response-last', quiz_id: quizzes[50].id, question_id: 'quiz-question-last', student_id: studentIds[50], selected_option: 1 },
+      ],
+      quiz_student_scores: [
+        { id: 'quiz-override-last', quiz_id: quizzes[50].id, student_id: studentIds[50], manual_override_score: 9 },
+      ],
+      tests,
+      test_questions: [
+        { id: 'test-question-first', test_id: tests[0].id, points: 5 },
+        { id: 'test-question-last', test_id: tests[50].id, points: 5 },
+      ],
+      test_responses: [
+        { id: 'test-response-first', test_id: tests[0].id, question_id: 'test-question-first', student_id: studentIds[0], score: 5 },
+        { id: 'test-response-last', test_id: tests[50].id, question_id: 'test-question-last', student_id: studentIds[50], score: 4 },
+      ],
+      test_attempts: [
+        { id: 'test-attempt-first', test_id: tests[0].id, student_id: studentIds[0], is_submitted: true },
+        { id: 'test-attempt-last', test_id: tests[50].id, student_id: studentIds[50], is_submitted: true },
+      ],
+    }, trace)
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(trace.inCalls.every((call) => call.values.length <= 50)).toBe(true)
+
+    const assignmentStudentFilters = trace.inCalls.filter((call) =>
+      call.table === 'assignment_docs' && call.column === 'student_id'
+    )
+    expect(assignmentStudentFilters.length).toBeGreaterThan(0)
+    expect(assignmentStudentFilters.some((call) => call.values.includes(studentIds[0]))).toBe(true)
+    expect(assignmentStudentFilters.some((call) => call.values.includes(studentIds[50]))).toBe(true)
+    expect(assignmentStudentFilters.every((call) => !call.values.includes('withdrawn-student'))).toBe(true)
+    expect(body.class_summary.assignments[0]).toMatchObject({
+      assignment_id: assignments[0].id,
+      graded_count: 1,
+      average_percent: 30,
+    })
+  })
+
+  it('paginates large gradebook related rows with stable ordering', async () => {
+    const trace = createTrace()
+    const studentIds = Array.from({ length: 50 }, (_, index) => `student-${String(index + 1).padStart(2, '0')}`)
+    const assignments = Array.from({ length: 50 }, (_, index) => ({
+      id: `assignment-${String(index + 1).padStart(2, '0')}`,
+      classroom_id: 'c1',
+      title: `Assignment ${index + 1}`,
+      due_at: '2025-01-01T12:00:00.000Z',
+      position: index + 1,
+      is_draft: false,
+      points_possible: 30,
+      include_in_final: true,
+      gradebook_weight: 10,
+    }))
+    const docs = assignments.flatMap((assignment, assignmentIndex) =>
+      studentIds.map((studentId, studentIndex) => ({
+        id: `doc-${String(assignmentIndex + 1).padStart(2, '0')}-${String(studentIndex + 1).padStart(2, '0')}`,
+        assignment_id: assignment.id,
+        student_id: studentId,
+        score_completion: 10,
+        score_thinking: 10,
+        score_workflow: 10,
+      }))
+    )
+
+    ;(mockSupabaseClient.from as any) = buildPagedMockFrom({
+      classroom_enrollments: studentIds.map((studentId, index) => ({
+        id: `enrollment-${String(index + 1).padStart(2, '0')}`,
+        classroom_id: 'c1',
+        student_id: studentId,
+        users: { email: `${studentId}@example.com` },
+      })),
+      student_profiles: [],
+      assignments,
+      assignment_docs: docs,
+      quizzes: [],
+      quiz_questions: [],
+      quiz_responses: [],
+      quiz_student_scores: [],
+      tests: [],
+      test_questions: [],
+      test_responses: [],
+      test_attempts: [],
+    }, trace)
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.class_summary.assignments[0].graded_count).toBe(50)
+    expect(body.class_summary.assignments[49].graded_count).toBe(50)
+    expect(trace.orderCalls).toEqual(expect.arrayContaining([
+      expect.objectContaining({ table: 'assignment_docs', column: 'id' }),
+    ]))
+    expect(trace.rangeCalls).toEqual(expect.arrayContaining([
+      { table: 'assignment_docs', from: 0, to: 999 },
+      { table: 'assignment_docs', from: 1000, to: 1999 },
+      { table: 'assignment_docs', from: 2000, to: 2999 },
+    ]))
+  })
+
+  it('finds a selected enrolled student beyond the first roster page', async () => {
+    const trace = createTrace()
+    const studentIds = Array.from({ length: 1001 }, (_, index) => `student-${String(index + 1).padStart(4, '0')}`)
+    const selectedStudentId = studentIds[1000]
+
+    ;(mockSupabaseClient.from as any) = buildPagedMockFrom({
+      classroom_enrollments: studentIds.map((studentId, index) => ({
+        id: `enrollment-${String(index + 1).padStart(4, '0')}`,
+        classroom_id: 'c1',
+        student_id: studentId,
+        users: { email: `${studentId}@example.com` },
+      })),
+      student_profiles: [],
+      assignments: [],
+      assignment_docs: [],
+      quizzes: [],
+      quiz_questions: [],
+      quiz_responses: [],
+      quiz_student_scores: [],
+      tests: [],
+      test_questions: [],
+      test_responses: [],
+      test_attempts: [],
+    }, trace)
+
+    const request = new NextRequest(`http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=${selectedStudentId}`)
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.class_summary.total_students).toBe(1001)
+    expect(body.selected_student.student_id).toBe(selectedStudentId)
+    expect(trace.rangeCalls).toEqual(expect.arrayContaining([
+      { table: 'classroom_enrollments', from: 0, to: 999 },
+      { table: 'classroom_enrollments', from: 1000, to: 1999 },
+    ]))
+  })
+
+  it('returns 500 when gradebook related rows fail to load', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      assignments: [
+        { id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true },
+      ],
+      docsError: { message: 'database unavailable' },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(body.error).toBe('Failed to load assignment docs for gradebook')
+    consoleError.mockRestore()
+  })
+
+  it('falls back when assignment doc teacher_cleared_at is not migrated yet', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      assignments: [
+        { id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true },
+      ],
+      docs: [
+        { assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 },
+      ],
+      docsTeacherClearedAtError: {
+        code: '42703',
+        message: 'column assignment_docs.teacher_cleared_at does not exist',
+      },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.students[0].assignments_percent).toBe(80)
+    expect(body.students[0].final_percent).toBe(80)
+  })
+
+  it('falls back when quiz question correct_option is not migrated yet', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      quizzes: [{ id: 'q1', title: 'Quiz 1', status: 'closed', points_possible: 10, include_in_final: true }],
+      quizQuestions: [{ id: 'qq1', quiz_id: 'q1' }],
+      quizQuestionsCorrectOptionError: {
+        code: '42703',
+        message: 'column quiz_questions.correct_option does not exist',
+      },
+      quizResponses: [{ quiz_id: 'q1', question_id: 'qq1', student_id: 'student-1', selected_option: 0 }],
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.students[0].quizzes_percent).toBeNull()
+    expect(body.students[0].assessment_scores[0]).toEqual({
+      assessment_id: 'q1',
+      assessment_type: 'quiz',
+      earned: null,
+      possible: 10,
+      percent: null,
+      is_graded: false,
+      is_manual_override: false,
+      status: 'started',
+    })
+    expect(body.class_summary.quizzes[0]).toMatchObject({
+      quiz_id: 'q1',
+      scored_count: 0,
+      average_percent: null,
+    })
+  })
+
+  it('falls back when quiz override storage is not migrated yet', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      quizzes: [{ id: 'q1', title: 'Quiz 1', status: 'closed', points_possible: 10, include_in_final: true }],
+      quizQuestions: [{ id: 'qq1', quiz_id: 'q1', correct_option: 0 }],
+      quizResponses: [{ quiz_id: 'q1', question_id: 'qq1', student_id: 'student-1', selected_option: 0 }],
+      quizOverridesError: {
+        code: 'PGRST205',
+        message: 'Could not find the table public.quiz_student_scores',
+      },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.students[0].assessment_scores[0]).toEqual({
+      assessment_id: 'q1',
+      assessment_type: 'quiz',
+      earned: 10,
+      possible: 10,
+      percent: 100,
+      is_graded: true,
+      is_manual_override: false,
+    })
+    expect(body.students[0].final_percent).toBe(100)
+  })
+
+  it('keeps missing optional test tables as an empty test breakdown', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      tests: [{ id: 't1', title: 'Unit Test', status: 'closed', include_in_final: true }],
+      testQuestionsError: { code: 'PGRST205', message: 'Could not find the table public.test_questions' },
+      testResponsesError: { code: 'PGRST205', message: 'Could not find the table public.test_responses' },
+      testAttemptsError: { code: 'PGRST205', message: 'Could not find the table public.test_attempts' },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.totals.tests).toBe(1)
+    expect(body.students[0].tests_percent).toBeNull()
+    expect(body.class_summary.tests).toEqual([
+      {
+        test_id: 't1',
+        title: 'Unit Test',
+        status: 'closed',
+        possible: 0,
+        scored_count: 0,
+        average_percent: null,
+      },
+    ])
+  })
+
   it('falls back to legacy assignment/quiz columns when gradebook metadata columns are unavailable', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classrooms') {
@@ -745,9 +1212,13 @@ describe('GET /api/teacher/gradebook', () => {
       if (table === 'assignment_docs') {
         return {
           select: vi.fn(() => ({
-            in: vi.fn().mockResolvedValue({
-              data: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
-              error: null,
+            in: vi.fn(() => {
+              return {
+                in: vi.fn().mockResolvedValue({
+                  data: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
+                  error: null,
+                }),
+              }
             }),
           })),
         }

@@ -244,26 +244,19 @@ export function getAssignmentStatusLabel(status: AssignmentStatus): string {
  * Get badge styling classes for assignment status
  */
 export function getAssignmentStatusBadgeClass(status: AssignmentStatus): string {
-  switch (status) {
-    case 'not_started':
-      return 'bg-gray-100 text-gray-700'
-    case 'in_progress':
-      return 'bg-blue-100 text-blue-700'
-    case 'in_progress_late':
-      return 'bg-yellow-100 text-yellow-700'
-    case 'submitted_on_time':
-      return 'bg-green-100 text-green-700'
-    case 'submitted_late':
-      return 'bg-orange-100 text-orange-700'
-    case 'graded':
-      return 'bg-purple-100 text-purple-700'
-    case 'returned':
-      return 'bg-blue-100 text-blue-700'
-    case 'resubmitted':
-      return 'bg-orange-100 text-orange-700'
-    default:
-      return 'bg-gray-100 text-gray-700'
+  const baseClassName = 'inline-flex shrink-0 items-center rounded-badge px-2.5 py-1 text-xs font-semibold'
+  const toneClasses: Record<AssignmentStatus, string> = {
+    not_started: 'bg-surface-2 text-text-muted',
+    in_progress: 'bg-warning-bg text-warning',
+    in_progress_late: 'bg-warning-bg text-warning',
+    submitted_on_time: 'bg-success-bg text-success',
+    submitted_late: 'bg-warning-bg text-warning',
+    graded: 'bg-success-bg text-success',
+    returned: 'bg-info-bg text-primary',
+    resubmitted: 'bg-warning-bg text-warning',
   }
+
+  return `${baseClassName} ${toneClasses[status] ?? toneClasses.not_started}`
 }
 
 /**
@@ -271,26 +264,18 @@ export function getAssignmentStatusBadgeClass(status: AssignmentStatus): string 
  * Used for the colored status icons in the student table.
  */
 export function getAssignmentStatusIconClass(status: AssignmentStatus): string {
-  switch (status) {
-    case 'not_started':
-      return 'text-gray-400'
-    case 'in_progress':
-      return 'text-yellow-500'
-    case 'in_progress_late':
-      return 'text-yellow-500'
-    case 'submitted_on_time':
-      return 'text-green-500'
-    case 'submitted_late':
-      return 'text-green-500'
-    case 'graded':
-      return 'text-purple-500'
-    case 'returned':
-      return 'text-blue-500'
-    case 'resubmitted':
-      return 'text-orange-500'
-    default:
-      return 'text-gray-400'
+  const classes: Record<AssignmentStatus, string> = {
+    not_started: 'text-text-muted',
+    in_progress: 'text-warning',
+    in_progress_late: 'text-warning',
+    submitted_on_time: 'text-success',
+    submitted_late: 'text-success',
+    graded: 'text-success',
+    returned: 'text-primary',
+    resubmitted: 'text-warning',
   }
+
+  return classes[status] ?? classes.not_started
 }
 
 /**
@@ -426,13 +411,16 @@ const DRAFT_ONLY_FIELDS = [
  */
 export function sanitizeDocForStudent<T extends Record<string, any>>(doc: T): T {
   if (!doc) return doc
-  if (doc.returned_at) return doc // Student can see grades after return
 
   const sanitized = { ...doc }
-  for (const field of GRADE_FIELDS) {
+  for (const field of DRAFT_ONLY_FIELDS) {
     ;(sanitized as any)[field] = null
   }
-  for (const field of DRAFT_ONLY_FIELDS) {
+  if (doc.returned_at) {
+    return sanitized
+  }
+
+  for (const field of GRADE_FIELDS) {
     ;(sanitized as any)[field] = null
   }
   if (!doc.feedback_returned_at) {

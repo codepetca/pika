@@ -14,6 +14,12 @@ WORKTREE="$(cd "$WORKTREE" && pwd)"
 VIOLATIONS=0
 PASS="\033[0;32m✅\033[0m"
 FAIL="\033[0;31m❌\033[0m"
+WARN="\033[0;33m⚠️\033[0m"
+RISKY_BEHAVIOR_CHANGED=0
+COMPOSITE_WIDGET_CHANGED=0
+declare -a RISKY_FILES=()
+declare -a COMPOSITE_FILES=()
+declare -a TEST_FILES=()
 
 # Collect changed .ts/.tsx files
 CHANGED=$(git -C "$WORKTREE" diff --name-only HEAD 2>/dev/null || true)
@@ -36,23 +42,107 @@ report_violation() {
   VIOLATIONS=$((VIOLATIONS + 1))
 }
 
+test_file_matches_any() {
+  local test_file="$1"
+  shift
+  local prefix
+  for prefix in "$@"; do
+    if [[ "$test_file" == "$prefix"* ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+has_relevant_test_for_risky_file() {
+  local file="$1"
+  local test_file
+
+  for test_file in "${TEST_FILES[@]}"; do
+    if [[ "$file" == src/app/api/* ]]; then
+      if test_file_matches_any "$test_file" "tests/api/" "tests/integration/"; then
+        return 0
+      fi
+    elif [[ "$file" == src/lib/server/* ]]; then
+      if test_file_matches_any "$test_file" "tests/api/" "tests/integration/" "tests/lib/" "tests/unit/"; then
+        return 0
+      fi
+    fi
+  done
+
+  return 1
+}
+
+missing_risk_test_message() {
+  local file="$1"
+  if [[ "$file" == src/app/api/* ]]; then
+    printf '%s' 'risky API behavior changed without a relevant changed test under tests/api or tests/integration'
+    return
+  fi
+
+  if [[ "$file" == src/lib/server/* ]]; then
+    printf '%s' 'risky server behavior changed without a relevant changed test under tests/api, tests/integration, tests/lib, or tests/unit'
+    return
+  fi
+
+  printf '%s' 'risky server/runtime behavior changed without a relevant changed test'
+}
+
+has_relevant_test_for_composite_file() {
+  local _file="$1"
+  local test_file
+
+  for test_file in "${TEST_FILES[@]}"; do
+    if test_file_matches_any "$test_file" "tests/components/" "tests/ui/" "tests/integration/"; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 while IFS= read -r file; do
   [[ -z "$file" ]] && continue
   FULL="$WORKTREE/$file"
   [[ ! -f "$FULL" ]] && continue
 
+  if [[ "$file" == *.test.ts || "$file" == *.spec.ts || "$file" == *.test.tsx || "$file" == *.spec.tsx ]]; then
+    TEST_FILES+=("$file")
+  fi
+
+  if [[ "$file" == src/app/api/* || "$file" == src/lib/server/* ]]; then
+    if [[ "$file" == *grade* || "$file" == *grading* || "$file" == *return* || "$file" == *auto-grade* || "$file" == *tick* || "$file" == *attempt* || "$file" == *respond* || "$file" == *session-status* || "$file" == *focus-events* || "$file" == *cron* ]]; then
+      RISKY_BEHAVIOR_CHANGED=1
+      RISKY_FILES+=("$file")
+    fi
+  fi
+
+  if [[ "$file" == src/components/* || "$file" == src/ui/* || "$file" == src/app/classrooms/* || "$file" == src/app/*/*.tsx || "$file" == src/app/*/*/*.tsx ]]; then
+    if grep -Eq 'role=|aria-|tabpanel|dialog|menu|listbox|combobox|separator|ariaLabel|aria-labelledby|aria-controls' "$FULL" 2>/dev/null; then
+      COMPOSITE_WIDGET_CHANGED=1
+      COMPOSITE_FILES+=("$file")
+    fi
+  fi
+
   # a) API routes: manual catch + missing withErrorHandler
   if [[ "$file" == src/app/api/* ]]; then
-    # Manual catch blocks
-    while IFS=: read -r lineno _; do
-      report_violation "manual-catch" "$file:$lineno" "use withErrorHandler instead of manual try/catch"
-    done < <(grep -n 'catch (error' "$FULL" 2>/dev/null || true)
+    HAS_WRAPPER=0
+    if grep -q 'withErrorHandler' "$FULL" 2>/dev/null; then
+      HAS_WRAPPER=1
+    fi
 
     # Exported handler without withErrorHandler
     if grep -qE 'export async function (GET|POST|PATCH|PUT|DELETE)' "$FULL" 2>/dev/null; then
-      if ! grep -q 'withErrorHandler' "$FULL" 2>/dev/null; then
+      if [[ "$HAS_WRAPPER" -eq 0 ]]; then
         report_violation "no-withErrorHandler" "$file" "run /migrate-error-handler to wrap handlers"
       fi
+    fi
+
+    # Manual catch blocks are only flagged for unwrapped route files.
+    if [[ "$HAS_WRAPPER" -eq 0 ]]; then
+      while IFS=: read -r lineno _; do
+        report_violation "manual-catch" "$file:$lineno" "use withErrorHandler instead of manual try/catch"
+      done < <(grep -n 'catch (error' "$FULL" 2>/dev/null || true)
     fi
   fi
 
@@ -91,9 +181,39 @@ while IFS= read -r file; do
 
 done <<< "$ALL_FILES"
 
+if [[ "$RISKY_BEHAVIOR_CHANGED" -eq 1 ]]; then
+  for file in "${RISKY_FILES[@]}"; do
+    if ! has_relevant_test_for_risky_file "$file"; then
+      report_violation \
+        "missing-risk-tests" \
+        "$file" \
+        "$(missing_risk_test_message "$file")"
+      break
+    fi
+  done
+fi
+
+if [[ "$COMPOSITE_WIDGET_CHANGED" -eq 1 ]]; then
+  for file in "${COMPOSITE_FILES[@]}"; do
+    if ! has_relevant_test_for_composite_file "$file"; then
+      report_violation \
+        "missing-a11y-tests" \
+        "$file" \
+        "composite widget semantics changed without a relevant changed test under tests/components, tests/ui, or tests/integration"
+      break
+    fi
+  done
+fi
+
 echo "============================================================"
 if [[ "$VIOLATIONS" -eq 0 ]]; then
   echo -e "${PASS} Audit passed — no violations found."
+  if [[ "$RISKY_BEHAVIOR_CHANGED" -eq 1 ]]; then
+    echo -e "${WARN} Risk profile reminder — changed files suggest non-trivial behavioral risk. Report focused tests and full validation status."
+  fi
+  if [[ "$COMPOSITE_WIDGET_CHANGED" -eq 1 ]]; then
+    echo -e "${WARN} Accessibility reminder — composite widget checklist applies: docs/guidance/ui/composite-widget-accessibility.md"
+  fi
   exit 0
 else
   echo -e "${FAIL} Audit failed — ${VIOLATIONS} violation(s) found. Fix before committing."

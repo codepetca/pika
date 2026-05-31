@@ -6,6 +6,76 @@ import { extractAndStoreDeveloperFeedbackCandidates } from '@/lib/developer-log-
 
 const mockSupabaseClient = { from: vi.fn() }
 
+type QueryLog = {
+  inCalls: Array<{ table: string; column: string; values: string[] }>
+  rangeCalls: Array<{ table: string; from: number; to: number }>
+}
+
+function createQueryLog(): QueryLog {
+  return { inCalls: [], rangeCalls: [] }
+}
+
+function mockPagedTable(
+  rows: Array<Record<string, any>>,
+  options: {
+    table?: string
+    log?: QueryLog
+    error?: any
+  } = {},
+) {
+  return {
+    select: vi.fn(() => {
+      const filters: Array<{ column: string; values: string[] }> = []
+      const filteredRows = () => rows.filter((row) =>
+        filters.every((filter) => {
+          if (!(filter.column in row)) return true
+          return filter.values.includes(String(row[filter.column]))
+        })
+      )
+      const query: any = {
+        eq: vi.fn((column: string, value: string | boolean) => {
+          filters.push({ column, values: [String(value)] })
+          return query
+        }),
+        in: vi.fn((column: string, values: string[]) => {
+          filters.push({ column, values: values.map(String) })
+          if (options.table) {
+            options.log?.inCalls.push({ table: options.table, column, values: values.map(String) })
+          }
+          return query
+        }),
+        is: vi.fn(() => query),
+        lte: vi.fn(() => query),
+        gte: vi.fn(() => query),
+        order: vi.fn(() => query),
+        range: vi.fn((from: number, to: number) => {
+          if (options.table) {
+            options.log?.rangeCalls.push({ table: options.table, from, to })
+          }
+          if (options.error) {
+            return Promise.resolve({ data: null, error: options.error })
+          }
+          return Promise.resolve({
+            data: filteredRows().slice(from, to + 1),
+            error: null,
+          })
+        }),
+        single: vi.fn(() => {
+          if (options.error) {
+            return Promise.resolve({ data: null, error: options.error })
+          }
+          const [row] = filteredRows()
+          return Promise.resolve({
+            data: row || null,
+            error: row ? null : { code: 'PGRST116' },
+          })
+        }),
+      }
+      return query
+    }),
+  }
+}
+
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
 }))
@@ -251,6 +321,40 @@ describe('cron nightly-log-summaries route', () => {
     expect(callOpenAIForSummary).not.toHaveBeenCalled()
   })
 
+  it('paginates active classroom discovery and chunks class-day lookups', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    const log = createQueryLog()
+    const classroomIds = Array.from({ length: 51 }, (_, index) => `classroom-${index + 1}`)
+    const activeEntries = Array.from({ length: 1001 }, (_, index) => ({
+      id: `entry-${index + 1}`,
+      classroom_id: classroomIds[index % classroomIds.length],
+    }))
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'entries') return mockPagedTable(activeEntries, { table, log })
+      if (table === 'class_days') return mockPagedTable([], { table, log })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/cron/nightly-log-summaries', {
+        headers: { Authorization: 'Bearer secret' },
+      })
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ status: 'ok', generated: 0, skipped: 0 })
+    expect(log.rangeCalls).toContainEqual({ table: 'entries', from: 0, to: 999 })
+    expect(log.rangeCalls).toContainEqual({ table: 'entries', from: 1000, to: 1999 })
+    const classDayChunks = log.inCalls
+      .filter((call) => call.table === 'class_days' && call.column === 'classroom_id')
+      .map((call) => call.values.length)
+    expect(classDayChunks).toContain(50)
+    expect(classDayChunks).toContain(1)
+    expect(classDayChunks.every((length) => length <= 50)).toBe(true)
+    expect(callOpenAIForSummary).not.toHaveBeenCalled()
+  })
+
   it('skips a classroom when the eligibility recheck no longer finds it active and in range', async () => {
     vi.stubEnv('CRON_SECRET', 'secret')
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
@@ -410,6 +514,7 @@ describe('cron nightly-log-summaries route', () => {
 
             const entryQuery: any = {
               eq: vi.fn(() => entryQuery),
+              in: vi.fn(() => entryQuery),
               is: vi.fn(() => entryQuery),
               lte: vi.fn(() => entryQuery),
               gte: vi.fn().mockResolvedValue({
@@ -532,6 +637,143 @@ describe('cron nightly-log-summaries route', () => {
     )
   })
 
+  it('chunks profile and scoped entry reads and excludes withdrawn-student entries', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    const log = createQueryLog()
+    const studentIds = Array.from({ length: 51 }, (_, index) => `student-${index + 1}`)
+    const activeEntries = [{ id: 'active-entry', classroom_id: 'classroom-1' }]
+    const classDays = [{ id: 'class-day-1', classroom_id: 'classroom-1', is_class_day: true }]
+    const entries = [
+      ...studentIds.flatMap((studentId) =>
+        Array.from({ length: 21 }, (_, index) => ({
+          id: `entry-${studentId}-${index + 1}`,
+          classroom_id: 'classroom-1',
+          student_id: studentId,
+          text: `${studentId} reflected on progress`,
+          rich_content: null,
+          updated_at: `2026-03-15T12:${String(index).padStart(2, '0')}:00.000Z`,
+        }))
+      ),
+      {
+        id: 'stale-entry',
+        classroom_id: 'classroom-1',
+        student_id: 'withdrawn-student',
+        text: 'Withdrawn Student should not be summarized',
+        rich_content: null,
+        updated_at: '2026-03-15T12:59:00.000Z',
+      },
+    ]
+    const enrollments = studentIds.map((studentId, index) => ({
+      id: `enrollment-${index + 1}`,
+      classroom_id: 'classroom-1',
+      student_id: studentId,
+    }))
+    const profiles = studentIds.map((studentId, index) => ({
+      id: `profile-${index + 1}`,
+      user_id: studentId,
+      first_name: `First${index + 1}`,
+      last_name: `Last${index + 1}`,
+    }))
+
+    const activeEntriesTable = mockPagedTable(activeEntries, { table: 'entries', log })
+    const detailEntriesTable = mockPagedTable(entries, { table: 'entries', log })
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'entries') {
+        return {
+          select: vi.fn((columns: string) =>
+            columns === 'classroom_id, classrooms!inner(archived_at,start_date,end_date)'
+              ? activeEntriesTable.select(columns)
+              : detailEntriesTable.select(columns)
+          ),
+        }
+      }
+      if (table === 'class_days') return mockPagedTable(classDays, { table, log })
+      if (table === 'classrooms') return mockPagedTable([{ id: 'classroom-1' }], { table, log })
+      if (table === 'classroom_enrollments') return mockPagedTable(enrollments, { table, log })
+      if (table === 'classroom_roster') return mockPagedTable([], { table, log })
+      if (table === 'student_profiles') return mockPagedTable(profiles, { table, log })
+      if (table === 'log_summaries') return { upsert: vi.fn().mockResolvedValue({ error: null }) }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/cron/nightly-log-summaries', {
+        headers: { Authorization: 'Bearer secret' },
+      })
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ status: 'ok', generated: 1, skipped: 0 })
+    expect(extractAndStoreDeveloperFeedbackCandidates).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        classroomId: 'classroom-1',
+        sourceEntryCount: 1071,
+      })
+    )
+    const entryStudentChunks = log.inCalls
+      .filter((call) => call.table === 'entries' && call.column === 'student_id')
+      .map((call) => call.values.length)
+    expect(entryStudentChunks).toContain(50)
+    expect(entryStudentChunks).toContain(1)
+    expect(entryStudentChunks.every((length) => length <= 50)).toBe(true)
+    const profileChunks = log.inCalls
+      .filter((call) => call.table === 'student_profiles' && call.column === 'user_id')
+      .map((call) => call.values.length)
+    expect(profileChunks).toContain(50)
+    expect(profileChunks).toContain(1)
+    expect(profileChunks.every((length) => length <= 50)).toBe(true)
+    expect(log.rangeCalls).toContainEqual({ table: 'entries', from: 1000, to: 1999 })
+  })
+
+  it('skips a classroom when student profile hydration fails', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const activeEntries = [{ id: 'active-entry', classroom_id: 'classroom-1' }]
+    const classDays = [{ id: 'class-day-1', classroom_id: 'classroom-1', is_class_day: true }]
+    const detailEntries = [{
+      id: 'entry-1',
+      classroom_id: 'classroom-1',
+      student_id: 'student-1',
+      text: 'Reflected on progress',
+      rich_content: null,
+      updated_at: '2026-03-15T12:00:00.000Z',
+    }]
+    const activeEntriesTable = mockPagedTable(activeEntries)
+    const detailEntriesTable = mockPagedTable(detailEntries)
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'entries') {
+        return {
+          select: vi.fn((columns: string) =>
+            columns === 'classroom_id, classrooms!inner(archived_at,start_date,end_date)'
+              ? activeEntriesTable.select(columns)
+              : detailEntriesTable.select(columns)
+          ),
+        }
+      }
+      if (table === 'class_days') return mockPagedTable(classDays)
+      if (table === 'classrooms') return mockPagedTable([{ id: 'classroom-1' }])
+      if (table === 'classroom_enrollments') {
+        return mockPagedTable([{ id: 'enrollment-1', classroom_id: 'classroom-1', student_id: 'student-1' }])
+      }
+      if (table === 'classroom_roster') return mockPagedTable([])
+      if (table === 'student_profiles') return mockPagedTable([], { error: { message: 'profiles failed' } })
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/cron/nightly-log-summaries', {
+        headers: { Authorization: 'Bearer secret' },
+      })
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ status: 'ok', generated: 0, skipped: 1 })
+    expect(callOpenAIForSummary).not.toHaveBeenCalled()
+    errorSpy.mockRestore()
+  })
+
   it('redacts full-roster names and direct identifiers before sending logs to OpenAI', async () => {
     vi.stubEnv('CRON_SECRET', 'secret')
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
@@ -553,6 +795,7 @@ describe('cron nightly-log-summaries route', () => {
 
             const entryQuery: any = {
               eq: vi.fn(() => entryQuery),
+              in: vi.fn(() => entryQuery),
               is: vi.fn(() => entryQuery),
               lte: vi.fn(() => entryQuery),
               gte: vi.fn().mockResolvedValue({

@@ -10,6 +10,7 @@ import { extractAssignmentArtifacts, type AssignmentArtifact } from '@/lib/assig
 import { buildAssignmentInstructionFields, getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getActiveAssignmentAiGradingRunSummary } from '@/lib/server/assignment-ai-grading-runs'
+import { chunkValues, loadChunkedRows, loadPagedRows } from '@/lib/server/query-chunks'
 import {
   ASSIGNMENT_SCHEDULE_DUE_DATE_ERROR,
   getFutureScheduledReleaseDueDateError,
@@ -26,9 +27,110 @@ import {
   removeAssignmentArtifactStorageObjects,
   replaceAssignmentSubmissionRequirements,
 } from '@/lib/server/assignment-submission-artifacts'
+import type { AssignmentDoc, AssignmentSubmissionArtifact } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+const ASSIGNMENT_DETAIL_PAGE_SIZE = 1000
+
+type AssignmentEnrollmentRow = {
+  id?: string
+  student_id: string
+  users: {
+    id: string
+    email: string
+  } | null
+}
+
+type AssignmentStudentProfileRow = {
+  user_id: string
+  first_name: string | null
+  last_name: string | null
+}
+
+type AssignmentDocHistoryRow = {
+  assignment_doc_id: string
+  created_at: string
+}
+
+async function loadAssignmentEnrollments(
+  supabase: any,
+  classroomId: string
+): Promise<{ rows: AssignmentEnrollmentRow[]; error: any }> {
+  return loadPagedRows<AssignmentEnrollmentRow>(() =>
+    supabase
+      .from('classroom_enrollments')
+      .select(`
+        id,
+        student_id,
+        users!inner (
+          id,
+          email
+        )
+      `)
+      .eq('classroom_id', classroomId),
+    ASSIGNMENT_DETAIL_PAGE_SIZE,
+    'id'
+  )
+}
+
+async function loadAssignmentStudentProfiles(
+  supabase: any,
+  studentIds: string[]
+): Promise<{ rows: AssignmentStudentProfileRow[]; error: any }> {
+  return loadChunkedRows<AssignmentStudentProfileRow>({
+    supabase,
+    table: 'student_profiles',
+    select: 'user_id, first_name, last_name',
+    filters: [{ column: 'user_id', values: studentIds }],
+    pageSize: ASSIGNMENT_DETAIL_PAGE_SIZE,
+    pageOrderColumn: 'user_id',
+  })
+}
+
+async function loadAssignmentDocsForStudents(
+  supabase: any,
+  assignmentId: string,
+  studentIds: string[]
+): Promise<{ rows: AssignmentDoc[]; error: any }> {
+  if (studentIds.length === 0) {
+    return { rows: [], error: null }
+  }
+
+  const rows: AssignmentDoc[] = []
+  for (const studentIdChunk of chunkValues(studentIds)) {
+    const result = await loadPagedRows<AssignmentDoc>(() =>
+      supabase
+        .from('assignment_docs')
+        .select('*')
+        .eq('assignment_id', assignmentId)
+        .in('student_id', studentIdChunk),
+      ASSIGNMENT_DETAIL_PAGE_SIZE,
+      'id'
+    )
+
+    if (result.error) {
+      return result
+    }
+    rows.push(...result.rows)
+  }
+
+  return { rows, error: null }
+}
+
+async function loadAssignmentDocHistoryRows(
+  supabase: any,
+  assignmentDocIds: string[]
+): Promise<{ rows: AssignmentDocHistoryRow[]; error: any }> {
+  return loadChunkedRows<AssignmentDocHistoryRow>({
+    supabase,
+    table: 'assignment_doc_history',
+    select: 'assignment_doc_id, created_at',
+    filters: [{ column: 'assignment_doc_id', values: assignmentDocIds }],
+    pageSize: ASSIGNMENT_DETAIL_PAGE_SIZE,
+  })
+}
 
 function mergeAssignmentArtifacts(
   structuredArtifacts: AssignmentArtifact[],
@@ -81,16 +183,10 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     )
   }
 
-  const { data: enrollments, error: enrollmentError } = await supabase
-    .from('classroom_enrollments')
-    .select(`
-      student_id,
-      users!inner (
-        id,
-        email
-      )
-    `)
-    .eq('classroom_id', assignment.classroom_id)
+  const { rows: enrollments, error: enrollmentError } = await loadAssignmentEnrollments(
+    supabase,
+    assignment.classroom_id
+  )
 
   if (enrollmentError) {
     console.error('Error fetching enrollments:', enrollmentError)
@@ -101,10 +197,15 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
   }
 
   const studentIds = enrollments?.map((enrollment) => enrollment.student_id) || []
-  const { data: profiles } = await supabase
-    .from('student_profiles')
-    .select('user_id, first_name, last_name')
-    .in('user_id', studentIds)
+  const { rows: profiles, error: profilesError } = await loadAssignmentStudentProfiles(supabase, studentIds)
+
+  if (profilesError) {
+    console.error('Error fetching student profiles:', profilesError)
+    return NextResponse.json(
+      { error: 'Failed to fetch student profiles' },
+      { status: 500 }
+    )
+  }
 
   const profileMap = new Map(
     profiles?.map((profile) => [
@@ -117,15 +218,29 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     ]) || []
   )
 
-  const { data: docs } = await supabase
-    .from('assignment_docs')
-    .select('*')
-    .eq('assignment_id', id)
+  const { rows: docs, error: docsError } = await loadAssignmentDocsForStudents(supabase, id, studentIds)
+
+  if (docsError) {
+    console.error('Error fetching assignment docs:', docsError)
+    return NextResponse.json(
+      { error: 'Failed to fetch assignment docs' },
+      { status: 500 }
+    )
+  }
 
   const docMap = new Map(docs?.map((doc) => [doc.student_id, doc]) || [])
   const docIds = (docs || []).map((doc) => doc.id)
   const submissionRequirements = await loadAssignmentSubmissionRequirements(supabase, id)
-  const structuredArtifacts = await loadAssignmentSubmissionArtifactsForDocs(supabase, docIds)
+  let structuredArtifacts: AssignmentSubmissionArtifact[]
+  try {
+    structuredArtifacts = await loadAssignmentSubmissionArtifactsForDocs(supabase, docIds)
+  } catch (error) {
+    console.error('Error fetching assignment submission artifacts:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch assignment submission artifacts' },
+      { status: 500 }
+    )
+  }
   const structuredArtifactsByDocId = new Map<string, typeof structuredArtifacts>()
   for (const artifact of structuredArtifacts) {
     const current = structuredArtifactsByDocId.get(artifact.assignment_doc_id) || []
@@ -135,10 +250,15 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
 
   const studentUpdatedAtByDocId = new Map<string, string>()
   if (docIds.length > 0) {
-    const { data: historyRows } = await supabase
-      .from('assignment_doc_history')
-      .select('assignment_doc_id, created_at')
-      .in('assignment_doc_id', docIds)
+    const { rows: historyRows, error: historyError } = await loadAssignmentDocHistoryRows(supabase, docIds)
+
+    if (historyError) {
+      console.error('Error fetching assignment doc history:', historyError)
+      return NextResponse.json(
+        { error: 'Failed to fetch assignment doc history' },
+        { status: 500 }
+      )
+    }
 
     for (const row of historyRows || []) {
       const existing = studentUpdatedAtByDocId.get(row.assignment_doc_id)

@@ -1,16 +1,58 @@
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom, getClassroomStudentIds } from '@/lib/server/classrooms'
 import {
   isMissingAssessmentDraftsError,
   validateQuizDraftContent,
   type QuizDraftContent,
 } from '@/lib/server/assessment-drafts'
 import { withErrorHandler } from '@/lib/api-handler'
+import { chunkValues, loadChunkedRows } from '@/lib/server/query-chunks'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+type QuizQuestionStatsRow = {
+  quiz_id: string
+}
+
+type QuizResponseStatsRow = {
+  quiz_id: string
+  student_id: string
+}
+
+const QUIZ_LIST_STATS_PAGE_SIZE = 1000
+
+async function loadQuizQuestionRows(
+  supabase: any,
+  quizIds: string[]
+): Promise<{ rows: QuizQuestionStatsRow[]; error: any }> {
+  return loadChunkedRows<QuizQuestionStatsRow>({
+    supabase,
+    table: 'quiz_questions',
+    select: 'quiz_id',
+    filters: [{ column: 'quiz_id', values: quizIds }],
+    pageSize: QUIZ_LIST_STATS_PAGE_SIZE,
+  })
+}
+
+async function loadQuizResponseRows(
+  supabase: any,
+  quizIds: string[],
+  studentIds: string[]
+): Promise<{ rows: QuizResponseStatsRow[]; error: any }> {
+  return loadChunkedRows<QuizResponseStatsRow>({
+    supabase,
+    table: 'quiz_responses',
+    select: 'quiz_id, student_id',
+    filters: [
+      { column: 'quiz_id', values: quizIds },
+      { column: 'student_id', values: studentIds },
+    ],
+    pageSize: QUIZ_LIST_STATS_PAGE_SIZE,
+  })
+}
 
 // GET /api/teacher/quizzes?classroom_id=xxx - List quizzes for a classroom
 export const GET = withErrorHandler('GetTeacherQuizzes', async (request) => {
@@ -47,19 +89,22 @@ export const GET = withErrorHandler('GetTeacherQuizzes', async (request) => {
     return NextResponse.json({ error: 'Failed to fetch quizzes' }, { status: 500 })
   }
 
-  const { count: totalStudents } = await supabase
-    .from('classroom_enrollments')
-    .select('*', { count: 'exact', head: true })
-    .eq('classroom_id', classroomId)
+  const classroomStudentsResult = await getClassroomStudentIds(supabase, classroomId)
+  if (classroomStudentsResult.error) {
+    console.error('Error fetching classroom enrollments:', classroomStudentsResult.error)
+    return NextResponse.json({ error: 'Failed to fetch classroom enrollments' }, { status: 500 })
+  }
 
   const quizIds = (quizzes || []).map((q) => q.id)
 
   const questionCountMap: Record<string, number> = {}
   if (quizIds.length > 0) {
-    const { data: questionRows } = await supabase
-      .from('quiz_questions')
-      .select('quiz_id')
-      .in('quiz_id', quizIds)
+    const { rows: questionRows, error: questionRowsError } = await loadQuizQuestionRows(supabase, quizIds)
+
+    if (questionRowsError) {
+      console.error('Error fetching quiz question stats:', questionRowsError)
+      return NextResponse.json({ error: 'Failed to fetch quiz question stats' }, { status: 500 })
+    }
 
     for (const row of questionRows || []) {
       questionCountMap[row.quiz_id] = (questionCountMap[row.quiz_id] || 0) + 1
@@ -67,14 +112,20 @@ export const GET = withErrorHandler('GetTeacherQuizzes', async (request) => {
   }
 
   const respondentCountMap: Record<string, number> = {}
-  if (quizIds.length > 0) {
-    const { data: responseRows } = await supabase
-      .from('quiz_responses')
-      .select('quiz_id, student_id')
-      .in('quiz_id', quizIds)
+  if (quizIds.length > 0 && classroomStudentsResult.studentIds.length > 0) {
+    const {
+      rows: responseRows,
+      error: responseRowsError,
+    } = await loadQuizResponseRows(supabase, quizIds, classroomStudentsResult.studentIds)
+
+    if (responseRowsError) {
+      console.error('Error fetching quiz response stats:', responseRowsError)
+      return NextResponse.json({ error: 'Failed to fetch quiz response stats' }, { status: 500 })
+    }
 
     const seen: Record<string, Set<string>> = {}
     for (const row of responseRows || []) {
+      if (!classroomStudentsResult.studentIdSet.has(row.student_id)) continue
       if (!seen[row.quiz_id]) seen[row.quiz_id] = new Set()
       seen[row.quiz_id].add(row.student_id)
     }
@@ -85,24 +136,26 @@ export const GET = withErrorHandler('GetTeacherQuizzes', async (request) => {
 
   const draftByQuizId: Record<string, QuizDraftContent> = {}
   if (quizIds.length > 0) {
-    try {
-      const { data: draftRows, error: draftError } = await supabase
-        .from('assessment_drafts')
-        .select('assessment_id, content')
-        .eq('assessment_type', 'quiz')
-        .in('assessment_id', quizIds)
+    for (const quizIdChunk of chunkValues(quizIds)) {
+      try {
+        const { data: draftRows, error: draftError } = await supabase
+          .from('assessment_drafts')
+          .select('assessment_id, content')
+          .eq('assessment_type', 'quiz')
+          .in('assessment_id', quizIdChunk)
 
-      if (draftError && !isMissingAssessmentDraftsError(draftError)) {
-        console.error('Error fetching quiz draft overlays:', draftError)
-      }
+        if (draftError && !isMissingAssessmentDraftsError(draftError)) {
+          console.error('Error fetching quiz draft overlays:', draftError)
+        }
 
-      for (const row of draftRows || []) {
-        const parsed = validateQuizDraftContent(row.content)
-        if (!parsed.valid) continue
-        draftByQuizId[row.assessment_id] = parsed.value
+        for (const row of draftRows || []) {
+          const parsed = validateQuizDraftContent(row.content)
+          if (!parsed.valid) continue
+          draftByQuizId[row.assessment_id] = parsed.value
+        }
+      } catch {
+        // Older test mocks may not implement this table query yet.
       }
-    } catch {
-      // Older test mocks may not implement this table query yet.
     }
   }
 
@@ -112,7 +165,7 @@ export const GET = withErrorHandler('GetTeacherQuizzes', async (request) => {
     show_results: draftByQuizId[quiz.id]?.show_results ?? quiz.show_results,
     assessment_type: 'quiz' as const,
     stats: {
-      total_students: totalStudents || 0,
+      total_students: classroomStudentsResult.totalStudents,
       responded: respondentCountMap[quiz.id] || 0,
       questions_count: (draftByQuizId[quiz.id]?.questions.length ?? questionCountMap[quiz.id]) || 0,
     },

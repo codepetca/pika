@@ -1,5 +1,20 @@
 import { getServiceRoleClient } from '@/lib/supabase'
+import { validateClassroomStudentIds } from '@/lib/server/classroom-enrollment-validation'
 import type { QuizStatus, TestStudentAvailabilityState } from '@/types'
+
+type PostgrestErrorLike = {
+  code?: string
+  message?: string
+  details?: string | null
+  hint?: string | null
+}
+
+function getPostgrestErrorText(error: PostgrestErrorLike): string {
+  const message = String(error.message ?? '')
+  const details = String(error.details ?? '')
+  const hint = String(error.hint ?? '')
+  return `${message} ${details} ${hint}`.toLowerCase()
+}
 
 export type TestAccessRecord = {
   id: string
@@ -33,26 +48,7 @@ export async function validateSelectedTestStudentEnrollment(
   | { ok: true; enrolledStudentIds: Set<string>; missingStudentIds: string[] }
   | { ok: false; error: unknown }
 > {
-  const { data: enrollmentRows, error } = await supabase
-    .from('classroom_enrollments')
-    .select('student_id')
-    .eq('classroom_id', classroomId)
-    .in('student_id', studentIds)
-
-  if (error) {
-    return { ok: false, error }
-  }
-
-  const enrolledStudentIds = new Set<string>(
-    ((enrollmentRows || []) as Array<{ student_id: unknown }>)
-      .map((row) => row.student_id)
-      .filter((studentId): studentId is string => typeof studentId === 'string'),
-  )
-  return {
-    ok: true,
-    enrolledStudentIds,
-    missingStudentIds: studentIds.filter((studentId) => !enrolledStudentIds.has(studentId)),
-  }
+  return validateClassroomStudentIds(supabase, classroomId, studentIds)
 }
 
 export type EffectiveStudentTestAccess = {
@@ -107,7 +103,7 @@ export function isMissingTestAttemptClosureColumnsError(error: {
   hint?: string | null
 } | null | undefined): boolean {
   if (!error) return false
-  const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
+  const combined = getPostgrestErrorText(error)
   return (
     (error.code === 'PGRST204' || error.code === '42703') &&
     combined.includes('closed_for_grading')
@@ -121,7 +117,7 @@ export function isMissingTestStudentAvailabilityError(error: {
   hint?: string | null
 } | null | undefined): boolean {
   if (!error) return false
-  const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
+  const combined = getPostgrestErrorText(error)
   return (
     error.code === 'PGRST205' ||
     error.code === '42P01' ||
@@ -202,7 +198,7 @@ export function isMissingTestAttemptReturnColumnsError(error: {
   hint?: string | null
 } | null | undefined): boolean {
   if (!error) return false
-  const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
+  const combined = getPostgrestErrorText(error)
   if (!combined.includes('returned_at') && !combined.includes('returned_by')) return false
   return error.code === '42703' || error.code === 'PGRST204' || combined.includes('column')
 }
@@ -214,7 +210,7 @@ export function isMissingTestResponseAiColumnsError(error: {
   hint?: string | null
 } | null | undefined): boolean {
   if (!error) return false
-  const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
+  const combined = getPostgrestErrorText(error)
   const mentionsAiColumn =
     combined.includes('ai_grading_basis') ||
     combined.includes('ai_reference_answers') ||

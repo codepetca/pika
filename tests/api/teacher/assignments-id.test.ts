@@ -91,6 +91,151 @@ function makeImageArtifactsTable(paths: string[]) {
   }
 }
 
+type QueryLog = {
+  eqCalls: Array<{ table: string; column: string; value: string }>
+  inCalls: Array<{ table: string; column: string; values: string[] }>
+  orderCalls: Array<{ table: string; column: string }>
+  rangeCalls: Array<{ table: string; from: number; to: number }>
+}
+
+function createQueryLog(): QueryLog {
+  return { eqCalls: [], inCalls: [], orderCalls: [], rangeCalls: [] }
+}
+
+function mockPagedTable(
+  rows: Array<Record<string, any>>,
+  options: {
+    table?: string
+    log?: QueryLog
+    error?: any
+  } = {},
+) {
+  return {
+    select: vi.fn(() => {
+      const filters: Array<{ column: string; values: string[] }> = []
+      const filteredRows = () => rows.filter((row) =>
+        filters.every((filter) => {
+          if (!(filter.column in row)) return false
+          return filter.values.includes(String(row[filter.column]))
+        })
+      )
+      const query: any = {
+        eq: vi.fn((column: string, value: string) => {
+          filters.push({ column, values: [String(value)] })
+          if (options.table) {
+            options.log?.eqCalls.push({ table: options.table, column, value: String(value) })
+          }
+          return query
+        }),
+        in: vi.fn((column: string, values: string[]) => {
+          filters.push({ column, values: values.map(String) })
+          if (options.table) {
+            options.log?.inCalls.push({ table: options.table, column, values: values.map(String) })
+          }
+          return query
+        }),
+        order: vi.fn((column: string) => {
+          if (options.table) {
+            options.log?.orderCalls.push({ table: options.table, column })
+          }
+          return query
+        }),
+        range: vi.fn((from: number, to: number) => {
+          if (options.table) {
+            options.log?.rangeCalls.push({ table: options.table, from, to })
+          }
+          if (options.error) {
+            return Promise.resolve({ data: null, error: options.error })
+          }
+          return Promise.resolve({
+            data: filteredRows().slice(from, to + 1),
+            error: null,
+          })
+        }),
+      }
+      return query
+    }),
+  }
+}
+
+function makeAssignmentDoc(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'doc-1',
+    assignment_id: 'a-1',
+    student_id: 'student-1',
+    content: { type: 'doc', content: [] },
+    is_submitted: false,
+    submitted_at: null,
+    updated_at: '2026-03-10T09:30:00.000Z',
+    score_completion: null,
+    score_thinking: null,
+    score_workflow: null,
+    graded_at: null,
+    returned_at: null,
+    ...overrides,
+  }
+}
+
+function mockAssignmentDetailTables(options: {
+  assignment?: Record<string, any>
+  enrollments?: Array<Record<string, any>>
+  profiles?: Array<Record<string, any>>
+  docs?: Array<Record<string, any>>
+  requirements?: unknown[]
+  artifacts?: Array<Record<string, any>>
+  historyRows?: Array<Record<string, any>>
+  errors?: Record<string, any>
+  log?: QueryLog
+} = {}) {
+  const assignment = options.assignment ?? makeAssignment({
+    classroom_id: 'classroom-1',
+    classrooms: {
+      id: 'classroom-1',
+      teacher_id: 'teacher-1',
+      title: 'Test Classroom',
+      archived_at: null,
+    },
+  })
+  const enrollments = options.enrollments ?? [
+    {
+      id: 'enrollment-1',
+      classroom_id: 'classroom-1',
+      student_id: 'student-1',
+      users: { id: 'student-1', email: 'student1@example.com' },
+    },
+  ]
+  const profiles = options.profiles ?? [
+    { user_id: 'student-1', first_name: 'Alex', last_name: 'Lee' },
+  ]
+  const docs = options.docs ?? [makeAssignmentDoc()]
+  const requirements = options.requirements ?? []
+  const artifacts = options.artifacts ?? []
+  const historyRows = options.historyRows ?? []
+
+  return vi.fn((table: string) => {
+    if (table === 'assignments') return makeAssignmentSelectTable(assignment)
+    if (table === 'classroom_enrollments') {
+      return mockPagedTable(enrollments, { table, log: options.log, error: options.errors?.[table] })
+    }
+    if (table === 'student_profiles') {
+      return mockPagedTable(profiles, { table, log: options.log, error: options.errors?.[table] })
+    }
+    if (table === 'assignment_docs') {
+      return mockPagedTable(docs, { table, log: options.log, error: options.errors?.[table] })
+    }
+    if (table === 'assignment_submission_requirements') {
+      return makeRequirementsTable(requirements)
+    }
+    if (table === 'assignment_submission_artifacts') {
+      return mockPagedTable(artifacts, { table, log: options.log, error: options.errors?.[table] })
+    }
+    if (table === 'assignment_doc_history') {
+      return mockPagedTable(historyRows, { table, log: options.log, error: options.errors?.[table] })
+    }
+    throw new Error(`Unexpected table: ${table}`)
+  })
+}
+
 describe('GET /api/teacher/assignments/[id]', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
@@ -150,91 +295,65 @@ describe('GET /api/teacher/assignments/[id]', () => {
       }
 
       if (table === 'classroom_enrollments') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  student_id: 'student-1',
-                  users: { id: 'student-1', email: 'student1@example.com' },
-                },
-              ],
-              error: null,
-            }),
-          })),
-        }
+        return mockPagedTable([
+          {
+            id: 'enrollment-1',
+            classroom_id: 'classroom-1',
+            student_id: 'student-1',
+            users: { id: 'student-1', email: 'student1@example.com' },
+          },
+        ])
       }
 
       if (table === 'student_profiles') {
-        return {
-          select: vi.fn(() => ({
-            in: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  user_id: 'student-1',
-                  first_name: 'Alex',
-                  last_name: 'Lee',
-                },
-              ],
-              error: null,
-            }),
-          })),
-        }
+        return mockPagedTable([
+          {
+            user_id: 'student-1',
+            first_name: 'Alex',
+            last_name: 'Lee',
+          },
+        ])
       }
 
       if (table === 'assignment_docs') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [
+        return mockPagedTable([
+          {
+            id: 'doc-1',
+            assignment_id: 'a-1',
+            student_id: 'student-1',
+            content: {
+              type: 'doc',
+              content: [
                 {
-                  id: 'doc-1',
-                  assignment_id: 'a-1',
-                  student_id: 'student-1',
-                  content: {
-                    type: 'doc',
-                    content: [
-                      {
-                        type: 'paragraph',
-                        content: [
-                          {
-                            type: 'text',
-                            text: 'Source https://example.com/resource',
-                            marks: [{ type: 'link', attrs: { href: 'mailto:nope@example.com' } }],
-                          },
-                        ],
-                      },
-                      {
-                        type: 'image',
-                        attrs: { src: 'https://cdn.example.com/submission-images/shot.png' },
-                      },
-                    ],
-                  },
-                  is_submitted: true,
-                  submitted_at: submittedAt,
-                  updated_at: updatedAt,
-                  score_completion: 9,
-                  score_thinking: 8,
-                  score_workflow: 7,
-                  graded_at: '2026-03-10T12:00:00.000Z',
-                  returned_at: null,
+                  type: 'paragraph',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Source https://example.com/resource',
+                      marks: [{ type: 'link', attrs: { href: 'mailto:nope@example.com' } }],
+                    },
+                  ],
+                },
+                {
+                  type: 'image',
+                  attrs: { src: 'https://cdn.example.com/submission-images/shot.png' },
                 },
               ],
-              error: null,
-            }),
-          })),
-        }
+            },
+            is_submitted: true,
+            submitted_at: submittedAt,
+            updated_at: updatedAt,
+            score_completion: 9,
+            score_thinking: 8,
+            score_workflow: 7,
+            graded_at: '2026-03-10T12:00:00.000Z',
+            returned_at: null,
+          },
+        ])
       }
 
       if (table === 'assignment_doc_history') {
-        return {
-          select: vi.fn(() => ({
-            in: vi.fn().mockResolvedValue({
-              data: [{ assignment_doc_id: 'doc-1', created_at: historyCreatedAt }],
-              error: null,
-            }),
-          })),
-        }
+        return mockPagedTable([{ assignment_doc_id: 'doc-1', created_at: historyCreatedAt }])
       }
 
       if (table === 'assignment_submission_requirements') {
@@ -272,64 +391,57 @@ describe('GET /api/teacher/assignments/[id]', () => {
       }
 
       if (table === 'assignment_submission_artifacts') {
-        return {
-          select: vi.fn(() => ({
-            in: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  id: 'artifact-1',
-                  assignment_doc_id: 'doc-1',
-                  requirement_id: 'req-1',
-                  student_id: 'student-1',
-                  type: 'link',
-                  url: 'https://example.com/resource',
-                  storage_path: null,
-                  metadata_json: {},
-                  validation_status: 'valid',
-                  validation_message: null,
-                  validated_at: '2026-03-10T09:35:00.000Z',
-                  created_at: '2026-03-10T09:35:00.000Z',
-                  updated_at: '2026-03-10T09:35:00.000Z',
-                },
-                {
-                  id: 'artifact-2',
-                  assignment_doc_id: 'doc-1',
-                  requirement_id: 'req-2',
-                  student_id: 'student-1',
-                  type: 'link',
-                  url: 'https://example.com/resource',
-                  storage_path: null,
-                  metadata_json: {},
-                  validation_status: 'valid',
-                  validation_message: null,
-                  validated_at: '2026-03-10T09:35:00.000Z',
-                  created_at: '2026-03-10T09:35:00.000Z',
-                  updated_at: '2026-03-10T09:35:00.000Z',
-                },
-                {
-                  id: 'artifact-3',
-                  assignment_doc_id: 'doc-1',
-                  requirement_id: 'req-3',
-                  student_id: 'student-1',
-                  type: 'repo_link',
-                  url: 'https://github.com/codepetca/pika',
-                  storage_path: null,
-                  metadata_json: {
-                    repo_owner: 'codepetca',
-                    repo_name: 'pika',
-                    normalized_url: 'https://github.com/codepetca/pika',
-                  },
-                  validation_status: 'valid',
-                  validation_message: null,
-                  validated_at: '2026-03-10T09:35:00.000Z',
-                  created_at: '2026-03-10T09:35:00.000Z',
-                  updated_at: '2026-03-10T09:35:00.000Z',
-                },
-              ],
-              error: null,
-            }),
-          })),
-        }
+        return mockPagedTable([
+          {
+            id: 'artifact-1',
+            assignment_doc_id: 'doc-1',
+            requirement_id: 'req-1',
+            student_id: 'student-1',
+            type: 'link',
+            url: 'https://example.com/resource',
+            storage_path: null,
+            metadata_json: {},
+            validation_status: 'valid',
+            validation_message: null,
+            validated_at: '2026-03-10T09:35:00.000Z',
+            created_at: '2026-03-10T09:35:00.000Z',
+            updated_at: '2026-03-10T09:35:00.000Z',
+          },
+          {
+            id: 'artifact-2',
+            assignment_doc_id: 'doc-1',
+            requirement_id: 'req-2',
+            student_id: 'student-1',
+            type: 'link',
+            url: 'https://example.com/resource',
+            storage_path: null,
+            metadata_json: {},
+            validation_status: 'valid',
+            validation_message: null,
+            validated_at: '2026-03-10T09:35:00.000Z',
+            created_at: '2026-03-10T09:35:00.000Z',
+            updated_at: '2026-03-10T09:35:00.000Z',
+          },
+          {
+            id: 'artifact-3',
+            assignment_doc_id: 'doc-1',
+            requirement_id: 'req-3',
+            student_id: 'student-1',
+            type: 'repo_link',
+            url: 'https://github.com/codepetca/pika',
+            storage_path: null,
+            metadata_json: {
+              repo_owner: 'codepetca',
+              repo_name: 'pika',
+              normalized_url: 'https://github.com/codepetca/pika',
+            },
+            validation_status: 'valid',
+            validation_message: null,
+            validated_at: '2026-03-10T09:35:00.000Z',
+            created_at: '2026-03-10T09:35:00.000Z',
+            updated_at: '2026-03-10T09:35:00.000Z',
+          },
+        ])
       }
 
       throw new Error(`Unexpected table: ${table}`)
@@ -390,6 +502,97 @@ describe('GET /api/teacher/assignments/[id]', () => {
     })
     expect(data.students[0].doc).not.toHaveProperty('content')
     expect(data.active_ai_grading_run).toBeNull()
+  })
+
+  it('pages and chunks detail reads while ignoring unenrolled assignment docs', async () => {
+    const studentIds = Array.from({ length: 1001 }, (_, index) => `student-${index}`)
+    const enrollments = studentIds.map((studentId, index) => ({
+      id: `enrollment-${index.toString().padStart(4, '0')}`,
+      classroom_id: 'classroom-1',
+      student_id: studentId,
+      users: { id: studentId, email: `${studentId}@example.com` },
+    }))
+    const profiles = studentIds.map((studentId, index) => ({
+      user_id: studentId,
+      first_name: 'Student',
+      last_name: index.toString().padStart(4, '0'),
+    }))
+    const docs = [
+      ...studentIds.map((studentId, index) =>
+        makeAssignmentDoc({
+          id: `doc-${index}`,
+          student_id: studentId,
+          updated_at: `2026-03-10T09:${String(index % 60).padStart(2, '0')}:00.000Z`,
+        })
+      ),
+      makeAssignmentDoc({
+        id: 'removed-doc',
+        student_id: 'removed-student',
+        updated_at: '2026-03-10T10:00:00.000Z',
+      }),
+    ]
+    const historyRows = Array.from({ length: 1001 }, (_, index) => ({
+      assignment_doc_id: 'doc-0',
+      created_at: `2026-03-10T10:${String(index % 60).padStart(2, '0')}:00.000Z`,
+    }))
+    const log = createQueryLog()
+    ;(mockSupabaseClient.from as any) = mockAssignmentDetailTables({
+      enrollments,
+      profiles,
+      docs,
+      historyRows,
+      log,
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a-1')
+    const response = await GET(request, { params: { id: 'a-1' } })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.students).toHaveLength(1001)
+    expect(data.students.some((student: any) => student.student_id === 'removed-student')).toBe(false)
+    expect(data.students.find((student: any) => student.student_id === 'student-1000')?.doc?.updated_at)
+      .toBe('2026-03-10T09:40:00.000Z')
+
+    expect(log.rangeCalls.filter((call) => call.table === 'classroom_enrollments')).toEqual([
+      { table: 'classroom_enrollments', from: 0, to: 999 },
+      { table: 'classroom_enrollments', from: 1000, to: 1999 },
+    ])
+
+    const profileInCalls = log.inCalls.filter((call) => call.table === 'student_profiles')
+    expect(profileInCalls).toHaveLength(21)
+    expect(profileInCalls[0].values).toHaveLength(50)
+    expect(profileInCalls[20].values).toHaveLength(1)
+
+    const docStudentIds = log.inCalls
+      .filter((call) => call.table === 'assignment_docs')
+      .flatMap((call) => call.values)
+    expect(docStudentIds).toContain('student-1000')
+    expect(docStudentIds).not.toContain('removed-student')
+
+    expect(log.rangeCalls.filter((call) => call.table === 'assignment_doc_history').slice(0, 2)).toEqual([
+      { table: 'assignment_doc_history', from: 0, to: 999 },
+      { table: 'assignment_doc_history', from: 1000, to: 1999 },
+    ])
+  })
+
+  it.each([
+    ['student_profiles', 'Failed to fetch student profiles'],
+    ['assignment_docs', 'Failed to fetch assignment docs'],
+    ['assignment_doc_history', 'Failed to fetch assignment doc history'],
+  ])('returns 500 when %s cannot be read', async (failingTable, expectedError) => {
+    ;(mockSupabaseClient.from as any) = mockAssignmentDetailTables({
+      errors: {
+        [failingTable]: { message: `${failingTable} failed` },
+      },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a-1')
+    const response = await GET(request, { params: { id: 'a-1' } })
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe(expectedError)
   })
 })
 

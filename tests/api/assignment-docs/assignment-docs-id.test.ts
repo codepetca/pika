@@ -100,6 +100,64 @@ describe('GET /api/assignment-docs/[id]', () => {
     expect(response.status).toBe(200)
     expect(data.doc.id).toBe('doc-new')
   })
+
+  it('refreshes viewed_at when returned feedback is newer than the last view', async () => {
+    const viewedUpdate = vi.fn(() => ({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    }))
+    const existingDoc = {
+      id: 'doc-1',
+      assignment_id: 'assign-1',
+      student_id: 'student-1',
+      content: { type: 'doc', content: [] },
+      viewed_at: '2026-01-01T00:00:00.000Z',
+      returned_at: null,
+      feedback_returned_at: '2026-01-02T00:00:00.000Z',
+    }
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'assign-1', classroom_id: 'class-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({ data: existingDoc, error: null }),
+          })),
+          update: viewedUpdate,
+        }
+      }
+      if (table === 'assignment_feedback_entries') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockReturnThis(),
+            then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
+          })),
+        }
+      }
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-1')
+    const response = await GET(request, { params: { id: 'assign-1' } })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.wasFirstView).toBe(true)
+    expect(viewedUpdate).toHaveBeenCalledWith({
+      viewed_at: expect.stringMatching(/^20/),
+    })
+  })
 })
 
 describe('PATCH /api/assignment-docs/[id]', () => {

@@ -48,6 +48,27 @@ describe('StudentQuizForm preview mode', () => {
     expect(onSubmitted).not.toHaveBeenCalled()
   })
 
+  it('labels open-response textboxes for assistive technology', () => {
+    render(
+      <StudentQuizForm
+        quizId="test-open-response-label-id"
+        questions={[
+          createMockQuizQuestion({
+            id: 'q1',
+            question_text: 'Explain your reasoning.',
+            options: [],
+            question_type: 'open_response',
+            position: 0,
+          }),
+        ]}
+        assessmentType="test"
+        previewMode
+      />
+    )
+
+    expect(screen.getByRole('textbox', { name: 'Response for question 1' })).toBeInTheDocument()
+  })
+
   it('flags and unfags a question', async () => {
     const onSubmitted = vi.fn()
 

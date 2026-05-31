@@ -84,18 +84,37 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
     teacherId: user.id,
   })
 
-  const { data: docs, error: docsError } = await supabase
-    .from('assignment_docs')
-    .select('*')
-    .eq('assignment_id', id)
+  const { data: selectedEnrollments, error: enrollmentError } = await supabase
+    .from('classroom_enrollments')
+    .select('student_id')
+    .eq('classroom_id', assignment.classroom_id)
     .in('student_id', student_ids)
 
-  if (docsError) {
-    console.error('Error loading docs for return:', docsError)
-    return NextResponse.json({ error: 'Failed to load docs for return' }, { status: 500 })
+  if (enrollmentError) {
+    console.error('Error loading enrollments for return:', enrollmentError)
+    return NextResponse.json({ error: 'Failed to load enrollments for return' }, { status: 500 })
   }
 
-  const existingDocs = docs || []
+  const enrolledStudentIds = new Set((selectedEnrollments || []).map((enrollment) => enrollment.student_id))
+  const selectedEnrolledStudentIds = student_ids.filter((studentId) => enrolledStudentIds.has(studentId))
+  const unavailableStudentIds = student_ids.filter((studentId) => !enrolledStudentIds.has(studentId))
+
+  let existingDocs: any[] = []
+  if (selectedEnrolledStudentIds.length > 0) {
+    const { data: docs, error: docsError } = await supabase
+      .from('assignment_docs')
+      .select('*')
+      .eq('assignment_id', id)
+      .in('student_id', selectedEnrolledStudentIds)
+
+    if (docsError) {
+      console.error('Error loading docs for return:', docsError)
+      return NextResponse.json({ error: 'Failed to load docs for return' }, { status: 500 })
+    }
+
+    existingDocs = (docs || []).filter((doc) => enrolledStudentIds.has(doc.student_id))
+  }
+
   const blockedDocs = existingDocs.filter((doc) => getAssignmentRubricState(doc) === 'partial')
   const nonPartialDocs = existingDocs.filter((doc) => getAssignmentRubricState(doc) !== 'partial')
   const alreadyReturnedDocs = nonPartialDocs.filter((doc) => isAssignmentAlreadyReturnedWithoutResubmission(doc))
@@ -104,12 +123,12 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
   const returnableStudentIds = returnableDocs.map((doc) => doc.student_id)
   const alreadyReturnedStudentIds = alreadyReturnedDocs.map((doc) => doc.student_id)
   const blockedStudentIds = blockedDocs.map((doc) => doc.student_id)
-  const missingStudentIds = student_ids.filter((studentId) => !existingStudentIds.has(studentId))
+  const missingStudentIds = selectedEnrolledStudentIds.filter((studentId) => !existingStudentIds.has(studentId))
 
   const now = new Date().toISOString()
   let mailboxTrackingAvailable = true
   let createdStudentIds: string[] = []
-  let uncreatedMissingStudentIds: string[] = missingStudentIds
+  const uncreatedMissingStudentIds = unavailableStudentIds
 
   if (returnableDocs.length > 0) {
     let updateError = await updateAssignmentDocsForStudents({
@@ -173,20 +192,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
   }
 
   if (missingStudentIds.length > 0) {
-    const { data: enrollments, error: enrollmentError } = await supabase
-      .from('classroom_enrollments')
-      .select('student_id')
-      .eq('classroom_id', assignment.classroom_id)
-      .in('student_id', missingStudentIds)
-
-    if (enrollmentError) {
-      console.error('Error loading enrollments for return:', enrollmentError)
-      return NextResponse.json({ error: 'Failed to load enrollments for return' }, { status: 500 })
-    }
-
-    const enrolledMissingStudentIds = new Set((enrollments || []).map((enrollment) => enrollment.student_id))
-    createdStudentIds = missingStudentIds.filter((studentId) => enrolledMissingStudentIds.has(studentId))
-    uncreatedMissingStudentIds = missingStudentIds.filter((studentId) => !enrolledMissingStudentIds.has(studentId))
+    createdStudentIds = missingStudentIds
 
     if (createdStudentIds.length > 0) {
       let insertError = await insertZeroReturnedAssignmentDocsForStudents({
@@ -236,6 +242,8 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
     already_returned_student_ids: alreadyReturnedStudentIds,
     missing_count: missingCount,
     missing_student_ids: uncreatedMissingStudentIds,
+    not_enrolled_count: unavailableStudentIds.length,
+    not_enrolled_student_ids: unavailableStudentIds,
     mailbox_tracking_available: mailboxTrackingAvailable,
   })
 })

@@ -67,7 +67,7 @@ describe('TeacherSurveyWorkspace', () => {
       />
     )
 
-    const editor = await screen.findByTestId('survey-markdown-editor')
+    const editor = await screen.findByLabelText('Survey markdown editor')
     const editorValue = (editor as HTMLTextAreaElement).value
 
     expect(editorValue).toContain('# Survey')

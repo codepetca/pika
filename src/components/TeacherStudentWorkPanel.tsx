@@ -8,7 +8,11 @@ import { RichTextViewer } from '@/components/editor'
 import { TeacherWorkInspector } from '@/components/assignment-workspace/TeacherWorkInspector'
 import { useTeacherStudentWorkController } from '@/components/assignment-workspace/useTeacherStudentWorkController'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
-import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
+import {
+  DEFAULT_REQUIREMENT_LABELS,
+  getSubmissionRequirementCompletion,
+  submissionArtifactsToAssignmentArtifacts,
+} from '@/lib/assignment-submission-requirements'
 import { summarizeArtifactUrl, type AssignmentArtifact } from '@/lib/assignment-artifacts'
 import {
   ASSIGNMENT_GRADING_LAYOUT,
@@ -19,6 +23,7 @@ import {
 } from '@/lib/assignment-grading-layout'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
 import type { InspectorSectionId } from '@/components/assignment-workspace/types'
+import type { AssignmentSubmissionArtifact, AssignmentSubmissionRequirement } from '@/types'
 
 interface TeacherStudentWorkPanelProps {
   classroomId: string
@@ -53,9 +58,15 @@ export interface TeacherAssignmentGradeTemplate {
   gradeMode: 'draft' | 'graded'
 }
 
-function SubmittedArtifactsList({ artifacts }: { artifacts: AssignmentArtifact[] }) {
-  if (artifacts.length === 0) return null
-
+function RequiredSubmissionsList({
+  artifacts,
+  rawArtifacts,
+  requirements,
+}: {
+  artifacts: AssignmentArtifact[]
+  rawArtifacts: AssignmentSubmissionArtifact[]
+  requirements: AssignmentSubmissionRequirement[]
+}) {
   function getArtifactFallbackLabel(artifact: AssignmentArtifact) {
     if (artifact.type === 'repo') return 'Repo link'
     if (artifact.type === 'image') return 'Image'
@@ -72,14 +83,12 @@ function SubmittedArtifactsList({ artifacts }: { artifacts: AssignmentArtifact[]
     return artifact.title?.trim() || getArtifactFallbackLabel(artifact)
   }
 
-  function isRequiredSubmissionArtifact(artifact: AssignmentArtifact) {
-    return artifact.is_required_submission === true
+  function getRequirementTitle(requirement: AssignmentSubmissionRequirement) {
+    return requirement.label?.trim() || DEFAULT_REQUIREMENT_LABELS[requirement.type]
   }
 
-  function getSubmissionArtifactStatusLabel(artifact: AssignmentArtifact) {
-    if (isRequiredSubmissionArtifact(artifact)) return 'Required submission'
-    if (artifact.requirement_id) return 'Optional submission'
-    return null
+  function isRequiredSubmissionArtifact(artifact: AssignmentArtifact) {
+    return artifact.is_required_submission === true
   }
 
   function SubmittedArtifactIcon({ artifact }: { artifact: AssignmentArtifact }) {
@@ -92,62 +101,107 @@ function SubmittedArtifactsList({ artifacts }: { artifacts: AssignmentArtifact[]
     return <Link2 className={className} aria-hidden="true" />
   }
 
+  function RequirementIcon({ requirement }: { requirement: AssignmentSubmissionRequirement }) {
+    const className = 'h-4 w-4 text-text-muted'
+    if (requirement.type === 'repo_link') return <FolderGit2 className={className} aria-hidden="true" />
+    if (requirement.type === 'image') return <ImageIcon className={className} aria-hidden="true" />
+    return <Link2 className={className} aria-hidden="true" />
+  }
+
+  const completion = getSubmissionRequirementCompletion(requirements, rawArtifacts)
+  const artifactByRequirementId = new Map(
+    artifacts
+      .filter((artifact) => artifact.requirement_id)
+      .map((artifact) => [artifact.requirement_id, artifact] as const),
+  )
+  const renderedRequirementIds = new Set<string>()
+  const cards: ReactNode[] = completion.items.flatMap((item) => {
+    const artifact = artifactByRequirementId.get(item.requirement.id)
+    if (artifact) {
+      renderedRequirementIds.add(item.requirement.id)
+      return [renderSubmittedArtifactCard(artifact, item.requirement.id)]
+    }
+    if (!item.requirement.required) return []
+
+    renderedRequirementIds.add(item.requirement.id)
+    return [
+      <div
+        key={`missing:${item.requirement.id}`}
+        className="overflow-hidden rounded-md border border-dashed border-border-strong bg-surface"
+      >
+        <div className="flex min-w-0 items-start gap-2 px-3 py-2">
+          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-dashed border-border-strong bg-surface-2">
+            <RequirementIcon requirement={item.requirement} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-xs font-medium text-text-default">
+              {getRequirementTitle(item.requirement)}
+            </div>
+            <div className="truncate text-xs text-text-muted">
+              Missing
+            </div>
+          </div>
+        </div>
+      </div>,
+    ]
+  })
+
+  for (const artifact of artifacts) {
+    if (artifact.requirement_id && renderedRequirementIds.has(artifact.requirement_id)) continue
+    cards.push(renderSubmittedArtifactCard(artifact, `${artifact.url}:${cards.length}`))
+  }
+
+  if (cards.length === 0) return null
+
+  function renderSubmittedArtifactCard(artifact: AssignmentArtifact, key: string) {
+    const isRequiredSubmission = isRequiredSubmissionArtifact(artifact)
+
+    return (
+      <a
+        key={key}
+        href={artifact.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={[
+          'group overflow-hidden rounded-md border hover:bg-surface-hover',
+          isRequiredSubmission ? 'border-transparent bg-info-bg' : 'border-border bg-surface-2',
+        ].join(' ')}
+      >
+        {artifact.type === 'image' ? (
+          <div
+            className="h-28 border-b border-border bg-surface bg-contain bg-center bg-no-repeat"
+            style={{ backgroundImage: `url("${encodeURI(artifact.url)}")` }}
+          />
+        ) : null}
+        <div className="flex min-w-0 items-start gap-2 px-3 py-2">
+          <span className={[
+            'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border',
+            isRequiredSubmission
+              ? 'border-transparent bg-surface'
+              : 'border-border bg-surface',
+          ].join(' ')}>
+            <SubmittedArtifactIcon artifact={artifact} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-xs font-medium text-text-default">
+              {getArtifactTitle(artifact)}
+            </div>
+            <div className="truncate text-xs text-text-muted group-hover:text-text-default">
+              {getArtifactKindLabel(artifact)} . {summarizeArtifactUrl(artifact.url)}
+            </div>
+          </div>
+        </div>
+      </a>
+    )
+  }
+
   return (
     <div className="shrink-0 border-t border-border bg-surface px-4 py-3">
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
-        Submitted artifacts
+        Required submissions
       </h3>
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        {artifacts.map((artifact, index) => {
-          const statusLabel = getSubmissionArtifactStatusLabel(artifact)
-          const isRequiredSubmission = isRequiredSubmissionArtifact(artifact)
-
-          return (
-            <a
-              key={`${artifact.url}:${index}`}
-              href={artifact.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={[
-                'group overflow-hidden rounded-md border bg-surface-2 hover:bg-surface-hover',
-                isRequiredSubmission ? 'border-primary/50' : 'border-border',
-              ].join(' ')}
-            >
-              {artifact.type === 'image' ? (
-                <div
-                  className="h-28 border-b border-border bg-surface bg-contain bg-center bg-no-repeat"
-                  style={{ backgroundImage: `url("${encodeURI(artifact.url)}")` }}
-                />
-              ) : null}
-              <div className="flex min-w-0 items-start gap-2 px-3 py-2">
-                <span className={[
-                  'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border',
-                  isRequiredSubmission
-                    ? 'border-primary/50 bg-info-bg'
-                    : 'border-border bg-surface',
-                ].join(' ')}>
-                  <SubmittedArtifactIcon artifact={artifact} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-xs font-medium text-text-default">
-                    {getArtifactTitle(artifact)}
-                  </div>
-                  <div className="truncate text-xs text-text-muted group-hover:text-text-default">
-                    {getArtifactKindLabel(artifact)} . {summarizeArtifactUrl(artifact.url)}
-                  </div>
-                  {statusLabel ? (
-                    <div className={[
-                      'mt-1 text-[11px] font-medium',
-                      isRequiredSubmission ? 'text-primary' : 'text-text-muted',
-                    ].join(' ')}>
-                      {statusLabel}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </a>
-          )
-        })}
+        {cards}
       </div>
     </div>
   )
@@ -351,11 +405,13 @@ export function TeacherStudentWorkPanel({
   }
 
   const displayContent = previewContent || data.doc?.content
+  const submissionRequirements = data.assignment.submission_requirements || []
+  const rawSubmissionArtifacts = data.submission_artifacts || []
   const submittedArtifacts = submissionArtifactsToAssignmentArtifacts(
-    data.submission_artifacts || [],
-    data.assignment.submission_requirements || [],
+    rawSubmissionArtifacts,
+    submissionRequirements,
   )
-  const hasSubmittedArtifacts = submittedArtifacts.length > 0
+  const hasRequiredSubmissionCards = submissionRequirements.length > 0 || submittedArtifacts.length > 0
   const inspector = (
     <TeacherWorkInspector
       data={data}
@@ -417,12 +473,16 @@ export function TeacherStudentWorkPanel({
       <div className="min-h-0 flex-1 overflow-auto">
         {displayContent && !isEmpty(displayContent) ? (
           <RichTextViewer content={displayContent} fillHeight chrome="flush" />
-        ) : !hasSubmittedArtifacts ? (
+        ) : !hasRequiredSubmissionCards ? (
           <div className="flex h-32 items-center justify-center text-text-muted">
             No work submitted yet
           </div>
         ) : null}
-        <SubmittedArtifactsList artifacts={submittedArtifacts} />
+        <RequiredSubmissionsList
+          artifacts={submittedArtifacts}
+          rawArtifacts={rawSubmissionArtifacts}
+          requirements={submissionRequirements}
+        />
       </div>
     </div>
   )

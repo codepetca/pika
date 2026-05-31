@@ -905,6 +905,7 @@ export function TeacherSurveyWorkspace({
 
             <textarea
               data-testid="survey-markdown-editor"
+              aria-label="Survey markdown editor"
               value={surveyMarkdown}
               onChange={(event) => handleSurveyMarkdownChange(event.target.value)}
               onKeyDown={(event) => {

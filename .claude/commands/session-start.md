@@ -21,7 +21,7 @@ Steps:
    - Run: `git status -sb`
    - Read `.ai/CURRENT.md`.
    - Read `.ai/SESSION-LOG.md` only if recent handoff context is needed.
-   - Summarize: current branch, last few commits, uncommitted changes.
+   - Summarize: current branch or detached HEAD state, last few commits, uncommitted changes.
 
 3) Load documentation
    - Read in order:

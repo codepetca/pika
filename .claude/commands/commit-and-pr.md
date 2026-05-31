@@ -14,6 +14,7 @@ Steps:
    - Resolve the repo root with `git rev-parse --show-toplevel`.
    - If it equals `$HOME/Repos/pika` (hub), stop and ask me to create or open a worktree first.
    - Run: `git status -sb`, `git branch --show-current`
+   - If `git branch --show-current` is empty, stop because detached HEAD is not safe for commit/push/PR flow.
    - If on `main` or `production`, stop and ask me to create a feature branch.
    - If no changes (staged or unstaged), stop and tell me.
 

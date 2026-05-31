@@ -169,6 +169,9 @@ describe('test access migration shims', () => {
     expect(isMissingTestAttemptClosureColumnsError(null)).toBe(false)
     expect(isMissingTestAttemptClosureColumnsError({ code: '42703', message: 'closed_for_grading_at' })).toBe(true)
     expect(isMissingTestAttemptClosureColumnsError({ code: 'PGRST204', details: 'closed_for_grading_by' })).toBe(true)
+    expect(isMissingTestAttemptClosureColumnsError({ code: 'PGRST204', hint: 'CLOSED_FOR_GRADING_BY missing' })).toBe(
+      true
+    )
     expect(isMissingTestAttemptClosureColumnsError({ code: '42703', message: 'returned_at' })).toBe(false)
   })
 
@@ -180,6 +183,16 @@ describe('test access migration shims', () => {
       code: 'PGRST204',
       message: 'test_student_availability not found in schema cache',
     })).toBe(true)
+    expect(isMissingTestStudentAvailabilityError({
+      code: 'PGRST204',
+      hint: 'Test_Student_Availability missing from Schema Cache',
+    })).toBe(true)
+    expect(isMissingTestStudentAvailabilityError({
+      code: 'PGRST204',
+      // Guard against future non-string error shapes (e.g. custom thrown errors).
+      message: 123 as any,
+      hint: 'test_student_availability not found in schema cache',
+    } as any)).toBe(true)
     expect(isMissingTestStudentAvailabilityError({ code: 'PGRST204', message: 'different table' })).toBe(false)
   })
 })
