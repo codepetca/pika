@@ -417,7 +417,9 @@ import { Card } from '@/ui'
 
 ### 3-Panel Layout System
 
-The app uses a 3-panel layout for classroom views, implemented in `src/components/layout/`:
+The app uses a shared classroom shell for classroom views, implemented in `src/components/layout/`.
+It always owns the left navigation and main content area. The external right sidebar is optional route
+chrome, not a default detail pane for every tab.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -440,7 +442,7 @@ The app uses a 3-panel layout for classroom views, implemented in `src/component
 | `ThreePanelShell` | `layout/ThreePanelShell.tsx` | CSS Grid container |
 | `LeftSidebar` | `layout/LeftSidebar.tsx` | Navigation rail (collapsible) |
 | `MainContent` | `layout/MainContent.tsx` | Primary content area |
-| `RightSidebar` | `layout/RightSidebar.tsx` | Inspector/details panel |
+| `RightSidebar` | `layout/RightSidebar.tsx` | Optional route-level inspector/details panel |
 
 #### Configuration
 
@@ -452,17 +454,30 @@ type RouteKey =
   | 'settings'
   | 'attendance'
   | 'roster'
+  | 'gradebook'
   | 'today'
   | 'assignments-student'
   | 'assignments-teacher-list'
   | 'assignments-teacher-viewing'
+  | 'tests-teacher'
+  | 'tests-student'
+  | 'calendar-teacher'
+  | 'calendar-student'
+  | 'resources-teacher'
+  | 'resources-student'
+  | 'announcements-teacher'
+  | 'announcements-student'
 
 // Example config
-ROUTE_CONFIGS['attendance'] = {
+ROUTE_CONFIGS['calendar-teacher'] = {
   rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: '50%' },
   mainContent: { maxWidth: 'full' },
 }
 ```
+
+Most classroom tabs keep `rightSidebar.enabled = false`. Teacher assignments and teacher tests use
+their own integrated workspace splits when active review work needs an inspector; they should not
+enable the external `RightSidebar` just to reserve future detail space.
 
 #### Usage Pattern
 
@@ -483,16 +498,19 @@ const routeKey = getRouteKeyFromTab(activeTab, user.role)
       {/* Tab content */}
     </MainContent>
 
-    <RightSidebar title="Details">
-      {/* Inspector content - varies by tab */}
-    </RightSidebar>
+    {rightSidebarRouteIsEnabled ? (
+      <RightSidebar title="Details">
+        {/* Route-level inspector content, only for tabs that explicitly own it */}
+      </RightSidebar>
+    ) : null}
   </ThreePanelShell>
 </ThreePanelProvider>
 ```
 
 #### Passing Content to RightSidebar
 
-Content is passed to RightSidebar at the page level via callbacks:
+Content can be passed to `RightSidebar` at the page level via callbacks when the tab truly owns a
+route-level inspector:
 
 ```tsx
 // State at page level
@@ -511,12 +529,18 @@ const [selectedItem, setSelectedItem] = useState<Item | null>(null)
 </RightSidebar>
 ```
 
+Do not use this pattern to create passive no-selection panes for teacher assignments, teacher tests,
+or similar work surfaces. Those tabs should render summary states full-width and switch to
+`TeacherWorkspaceSplit` inside the selected workspace only when the current mode and selection make
+side-by-side work useful.
+
 #### Responsive Behavior
 
 - **Desktop (lg+)**: 3-column grid with smooth width transitions
-- **Mobile**: Single column, sidebars become overlay drawers
+- **Mobile**: Single column; enabled sidebars become overlay drawers
+- Disabled right-sidebar routes clear stale mobile right-drawer state on route changes
 - Use `useMobileDrawer()` hook to control mobile drawer state
-- Use `useRightSidebar()` hook to toggle/control right panel
+- Use `useRightSidebar()` hook to toggle/control the right panel only on routes that enable it
 
 #### Hooks
 
