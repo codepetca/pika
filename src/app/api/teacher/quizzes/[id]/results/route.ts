@@ -4,11 +4,68 @@ import { requireRole } from '@/lib/auth'
 import { aggregateResults } from '@/lib/quizzes'
 import { assertTeacherOwnsQuiz } from '@/lib/server/quizzes'
 import { getClassroomStudentIds } from '@/lib/server/classrooms'
+import { loadChunkedRows } from '@/lib/server/query-chunks'
 import type { QuizFocusSummary, QuizQuestion, QuizResponse } from '@/types'
 import { withErrorHandler } from '@/lib/api-handler'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+const QUIZ_RESULTS_PAGE_SIZE = 1000
+
+type ResponderUserRow = {
+  id: string
+  email: string
+}
+
+type ResponderProfileRow = {
+  user_id: string
+  first_name: string | null
+  last_name: string | null
+}
+
+async function loadQuizResponses(
+  supabase: any,
+  quizId: string,
+  studentIds: string[]
+): Promise<{ rows: QuizResponse[]; error: any }> {
+  return loadChunkedRows<QuizResponse>({
+    supabase,
+    table: 'quiz_responses',
+    select: '*',
+    filters: [
+      { column: 'quiz_id', values: [quizId] },
+      { column: 'student_id', values: studentIds },
+    ],
+    pageSize: QUIZ_RESULTS_PAGE_SIZE,
+  })
+}
+
+async function loadResponderUsers(
+  supabase: any,
+  responderIds: string[]
+): Promise<{ rows: ResponderUserRow[]; error: any }> {
+  return loadChunkedRows<ResponderUserRow>({
+    supabase,
+    table: 'users',
+    select: 'id, email',
+    filters: [{ column: 'id', values: responderIds }],
+    pageSize: QUIZ_RESULTS_PAGE_SIZE,
+  })
+}
+
+async function loadResponderProfiles(
+  supabase: any,
+  responderIds: string[]
+): Promise<{ rows: ResponderProfileRow[]; error: any }> {
+  return loadChunkedRows<ResponderProfileRow>({
+    supabase,
+    table: 'student_profiles',
+    select: 'user_id, first_name, last_name',
+    filters: [{ column: 'user_id', values: responderIds }],
+    pageSize: QUIZ_RESULTS_PAGE_SIZE,
+  })
+}
 
 // GET /api/teacher/quizzes/[id]/results - Get aggregated results
 export const GET = withErrorHandler('GetTeacherQuizResults', async (request, context) => {
@@ -40,21 +97,18 @@ export const GET = withErrorHandler('GetTeacherQuizResults', async (request, con
   }
 
   const responseResult = classroomStudentsResult.studentIds.length > 0
-    ? await supabase
-      .from('quiz_responses')
-      .select('*')
-      .eq('quiz_id', quizId)
-      .in('student_id', classroomStudentsResult.studentIds)
-    : { data: [], error: null }
-  const { data: responseRows, error: responsesError } = responseResult
-  const responses = (responseRows || []).filter((response) =>
-    classroomStudentsResult.studentIdSet.has(response.student_id)
-  )
+    ? await loadQuizResponses(supabase, quizId, classroomStudentsResult.studentIds)
+    : { rows: [], error: null }
+  const { rows: responseRows, error: responsesError } = responseResult
 
   if (responsesError) {
     console.error('Error fetching responses:', responsesError)
     return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
   }
+
+  const responses = (responseRows || []).filter((response) =>
+    classroomStudentsResult.studentIdSet.has(response.student_id)
+  ).sort((a, b) => a.id.localeCompare(b.id))
 
   const responderIds = [...new Set(responses?.map((r) => r.student_id) || [])]
 
@@ -67,20 +121,22 @@ export const GET = withErrorHandler('GetTeacherQuizResults', async (request, con
   }[] = []
 
   if (responderIds.length > 0) {
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, email')
-      .in('id', responderIds)
+    const { rows: users, error: usersError } = await loadResponderUsers(supabase, responderIds)
+    if (usersError) {
+      console.error('Error fetching responder users:', usersError)
+      return NextResponse.json({ error: 'Failed to fetch responder users' }, { status: 500 })
+    }
 
-    const { data: profiles } = await supabase
-      .from('student_profiles')
-      .select('user_id, first_name, last_name')
-      .in('user_id', responderIds)
+    const { rows: profiles, error: profilesError } = await loadResponderProfiles(supabase, responderIds)
+    if (profilesError) {
+      console.error('Error fetching responder profiles:', profilesError)
+      return NextResponse.json({ error: 'Failed to fetch responder profiles' }, { status: 500 })
+    }
 
     const profileMap = new Map(
       profiles?.map((p) => [
         p.user_id,
-        `${p.first_name} ${p.last_name}`.trim(),
+        `${p.first_name || ''} ${p.last_name || ''}`.trim(),
       ]) || []
     )
 
@@ -101,7 +157,7 @@ export const GET = withErrorHandler('GetTeacherQuizResults', async (request, con
     responders.sort((a, b) => {
       const nameA = a.name || a.email
       const nameB = b.name || b.email
-      return nameA.localeCompare(nameB)
+      return nameA.localeCompare(nameB) || a.student_id.localeCompare(b.student_id)
     })
   }
 
