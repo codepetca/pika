@@ -15,5 +15,5 @@ Key rules to remember:
 
 After reading, confirm:
 1. What repo root are you in?
-2. What branch are you on?
+2. What branch are you on, or are you on detached HEAD?
 3. What task are you working on?

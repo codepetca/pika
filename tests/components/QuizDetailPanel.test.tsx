@@ -223,7 +223,7 @@ describe('QuizDetailPanel', () => {
         title: 'Docs Tab Order Test',
       })
 
-      const { container } = render(
+      render(
         <QuizDetailPanel
           quiz={testQuiz}
           classroomId="classroom-1"
@@ -237,13 +237,109 @@ describe('QuizDetailPanel', () => {
         expect(screen.getByText('Documents (1)')).toBeInTheDocument()
       })
 
-      const tabStrip = container.querySelector('.flex.border-b.border-border.shrink-0')
-      expect(tabStrip).toBeTruthy()
-      const tabLabels = Array.from(tabStrip!.children)
-        .filter((element) => element.tagName === 'BUTTON')
-        .map((element) => element.textContent?.trim() || '')
+      const tabList = screen.getByRole('tablist', { name: 'Test workspace modes' })
+      const tabLabels = within(tabList).getAllByRole('tab').map((tab) => tab.textContent?.trim() || '')
       expect(tabLabels).toEqual(['Questions (2)', 'Documents (1)', 'Markdown'])
+      const questionsTab = within(tabList).getByRole('tab', { name: 'Questions (2)' })
+      expect(questionsTab).toHaveAttribute('aria-selected', 'true')
+      expect(questionsTab).toHaveAttribute('aria-controls')
+      expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', questionsTab.id)
       expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
+    })
+
+    it('moves across workspace mode tabs with keyboard navigation', async () => {
+      mockFetchForQuiz(sampleQuestions, sampleResults)
+      const quiz = makeQuizWithStats({ stats: { total_students: 25, responded: 20, questions_count: 2 } })
+
+      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
+
+      const tabList = await screen.findByRole('tablist', { name: 'Quiz workspace modes' })
+      const questionsTab = within(tabList).getByRole('tab', { name: 'Questions (2)' })
+      const nextTab = within(tabList).getAllByRole('tab')[1]
+
+      questionsTab.focus()
+      fireEvent.keyDown(questionsTab, { key: 'ArrowRight' })
+
+      await waitFor(() => {
+        expect(nextTab).toHaveAttribute('aria-selected', 'true')
+        expect(nextTab).toHaveFocus()
+      })
+    })
+
+    it('exposes quiz question inline editing controls with accessible names', async () => {
+      mockFetchForQuiz(sampleQuestions)
+      const quiz = makeQuizWithStats()
+
+      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
+
+      const editPromptButton = await screen.findByRole('button', { name: 'Edit question 1 prompt' })
+      expect(screen.getByRole('button', { name: 'Delete question 1' })).toBeInTheDocument()
+
+      fireEvent.click(editPromptButton)
+      const promptInput = screen.getByLabelText('Question 1 prompt') as HTMLInputElement
+      expect(promptInput).toHaveValue('Favorite color?')
+      fireEvent.blur(promptInput)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit question 1 option A' }))
+      expect(screen.getByLabelText('Question 1 option A')).toHaveValue('Red')
+    })
+
+    it('exposes test question card controls with accessible names', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Accessible Test',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: { documents: [] },
+          questions: summaryDetailQuestions,
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Accessible Test',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      expect(await screen.findByLabelText('Question 1 prompt')).toHaveValue(
+        'Explain the runtime complexity of your solution.'
+      )
+      expect(screen.getByLabelText('Question 1 points')).toHaveValue('6')
+      fireEvent.click(screen.getByRole('button', { name: 'Grading Notes Added' }))
+      expect(screen.getByLabelText('Question 1 answer key')).toHaveValue(
+        'Look for linear-time reasoning and mention of hash-map tradeoffs.'
+      )
+      expect(screen.getByLabelText('Question 1 sample solution')).toHaveValue(
+        'A good answer explains O(n) time and O(n) space.'
+      )
+      expect(screen.getByLabelText('Question 2 option A correct answer')).not.toBeChecked()
+      expect(screen.getByLabelText('Question 2 option B correct answer')).toBeChecked()
+      expect(screen.getByLabelText('Question 2 option A')).toHaveValue('Inorder')
+      expect(screen.getByRole('button', { name: 'Remove question 2 option A' })).toBeInTheDocument()
     })
 
     it('renders tests in summary-detail mode with accordion editors on the left and markdown on the right', async () => {
@@ -305,10 +401,11 @@ describe('QuizDetailPanel', () => {
 
       expect(within(editorPane).getByTestId('test-question-editor-header-summary')).toHaveTextContent('2 questions')
       expect(within(editorPane).getByTestId('test-question-editor-header-summary')).toHaveTextContent('9 pts')
+      fireEvent.click(within(editorPane).getByRole('button', { name: 'Expand all sections' }))
       await waitFor(() => {
-        expect(within(editorPane).getByRole('button', { name: 'Expand all sections' })).toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: 'Collapse all sections' })).toBeInTheDocument()
         expect(within(editorPane).getByRole('button', { name: 'Collapse question 1' })).toBeInTheDocument()
-        expect(within(editorPane).getByRole('button', { name: 'Expand question 2' })).toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: 'Collapse question 2' })).toBeInTheDocument()
         expect(within(editorPane).getByRole('button', { name: 'Duplicate question 1' })).toBeInTheDocument()
         expect(within(editorPane).getByRole('button', { name: 'Delete question 1' })).toBeInTheDocument()
       })
@@ -317,16 +414,25 @@ describe('QuizDetailPanel', () => {
       expect(within(editorPane).getByLabelText('Question 1 points')).toHaveValue(6)
       expect(within(editorPane).getByLabelText('Question 1 code response')).toBeChecked()
       expect(within(editorPane).getByTestId('question-sq1-answer-section')).toHaveClass('bg-surface', 'p-px')
-      expect(within(editorPane).getByTestId('question-sq2-collapsed-summary')).toHaveTextContent(
-        'Which traversal visits the root node first?'
+      expect(within(editorPane).getByLabelText('Question 1 prompt')).toHaveValue('Explain the runtime complexity of your solution.')
+      expect(within(editorPane).getByLabelText('Question 1 answer key')).toHaveValue(
+        'Look for linear-time reasoning and mention of hash-map tradeoffs.'
+      )
+      expect(within(editorPane).getByLabelText('Question 1 sample solution')).toHaveValue(
+        'A good answer explains O(n) time and O(n) space.'
       )
       expect(within(editorPane).getByDisplayValue('Explain the runtime complexity of your solution.')).toBeInTheDocument()
       expect(
         within(editorPane).getByDisplayValue('Look for linear-time reasoning and mention of hash-map tradeoffs.')
       ).toBeInTheDocument()
-      expect(within(editorPane).queryByDisplayValue('Which traversal visits the root node first?')).not.toBeInTheDocument()
+      expect(within(editorPane).getByDisplayValue('Which traversal visits the root node first?')).toBeInTheDocument()
+      expect(within(editorPane).getByLabelText('Question 2 prompt')).toHaveValue('Which traversal visits the root node first?')
+      expect(within(editorPane).getByLabelText('Question 2 option A correct answer')).not.toBeChecked()
+      expect(within(editorPane).getByLabelText('Question 2 option B correct answer')).toBeChecked()
+      expect(within(editorPane).getByLabelText('Question 2 option A')).toHaveValue('Inorder')
+      expect(within(editorPane).getByRole('button', { name: 'Remove question 2 option A' })).toBeInTheDocument()
 
-      const markdownEditor = within(markdownPane).getByTestId('test-markdown-editor')
+      const markdownEditor = within(markdownPane).getByLabelText('Test markdown editor')
       expect((markdownEditor as HTMLTextAreaElement).value).toContain('Explain the runtime complexity of your solution.')
       expect((markdownEditor as HTMLTextAreaElement).value).toContain('Which traversal visits the root node first?')
       expect(markdownEditor).toHaveProperty('readOnly', true)
@@ -350,6 +456,12 @@ describe('QuizDetailPanel', () => {
       await waitFor(() => {
         expect(within(editorPane).getByRole('button', { name: 'Collapse documents' })).toBeInTheDocument()
         expect(within(editorPane).getByRole('button', { name: 'Add Document' })).toBeInTheDocument()
+      })
+
+      fireEvent.click(within(editorPane).getByRole('button', { name: 'Collapse all sections' }))
+
+      await waitFor(() => {
+        expect(within(editorPane).getByRole('button', { name: 'Expand all sections' })).toBeInTheDocument()
       })
 
       fireEvent.click(within(editorPane).getByRole('button', { name: 'Expand all sections' }))
@@ -2499,10 +2611,10 @@ Prompt:
       )
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Documents/ })).toBeInTheDocument()
+        expect(screen.getByRole('tab', { name: /Documents/ })).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByRole('button', { name: /Documents/ }))
+      fireEvent.click(screen.getByRole('tab', { name: /Documents/ }))
       fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
       expect(screen.getByRole('heading', { name: 'Add Document' })).toBeInTheDocument()
       fireEvent.change(screen.getByPlaceholderText('Title'), {
@@ -2620,10 +2732,10 @@ Prompt:
       )
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Documents/ })).toBeInTheDocument()
+        expect(screen.getByRole('tab', { name: /Documents/ })).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByRole('button', { name: /Documents/ }))
+      fireEvent.click(screen.getByRole('tab', { name: /Documents/ }))
 
       await waitFor(() => {
         expect(screen.getByText('4m')).toBeInTheDocument()
@@ -2725,7 +2837,7 @@ Prompt:
       )
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Documents/ })).toBeInTheDocument()
+        expect(screen.getByRole('tab', { name: /Documents/ })).toBeInTheDocument()
       })
 
       await waitFor(() => {
@@ -2818,10 +2930,10 @@ Prompt:
       )
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Documents' })).toBeInTheDocument()
+        expect(screen.getByRole('tab', { name: 'Documents' })).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByRole('button', { name: 'Documents' }))
+      fireEvent.click(screen.getByRole('tab', { name: 'Documents' }))
       fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
       fireEvent.click(screen.getByRole('tab', { name: 'Text' }))
       fireEvent.change(screen.getByPlaceholderText('Title'), {
@@ -2890,10 +3002,10 @@ Prompt:
       )
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Documents' })).toBeInTheDocument()
+        expect(screen.getByRole('tab', { name: 'Documents' })).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByRole('button', { name: 'Documents' }))
+      fireEvent.click(screen.getByRole('tab', { name: 'Documents' }))
       fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
       fireEvent.click(screen.getByRole('tab', { name: 'PDF' }))
 

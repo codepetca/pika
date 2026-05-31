@@ -21,6 +21,7 @@ import {
 import { useRouter, usePathname } from 'next/navigation'
 import { Archive, CircleDot, LoaderCircle, Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
+import { FloatingActionCluster } from '@/components/FloatingActionCluster'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
 import { Button, ConfirmDialog, SegmentedControl } from '@/ui'
 import { Spinner } from '@/components/Spinner'
@@ -472,9 +473,9 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         ) : null}
       </PageContent>
 
-      <div
+      <FloatingActionCluster
+        placement="bottom"
         data-testid="classroom-bottom-controls"
-        className="fixed bottom-4 left-1/2 z-40 w-[calc(100vw-3.5rem)] max-w-[40.5rem] -translate-x-1/2 rounded-card bg-surface/95 py-2 pl-3 pr-1 shadow-elevated backdrop-blur"
       >
         <div className="relative min-h-9">
           {isEditingClassrooms ? (
@@ -512,7 +513,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
             className="absolute right-0 top-1/2 -translate-y-1/2"
           />
         </div>
-      </div>
+      </FloatingActionCluster>
 
       <CreateClassroomModal
         isOpen={showCreate}

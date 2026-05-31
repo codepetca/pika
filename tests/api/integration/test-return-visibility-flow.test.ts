@@ -102,12 +102,16 @@ vi.mock('@/lib/auth', () => ({
   }),
 }))
 
-vi.mock('@/lib/server/classrooms', () => ({
-  assertStudentCanAccessClassroom: vi.fn(async () => ({
-    ok: true,
-    classroom: { id: 'classroom-1', archived_at: null },
-  })),
-}))
+vi.mock('@/lib/server/classrooms', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/server/classrooms')>('@/lib/server/classrooms')
+  return {
+    ...actual,
+    assertStudentCanAccessClassroom: vi.fn(async () => ({
+      ok: true,
+      classroom: { id: 'classroom-1', archived_at: null },
+    })),
+  }
+})
 
 vi.mock('@/lib/server/tests', async () => {
   const actual = await vi.importActual<typeof import('@/lib/server/tests')>('@/lib/server/tests')
@@ -230,6 +234,10 @@ function setupSupabaseMock() {
       return {
         select: vi.fn((_columns: string) => {
           let testId: string | null = null
+          const questionRows = () =>
+            state.testQuestions
+              .filter((q) => (testId ? q.test_id === testId : true))
+              .sort((a, b) => a.position - b.position)
           const chain: any = {
             eq: vi.fn((column: string, value: string) => {
               if (column === 'test_id') {
@@ -247,12 +255,17 @@ function setupSupabaseMock() {
               }
               return chain
             }),
-            order: vi.fn(async () => ({
-              data: state.testQuestions
-                .filter((q) => (testId ? q.test_id === testId : true))
-                .sort((a, b) => a.position - b.position),
+            order: vi.fn(() => chain),
+            range: vi.fn(async (from: number, to: number) => ({
+              data: questionRows().slice(from, to + 1),
               error: null,
             })),
+            then: vi.fn((resolve: any, reject: any) =>
+              Promise.resolve({
+                data: questionRows(),
+                error: null,
+              }).then(resolve, reject)
+            ),
           }
           return chain
         }),

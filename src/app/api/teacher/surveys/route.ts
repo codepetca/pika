@@ -1,13 +1,55 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
-import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom, getClassroomStudentIds } from '@/lib/server/classrooms'
 import { isMissingSurveysTableError } from '@/lib/server/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
+import { loadChunkedRows } from '@/lib/server/query-chunks'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+type SurveyQuestionStatsRow = {
+  survey_id: string
+}
+
+type SurveyResponseStatsRow = {
+  survey_id: string
+  student_id: string
+}
+
+const SURVEY_LIST_STATS_PAGE_SIZE = 1000
+
+async function loadSurveyQuestionRows(
+  supabase: any,
+  surveyIds: string[]
+): Promise<{ rows: SurveyQuestionStatsRow[]; error: any }> {
+  return loadChunkedRows<SurveyQuestionStatsRow>({
+    supabase,
+    table: 'survey_questions',
+    select: 'survey_id',
+    filters: [{ column: 'survey_id', values: surveyIds }],
+    pageSize: SURVEY_LIST_STATS_PAGE_SIZE,
+  })
+}
+
+async function loadSurveyResponseRows(
+  supabase: any,
+  surveyIds: string[],
+  studentIds: string[]
+): Promise<{ rows: SurveyResponseStatsRow[]; error: any }> {
+  return loadChunkedRows<SurveyResponseStatsRow>({
+    supabase,
+    table: 'survey_responses',
+    select: 'survey_id, student_id',
+    filters: [
+      { column: 'survey_id', values: surveyIds },
+      { column: 'student_id', values: studentIds },
+    ],
+    pageSize: SURVEY_LIST_STATS_PAGE_SIZE,
+  })
+}
 
 async function getNextClassworkPosition(classroomId: string) {
   const supabase = getServiceRoleClient()
@@ -82,19 +124,22 @@ export const GET = withErrorHandler('GetTeacherSurveys', async (request) => {
     return NextResponse.json({ error: 'Failed to fetch surveys' }, { status: 500 })
   }
 
-  const { count: totalStudents } = await supabase
-    .from('classroom_enrollments')
-    .select('*', { count: 'exact', head: true })
-    .eq('classroom_id', classroomId)
+  const classroomStudentsResult = await getClassroomStudentIds(supabase, classroomId)
+  if (classroomStudentsResult.error) {
+    console.error('Error fetching classroom enrollments:', classroomStudentsResult.error)
+    return NextResponse.json({ error: 'Failed to fetch classroom enrollments' }, { status: 500 })
+  }
 
   const surveyIds = (surveys || []).map((survey) => survey.id)
 
   const questionCountMap: Record<string, number> = {}
   if (surveyIds.length > 0) {
-    const { data: questionRows } = await supabase
-      .from('survey_questions')
-      .select('survey_id')
-      .in('survey_id', surveyIds)
+    const { rows: questionRows, error: questionRowsError } = await loadSurveyQuestionRows(supabase, surveyIds)
+
+    if (questionRowsError) {
+      console.error('Error fetching survey question stats:', questionRowsError)
+      return NextResponse.json({ error: 'Failed to fetch survey question stats' }, { status: 500 })
+    }
 
     for (const row of questionRows || []) {
       questionCountMap[row.survey_id] = (questionCountMap[row.survey_id] || 0) + 1
@@ -102,14 +147,20 @@ export const GET = withErrorHandler('GetTeacherSurveys', async (request) => {
   }
 
   const respondentCountMap: Record<string, number> = {}
-  if (surveyIds.length > 0) {
-    const { data: responseRows } = await supabase
-      .from('survey_responses')
-      .select('survey_id, student_id')
-      .in('survey_id', surveyIds)
+  if (surveyIds.length > 0 && classroomStudentsResult.studentIds.length > 0) {
+    const {
+      rows: responseRows,
+      error: responseRowsError,
+    } = await loadSurveyResponseRows(supabase, surveyIds, classroomStudentsResult.studentIds)
+
+    if (responseRowsError) {
+      console.error('Error fetching survey response stats:', responseRowsError)
+      return NextResponse.json({ error: 'Failed to fetch survey response stats' }, { status: 500 })
+    }
 
     const seen: Record<string, Set<string>> = {}
     for (const row of responseRows || []) {
+      if (!classroomStudentsResult.studentIdSet.has(row.student_id)) continue
       if (!seen[row.survey_id]) seen[row.survey_id] = new Set()
       seen[row.survey_id].add(row.student_id)
     }
@@ -122,7 +173,7 @@ export const GET = withErrorHandler('GetTeacherSurveys', async (request) => {
     surveys: (surveys || []).map((survey) => ({
       ...survey,
       stats: {
-        total_students: totalStudents || 0,
+        total_students: classroomStudentsResult.totalStudents,
         responded: respondentCountMap[survey.id] || 0,
         questions_count: questionCountMap[survey.id] || 0,
       },

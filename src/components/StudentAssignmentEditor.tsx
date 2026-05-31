@@ -582,34 +582,41 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       <div className="flex min-h-0 flex-1 flex-col rounded-card border border-border bg-surface-panel shadow-elevated">
         {/* Header */}
         <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium text-text-muted truncate">
                 {assignment.title}
               </div>
             </div>
-            <div
-              className={`text-xs ${
-                saveStatus === 'saved'
-                  ? 'text-success'
-                  : saveStatus === 'saving'
-                    ? 'text-text-muted'
-                    : 'text-warning'
-              }`}
-            >
-              {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
-            </div>
-            <Tooltip content={isHistoryOpen ? 'Hide history' : 'Show history'}>
-              <button
-                type="button"
-                onClick={handleHistoryToggle}
-                className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover"
-                aria-expanded={isHistoryOpen}
-                aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
+            <div className="flex shrink-0 items-center gap-2">
+              {isEmbedded ? (
+                <span data-testid="assignment-status-badge" className={getAssignmentStatusBadgeClass(status)}>
+                  {getAssignmentStatusLabel(status)}
+                </span>
+              ) : null}
+              <div
+                className={`text-xs ${
+                  saveStatus === 'saved'
+                    ? 'text-success'
+                    : saveStatus === 'saving'
+                      ? 'text-text-muted'
+                      : 'text-warning'
+                }`}
               >
-                <History className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </Tooltip>
+                {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
+              </div>
+              <Tooltip content={isHistoryOpen ? 'Hide history' : 'Show history'}>
+                <button
+                  type="button"
+                  onClick={handleHistoryToggle}
+                  className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover"
+                  aria-expanded={isHistoryOpen}
+                  aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
+                >
+                  <History className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </Tooltip>
+            </div>
           </div>
         </div>
 
@@ -893,7 +900,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <span className={`px-3 py-1 rounded text-sm font-medium ${getAssignmentStatusBadgeClass(status)}`}>
+              <span className={getAssignmentStatusBadgeClass(status)}>
                 {getAssignmentStatusLabel(status)}
               </span>
               {canUnsubmit ? (

@@ -22,9 +22,121 @@ vi.mock('@/lib/auth', () => ({
 
 const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
+type QueryLog = {
+  eqCalls: Array<{ table: string; column: string; value: string }>
+  inCalls: Array<{ table: string; column: string; values: string[] }>
+  orderCalls: Array<{ table: string; column: string }>
+  rangeCalls: Array<{ table: string; from: number; to: number }>
+  limitCalls: Array<{ table: string; count: number }>
+}
+
+function createQueryLog(): QueryLog {
+  return { eqCalls: [], inCalls: [], orderCalls: [], rangeCalls: [], limitCalls: [] }
+}
+
+function mockClassroomQuery(teacherId: string | null, error: any = null) {
+  return {
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: teacherId ? { teacher_id: teacherId } : null,
+          error,
+        }),
+      })),
+    })),
+  }
+}
+
+function mockPagedTable(
+  rows: Array<Record<string, any>>,
+  options: {
+    table?: string
+    log?: QueryLog
+    error?: any
+  } = {},
+) {
+  return {
+    select: vi.fn(() => {
+      const filters: Array<{ column: string; values: string[] }> = []
+      const filteredRows = () => rows.filter((row) =>
+        filters.every((filter) => {
+          if (!(filter.column in row)) return true
+          return filter.values.includes(String(row[filter.column]))
+        })
+      )
+      const resolveRows = (from: number, to: number) => {
+        if (options.error) {
+          return Promise.resolve({ data: null, error: options.error })
+        }
+        return Promise.resolve({
+          data: filteredRows().slice(from, to + 1),
+          error: null,
+        })
+      }
+      const query: any = {
+        eq: vi.fn((column: string, value: string) => {
+          filters.push({ column, values: [String(value)] })
+          if (options.table) {
+            options.log?.eqCalls.push({ table: options.table, column, value: String(value) })
+          }
+          return query
+        }),
+        in: vi.fn((column: string, values: string[]) => {
+          filters.push({ column, values: values.map(String) })
+          if (options.table) {
+            options.log?.inCalls.push({ table: options.table, column, values: values.map(String) })
+          }
+          return query
+        }),
+        order: vi.fn((column: string) => {
+          if (options.table) {
+            options.log?.orderCalls.push({ table: options.table, column })
+          }
+          return query
+        }),
+        range: vi.fn((from: number, to: number) => {
+          if (options.table) {
+            options.log?.rangeCalls.push({ table: options.table, from, to })
+          }
+          return resolveRows(from, to)
+        }),
+        limit: vi.fn((count: number) => {
+          if (options.table) {
+            options.log?.limitCalls.push({ table: options.table, count })
+          }
+          return resolveRows(0, count - 1)
+        }),
+      }
+      return query
+    }),
+  }
+}
+
+function mockOwnedTeacherTables(
+  tables: Record<string, Array<Record<string, any>>>,
+  options: {
+    log?: QueryLog
+    errors?: Record<string, any>
+  } = {},
+) {
+  return vi.fn((table: string) => {
+    if (table === 'classrooms') return mockClassroomQuery('teacher-1')
+    if (table in tables) {
+      return mockPagedTable(tables[table], {
+        table,
+        log: options.log,
+        error: options.errors?.[table],
+      })
+    }
+    throw new Error(`Unexpected table: ${table}`)
+  })
+}
+
 describe('GET /api/teacher/logs', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSupabaseClient.from = vi.fn()
+    mockSupabaseClient.rpc = vi.fn()
   })
 
   afterEach(() => {
@@ -54,22 +166,10 @@ describe('GET /api/teacher/logs', () => {
   })
 
   it('should return 403 when teacher does not own classroom', async () => {
-    const mockFrom = vi.fn((table: string) => {
-      if (table === 'classrooms') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { teacher_id: 'other-teacher' },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classrooms') return mockClassroomQuery('other-teacher')
       return {}
     })
-    ;(mockSupabaseClient.from as any) = mockFrom
 
     const request = new NextRequest('http://localhost:3000/api/teacher/logs?classroom_id=classroom-1')
     const response = await GET(request)
@@ -77,59 +177,16 @@ describe('GET /api/teacher/logs', () => {
   })
 
   it('should return 200 with roster and entry (when present)', async () => {
-    const mockFrom = vi.fn((table: string) => {
-      if (table === 'classrooms') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { teacher_id: 'teacher-1' },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-      if (table === 'classroom_enrollments') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [
-                { student_id: 's1', users: { id: 's1', email: 'a@student.com' } },
-                { student_id: 's2', users: { id: 's2', email: 'b@student.com' } },
-              ],
-              error: null,
-            }),
-          })),
-        }
-      }
-      if (table === 'student_profiles') {
-        return {
-          select: vi.fn(() => ({
-            in: vi.fn().mockResolvedValue({
-              data: [],
-              error: null,
-            }),
-          })),
-        }
-      }
-      if (table === 'entries') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn().mockResolvedValue({
-                data: [
-                  { id: 'e1', student_id: 's2', classroom_id: 'classroom-1', date: '2025-01-02', text: 'hello', minutes_reported: null, mood: null, created_at: '', updated_at: '', on_time: true },
-                ],
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-      return {}
+    ;(mockSupabaseClient.from as any) = mockOwnedTeacherTables({
+      classroom_enrollments: [
+        { id: 'enrollment-1', classroom_id: 'classroom-1', student_id: 's1', users: { id: 's1', email: 'a@student.com' } },
+        { id: 'enrollment-2', classroom_id: 'classroom-1', student_id: 's2', users: { id: 's2', email: 'b@student.com' } },
+      ],
+      student_profiles: [],
+      entries: [
+        { id: 'e1', student_id: 's2', classroom_id: 'classroom-1', date: '2025-01-02', text: 'hello', minutes_reported: null, mood: null, created_at: '', updated_at: '', on_time: true },
+      ],
     })
-    ;(mockSupabaseClient.from as any) = mockFrom
     ;(mockSupabaseClient.rpc as any).mockResolvedValue({
       data: [
         { id: 'h1', student_id: 's1', classroom_id: 'classroom-1', date: '2025-01-03', text: 'preview 1', minutes_reported: null, mood: null, created_at: '', updated_at: '2025-01-03T12:00:00Z', on_time: true },
@@ -161,56 +218,13 @@ describe('GET /api/teacher/logs', () => {
   })
 
   it('caps batched history previews to five entries per student', async () => {
-    const mockFrom = vi.fn((table: string) => {
-      if (table === 'classrooms') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { teacher_id: 'teacher-1' },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-      if (table === 'classroom_enrollments') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [
-                { student_id: 's1', users: { id: 's1', email: 'a@student.com' } },
-              ],
-              error: null,
-            }),
-          })),
-        }
-      }
-      if (table === 'student_profiles') {
-        return {
-          select: vi.fn(() => ({
-            in: vi.fn().mockResolvedValue({
-              data: [],
-              error: null,
-            }),
-          })),
-        }
-      }
-      if (table === 'entries') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn().mockResolvedValue({
-                data: [],
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-      return {}
+    ;(mockSupabaseClient.from as any) = mockOwnedTeacherTables({
+      classroom_enrollments: [
+        { id: 'enrollment-1', classroom_id: 'classroom-1', student_id: 's1', users: { id: 's1', email: 'a@student.com' } },
+      ],
+      student_profiles: [],
+      entries: [],
     })
-    ;(mockSupabaseClient.from as any) = mockFrom
     const historyRows = Array.from({ length: 7 }, (_, index) => ({
       id: `h${index + 1}`,
       student_id: 's1',
@@ -242,78 +256,17 @@ describe('GET /api/teacher/logs', () => {
   })
 
   it('falls back to per-student capped previews when the preview RPC is unavailable', async () => {
-    let entriesQueryIndex = 0
-    const historyQuery = (rows: any[]) => {
-      const query: any = {
-        select: vi.fn(() => query),
-        eq: vi.fn(() => query),
-        order: vi.fn(() => query),
-        limit: vi.fn().mockResolvedValue({ data: rows, error: null }),
-      }
-      return query
-    }
-    const mockFrom = vi.fn((table: string) => {
-      if (table === 'classrooms') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { teacher_id: 'teacher-1' },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-      if (table === 'classroom_enrollments') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [
-                { student_id: 's1', users: { id: 's1', email: 'a@student.com' } },
-                { student_id: 's2', users: { id: 's2', email: 'b@student.com' } },
-              ],
-              error: null,
-            }),
-          })),
-        }
-      }
-      if (table === 'student_profiles') {
-        return {
-          select: vi.fn(() => ({
-            in: vi.fn().mockResolvedValue({
-              data: [],
-              error: null,
-            }),
-          })),
-        }
-      }
-      if (table === 'entries') {
-        entriesQueryIndex += 1
-        if (entriesQueryIndex === 1) {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn().mockResolvedValue({
-                  data: [],
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        }
-        if (entriesQueryIndex === 2) {
-          return historyQuery([
-            { id: 'fallback-h1', student_id: 's1', classroom_id: 'classroom-1', date: '2025-01-03', text: 'fallback 1', minutes_reported: null, mood: null, created_at: '', updated_at: '2025-01-03T12:00:00Z', on_time: true },
-          ])
-        }
-        return historyQuery([
-          { id: 'fallback-h2', student_id: 's2', classroom_id: 'classroom-1', date: '2025-01-02', text: 'fallback 2', minutes_reported: null, mood: null, created_at: '', updated_at: '2025-01-02T12:00:00Z', on_time: true },
-        ])
-      }
-      return {}
+    ;(mockSupabaseClient.from as any) = mockOwnedTeacherTables({
+      classroom_enrollments: [
+        { id: 'enrollment-1', classroom_id: 'classroom-1', student_id: 's1', users: { id: 's1', email: 'a@student.com' } },
+        { id: 'enrollment-2', classroom_id: 'classroom-1', student_id: 's2', users: { id: 's2', email: 'b@student.com' } },
+      ],
+      student_profiles: [],
+      entries: [
+        { id: 'fallback-h1', student_id: 's1', classroom_id: 'classroom-1', date: '2025-01-03', text: 'fallback 1', minutes_reported: null, mood: null, created_at: '', updated_at: '2025-01-03T12:00:00Z', on_time: true },
+        { id: 'fallback-h2', student_id: 's2', classroom_id: 'classroom-1', date: '2025-01-04', text: 'fallback 2', minutes_reported: null, mood: null, created_at: '', updated_at: '2025-01-04T12:00:00Z', on_time: true },
+      ],
     })
-    ;(mockSupabaseClient.from as any) = mockFrom
     ;(mockSupabaseClient.rpc as any).mockResolvedValue({
       data: null,
       error: { code: 'PGRST202', message: 'missing function' },
@@ -334,5 +287,133 @@ describe('GET /api/teacher/logs', () => {
       'History preview RPC is unavailable; falling back to per-student preview queries'
     )
     warnSpy.mockRestore()
+  })
+
+  it('paginates roster rows and chunks history preview RPC calls for large rosters', async () => {
+    const log = createQueryLog()
+    const enrollments = Array.from({ length: 1001 }, (_, index) => {
+      const ordinal = index + 1
+      const padded = ordinal.toString().padStart(4, '0')
+      const studentId = `student-${padded}`
+      return {
+        id: `enrollment-${padded}`,
+        classroom_id: 'classroom-1',
+        student_id: studentId,
+        users: { id: studentId, email: `${studentId}@example.com` },
+      }
+    })
+    ;(mockSupabaseClient.from as any) = mockOwnedTeacherTables({
+      classroom_enrollments: enrollments,
+      student_profiles: [],
+      entries: [],
+    }, { log })
+    ;(mockSupabaseClient.rpc as any).mockResolvedValue({ data: [], error: null })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/logs?classroom_id=classroom-1')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.logs).toHaveLength(1001)
+    expect(body.logs.at(-1)).toMatchObject({
+      student_id: 'student-1001',
+      student_email: 'student-1001@example.com',
+    })
+    expect(log.rangeCalls).toContainEqual({ table: 'classroom_enrollments', from: 0, to: 999 })
+    expect(log.rangeCalls).toContainEqual({ table: 'classroom_enrollments', from: 1000, to: 1999 })
+    const rpcChunks = (mockSupabaseClient.rpc as any).mock.calls.map((call: any[]) => call[1].p_student_ids)
+    expect(rpcChunks).toHaveLength(21)
+    expect(rpcChunks.every((chunk: string[]) => chunk.length <= 50)).toBe(true)
+    expect(rpcChunks.at(-1)).toEqual(['student-1001'])
+  })
+
+  it('chunks profile and selected-day entry reads and excludes stale entries', async () => {
+    const log = createQueryLog()
+    const studentIds = Array.from({ length: 51 }, (_, index) => `student-${index + 1}`)
+    const enrollments = studentIds.map((studentId, index) => ({
+      id: `enrollment-${index + 1}`,
+      classroom_id: 'classroom-1',
+      student_id: studentId,
+      users: { id: studentId, email: `${studentId}@example.com` },
+    }))
+    const entries = [
+      ...studentIds.flatMap((studentId) =>
+        Array.from({ length: 21 }, (_, index) => ({
+          id: `entry-${studentId}-${index + 1}`,
+          classroom_id: 'classroom-1',
+          student_id: studentId,
+          date: '2025-01-02',
+          text: 'present',
+        }))
+      ),
+      {
+        id: 'stale-entry',
+        classroom_id: 'classroom-1',
+        student_id: 'withdrawn-student',
+        date: '2025-01-02',
+        text: 'stale',
+      },
+    ]
+    ;(mockSupabaseClient.from as any) = mockOwnedTeacherTables({
+      classroom_enrollments: enrollments,
+      student_profiles: [],
+      entries,
+    }, { log })
+    ;(mockSupabaseClient.rpc as any).mockResolvedValue({ data: [], error: null })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/logs?classroom_id=classroom-1&date=2025-01-02')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.logs).toHaveLength(51)
+    expect(body.logs.some((row: any) => row.entry?.id === 'stale-entry')).toBe(false)
+
+    for (const table of ['student_profiles', 'entries']) {
+      const studentChunks = log.inCalls.filter((call) =>
+        call.table === table && (call.column === 'user_id' || call.column === 'student_id')
+      )
+      expect(studentChunks.map((call) => call.values.length)).toContain(50)
+      expect(studentChunks.map((call) => call.values.length)).toContain(1)
+      expect(studentChunks.every((call) => call.values.length <= 50)).toBe(true)
+    }
+    expect(log.rangeCalls).toContainEqual({ table: 'entries', from: 0, to: 999 })
+    expect(log.rangeCalls).toContainEqual({ table: 'entries', from: 1000, to: 1999 })
+  })
+
+  it('returns 500 when enrollment rows fail to load', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    ;(mockSupabaseClient.from as any) = mockOwnedTeacherTables({
+      classroom_enrollments: [],
+      student_profiles: [],
+      entries: [],
+    }, { errors: { classroom_enrollments: { message: 'enrollments failed' } } })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/logs?classroom_id=classroom-1&date=2025-01-02')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(body).toEqual({ error: 'Failed to fetch students' })
+    errorSpy.mockRestore()
+  })
+
+  it('returns 500 when student profile hydration fails', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    ;(mockSupabaseClient.from as any) = mockOwnedTeacherTables({
+      classroom_enrollments: [
+        { id: 'enrollment-1', classroom_id: 'classroom-1', student_id: 'student-1', users: { id: 'student-1', email: 'a@example.com' } },
+      ],
+      student_profiles: [],
+      entries: [],
+    }, { errors: { student_profiles: { message: 'profiles failed' } } })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/logs?classroom_id=classroom-1&date=2025-01-02')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(body).toEqual({ error: 'Failed to fetch student profiles' })
+    errorSpy.mockRestore()
   })
 })

@@ -32,6 +32,7 @@ import { QuizResultsView } from '@/components/QuizResultsView'
 import { QuizIndividualResponses } from '@/components/QuizIndividualResponses'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspaceShell'
+import { TeacherWorkSurfaceModeBar, type TeacherWorkSurfaceMode } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
@@ -75,6 +76,8 @@ type AssessmentEditorDraft = {
   source_format?: 'markdown'
   source_markdown?: string
 }
+
+type AssessmentViewMode = 'questions' | 'documents' | 'markdown' | 'preview' | 'results'
 
 const TEST_SUMMARY_DETAIL_LAYOUT = {
   defaultMarkdownWidth: 50,
@@ -150,9 +153,7 @@ export function QuizDetailPanel({
   )
   const [results, setResults] = useState<QuizResultsAggregate[] | null>(null)
   const [loading, setLoading] = useState(true)
-  const [viewMode, setViewMode] = useState<'questions' | 'documents' | 'markdown' | 'preview' | 'results'>(
-    () => 'questions'
-  )
+  const [viewMode, setViewMode] = useState<AssessmentViewMode>(() => 'questions')
   const [isDocumentsCardExpanded, setIsDocumentsCardExpanded] = useState(true)
   const [externalDocumentAddRequest, setExternalDocumentAddRequest] = useState<{
     id: number
@@ -506,6 +507,43 @@ export function QuizDetailPanel({
   const areAllEditorSectionsExpanded =
     (questions.length === 0 || areAllQuestionsExpanded) &&
     (!hasInlineDocumentsCard || isDocumentsCardExpanded)
+  const assessmentModeTabs = useMemo<readonly TeacherWorkSurfaceMode<AssessmentViewMode>[]>(() => {
+    const modes: TeacherWorkSurfaceMode<AssessmentViewMode>[] = [
+      {
+        id: 'questions',
+        label: `Questions (${questions.length})`,
+      },
+    ]
+
+    if (isTestsView) {
+      modes.push({
+        id: 'documents',
+        label: documents.length > 0 ? `Documents (${documents.length})` : 'Documents',
+      })
+    }
+
+    if (showMarkdown) {
+      modes.push({ id: 'markdown', label: 'Markdown' })
+    }
+
+    if (!isTestsView) {
+      modes.push({ id: 'preview', label: 'Preview' })
+    }
+
+    if (resolvedShowResultsTab) {
+      modes.push({ id: 'results', label: `Results (${quiz.stats.responded})` })
+    }
+
+    return modes
+  }, [documents.length, isTestsView, questions.length, quiz.stats.responded, resolvedShowResultsTab, showMarkdown])
+  const assessmentModeTabId = useCallback(
+    (mode: AssessmentViewMode) => `assessment-${quiz.id}-${mode}-tab`,
+    [quiz.id],
+  )
+  const assessmentModePanelId = useCallback(
+    (mode: AssessmentViewMode) => `assessment-${quiz.id}-${mode}-panel`,
+    [quiz.id],
+  )
 
   useEffect(() => {
     if (markdownDirty) return
@@ -1568,6 +1606,7 @@ export function QuizDetailPanel({
       )}
       <textarea
         data-testid={isTestsView ? 'test-markdown-editor' : 'quiz-markdown-editor'}
+        aria-label={isTestsView ? 'Test markdown editor' : 'Quiz markdown editor'}
         value={markdownContent}
         readOnly={!isMarkdownEditable}
         onChange={(event) => handleMarkdownChange(event.target.value)}
@@ -1898,103 +1937,70 @@ export function QuizDetailPanel({
       {titlePortal}
       {/* Tabs */}
       {!usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions && (
-        <div className="flex border-b border-border shrink-0">
-        <button
-          type="button"
-          onClick={() => setViewMode('questions')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            viewMode === 'questions'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-text-muted hover:text-text-default'
-          }`}
-          >
-            {`Questions (${questions.length})`}
-          </button>
-        {isTestsView && (
-          <button
-            type="button"
-            onClick={() => setViewMode('documents')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              viewMode === 'documents'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-text-muted hover:text-text-default'
-            }`}
-          >
-            {documents.length > 0 ? `Documents (${documents.length})` : 'Documents'}
-          </button>
-        )}
-        {showMarkdown && (
-          <button
-            type="button"
-            onClick={() => setViewMode('markdown')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              viewMode === 'markdown'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-text-muted hover:text-text-default'
-            }`}
-          >
-            Markdown
-          </button>
-        )}
-        {!isTestsView && (
-          <button
-            type="button"
-            onClick={() => setViewMode('preview')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              viewMode === 'preview'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-text-muted hover:text-text-default'
-            }`}
-          >
-            Preview
-          </button>
-        )}
-        {resolvedShowResultsTab && (
-          <button
-            type="button"
-            onClick={() => setViewMode('results')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              viewMode === 'results'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-text-muted hover:text-text-default'
-            }`}
-          >
-            Results ({quiz.stats.responded})
-          </button>
-        )}
-        {isTestsView && showPreviewButton && (
-          <div className="ml-2 flex items-center">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                void handleOpenTestPreview()
-              }}
-              disabled={openingTestPreview || hasPendingMarkdownImport}
-              className="h-8 gap-1.5 px-3 font-semibold"
-            >
-              <ExternalLink className="h-4 w-4" />
-              {openingTestPreview ? 'Opening Preview...' : 'Preview'}
-            </Button>
-          </div>
-        )}
-        {isTestsView && onRequestDelete && showInlineDeleteAction ? (
-          <Button
-            type="button"
-            variant="danger"
-            size="sm"
-            onClick={onRequestDelete}
-            className="ml-auto mr-3 h-8 px-3 font-semibold"
-          >
-            Delete Test
-          </Button>
-        ) : null}
-      </div>
+        <div className="shrink-0 border-b border-border bg-surface px-3 pt-2">
+          <TeacherWorkSurfaceModeBar
+            modes={assessmentModeTabs}
+            activeMode={viewMode}
+            onModeChange={setViewMode}
+            getTabId={assessmentModeTabId}
+            getPanelId={assessmentModePanelId}
+            ariaLabel={`${titleLabel} workspace modes`}
+            trailing={
+              <>
+                {isTestsView && showPreviewButton ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      void handleOpenTestPreview()
+                    }}
+                    disabled={openingTestPreview || hasPendingMarkdownImport}
+                    className="h-8 gap-1.5 px-3 font-semibold"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    {openingTestPreview ? 'Opening Preview...' : 'Preview'}
+                  </Button>
+                ) : null}
+                {isTestsView && onRequestDelete && showInlineDeleteAction ? (
+                  <Button
+                    type="button"
+                    variant="danger"
+                    size="sm"
+                    onClick={onRequestDelete}
+                    className="h-8 px-3 font-semibold"
+                  >
+                    Delete Test
+                  </Button>
+                ) : null}
+              </>
+            }
+          />
+        </div>
       )}
 
       {/* Content */}
       <div
+        id={
+          !usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions
+            ? assessmentModePanelId(viewMode)
+            : undefined
+        }
+        role={
+          !usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions
+            ? 'tabpanel'
+            : undefined
+        }
+        aria-labelledby={
+          !usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions
+            ? assessmentModeTabId(viewMode)
+            : undefined
+        }
+        tabIndex={
+          !usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions
+            ? 0
+            : undefined
+        }
         className={[
           'flex-1',
           usesSummaryDetailQuestions || usesEditorOnlyQuestions || usesMarkdownOnlyQuestions

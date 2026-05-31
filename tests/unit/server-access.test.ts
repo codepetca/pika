@@ -3,6 +3,7 @@ import {
   assertStudentCanAccessClassroom,
   assertTeacherCanMutateClassroom,
   assertTeacherOwnsClassroom,
+  getClassroomStudentIds,
 } from '@/lib/server/classrooms'
 import {
   assertStudentCanAccessQuiz,
@@ -125,6 +126,46 @@ describe('server access helpers', () => {
         ok: true,
         classroom: { id: 'classroom-1', archived_at: null },
       })
+    })
+
+    it('paginates classroom student ids beyond the Supabase default row cap', async () => {
+      const rangeCalls: Array<[number, number]> = []
+      mockSupabaseClient.from.mockImplementation((table: string) => {
+        expect(table).toBe('classroom_enrollments')
+        return {
+          select: vi.fn((_columns: string, options: { count: string }) => {
+            expect(options).toEqual({ count: 'exact' })
+            const chain: any = {
+              eq: vi.fn((column: string, classroomId: string) => {
+                expect(column).toBe('classroom_id')
+                expect(classroomId).toBe('classroom-1')
+                return chain
+              }),
+              order: vi.fn((column: string, options: { ascending: boolean }) => {
+                expect(column).toBe('student_id')
+                expect(options).toEqual({ ascending: true })
+                return chain
+              }),
+              range: vi.fn((from: number, to: number) => {
+                rangeCalls.push([from, to])
+                const page = rangeCalls.length === 1
+                  ? Array.from({ length: 1000 }, (_, index) => ({ student_id: `student-${index}` }))
+                  : [{ student_id: 'student-1000' }]
+                return Promise.resolve({ data: page, count: 1001, error: null })
+              }),
+            }
+            return chain
+          }),
+        }
+      })
+
+      const result = await getClassroomStudentIds(mockSupabaseClient, 'classroom-1')
+
+      expect(rangeCalls).toEqual([[0, 999], [1000, 1999]])
+      expect(result.error).toBeNull()
+      expect(result.totalStudents).toBe(1001)
+      expect(result.studentIds).toHaveLength(1001)
+      expect(result.studentIdSet.has('student-1000')).toBe(true)
     })
   })
 
@@ -351,6 +392,13 @@ describe('server access helpers', () => {
         isMissingTestResponseAiColumnsError({
           code: 'PGRST204',
           hint: 'ai_reference_answers missing from schema cache',
+        })
+      ).toBe(true)
+
+      expect(
+        isMissingTestResponseAiColumnsError({
+          code: 'PGRST204',
+          details: 'AI_MODEL missing from schema cache',
         })
       ).toBe(true)
 

@@ -53,6 +53,28 @@ describe('StudentSurveyPanel', () => {
               created_at: '2026-01-01T00:00:00.000Z',
               updated_at: '2026-01-01T00:00:00.000Z',
             },
+            {
+              id: 'question-link',
+              survey_id: 'survey-1',
+              question_type: 'link',
+              question_text: 'Share your project link',
+              options: [],
+              response_max_chars: 2048,
+              position: 1,
+              created_at: '2026-01-01T00:00:00.000Z',
+              updated_at: '2026-01-01T00:00:00.000Z',
+            },
+            {
+              id: 'question-text',
+              survey_id: 'survey-1',
+              question_type: 'short_text',
+              question_text: 'What did you build?',
+              options: [],
+              response_max_chars: 500,
+              position: 2,
+              created_at: '2026-01-01T00:00:00.000Z',
+              updated_at: '2026-01-01T00:00:00.000Z',
+            },
           ],
           student_status: 'can_view_results',
           has_submitted: false,
@@ -72,7 +94,10 @@ describe('StudentSurveyPanel', () => {
 
     expect(await screen.findByRole('heading', { name: 'Quick Poll' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Submit' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Respond' })).toBeInTheDocument()
+    const responseAction = screen.getByRole('button', { name: 'Respond' })
+    expect(responseAction).toBeInTheDocument()
+    expect(responseAction.parentElement).toHaveClass('fixed', 'top-[3.25rem]', 'z-40')
+    expect(responseAction.parentElement?.className).toContain('lg:left-[var(--main-content-center-x,50%)]')
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'Class results' })).toBeInTheDocument()
@@ -83,5 +108,7 @@ describe('StudentSurveyPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Respond' }))
     expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'View results' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Share your project link response' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'What did you build? response' })).toBeInTheDocument()
   })
 })

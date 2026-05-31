@@ -103,7 +103,7 @@ describe('announcement markdown rendering', () => {
     expect(screen.queryByPlaceholderText('Optional title')).not.toBeInTheDocument()
     expect(titleInput.compareDocumentPosition(screen.getByText('Unit update')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 
-    const textarea = screen.getByPlaceholderText('Write an announcement...')
+    const textarea = screen.getByRole('textbox', { name: 'Announcement body' })
     expect(textarea).toHaveAttribute('rows', '6')
     expect(textarea).toHaveClass('min-h-[10rem]')
     expect(textarea).toHaveClass('resize-y')
@@ -111,6 +111,17 @@ describe('announcement markdown rendering', () => {
     fireEvent.change(textarea, { target: { value: 'Announcement draft' } })
     fireEvent.click(screen.getByRole('button', { name: 'Choose announcement action' }))
     expect(screen.getByRole('menuitem', { name: 'Schedule...' })).toBeInTheDocument()
+  })
+
+  it('labels the edit announcement textarea', async () => {
+    render(<TeacherAnnouncementsSection classroom={classroom} />)
+
+    await screen.findByRole('link', { name: 'course outline' })
+    fireEvent.click(screen.getByText('bring notes'))
+
+    expect(screen.getByRole('textbox', { name: 'Edit announcement body' })).toHaveValue(
+      markdownAnnouncement.content,
+    )
   })
 
   it('shows the newest teacher announcements first', async () => {

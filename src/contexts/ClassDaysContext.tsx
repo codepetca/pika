@@ -1,8 +1,12 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { ClassDay } from '@/types'
 import { CLASS_DAYS_UPDATED_EVENT } from '@/lib/events'
+import {
+  fetchClassDaysForClassroom,
+  invalidateClassDaysForClassroom,
+} from '@/lib/class-days-client'
 
 interface ClassDaysContextValue {
   classDays: ClassDay[]
@@ -24,16 +28,28 @@ interface ClassDaysProviderProps {
 export function ClassDaysProvider({ classroomId, children }: ClassDaysProviderProps) {
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const loadSequenceRef = useRef(0)
 
-  const loadClassDays = useCallback(async () => {
+  const loadClassDays = useCallback(async (options?: { force?: boolean }) => {
+    const loadSequence = loadSequenceRef.current + 1
+    loadSequenceRef.current = loadSequence
+
     try {
-      const res = await fetch(`/api/classrooms/${classroomId}/class-days`)
-      const data = await res.json()
-      setClassDays(data.class_days || [])
+      if (options?.force) {
+        invalidateClassDaysForClassroom(classroomId)
+      }
+      const nextClassDays = await fetchClassDaysForClassroom(classroomId)
+      if (loadSequenceRef.current === loadSequence) {
+        setClassDays(nextClassDays)
+      }
     } catch (err) {
-      console.error('Error loading class days:', err)
+      if (loadSequenceRef.current === loadSequence) {
+        console.error('Error loading class days:', err)
+      }
     } finally {
-      setIsLoading(false)
+      if (loadSequenceRef.current === loadSequence) {
+        setIsLoading(false)
+      }
     }
   }, [classroomId])
 
@@ -46,7 +62,7 @@ export function ClassDaysProvider({ classroomId, children }: ClassDaysProviderPr
   useEffect(() => {
     const handleClassDaysUpdated = (e: CustomEvent<{ classroomId: string }>) => {
       if (e.detail.classroomId === classroomId) {
-        loadClassDays()
+        loadClassDays({ force: true })
       }
     }
 
@@ -57,7 +73,7 @@ export function ClassDaysProvider({ classroomId, children }: ClassDaysProviderPr
   }, [classroomId, loadClassDays])
 
   return (
-    <ClassDaysContext.Provider value={{ classDays, isLoading, refresh: loadClassDays }}>
+    <ClassDaysContext.Provider value={{ classDays, isLoading, refresh: () => loadClassDays({ force: true }) }}>
       {children}
     </ClassDaysContext.Provider>
   )
@@ -90,25 +106,38 @@ export function useClassDays(classroomId: string): ClassDay[] {
     // Skip fetching if we have context - provider handles it
     if (hasContext) return
 
-    async function loadClassDays() {
+    let isActive = true
+    let loadSequence = 0
+
+    async function loadClassDays(options?: { force?: boolean }) {
+      loadSequence += 1
+      const currentLoadSequence = loadSequence
+
       try {
-        const res = await fetch(`/api/classrooms/${classroomId}/class-days`)
-        const data = await res.json()
-        setFallbackClassDays(data.class_days || [])
+        if (options?.force) {
+          invalidateClassDaysForClassroom(classroomId)
+        }
+        const nextClassDays = await fetchClassDaysForClassroom(classroomId)
+        if (isActive && currentLoadSequence === loadSequence) {
+          setFallbackClassDays(nextClassDays)
+        }
       } catch (err) {
-        console.error('Error loading class days:', err)
+        if (isActive && currentLoadSequence === loadSequence) {
+          console.error('Error loading class days:', err)
+        }
       }
     }
     loadClassDays()
 
     const handleClassDaysUpdated = (e: CustomEvent<{ classroomId: string }>) => {
       if (e.detail.classroomId === classroomId) {
-        loadClassDays()
+        loadClassDays({ force: true })
       }
     }
 
     window.addEventListener(CLASS_DAYS_UPDATED_EVENT, handleClassDaysUpdated as EventListener)
     return () => {
+      isActive = false
       window.removeEventListener(CLASS_DAYS_UPDATED_EVENT, handleClassDaysUpdated as EventListener)
     }
   }, [classroomId, hasContext])

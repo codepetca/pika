@@ -388,9 +388,7 @@ export function StudentAssignmentsTab({
                               {formatAssignmentTiming(assignment.due_at, assignment.doc)}
                             </p>
                           </div>
-                          <span
-                            className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getAssignmentStatusBadgeClass(assignment.status)}`}
-                          >
+                          <span className={getAssignmentStatusBadgeClass(assignment.status)}>
                             {getAssignmentStatusLabel(assignment.status)}
                           </span>
                         </div>

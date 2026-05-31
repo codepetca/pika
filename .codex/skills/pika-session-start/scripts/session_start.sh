@@ -101,7 +101,12 @@ fi
 echo ""
 echo "── 3. Git context"
 BRANCH=$(git -C "$WORKTREE" branch --show-current)
-echo -e "${INFO} Branch: $BRANCH"
+if [[ -n "$BRANCH" ]]; then
+  CHECKOUT_STATE="branch: $BRANCH"
+else
+  CHECKOUT_STATE="detached HEAD at $(git -C "$WORKTREE" rev-parse --short HEAD)"
+fi
+echo -e "${INFO} Checkout: $CHECKOUT_STATE"
 echo ""
 git -C "$WORKTREE" log --oneline -8
 echo ""

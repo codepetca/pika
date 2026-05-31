@@ -8,5 +8,5 @@ Read these files in order:
 
 After reading, confirm:
 1. What repo root does `git rev-parse --show-toplevel` report?
-2. What branch are you on?
+2. What branch are you on, or are you on detached HEAD?
 3. What task are you working on?

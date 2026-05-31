@@ -10,32 +10,43 @@ vi.mock('@/lib/auth', () => ({
   })),
 }))
 
-vi.mock('@/lib/server/tests', () => ({
-  assertStudentCanAccessTest: vi.fn(async () => ({
-    ok: true,
-    test: {
-      id: 'test-1',
-      documents: [
-        {
-          id: 'doc-1',
-          title: 'Node.js API',
-          source: 'link',
-          url: 'https://nodejs.org/api/fs.html',
-          snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshot',
-          snapshot_content_type: 'text/html',
-          synced_at: '2026-04-02T12:00:00.000Z',
-        },
-      ],
-    },
-  })),
+const { defaultTest } = vi.hoisted(() => ({
+  defaultTest: {
+    id: 'test-1',
+    status: 'active',
+    documents: [
+      {
+        id: 'doc-1',
+        title: 'Node.js API',
+        source: 'link',
+        url: 'https://nodejs.org/api/fs.html',
+        snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshot',
+        snapshot_content_type: 'text/html',
+        synced_at: '2026-04-02T12:00:00.000Z',
+      },
+    ],
+  },
 }))
+
+vi.mock('@/lib/server/tests', async () => {
+  const actual = await vi.importActual<any>('@/lib/server/tests')
+  return {
+    ...actual,
+    assertStudentCanAccessTest: vi.fn(async () => ({
+      ok: true,
+      test: defaultTest,
+    })),
+  }
+})
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabase),
 }))
 
 const mockDownload = vi.fn()
+const mockFrom = vi.fn()
 const mockSupabase = {
+  from: mockFrom,
   storage: {
     from: vi.fn(() => ({
       download: mockDownload,
@@ -66,6 +77,47 @@ async function readResponseText(response: Response) {
 describe('GET /api/student/tests/[id]/documents/[docId]/snapshot', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: null,
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            then: vi.fn((resolve: any) =>
+              resolve({
+                data: [],
+                error: null,
+              })
+            ),
+          })),
+        }
+      }
+
+      if (table === 'test_student_availability') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockResolvedValue({
+              data: [],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
     mockDownload.mockResolvedValue({
       data: createMockDownloadBody('<html><body>Snapshot</body></html>', 'text/html'),
       error: null,
@@ -89,6 +141,7 @@ describe('GET /api/student/tests/[id]/documents/[docId]/snapshot', () => {
     vi.mocked(serverTests.assertStudentCanAccessTest).mockResolvedValueOnce({
       ok: true,
       test: {
+        ...defaultTest,
         id: 'test-1',
         documents: [
           {
@@ -109,5 +162,96 @@ describe('GET /api/student/tests/[id]/documents/[docId]/snapshot', () => {
 
     expect(response.status).toBe(404)
     expect(data.error).toBe('Snapshot not found')
+  })
+
+  it('does not stream snapshots for draft tests', async () => {
+    const serverTests = await import('@/lib/server/tests')
+    vi.mocked(serverTests.assertStudentCanAccessTest).mockResolvedValueOnce({
+      ok: true,
+      test: {
+        ...defaultTest,
+        status: 'draft',
+      } as any,
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/student/tests/test-1/documents/doc-1/snapshot'),
+      { params: Promise.resolve({ id: 'test-1', docId: 'doc-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(404)
+    expect(data.error).toBe('Snapshot not found')
+    expect(mockDownload).not.toHaveBeenCalled()
+  })
+
+  it('does not stream snapshots for closed tests before the student has submitted', async () => {
+    const serverTests = await import('@/lib/server/tests')
+    vi.mocked(serverTests.assertStudentCanAccessTest).mockResolvedValueOnce({
+      ok: true,
+      test: {
+        ...defaultTest,
+        status: 'closed',
+      } as any,
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/student/tests/test-1/documents/doc-1/snapshot'),
+      { params: Promise.resolve({ id: 'test-1', docId: 'doc-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(404)
+    expect(data.error).toBe('Snapshot not found')
+    expect(mockDownload).not.toHaveBeenCalled()
+  })
+
+  it('does not stream snapshots when selected-student test access is closed', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: null,
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
+          })),
+        }
+      }
+
+      if (table === 'test_student_availability') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockResolvedValue({
+              data: [{ student_id: 'student-1', state: 'closed' }],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/student/tests/test-1/documents/doc-1/snapshot'),
+      { params: Promise.resolve({ id: 'test-1', docId: 'doc-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(404)
+    expect(data.error).toBe('Snapshot not found')
+    expect(mockDownload).not.toHaveBeenCalled()
   })
 })

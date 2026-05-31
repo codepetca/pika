@@ -6,6 +6,7 @@ import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import { withErrorHandler } from '@/lib/api-handler'
+import { chunkValues, loadPagedRows } from '@/lib/server/query-chunks'
 import {
   getEffectiveStudentTestAccess,
   isMissingTestAttemptClosureColumnsError,
@@ -14,6 +15,281 @@ import {
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+const STUDENT_NOTIFICATIONS_PAGE_SIZE = 1000
+
+type AssignmentNotificationRow = {
+  id: string
+  released_at: string | null
+}
+
+type AssignmentDocNotificationRow = {
+  assignment_id: string
+  viewed_at: string | null
+  returned_at: string | null
+  feedback_returned_at: string | null
+}
+
+type TestNotificationRow = {
+  id: string
+  status: string
+}
+
+type TestResponseNotificationRow = {
+  test_id: string
+  selected_option: unknown
+  response_text: unknown
+}
+
+type TestAttemptNotificationRow = {
+  test_id: string
+  is_submitted: boolean
+  closed_for_grading_at: string | null
+}
+
+type LegacyTestAttemptNotificationRow = {
+  test_id: string
+  is_submitted: boolean
+}
+
+type TestAvailabilityNotificationRow = {
+  test_id: string
+  state: unknown
+}
+
+type AnnouncementNotificationRow = {
+  id: string
+}
+
+type AnnouncementReadNotificationRow = {
+  announcement_id: string
+}
+
+function parseTimestamp(value: string | null | undefined) {
+  if (!value) return null
+  const time = new Date(value).getTime()
+  return Number.isFinite(time) ? time : null
+}
+
+function hasUnreadAssignmentDocNotification(doc: AssignmentDocNotificationRow | undefined) {
+  if (!doc) return true
+  const viewedTime = parseTimestamp(doc.viewed_at)
+  if (viewedTime === null) return true
+
+  const latestReturnTime = Math.max(
+    parseTimestamp(doc.returned_at) ?? 0,
+    parseTimestamp(doc.feedback_returned_at) ?? 0
+  )
+
+  return latestReturnTime > viewedTime
+}
+
+async function loadVisibleAssignmentIds(
+  supabase: any,
+  classroomId: string
+): Promise<{ ids: string[]; error: any }> {
+  const { rows, error } = await loadPagedRows<AssignmentNotificationRow>(() =>
+    supabase
+      .from('assignments')
+      .select('id,released_at')
+      .eq('classroom_id', classroomId)
+      .eq('is_draft', false),
+    STUDENT_NOTIFICATIONS_PAGE_SIZE
+  )
+
+  if (error) return { ids: [], error }
+
+  const ids = rows
+    .filter((assignment) =>
+      isAssignmentVisibleToStudents({ is_draft: false, released_at: assignment.released_at ?? null })
+    )
+    .map((assignment) => assignment.id)
+
+  return { ids, error: null }
+}
+
+async function loadAssignmentDocsForAssignments(
+  supabase: any,
+  studentId: string,
+  assignmentIds: string[]
+): Promise<{ rows: AssignmentDocNotificationRow[]; error: any }> {
+  if (assignmentIds.length === 0) return { rows: [], error: null }
+
+  const rows: AssignmentDocNotificationRow[] = []
+  for (const assignmentIdChunk of chunkValues(assignmentIds)) {
+    const result = await loadPagedRows<AssignmentDocNotificationRow>(() =>
+      supabase
+        .from('assignment_docs')
+        .select('assignment_id, viewed_at, returned_at, feedback_returned_at')
+        .eq('student_id', studentId)
+        .in('assignment_id', assignmentIdChunk),
+      STUDENT_NOTIFICATIONS_PAGE_SIZE
+    )
+
+    if (result.error) return result
+    rows.push(...result.rows)
+  }
+
+  return { rows, error: null }
+}
+
+async function loadTestNotificationCandidates(
+  supabase: any,
+  classroomId: string
+): Promise<{ rows: TestNotificationRow[]; error: any }> {
+  return loadPagedRows<TestNotificationRow>(() =>
+    supabase
+      .from('tests')
+      .select('id, status')
+      .eq('classroom_id', classroomId)
+      .in('status', ['active', 'closed']),
+    STUDENT_NOTIFICATIONS_PAGE_SIZE
+  )
+}
+
+async function loadTestResponsesForTests(
+  supabase: any,
+  studentId: string,
+  testIds: string[]
+): Promise<{ rows: TestResponseNotificationRow[]; error: any }> {
+  if (testIds.length === 0) return { rows: [], error: null }
+
+  const rows: TestResponseNotificationRow[] = []
+  for (const testIdChunk of chunkValues(testIds)) {
+    const result = await loadPagedRows<TestResponseNotificationRow>(() =>
+      supabase
+        .from('test_responses')
+        .select('test_id, selected_option, response_text')
+        .eq('student_id', studentId)
+        .in('test_id', testIdChunk),
+      STUDENT_NOTIFICATIONS_PAGE_SIZE
+    )
+
+    if (result.error) return result
+    rows.push(...result.rows)
+  }
+
+  return { rows, error: null }
+}
+
+async function loadTestAttemptsForTests(
+  supabase: any,
+  studentId: string,
+  testIds: string[]
+): Promise<{ rows: TestAttemptNotificationRow[]; error: any }> {
+  if (testIds.length === 0) return { rows: [], error: null }
+
+  const rows: TestAttemptNotificationRow[] = []
+  for (const testIdChunk of chunkValues(testIds)) {
+    const result = await loadPagedRows<TestAttemptNotificationRow>(() =>
+      supabase
+        .from('test_attempts')
+        .select('test_id, is_submitted, closed_for_grading_at')
+        .eq('student_id', studentId)
+        .in('test_id', testIdChunk),
+      STUDENT_NOTIFICATIONS_PAGE_SIZE
+    )
+
+    if (result.error) return result
+    rows.push(...result.rows)
+  }
+
+  return { rows, error: null }
+}
+
+async function loadLegacyTestAttemptsForTests(
+  supabase: any,
+  studentId: string,
+  testIds: string[]
+): Promise<{ rows: TestAttemptNotificationRow[]; error: any }> {
+  if (testIds.length === 0) return { rows: [], error: null }
+
+  const rows: TestAttemptNotificationRow[] = []
+  for (const testIdChunk of chunkValues(testIds)) {
+    const result = await loadPagedRows<LegacyTestAttemptNotificationRow>(() =>
+      supabase
+        .from('test_attempts')
+        .select('test_id, is_submitted')
+        .eq('student_id', studentId)
+        .in('test_id', testIdChunk),
+      STUDENT_NOTIFICATIONS_PAGE_SIZE
+    )
+
+    if (result.error) return { rows: [], error: result.error }
+    rows.push(...result.rows.map((attempt) => ({
+      ...attempt,
+      closed_for_grading_at: null,
+    })))
+  }
+
+  return { rows, error: null }
+}
+
+async function loadTestAvailabilityForTests(
+  supabase: any,
+  studentId: string,
+  testIds: string[]
+): Promise<{ rows: TestAvailabilityNotificationRow[]; error: any }> {
+  if (testIds.length === 0) return { rows: [], error: null }
+
+  const rows: TestAvailabilityNotificationRow[] = []
+  for (const testIdChunk of chunkValues(testIds)) {
+    const result = await loadPagedRows<TestAvailabilityNotificationRow>(() =>
+      supabase
+        .from('test_student_availability')
+        .select('test_id, state')
+        .eq('student_id', studentId)
+        .in('test_id', testIdChunk),
+      STUDENT_NOTIFICATIONS_PAGE_SIZE
+    )
+
+    if (result.error) return result
+    rows.push(...result.rows)
+  }
+
+  return { rows, error: null }
+}
+
+async function loadAnnouncementIds(
+  supabase: any,
+  classroomId: string
+): Promise<{ ids: string[]; error: any }> {
+  const { rows, error } = await loadPagedRows<AnnouncementNotificationRow>(() =>
+    supabase
+      .from('announcements')
+      .select('id')
+      .eq('classroom_id', classroomId)
+      .or('scheduled_for.is.null,scheduled_for.lte.now()'),
+    STUDENT_NOTIFICATIONS_PAGE_SIZE
+  )
+
+  if (error) return { ids: [], error }
+  return { ids: rows.map((announcement) => announcement.id), error: null }
+}
+
+async function loadAnnouncementReadsForAnnouncements(
+  supabase: any,
+  userId: string,
+  announcementIds: string[]
+): Promise<{ rows: AnnouncementReadNotificationRow[]; error: any }> {
+  if (announcementIds.length === 0) return { rows: [], error: null }
+
+  const rows: AnnouncementReadNotificationRow[] = []
+  for (const announcementIdChunk of chunkValues(announcementIds)) {
+    const result = await loadPagedRows<AnnouncementReadNotificationRow>(() =>
+      supabase
+        .from('announcement_reads')
+        .select('announcement_id')
+        .eq('user_id', userId)
+        .in('announcement_id', announcementIdChunk),
+      STUDENT_NOTIFICATIONS_PAGE_SIZE
+    )
+
+    if (result.error) return result
+    rows.push(...result.rows)
+  }
+
+  return { rows, error: null }
+}
 
 /**
  * GET /api/student/notifications?classroom_id=xxx
@@ -32,10 +308,11 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
       { status: 400 }
     )
   }
+  const scopedClassroomId = classroomId
 
   const supabase = getServiceRoleClient()
 
-  const access = await assertStudentCanAccessClassroom(user.id, classroomId)
+  const access = await assertStudentCanAccessClassroom(user.id, scopedClassroomId)
   if (!access.ok) {
     return NextResponse.json(
       { error: access.error },
@@ -49,7 +326,7 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
   const { data: classDay, error: classDayError } = await supabase
     .from('class_days')
     .select('is_class_day')
-    .eq('classroom_id', classroomId)
+    .eq('classroom_id', scopedClassroomId)
     .eq('date', today)
     .maybeSingle()
 
@@ -71,7 +348,7 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
       .from('entries')
       .select('id')
       .eq('student_id', user.id)
-      .eq('classroom_id', classroomId)
+      .eq('classroom_id', scopedClassroomId)
       .eq('date', today)
       .maybeSingle()
 
@@ -86,12 +363,10 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
     hasTodayEntry = todayEntry !== null
   }
 
-  // Get all assignments for this classroom
-  const { data: assignments, error: assignmentsError } = await supabase
-    .from('assignments')
-    .select('id,released_at')
-    .eq('classroom_id', classroomId)
-    .eq('is_draft', false)
+  const { ids: assignmentIds, error: assignmentsError } = await loadVisibleAssignmentIds(
+    supabase,
+    scopedClassroomId
+  )
 
   if (assignmentsError) {
     console.error('Error fetching assignments:', assignmentsError)
@@ -103,19 +378,13 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
 
   // Count unviewed assignments
   let unviewedCount = 0
-  const assignmentIds = (assignments || [])
-    .filter((a: { is_draft?: boolean; released_at?: string | null }) =>
-      isAssignmentVisibleToStudents({ is_draft: false, released_at: a.released_at ?? null })
-    )
-    .map((a: { id: string }) => a.id)
 
   if (assignmentIds.length > 0) {
-    // Get this student's docs for these assignments
-    const { data: docs, error: docsError } = await supabase
-      .from('assignment_docs')
-      .select('assignment_id, viewed_at')
-      .eq('student_id', user.id)
-      .in('assignment_id', assignmentIds)
+    const { rows: docs, error: docsError } = await loadAssignmentDocsForAssignments(
+      supabase,
+      user.id,
+      assignmentIds
+    )
 
     if (docsError) {
       console.error('Error fetching assignment docs:', docsError)
@@ -131,7 +400,7 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
     // Count: no doc exists OR doc.viewed_at is null
     for (const assignmentId of assignmentIds) {
       const doc = docMap.get(assignmentId)
-      if (!doc || doc.viewed_at === null) {
+      if (hasUnreadAssignmentDocNotification(doc)) {
         unviewedCount++
       }
     }
@@ -142,35 +411,29 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
   ): Promise<{ count: number; error: boolean }> {
     const tolerateMissingTable = opts?.tolerateMissingTable === true
 
-    const { data: activeRows, error: activeError } = await supabase
-      .from('tests')
-      .select('id, status')
-      .eq('classroom_id', classroomId)
-      .eq('status', 'active')
+    const { rows: testRows, error: testRowsError } = await loadTestNotificationCandidates(
+      supabase,
+      scopedClassroomId
+    )
 
-    if (activeError) {
-      if (tolerateMissingTable && activeError.code === 'PGRST205') {
+    if (testRowsError) {
+      if (tolerateMissingTable && testRowsError.code === 'PGRST205') {
         return { count: 0, error: false }
       }
-      console.error('Error fetching tests:', activeError)
+      console.error('Error fetching tests:', testRowsError)
       return { count: 0, error: true }
     }
 
-    const activeIds = (activeRows || []).map((row) => row.id)
+    const testIds = (testRows || []).map((row) => row.id)
 
-    if (activeIds.length === 0) {
+    if (testIds.length === 0) {
       return { count: 0, error: false }
     }
 
-    const testResponsesResult = await supabase
-      .from('test_responses')
-      .select('test_id, selected_option, response_text')
-      .eq('student_id', user.id)
-      .in('test_id', activeIds)
-
-    const responses =
-      (testResponsesResult.data as Array<{ test_id: string; selected_option: unknown; response_text: unknown }> | null) || []
-    const responsesError = testResponsesResult.error
+    const {
+      rows: responses,
+      error: responsesError,
+    } = await loadTestResponsesForTests(supabase, user.id, testIds)
 
     if (responsesError) {
       if (tolerateMissingTable && responsesError.code === 'PGRST205') {
@@ -195,28 +458,14 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
     let attemptsError: { code?: string; message?: string; details?: string | null; hint?: string | null } | null = null
 
     {
-      const latestAttemptsResult = await supabase
-        .from('test_attempts')
-        .select('test_id, is_submitted, closed_for_grading_at')
-        .eq('student_id', user.id)
-        .in('test_id', activeIds)
-
-      submittedAttempts = (latestAttemptsResult.data as AttemptRow[] | null) || null
+      const latestAttemptsResult = await loadTestAttemptsForTests(supabase, user.id, testIds)
+      submittedAttempts = latestAttemptsResult.rows
       attemptsError = latestAttemptsResult.error
     }
 
     if (attemptsError && isMissingTestAttemptClosureColumnsError(attemptsError)) {
-      const legacyAttemptsResult = await supabase
-        .from('test_attempts')
-        .select('test_id, is_submitted')
-        .eq('student_id', user.id)
-        .in('test_id', activeIds)
-
-      submittedAttempts = ((legacyAttemptsResult.data as Array<{ test_id: string; is_submitted: boolean }> | null) || [])
-        .map((attempt) => ({
-          ...attempt,
-          closed_for_grading_at: null,
-        }))
+      const legacyAttemptsResult = await loadLegacyTestAttemptsForTests(supabase, user.id, testIds)
+      submittedAttempts = legacyAttemptsResult.rows
       attemptsError = legacyAttemptsResult.error
     }
 
@@ -239,12 +488,8 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
     let availabilityRows: Array<{ test_id: string; state: unknown }> | null = null
     let availabilityError: any = null
     try {
-      const availabilityResult = await supabase
-        .from('test_student_availability')
-        .select('test_id, state')
-        .eq('student_id', user.id)
-        .in('test_id', activeIds)
-      availabilityRows = availabilityResult.data
+      const availabilityResult = await loadTestAvailabilityForTests(supabase, user.id, testIds)
+      availabilityRows = availabilityResult.rows
       availabilityError = availabilityResult.error
     } catch (error) {
       availabilityError = error
@@ -264,9 +509,9 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
     }
 
     return {
-      count: (activeRows || []).filter((test) => {
+      count: (testRows || []).filter((test) => {
         const access = getEffectiveStudentTestAccess({
-          testStatus: 'active',
+          testStatus: test.status === 'closed' ? 'closed' : 'active',
           accessState: availabilityByTestId.get(test.id) ?? null,
           hasSubmitted: respondedIds.has(test.id),
           returnedAt: null,
@@ -291,11 +536,10 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
   // Count unread announcements for this classroom (only published ones)
   let unreadAnnouncementsCount = 0
 
-  const { data: announcements, error: announcementsError } = await supabase
-    .from('announcements')
-    .select('id')
-    .eq('classroom_id', classroomId)
-    .or('scheduled_for.is.null,scheduled_for.lte.now()')
+  const { ids: announcementIds, error: announcementsError } = await loadAnnouncementIds(
+    supabase,
+    scopedClassroomId
+  )
 
   if (announcementsError) {
     console.error('Error fetching announcements:', announcementsError)
@@ -305,14 +549,12 @@ export const GET = withErrorHandler('GetStudentNotifications', async (request, c
     )
   }
 
-  const announcementIds = announcements?.map((a) => a.id) || []
-
   if (announcementIds.length > 0) {
-    const { data: reads, error: readsError } = await supabase
-      .from('announcement_reads')
-      .select('announcement_id')
-      .eq('user_id', user.id)
-      .in('announcement_id', announcementIds)
+    const { rows: reads, error: readsError } = await loadAnnouncementReadsForAnnouncements(
+      supabase,
+      user.id,
+      announcementIds
+    )
 
     if (readsError) {
       console.error('Error fetching announcement reads:', readsError)

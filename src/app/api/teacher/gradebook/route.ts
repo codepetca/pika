@@ -20,6 +20,8 @@ const ASSIGNMENT_POINTS_DEFAULT = 30
 const QUIZ_POINTS_DEFAULT = 100
 const ASSESSMENT_WEIGHT_DEFAULT = 10
 const ASSESSMENT_WEIGHT_MAX = 999
+const GRADEBOOK_BULK_FILTER_CHUNK_SIZE = 50
+const GRADEBOOK_BULK_PAGE_SIZE = 1000
 
 type GradebookAssessmentType = 'assignment' | 'quiz' | 'test'
 type GradebookAssessmentStatus =
@@ -40,6 +42,124 @@ type GradebookAssessmentCell = {
   is_graded: boolean
   is_manual_override?: boolean
   status?: GradebookAssessmentStatus | null
+}
+
+type QueryOrder = {
+  column: string
+  ascending?: boolean
+}
+
+function chunkIds(ids: string[], chunkSize: number): string[][] {
+  const chunks: string[][] = []
+  for (let index = 0; index < ids.length; index += chunkSize) {
+    chunks.push(ids.slice(index, index + chunkSize))
+  }
+  return chunks
+}
+
+function applyOrders(query: any, orderBy: QueryOrder[]): any {
+  return orderBy.reduce((currentQuery, order) => {
+    if (typeof currentQuery.order !== 'function') return currentQuery
+    return currentQuery.order(order.column, { ascending: order.ascending ?? true })
+  }, query)
+}
+
+async function loadPagedRows<T>(
+  buildQuery: () => any,
+  orderBy: QueryOrder[] = [{ column: 'id', ascending: true }]
+): Promise<{ rows: T[]; error: any }> {
+  const rows: T[] = []
+  let offset = 0
+
+  while (true) {
+    let query = buildQuery()
+    const supportsRange = typeof query.range === 'function'
+    if (supportsRange) {
+      query = applyOrders(query, orderBy)
+      query = query.range(offset, offset + GRADEBOOK_BULK_PAGE_SIZE - 1)
+    }
+
+    const { data, error } = await query
+    if (error) {
+      return { rows: [], error }
+    }
+
+    const pageRows = (data || []) as T[]
+    rows.push(...pageRows)
+
+    if (!supportsRange || pageRows.length < GRADEBOOK_BULK_PAGE_SIZE) break
+    offset += GRADEBOOK_BULK_PAGE_SIZE
+  }
+
+  return { rows, error: null }
+}
+
+async function loadSingleFilterRows<T>(
+  supabase: any,
+  table: string,
+  selection: string,
+  filterColumn: string,
+  ids: string[],
+  orderBy: QueryOrder[] = [{ column: 'id', ascending: true }]
+): Promise<{ rows: T[]; error: any }> {
+  if (ids.length === 0) {
+    return { rows: [], error: null }
+  }
+
+  const rows: T[] = []
+  for (const idChunk of chunkIds(ids, GRADEBOOK_BULK_FILTER_CHUNK_SIZE)) {
+    const result = await loadPagedRows<T>(() =>
+      supabase
+        .from(table)
+        .select(selection)
+        .in(filterColumn, idChunk),
+      orderBy
+    )
+
+    if (result.error) {
+      return { rows: [], error: result.error }
+    }
+
+    rows.push(...result.rows)
+  }
+
+  return { rows, error: null }
+}
+
+async function loadStudentScopedRows<T>(
+  supabase: any,
+  table: string,
+  selection: string,
+  assessmentColumn: string,
+  assessmentIds: string[],
+  studentIds: string[],
+  orderBy: QueryOrder[] = [{ column: 'id', ascending: true }]
+): Promise<{ rows: T[]; error: any }> {
+  if (assessmentIds.length === 0 || studentIds.length === 0) {
+    return { rows: [], error: null }
+  }
+
+  const rows: T[] = []
+  for (const assessmentIdChunk of chunkIds(assessmentIds, GRADEBOOK_BULK_FILTER_CHUNK_SIZE)) {
+    for (const studentIdChunk of chunkIds(studentIds, GRADEBOOK_BULK_FILTER_CHUNK_SIZE)) {
+      const result = await loadPagedRows<T>(() =>
+        supabase
+          .from(table)
+          .select(selection)
+          .in(assessmentColumn, assessmentIdChunk)
+          .in('student_id', studentIdChunk),
+        orderBy
+      )
+
+      if (result.error) {
+        return { rows: [], error: result.error }
+      }
+
+      rows.push(...result.rows)
+    }
+  }
+
+  return { rows, error: null }
 }
 
 function mentionsMissingField(
@@ -250,10 +370,15 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
 
   const supabase = getServiceRoleClient()
 
-  const { data: enrollments, error: enrollmentError } = await supabase
-    .from('classroom_enrollments')
-    .select('student_id, users!inner(email)')
-    .eq('classroom_id', classroomId)
+  const {
+    rows: enrollments,
+    error: enrollmentError,
+  } = await loadPagedRows<Array<{ student_id: string; users: { email: string } }>[number]>(() =>
+    supabase
+      .from('classroom_enrollments')
+      .select('student_id, users!inner(email)')
+      .eq('classroom_id', classroomId)
+  )
 
   if (enrollmentError) {
     console.error('Error loading enrollments:', enrollmentError)
@@ -266,12 +391,26 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
     return NextResponse.json({ error: 'Student is not enrolled in this classroom' }, { status: 404 })
   }
 
-  const { data: profiles } = studentIds.length
-    ? await supabase
-        .from('student_profiles')
-        .select('user_id, student_number, first_name, last_name')
-        .in('user_id', studentIds)
-    : { data: [] as Array<{ user_id: string; student_number: string | null; first_name: string | null; last_name: string | null }> }
+  const {
+    rows: profiles,
+    error: profilesError,
+  } = await loadSingleFilterRows<{
+    user_id: string
+    student_number: string | null
+    first_name: string | null
+    last_name: string | null
+  }>(
+    supabase,
+    'student_profiles',
+    'user_id, student_number, first_name, last_name',
+    'user_id',
+    studentIds
+  )
+
+  if (profilesError) {
+    console.error('Error loading student profiles for gradebook:', profilesError)
+    return NextResponse.json({ error: 'Failed to load student profiles for gradebook' }, { status: 500 })
+  }
 
   const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]))
 
@@ -286,11 +425,16 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
     gradebook_weight: number
   }> = []
 
-  const { data: assignmentsWithMeta, error: assignmentsWithMetaError } = await supabase
-    .from('assignments')
-    .select('id, title, due_at, position, points_possible, include_in_final, is_draft, gradebook_weight')
-    .eq('classroom_id', classroomId)
-    .order('position', { ascending: true })
+  const {
+    rows: assignmentsWithMeta,
+    error: assignmentsWithMetaError,
+  } = await loadPagedRows<any>(() =>
+    supabase
+      .from('assignments')
+      .select('id, title, due_at, position, points_possible, include_in_final, is_draft, gradebook_weight')
+      .eq('classroom_id', classroomId)
+      .order('position', { ascending: true })
+  )
 
   if (!assignmentsWithMetaError) {
     assignments = (assignmentsWithMeta || []).map((assignment) => ({
@@ -309,11 +453,16 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
       : 'id, title, due_at, position, is_draft'
 
     // Backward-compatible fallback for databases that have not applied gradebook metadata columns yet.
-    const { data: assignmentsLegacy, error: assignmentsLegacyError } = await supabase
-      .from('assignments')
-      .select(assignmentSelection)
-      .eq('classroom_id', classroomId)
-      .order('position', { ascending: true })
+    const {
+      rows: assignmentsLegacy,
+      error: assignmentsLegacyError,
+    } = await loadPagedRows<any>(() =>
+      supabase
+        .from('assignments')
+        .select(assignmentSelection)
+        .eq('classroom_id', classroomId)
+        .order('position', { ascending: true })
+    )
 
     if (assignmentsLegacyError) {
       console.error('Error loading assignments for gradebook:', assignmentsWithMetaError, assignmentsLegacyError)
@@ -334,12 +483,40 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
   assignments.sort(comparePositionThenTitle)
 
   const assignmentIds = assignments.map((a) => a.id)
-  const { data: docs } = assignmentIds.length
-    ? await supabase
-        .from('assignment_docs')
-        .select('assignment_id, student_id, score_completion, score_thinking, score_workflow, is_submitted, submitted_at, returned_at, teacher_cleared_at, graded_at')
-        .in('assignment_id', assignmentIds)
-    : { data: [] as Array<any> }
+  let docs: Array<any> = []
+  if (assignmentIds.length && studentIds.length) {
+    const assignmentDocSelection = 'assignment_id, student_id, score_completion, score_thinking, score_workflow, is_submitted, submitted_at, returned_at, teacher_cleared_at, graded_at'
+    const assignmentDocLegacySelection = 'assignment_id, student_id, score_completion, score_thinking, score_workflow, is_submitted, submitted_at, returned_at, graded_at'
+    let docsResult = await loadStudentScopedRows<any>(
+      supabase,
+      'assignment_docs',
+      assignmentDocSelection,
+      'assignment_id',
+      assignmentIds,
+      studentIds
+    )
+
+    if (docsResult.error && mentionsMissingField(docsResult.error, 'teacher_cleared_at')) {
+      docsResult = await loadStudentScopedRows<any>(
+        supabase,
+        'assignment_docs',
+        assignmentDocLegacySelection,
+        'assignment_id',
+        assignmentIds,
+        studentIds
+      )
+      if (!docsResult.error) {
+        docs = docsResult.rows.map((doc) => ({ ...doc, teacher_cleared_at: null }))
+      }
+    } else if (!docsResult.error) {
+      docs = docsResult.rows
+    }
+
+    if (docsResult.error) {
+      console.error('Error loading assignment docs for gradebook:', docsResult.error)
+      return NextResponse.json({ error: 'Failed to load assignment docs for gradebook' }, { status: 500 })
+    }
+  }
 
   type GradebookAssignmentDoc = {
     student_id: string
@@ -404,10 +581,15 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
     gradebook_weight: number
   }> = []
 
-  const { data: quizzesWithMeta, error: quizzesWithMetaError } = await supabase
-    .from('quizzes')
-    .select('id, title, status, position, points_possible, include_in_final, gradebook_weight')
-    .eq('classroom_id', classroomId)
+  const {
+    rows: quizzesWithMeta,
+    error: quizzesWithMetaError,
+  } = await loadPagedRows<any>(() =>
+    supabase
+      .from('quizzes')
+      .select('id, title, status, position, points_possible, include_in_final, gradebook_weight')
+      .eq('classroom_id', classroomId)
+  )
 
   if (!quizzesWithMetaError) {
     quizzes = (quizzesWithMeta || []).map((quiz) => ({
@@ -425,10 +607,15 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
       : 'id, title, status, position'
 
     // Backward-compatible fallback for databases that have not applied gradebook metadata columns yet.
-    const { data: quizzesLegacy, error: quizzesLegacyError } = await supabase
-      .from('quizzes')
-      .select(quizSelection)
-      .eq('classroom_id', classroomId)
+    const {
+      rows: quizzesLegacy,
+      error: quizzesLegacyError,
+    } = await loadPagedRows<any>(() =>
+      supabase
+        .from('quizzes')
+        .select(quizSelection)
+        .eq('classroom_id', classroomId)
+    )
 
     if (quizzesLegacyError) {
       console.error('Error loading quizzes for gradebook:', quizzesWithMetaError, quizzesLegacyError)
@@ -449,28 +636,75 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
 
   const quizIds = quizzes.map((q) => q.id)
 
-  const { data: quizQuestions } = quizIds.length
-    ? await supabase
-        .from('quiz_questions')
-        .select('id, quiz_id, correct_option')
-        .in('quiz_id', quizIds)
-    : { data: [] as Array<any> }
+  let quizQuestions: Array<any> = []
+  let quizQuestionsResult = await loadSingleFilterRows<any>(
+    supabase,
+    'quiz_questions',
+    'id, quiz_id, correct_option',
+    'quiz_id',
+    quizIds
+  )
 
-  const { data: quizResponses } = quizIds.length && studentIds.length
-    ? await supabase
-        .from('quiz_responses')
-        .select('quiz_id, question_id, student_id, selected_option')
-        .in('quiz_id', quizIds)
-        .in('student_id', studentIds)
-    : { data: [] as Array<any> }
+  if (quizQuestionsResult.error && mentionsMissingField(quizQuestionsResult.error, 'correct_option')) {
+    quizQuestionsResult = await loadSingleFilterRows<any>(
+      supabase,
+      'quiz_questions',
+      'id, quiz_id',
+      'quiz_id',
+      quizIds
+    )
+    if (!quizQuestionsResult.error) {
+      quizQuestions = quizQuestionsResult.rows.map((question) => ({ ...question, correct_option: null }))
+    }
+  } else if (!quizQuestionsResult.error) {
+    quizQuestions = quizQuestionsResult.rows
+  }
 
-  const { data: overrides } = quizIds.length && studentIds.length
-    ? await supabase
-        .from('quiz_student_scores')
-        .select('quiz_id, student_id, manual_override_score')
-        .in('quiz_id', quizIds)
-        .in('student_id', studentIds)
-    : { data: [] as Array<any> }
+  if (quizQuestionsResult.error) {
+    console.error('Error loading quiz questions for gradebook:', quizQuestionsResult.error)
+    return NextResponse.json({ error: 'Failed to load quiz questions for gradebook' }, { status: 500 })
+  }
+
+  const {
+    rows: quizResponses,
+    error: quizResponsesError,
+  } = await loadStudentScopedRows<any>(
+    supabase,
+    'quiz_responses',
+    'quiz_id, question_id, student_id, selected_option',
+    'quiz_id',
+    quizIds,
+    studentIds
+  )
+
+  if (quizResponsesError) {
+    console.error('Error loading quiz responses for gradebook:', quizResponsesError)
+    return NextResponse.json({ error: 'Failed to load quiz responses for gradebook' }, { status: 500 })
+  }
+
+  const {
+    rows: overrideRows,
+    error: overridesError,
+  } = await loadStudentScopedRows<any>(
+    supabase,
+    'quiz_student_scores',
+    'quiz_id, student_id, manual_override_score',
+    'quiz_id',
+    quizIds,
+    studentIds
+  )
+
+  let overrides = overrideRows
+
+  if (overridesError && (
+    isMissingTableError(overridesError) ||
+    mentionsMissingField(overridesError, 'manual_override_score')
+  )) {
+    overrides = []
+  } else if (overridesError) {
+    console.error('Error loading quiz override scores for gradebook:', overridesError)
+    return NextResponse.json({ error: 'Failed to load quiz override scores for gradebook' }, { status: 500 })
+  }
 
   const quizMap = new Map(quizzes.map((q) => [q.id, q]))
 
@@ -597,10 +831,15 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
     gradebook_weight: number
   }> = []
 
-  const { data: testsWithMeta, error: testsWithMetaError } = await supabase
-    .from('tests')
-    .select('id, title, status, position, include_in_final, gradebook_weight')
-    .eq('classroom_id', classroomId)
+  const {
+    rows: testsWithMeta,
+    error: testsWithMetaError,
+  } = await loadPagedRows<any>(() =>
+    supabase
+      .from('tests')
+      .select('id, title, status, position, include_in_final, gradebook_weight')
+      .eq('classroom_id', classroomId)
+  )
 
   if (!testsWithMetaError) {
     tests = (testsWithMeta || []).map((test) => ({
@@ -619,10 +858,15 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
       ? 'id, title, status, position, include_in_final'
       : 'id, title, status, position'
 
-    const { data: testsLegacy, error: testsLegacyError } = await supabase
-      .from('tests')
-      .select(testSelection)
-      .eq('classroom_id', classroomId)
+    const {
+      rows: testsLegacy,
+      error: testsLegacyError,
+    } = await loadPagedRows<any>(() =>
+      supabase
+        .from('tests')
+        .select(testSelection)
+        .eq('classroom_id', classroomId)
+    )
 
     if (!testsLegacyError) {
       tests = ((testsLegacy || []) as Array<any>).map((test) => ({
@@ -644,38 +888,50 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
   tests.sort(comparePositionThenTitle)
 
   const testIds = tests.map((test) => test.id)
-  const { data: testQuestions, error: testQuestionsError } = testIds.length
-    ? await supabase
-        .from('test_questions')
-        .select('id, test_id, points')
-        .in('test_id', testIds)
-    : { data: [] as Array<any>, error: null }
+  const {
+    rows: testQuestions,
+    error: testQuestionsError,
+  } = await loadSingleFilterRows<any>(
+    supabase,
+    'test_questions',
+    'id, test_id, points',
+    'test_id',
+    testIds
+  )
 
   if (testQuestionsError && !isMissingTableError(testQuestionsError)) {
     console.error('Error loading test questions for gradebook:', testQuestionsError)
     return NextResponse.json({ error: 'Failed to load test questions for gradebook' }, { status: 500 })
   }
 
-  const { data: testResponses, error: testResponsesError } = testIds.length && studentIds.length
-    ? await supabase
-        .from('test_responses')
-        .select('test_id, question_id, student_id, score')
-        .in('test_id', testIds)
-        .in('student_id', studentIds)
-    : { data: [] as Array<any>, error: null }
+  const {
+    rows: testResponses,
+    error: testResponsesError,
+  } = await loadStudentScopedRows<any>(
+    supabase,
+    'test_responses',
+    'test_id, question_id, student_id, score',
+    'test_id',
+    testIds,
+    studentIds
+  )
 
   if (testResponsesError && !isMissingTableError(testResponsesError)) {
     console.error('Error loading test responses for gradebook:', testResponsesError)
     return NextResponse.json({ error: 'Failed to load test responses for gradebook' }, { status: 500 })
   }
 
-  const { data: testAttempts, error: testAttemptsError } = testIds.length && studentIds.length
-    ? await supabase
-        .from('test_attempts')
-        .select('test_id, student_id, is_submitted, submitted_at')
-        .in('test_id', testIds)
-        .in('student_id', studentIds)
-    : { data: [] as Array<any>, error: null }
+  const {
+    rows: testAttempts,
+    error: testAttemptsError,
+  } = await loadStudentScopedRows<any>(
+    supabase,
+    'test_attempts',
+    'test_id, student_id, is_submitted, submitted_at',
+    'test_id',
+    testIds,
+    studentIds
+  )
 
   if (testAttemptsError && !isMissingTableError(testAttemptsError)) {
     console.error('Error loading test attempts for gradebook:', testAttemptsError)
