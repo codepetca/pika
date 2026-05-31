@@ -10,6 +10,7 @@ import type { ClassDay, Classroom } from '@/types'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, parseISO } from 'date-fns'
 import { getTodayInToronto } from '@/lib/timezone'
 import { CLASS_DAYS_UPDATED_EVENT } from '@/lib/events'
+import { invalidateClassDaysForClassroom } from '@/lib/class-days-client'
 
 interface Props {
   classroom: Classroom
@@ -86,6 +87,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
       }
       showMessage({ text: `Generated ${data.count ?? 0} days`, tone: 'success' })
       // Notify context and other components to refresh class days
+      invalidateClassDaysForClassroom(classroom.id)
       window.dispatchEvent(new CustomEvent(CLASS_DAYS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }))
     } catch (err: any) {
       setError(err.message || 'Failed to generate class days')
@@ -134,6 +136,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
         return next
       })
       // Notify other components (e.g., calendar) that class days changed
+      invalidateClassDaysForClassroom(classroom.id)
       window.dispatchEvent(new CustomEvent(CLASS_DAYS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }))
     } catch (err: any) {
       setError(err.message || 'Failed to update day')

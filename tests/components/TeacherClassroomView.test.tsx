@@ -7,6 +7,7 @@ import type { Classroom, ClassworkMaterial, SurveyWithStats } from '@/types'
 
 const mockFetchJSONWithCache = vi.fn()
 const mockInvalidateCachedJSON = vi.fn()
+const mockFetchClassDaysForClassroom = vi.fn()
 const mockToggleSelect = vi.fn()
 const mockToggleSelectAll = vi.fn()
 const mockClearSelection = vi.fn()
@@ -401,6 +402,10 @@ vi.mock('@/lib/request-cache', () => ({
   invalidateCachedJSON: (...args: any[]) => mockInvalidateCachedJSON(...args),
 }))
 
+vi.mock('@/lib/class-days-client', () => ({
+  fetchClassDaysForClassroom: (...args: any[]) => mockFetchClassDaysForClassroom(...args),
+}))
+
 vi.mock('@/hooks/use-window-size', () => ({
   useWindowSize: () => ({ width: 1440, height: 900 }),
 }))
@@ -597,6 +602,8 @@ describe('TeacherClassroomView', () => {
     window.sessionStorage.clear()
     clearSelectionCookie()
     clearAssignmentWorkspaceStudentCookie()
+    mockFetchClassDaysForClassroom.mockReset()
+    mockFetchClassDaysForClassroom.mockResolvedValue([])
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {
         return Promise.resolve({
@@ -635,6 +642,25 @@ describe('TeacherClassroomView', () => {
     })
 
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
+  })
+
+  it('uses the shared class-days client without caching failed class-day loads as empty successes', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockFetchClassDaysForClassroom.mockRejectedValueOnce(new Error('Class days unavailable'))
+
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    })
+
+    expect(mockFetchClassDaysForClassroom).toHaveBeenCalledWith(classroom.id)
+    expect(mockFetchJSONWithCache).not.toHaveBeenCalledWith(
+      `class-days:${classroom.id}`,
+      expect.any(Function),
+      expect.any(Number),
+    )
+    expect(consoleError).toHaveBeenCalledWith('Error loading class days:', expect.any(Error))
   })
 
   it('keeps New visible with an Edit Markdown dropdown action while edit mode is active', async () => {
