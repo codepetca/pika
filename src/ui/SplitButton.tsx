@@ -58,6 +58,11 @@ export function SplitButton({
   const { className: primaryClassName, ...restPrimaryButtonProps } = primaryButtonProps ?? {}
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const primaryButtonRef = useRef<HTMLButtonElement | null>(null)
+  const toggleButtonRef = useRef<HTMLButtonElement | null>(null)
+  const activeTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  const focusedOnOpenRef = useRef(false)
   const menuId = useId()
   const normalOptions = options.filter((option) => !option.destructive)
   const destructiveOptions = options.filter((option) => option.destructive)
@@ -69,50 +74,110 @@ export function SplitButton({
     options.forEach((option) => option.onHoverChange?.(false))
   }, [options])
 
-  const closeMenu = useCallback(() => {
+  const getEnabledMenuItems = useCallback(() => {
+    return Array.from(
+      menuRef.current?.querySelectorAll<HTMLButtonElement>(
+        '[role="menuitem"], [role="menuitemradio"]'
+      ) ?? []
+    ).filter((item) => !item.disabled)
+  }, [])
+
+  const closeMenu = useCallback((options?: { restoreFocus?: boolean }) => {
     clearOptionHover()
     setIsOpen(false)
+    focusedOnOpenRef.current = false
+    if (options?.restoreFocus) {
+      activeTriggerRef.current?.focus()
+    }
   }, [clearOptionHover])
 
+  const restoreFocusIfNoNewModalOpened = useCallback((existingModals: Set<Element>) => {
+    window.requestAnimationFrame(() => {
+      const currentModals = Array.from(document.querySelectorAll('[aria-modal="true"]'))
+      if (currentModals.some((modal) => !existingModals.has(modal))) return
+      const activeElement = document.activeElement
+      if (activeElement === document.body || activeElement === null) {
+        activeTriggerRef.current?.focus()
+      }
+    })
+  }, [])
+
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) {
+      focusedOnOpenRef.current = false
+      return
+    }
+
+    if (!focusedOnOpenRef.current) {
+      getEnabledMenuItems()[0]?.focus()
+      focusedOnOpenRef.current = true
+    }
 
     function handleClickOutside(event: MouseEvent) {
       if (!containerRef.current) return
       if (!containerRef.current.contains(event.target as Node)) {
-        closeMenu()
+        closeMenu({ restoreFocus: true })
       }
     }
 
-    function handleEscape(event: KeyboardEvent) {
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        closeMenu()
+        closeMenu({ restoreFocus: true })
+        return
       }
+
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+
+      const enabledItems = getEnabledMenuItems()
+      if (enabledItems.length === 0) return
+
+      event.preventDefault()
+      const currentIndex = enabledItems.indexOf(document.activeElement as HTMLButtonElement)
+      const lastIndex = enabledItems.length - 1
+      const nextIndex =
+        event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+            ? lastIndex
+            : event.key === 'ArrowUp'
+              ? currentIndex <= 0
+                ? lastIndex
+                : currentIndex - 1
+              : currentIndex === -1 || currentIndex === lastIndex
+                ? 0
+                : currentIndex + 1
+
+      enabledItems[nextIndex]?.focus()
     }
 
     document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleEscape)
+    window.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscape)
+      window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [closeMenu, isOpen])
+  }, [closeMenu, getEnabledMenuItems, isOpen])
 
   function handleOptionSelect(onSelect: () => void) {
+    const existingModals = new Set(document.querySelectorAll('[aria-modal="true"]'))
     closeMenu()
     onSelect()
+    restoreFocusIfNoNewModalOpened(existingModals)
   }
 
-  function toggleMenu() {
-    setIsOpen((prev) => {
-      if (prev) clearOptionHover()
-      return !prev
-    })
+  function toggleMenu(trigger: HTMLButtonElement) {
+    if (isOpen) {
+      closeMenu({ restoreFocus: true })
+      return
+    }
+    activeTriggerRef.current = trigger
+    setIsOpen(true)
   }
 
   return (
     <div ref={containerRef} className={cn('relative inline-flex', className)}>
       <Button
+        ref={primaryButtonRef}
         type="button"
         variant={variant}
         size={size}
@@ -126,7 +191,7 @@ export function SplitButton({
           }
 
           event.stopPropagation()
-          toggleMenu()
+          toggleMenu(primaryButtonRef.current ?? event.currentTarget)
         }}
         disabled={disabled || (primaryOpensMenu && options.length === 0)}
         className={cn('rounded-r-none', primaryClassName)}
@@ -135,6 +200,7 @@ export function SplitButton({
         {label}
       </Button>
       <Button
+        ref={toggleButtonRef}
         type="button"
         variant={variant}
         size={size}
@@ -144,7 +210,7 @@ export function SplitButton({
         aria-label={toggleAriaLabel}
         onClick={(event) => {
           event.stopPropagation()
-          toggleMenu()
+          toggleMenu(toggleButtonRef.current ?? event.currentTarget)
         }}
         disabled={disabled || options.length === 0}
         className={cn('rounded-l-none border-l border-black/15 px-3', toggleButtonClassName)}
@@ -155,6 +221,7 @@ export function SplitButton({
       {isOpen && (
         <div
           id={menuId}
+          ref={menuRef}
           role="menu"
           onClick={(event) => event.stopPropagation()}
           className={cn(

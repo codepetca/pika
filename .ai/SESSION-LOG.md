@@ -779,6 +779,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `VITEST_MAX_WORKERS=4 bash scripts/verify-env.sh`
 - `E2E_BASE_URL=http://localhost:3100 pnpm exec playwright test e2e/student-exam-mode.spec.ts -g "locks content only after sustained window loss"`
 - `pnpm lint`
+
 ## 2026-05-31 — PageActionBar mobile menu focus
 
 **Completed:**
@@ -798,3 +799,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3021 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh teacher/dashboard`
 - Manual Playwright mobile menu check: focus moved from `Course blueprints` to `Open classroom` with ArrowDown, Escape returned focus to `Open actions menu`, and the menu closed.
 - Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-page-actionbar-menu-mobile-viewport.png`, `/tmp/pika-page-actionbar-menu-mobile-keyboard.png`
+
+## 2026-05-31 — SplitButton menu focus
+
+**Completed:**
+- Hardened the shared `SplitButton` menu with focus-on-open, arrow/Home/End navigation over enabled items, and focus restoration to the opener on Escape, outside close, and item selection.
+- Added semantic component coverage for disabled-item skipping, wraparound keyboard movement, Escape close behavior, and selection focus restoration.
+- Addressed review follow-ups so parent rerenders from menu focus/hover do not reset keyboard focus, existing modal actions still restore focus normally, and `DialogPanel` moves focus into modal dialogs even when they open after async menu work.
+- Verified the teacher tests tab visually after the shared primitive change.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/ui/SplitButton.test.tsx`
+- `pnpm test tests/ui/SplitButton.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx -- --runInBand --testTimeout=10000`
+- `pnpm test tests/ui/SplitButton.test.tsx tests/ui/Dialog.test.tsx tests/components/AssignmentModal.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx -- --runInBand --testTimeout=10000`
+- `pnpm test tests/ui/Dialog.test.tsx tests/ui/SplitButton.test.tsx tests/components/CreateClassroomModal.test.tsx tests/components/AssignmentModal.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx -- --runInBand --testTimeout=10000`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `E2E_BASE_URL=http://localhost:3022 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
+- Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`
