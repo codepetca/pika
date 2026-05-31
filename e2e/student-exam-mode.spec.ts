@@ -27,6 +27,7 @@ interface StudentTestDetailRecord {
     away_count?: number
     away_total_seconds?: number
     route_exit_attempts?: number
+    window_unmaximize_attempts?: number
   } | null
 }
 
@@ -223,6 +224,20 @@ test.describe('student exam mode', () => {
       await expect(obscurer).toHaveCount(0)
       await expect(responseBox).toBeVisible()
       await expect(responseBox).toHaveValue('Draft survives exam-mode lock and reload.')
+
+      await expect.poll(async () => {
+        if (!testId) return 0
+        const detail = await loadJson<StudentTestDetailRecord>(page, `/api/student/tests/${testId}`)
+        return detail.focus_summary?.window_unmaximize_attempts ?? 0
+      }).toBeGreaterThanOrEqual(1)
+      await expect.poll(async () => {
+        if (!testId) return -1
+        const detail = await loadJson<StudentTestDetailRecord>(page, `/api/student/tests/${testId}`)
+        return detail.focus_summary?.route_exit_attempts ?? 0
+      }).toBe(0)
+      await expect(
+        page.locator('[data-testid="student-test-documents-pane"]').getByLabel(/window\/full-screen exits 1/)
+      ).toBeVisible()
 
       await page.reload({ waitUntil: 'domcontentloaded' })
       await page.getByRole('button', { name: new RegExp(testTitle) }).first().click()
