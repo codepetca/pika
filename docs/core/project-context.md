@@ -86,7 +86,7 @@ pnpm run lint
 - `DEV_TEACHER_EMAILS` (comma-separated)
 - `ENABLE_MOCK_EMAIL` (`true` to log verification/reset codes)
 - `NEXT_PUBLIC_APP_URL`
-- `CRON_SECRET` (required for protected cron endpoints; Vercel sends `Authorization: Bearer <CRON_SECRET>`; cron schedules are configured in the Vercel dashboard; on the Hobby plan, schedules must run at most once per day)
+- `CRON_SECRET` (required for protected cron endpoints; Vercel sends `Authorization: Bearer <CRON_SECRET>`; cron schedules are configured in `vercel.json` or the Vercel dashboard; on the Hobby plan, schedules must run at most once per day)
 - `OPENAI_API_KEY` (optional; required for AI grading, nightly log summaries, and developer feedback extraction)
 - `OPENAI_SUMMARY_MODEL` / `OPENAI_DEVELOPER_FEEDBACK_MODEL` (optional model overrides)
 
@@ -112,7 +112,7 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 
 - Host on Vercel; configure env vars in dashboard; set `ENABLE_MOCK_EMAIL=false` and add real email provider before production.
 - Supabase Cloud for DB; enable connection pooling; treat migrations as a separate human-controlled deploy step.
-- If using cron, configure schedules in the Vercel dashboard (production recommended). On the Hobby plan, Vercel cron is limited to at most one run per day, so do not add sub-daily schedules. Current recommended schedule: `0 6 * * *` (06:00 UTC).
+- If using cron, configure schedules in `vercel.json` or the Vercel dashboard for production. On the Hobby plan, Vercel cron jobs must run at most once per day, so do not add sub-daily schedules. Current repo-managed schedules: nightly log summaries at `0 6 * * *` (06:00 UTC) and history cleanup at `0 7 * * *` (07:00 UTC).
 
 ---
 
