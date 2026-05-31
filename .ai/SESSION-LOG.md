@@ -687,3 +687,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `E2E_BASE_URL=http://localhost:3016 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook'`
 - Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-gradebook-email-menu-desktop.png`, `/tmp/pika-gradebook-email-menu-mobile.png`, `/tmp/pika-gradebook-settings-desktop.png`
+
+## 2026-05-31 — Student survey FAB cluster consistency
+
+**Completed:**
+- Extracted the shared floating action cluster layout used by teacher work surfaces.
+- Kept teacher work-surface action bars on the shared cluster through the existing wrapper.
+- Routed student survey response/results actions through the shared cluster so desktop centering follows `--main-content-center-x` like other classroom FABs.
+- Added component coverage for the student survey FAB layer and main-content centering class.
+- Created and cleaned up a temporary active survey for visual verification.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/StudentSurveyPanel.test.tsx tests/components/TeacherWorkSurfaceActionBar.test.tsx`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3017 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&surveyId=5fc24952-20e0-4512-93f5-8c3800826e5f'`
+- Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-student-survey-fab-desktop.png`, `/tmp/pika-student-survey-response-form-desktop.png`, `/tmp/pika-student-survey-response-form-mobile.png`
