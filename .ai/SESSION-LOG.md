@@ -670,3 +670,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm test:coverage`
 - `git diff --check`
+
+## 2026-05-31 — Gradebook FAB layering consistency
+
+**Completed:**
+- Removed the teacher Gradebook action bar's local `z-[70]` floating-cluster override so it uses the shared teacher work-surface FAB layer.
+- Lowered Gradebook sticky table header/body z-index tiers so table chrome remains below the shared FAB and global overlays retain priority.
+- Added component coverage for the Gradebook floating cluster, table sticky layers, and settings-mode header layering.
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/components/TeacherRosterTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherWorkSurfaceActionBar.test.tsx tests/ui/SplitButton.test.tsx`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3016 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook'`
+- Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-gradebook-email-menu-desktop.png`, `/tmp/pika-gradebook-email-menu-mobile.png`, `/tmp/pika-gradebook-settings-desktop.png`

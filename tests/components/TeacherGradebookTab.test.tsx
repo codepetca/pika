@@ -351,6 +351,22 @@ describe('TeacherGradebookTab', () => {
     })
   })
 
+  it('keeps gradebook floating controls on the shared overlay layer', async () => {
+    renderGradebook('grades')
+
+    expect(await screen.findByText('Ada')).toBeInTheDocument()
+
+    const scoreDisplayGroup = screen.getByRole('group', { name: 'Gradebook score display' })
+    const floatingCluster = scoreDisplayGroup.parentElement?.parentElement
+    expect(floatingCluster).toHaveClass('fixed', 'z-40')
+    expect(floatingCluster?.className).not.toContain('z-[70]')
+    expect(screen.getByRole('columnheader', { name: 'First' })).toHaveClass('z-30')
+    expect(screen.getByRole('columnheader', { name: 'Final' })).toHaveClass('z-20', 'md:z-30')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gradebook settings' }))
+    expect(screen.getByRole('columnheader', { name: 'Visible' })).toHaveClass('z-30')
+  })
+
   it('clears selected email actions when gradebook settings mode opens', async () => {
     const onSectionChange = vi.fn()
 
