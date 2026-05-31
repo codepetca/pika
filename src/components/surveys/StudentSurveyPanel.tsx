@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ExternalLink, Pencil } from 'lucide-react'
 import { Button, Card, Input } from '@/ui'
+import { FloatingActionCluster } from '@/components/FloatingActionCluster'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { Spinner } from '@/components/Spinner'
 import { SurveyOptionResultBar } from '@/components/surveys/SurveyOptionResultBar'
@@ -233,7 +234,7 @@ export function StudentSurveyPanel({
   const showResponseForm = isEditingResponse || !canViewResults
   const showResults = canViewResults
   const surveyActionFab = canViewResults && canRespond ? (
-    <div className="fixed left-1/2 top-[3.25rem] z-40 w-max max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-lg bg-surface/95 p-1 shadow-elevated backdrop-blur">
+    <FloatingActionCluster>
       <Button
         type="button"
         size="sm"
@@ -243,7 +244,7 @@ export function StudentSurveyPanel({
         <Pencil className="mr-1 h-4 w-4" aria-hidden="true" />
         {isEditingResponse ? 'View results' : hasSubmitted ? 'Edit response' : 'Respond'}
       </Button>
-    </div>
+    </FloatingActionCluster>
   ) : null
 
   return (
