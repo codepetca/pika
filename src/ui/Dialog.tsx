@@ -301,6 +301,16 @@ export function DialogPanel({
   ariaLabelledBy,
   children,
 }: DialogPanelProps) {
+  const panelRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+    const panel = panelRef.current
+    if (!panel) return
+    if (document.activeElement && panel.contains(document.activeElement)) return
+    panel.focus()
+  }, [isOpen])
+
   useEffect(() => {
     if (!isOpen) return
     function handleKeyDown(e: KeyboardEvent) {
@@ -321,10 +331,12 @@ export function DialogPanel({
         onClick={onClose}
       />
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={ariaLabelledBy}
-        className={`${dialogPanelStyles()} ${maxWidth} max-w-[90vw] max-h-[85vh] flex flex-col ${className ?? ''}`}
+        tabIndex={-1}
+        className={`${dialogPanelStyles()} ${maxWidth} max-w-[90vw] max-h-[85vh] flex flex-col focus:outline-none ${className ?? ''}`}
       >
         {children}
       </div>
