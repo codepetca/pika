@@ -19,6 +19,8 @@ export const revalidate = 0
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
 const VALID_MOODS: MoodEmoji[] = ['😊', '🙂', '😐']
 const MAX_CHARS = 2000
+const DEFAULT_BROAD_ENTRIES_LIMIT = 100
+const MAX_ENTRIES_LIMIT = 100
 
 type EntryContentPayload = {
   classroom_id: string
@@ -102,11 +104,11 @@ export const GET = withErrorHandler('GetStudentEntries', async (request, context
   const classroomId = searchParams.get('classroom_id')
   const limitParam = searchParams.get('limit')
 
-  let limit: number | null = null
+  let limit: number | null = classroomId ? null : DEFAULT_BROAD_ENTRIES_LIMIT
   if (limitParam) {
     const parsed = Number.parseInt(limitParam, 10)
     if (Number.isFinite(parsed) && parsed > 0) {
-      limit = Math.min(parsed, 100)
+      limit = Math.min(parsed, MAX_ENTRIES_LIMIT)
     }
   }
 
