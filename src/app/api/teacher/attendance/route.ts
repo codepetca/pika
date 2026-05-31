@@ -4,6 +4,11 @@ import { requireRole } from '@/lib/auth'
 import { computeAttendanceRecords } from '@/lib/attendance'
 import { getTodayInToronto } from '@/lib/timezone'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
+import {
+  loadAttendanceClassDays,
+  loadAttendanceEntries,
+  loadAttendanceRoster,
+} from '@/lib/server/attendance-report'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -39,66 +44,29 @@ export const GET = withErrorHandler('GetAttendance', async (request: NextRequest
     throw new ApiError(403, 'Forbidden')
   }
 
-  // Fetch class days for this classroom
-  const { data: classDays, error: classDaysError } = await supabase
-    .from('class_days')
-    .select('*')
-    .eq('classroom_id', classroomId)
-    .order('date', { ascending: true })
+  const { rows: classDays, error: classDaysError } = await loadAttendanceClassDays(supabase, classroomId)
 
   if (classDaysError) {
     console.error('Error fetching class days:', classDaysError)
     throw new ApiError(500, 'Failed to fetch class days')
   }
 
-  // Fetch enrolled students with profiles
-  const { data: enrollments, error: enrollmentsError } = await supabase
-    .from('classroom_enrollments')
-    .select(`
-      student_id,
-      users!classroom_enrollments_student_id_fkey(
-        id,
-        email
-      )
-    `)
-    .eq('classroom_id', classroomId)
-
-  if (enrollmentsError) {
-    console.error('Error fetching enrollments:', enrollmentsError)
+  const rosterResult = await loadAttendanceRoster(supabase, classroomId)
+  if (rosterResult.enrollmentsError) {
+    console.error('Error fetching enrollments:', rosterResult.enrollmentsError)
     throw new ApiError(500, 'Failed to fetch students')
   }
 
-  // Fetch student profiles
-  const studentIds = (enrollments || []).map(e => e.student_id)
-  const { data: profiles, error: profilesError } = await supabase
-    .from('student_profiles')
-    .select('user_id, first_name, last_name')
-    .in('user_id', studentIds)
-
-  if (profilesError) {
-    console.error('Error fetching student profiles:', profilesError)
+  if (rosterResult.profilesError) {
+    console.error('Error fetching student profiles:', rosterResult.profilesError)
+    throw new ApiError(500, 'Failed to fetch student profiles')
   }
 
-  const profileMap = new Map(
-    (profiles || []).map(p => [p.user_id, p])
+  const { rows: entries, error: entriesError } = await loadAttendanceEntries(
+    supabase,
+    classroomId,
+    rosterResult.studentIds
   )
-
-  const students = (enrollments || []).map(e => {
-    const enrolledUser = e.users as unknown as { id: string; email: string }
-    const profile = profileMap.get(enrolledUser.id)
-    return {
-      id: enrolledUser.id,
-      email: enrolledUser.email,
-      first_name: profile?.first_name || '',
-      last_name: profile?.last_name || '',
-    }
-  }).sort((a, b) => a.email.localeCompare(b.email))
-
-  // Fetch all entries for this classroom
-  const { data: entries, error: entriesError } = await supabase
-    .from('entries')
-    .select('*')
-    .eq('classroom_id', classroomId)
 
   if (entriesError) {
     console.error('Error fetching entries:', entriesError)
@@ -108,14 +76,14 @@ export const GET = withErrorHandler('GetAttendance', async (request: NextRequest
   // Compute attendance records
   const today = getTodayInToronto()
   const attendanceRecords = computeAttendanceRecords(
-    students,
-    classDays || [],
-    entries || [],
+    rosterResult.students,
+    classDays,
+    entries,
     today
   )
 
   // Get sorted list of class day dates
-  const dates = (classDays || [])
+  const dates = classDays
     .filter(day => day.is_class_day)
     .map(day => day.date)
 

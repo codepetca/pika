@@ -526,3 +526,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
 - `git diff --check`
+
+## 2026-05-30 — Attendance export bulk-read hardening
+
+**Completed:**
+- Added a shared server attendance report loader for teacher attendance and CSV export routes.
+- Routed class-day, enrollment, profile, and entry reads through chunked, paginated loaders.
+- Scoped attendance entry reads by classroom id and currently enrolled student ids so stale withdrawn-student entries cannot consume pages or affect exports.
+- Returned explicit 500s for student profile hydration failures instead of rendering blank names after a failed read.
+- Added deterministic student ordering by email with id tie-breaks.
+- Added API regressions for >1000-student roster pagination, 51-student profile/entry chunking, dense entry pagination, stale-entry scoping, and profile failure handling.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/api/teacher/attendance.test.ts tests/api/teacher/export-csv.test.ts --reporter=verbose`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
+- `git diff --check`
