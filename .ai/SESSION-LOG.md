@@ -898,3 +898,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/layout-config.test.ts -- --runInBand`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `git diff --check`
+
+## 2026-05-31 — Composite widget audit relevance
+
+**Completed:**
+- Tightened the `missing-a11y-tests` audit guardrail so composite-widget changes require a changed semantic test that matches or references the changed component.
+- Kept the allowed test locations scoped to `tests/components`, `tests/ui`, or `tests/integration`.
+- Added fixture coverage for the bypass case where an unrelated component test changed beside a composite-widget component.
+- Addressed review feedback by making the no-changed-test path report `missing-a11y-tests` cleanly on Bash 3.2 and by avoiding loose content-reference matches for generic stems such as `button`.
+- Addressed follow-up review feedback by matching generic component stems against changed test filenames case-insensitively, with a `button.tsx` / `Button.test.tsx` regression fixture.
+- Tightened that follow-up so generic stems require exact changed test filename matches, avoiding false positives such as `page.tsx` passing through `PageActionBar.test.tsx`.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts -- --runInBand`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`

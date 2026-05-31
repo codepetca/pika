@@ -433,4 +433,441 @@ describe('AI startup docs', () => {
       rmSync(repoRoot, { recursive: true, force: true })
     }
   })
+
+  it('makes the audit script reject composite widget changes with only unrelated changed component tests', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+
+    mkdirSync(join(repoRoot, 'src/ui'), { recursive: true })
+    mkdirSync(join(repoRoot, 'tests/components'), { recursive: true })
+    writeFileSync(
+      join(repoRoot, 'src/ui/SplitButton.tsx'),
+      [
+        "export function SplitButton() {",
+        "  return <button type=\"button\" aria-expanded=\"false\">Open</button>",
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/components/UnrelatedMenu.test.tsx'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('unrelated menu', () => {",
+        "  it('stays true', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+    commitAll(repoRoot, 'add split button and unrelated component test')
+
+    writeFileSync(
+      join(repoRoot, 'src/ui/SplitButton.tsx'),
+      [
+        "export function SplitButton() {",
+        "  return <button type=\"button\" aria-expanded=\"true\">Open</button>",
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/components/UnrelatedMenu.test.tsx'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('unrelated menu', () => {",
+        "  it('still stays true', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).toContain('missing-a11y-tests')
+      expect(`${result.stdout}\n${result.stderr}`).toContain('matching or referencing the changed component')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('makes the audit script reject composite widget changes with no changed tests', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+
+    mkdirSync(join(repoRoot, 'src/ui'), { recursive: true })
+    writeFileSync(
+      join(repoRoot, 'src/ui/SplitButton.tsx'),
+      [
+        "export function SplitButton() {",
+        "  return <button type=\"button\" aria-expanded=\"false\">Open</button>",
+        '}',
+        '',
+      ].join('\n'),
+    )
+    commitAll(repoRoot, 'add split button')
+
+    writeFileSync(
+      join(repoRoot, 'src/ui/SplitButton.tsx'),
+      [
+        "export function SplitButton() {",
+        "  return <button type=\"button\" aria-expanded=\"true\">Open</button>",
+        '}',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).toContain('missing-a11y-tests')
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain('unbound variable')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('does not allow generic component stems to match unrelated test prose', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+
+    mkdirSync(join(repoRoot, 'src/components/tiptap-ui-primitive/button'), { recursive: true })
+    mkdirSync(join(repoRoot, 'tests/ui'), { recursive: true })
+    writeFileSync(
+      join(repoRoot, 'src/components/tiptap-ui-primitive/button/button.tsx'),
+      [
+        "export function ButtonPrimitive() {",
+        "  return <button type=\"button\" aria-expanded=\"false\">Open</button>",
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/ui/SplitButton.test.tsx'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('SplitButton', () => {",
+        "  it('mentions a button but is unrelated', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+    commitAll(repoRoot, 'add generic button primitive and unrelated split button test')
+
+    writeFileSync(
+      join(repoRoot, 'src/components/tiptap-ui-primitive/button/button.tsx'),
+      [
+        "export function ButtonPrimitive() {",
+        "  return <button type=\"button\" aria-expanded=\"true\">Open</button>",
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/ui/SplitButton.test.tsx'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('SplitButton', () => {",
+        "  it('still mentions a button but is unrelated', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).toContain('missing-a11y-tests')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('allows generic component stems when the changed test filename matches case-insensitively', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+
+    mkdirSync(join(repoRoot, 'src/components/tiptap-ui-primitive/button'), { recursive: true })
+    mkdirSync(join(repoRoot, 'tests/ui'), { recursive: true })
+    writeFileSync(
+      join(repoRoot, 'src/components/tiptap-ui-primitive/button/button.tsx'),
+      [
+        "export function Button() {",
+        "  return <button type=\"button\" aria-expanded=\"false\">Open</button>",
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/ui/Button.test.tsx'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('Button', () => {",
+        "  it('covers semantic state', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+    commitAll(repoRoot, 'add generic button primitive and matching button test')
+
+    writeFileSync(
+      join(repoRoot, 'src/components/tiptap-ui-primitive/button/button.tsx'),
+      [
+        "export function Button() {",
+        "  return <button type=\"button\" aria-expanded=\"true\">Open</button>",
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/ui/Button.test.tsx'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('Button', () => {",
+        "  it('still covers semantic state', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(result.status).toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain('missing-a11y-tests')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('does not allow generic component stems to match longer unrelated PascalCase test filenames', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+
+    mkdirSync(join(repoRoot, 'src/app/classrooms'), { recursive: true })
+    mkdirSync(join(repoRoot, 'tests/ui'), { recursive: true })
+    writeFileSync(
+      join(repoRoot, 'src/app/classrooms/page.tsx'),
+      [
+        "export function ClassroomPage() {",
+        "  return <button type=\"button\" aria-expanded=\"false\">Open</button>",
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/ui/PageActionBar.test.tsx'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('PageActionBar', () => {",
+        "  it('covers unrelated actions', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+    commitAll(repoRoot, 'add classroom page and unrelated page action bar test')
+
+    writeFileSync(
+      join(repoRoot, 'src/app/classrooms/page.tsx'),
+      [
+        "export function ClassroomPage() {",
+        "  return <button type=\"button\" aria-expanded=\"true\">Open</button>",
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/ui/PageActionBar.test.tsx'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('PageActionBar', () => {",
+        "  it('still covers unrelated actions', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).toContain('missing-a11y-tests')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('allows composite widget changes when a matching semantic test also changes', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+
+    mkdirSync(join(repoRoot, 'src/ui'), { recursive: true })
+    mkdirSync(join(repoRoot, 'tests/ui'), { recursive: true })
+    writeFileSync(
+      join(repoRoot, 'src/ui/SplitButton.tsx'),
+      [
+        "export function SplitButton() {",
+        "  return <button type=\"button\" aria-expanded=\"false\">Open</button>",
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/ui/SplitButton.test.tsx'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('SplitButton', () => {",
+        "  it('covers semantic state', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+    commitAll(repoRoot, 'add split button and matching ui test')
+
+    writeFileSync(
+      join(repoRoot, 'src/ui/SplitButton.tsx'),
+      [
+        "export function SplitButton() {",
+        "  return <button type=\"button\" aria-expanded=\"true\">Open</button>",
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/ui/SplitButton.test.tsx'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('SplitButton', () => {",
+        "  it('still covers semantic state', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(result.status).toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain('missing-a11y-tests')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('allows composite widget changes when a semantic test references the changed component', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+
+    mkdirSync(join(repoRoot, 'src/ui'), { recursive: true })
+    mkdirSync(join(repoRoot, 'tests/ui'), { recursive: true })
+    writeFileSync(
+      join(repoRoot, 'src/ui/SplitButton.tsx'),
+      [
+        "export function SplitButton() {",
+        "  return <button type=\"button\" aria-expanded=\"false\">Open</button>",
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/ui/MenuAccessibility.test.tsx'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('menu accessibility', () => {",
+        "  it('covers SplitButton semantic state', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+    commitAll(repoRoot, 'add split button and referencing ui test')
+
+    writeFileSync(
+      join(repoRoot, 'src/ui/SplitButton.tsx'),
+      [
+        "export function SplitButton() {",
+        "  return <button type=\"button\" aria-expanded=\"true\">Open</button>",
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/ui/MenuAccessibility.test.tsx'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('menu accessibility', () => {",
+        "  it('still covers SplitButton semantic state', () => {",
+        '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(result.status).toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain('missing-a11y-tests')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
 })
