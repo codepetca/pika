@@ -591,7 +591,7 @@ function ResizableIdentityHeaderCell({
       aria-sort={ariaSort}
       style={getIdentityColumnStyle(column, index, editMode, renderedColumns, columnWidths)}
       className={[
-        '!p-0 group relative sticky z-40 bg-surface-2',
+        '!p-0 group relative sticky z-30 bg-surface-2',
         headerTopClass,
         getIdentityColumnBorderClass(index, editMode, renderedColumns),
         hidden ? 'text-text-muted' : '',
@@ -710,7 +710,7 @@ function ResizableFinalHeaderCell({
       align="right"
       style={getFinalColumnStyle(finalColumnWidth)}
       className={[
-        'group relative sticky z-30 bg-surface-2 text-xs sm:text-sm md:right-0 md:z-40',
+        'group relative sticky z-20 bg-surface-2 text-xs sm:text-sm md:right-0 md:z-30',
         FINAL_COLUMN_SEPARATOR_CLASS,
         headerTopClass,
         hidden ? 'text-text-muted opacity-60' : '',
@@ -838,7 +838,7 @@ function AssessmentMatrixTable({
               <DataTableRow className="border-b border-border">
                 <DataTableHeaderCell
                   className={[
-                    'sticky left-0 top-0 z-50 h-8 whitespace-nowrap border-r border-border bg-surface-2 !px-2 text-[11px] font-semibold uppercase tracking-normal text-text-muted',
+                    'sticky left-0 top-0 z-30 h-8 whitespace-nowrap border-r border-border bg-surface-2 !px-2 text-[11px] font-semibold uppercase tracking-normal text-text-muted',
                     leadingColumnWidthClass,
                   ].join(' ')}
                 >
@@ -850,7 +850,7 @@ function AssessmentMatrixTable({
                     align="center"
                     style={getIdentityColumnStyle(column, index, editMode, renderedIdentityColumns, identityColumnWidths)}
                     className={[
-                      'sticky top-0 z-50 h-8 bg-surface-2',
+                      'sticky top-0 z-30 h-8 bg-surface-2',
                       getIdentityColumnBorderClass(index, editMode, renderedIdentityColumns),
                     ].join(' ')}
                   >
@@ -868,7 +868,7 @@ function AssessmentMatrixTable({
                     <DataTableHeaderCell
                       key={`toggle:${key}`}
                       align="center"
-                      className="sticky top-0 z-40 h-8 min-w-16 border-r border-border bg-surface-2 px-2"
+                      className="sticky top-0 z-20 h-8 min-w-16 border-r border-border bg-surface-2 px-2"
                     >
                       <ColumnHeaderCheckbox
                         label={column.code}
@@ -883,7 +883,7 @@ function AssessmentMatrixTable({
                     align="right"
                     style={getFinalColumnStyle(finalColumnWidth)}
                     className={[
-                      'sticky top-0 z-40 h-8 bg-surface-2 text-xs sm:text-sm md:right-0 md:z-50',
+                      'sticky top-0 z-20 h-8 bg-surface-2 text-xs sm:text-sm md:right-0 md:z-30',
                       FINAL_COLUMN_SEPARATOR_CLASS,
                     ].join(' ')}
                   >
@@ -900,7 +900,7 @@ function AssessmentMatrixTable({
               <DataTableRow className="border-b border-border">
                 <DataTableHeaderCell
                   className={[
-                    'sticky left-0 top-8 z-50 h-14 whitespace-nowrap border-r border-border bg-surface-2 !px-2 text-[11px] font-semibold uppercase tracking-normal text-text-muted',
+                    'sticky left-0 top-8 z-30 h-14 whitespace-nowrap border-r border-border bg-surface-2 !px-2 text-[11px] font-semibold uppercase tracking-normal text-text-muted',
                     leadingColumnWidthClass,
                   ].join(' ')}
                 >
@@ -911,7 +911,7 @@ function AssessmentMatrixTable({
                     key={`weight-label:${column.key}`}
                     style={getIdentityColumnStyle(column, index, editMode, renderedIdentityColumns, identityColumnWidths)}
                     className={[
-                      'sticky top-8 z-50 h-14 bg-surface-2',
+                      'sticky top-8 z-30 h-14 bg-surface-2',
                       getIdentityColumnBorderClass(index, editMode, renderedIdentityColumns),
                       !visibleColumns[column.key] ? 'text-text-muted' : '',
                     ].join(' ')}
@@ -931,7 +931,7 @@ function AssessmentMatrixTable({
                       key={`weight:${key}`}
                       align="center"
                       className={[
-                        'sticky top-8 z-40 h-14 min-w-16 border-r border-border bg-surface-2 px-2',
+                        'sticky top-8 z-20 h-14 min-w-16 border-r border-border bg-surface-2 px-2',
                         hidden ? 'opacity-60' : '',
                       ].join(' ')}
                     >
@@ -969,7 +969,7 @@ function AssessmentMatrixTable({
                     align="right"
                     style={getFinalColumnStyle(finalColumnWidth)}
                     className={[
-                      'sticky top-8 z-40 h-14 bg-surface-2 text-xs font-semibold tabular-nums text-text-muted md:right-0 md:z-50',
+                      'sticky top-8 z-20 h-14 bg-surface-2 text-xs font-semibold tabular-nums text-text-muted md:right-0 md:z-30',
                       FINAL_COLUMN_SEPARATOR_CLASS,
                     ].join(' ')}
                   >
@@ -989,7 +989,7 @@ function AssessmentMatrixTable({
               </DataTableRow>
             ) : null}
             <DataTableRow>
-              <DataTableHeaderCell className={['sticky left-0 z-40 border-r border-border bg-surface-2', headerTopClass, leadingColumnWidthClass].join(' ')}>
+              <DataTableHeaderCell className={['sticky left-0 z-30 border-r border-border bg-surface-2', headerTopClass, leadingColumnWidthClass].join(' ')}>
                 {editMode ? null : (
                   <input
                     type="checkbox"
@@ -1024,7 +1024,7 @@ function AssessmentMatrixTable({
                   key={key}
                   align="center"
                     className={[
-                      'sticky z-30 min-w-16 bg-surface-2 px-2 text-xs',
+                      'sticky z-20 min-w-16 bg-surface-2 px-2 text-xs',
                       headerTopClass,
                       editColumnBorderClass,
                       hidden ? 'opacity-60' : '',
@@ -1095,7 +1095,7 @@ function AssessmentMatrixTable({
                 >
                   <DataTableCell
                     className={[
-                      'sticky left-0 z-20 border-r border-border',
+                      'sticky left-0 z-10 border-r border-border',
                       isSelected ? 'bg-surface-selected group-hover:bg-surface-selected' : 'bg-surface group-hover:bg-surface-hover',
                       leadingColumnWidthClass,
                     ].join(' ')}
@@ -1118,7 +1118,7 @@ function AssessmentMatrixTable({
                         key={column.key}
                         style={getIdentityColumnStyle(column, index, editMode, renderedIdentityColumns, identityColumnWidths)}
                         className={[
-                          'sticky z-20',
+                          'sticky z-10',
                           getIdentityColumnBorderClass(index, editMode, renderedIdentityColumns),
                           isSelected ? 'bg-surface-selected group-hover:bg-surface-selected' : 'bg-surface group-hover:bg-surface-hover',
                           column.key === 'id' ? 'text-text-muted' : '',
@@ -1162,7 +1162,7 @@ function AssessmentMatrixTable({
                       align="right"
                       style={getFinalColumnStyle(finalColumnWidth)}
                       className={[
-                        'whitespace-nowrap text-xs font-semibold tabular-nums sm:text-sm md:sticky md:right-0 md:z-20',
+                        'whitespace-nowrap text-xs font-semibold tabular-nums sm:text-sm md:sticky md:right-0 md:z-10',
                         FINAL_COLUMN_SEPARATOR_CLASS,
                         isSelected ? 'bg-surface-selected group-hover:bg-surface-selected' : 'bg-surface group-hover:bg-surface-hover',
                         !visibleColumns.final ? 'bg-surface-2 text-text-muted' : '',
@@ -1190,7 +1190,7 @@ function AssessmentMatrixTable({
                   ].join(' ')}>
                     <DataTableCell
                       className={[
-                        'sticky left-0 z-20 border-r border-border bg-surface-2 text-xs font-semibold uppercase tracking-wide text-text-muted',
+                        'sticky left-0 z-10 border-r border-border bg-surface-2 text-xs font-semibold uppercase tracking-wide text-text-muted',
                         editMode ? '!px-2' : '!px-1 text-center',
                         leadingColumnWidthClass,
                       ].join(' ')}
@@ -1207,7 +1207,7 @@ function AssessmentMatrixTable({
                         key={`average:${column.key}`}
                         style={getIdentityColumnStyle(column, index, editMode, renderedIdentityColumns, identityColumnWidths)}
                         className={[
-                        'sticky z-20 bg-surface-2',
+                        'sticky z-10 bg-surface-2',
                         getIdentityColumnBorderClass(index, editMode, renderedIdentityColumns),
                         editMode && index === 0 ? 'text-xs font-semibold uppercase tracking-wide text-text-muted' : '',
                       ].join(' ')}
@@ -1237,7 +1237,7 @@ function AssessmentMatrixTable({
                         align="right"
                         style={getFinalColumnStyle(finalColumnWidth)}
                         className={[
-                          'whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-20',
+                          'whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-10',
                           FINAL_COLUMN_SEPARATOR_CLASS,
                           visibleColumns.final ? 'text-text-default' : 'text-text-muted',
                         ].join(' ')}
@@ -1254,7 +1254,7 @@ function AssessmentMatrixTable({
                   ].join(' ')}>
                     <DataTableCell
                       className={[
-                        'sticky left-0 z-20 border-r border-border bg-surface-2 text-xs font-semibold uppercase tracking-wide text-text-muted',
+                        'sticky left-0 z-10 border-r border-border bg-surface-2 text-xs font-semibold uppercase tracking-wide text-text-muted',
                         editMode ? '!px-2' : '!px-1 text-center',
                         leadingColumnWidthClass,
                       ].join(' ')}
@@ -1271,7 +1271,7 @@ function AssessmentMatrixTable({
                         key={`median:${column.key}`}
                         style={getIdentityColumnStyle(column, index, editMode, renderedIdentityColumns, identityColumnWidths)}
                         className={[
-                        'sticky z-20 bg-surface-2',
+                        'sticky z-10 bg-surface-2',
                         getIdentityColumnBorderClass(index, editMode, renderedIdentityColumns),
                         editMode && index === 0 ? 'text-xs font-semibold uppercase tracking-wide text-text-muted' : '',
                       ].join(' ')}
@@ -1301,7 +1301,7 @@ function AssessmentMatrixTable({
                         align="right"
                         style={getFinalColumnStyle(finalColumnWidth)}
                         className={[
-                          'whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-20',
+                          'whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-10',
                           FINAL_COLUMN_SEPARATOR_CLASS,
                           visibleColumns.final ? 'text-text-default' : 'text-text-muted',
                         ].join(' ')}
@@ -1716,7 +1716,6 @@ export function TeacherGradebookTab({
         </div>
       }
       centerPlacement="floating"
-      centerClassName="z-[70]"
     />
   )
 
