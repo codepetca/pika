@@ -3,15 +3,77 @@ import { formatInTimeZone } from 'date-fns-tz'
 import { subDays } from 'date-fns'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { withErrorHandler } from '@/lib/api-handler'
+import { chunkValues, loadChunkedRows, loadPagedRows } from '@/lib/server/query-chunks'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 const TIMEZONE = 'America/Toronto'
-const DEFAULT_CHUNK_SIZE = 200
+const DELETE_CHUNK_SIZE = 200
+const CLEANUP_PAGE_SIZE = 1000
+
+type IdRow = { id: string }
 
 function getCronAuthHeader(request: NextRequest): string | null {
   return request.headers.get('authorization') ?? request.headers.get('Authorization')
+}
+
+async function loadExpiredClassroomIds(
+  supabase: any,
+  cutoffDate: string
+): Promise<{ ids: string[]; error: any }> {
+  const { rows, error } = await loadPagedRows<IdRow>(() =>
+    supabase
+      .from('classrooms')
+      .select('id')
+      .not('end_date', 'is', null)
+      .lt('end_date', cutoffDate),
+    CLEANUP_PAGE_SIZE
+  )
+
+  if (error) return { ids: [], error }
+  return { ids: rows.map((row) => row.id), error: null }
+}
+
+async function loadIdsByParentIds(
+  supabase: any,
+  table: string,
+  parentColumn: string,
+  parentIds: string[]
+): Promise<{ ids: string[]; error: any }> {
+  if (parentIds.length === 0) return { ids: [], error: null }
+
+  const { rows, error } = await loadChunkedRows<IdRow>({
+    supabase,
+    table,
+    select: 'id',
+    filters: [{ column: parentColumn, values: parentIds }],
+    pageSize: CLEANUP_PAGE_SIZE,
+  })
+
+  if (error) return { ids: [], error }
+  return { ids: rows.map((row) => row.id), error: null }
+}
+
+async function deleteHistoryByParentIds(
+  supabase: any,
+  table: string,
+  parentColumn: string,
+  parentIds: string[]
+): Promise<{ deleted: number; error: any }> {
+  let deleted = 0
+
+  for (const parentIdChunk of chunkValues(parentIds, DELETE_CHUNK_SIZE)) {
+    const { count, error } = await supabase
+      .from(table)
+      .delete({ count: 'exact' })
+      .in(parentColumn, parentIdChunk)
+
+    if (error) return { deleted, error }
+    deleted += count ?? 0
+  }
+
+  return { deleted, error: null }
 }
 
 async function handle(request: NextRequest) {
@@ -37,11 +99,10 @@ async function handle(request: NextRequest) {
 
   const supabase = getServiceRoleClient()
 
-  const { data: classrooms, error: classroomsError } = await supabase
-    .from('classrooms')
-    .select('id')
-    .not('end_date', 'is', null)
-    .lt('end_date', cutoffDate)
+  const { ids: classroomIds, error: classroomsError } = await loadExpiredClassroomIds(
+    supabase,
+    cutoffDate
+  )
 
   if (classroomsError) {
     console.error('Error fetching classrooms for cleanup:', classroomsError)
@@ -51,15 +112,18 @@ async function handle(request: NextRequest) {
     )
   }
 
-  const classroomIds = (classrooms || []).map((c: { id: string }) => c.id)
   if (classroomIds.length === 0) {
     return NextResponse.json({ status: 'ok', deleted: 0 })
   }
 
-  const { data: assignments, error: assignmentsError } = await supabase
-    .from('assignments')
-    .select('id')
-    .in('classroom_id', classroomIds)
+  let deleted = 0
+
+  const { ids: assignmentIds, error: assignmentsError } = await loadIdsByParentIds(
+    supabase,
+    'assignments',
+    'classroom_id',
+    classroomIds
+  )
 
   if (assignmentsError) {
     console.error('Error fetching assignments for cleanup:', assignmentsError)
@@ -69,15 +133,12 @@ async function handle(request: NextRequest) {
     )
   }
 
-  const assignmentIds = (assignments || []).map((a: { id: string }) => a.id)
-  if (assignmentIds.length === 0) {
-    return NextResponse.json({ status: 'ok', deleted: 0 })
-  }
-
-  const { data: docs, error: docsError } = await supabase
-    .from('assignment_docs')
-    .select('id')
-    .in('assignment_id', assignmentIds)
+  const { ids: assignmentDocIds, error: docsError } = await loadIdsByParentIds(
+    supabase,
+    'assignment_docs',
+    'assignment_id',
+    assignmentIds
+  )
 
   if (docsError) {
     console.error('Error fetching assignment docs for cleanup:', docsError)
@@ -87,29 +148,69 @@ async function handle(request: NextRequest) {
     )
   }
 
-  const docIds = (docs || []).map((d: { id: string }) => d.id)
-  if (docIds.length === 0) {
-    return NextResponse.json({ status: 'ok', deleted: 0 })
+  const { deleted: assignmentHistoryDeleted, error: assignmentHistoryError } =
+    await deleteHistoryByParentIds(
+      supabase,
+      'assignment_doc_history',
+      'assignment_doc_id',
+      assignmentDocIds
+    )
+
+  if (assignmentHistoryError) {
+    console.error('Error deleting assignment doc history:', assignmentHistoryError)
+    return NextResponse.json(
+      { error: 'Failed to delete history' },
+      { status: 500 }
+    )
+  }
+  deleted += assignmentHistoryDeleted
+
+  const { ids: testIds, error: testsError } = await loadIdsByParentIds(
+    supabase,
+    'tests',
+    'classroom_id',
+    classroomIds
+  )
+
+  if (testsError) {
+    console.error('Error fetching tests for cleanup:', testsError)
+    return NextResponse.json(
+      { error: 'Failed to fetch tests' },
+      { status: 500 }
+    )
   }
 
-  let deleted = 0
-  for (let i = 0; i < docIds.length; i += DEFAULT_CHUNK_SIZE) {
-    const chunk = docIds.slice(i, i + DEFAULT_CHUNK_SIZE)
-    const { count, error: deleteError } = await supabase
-      .from('assignment_doc_history')
-      .delete({ count: 'exact' })
-      .in('assignment_doc_id', chunk)
+  const { ids: testAttemptIds, error: attemptsError } = await loadIdsByParentIds(
+    supabase,
+    'test_attempts',
+    'test_id',
+    testIds
+  )
 
-    if (deleteError) {
-      console.error('Error deleting assignment doc history:', deleteError)
-      return NextResponse.json(
-        { error: 'Failed to delete history' },
-        { status: 500 }
-      )
-    }
-
-    deleted += count ?? 0
+  if (attemptsError) {
+    console.error('Error fetching test attempts for cleanup:', attemptsError)
+    return NextResponse.json(
+      { error: 'Failed to fetch test attempts' },
+      { status: 500 }
+    )
   }
+
+  const { deleted: testHistoryDeleted, error: testHistoryError } =
+    await deleteHistoryByParentIds(
+      supabase,
+      'test_attempt_history',
+      'test_attempt_id',
+      testAttemptIds
+    )
+
+  if (testHistoryError) {
+    console.error('Error deleting test attempt history:', testHistoryError)
+    return NextResponse.json(
+      { error: 'Failed to delete history' },
+      { status: 500 }
+    )
+  }
+  deleted += testHistoryDeleted
 
   return NextResponse.json({ status: 'ok', deleted })
 }
