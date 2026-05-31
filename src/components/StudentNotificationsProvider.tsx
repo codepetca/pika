@@ -20,7 +20,7 @@ type NotificationState = {
   refresh: () => Promise<void>
   markTodayComplete: () => void
   decrementUnviewedCount: () => void
-  clearActiveTestsCount: () => void
+  decrementActiveTestsCount: () => void
   markAnnouncementsRead: () => void
 }
 
@@ -88,8 +88,8 @@ export function StudentNotificationsProvider({
     setUnviewedAssignmentsCount((prev) => Math.max(0, prev - 1))
   }, [])
 
-  const clearActiveTestsCount = useCallback(() => {
-    setActiveTestsCount(0)
+  const decrementActiveTestsCount = useCallback(() => {
+    setActiveTestsCount((prev) => Math.max(0, prev - 1))
   }, [])
 
   const markAnnouncementsRead = useCallback(() => {
@@ -106,7 +106,7 @@ export function StudentNotificationsProvider({
       refresh,
       markTodayComplete,
       decrementUnviewedCount,
-      clearActiveTestsCount,
+      decrementActiveTestsCount,
       markAnnouncementsRead,
     }),
     [
@@ -118,7 +118,7 @@ export function StudentNotificationsProvider({
       refresh,
       markTodayComplete,
       decrementUnviewedCount,
-      clearActiveTestsCount,
+      decrementActiveTestsCount,
       markAnnouncementsRead,
     ]
   )

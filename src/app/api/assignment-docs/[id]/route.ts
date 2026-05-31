@@ -38,6 +38,28 @@ function buildHistoryMetrics(
   }
 }
 
+function parseTimestamp(value: unknown) {
+  if (typeof value !== 'string' || value.length === 0) return null
+  const time = new Date(value).getTime()
+  return Number.isFinite(time) ? time : null
+}
+
+function shouldRefreshViewedAt(doc: {
+  viewed_at?: unknown
+  returned_at?: unknown
+  feedback_returned_at?: unknown
+}) {
+  const viewedTime = parseTimestamp(doc.viewed_at)
+  if (viewedTime === null) return true
+
+  const latestReturnTime = Math.max(
+    parseTimestamp(doc.returned_at) ?? 0,
+    parseTimestamp(doc.feedback_returned_at) ?? 0
+  )
+
+  return latestReturnTime > viewedTime
+}
+
 async function loadStudentSubmissionContext(
   supabase: ReturnType<typeof getServiceRoleClient>,
   assignmentId: string,
@@ -101,7 +123,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
     .eq('student_id', user.id)
     .single()
 
-  // Track whether this is the first time viewing (for notification decrement)
+  // Track whether this request cleared an assignment notification.
   let wasFirstView = false
 
   if (docError) {
@@ -181,18 +203,19 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
     existingDoc.content = parseContentField(existingDoc.content)
   }
 
-  // Mark as viewed if not already (for notification tracking)
-  if (existingDoc && existingDoc.viewed_at === null) {
+  // Mark as viewed if this request clears a first-view or returned-feedback notification.
+  if (existingDoc && shouldRefreshViewedAt(existingDoc)) {
+    const viewedAt = new Date().toISOString()
     const { error: viewedError } = await supabase
       .from('assignment_docs')
-      .update({ viewed_at: new Date().toISOString() })
+      .update({ viewed_at: viewedAt })
       .eq('id', existingDoc.id)
 
     if (viewedError) {
-      console.error('Error updating viewed_at:', viewedError)
-      // Non-fatal: continue with response, but don't mark as first view
+      console.error('Error updating assignment viewed_at:', viewedError)
+      // Non-fatal: continue with response, but don't clear local notification count.
     } else {
-      existingDoc.viewed_at = new Date().toISOString()
+      existingDoc.viewed_at = viewedAt
       wasFirstView = true
     }
   }
