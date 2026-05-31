@@ -16,14 +16,38 @@ import {
 } from '@/lib/developer-log-feedback'
 import type { TiptapContent } from '@/types'
 import { withErrorHandler } from '@/lib/api-handler'
+import {
+  chunkValues,
+  loadChunkedRows,
+  loadPagedRows,
+} from '@/lib/server/query-chunks'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 const TIMEZONE = 'America/Toronto'
 const CONCURRENCY_LIMIT = 5
+const CRON_READ_PAGE_SIZE = 1000
+const CRON_FILTER_CHUNK_SIZE = 50
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
+type ActiveClassroomEntryRow = { classroom_id: string }
+type ClassDayClassroomRow = { classroom_id: string }
+type SummaryEntryRow = {
+  id: string
+  classroom_id: string
+  student_id: string
+  text: string | null
+  rich_content: unknown
+  updated_at: string | null
+}
+type EnrollmentStudentRow = { student_id: string }
+type ClassroomRosterNameRow = { first_name: string | null; last_name: string | null }
+type StudentProfileRow = {
+  user_id: string
+  first_name: string | null
+  last_name: string | null
+}
 
 function getCronAuthHeader(request: NextRequest): string | null {
   return request.headers.get('authorization') ?? request.headers.get('Authorization')
@@ -95,16 +119,20 @@ async function getEligibleClassroomIds(
   supabase: SupabaseClient,
   date: string
 ): Promise<{ classroomIds: string[]; error: NextResponse | null }> {
-  const { data: activeEntries, error: entriesError } = await supabase
-    .from('entries')
-    .select('classroom_id, classrooms!inner(archived_at,start_date,end_date)')
-    .eq('date', date)
-    .is('classrooms.archived_at', null)
-    .lte('classrooms.start_date', date)
-    .gte('classrooms.end_date', date)
+  const activeEntriesResult = await loadPagedRows<ActiveClassroomEntryRow>(() =>
+    supabase
+      .from('entries')
+      .select('classroom_id, classrooms!inner(archived_at,start_date,end_date)')
+      .eq('date', date)
+      .is('classrooms.archived_at', null)
+      .lte('classrooms.start_date', date)
+      .gte('classrooms.end_date', date),
+    CRON_READ_PAGE_SIZE,
+    'id',
+  )
 
-  if (entriesError) {
-    console.error('Error fetching active classrooms:', entriesError)
+  if (activeEntriesResult.error) {
+    console.error('Error fetching active classrooms:', activeEntriesResult.error)
     return {
       classroomIds: [],
       error: NextResponse.json(
@@ -114,20 +142,15 @@ async function getEligibleClassroomIds(
     }
   }
 
-  const classroomIds = [...new Set((activeEntries || []).map((e: { classroom_id: string }) => e.classroom_id))]
+  const classroomIds = [...new Set(activeEntriesResult.rows.map((e) => e.classroom_id))]
   if (classroomIds.length === 0) {
     return { classroomIds: [], error: null }
   }
 
-  const { data: classDays, error: classDaysError } = await supabase
-    .from('class_days')
-    .select('classroom_id')
-    .in('classroom_id', classroomIds)
-    .eq('date', date)
-    .eq('is_class_day', true)
+  const classDaysResult = await loadClassDayRowsForClassrooms(supabase, classroomIds, date)
 
-  if (classDaysError) {
-    console.error('Error fetching class days:', classDaysError)
+  if (classDaysResult.error) {
+    console.error('Error fetching class days:', classDaysResult.error)
     return {
       classroomIds: [],
       error: NextResponse.json(
@@ -137,7 +160,7 @@ async function getEligibleClassroomIds(
     }
   }
 
-  const classDayIds = new Set((classDays || []).map((day: { classroom_id: string }) => day.classroom_id))
+  const classDayIds = new Set(classDaysResult.rows.map((day) => day.classroom_id))
   return {
     classroomIds: classroomIds.filter((classroomId) => classDayIds.has(classroomId)),
     error: null,
@@ -154,59 +177,48 @@ async function generateSummaryForClassroom(
     return false
   }
 
-  // Fetch entries for this active classroom and date
-  const { data: entries, error: entriesError } = await supabase
-    .from('entries')
-    .select('*, classrooms!inner(archived_at,start_date,end_date)')
-    .eq('classroom_id', classroomId)
-    .eq('date', date)
-    .is('classrooms.archived_at', null)
-    .lte('classrooms.start_date', date)
-    .gte('classrooms.end_date', date)
+  const enrollmentsResult = await loadEnrollmentStudentRows(supabase, classroomId)
 
-  if (entriesError) {
-    console.error(`Error fetching entries for classroom ${classroomId}:`, entriesError)
+  if (enrollmentsResult.error) {
+    console.error(`Error fetching roster for classroom ${classroomId}:`, enrollmentsResult.error)
     return false
   }
 
-  if (!entries || entries.length === 0) {
+  const rosterStudentIds = [...new Set(enrollmentsResult.rows.map((row) => row.student_id))]
+  if (rosterStudentIds.length === 0) {
+    return false
+  }
+
+  const entriesResult = await loadSummaryEntriesForClassroom(supabase, classroomId, rosterStudentIds, date)
+
+  if (entriesResult.error) {
+    console.error(`Error fetching entries for classroom ${classroomId}:`, entriesResult.error)
+    return false
+  }
+
+  const entries = entriesResult.rows
+  if (entries.length === 0) {
     return false
   }
 
   const entryStudentIds = [...new Set(entries.map((e) => e.student_id))]
-
-  const { data: enrollments, error: enrollmentsError } = await supabase
-    .from('classroom_enrollments')
-    .select('student_id')
-    .eq('classroom_id', classroomId)
-
-  if (enrollmentsError) {
-    console.error(`Error fetching roster for classroom ${classroomId}:`, enrollmentsError)
-    return false
-  }
-
-  const rosterStudentIds = [...new Set((enrollments || []).map((row) => row.student_id))]
   const studentIdsForRedaction = [...new Set([...entryStudentIds, ...rosterStudentIds])]
 
-  const { data: rosterRows, error: rosterError } = await supabase
-    .from('classroom_roster')
-    .select('first_name, last_name')
-    .eq('classroom_id', classroomId)
+  const rosterRowsResult = await loadRosterNameRows(supabase, classroomId)
 
-  if (rosterError) {
-    console.error(`Error fetching roster names for classroom ${classroomId}:`, rosterError)
+  if (rosterRowsResult.error) {
+    console.error(`Error fetching roster names for classroom ${classroomId}:`, rosterRowsResult.error)
     return false
   }
 
-  const profilesResult = studentIdsForRedaction.length > 0
-    ? await supabase
-      .from('student_profiles')
-      .select('user_id, first_name, last_name')
-      .in('user_id', studentIdsForRedaction)
-    : { data: [] }
+  const profilesResult = await loadStudentProfileRows(supabase, studentIdsForRedaction)
+  if (profilesResult.error) {
+    console.error(`Error fetching student profiles for classroom ${classroomId}:`, profilesResult.error)
+    return false
+  }
 
   const profileMap = new Map(
-    (profilesResult.data || []).map((p) => [p.user_id, p])
+    profilesResult.rows.map((p) => [p.user_id, p])
   )
 
   const studentsByName = new Map<string, { firstName: string; lastName: string }>()
@@ -225,7 +237,7 @@ async function generateSummaryForClassroom(
     addStudentForRedaction(profile?.first_name, profile?.last_name)
   }
 
-  for (const row of rosterRows || []) {
+  for (const row of rosterRowsResult.rows) {
     addStudentForRedaction(row.first_name, row.last_name)
   }
 
@@ -276,9 +288,10 @@ async function generateSummaryForClassroom(
   const model = getSummaryModel()
 
   // Get max updated_at from entries for staleness tracking
-  const maxUpdatedAt = entries.reduce((max, e) => {
+  const maxUpdatedAt = entries.reduce<string | null>((max, e) => {
+    if (!e.updated_at) return max
     return !max || e.updated_at > max ? e.updated_at : max
-  }, '' as string) || null
+  }, null)
 
   const { error: upsertError } = await supabase.from('log_summaries').upsert(
     {
@@ -316,6 +329,121 @@ async function generateSummaryForClassroom(
   }
 
   return true
+}
+
+async function loadClassDayRowsForClassrooms(
+  supabase: SupabaseClient,
+  classroomIds: string[],
+  date: string,
+): Promise<{ rows: ClassDayClassroomRow[]; error: any }> {
+  if (classroomIds.length === 0) {
+    return { rows: [], error: null }
+  }
+
+  const rows: ClassDayClassroomRow[] = []
+  for (const classroomIdChunk of chunkValues(classroomIds, CRON_FILTER_CHUNK_SIZE)) {
+    const result = await loadPagedRows<ClassDayClassroomRow>(() =>
+      supabase
+        .from('class_days')
+        .select('classroom_id')
+        .in('classroom_id', classroomIdChunk)
+        .eq('date', date)
+        .eq('is_class_day', true),
+      CRON_READ_PAGE_SIZE,
+      'classroom_id',
+    )
+
+    if (result.error) {
+      return { rows: [], error: result.error }
+    }
+
+    rows.push(...result.rows)
+  }
+
+  return { rows, error: null }
+}
+
+async function loadSummaryEntriesForClassroom(
+  supabase: SupabaseClient,
+  classroomId: string,
+  studentIds: string[],
+  date: string,
+): Promise<{ rows: SummaryEntryRow[]; error: any }> {
+  if (studentIds.length === 0) {
+    return { rows: [], error: null }
+  }
+
+  const rows: SummaryEntryRow[] = []
+  for (const studentIdChunk of chunkValues(studentIds, CRON_FILTER_CHUNK_SIZE)) {
+    const result = await loadPagedRows<SummaryEntryRow>(() =>
+      supabase
+        .from('entries')
+        .select('*, classrooms!inner(archived_at,start_date,end_date)')
+        .eq('classroom_id', classroomId)
+        .eq('date', date)
+        .in('student_id', studentIdChunk)
+        .is('classrooms.archived_at', null)
+        .lte('classrooms.start_date', date)
+        .gte('classrooms.end_date', date),
+      CRON_READ_PAGE_SIZE,
+      'id',
+    )
+
+    if (result.error) {
+      return { rows: [], error: result.error }
+    }
+
+    rows.push(...result.rows)
+  }
+
+  return { rows, error: null }
+}
+
+async function loadEnrollmentStudentRows(
+  supabase: SupabaseClient,
+  classroomId: string,
+): Promise<{ rows: EnrollmentStudentRow[]; error: any }> {
+  return loadPagedRows<EnrollmentStudentRow>(() =>
+    supabase
+      .from('classroom_enrollments')
+      .select('student_id')
+      .eq('classroom_id', classroomId),
+    CRON_READ_PAGE_SIZE,
+    'id',
+  )
+}
+
+async function loadRosterNameRows(
+  supabase: SupabaseClient,
+  classroomId: string,
+): Promise<{ rows: ClassroomRosterNameRow[]; error: any }> {
+  return loadPagedRows<ClassroomRosterNameRow>(() =>
+    supabase
+      .from('classroom_roster')
+      .select('first_name, last_name')
+      .eq('classroom_id', classroomId),
+    CRON_READ_PAGE_SIZE,
+    'id',
+  )
+}
+
+async function loadStudentProfileRows(
+  supabase: SupabaseClient,
+  studentIds: string[],
+): Promise<{ rows: StudentProfileRow[]; error: any }> {
+  if (studentIds.length === 0) {
+    return { rows: [], error: null }
+  }
+
+  return loadChunkedRows<StudentProfileRow>({
+    supabase,
+    table: 'student_profiles',
+    select: 'user_id, first_name, last_name',
+    filters: [{ column: 'user_id', values: studentIds }],
+    chunkSize: CRON_FILTER_CHUNK_SIZE,
+    pageSize: CRON_READ_PAGE_SIZE,
+    pageOrderColumn: 'id',
+  })
 }
 
 async function isClassroomEligibleForSummary(
