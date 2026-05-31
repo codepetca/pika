@@ -819,3 +819,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `E2E_BASE_URL=http://localhost:3022 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
 - Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-31 — Assignment list stats pagination
+
+**Completed:**
+- Routed teacher assignment list stats reads through the shared chunked/paged Supabase loader.
+- Preserved the legacy fallback for databases without `assignment_docs.teacher_cleared_at`.
+- Added a dense 2,500-row stats regression so list stats cannot silently stop at Supabase's default page.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/teacher/assignments.test.ts tests/unit/query-chunks.test.ts -- --runInBand`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
