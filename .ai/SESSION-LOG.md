@@ -848,3 +848,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `git diff --check`
+
+## 2026-05-31 — Teacher test authoring URL mode
+
+**Completed:**
+- Made `testMode=authoring` open the teacher test editor instead of silently falling back to grading.
+- Updated test workspace navigation so Edit Test and newly created tests write authoring mode, while editor close returns the URL to grading mode.
+- Routed teacher test list/detail reads through `fetchJSONWithCache` to satisfy the client-read audit gate.
+- Added component coverage for authoring deep links, editor close URL repair, Edit Test URL state, and Browser Back from authoring to grading.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx -- --runInBand --testTimeout=10000`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/ui/Dialog.test.tsx -- --runInBand --testTimeout=10000`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3024 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
+- Manual Playwright screenshots for `testMode=authoring`: `/tmp/pika-teacher-authoring.png`, `/tmp/pika-teacher-authoring-mobile.png`

@@ -45,6 +45,7 @@ import {
 } from '@/lib/events'
 import { getDisplayAssessmentTitle } from '@/lib/assessment-titles'
 import { getQuizExitCount } from '@/lib/quizzes'
+import { fetchJSONWithCache } from '@/lib/request-cache'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { compareByNameFields } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
@@ -301,6 +302,7 @@ export function TeacherTestsTab({
   const apiBasePath = '/api/teacher/tests'
   const isReadOnly = !!classroom.archived_at
   const previousTestsTabClickTokenRef = useRef(testsTabClickToken)
+  const previousSelectedTestModeRef = useRef<WorkspaceTab | null | undefined>(selectedTestMode)
   const gradingSelectionRef = useRef<{
     workspaceState: WorkspaceState
     selectedWorkspaceTab: WorkspaceTab
@@ -363,7 +365,7 @@ export function TeacherTestsTab({
   const selectedTestId =
     selectedTestIdProp !== undefined ? selectedTestIdProp : internalSelectedTestId
   const selectedWorkspaceTab =
-    selectedTestMode === 'grading'
+    selectedTestMode === 'authoring' || selectedTestMode === 'grading'
       ? selectedTestMode
       : internalSelectedWorkspaceTab
   const selectedStudentId =
@@ -388,6 +390,17 @@ export function TeacherTestsTab({
   const [isDeletingStudentAttempt, setIsDeletingStudentAttempt] = useState(false)
 
   const [statusActionError, setStatusActionError] = useState('')
+
+  useEffect(() => {
+    const previousMode = previousSelectedTestModeRef.current
+    previousSelectedTestModeRef.current = selectedTestMode
+
+    if (selectedTestMode !== undefined && previousMode === 'authoring' && selectedTestMode !== 'authoring') {
+      setShowEditModal(false)
+      setTestEditModalView('edit')
+      setHasPendingMarkdownImport(false)
+    }
+  }, [selectedTestMode])
   const [statusUpdating, setStatusUpdating] = useState(false)
   const [checkingActivation, setCheckingActivation] = useState(false)
   const [showActivateConfirm, setShowActivateConfirm] = useState(false)
@@ -519,16 +532,17 @@ export function TeacherTestsTab({
     },
     options?: UpdateSearchOptions,
   ) => {
+    const nextMode = next.testId ? (next.mode ?? 'grading') : null
     setInternalSelectedTestId(next.testId)
-    setInternalSelectedWorkspaceTab('grading')
+    setInternalSelectedWorkspaceTab(nextMode ?? 'grading')
     setInternalSelectedStudentId(next.studentId ?? null)
 
     updateSearchParams?.((params) => {
       params.set('tab', 'tests')
       if (next.testId) {
         params.set('testId', next.testId)
-        params.set('testMode', 'grading')
-        if (next.studentId) {
+        params.set('testMode', nextMode ?? 'grading')
+        if (nextMode === 'grading' && next.studentId) {
           params.set('testStudentId', next.studentId)
         } else {
           params.delete('testStudentId')
@@ -712,8 +726,16 @@ export function TeacherTestsTab({
     setLoading(true)
     try {
       const query = new URLSearchParams({ classroom_id: classroom.id })
-      const response = await fetch(`${apiBasePath}?${query.toString()}`)
-      const data = await response.json()
+      const data = await fetchJSONWithCache<{ tests?: QuizWithStats[]; quizzes?: QuizWithStats[] }>(
+        `teacher-tests:${classroom.id}`,
+        async () => {
+          const response = await fetch(`${apiBasePath}?${query.toString()}`)
+          const payload = await response.json()
+          if (!response.ok) throw new Error(payload.error || 'Failed to load tests')
+          return payload
+        },
+        0,
+      )
       const loadedTests = (data.tests || data.quizzes || []) as QuizWithStats[]
       const currentSelectedTestId = selectedTestIdRef.current
       const currentDraftSummary = selectedTestDraftSummaryRef.current
@@ -775,10 +797,16 @@ export function TeacherTestsTab({
     }
     setGradingError('')
     try {
-      const response = await fetch(`${apiBasePath}/${requestedTestId}/results`, { cache: 'no-store' })
-      const data = await response.json()
+      const { ok, data } = await fetchJSONWithCache<{ ok: boolean; data: any }>(
+        `teacher-test-results:${requestedTestId}:${requestId}`,
+        async () => {
+          const response = await fetch(`${apiBasePath}/${requestedTestId}/results`, { cache: 'no-store' })
+          return { ok: response.ok, data: await response.json() }
+        },
+        0,
+      )
       if (isStaleRequest()) return
-      if (!response.ok) throw new Error(data.error || 'Failed to load test results')
+      if (!ok) throw new Error(data.error || 'Failed to load test results')
 
       const nextStatus =
         data?.quiz?.status === 'draft' || data?.quiz?.status === 'active' || data?.quiz?.status === 'closed'
@@ -1241,7 +1269,11 @@ export function TeacherTestsTab({
   }
 
   function handleEditTest(test: QuizWithStats) {
-    handleOpenTest(test)
+    navigateTestWorkspace({ testId: test.id, mode: 'authoring', studentId: null })
+    setGradingError('')
+    setGradingWarning('')
+    setGradingInfo('')
+    clearBatchSelection()
     setTestEditModalView('edit')
     setShowEditModal(true)
   }
@@ -1296,7 +1328,7 @@ export function TeacherTestsTab({
       const next = prev.filter((existing) => existing.id !== createdTest.id)
       return [createdTest, ...next]
     })
-    navigateTestWorkspace({ testId: createdTest.id, mode: 'grading', studentId: null }, { replace: true })
+    navigateTestWorkspace({ testId: createdTest.id, mode: 'authoring', studentId: null }, { replace: true })
     setTestEditModalView('edit')
     setShowEditModal(true)
     window.dispatchEvent(
@@ -1694,9 +1726,15 @@ export function TeacherTestsTab({
     setCheckingActivation(true)
     setStatusActionError('')
     try {
-      const response = await fetch(`${apiBasePath}/${selectedTest.id}`)
-      const data = await response.json()
-      if (!response.ok) {
+      const { ok, data } = await fetchJSONWithCache<{ ok: boolean; data: any }>(
+        `teacher-test-detail:${selectedTest.id}`,
+        async () => {
+          const response = await fetch(`${apiBasePath}/${selectedTest.id}`)
+          return { ok: response.ok, data: await response.json() }
+        },
+        0,
+      )
+      if (!ok) {
         throw new Error(data.error || 'Failed to validate test')
       }
 
@@ -2254,6 +2292,7 @@ export function TeacherTestsTab({
             </span>
           ),
           onSelect: () => {
+            navigateTestWorkspace({ testId: selectedTestWorkspace.id, mode: 'authoring', studentId: null })
             setTestEditModalView('edit')
             setHasPendingMarkdownImport(false)
             setShowEditModal(true)
@@ -2560,6 +2599,15 @@ export function TeacherTestsTab({
       onSaveStateChange={setTestGradingSaveState}
     />
   ) : null
+  const isTestEditorOpen = !!selectedTestWorkspace && (showEditModal || selectedWorkspaceTab === 'authoring')
+  const handleCloseTestEditor = useCallback(() => {
+    setShowEditModal(false)
+    setTestEditModalView('edit')
+    setHasPendingMarkdownImport(false)
+    if (selectedTestId && selectedWorkspaceTab === 'authoring') {
+      navigateTestWorkspace({ testId: selectedTestId, mode: 'grading', studentId: null }, { replace: true })
+    }
+  }, [navigateTestWorkspace, selectedTestId, selectedWorkspaceTab])
 
   const workspaceContent = !selectedTest ? (
     <div className="flex flex-1 justify-center py-12">
@@ -2608,12 +2656,8 @@ export function TeacherTestsTab({
       />
 
       <DialogPanel
-        isOpen={showEditModal && !!selectedTestWorkspace}
-        onClose={() => {
-          setShowEditModal(false)
-          setTestEditModalView('edit')
-          setHasPendingMarkdownImport(false)
-        }}
+        isOpen={isTestEditorOpen}
+        onClose={handleCloseTestEditor}
         ariaLabelledBy="test-edit-title"
         maxWidth="max-w-6xl"
         className="h-[85vh] overflow-hidden p-0"
@@ -2664,11 +2708,7 @@ export function TeacherTestsTab({
             type="button"
             variant="secondary"
             size="sm"
-            onClick={() => {
-              setShowEditModal(false)
-              setTestEditModalView('edit')
-              setHasPendingMarkdownImport(false)
-            }}
+            onClick={handleCloseTestEditor}
           >
             Close
           </Button>
