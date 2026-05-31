@@ -70,7 +70,7 @@ function createContext(studentId = 'student-1') {
 }
 
 function installRepoTargetTables(opts: {
-  enrollment?: { id: string } | null
+  enrollment?: { id?: string; student_id?: string } | null
   enrollmentError?: unknown
   existingDoc?: Record<string, unknown> | null
 }) {
@@ -82,12 +82,15 @@ function installRepoTargetTables(opts: {
       return {
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              maybeSingle: vi.fn(async () => ({
-                data: opts.enrollment === undefined ? { id: 'enrollment-1' } : opts.enrollment,
+            in: vi.fn(async (_column: string, studentIds: string[]) => {
+              const enrollment = opts.enrollment === undefined
+                ? { id: 'enrollment-1', student_id: studentIds[0] }
+                : opts.enrollment
+              return {
+                data: enrollment ? [enrollment] : [],
                 error: opts.enrollmentError ?? null,
-              })),
-            })),
+              }
+            }),
           })),
         })),
       }
