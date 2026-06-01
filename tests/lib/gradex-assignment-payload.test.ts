@@ -140,7 +140,7 @@ describe('buildPikaAssignmentGradexRunPayload', () => {
     expect(result.pikaAdapterRequest.submissions[0].content).toContain('[url redacted]')
     expect(result.pikaAdapterRequest.submissions[0].content).toContain('J.S.')
     expect(result.pikaAdapterRequest.submissions[0].content).not.toContain('Jane Student')
-    expect(result.pikaAdapterRequest.submissions[0].content).toContain('Attached Artifacts:')
+    expect(result.pikaAdapterRequest.submissions[0].content).toContain('attached artifacts:')
     expect(result.pikaAdapterRequest.submissions[0].content).toContain('- Repository artifact submitted')
 
     expect(result.gradexRequest.assignment).toEqual({
@@ -245,6 +245,7 @@ describe('buildPikaAssignmentGradexRunPayload', () => {
     expect(serialized).not.toContain('teacher-db-123')
     expect(serialized).not.toContain('assignment-doc-db-456')
     expect(serialized).not.toContain('student-db-789')
+    expect(serialized).not.toMatch(/\b[0-9a-f]{24}\b/i)
     expect(serialized).not.toContain('Jane Student')
     expect(serialized).not.toContain('student@example.com')
     expect(serialized).not.toContain('roster-db-123')
