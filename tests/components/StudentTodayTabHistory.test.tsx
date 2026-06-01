@@ -3,13 +3,26 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { StudentTodayTab } from '@/app/classrooms/[classroomId]/StudentTodayTab'
 import { getStudentEntryHistoryCacheKey } from '@/lib/student-entry-history'
+import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 import type { Classroom, Entry } from '@/types'
 
 const getTodayInTorontoMock = vi.hoisted(() => vi.fn(() => '2025-12-16'))
+const invalidateStudentEntriesForClassroomMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/timezone', () => ({
   getTodayInToronto: getTodayInTorontoMock,
 }))
+
+vi.mock('@/lib/student-entries-client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/student-entries-client')>()
+  return {
+    ...actual,
+    invalidateStudentEntriesForClassroom: (classroomId: string) => {
+      invalidateStudentEntriesForClassroomMock(classroomId)
+      return actual.invalidateStudentEntriesForClassroom(classroomId)
+    },
+  }
+})
 
 vi.mock('@/components/editor', async () => {
   const React = await import('react')
@@ -126,6 +139,9 @@ function deferred<T>() {
 describe('StudentTodayTab history section', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    invalidateStudentEntriesForClassroomMock.mockClear()
+    invalidateCachedJSONMatching('student-entries:')
+    invalidateCachedJSONMatching('student-lesson-plans:')
     getTodayInTorontoMock.mockReturnValue('2025-12-16')
     window.sessionStorage.clear()
     document.cookie = 'pika_student_today_history=; Max-Age=0; Path=/'
@@ -421,5 +437,52 @@ describe('StudentTodayTab history section', () => {
     )
     expect(saveCall).toBeDefined()
     expect(JSON.parse(String(saveCall?.[1]?.body)).date).toBe('2025-05-11')
+    expect(invalidateStudentEntriesForClassroomMock).toHaveBeenCalledWith(classroom.id)
+  })
+
+  it('invalidates entry caches and clears session history on partial save conflict', async () => {
+    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 12 })
+    getTodayInTorontoMock.mockReturnValue('2025-12-16')
+    const serverEntry = {
+      id: entries[0].id,
+      text: 'Server conflict version.',
+      rich_content: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Server conflict version.' }] }],
+      },
+      version: 2,
+    }
+
+    const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+        return mockJson({ entries: [] })
+      }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lesson_plans: [] })
+      }
+      if (url === '/api/student/entries' && init?.method === 'PATCH') {
+        return Promise.resolve({
+          ok: false,
+          status: 409,
+          json: () => Promise.resolve({ error: 'Entry updated elsewhere', entry: serverEntry }),
+        }) as any
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+
+    const editor = await screen.findByLabelText('Write something...')
+    fireEvent.change(editor, { target: { value: 'Local draft.' } })
+    fireEvent.blur(editor)
+
+    await waitFor(() => {
+      expect(screen.getByText('Entry updated elsewhere')).toBeInTheDocument()
+    })
+
+    expect(invalidateStudentEntriesForClassroomMock).toHaveBeenCalledWith(classroom.id)
+    expect(window.sessionStorage.getItem(cacheKey)).toBeNull()
   })
 })

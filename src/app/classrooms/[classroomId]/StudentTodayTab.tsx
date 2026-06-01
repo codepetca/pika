@@ -11,12 +11,18 @@ import { useClassDaysContext } from '@/hooks/useClassDays'
 import { format, parseISO } from 'date-fns'
 import {
   safeSessionGetJson,
+  safeSessionRemove,
   safeSessionSetJson,
 } from '@/lib/client-storage'
 import {
   getStudentEntryHistoryCacheKey,
   upsertEntryIntoHistory,
 } from '@/lib/student-entry-history'
+import { fetchJSONWithCache } from '@/lib/request-cache'
+import {
+  fetchStudentEntriesForClassroom,
+  invalidateStudentEntriesForClassroom,
+} from '@/lib/student-entries-client'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
@@ -96,12 +102,24 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
         const cached = safeSessionGetJson<Entry[]>(historyCacheKey)
 
         // Fetch today's lesson plan (class days come from context)
-        const lessonPlanPromise = fetch(
-          `/api/student/classrooms/${classroom.id}/lesson-plans?start=${todayDate}&end=${todayDate}`
+        const lessonPlanPromise = fetchJSONWithCache<{ lesson_plans?: LessonPlan[]; lessonPlans?: LessonPlan[] }>(
+          `student-lesson-plans:${classroom.id}:${todayDate}:${todayDate}`,
+          async () => {
+            const response = await fetch(
+              `/api/student/classrooms/${classroom.id}/lesson-plans?start=${todayDate}&end=${todayDate}`
+            )
+            const data = await response.json().catch(() => ({ lesson_plans: [] }))
+            if (!response.ok) {
+              throw new Error(
+                typeof data.error === 'string' ? data.error : 'Failed to load lesson plan'
+              )
+            }
+            return data
+          },
+          20_000,
         )
-          .then(r => r.json())
           .then(data => {
-            const plans = data.lesson_plans || []
+            const plans = data.lesson_plans || data.lessonPlans || []
             const todayPlan = plans.find((p: LessonPlan) => p.date === todayDate) || null
             onLessonPlanLoad?.(todayPlan)
           })
@@ -129,16 +147,8 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
           setLoading(false)
         }
 
-        const entriesUrl = `/api/student/entries?classroom_id=${classroom.id}&limit=${historyLimit}`
-        const entriesPromise = fetch(entriesUrl)
-          .then(response => {
-            if (!response.ok) {
-              throw new Error('Failed to load entries')
-            }
-            return response.json()
-          })
-          .then(data => {
-            const entries: Entry[] = data.entries || []
+        const entriesPromise = fetchStudentEntriesForClassroom(classroom.id, { limit: historyLimit })
+          .then(entries => {
             if (hasLocalEditSinceLoadRef.current) {
               setHistoryEntries(prev => {
                 const currentTodayEntry = prev.find((e: Entry) => e.date === todayDate) || null
@@ -271,7 +281,25 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
         const serverEntry = data.entry as Entry | undefined
         if (serverEntry) {
           setConflictEntry(serverEntry)
+          if (serverEntry.date) {
+            updateHistoryEntries(serverEntry)
+          } else {
+            safeSessionRemove(
+              getStudentEntryHistoryCacheKey({
+                classroomId: classroom.id,
+                limit: historyLimit,
+              })
+            )
+          }
+        } else {
+          safeSessionRemove(
+            getStudentEntryHistoryCacheKey({
+              classroomId: classroom.id,
+              limit: historyLimit,
+            })
+          )
         }
+        invalidateStudentEntriesForClassroom(classroom.id)
         if (saveTimeoutRef.current) {
           clearTimeout(saveTimeoutRef.current)
         }
@@ -296,6 +324,7 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
       const savedEntry = data.entry as Entry
       entryIdRef.current = savedEntry.id
       entryVersionRef.current = savedEntry.version ?? entryVersionRef.current
+      invalidateStudentEntriesForClassroom(classroom.id)
       updateHistoryEntries(savedEntry)
       lastSavedContentRef.current = newContentStr
       setSaveStatus('saved')
@@ -307,7 +336,7 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
       setSaveStatus('unsaved')
       setSaveError(err.message || 'Failed to save')
     }
-  }, [MAX_CHARS, classroom.id, updateHistoryEntries, notifications])
+  }, [MAX_CHARS, classroom.id, historyLimit, updateHistoryEntries, notifications])
 
   const scheduleSave = useCallback((
     newContent: TiptapContent,
