@@ -3,7 +3,7 @@
 import { forwardRef, useMemo, useState, useId, type ReactNode, type TextareaHTMLAttributes } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Info, RefreshCw, X } from 'lucide-react'
+import { Info, RefreshCw } from 'lucide-react'
 import {
   Button,
   Card,
@@ -107,23 +107,22 @@ function SettingsSwitch({
       onClick={() => onChange(!checked)}
       className={cn(
         'relative h-7 w-14 shrink-0 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-page',
-        checked ? 'border-primary bg-info-bg' : 'border-border bg-surface-2',
         disabled
-          ? 'cursor-not-allowed opacity-60'
+          ? 'cursor-not-allowed border-border bg-surface-2 opacity-70'
           : checked
             ? 'hover:border-primary-hover hover:bg-info-bg-hover'
             : 'hover:bg-surface-hover',
+        !disabled && (checked ? 'border-primary bg-info-bg' : 'border-border bg-surface-2'),
       )}
     >
       <span
         aria-hidden="true"
         className={cn(
-          'absolute left-0 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary shadow-sm transition-transform',
+          'absolute left-0 top-1 h-5 w-5 rounded-full shadow-sm transition-transform',
           checked ? 'translate-x-7' : 'translate-x-1',
+          disabled || !checked ? 'bg-border-strong' : 'bg-primary',
         )}
-      >
-        {!checked ? <X className="h-3 w-3 text-text-inverse" strokeWidth={3} /> : null}
-      </span>
+      />
     </button>
   )
 }
