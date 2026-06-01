@@ -7,6 +7,8 @@ import {
   suggestTestOpenResponseGradeWithContext,
   suggestTestOpenResponseGradesBatchWithContext,
 } from '@/lib/ai-test-grading'
+import type { AiSanitizationContext } from '@/lib/ai-sanitization'
+import { loadClassroomAiSanitizationContext } from '@/lib/server/ai-sanitization'
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
   isMissingTestAttemptReturnColumnsError,
@@ -261,10 +263,10 @@ async function fetchLatestActiveRun(
 async function loadTestForRun(
   supabase: ServiceRoleSupabase,
   testId: string,
-): Promise<{ id: string; title: string }> {
+): Promise<{ id: string; title: string; classroom_id: string }> {
   const { data, error } = await supabase
     .from('tests')
-    .select('id, title')
+    .select('id, title, classroom_id')
     .eq('id', testId)
     .single()
 
@@ -275,6 +277,7 @@ async function loadTestForRun(
   return {
     id: data.id,
     title: typeof data.title === 'string' ? data.title : 'Untitled Test',
+    classroom_id: String(data.classroom_id || ''),
   }
 }
 
@@ -979,8 +982,9 @@ async function processQuestionBatch(opts: {
   question: OpenQuestionRow
   items: TestAiGradingRunItem[]
   responsesById: Map<string, { id: string; response_text: string | null }>
+  sanitizationContext?: AiSanitizationContext | null
 }): Promise<void> {
-  const { supabase, run, testTitle, question, items, responsesById } = opts
+  const { supabase, run, testTitle, question, items, responsesById, sanitizationContext } = opts
   const model = run.model ?? getTestOpenResponseGradingModel()
   const cacheResolution = resolveReusableTestOpenResponseReferenceAnswers({
     testTitle,
@@ -1012,6 +1016,7 @@ async function processQuestionBatch(opts: {
         runId: run.id,
       },
       requestTimeoutMs: TEST_AI_GRADING_REQUEST_TIMEOUT_MS,
+      sanitizationContext,
     })
 
     if (
@@ -1239,6 +1244,10 @@ export async function tickTestAiGradingRun(opts: {
       .slice(0, TEST_AI_GRADING_RUN_CHUNK_SIZE)
 
     if (dueItems.length > 0) {
+      const sanitizationContext = await loadClassroomAiSanitizationContext(
+        supabase,
+        test.classroom_id,
+      )
       const responseIds = dueItems.map((item) => item.response_id)
       const questionIds = Array.from(new Set(dueItems.map((item) => item.question_id)))
 
@@ -1295,6 +1304,7 @@ export async function tickTestAiGradingRun(opts: {
             question: group.question,
             items: group.items,
             responsesById,
+            sanitizationContext,
           })
         },
       )

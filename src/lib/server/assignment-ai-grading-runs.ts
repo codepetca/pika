@@ -8,6 +8,8 @@ import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions
 import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
 import { analyzeAuthenticity } from '@/lib/authenticity'
 import { limitedMarkdownToPlainText } from '@/lib/limited-markdown'
+import type { AiSanitizationContext } from '@/lib/ai-sanitization'
+import { loadClassroomAiSanitizationContext } from '@/lib/server/ai-sanitization'
 import {
   loadAssignmentSubmissionArtifactsForDoc,
   loadAssignmentSubmissionArtifactsForDocs,
@@ -55,6 +57,7 @@ type GradeAssignmentDocWithAiOptions = {
   }
   gradedBy?: string | null
   requestTimeoutMs?: number
+  sanitizationContext?: AiSanitizationContext | null
   telemetry?: {
     operation?: string
     requestedStrategy?: string | null
@@ -322,6 +325,7 @@ export async function gradeAssignmentDocWithAi({
   assignmentDoc,
   gradedBy,
   requestTimeoutMs,
+  sanitizationContext,
   telemetry,
 }: GradeAssignmentDocWithAiOptions): Promise<void> {
   const studentWork = parseContentField(assignmentDoc.content)
@@ -338,6 +342,10 @@ export async function gradeAssignmentDocWithAi({
     return
   }
 
+  const resolvedSanitizationContext =
+    sanitizationContext ??
+    await loadClassroomAiSanitizationContext(supabase, assignment.classroom_id)
+
   const result = await gradeStudentWork({
     assignmentTitle: assignment.title,
     instructions: getAssignmentInstructionsText(assignment),
@@ -345,6 +353,7 @@ export async function gradeAssignmentDocWithAi({
     submissionArtifacts,
     previousFeedback: assignmentDoc.feedback,
     requestTimeoutMs,
+    sanitizationContext: resolvedSanitizationContext,
     telemetry: {
       feature: 'assignment_auto_grade',
       operation: telemetry?.operation ?? 'single_grade',
@@ -545,8 +554,9 @@ async function processAssignmentAiRunItem(opts: {
   assignment: Assignment
   run: AssignmentAiGradingRun
   item: AssignmentAiGradingRunItem
+  sanitizationContext?: AiSanitizationContext | null
 }): Promise<void> {
-  const { supabase, assignment, run, item } = opts
+  const { supabase, assignment, run, item, sanitizationContext } = opts
   const attemptCount = item.attempt_count + 1
   const now = new Date().toISOString()
 
@@ -627,6 +637,7 @@ async function processAssignmentAiRunItem(opts: {
       assignmentDoc,
       gradedBy: run.triggered_by,
       requestTimeoutMs: ASSIGNMENT_AI_GRADING_REQUEST_TIMEOUT_MS,
+      sanitizationContext,
       telemetry: {
         operation: 'background_batch_item',
         requestedStrategy: 'background_chunked',
@@ -904,6 +915,8 @@ export async function tickAssignmentAiGradingRun(opts: {
       .slice(0, ASSIGNMENT_AI_GRADING_RUN_CHUNK_SIZE)
 
     if (dueItems.length > 0) {
+      const sanitizationContext = await loadClassroomAiSanitizationContext(supabase, assignment.classroom_id)
+
       await mapWithConcurrency(
         dueItems,
         ASSIGNMENT_AI_GRADING_ITEM_CONCURRENCY,
@@ -913,6 +926,7 @@ export async function tickAssignmentAiGradingRun(opts: {
             assignment,
             run: claimedRun,
             item,
+            sanitizationContext,
           })
         },
       )
