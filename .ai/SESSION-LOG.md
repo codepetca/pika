@@ -932,3 +932,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `pnpm lint`
 - `pnpm build`
+
+## 2026-05-31 — Student lesson calendar cache reuse
+
+**Completed:**
+- Routed student lesson calendar assignment reads through the shared `student-assignments:<classroomId>` cache key.
+- Routed student lesson calendar announcement reads through the shared `student-announcements:<classroomId>` cache key.
+- Routed student lesson calendar lesson-plan reads through a range-specific `student-lesson-plans:<classroomId>:<start>:<end>` cache key.
+- Added remount coverage proving the calendar reuses cached lesson plans, assignments, and announcements.
+- Addressed review feedback by isolating per-endpoint load failures and strengthening remount coverage to wait for completed cached data.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/StudentLessonCalendarTab.test.tsx tests/unit/request-cache.test.ts -- --runInBand`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`

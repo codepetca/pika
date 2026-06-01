@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import { StudentLessonCalendarTab } from '@/app/classrooms/[classroomId]/StudentLessonCalendarTab'
 import { createMockClassroom } from '../helpers/mocks'
+import { invalidateCachedJSON } from '@/lib/request-cache'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -17,7 +18,14 @@ vi.mock('@/lib/cookies', () => ({
 }))
 
 vi.mock('@/components/LessonCalendar', () => ({
-  LessonCalendar: () => <div data-testid="lesson-calendar" />,
+  LessonCalendar: ({ lessonPlans, assignments, announcements }: any) => (
+    <div
+      data-testid="lesson-calendar"
+      data-lesson-count={lessonPlans.length}
+      data-assignment-count={assignments.length}
+      data-announcement-count={announcements.length}
+    />
+  ),
   CalendarViewMode: {},
 }))
 
@@ -29,11 +37,17 @@ describe('StudentLessonCalendarTab', () => {
   let fetchMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
+    invalidateCachedJSON(`student-lesson-plans:${classroom.id}:2025-01-01:2025-06-30`)
+    invalidateCachedJSON(`student-assignments:${classroom.id}`)
+    invalidateCachedJSON(`student-announcements:${classroom.id}`)
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
   })
 
   afterEach(() => {
+    invalidateCachedJSON(`student-lesson-plans:${classroom.id}:2025-01-01:2025-06-30`)
+    invalidateCachedJSON(`student-assignments:${classroom.id}`)
+    invalidateCachedJSON(`student-announcements:${classroom.id}`)
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -92,6 +106,73 @@ describe('StudentLessonCalendarTab', () => {
 
     // Wait a tick — no additional calls should fire
     await new Promise((r) => setTimeout(r, 50))
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('reuses calendar data cache keys on remount', async () => {
+    fetchMock.mockImplementation(async (url: string) => ({
+      ok: true,
+      json: async () => {
+        if (url.includes('lesson-plans')) return { lesson_plans: [{ id: 'lesson-1' }] }
+        if (url.includes('assignments')) return { assignments: [{ id: 'assignment-1' }] }
+        if (url.includes('announcements')) return { announcements: [{ id: 'announcement-1' }] }
+        return {}
+      },
+    }))
+
+    const first = render(<StudentLessonCalendarTab classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1')
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-assignment-count', '1')
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-count', '1')
+    })
+
+    first.unmount()
+    render(<StudentLessonCalendarTab classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1')
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-assignment-count', '1')
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-count', '1')
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+
+    const urls = fetchMock.mock.calls.map(([url]) => String(url))
+    expect(urls.filter((url) => url.includes('lesson-plans'))).toHaveLength(1)
+    expect(urls.filter((url) => url.includes('assignments'))).toHaveLength(1)
+    expect(urls.filter((url) => url.includes('announcements'))).toHaveLength(1)
+  })
+
+  it('keeps lesson plans visible when ancillary calendar reads fail', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('assignments')) {
+        return {
+          ok: false,
+          json: async () => ({ error: 'Failed' }),
+        }
+      }
+
+      return {
+        ok: true,
+        json: async () => {
+          if (url.includes('lesson-plans')) return { lesson_plans: [{ id: 'lesson-1' }] }
+          if (url.includes('announcements')) return { announcements: [{ id: 'announcement-1' }] }
+          return {}
+        },
+      }
+    })
+
+    render(<StudentLessonCalendarTab classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1')
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-assignment-count', '0')
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-count', '1')
+    })
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 })
