@@ -50,6 +50,7 @@ export const POST = withErrorHandler('PostAddRosterStudents', async (request, co
       last_name: lastName,
       student_number: studentNumber || null,
       counselor_email: counselorEmail?.toLowerCase().trim() || null,
+      join_source: 'manual',
     })
   }
 

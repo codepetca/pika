@@ -1014,6 +1014,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/repo-review-ai.test.ts tests/unit/repo-review-analysis.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts`
 - `pnpm test tests/unit/repo-review-ai.test.ts tests/unit/repo-review-analysis.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/unit/log-summary.test.ts tests/api/cron/nightly-log-summaries.test.ts`
 - `pnpm test tests/unit/repo-review-ai.test.ts`
+
+## 2026-06-01 — Gradex egress sanitization alignment
+
+**Completed:**
+- Refactored the Gradex assignment payload builder to require Pika's standard AI sanitization context.
+- Routed Gradex assignment title, instructions, and submission text through `sanitizeAiText` before Gradex payload construction.
+- Kept Gradex-specific pseudonymous refs and local mappings while preserving extra raw-token hardening for Pika DB identifiers and bare `www.` URLs.
+- Strengthened Gradex adapter tests for roster-name initials, required sanitization context, raw identifier exclusion, and Gradex-owned provider/model settings.
+
+**Validation:**
+- `pnpm test tests/lib/gradex-assignment-payload.test.ts tests/unit/ai-sanitization.test.ts tests/unit/ai-grading.test.ts tests/lib/assignment-ai-grading-runs.test.ts`
+- `pnpm exec tsc --noEmit`
 - `pnpm lint`
 
 ## 2026-06-01 — Snapshot gallery hardening phase-1 second pass
@@ -1040,3 +1052,176 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `pnpm test tests/unit/auth.test.ts tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
 - `pnpm lint`
+## 2026-06-01 — Open join classroom access mode
+
+**Completed:**
+- Added `classrooms.join_policy` and `classroom_roster.join_source` migration defaults/checks.
+- Added teacher Settings controls for `Roster` vs `Open join`, keeping `allow_enrollment` as the master join switch.
+- Updated student join-by-code flow so roster mode remains strict, while open join asks for first/last name and self-creates the roster/profile/enrollment rows.
+- Stamped manual roster adds as `manual`, CSV uploads as `csv`, and self-joins as `open_join`.
+- Added an `Open join` roster badge and source detail field for teacher review.
+
+**Validation:**
+- `pnpm test tests/api/student/classrooms-join.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/teacher/roster.test.ts tests/api/teacher/roster-add.test.ts tests/api/teacher/roster-upload-csv.test.ts tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test`
+- `pnpm test tests/components/TeacherRosterTab.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/api/student/classrooms-join.test.ts tests/api/teacher/roster.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus mocked open-join roster desktop/mobile and student join form screenshots.
+
+## 2026-06-01 — Open join settings toggle polish
+
+**Completed:**
+- Replaced the Settings join checkbox and right-aligned segmented control with matching left-aligned two-choice toggles.
+- Updated the toggle states so `Allow`/`Roster` sit on the left and `Disallow`/`Open` sit on the right.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Joining tooltip copy consolidation
+
+**Completed:**
+- Moved the allow-new-students and join-mode explanatory copy into the `Joining` info tooltip.
+- Left the Settings rows as compact `Allow / Disallow` and `Roster / Open` toggles.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Joining row copy refinement
+
+**Completed:**
+- Restored brief row-level copy for joining controls while keeping the tooltip concise.
+- Added an X marker inside the off-side toggle thumb.
+- Linked the roster-mode row copy to the classroom roster tab.
+- Added focused coverage for the visible joining copy and roster link.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`; checked the Disallow/X off state and restored the classroom to allowed.
+
+## 2026-06-01 — Roster join row wording
+
+**Completed:**
+- Changed the roster-mode row copy to `Only students on roster can join.` with a lowercase `view roster` link.
+- Matched the roster-mode row emphasis to the allow-new-joins row copy.
+- Updated focused settings coverage for the new copy and link text.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Settings name and join-code controls
+
+**Completed:**
+- Renamed the Settings `Course Name` field to `Classroom name`, including validation and save messages.
+- Replaced the separate `New code` button with a warning-colored refresh icon attached to the join-code control.
+- Kept the join-code copy action on the code itself.
+- Removed the regenerate-code confirmation dialog description so the title stands alone.
+- Added focused coverage that the refresh icon opens the title-only confirmation dialog.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a mobile confirmation-dialog screenshot after clicking the refresh icon.
+
+## 2026-06-01 — Join copy affordance styling
+
+**Completed:**
+- Styled the join code and join URL copy buttons with primary underlined text so they read as clickable copy controls.
+- Kept the warning refresh icon visually distinct from the copy actions.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Join copy highlighted controls
+
+**Completed:**
+- Reverted the link-like underlined text styling on the join code and URL.
+- Highlighted the full join code and join URL controls with the existing subtle primary treatment so the whole textbox reads as clickable-to-copy.
+- Left the warning refresh icon separate from the copy controls.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Regenerate join link layout
+
+**Completed:**
+- Changed the regenerate confirmation title to `Generate new join code and link?`.
+- Moved the refresh icon into a separate warning button after the join URL copy control.
+- Shortened the desktop join URL copy control so it no longer stretches across the row.
+- Updated focused coverage for the new refresh button label and dialog title.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build` after clearing stale `.next`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a mobile confirmation-dialog screenshot.
+
+## 2026-06-01 — Settings switch consistency
+
+**Completed:**
+- Replaced the settings page checkbox controls with a shared switch-row pattern.
+- Simplified the joining rows so each switch sits on the left with short state copy on the right.
+- Kept off states visually clear with the X thumb marker and muted switch styling.
+- Updated focused settings coverage for the markdown display switch semantics.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a full-page teacher screenshot for Public Syllabus switches.
+- `bash scripts/verify-env.sh` still has an unrelated timeout in `tests/components/TeacherStudentWorkPanel.test.tsx`.
+
+## 2026-06-01 — Settings switch off-state polish
+
+**Completed:**
+- Removed the X icon from settings switches.
+- Made off and disabled switch thumbs use the neutral grey token while preserving the blue on state.
+- Kept disabled switches on a neutral track with subtle opacity.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a full-page teacher screenshot showing the off Public Syllabus switch.
+
+## 2026-06-01 — Settings switch blue thumb restore
+
+**Completed:**
+- Restored the settings switch thumb to blue for off and disabled states.
+- Kept the off/disabled track neutral and left the X icon removed.
+- Removed whole-switch opacity so the thumb does not wash out.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a full-page teacher screenshot showing the off Public Syllabus switch.

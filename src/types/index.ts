@@ -6,6 +6,10 @@ export type AttendanceStatus = 'present' | 'absent' | 'pending'
 
 export type MoodEmoji = '😊' | '🙂' | '😐' | '😟' | '😢'
 
+export type ClassroomJoinPolicy = 'roster' | 'open_join'
+
+export type RosterJoinSource = 'manual' | 'csv' | 'open_join'
+
 export interface User {
   id: string
   email: string
@@ -73,6 +77,7 @@ export interface Classroom {
   position?: number
   term_label: string | null
   allow_enrollment: boolean
+  join_policy: ClassroomJoinPolicy
   start_date: string | null // YYYY-MM-DD, inclusive
   end_date: string | null // YYYY-MM-DD, inclusive
   lesson_plan_visibility: LessonPlanVisibility

@@ -24,6 +24,7 @@ const mockClassroom: Classroom = {
   class_code: 'ABC123',
   term_label: null,
   allow_enrollment: true,
+  join_policy: 'roster',
   start_date: '2026-01-01',
   end_date: '2026-06-01',
   created_at: '2026-01-01T00:00:00Z',
@@ -40,7 +41,7 @@ function Wrapper({ children }: { children: ReactNode }) {
   )
 }
 
-describe('TeacherSettingsTab - Course Name Editing', () => {
+describe('TeacherSettingsTab - Classroom name Editing', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
     mockRefresh.mockClear()
@@ -53,10 +54,10 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
     cleanup()
   })
 
-  it('renders with course name prefilled', () => {
+  it('renders with classroom name prefilled', () => {
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     expect(input).toHaveValue('Test Course')
     expect(screen.queryByLabelText('Quizzes')).toBeNull()
   })
@@ -76,13 +77,13 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
   it('persists the show markdown display setting from the general settings tab', async () => {
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const markdownToggle = await screen.findByRole('checkbox', { name: 'Show markdown' })
-    expect(markdownToggle).toBeChecked()
+    const markdownToggle = await screen.findByRole('switch', { name: 'Show markdown' })
+    expect(markdownToggle).toHaveAttribute('aria-checked', 'true')
 
     fireEvent.click(markdownToggle)
 
     await waitFor(() => {
-      expect(markdownToggle).not.toBeChecked()
+      expect(markdownToggle).toHaveAttribute('aria-checked', 'false')
     })
     expect(window.localStorage.getItem('pika_show_markdown')).toBe('false')
     expect(screen.queryByLabelText('Course overview')).not.toBeInTheDocument()
@@ -123,7 +124,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: 'Updated Course' } })
     fireEvent.blur(input)
 
@@ -146,7 +147,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: 'Enter Saved' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 
@@ -157,16 +158,16 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ title: 'Enter Saved' })
   })
 
-  it('shows error when course name is empty', async () => {
+  it('shows error when classroom name is empty', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: '' } })
     fireEvent.blur(input)
 
-    expect(screen.getByText('Course name cannot be empty')).toBeInTheDocument()
+    expect(screen.getByText('Classroom name cannot be empty')).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -175,7 +176,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     // Change to same value
     fireEvent.change(input, { target: { value: 'Test Course' } })
     fireEvent.blur(input)
@@ -192,12 +193,12 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: 'New Name' } })
     fireEvent.blur(input)
 
     await waitFor(() => {
-      expect(screen.getByText('Course name updated')).toBeInTheDocument()
+      expect(screen.getByText('Classroom name updated')).toBeInTheDocument()
     })
   })
 
@@ -210,12 +211,12 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: 'Refreshed' } })
     fireEvent.blur(input)
 
     await waitFor(() => {
-      expect(screen.getByText('Course name updated')).toBeInTheDocument()
+      expect(screen.getByText('Classroom name updated')).toBeInTheDocument()
     })
     expect(mockRefresh).not.toHaveBeenCalled()
   })
@@ -229,7 +230,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: 'Will Fail' } })
     fireEvent.blur(input)
 
@@ -245,7 +246,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={archivedClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     expect(input).toBeDisabled()
   })
 
@@ -259,7 +260,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: 'New Title' } })
     fireEvent.blur(input)
 
@@ -282,7 +283,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
     })
   })
 
-  it('trims whitespace from course name before saving', async () => {
+  it('trims whitespace from classroom name before saving', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -291,7 +292,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: '  Trimmed  ' } })
     fireEvent.blur(input)
 
@@ -322,10 +323,10 @@ describe('TeacherSettingsTab - Allow Joining', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const checkbox = screen.getByLabelText('Allow joining')
-    expect(checkbox).toBeChecked()
+    const toggle = screen.getByRole('switch', { name: 'Allow new students to join' })
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
 
-    fireEvent.click(checkbox)
+    fireEvent.click(toggle)
 
     await waitFor(() => {
       expect(screen.getByText('Settings saved')).toBeInTheDocument()
@@ -335,6 +336,44 @@ describe('TeacherSettingsTab - Allow Joining', () => {
     const [url, options] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/teacher/classrooms/cls-123')
     expect(JSON.parse(options.body)).toEqual({ allowEnrollment: false })
+  })
+
+  it('opens a title-only confirmation before generating a new join code', () => {
+    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate new join code and link' }))
+
+    expect(screen.getByRole('dialog', { name: 'Generate new join code and link?' })).toBeInTheDocument()
+    expect(screen.queryByText('This replaces the current code. Students will need the new code/link to join.')).not.toBeInTheDocument()
+  })
+
+  it('saves the open join mode', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ classroom: { ...mockClassroom, join_policy: 'open_join' } }),
+    })
+
+    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+
+    const joinMode = screen.getByRole('switch', { name: 'Join mode' })
+    expect(joinMode).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByText('Allow new joins')).toBeInTheDocument()
+    expect(screen.getByText('Only students on roster can join.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'view roster' })).toHaveAttribute(
+      'href',
+      '/classrooms/cls-123?tab=roster',
+    )
+
+    fireEvent.click(joinMode)
+
+    await waitFor(() => {
+      expect(screen.getByText('Anyone with this code or link can join after entering their name.')).toBeInTheDocument()
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [, options] = fetchMock.mock.calls[0]
+    expect(JSON.parse(options.body)).toEqual({ joinPolicy: 'open_join' })
   })
 })
 
@@ -404,7 +443,7 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
     cleanup()
   })
 
-  it('auto-clears course name success message after 2 seconds', async () => {
+  it('auto-clears classroom name success message after 2 seconds', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -413,7 +452,7 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: 'New Name' } })
     fireEvent.blur(input)
 
@@ -423,7 +462,7 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
     })
 
     // Success message should appear
-    expect(screen.getByText('Course name updated')).toBeInTheDocument()
+    expect(screen.getByText('Classroom name updated')).toBeInTheDocument()
 
     // Advance time to trigger the short auto-clear
     await act(async () => {
@@ -431,7 +470,7 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
     })
 
     // Success message should be gone
-    expect(screen.queryByText('Course name updated')).not.toBeInTheDocument()
+    expect(screen.queryByText('Classroom name updated')).not.toBeInTheDocument()
   })
 
   it('auto-clears enrollment success message after 2 seconds', async () => {
@@ -443,8 +482,8 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const checkbox = screen.getByLabelText('Allow joining')
-    fireEvent.click(checkbox)
+    const toggle = screen.getByRole('switch', { name: 'Allow new students to join' })
+    fireEvent.click(toggle)
 
     // Advance microtasks to let the fetch resolve, but not the timeout
     await act(async () => {
