@@ -8,58 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-27 — Daily log history selected date clarity
-
-**Completed:**
-- Changed the teacher Daily student-log inspector to keep entries in newest-first chronological order instead of pinning the selected entry above newer logs.
-- Highlighted the selected date in place with a selected-card treatment and bold date label.
-- Added an in-order highlighted `No log for this date.` row for selected dates without a student log.
-- Added focused component coverage for chronological selected entries, empty selected dates, and removal of the old `Selected date -` label.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/StudentLogHistory.test.tsx tests/components/TeacherAttendanceTab.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm test tests/unit/ai-startup-docs.test.ts`
-- `git diff --check`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=attendance'`
-- Browser screenshots: `/tmp/pika-teacher-daily-selected-history.png`, `/tmp/pika-teacher-daily-empty-selected-history.png`
-
-## 2026-05-27 — Phase four audit fixes
-
-**Completed:**
-- Added selected-student classroom enrollment validation to the teacher test return route before availability checks, finalization, response reads, or the return RPC.
-- Scoped teacher test result aggregation and open-response stats to currently enrolled classroom students.
-- Normalized the shared feedback dialog to use `@/ui` primitives for the dialog import, category segmented control, and submit button.
-- Updated focused API and integration coverage for selected test return/results enrollment scoping.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-results.test.ts`
-- `pnpm test tests/api/integration/test-return-visibility-flow.test.ts`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- Feedback dialog screenshots: `/tmp/pika-feedback-teacher-desktop-light-idle.png`, `/tmp/pika-feedback-teacher-desktop-light-error.png`, `/tmp/pika-feedback-teacher-desktop-light-submitting.png`, `/tmp/pika-feedback-teacher-desktop-light-success.png`, `/tmp/pika-feedback-teacher-mobile-dark-idle.png`, `/tmp/pika-feedback-student-desktop-dark-idle.png`, `/tmp/pika-feedback-student-mobile-light-error.png`
-- `pnpm test`
-- `pnpm build`
-
-## 2026-05-27 — Test results enrolled response query
-
-**Completed:**
-- Loaded classroom enrollments before teacher test response reads.
-- Scoped the service-role `test_responses` query to current classroom `student_id`s and skipped the query when no students are enrolled.
-- Kept the defensive in-memory response filter and updated route coverage to assert the scoped response query.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/tests-results.test.ts`
-- `pnpm vitest run tests/api/teacher/tests-results.test.ts tests/api/integration/test-return-visibility-flow.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-
 ## 2026-06-01 — AI grading roster sanitization follow-up
 
 **Completed:**
@@ -1027,6 +975,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/lib/gradex-assignment-payload.test.ts tests/unit/ai-sanitization.test.ts tests/unit/ai-grading.test.ts tests/lib/assignment-ai-grading-runs.test.ts`
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
+
 ## 2026-06-01 — Open join classroom access mode
 
 **Completed:**
@@ -1067,3 +1016,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Joining row copy refinement
+
+**Completed:**
+- Restored brief row-level copy for joining controls while keeping the tooltip concise.
+- Added an X marker inside the off-side toggle thumb.
+- Linked the roster-mode row copy to the classroom roster tab.
+- Added focused coverage for the visible joining copy and roster link.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`; checked the Disallow/X off state and restored the classroom to allowed.

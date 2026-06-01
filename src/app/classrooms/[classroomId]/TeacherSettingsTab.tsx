@@ -1,8 +1,9 @@
 'use client'
 
 import { forwardRef, useMemo, useState, useId, type ReactNode, type TextareaHTMLAttributes } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Info } from 'lucide-react'
+import { Info, X } from 'lucide-react'
 import {
   Button,
   Card,
@@ -120,10 +121,12 @@ function TwoChoiceToggle({
         <span
           aria-hidden="true"
           className={cn(
-            'absolute left-0 top-1 h-5 w-5 rounded-full bg-primary shadow-sm transition-transform',
+            'absolute left-0 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary shadow-sm transition-transform',
             checked ? 'translate-x-1' : 'translate-x-7',
           )}
-        />
+        >
+          {!checked ? <X className="h-3 w-3 text-text-inverse" strokeWidth={3} /> : null}
+        </span>
       </button>
       <span className={cn('min-w-14', checked ? 'text-text-muted' : 'font-semibold text-text-default')}>
         {rightLabel}
@@ -451,16 +454,7 @@ export function TeacherSettingsTab({
           <SettingsPanel>
             <SettingsHeading
               title="Joining"
-              tooltip={
-                <div className="space-y-2">
-                  <p>
-                    <span className="font-semibold">Allow new students to join:</span> turns new joins on or off for this classroom.
-                  </p>
-                  <p>
-                    <span className="font-semibold">Join mode:</span> Roster requires a matching email. Open lets any signed-in student with the code join after entering their name.
-                  </p>
-                </div>
-              }
+              tooltip="Control new joins and whether students must be on the roster."
             />
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
@@ -506,6 +500,9 @@ export function TeacherSettingsTab({
                 disabled={saving || isReadOnly}
                 ariaLabel="Allow new students to join"
               />
+              <div className="text-sm text-text-default">
+                {allowEnrollment ? 'Allow new joins' : 'Disallow new joins'}
+              </div>
               {saving && <span className="text-sm text-text-muted">Saving...</span>}
             </div>
 
@@ -519,6 +516,18 @@ export function TeacherSettingsTab({
                   disabled={saving || isReadOnly || !allowEnrollment}
                   ariaLabel="Join mode"
                 />
+                <div className="text-sm text-text-muted">
+                  {joinPolicy === 'roster' ? (
+                    <>
+                      Roster requires matching email.{' '}
+                      <Link href={`/classrooms/${classroom.id}?tab=roster`} className="text-primary underline">
+                        View roster
+                      </Link>
+                    </>
+                  ) : (
+                    'Open join via code/link.'
+                  )}
+                </div>
               </div>
 
               {allowEnrollment && joinPolicy === 'open_join' ? (

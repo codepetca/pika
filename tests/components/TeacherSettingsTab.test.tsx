@@ -349,6 +349,12 @@ describe('TeacherSettingsTab - Allow Joining', () => {
 
     const joinMode = screen.getByRole('switch', { name: 'Join mode' })
     expect(joinMode).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByText('Allow new joins')).toBeInTheDocument()
+    expect(screen.getByText(/Roster requires matching email/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'View roster' })).toHaveAttribute(
+      'href',
+      '/classrooms/cls-123?tab=roster',
+    )
 
     fireEvent.click(joinMode)
 
