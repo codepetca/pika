@@ -1,4 +1,11 @@
 import { z } from 'zod'
+import {
+  createProviderRefMap,
+  mapProviderRefToLocalId,
+  sanitizeAiOutputText,
+  sanitizeAiText,
+  type AiSanitizationContext,
+} from '@/lib/ai-sanitization'
 import type { RepoReviewEvidenceItem, RepoReviewSemanticBreakdown } from '@/types'
 
 const DEFAULT_MODEL = 'gpt-5-nano'
@@ -79,7 +86,16 @@ export interface RepoReviewFeedbackInput {
   evidence: RepoReviewEvidenceItem[]
   warnings: string[]
   confidence: number
+  sanitizationContext?: AiSanitizationContext
 }
+
+type SanitizedRepoReviewValue =
+  | string
+  | number
+  | boolean
+  | null
+  | SanitizedRepoReviewValue[]
+  | { [key: string]: SanitizedRepoReviewValue }
 
 function parseJsonResponse<T>(outputText: string, schema: z.ZodSchema<T>): T {
   let jsonText = outputText
@@ -170,11 +186,37 @@ export function buildHeuristicRepoReviewFeedback(input: RepoReviewFeedbackInput)
   }
 }
 
-export async function classifyAmbiguousRepoReviewChanges(items: Array<{ id: string; summary: string }>): Promise<Record<string, string>> {
+function sanitizeRepoReviewValue(value: unknown, context?: AiSanitizationContext): SanitizedRepoReviewValue {
+  if (typeof value === 'string') return sanitizeAiText(value, context)
+  if (typeof value === 'number' || typeof value === 'boolean' || value === null) return value
+  if (Array.isArray(value)) return value.map((item) => sanitizeRepoReviewValue(item, context))
+  if (typeof value === 'object' && value) {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, nested]) => [
+        key,
+        sanitizeRepoReviewValue(nested, context),
+      ]),
+    )
+  }
+  return null
+}
+
+export async function classifyAmbiguousRepoReviewChanges(
+  items: Array<{ id: string; summary: string }>,
+  sanitizationContext?: AiSanitizationContext,
+): Promise<Record<string, string>> {
   const apiKey = getOpenAIKey()
   if (!apiKey || items.length === 0) return {}
 
   const model = process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  const providerItems = createProviderRefMap(
+    items.map((item) => ({
+      localId: item.id,
+      summary: sanitizeAiText(item.summary, sanitizationContext),
+    })),
+    'change',
+  )
+  const providerRefToLocalId = mapProviderRefToLocalId(providerItems)
   const systemPrompt = `You classify software change summaries into one category.
 
 Allowed categories:
@@ -190,8 +232,8 @@ Allowed categories:
 Respond with JSON only:
 {"items":[{"id":"...","category":"feature"}]}`
 
-  const userPrompt = items
-    .map((item) => `- ${item.id}: ${item.summary}`)
+  const userPrompt = providerItems
+    .map((item) => `- ${item.providerRef}: ${item.summary}`)
     .join('\n')
 
   const res = await fetch('https://api.openai.com/v1/responses', {
@@ -202,6 +244,7 @@ Respond with JSON only:
     },
     body: JSON.stringify({
       model,
+      store: false,
       input: [
         { role: 'system', content: [{ type: 'input_text', text: systemPrompt }] },
         { role: 'user', content: [{ type: 'input_text', text: userPrompt }] },
@@ -218,7 +261,12 @@ Respond with JSON only:
   if (!outputText) return {}
 
   const parsed = parseJsonResponse(outputText, classificationSchema)
-  return Object.fromEntries(parsed.items.map((item) => [item.id, item.category]))
+  return Object.fromEntries(
+    parsed.items.flatMap((item) => {
+      const localId = providerRefToLocalId.get(item.id)
+      return localId ? [[localId, item.category]] : []
+    }),
+  )
 }
 
 export async function gradeRepoReviewFeedback(input: RepoReviewFeedbackInput): Promise<RepoReviewFeedbackResult> {
@@ -246,11 +294,11 @@ Rules:
 Respond with JSON only:
 {"score_completion":0,"score_thinking":0,"score_workflow":0,"summary":"","strengths":[""],"concerns":[""],"feedback":"","confidence":0.0}`
 
+  const sanitizationContext = input.sanitizationContext
   const userPrompt = JSON.stringify({
-    assignment_title: input.assignmentTitle,
-    repo_name: input.repoName,
-    student_name: input.studentName,
-    github_login: input.githubLogin,
+    assignment_title: sanitizeAiText(input.assignmentTitle, sanitizationContext),
+    repo_ref: 'repo_1',
+    student_ref: 'student_1',
     metrics: {
       commit_count: input.commitCount,
       active_days: input.activeDays,
@@ -261,12 +309,12 @@ Respond with JSON only:
       spread_score: input.spreadScore,
       iteration_score: input.iterationScore,
       review_activity_count: input.reviewActivityCount,
-      areas: input.areas,
+      areas: input.areas.map((area) => sanitizeAiText(area, sanitizationContext)),
       semantic_breakdown: input.semanticBreakdown,
       confidence: input.confidence,
     },
-    evidence: input.evidence,
-    warnings: input.warnings,
+    evidence: sanitizeRepoReviewValue(input.evidence, sanitizationContext),
+    warnings: input.warnings.map((warning) => sanitizeAiText(warning, sanitizationContext)),
   })
 
   try {
@@ -278,6 +326,7 @@ Respond with JSON only:
       },
       body: JSON.stringify({
         model,
+        store: false,
         input: [
           { role: 'system', content: [{ type: 'input_text', text: systemPrompt }] },
           { role: 'user', content: [{ type: 'input_text', text: userPrompt }] },
@@ -305,7 +354,10 @@ Respond with JSON only:
 
     return {
       ...parsed,
-      feedback: formattedFeedback,
+      summary: sanitizeAiOutputText(parsed.summary),
+      strengths: parsed.strengths.map(sanitizeAiOutputText),
+      concerns: parsed.concerns.map(sanitizeAiOutputText),
+      feedback: sanitizeAiOutputText(formattedFeedback),
       model,
     }
   } catch {

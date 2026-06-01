@@ -1041,3 +1041,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts`
 - `git diff --check`
+
+## 2026-06-01 — Repo-review AI egress sanitization
+
+**Completed:**
+- Routed repo-review AI classification through provider refs, direct identifier redaction, and `store: false`.
+- Routed repo-review feedback generation through classroom sanitization context with pseudonymous repo/student refs and sanitized evidence/warnings.
+- Sanitized repo-review AI feedback before returning it for local persistence.
+- Sanitized daily log summary model output before cron persistence.
+
+**Validation:**
+- `pnpm test tests/unit/repo-review-ai.test.ts tests/unit/repo-review-analysis.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts`
+- `pnpm test tests/unit/repo-review-ai.test.ts tests/unit/repo-review-analysis.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/unit/log-summary.test.ts tests/api/cron/nightly-log-summaries.test.ts`

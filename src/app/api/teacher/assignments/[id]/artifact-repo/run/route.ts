@@ -19,6 +19,7 @@ import {
 import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
 import { loadAssignmentSubmissionArtifactsForDocs } from '@/lib/server/assignment-submission-artifacts'
 import { assertTeacherCanMutateAssignment } from '@/lib/server/repo-review'
+import { loadClassroomAiSanitizationContext } from '@/lib/server/ai-sanitization'
 import type { AssignmentRepoReviewConfig, AssignmentSubmissionArtifact } from '@/types'
 
 type GroupedStudent = {
@@ -201,6 +202,10 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
     dueAt: assignment.due_at,
     releasedAt: assignment.released_at,
   })
+  const sanitizationContext = await loadClassroomAiSanitizationContext(
+    supabase,
+    assignment.classroom_id,
+  )
 
   let analyzedStudents = 0
   let repoGroups = 0
@@ -247,6 +252,7 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
         config,
         identities,
         reviewWindow,
+        sanitizationContext,
       })
       const repoName = formatRepoReviewRepoName(config)
       const results = await Promise.all(
@@ -273,6 +279,7 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
               .filter((warning) => !warning.student_id || warning.student_id === student.studentId)
               .map((warning) => warning.message),
             confidence: analysis.confidence,
+            sanitizationContext,
           })
 
           return {
