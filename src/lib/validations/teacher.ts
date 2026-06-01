@@ -91,6 +91,7 @@ export const updateClassroomPublishingSchema = z.object({
   classCode: z.string().optional(),
   termLabel: z.string().optional(),
   allowEnrollment: z.boolean().optional(),
+  joinPolicy: z.enum(['roster', 'open_join']).optional(),
   archived: z.boolean().optional(),
   lessonPlanVisibility: z.enum(['current_week', 'one_week_ahead', 'all']).optional(),
   actualSiteSlug: slugSchema.nullable().optional(),

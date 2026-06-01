@@ -24,7 +24,7 @@ export const GET = withErrorHandler('GetClassroomRoster', async (_request, conte
 
   const { data: rosterRows, error: rosterError } = await supabase
     .from('classroom_roster')
-    .select('id, email, student_number, first_name, last_name, counselor_email, created_at, updated_at')
+    .select('id, email, student_number, first_name, last_name, counselor_email, join_source, created_at, updated_at')
     .eq('classroom_id', classroomId)
 
   if (rosterError) {
@@ -72,6 +72,7 @@ export const GET = withErrorHandler('GetClassroomRoster', async (_request, conte
       first_name: r.first_name ?? null,
       last_name: r.last_name ?? null,
       counselor_email: r.counselor_email ?? null,
+      join_source: r.join_source === 'open_join' || r.join_source === 'csv' ? r.join_source : 'manual',
       created_at: r.created_at,
       updated_at: r.updated_at,
       joined: !!joined,

@@ -50,6 +50,7 @@ describe('GET /api/teacher/classrooms/[id]/roster', () => {
                   first_name: 'Ada',
                   last_name: 'Lovelace',
                   counselor_email: 'c@example.com',
+                  join_source: 'open_join',
                   created_at: '2026-04-01T12:00:00.000Z',
                   updated_at: '2026-04-02T12:00:00.000Z',
                 },
@@ -60,6 +61,7 @@ describe('GET /api/teacher/classrooms/[id]/roster', () => {
                   first_name: null,
                   last_name: null,
                   counselor_email: null,
+                  join_source: null,
                   created_at: '2026-04-03T12:00:00.000Z',
                   updated_at: '2026-04-04T12:00:00.000Z',
                 },
@@ -99,6 +101,7 @@ describe('GET /api/teacher/classrooms/[id]/roster', () => {
       expect.objectContaining({
         id: 'r-1',
         email: 'Joined@Example.com',
+        join_source: 'open_join',
         joined: true,
         student_id: 'student-1',
         joined_at: '2026-04-05T12:00:00.000Z',
@@ -106,6 +109,7 @@ describe('GET /api/teacher/classrooms/[id]/roster', () => {
       expect.objectContaining({
         id: 'r-2',
         email: 'waiting@example.com',
+        join_source: 'manual',
         joined: false,
         student_id: null,
         joined_at: null,

@@ -6,11 +6,18 @@ import { withErrorHandler } from '@/lib/api-handler'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+function cleanOptionalString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
 // POST /api/student/classrooms/join - Join classroom by code or ID
 export const POST = withErrorHandler('PostStudentJoinClassroom', async (request, context) => {
   const user = await requireRole('student')
   const body = await request.json()
   const { classCode, classroomId } = body
+  const firstName = cleanOptionalString(body.firstName)
+  const lastName = cleanOptionalString(body.lastName)
+  const studentNumber = cleanOptionalString(body.studentNumber)
 
   if (!classCode && !classroomId) {
     return NextResponse.json(
@@ -25,7 +32,7 @@ export const POST = withErrorHandler('PostStudentJoinClassroom', async (request,
   // Find classroom by code or ID
   let query = supabase
     .from('classrooms')
-    .select('id, title, class_code, term_label, allow_enrollment, archived_at')
+    .select('id, title, class_code, term_label, allow_enrollment, join_policy, archived_at')
 
   const looksLikeUuid =
     typeof classroomId === 'string' &&
@@ -101,6 +108,8 @@ export const POST = withErrorHandler('PostStudentJoinClassroom', async (request,
     )
   }
 
+  const joinPolicy = classroom.join_policy === 'open_join' ? 'open_join' : 'roster'
+
   const { data: rosterEntry, error: rosterError } = await supabase
     .from('classroom_roster')
     .select('student_number, first_name, last_name')
@@ -108,11 +117,63 @@ export const POST = withErrorHandler('PostStudentJoinClassroom', async (request,
     .eq('email', normalizedEmail)
     .single()
 
-  if (rosterError || !rosterEntry) {
+  if (rosterError && rosterError.code !== 'PGRST116') {
+    console.error('Error checking classroom roster:', rosterError)
+    return NextResponse.json(
+      { error: 'Failed to join classroom' },
+      { status: 500 }
+    )
+  }
+
+  let effectiveRosterEntry = rosterEntry
+
+  if (!effectiveRosterEntry && joinPolicy === 'roster') {
     return NextResponse.json(
       { error: 'Your email is not on the roster for this classroom.', code: 'not_on_roster' },
       { status: 403 }
     )
+  }
+
+  if (!effectiveRosterEntry && joinPolicy === 'open_join') {
+    if (!firstName || !lastName) {
+      return NextResponse.json(
+        {
+          error: 'First name and last name are required to join this classroom.',
+          code: 'profile_required',
+          requiredFields: ['firstName', 'lastName'],
+        },
+        { status: 400 }
+      )
+    }
+
+    effectiveRosterEntry = {
+      student_number: studentNumber,
+      first_name: firstName,
+      last_name: lastName,
+    }
+
+    const { error: rosterUpsertError } = await supabase
+      .from('classroom_roster')
+      .upsert(
+        {
+          classroom_id: classroom.id,
+          email: normalizedEmail,
+          student_number: studentNumber,
+          first_name: firstName,
+          last_name: lastName,
+          counselor_email: null,
+          join_source: 'open_join',
+        },
+        { onConflict: 'classroom_id,email' }
+      )
+
+    if (rosterUpsertError) {
+      console.error('Error creating open-join roster row:', rosterUpsertError)
+      return NextResponse.json(
+        { error: 'Failed to join classroom' },
+        { status: 500 }
+      )
+    }
   }
 
   // Enroll student
@@ -133,15 +194,15 @@ export const POST = withErrorHandler('PostStudentJoinClassroom', async (request,
     )
   }
 
-  if (rosterEntry.first_name && rosterEntry.last_name) {
+  if (effectiveRosterEntry?.first_name && effectiveRosterEntry?.last_name) {
     await supabase
       .from('student_profiles')
       .upsert(
         {
           user_id: user.id,
-          student_number: rosterEntry.student_number || null,
-          first_name: rosterEntry.first_name,
-          last_name: rosterEntry.last_name,
+          student_number: effectiveRosterEntry.student_number || null,
+          first_name: effectiveRosterEntry.first_name,
+          last_name: effectiveRosterEntry.last_name,
         },
         { onConflict: 'user_id' }
       )

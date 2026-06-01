@@ -103,6 +103,12 @@ describe('POST /api/teacher/classrooms/[id]/roster/upload-csv', () => {
       expect(data.needsConfirmation).toBeUndefined()
       expect(data.success).toBe(true)
       expect(upsertMock).toHaveBeenCalled()
+      expect(upsertMock).toHaveBeenCalledWith([
+        expect.objectContaining({
+          email: 'same@student.com',
+          join_source: 'csv',
+        }),
+      ], { onConflict: 'classroom_id,email' })
     })
 
     it('proceeds directly when no existing students found', async () => {
@@ -162,6 +168,12 @@ describe('POST /api/teacher/classrooms/[id]/roster/upload-csv', () => {
       expect(data.success).toBe(true)
       expect(data.upsertedCount).toBe(1)
       expect(upsertMock).toHaveBeenCalled()
+      expect(upsertMock).toHaveBeenCalledWith([
+        expect.objectContaining({
+          email: 'a@student.com',
+          join_source: 'csv',
+        }),
+      ], { onConflict: 'classroom_id,email' })
     })
 
     it('skips preview check when confirmed is true', async () => {
