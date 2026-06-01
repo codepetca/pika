@@ -2,11 +2,12 @@ import { forwardRef, useEffect } from 'react'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TeacherClassroomView } from '@/app/classrooms/[classroomId]/TeacherClassroomView'
-import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
+import { TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_GRADE_UPDATED_EVENT } from '@/lib/events'
 import type { Classroom, ClassworkMaterial, SurveyWithStats } from '@/types'
 
 const mockFetchJSONWithCache = vi.fn()
 const mockInvalidateCachedJSON = vi.fn()
+const mockInvalidateGradebookForClassroom = vi.fn()
 const mockFetchClassDaysForClassroom = vi.fn()
 const mockToggleSelect = vi.fn()
 const mockToggleSelectAll = vi.fn()
@@ -402,6 +403,10 @@ vi.mock('@/lib/request-cache', () => ({
   invalidateCachedJSON: (...args: any[]) => mockInvalidateCachedJSON(...args),
 }))
 
+vi.mock('@/lib/gradebook-cache', () => ({
+  invalidateGradebookForClassroom: (...args: any[]) => mockInvalidateGradebookForClassroom(...args),
+}))
+
 vi.mock('@/lib/class-days-client', () => ({
   fetchClassDaysForClassroom: (...args: any[]) => mockFetchClassDaysForClassroom(...args),
 }))
@@ -595,6 +600,7 @@ describe('TeacherClassroomView', () => {
     mockUseOverlayMessage.mockReset()
     mockIsVisibleAtNow.mockReset()
     mockUpdateModeLayout.mockReset()
+    mockInvalidateGradebookForClassroom.mockReset()
     mockIsVisibleAtNow.mockReturnValue(true)
     mockStudentSelectionState.selectedIds = new Set<string>()
     mockStudentSelectionState.allSelected = false
@@ -642,6 +648,28 @@ describe('TeacherClassroomView', () => {
     })
 
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
+  })
+
+  it('invalidates gradebook caches when assignment grade updates arrive', async () => {
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    })
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(TEACHER_GRADE_UPDATED_EVENT, {
+          detail: {
+            assignmentId: 'assignment-1',
+            studentId: 'student-1',
+            doc: null,
+          },
+        })
+      )
+    })
+
+    expect(mockInvalidateGradebookForClassroom).toHaveBeenCalledWith(classroom.id)
   })
 
   it('uses the shared class-days client without caching failed class-day loads as empty successes', async () => {

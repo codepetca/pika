@@ -4,16 +4,21 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
-import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
+import { TEACHER_QUIZZES_UPDATED_EVENT, TEACHER_TEST_GRADING_ROW_UPDATED_EVENT } from '@/lib/events'
 import { createMockClassroom, createMockQuiz } from '../helpers/mocks'
 import type { QuizWithStats } from '@/types'
 
 const { setOpenMock } = vi.hoisted(() => ({
   setOpenMock: vi.fn(),
 }))
+const mockInvalidateGradebookForClassroom = vi.hoisted(() => vi.fn())
 
 vi.mock('@/components/layout', () => ({
   useRightSidebar: () => ({ setOpen: setOpenMock }),
+}))
+
+vi.mock('@/lib/gradebook-cache', () => ({
+  invalidateGradebookForClassroom: mockInvalidateGradebookForClassroom,
 }))
 
 vi.mock('@/components/QuizDetailPanel', () => ({
@@ -262,6 +267,7 @@ describe('TeacherTestsTab', () => {
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
     setOpenMock.mockReset()
+    mockInvalidateGradebookForClassroom.mockClear()
   })
 
   afterEach(() => {
@@ -1051,6 +1057,38 @@ describe('TeacherTestsTab', () => {
       studentId: 'student-1',
       studentName: 'Alice Zephyr',
     })
+  })
+
+  it('invalidates gradebook caches when test grading rows update', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(TEACHER_TEST_GRADING_ROW_UPDATED_EVENT, {
+          detail: {
+            testId: 'test-1',
+            studentId: 'student-1',
+            pointsEarned: 4,
+            pointsPossible: 5,
+            percent: 80,
+            gradedOpenResponses: 1,
+            ungradedOpenResponses: 0,
+          },
+        })
+      )
+    })
+
+    expect(mockInvalidateGradebookForClassroom).toHaveBeenCalledWith(classroom.id)
   })
 
   it('moves the selected grading student with up and down arrows', async () => {
