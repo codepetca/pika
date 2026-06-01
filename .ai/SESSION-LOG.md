@@ -995,3 +995,14 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `pnpm lint`
 - `pnpm build`
+
+## 2026-06-01 — Codex model recommendation workflow
+
+**Completed:**
+- Added a Codex model recommendation policy to `docs/ai-instructions.md`, including `5.3-spark` guidance and `5.5` reasoning-level guidance.
+- Added a startup checklist reminder to state the recommendation before implementation.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts`
+- `git diff --check`
