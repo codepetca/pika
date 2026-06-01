@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gradeStudentWork, hasGradableAssignmentSubmission } from '@/lib/ai-grading'
+import { buildAiSanitizationContext } from '@/lib/ai-sanitization'
 
 describe('gradeStudentWork prompt rules', () => {
   const originalApiKey = process.env.OPENAI_API_KEY
@@ -186,6 +187,45 @@ describe('gradeStudentWork prompt rules', () => {
     expect(userPrompt).not.toContain('416-555-1212')
     expect(result.feedback).toContain('[email redacted]')
     expect(result.feedback).toContain('[phone redacted]')
+  })
+
+  it('replaces known student names in assignment grading input', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_text:
+          '{"score_completion":8,"score_thinking":8,"score_workflow":8,"feedback":"Strength: Strong reflection. Next Step: add evidence. Improve: Include one more example."}',
+      }),
+    })
+
+    await gradeStudentWork({
+      assignmentTitle: 'Reflection for Alice Brown',
+      instructions: 'Alice Brown should explain the design choice.',
+      studentWork: {
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'Alice Brown revised the project after feedback.' }],
+          },
+        ],
+      },
+      sanitizationContext: buildAiSanitizationContext([
+        { firstName: 'Alice', lastName: 'Brown' },
+      ]),
+    })
+
+    const gradingRequest = fetchMock.mock.calls[0]?.[1]
+    const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
+    const userPrompt = gradingBody.input?.[1]?.content?.[0]?.text as string
+
+    expect(userPrompt).toContain('Reflection for A.B.')
+    expect(userPrompt).toContain('A.B. should explain the design choice.')
+    expect(userPrompt).toContain('A.B. revised the project after feedback.')
+    expect(userPrompt).not.toContain('Alice Brown')
+    expect(userPrompt).not.toContain('Alice')
+    expect(userPrompt).not.toContain('Brown')
   })
 
   it('parses structured output from response content when output_text is absent', async () => {

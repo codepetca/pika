@@ -30,6 +30,11 @@ export interface AiSanitizedRef {
   localId: string
 }
 
+export interface AiSanitizationContext {
+  students: AiSanitizationStudent[]
+  initialsMap: Record<string, string>
+}
+
 export interface AiSanitizationAudit {
   redactedDirectIdentifiers: boolean
   nameReplacementCount: number
@@ -75,6 +80,15 @@ export function buildInitialsMap(
   return result
 }
 
+export function buildAiSanitizationContext(
+  students: AiSanitizationStudent[]
+): AiSanitizationContext {
+  return {
+    students,
+    initialsMap: buildInitialsMap(students),
+  }
+}
+
 export function sanitizeTextWithStudentNames(
   text: string,
   students: AiSanitizationStudent[],
@@ -86,10 +100,7 @@ export function sanitizeTextWithStudentNames(
 
 export function sanitizeAiText(
   text: string,
-  options?: {
-    students?: AiSanitizationStudent[]
-    initialsMap?: Record<string, string>
-  }
+  options?: Partial<AiSanitizationContext>
 ): string {
   const students = options?.students ?? []
   const initialsMap = options?.initialsMap ?? {}

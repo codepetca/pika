@@ -7,7 +7,11 @@ import {
   extractOpenAIResponseUsage,
   logAiPromptTelemetry,
 } from '@/lib/ai-prompt-metrics'
-import { sanitizeAiOutputText, sanitizeAiText } from '@/lib/ai-sanitization'
+import {
+  sanitizeAiOutputText,
+  sanitizeAiText,
+  type AiSanitizationContext,
+} from '@/lib/ai-sanitization'
 import { extractPlainText } from '@/lib/tiptap-content'
 import type { TiptapContent } from '@/types'
 
@@ -319,11 +323,12 @@ export function buildAssignmentGradingRequest(opts: {
   instructions: string
   studentWork: TiptapContent
   submissionArtifacts?: AssignmentArtifact[]
+  sanitizationContext?: AiSanitizationContext | null
 }): AssignmentGradingRequest {
   const model = process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
   const studentSubmission = buildStudentSubmissionText(opts.studentWork, opts.submissionArtifacts)
-  const assignmentTitle = sanitizeAiText(opts.assignmentTitle)
-  const instructions = sanitizeAiText(opts.instructions)
+  const assignmentTitle = sanitizeAiText(opts.assignmentTitle, opts.sanitizationContext ?? undefined)
+  const instructions = sanitizeAiText(opts.instructions, opts.sanitizationContext ?? undefined)
 
   return {
     model,
@@ -346,7 +351,7 @@ Feedback rules:
 Instructions: ${instructions}
 
 Student Work:
-${sanitizeAiText(studentSubmission)}`,
+${sanitizeAiText(studentSubmission, opts.sanitizationContext ?? undefined)}`,
   }
 }
 
@@ -484,6 +489,7 @@ export async function gradeStudentWork(opts: {
   previousFeedback?: string | null
   requestTimeoutMs?: number
   telemetry?: AssignmentGradingTelemetryContext
+  sanitizationContext?: AiSanitizationContext | null
 }): Promise<GradeResult> {
   const apiKey = getOpenAIKey()
   if (!apiKey) {
@@ -499,6 +505,7 @@ export async function gradeStudentWork(opts: {
     instructions: opts.instructions,
     studentWork: opts.studentWork,
     submissionArtifacts: opts.submissionArtifacts,
+    sanitizationContext: opts.sanitizationContext,
   })
   const promptMetrics = estimatePromptMetrics(request.systemPrompt, request.userPrompt)
   try {

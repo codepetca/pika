@@ -13,6 +13,7 @@ import {
   suggestTestOpenResponseGradesBatchWithContext,
   suggestTestOpenResponseGrade,
 } from '@/lib/ai-test-grading'
+import { buildAiSanitizationContext } from '@/lib/ai-sanitization'
 import { GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE } from '@/lib/test-ai-prompt-guideline'
 
 describe('suggestTestOpenResponseGrade', () => {
@@ -344,6 +345,41 @@ describe('suggestTestOpenResponseGrade', () => {
       name: 'test_single_grade',
       strict: true,
     })
+  })
+
+  it('replaces known student names in test grading prompts', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_text:
+          '{"score": 4, "feedback": "Strength: Clear claim. Next Step: add one supporting example."}',
+      }),
+    })
+
+    await suggestTestOpenResponseGrade({
+      testTitle: 'Unit 1 Test for Alice Brown',
+      questionText: 'Explain why Alice Brown chose this strategy.',
+      responseText: 'Alice Brown chose it because it was efficient.',
+      maxPoints: 5,
+      answerKey: 'Alice Brown should explain efficiency and correctness.',
+      sampleSolution: 'Alice Brown can compare the runtime to another approach.',
+      sanitizationContext: buildAiSanitizationContext([
+        { firstName: 'Alice', lastName: 'Brown' },
+      ]),
+    })
+
+    const gradingRequest = fetchMock.mock.calls[0]?.[1]
+    const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
+    const userPrompt = gradingBody.input?.[1]?.content?.[0]?.text as string
+
+    expect(userPrompt).toContain('Unit 1 Test for A.B.')
+    expect(userPrompt).toContain('Explain why A.B. chose this strategy.')
+    expect(userPrompt).toContain('A.B. should explain efficiency and correctness.')
+    expect(userPrompt).toContain('A.B. chose it because it was efficient.')
+    expect(userPrompt).not.toContain('Alice Brown')
+    expect(userPrompt).not.toContain('Alice')
+    expect(userPrompt).not.toContain('Brown')
   })
 
   it('retries batch grading once with a larger output cap when the first response is incomplete', async () => {
