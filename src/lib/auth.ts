@@ -105,6 +105,20 @@ export async function requireRole(role: UserRole): Promise<SessionData['user']> 
 }
 
 /**
+ * Requires a user who can view the snapshot gallery:
+ * - any authenticated teacher in non-production environments only
+ */
+export async function requireSnapshotGalleryAccess(): Promise<SessionData['user']> {
+  const user = await requireRole('teacher')
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new AuthorizationError('Forbidden: snapshot gallery is disabled in production')
+  }
+
+  return user
+}
+
+/**
  * Determines if an email belongs to a teacher
  *
  * Teachers are identified by:

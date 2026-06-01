@@ -1,16 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GET } from '@/app/api/snapshots/list/route'
 
-const { readdirMock, requireAuthMock } = vi.hoisted(() => ({
+const { readdirMock, requireSnapshotGalleryAccessMock } = vi.hoisted(() => ({
   readdirMock: vi.fn(),
-  requireAuthMock: vi.fn(),
+  requireSnapshotGalleryAccessMock: vi.fn(),
 }))
 
 vi.mock('node:fs/promises', () => ({
   readdir: readdirMock,
   default: { readdir: readdirMock },
 }))
-vi.mock('@/lib/auth', () => ({ requireAuth: requireAuthMock }))
+vi.mock('@/lib/auth', () => ({
+  requireSnapshotGalleryAccess: requireSnapshotGalleryAccessMock,
+}))
 
 const originalEnableUiGallery = process.env.ENABLE_UI_GALLERY
 
@@ -18,7 +20,11 @@ describe('GET /api/snapshots/list', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.ENABLE_UI_GALLERY = 'true'
-    requireAuthMock.mockResolvedValue({ id: 'user-1' })
+    requireSnapshotGalleryAccessMock.mockResolvedValue({
+      id: 'user-1',
+      email: 'teacher@yrdsb.ca',
+      role: 'teacher',
+    })
   })
 
   afterEach(() => {
@@ -36,7 +42,7 @@ describe('GET /api/snapshots/list', () => {
 
     expect(response.status).toBe(404)
     await expect(response.text()).resolves.toBe('Not found')
-    expect(requireAuthMock).not.toHaveBeenCalled()
+    expect(requireSnapshotGalleryAccessMock).not.toHaveBeenCalled()
     expect(readdirMock).not.toHaveBeenCalled()
   })
 

@@ -8,39 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-27 — Test response enrollment validation
-
-**Completed:**
-- Validated the response student remains enrolled before teacher response grading updates.
-- Validated the response student remains enrolled before manual AI grade suggestions or reference-cache writes.
-- Bound response grade updates to the validated `student_id` as well as response and test ids.
-- Added API regressions for stale response students and enrollment validation failures in both routes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/tests-responses-grade.test.ts tests/api/teacher/tests-ai-suggest.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm run test:coverage`
-- `pnpm build`
-- `git diff --check`
-
-## 2026-05-27 — Required submission highlight polish
-
-**Completed:**
-- Removed the visible `R` marker from required-submission artifact pills in the teacher assignment student table.
-- Kept required artifact pills/cards blue without the primary outline treatment, including a stronger full-pill fill in the teacher student table.
-- Renamed the student work content section from `Submitted artifacts` to `Required submissions`.
-- Removed per-card `Required submission`/`Optional submission` labels from the content area and added dashed missing cards for unmet required submissions.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/AssignmentArtifactsCell.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
-- `pnpm test tests/components/AssignmentArtifactsCell.test.tsx`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=4ff75b59-3189-4240-ac5a-dd3e750467bf&assignmentStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
-- Screenshots reviewed: `/tmp/pika-teacher-ready.png`, `/tmp/pika-teacher-content.png`, `/tmp/pika-teacher-content-mobile.png`, `/tmp/pika-student.png`, `/tmp/pika-pr671-required-pill-table.png`
-
 ## 2026-05-27 — Test focus telemetry selected access validation
 
 **Completed:**
@@ -830,6 +797,31 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `pnpm test tests/lib/gradex-assignment-payload.test.ts tests/unit/ai-sanitization.test.ts tests/unit/ai-grading.test.ts tests/lib/assignment-ai-grading-runs.test.ts`
 - `pnpm exec tsc --noEmit`
+- `pnpm lint`
+
+## 2026-06-01 — Snapshot gallery hardening phase-1 second pass
+
+**Completed:**
+- Added `requireSnapshotGalleryAccess()` in `src/lib/auth.ts` to gate snapshot endpoints to non-production teachers by default and allow production access only for `SNAPSHOT_GALLERY_ADMIN_EMAILS` allowlist entries.
+- Replaced `requireAuth()` with snapshot-specific access check in `src/app/api/snapshots/list/route.ts` and `src/app/api/snapshots/[filename]/route.ts`.
+- Updated snapshot API tests to mock and verify the new auth path.
+- Added unit coverage for snapshot-gallery access gating in `tests/unit/auth.test.ts`.
+- Added production admin allowlist env variable and clarified gallery security docs in `.env.example` and `docs/snapshot-gallery.md`.
+
+**Validation:**
+- `pnpm test tests/unit/auth.test.ts tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
+- `pnpm lint`
+
+## 2026-06-01 — Snapshot gallery production restriction finalized
+
+**Completed:**
+- Updated `requireSnapshotGalleryAccess()` to be strictly non-production only (no production allowlist fallback).
+- Removed `SNAPSHOT_GALLERY_ADMIN_EMAILS` from `.env.example`.
+- Updated snapshot gallery docs to reflect production-blocked policy.
+- Adjusted `requireSnapshotGalleryAccess` unit tests accordingly (`tests/unit/auth.test.ts`).
+
+**Validation:**
+- `pnpm test tests/unit/auth.test.ts tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
 - `pnpm lint`
 
 ## 2026-06-01 — Open join classroom access mode
