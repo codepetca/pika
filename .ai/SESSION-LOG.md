@@ -8,28 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-27 — Phase two systems and UI audit fixes
-
-**Completed:**
-- Blocked teacher entry detail reads across classroom ownership boundaries.
-- Gated snapshot list/file APIs behind the UI gallery flag plus authentication, and marked them dynamic.
-- Made student notification active-test counts respect selected-student availability and grading closure.
-- Required archived-classroom ownership checks for test AI grading run ticks.
-- Removed the roster tab's dead global right-sidebar route and aligned selected-student email actions with the gradebook pattern.
-- Updated focused API/component coverage for each fixed audit finding.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/teacher/entry-id.test.ts`
-- `pnpm test tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
-- `pnpm test tests/api/teacher/test-auto-grade-runs.test.ts tests/api/student/notifications.test.ts tests/components/TeacherRosterTab.test.tsx tests/unit/layout-config.test.ts`
-- `pnpm test tests/components/ThreePanelProvider.test.tsx tests/unit/layout-config.test.ts`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=roster'`
-- Browser selected-row screenshots: `/tmp/pika-roster-selected-desktop.png`, `/tmp/pika-roster-selected-mobile.png`, `/tmp/pika-roster-selected-email-menu-desktop.png`, `/tmp/pika-roster-selected-email-menu-mobile.png`
-
 ## 2026-05-27 — Phase three audit fixes
 
 **Completed:**
@@ -1055,4 +1033,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/repo-review-ai.test.ts tests/unit/repo-review-analysis.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts`
 - `pnpm test tests/unit/repo-review-ai.test.ts tests/unit/repo-review-analysis.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/unit/log-summary.test.ts tests/api/cron/nightly-log-summaries.test.ts`
 - `pnpm test tests/unit/repo-review-ai.test.ts`
+
+## 2026-06-01 — Gradex egress sanitization alignment
+
+**Completed:**
+- Refactored the Gradex assignment payload builder to require Pika's standard AI sanitization context.
+- Routed Gradex assignment title, instructions, and submission text through `sanitizeAiText` before Gradex payload construction.
+- Kept Gradex-specific pseudonymous refs and local mappings while preserving extra raw-token hardening for Pika DB identifiers and bare `www.` URLs.
+- Strengthened Gradex adapter tests for roster-name initials, required sanitization context, raw identifier exclusion, and Gradex-owned provider/model settings.
+
+**Validation:**
+- `pnpm test tests/lib/gradex-assignment-payload.test.ts tests/unit/ai-sanitization.test.ts tests/unit/ai-grading.test.ts tests/lib/assignment-ai-grading-runs.test.ts`
+- `pnpm exec tsc --noEmit`
 - `pnpm lint`
