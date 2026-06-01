@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { buildAiSanitizationContext } from '@/lib/ai-sanitization'
 import {
   buildPikaAssignmentGradexRunPayload,
   GRADEX_PIKA_ADAPTER_VERSION,
@@ -23,6 +24,10 @@ const assignment: Assignment = {
   created_at: '2026-05-01T12:00:00.000Z',
   updated_at: '2026-05-02T12:00:00.000Z',
 }
+
+const sanitizationContext = buildAiSanitizationContext([
+  { firstName: 'Jane', lastName: 'Student' },
+])
 
 function artifact(overrides: Partial<AssignmentSubmissionArtifact>): AssignmentSubmissionArtifact {
   return {
@@ -66,7 +71,7 @@ describe('buildPikaAssignmentGradexRunPayload', () => {
                 content: [
                   {
                     type: 'text',
-                    text: 'I completed the portfolio and wrote about my design decisions. My email is student@example.com.',
+                    text: 'I completed the portfolio with Jane Student and wrote about my design decisions. My email is student@example.com.',
                   },
                 ],
               },
@@ -106,12 +111,13 @@ describe('buildPikaAssignmentGradexRunPayload', () => {
       submissionArtifacts: [artifact({})],
       pseudonymSalt: 'stable-test-salt',
       requestTimeoutMs: 12_000,
+      sanitizationContext,
     })
 
     expect(result.pikaAdapterRequest.adapter_version).toBe(GRADEX_PIKA_ADAPTER_VERSION)
     expect(result.pikaAdapterRequest.assignment).toEqual({
       pika_assignment_ref: expect.stringMatching(/^pika-assignment-(?=.*[a-z])(?=.*\d)[a-z0-9]{32}$/),
-      title: 'Portfolio Reflection for [identity redacted]',
+      title: 'Portfolio Reflection for J.S.',
       instructions: 'Write a reflection about the portfolio. Contact [email redacted] if stuck.',
     })
     expect(result.pikaAdapterRequest.submissions).toHaveLength(1)
@@ -131,7 +137,9 @@ describe('buildPikaAssignmentGradexRunPayload', () => {
     })
 
     expect(result.pikaAdapterRequest.submissions[0].content).toContain('[email redacted]')
-    expect(result.pikaAdapterRequest.submissions[0].content).toContain('[link redacted]')
+    expect(result.pikaAdapterRequest.submissions[0].content).toContain('[url redacted]')
+    expect(result.pikaAdapterRequest.submissions[0].content).toContain('J.S.')
+    expect(result.pikaAdapterRequest.submissions[0].content).not.toContain('Jane Student')
     expect(result.pikaAdapterRequest.submissions[0].content).toContain('Attached Artifacts:')
     expect(result.pikaAdapterRequest.submissions[0].content).toContain('- Repository artifact submitted')
 
@@ -227,6 +235,7 @@ describe('buildPikaAssignmentGradexRunPayload', () => {
         }),
       ],
       pseudonymSalt: 'stable-test-salt',
+      sanitizationContext,
     })
 
     const serialized = JSON.stringify(result.gradexRequest)
@@ -270,6 +279,7 @@ describe('buildPikaAssignmentGradexRunPayload', () => {
           authenticity_score: null,
         },
       ],
+      sanitizationContext,
     }
 
     const first = buildPikaAssignmentGradexRunPayload({
@@ -301,6 +311,7 @@ describe('buildPikaAssignmentGradexRunPayload', () => {
         assignment,
         assignmentDocs: [],
         pseudonymSalt: 'stable-test-salt',
+        sanitizationContext,
       }),
     ).toThrow('At least one assignment doc is required')
 
@@ -314,7 +325,24 @@ describe('buildPikaAssignmentGradexRunPayload', () => {
             content: { type: 'doc', content: [] },
           },
         ],
+        sanitizationContext,
       }),
     ).toThrow('GRADEX_PIKA_PSEUDONYM_SALT is not configured')
+  })
+
+  it('requires the standard AI sanitization context before building Gradex egress', () => {
+    expect(() =>
+      buildPikaAssignmentGradexRunPayload({
+        assignment,
+        assignmentDocs: [
+          {
+            id: 'assignment-doc-db-456',
+            student_id: 'student-db-789',
+            content: { type: 'doc', content: [] },
+          },
+        ],
+        pseudonymSalt: 'stable-test-salt',
+      } as any),
+    ).toThrow('AI sanitization context is required')
   })
 })

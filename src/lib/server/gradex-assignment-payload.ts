@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto'
 import { extractAssignmentArtifacts, type AssignmentArtifactType } from '@/lib/assignment-artifacts'
+import { sanitizeAiText, type AiSanitizationContext } from '@/lib/ai-sanitization'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
 import { limitedMarkdownToPlainText } from '@/lib/limited-markdown'
@@ -128,12 +129,11 @@ export interface BuildPikaAssignmentGradexRunPayloadOptions {
   submissionArtifacts?: AssignmentSubmissionArtifact[]
   pseudonymSalt?: string
   requestTimeoutMs?: number
+  sanitizationContext: AiSanitizationContext
 }
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 25_000
-const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi
-const PHONE_PATTERN = /\b(?:\+?1[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)\d{3}[-.\s]?\d{4}\b/g
-const URL_PATTERN = /\b(?:https?:\/\/|www\.)[^\s<>"'`]+/gi
+const BARE_WWW_URL_PATTERN = /\bwww\.[^\s<>"'`]+/gi
 const IDENTITY_KEY_PATTERN = /(email|first_?name|last_?name|full_?name|display_?name|student_?name|teacher_?name|username|github_?username)/i
 const RAW_ID_KEY_PATTERN = /(^id$|_id$|id$|roster|sis|school|database|assignment_doc|classroom|created_by)/i
 
@@ -176,6 +176,13 @@ function getRequiredPseudonymSalt(explicitSalt?: string): string {
     throw new Error('GRADEX_PIKA_PSEUDONYM_SALT is not configured')
   }
   return salt
+}
+
+function getRequiredSanitizationContext(context?: AiSanitizationContext): AiSanitizationContext {
+  if (!context) {
+    throw new Error('AI sanitization context is required to build a Gradex run payload')
+  }
+  return context
 }
 
 function pseudonymize(prefix: string, value: string, salt: string): string {
@@ -232,11 +239,13 @@ function collectSanitizationTokens(assignment: Assignment, assignmentDocs: Grade
   return Array.from(tokens).sort((a, b) => b.length - a.length)
 }
 
-function sanitizeText(value: string, sensitiveTokens: string[]): string {
-  let sanitized = value
-    .replace(EMAIL_PATTERN, '[email redacted]')
-    .replace(PHONE_PATTERN, '[phone redacted]')
-    .replace(URL_PATTERN, '[link redacted]')
+function sanitizeGradexText(
+  value: string,
+  sensitiveTokens: string[],
+  sanitizationContext: AiSanitizationContext,
+): string {
+  let sanitized = sanitizeAiText(value, sanitizationContext)
+    .replace(BARE_WWW_URL_PATTERN, '[url redacted]')
 
   for (const token of sensitiveTokens) {
     if (token.length < 2) continue
@@ -296,9 +305,10 @@ function normalizeSubmissionContent(
   assignmentDoc: GradexAssignmentDocInput,
   submissionArtifacts: AssignmentSubmissionArtifact[],
   sensitiveTokens: string[],
+  sanitizationContext: AiSanitizationContext,
 ): string {
   const parsedContent = parseContentField(assignmentDoc.content)
-  const text = sanitizeText(extractPlainText(parsedContent).trim(), sensitiveTokens)
+  const text = sanitizeGradexText(extractPlainText(parsedContent).trim(), sensitiveTokens, sanitizationContext)
   const artifactSummary = buildArtifactSummary(parsedContent, submissionArtifacts)
   const sections = [text, artifactSummary].filter((section) => section.trim().length > 0)
   const normalized = sections.join('\n\n').trim()
@@ -386,6 +396,7 @@ export function buildPikaAssignmentGradexRunPayload(
 
   const salt = getRequiredPseudonymSalt(opts.pseudonymSalt)
   const sensitiveTokens = collectSanitizationTokens(opts.assignment, opts.assignmentDocs)
+  const sanitizationContext = getRequiredSanitizationContext(opts.sanitizationContext)
   const instructions = limitedMarkdownToPlainText(
     getAssignmentInstructionsMarkdown(opts.assignment).markdown,
   )
@@ -394,9 +405,12 @@ export function buildPikaAssignmentGradexRunPayload(
 
   const assignmentPayload = {
     pika_assignment_ref: assignmentRef,
-    title: truncateText(sanitizeText(opts.assignment.title, sensitiveTokens).trim() || 'Untitled assignment', 240),
+    title: truncateText(
+      sanitizeGradexText(opts.assignment.title, sensitiveTokens, sanitizationContext).trim() || 'Untitled assignment',
+      240,
+    ),
     instructions: truncateText(
-      sanitizeText(instructions, sensitiveTokens).trim() || 'No assignment instructions provided.',
+      sanitizeGradexText(instructions, sensitiveTokens, sanitizationContext).trim() || 'No assignment instructions provided.',
       20_000,
     ),
   }
@@ -415,6 +429,7 @@ export function buildPikaAssignmentGradexRunPayload(
         assignmentDoc,
         artifactsByDocId.get(assignmentDoc.id) ?? [],
         sensitiveTokens,
+        sanitizationContext,
       ),
       ...(submittedAt ? { submitted_at: submittedAt } : {}),
       workflow_summary: buildWorkflowEvidence(assignmentDoc),
