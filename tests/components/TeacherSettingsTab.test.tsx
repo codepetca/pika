@@ -341,9 +341,9 @@ describe('TeacherSettingsTab - Allow Joining', () => {
   it('opens a title-only confirmation before generating a new join code', () => {
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate new join code' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Generate new join code and link' }))
 
-    expect(screen.getByRole('dialog', { name: 'Generate new join code?' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Generate new join code and link?' })).toBeInTheDocument()
     expect(screen.queryByText('This replaces the current code. Students will need the new code/link to join.')).not.toBeInTheDocument()
   })
 

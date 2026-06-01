@@ -8,28 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-27 — Assessment authoring accessibility audit
-
-**Completed:**
-- Added accessible names for quiz/test question prompts, options, answer keys, sample solutions, correct-answer radios, remove buttons, markdown editors, and quiz delete controls.
-- Replaced the assessment workspace mode strip with the shared tab-style `TeacherWorkSurfaceModeBar`.
-- Wired the shared mode bar tabs to labelled `tabpanel` content after PR review flagged the incomplete ARIA tab pattern.
-- Fixed a narrow mobile overlap in the test question accordion header after visual review.
-- Added focused component coverage for mode tab semantics and authoring control names.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/QuizDetailPanel.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/TeacherWorkSurfaceModeBar.test.tsx --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-- `git diff --check`
-- `E2E_BASE_URL=http://localhost:3015 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
-- `E2E_BASE_URL=http://localhost:3015 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests&testId=210e30d4-f085-4c86-94d3-ee14bb66fd03&testMode=authoring'`
-- `E2E_BASE_URL=http://localhost:3015 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
-- Reviewed screenshots: `/tmp/pika-test-question-editor-teacher-fixed.png`, `/tmp/pika-test-question-editor-teacher-mobile-fixed.png`, `/tmp/pika-survey-code-editor-teacher.png`, `/tmp/pika-survey-code-editor-teacher-mobile.png`, plus teacher/student/teacher-mobile captures from the verifier.
-
 ## 2026-05-27 — Teacher assessment enrollment scoping
 
 **Completed:**
@@ -1017,3 +995,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Regenerate join link layout
+
+**Completed:**
+- Changed the regenerate confirmation title to `Generate new join code and link?`.
+- Moved the refresh icon into a separate warning button after the join URL copy control.
+- Shortened the desktop join URL copy control so it no longer stretches across the row.
+- Updated focused coverage for the new refresh button label and dialog title.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build` after clearing stale `.next`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a mobile confirmation-dialog screenshot.
