@@ -465,7 +465,7 @@ export function TeacherSettingsTab({
                   size="md"
                   onClick={() => copyWithNotice('Join code', joinCode)}
                   aria-label="Copy join code"
-                  className="min-w-0 flex-1 justify-start rounded-r-none border-r-0 font-mono text-base font-semibold sm:flex-none"
+                  className="min-w-0 flex-1 justify-start rounded-r-none border-r-0 font-mono text-base font-semibold text-primary underline underline-offset-4 hover:text-primary-hover sm:flex-none"
                 >
                   {joinCode}
                 </Button>
@@ -491,7 +491,7 @@ export function TeacherSettingsTab({
                 onClick={() => copyWithNotice('Join link', joinLink)}
                 aria-label="Copy join link"
                 title={joinLink}
-                className="w-full min-w-0 justify-start font-mono text-xs sm:flex-1"
+                className="w-full min-w-0 justify-start font-mono text-xs text-primary underline underline-offset-4 hover:text-primary-hover sm:flex-1"
               >
                 <span className="min-w-0 truncate">{joinLink}</span>
               </Button>

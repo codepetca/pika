@@ -8,27 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-27 — Next systems/UI audit slice
-
-**Completed:**
-- Hardened student test document snapshot access to respect draft status, selected-student availability, submitted work, grading lock state, and returned work.
-- Scoped student test result aggregates to currently enrolled students whose attempts have been returned.
-- Kept returned assignment grade/feedback fields visible while stripping teacher-only draft feedback and AI suggestion fields.
-- Added accessible names for student survey link/text responses, student open-response test answers, and teacher announcement body textareas.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/student/tests-documents-snapshot.test.ts tests/api/student/tests-results.test.ts tests/unit/assignments.test.ts tests/api/student/assignments.test.ts tests/components/StudentSurveyPanel.test.tsx tests/components/StudentQuizForm.test.tsx tests/components/AnnouncementsMarkdown.test.tsx`
-- `pnpm vitest run tests/api/integration/test-return-visibility-flow.test.ts --reporter=verbose`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=announcements'`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
-- UI screenshots reviewed from `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png` for each tab run.
-- `pnpm test`
-- `bash scripts/verify-env.sh`
-
 ## 2026-05-27 — Student quiz/survey result enrollment scoping
 
 **Completed:**
@@ -980,6 +959,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Validation:**
 - `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
 - `pnpm lint`
 - `pnpm build`
 - Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
@@ -1028,3 +1008,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a mobile confirmation-dialog screenshot after clicking the refresh icon.
+
+## 2026-06-01 — Join copy affordance styling
+
+**Completed:**
+- Styled the join code and join URL copy buttons with primary underlined text so they read as clickable copy controls.
+- Kept the warning refresh icon visually distinct from the copy actions.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
