@@ -8,22 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-27 — Student quiz/survey result enrollment scoping
-
-**Completed:**
-- Scoped student quiz result aggregates to current classroom enrollments before aggregating class responses.
-- Scoped student survey result aggregates and text/link response lists to current classroom enrollments.
-- Kept defensive in-memory filtering after scoped Supabase `.in('student_id', ...)` response reads.
-- Added API regressions that include stale/unenrolled response rows and assert enrolled-only result payloads.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/student/quizzes-results.test.ts tests/api/student/surveys-route.test.ts --reporter=verbose`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-- `git diff --check`
-
 ## 2026-05-27 — Assessment authoring accessibility audit
 
 **Completed:**
@@ -1014,6 +998,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Completed:**
 - Styled the join code and join URL copy buttons with primary underlined text so they read as clickable copy controls.
 - Kept the warning refresh icon visually distinct from the copy actions.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Join copy highlighted controls
+
+**Completed:**
+- Reverted the link-like underlined text styling on the join code and URL.
+- Highlighted the full join code and join URL controls with the existing subtle primary treatment so the whole textbox reads as clickable-to-copy.
+- Left the warning refresh icon separate from the copy controls.
 
 **Validation:**
 - `pnpm test tests/components/TeacherSettingsTab.test.tsx`
