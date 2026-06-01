@@ -108,7 +108,7 @@ function SettingsSwitch({
       className={cn(
         'relative h-7 w-14 shrink-0 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-page',
         disabled
-          ? 'cursor-not-allowed border-border bg-surface-2 opacity-70'
+          ? 'cursor-not-allowed border-border bg-surface-2'
           : checked
             ? 'hover:border-primary-hover hover:bg-info-bg-hover'
             : 'hover:bg-surface-hover',
@@ -120,7 +120,7 @@ function SettingsSwitch({
         className={cn(
           'absolute left-0 top-1 h-5 w-5 rounded-full shadow-sm transition-transform',
           checked ? 'translate-x-7' : 'translate-x-1',
-          disabled || !checked ? 'bg-border-strong' : 'bg-primary',
+          'bg-primary',
         )}
       />
     </button>
