@@ -86,51 +86,67 @@ function SettingsHeading({ title, tooltip }: { title: string; tooltip?: ReactNod
   )
 }
 
-function TwoChoiceToggle({
-  leftLabel,
-  rightLabel,
+function SettingsSwitch({
   checked,
   onChange,
   disabled,
   ariaLabel,
 }: {
-  leftLabel: string
-  rightLabel: string
   checked: boolean
   onChange: (checked: boolean) => void
   disabled?: boolean
   ariaLabel: string
 }) {
   return (
-    <div className="inline-flex items-center gap-2 text-sm">
-      <span className={cn('min-w-12 text-right', checked ? 'font-semibold text-text-default' : 'text-text-muted')}>
-        {leftLabel}
-      </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={ariaLabel}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'relative h-7 w-14 shrink-0 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-page',
+        checked ? 'border-primary bg-info-bg' : 'border-border bg-surface-2',
+        disabled
+          ? 'cursor-not-allowed opacity-60'
+          : checked
+            ? 'hover:border-primary-hover hover:bg-info-bg-hover'
+            : 'hover:bg-surface-hover',
+      )}
+    >
+      <span
+        aria-hidden="true"
         className={cn(
-          'relative h-7 w-14 rounded-full border border-border bg-surface-2 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-page',
-          disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-surface-hover',
+          'absolute left-0 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary shadow-sm transition-transform',
+          checked ? 'translate-x-7' : 'translate-x-1',
         )}
       >
-        <span
-          aria-hidden="true"
-          className={cn(
-            'absolute left-0 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary shadow-sm transition-transform',
-            checked ? 'translate-x-1' : 'translate-x-7',
-          )}
-        >
-          {!checked ? <X className="h-3 w-3 text-text-inverse" strokeWidth={3} /> : null}
-        </span>
-      </button>
-      <span className={cn('min-w-14', checked ? 'text-text-muted' : 'font-semibold text-text-default')}>
-        {rightLabel}
+        {!checked ? <X className="h-3 w-3 text-text-inverse" strokeWidth={3} /> : null}
       </span>
+    </button>
+  )
+}
+
+function SettingsSwitchRow({
+  checked,
+  onChange,
+  disabled,
+  ariaLabel,
+  children,
+  className,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  disabled?: boolean
+  ariaLabel: string
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn('flex items-center gap-3', className)}>
+      <SettingsSwitch checked={checked} onChange={onChange} disabled={disabled} ariaLabel={ariaLabel} />
+      <div className={cn('min-w-0 text-sm', disabled ? 'text-text-muted' : 'text-text-default')}>{children}</div>
     </div>
   )
 }
@@ -168,7 +184,6 @@ export function TeacherSettingsTab({
   const actualOverviewId = useId()
   const actualOutlineId = useId()
   const actualLessonPlanScopeId = useId()
-  const showMarkdownId = useId()
   const isReadOnly = !!classroom.archived_at
   const { showMarkdown, mounted: markdownMounted, setShowMarkdown } = useMarkdownPreference()
   const [title, setTitle] = useState(classroom.title)
@@ -495,44 +510,38 @@ export function TeacherSettingsTab({
               </Button>
             </div>
 
-            <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center">
-              <TwoChoiceToggle
-                leftLabel="Allow"
-                rightLabel="Disallow"
-                checked={allowEnrollment}
-                onChange={saveAllowEnrollment}
-                disabled={saving || isReadOnly}
-                ariaLabel="Allow new students to join"
-              />
-              <div className="text-sm text-text-default">
-                {allowEnrollment ? 'Allow new joins' : 'Disallow new joins'}
+            <div className="flex flex-col gap-2 border-t border-border pt-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <SettingsSwitchRow
+                  checked={allowEnrollment}
+                  onChange={saveAllowEnrollment}
+                  disabled={saving || isReadOnly}
+                  ariaLabel="Allow new students to join"
+                >
+                  <span className="font-medium">{allowEnrollment ? 'Allow new joins' : 'Disallow new joins'}</span>
+                </SettingsSwitchRow>
+                {saving && <span className="text-sm text-text-muted">Saving...</span>}
               </div>
-              {saving && <span className="text-sm text-text-muted">Saving...</span>}
             </div>
 
             <div className="space-y-2 border-t border-border pt-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <TwoChoiceToggle
-                  leftLabel="Roster"
-                  rightLabel="Open"
-                  checked={joinPolicy === 'roster'}
-                  onChange={(isRoster) => saveJoinPolicy(isRoster ? 'roster' : 'open_join')}
-                  disabled={saving || isReadOnly || !allowEnrollment}
-                  ariaLabel="Join mode"
-                />
-                <div className="text-sm text-text-muted">
-                  {joinPolicy === 'roster' ? (
-                    <>
-                      <span className="font-medium text-text-default">Only students on roster can join.</span>{' '}
-                      <Link href={`/classrooms/${classroom.id}?tab=roster`} className="text-primary underline">
-                        view roster
-                      </Link>
-                    </>
-                  ) : (
-                    <span className="font-medium text-text-default">Open join via code/link.</span>
-                  )}
-                </div>
-              </div>
+              <SettingsSwitchRow
+                checked={joinPolicy === 'roster'}
+                onChange={(isRoster) => saveJoinPolicy(isRoster ? 'roster' : 'open_join')}
+                disabled={saving || isReadOnly || !allowEnrollment}
+                ariaLabel="Join mode"
+              >
+                {joinPolicy === 'roster' ? (
+                  <>
+                    <span className="font-medium text-text-default">Only students on roster can join.</span>{' '}
+                    <Link href={`/classrooms/${classroom.id}?tab=roster`} className="text-primary underline">
+                      view roster
+                    </Link>
+                  </>
+                ) : (
+                  <span className="font-medium text-text-default">Open join via code/link.</span>
+                )}
+              </SettingsSwitchRow>
 
               {allowEnrollment && joinPolicy === 'open_join' ? (
                 <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
@@ -564,16 +573,13 @@ export function TeacherSettingsTab({
           <SettingsPanel>
             <div className="text-sm font-semibold text-text-default">Display</div>
 
-            <label htmlFor={showMarkdownId} className="flex items-center gap-3 text-sm text-text-default">
-              <input
-                id={showMarkdownId}
-                type="checkbox"
-                checked={markdownMounted ? showMarkdown : true}
-                onChange={(event) => setShowMarkdown(event.target.checked)}
-                className="h-4 w-4"
-              />
-              Show markdown
-            </label>
+            <SettingsSwitchRow
+              checked={markdownMounted ? showMarkdown : true}
+              onChange={setShowMarkdown}
+              ariaLabel="Show markdown"
+            >
+              <span className="font-medium">Show markdown</span>
+            </SettingsSwitchRow>
           </SettingsPanel>
 
           <SettingsPanel className="space-y-4">
@@ -600,16 +606,14 @@ export function TeacherSettingsTab({
               </div>
             </div>
 
-            <label className="flex items-center gap-3 text-sm text-text-default">
-              <input
-                type="checkbox"
-                checked={actualSitePublished}
-                onChange={(e) => setActualSitePublished(e.target.checked)}
-                disabled={siteSaving || isReadOnly}
-                className="h-4 w-4"
-              />
-              Publish this classroom syllabus
-            </label>
+            <SettingsSwitchRow
+              checked={actualSitePublished}
+              onChange={setActualSitePublished}
+              disabled={siteSaving || isReadOnly}
+              ariaLabel="Publish this classroom syllabus"
+            >
+              <span className="font-medium">Publish this classroom syllabus</span>
+            </SettingsSwitchRow>
 
             <div className="grid gap-3 md:grid-cols-2">
               {(
@@ -621,23 +625,26 @@ export function TeacherSettingsTab({
                   ['lesson_plans', 'Lesson plans'],
                   ['announcements', 'Announcements'],
                 ] as Array<[keyof ActualCourseSiteConfig, string]>
-              ).map(([key, label]) => (
-                <label key={key} className="flex items-center gap-3 text-sm text-text-default">
-                  <input
-                    type="checkbox"
-                    checked={typeof actualSiteConfig[key] === 'boolean' ? (actualSiteConfig[key] as boolean) : false}
-                    onChange={(e) =>
+              ).map(([key, label]) => {
+                const checked = typeof actualSiteConfig[key] === 'boolean' ? (actualSiteConfig[key] as boolean) : false
+
+                return (
+                  <SettingsSwitchRow
+                    key={key}
+                    checked={checked}
+                    onChange={(nextChecked) =>
                       setActualSiteConfig((current) => ({
                         ...current,
-                        [key]: e.target.checked,
+                        [key]: nextChecked,
                       }))
                     }
                     disabled={siteSaving || isReadOnly}
-                    className="h-4 w-4"
-                  />
-                  {label}
-                </label>
-              ))}
+                    ariaLabel={label}
+                  >
+                    <span className={checked ? 'font-medium' : undefined}>{label}</span>
+                  </SettingsSwitchRow>
+                )
+              })}
             </div>
 
             <FormField label="Lesson plan visibility on syllabus" htmlFor={actualLessonPlanScopeId}>

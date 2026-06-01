@@ -77,13 +77,13 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
   it('persists the show markdown display setting from the general settings tab', async () => {
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const markdownToggle = await screen.findByRole('checkbox', { name: 'Show markdown' })
-    expect(markdownToggle).toBeChecked()
+    const markdownToggle = await screen.findByRole('switch', { name: 'Show markdown' })
+    expect(markdownToggle).toHaveAttribute('aria-checked', 'true')
 
     fireEvent.click(markdownToggle)
 
     await waitFor(() => {
-      expect(markdownToggle).not.toBeChecked()
+      expect(markdownToggle).toHaveAttribute('aria-checked', 'false')
     })
     expect(window.localStorage.getItem('pika_show_markdown')).toBe('false')
     expect(screen.queryByLabelText('Course overview')).not.toBeInTheDocument()

@@ -8,24 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-27 — Teacher assessment enrollment scoping
-
-**Completed:**
-- Scoped teacher quiz result aggregates and responder hydration to current classroom enrollments.
-- Scoped teacher survey result aggregates, text/link responses, and responder hydration to current classroom enrollments.
-- Scoped teacher quiz and survey list response stats to enrolled student IDs before counting respondents.
-- Added paginated enrollment ID loading to avoid Supabase row-cap truncation.
-- Added fail-closed enrollment/response-stat query handling and regressions with stale/unenrolled response rows.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/quizzes-results.test.ts tests/api/teacher/quizzes-route.test.ts tests/api/teacher/surveys-route.test.ts tests/api/teacher/surveys-results.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm run test:coverage`
-- `pnpm build`
-- `git diff --check`
-
 ## 2026-05-27 — Assignment return enrollment validation
 
 **Completed:**
@@ -1009,3 +991,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build` after clearing stale `.next`
 - Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a mobile confirmation-dialog screenshot.
+
+## 2026-06-01 — Settings switch consistency
+
+**Completed:**
+- Replaced the settings page checkbox controls with a shared switch-row pattern.
+- Simplified the joining rows so each switch sits on the left with short state copy on the right.
+- Kept off states visually clear with the X thumb marker and muted switch styling.
+- Updated focused settings coverage for the markdown display switch semantics.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a full-page teacher screenshot for Public Syllabus switches.
+- `bash scripts/verify-env.sh` still has an unrelated timeout in `tests/components/TeacherStudentWorkPanel.test.tsx`.
