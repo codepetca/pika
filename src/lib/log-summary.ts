@@ -1,58 +1,12 @@
 import type { LogSummaryActionItem } from '@/types'
+import {
+  buildInitialsMap,
+  redactDirectIdentifiers,
+  sanitizeTextWithStudentNames,
+} from '@/lib/ai-sanitization'
 
 const DEFAULT_MODEL = 'gpt-5-nano'
-
-const DIRECT_IDENTIFIER_PATTERNS: Array<[RegExp, string]> = [
-  [/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[email redacted]'],
-  [/\bhttps?:\/\/[^\s<>"')]+/gi, '[url redacted]'],
-  [
-    /\b(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}\b/g,
-    '[phone redacted]',
-  ],
-  [
-    /\b(?:student\s*(?:number|id|#)|student#)\s*[:#-]?\s*\d{6,12}\b/gi,
-    '[student number redacted]',
-  ],
-  [/\b\d{8,12}\b/g, '[student number redacted]'],
-  [
-    /\b\d{1,6}\s+(?:[A-Z0-9'.-]+\s+){1,6}(?:street|st|avenue|ave|road|rd|drive|dr|court|ct|lane|ln|boulevard|blvd|way|place|pl|crescent|cres)\b/gi,
-    '[address redacted]',
-  ],
-]
-
-/**
- * Build a map of unique initials for each student.
- * Handles collisions by appending an index: "J.S.1", "J.S.2".
- */
-export function buildInitialsMap(
-  students: { firstName: string; lastName: string }[]
-): Record<string, string> {
-  const result: Record<string, string> = {}
-  const counts: Record<string, number> = {}
-
-  for (const student of students) {
-    const fi = (student.firstName[0] || '?').toUpperCase()
-    const li = (student.lastName[0] || '?').toUpperCase()
-    const base = `${fi}.${li}.`
-    const fullName = `${student.firstName} ${student.lastName}`
-
-    counts[base] = (counts[base] || 0) + 1
-    const key = counts[base] > 1 ? `${base}${counts[base]}` : base
-
-    result[key] = fullName
-  }
-
-  // If any base had collisions, rename the first occurrence too
-  for (const base of Object.keys(counts)) {
-    if (counts[base] > 1 && result[base]) {
-      const fullName = result[base]
-      delete result[base]
-      result[`${base}1`] = fullName
-    }
-  }
-
-  return result
-}
+export { buildInitialsMap, redactDirectIdentifiers }
 
 /**
  * Replace student names in text with their initials.
@@ -64,49 +18,7 @@ export function sanitizeEntryText(
   students: { firstName: string; lastName: string }[],
   initialsMap: Record<string, string>
 ): string {
-  // Build reverse map: fullName -> initials
-  const nameToInitials: Record<string, string> = {}
-  for (const [initials, fullName] of Object.entries(initialsMap)) {
-    nameToInitials[fullName] = initials
-  }
-
-  let result = text
-
-  // Replace full names first (longest match first to avoid partial replacements)
-  const fullNames = students
-    .map((s) => `${s.firstName} ${s.lastName}`)
-    .filter((name) => name.trim().length > 1)
-    .sort((a, b) => b.length - a.length)
-
-  for (const fullName of fullNames) {
-    const initials = nameToInitials[fullName]
-    if (!initials) continue
-    const escaped = escapeRegExp(fullName)
-    result = result.replace(new RegExp(escaped, 'gi'), initials)
-  }
-
-  // Replace individual first names and last names
-  for (const student of students) {
-    const fullName = `${student.firstName} ${student.lastName}`
-    const initials = nameToInitials[fullName]
-    if (!initials) continue
-
-    for (const name of [student.firstName, student.lastName]) {
-      if (!name || name.length < 2) continue
-      const escaped = escapeRegExp(name)
-      // Use word boundary to avoid replacing substrings inside other words
-      result = result.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), initials)
-    }
-  }
-
-  return redactDirectIdentifiers(result)
-}
-
-export function redactDirectIdentifiers(text: string): string {
-  return DIRECT_IDENTIFIER_PATTERNS.reduce(
-    (result, [pattern, replacement]) => result.replace(pattern, replacement),
-    text
-  )
+  return sanitizeTextWithStudentNames(text, students, initialsMap)
 }
 
 function escapeRegExp(str: string): string {

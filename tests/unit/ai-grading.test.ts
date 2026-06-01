@@ -53,6 +53,7 @@ describe('gradeStudentWork prompt rules', () => {
     expect(systemPrompt).toContain('sentence starting with "Next Step:"')
     expect(systemPrompt).toContain('total score is less than 30')
     expect(gradingBody.max_output_tokens).toBe(220)
+    expect(gradingBody.store).toBe(false)
     expect(gradingBody.reasoning).toEqual({ effort: 'minimal' })
     expect(gradingBody.text?.format).toEqual(
       expect.objectContaining({
@@ -111,7 +112,7 @@ describe('gradeStudentWork prompt rules', () => {
 
     expect(systemPrompt).toContain('Treat attached artifacts')
     expect(userPrompt).toContain('Attached Artifacts:')
-    expect(userPrompt).toContain('- Link: https://student.example.com/portfolio')
+    expect(userPrompt).toContain('- Link: [url redacted]')
   })
 
   it('accepts artifact-only submissions when building the grading prompt', async () => {
@@ -146,7 +147,45 @@ describe('gradeStudentWork prompt rules', () => {
 
     expect(result.score_completion).toBe(8)
     expect(userPrompt).toContain('Attached Artifacts:')
-    expect(userPrompt).toContain('- Image: https://cdn.example.com/submission-images/final-site.png')
+    expect(userPrompt).toContain('- Image: [url redacted]')
+  })
+
+  it('redacts direct identifiers from assignment grading input and output', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_text:
+          '{"score_completion":7,"score_thinking":7,"score_workflow":7,"feedback":"Strength: alex@example.com included evidence. Next Step: remove phone 416-555-1212. Improve: Add a conclusion."}',
+      }),
+    })
+
+    const result = await gradeStudentWork({
+      assignmentTitle: 'Reflection for alex@example.com',
+      instructions: 'Submit to https://example.com and include student number 123456789.',
+      studentWork: {
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'My email is alex@example.com and my number is 416-555-1212.' }],
+          },
+        ],
+      },
+    })
+
+    const gradingRequest = fetchMock.mock.calls[0]?.[1]
+    const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
+    const userPrompt = gradingBody.input?.[1]?.content?.[0]?.text as string
+
+    expect(userPrompt).toContain('Reflection for [email redacted]')
+    expect(userPrompt).toContain('[url redacted]')
+    expect(userPrompt).toContain('[student number redacted]')
+    expect(userPrompt).toContain('[phone redacted]')
+    expect(userPrompt).not.toContain('alex@example.com')
+    expect(userPrompt).not.toContain('416-555-1212')
+    expect(result.feedback).toContain('[email redacted]')
+    expect(result.feedback).toContain('[phone redacted]')
   })
 
   it('parses structured output from response content when output_text is absent', async () => {

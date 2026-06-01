@@ -7,6 +7,7 @@ import {
   extractOpenAIResponseUsage,
   logAiPromptTelemetry,
 } from '@/lib/ai-prompt-metrics'
+import { sanitizeAiOutputText, sanitizeAiText } from '@/lib/ai-sanitization'
 import { extractPlainText } from '@/lib/tiptap-content'
 import type { TiptapContent } from '@/types'
 
@@ -139,6 +140,7 @@ function buildAssignmentGradingApiBody(
 ) {
   return {
     model: request.model,
+    store: false,
     input: [
       {
         role: 'system',
@@ -278,9 +280,9 @@ function buildStudentSubmissionText(
     const artifactLines = artifacts.map((artifact) => {
       const repoSummary =
         artifact.type === 'repo' && artifact.repo_owner && artifact.repo_name
-          ? ` (${artifact.repo_owner}/${artifact.repo_name})`
+          ? ` (${sanitizeAiText(artifact.repo_owner)}/${sanitizeAiText(artifact.repo_name)})`
           : ''
-      return `- ${formatArtifactLabel(artifact)}: ${artifact.url}${repoSummary}`
+      return `- ${formatArtifactLabel(artifact)}: ${sanitizeAiText(artifact.url)}${repoSummary}`
     })
     sections.push(`Attached Artifacts:\n${artifactLines.join('\n')}`)
   }
@@ -320,6 +322,8 @@ export function buildAssignmentGradingRequest(opts: {
 }): AssignmentGradingRequest {
   const model = process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
   const studentSubmission = buildStudentSubmissionText(opts.studentWork, opts.submissionArtifacts)
+  const assignmentTitle = sanitizeAiText(opts.assignmentTitle)
+  const instructions = sanitizeAiText(opts.instructions)
 
   return {
     model,
@@ -338,11 +342,11 @@ Feedback rules:
 - include one sentence starting with "Strength:"
 - include one sentence starting with "Next Step:"
 - if total score is less than 30, include one sentence starting with "Improve:" and give one concrete improvement to reach full marks.`,
-    userPrompt: `Assignment: ${opts.assignmentTitle}
-Instructions: ${opts.instructions}
+    userPrompt: `Assignment: ${assignmentTitle}
+Instructions: ${instructions}
 
 Student Work:
-${studentSubmission}`,
+${sanitizeAiText(studentSubmission)}`,
   }
 }
 
@@ -451,7 +455,7 @@ function parseAssignmentGradingResponse(outputText: string, previousFeedback?: s
     })
   }
 
-  let feedback = String(parsed.feedback || '').trim()
+  let feedback = sanitizeAiOutputText(String(parsed.feedback || '').trim())
   if (!feedback) {
     throw new AssignmentAiGradingError({
       kind: 'invalid_output',

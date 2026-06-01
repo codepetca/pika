@@ -929,6 +929,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `git diff --check`
 
+## 2026-06-01 — AI grading egress sanitization
+
+**Completed:**
+- Added shared AI sanitization utilities for direct identifier redaction, roster-aware initials reuse, provider pseudonym refs, and egress allow-list validation.
+- Kept log summary APIs compatible while routing their redaction helpers through the shared sanitizer.
+- Sanitized assignment grading prompt fields, artifact metadata, and generated feedback, and added `store: false` to assignment grading OpenAI requests.
+- Sanitized test grading prompt fields, answer references, student responses, and generated feedback, added `store: false`, and changed batch grading to send pseudonymous provider refs mapped back locally.
+- Documented the AI grading egress contract for the upcoming GradeX adapter.
+
+**Validation:**
+- `pnpm test tests/unit/ai-sanitization.test.ts tests/unit/log-summary.test.ts tests/unit/ai-grading.test.ts tests/unit/ai-test-grading.test.ts tests/lib/ai-test-grading.test.ts`
+- `pnpm test tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/tests-ai-suggest.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/test-auto-grade-runs.test.ts tests/lib/test-ai-grading-runs.test.ts tests/lib/assignment-ai-grading-runs.test.ts`
+- `pnpm lint`
+- `pnpm test` (one unrelated `StudentAssignmentsTab` modal test failed during the full run; rerunning that file passed)
+- `pnpm test tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm build`
+- `git diff --check`
+
 ## 2026-05-31 — Upload image route standardization
 
 **Completed:**

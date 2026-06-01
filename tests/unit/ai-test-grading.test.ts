@@ -337,6 +337,7 @@ describe('suggestTestOpenResponseGrade', () => {
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
 
     expect(gradingBody.reasoning).toEqual({ effort: 'minimal' })
+    expect(gradingBody.store).toBe(false)
     expect(gradingBody.max_output_tokens).toBe(220)
     expect(gradingBody.text?.format).toMatchObject({
       type: 'json_schema',
@@ -361,7 +362,7 @@ describe('suggestTestOpenResponseGrade', () => {
           output_parsed: {
             results: [
               {
-                response_id: 'response-1',
+                response_id: 'response_1',
                 score: 4,
                 feedback: 'Good explanation. Add one key vocabulary word.',
               },
@@ -405,7 +406,7 @@ describe('suggestTestOpenResponseGrade', () => {
         output_parsed: {
           results: [
             {
-              response_id: 'response-1',
+              response_id: 'response_1',
               score: 4,
               feedback: 'Good explanation. Add one key vocabulary word.',
             },
@@ -625,7 +626,7 @@ describe('suggestTestOpenResponseGradesBatch', () => {
       ok: true,
       json: async () => ({
         output_text:
-          '{"results":[{"response_id":"response-1","score":5,"feedback":"Excellent answer."},{"response_id":"response-2","score":3,"feedback":"Good start. Add one more key detail."}]}',
+          '{"results":[{"response_id":"response_1","score":5,"feedback":"Excellent answer."},{"response_id":"response_2","score":3,"feedback":"Good start. Add one more key detail."}]}',
       }),
     })
 
@@ -661,7 +662,7 @@ describe('suggestTestOpenResponseGradesBatch', () => {
       ok: true,
       json: async () => ({
         output_text:
-          '{"results":[{"response_id":"response-1","score":5,"feedback":"Excellent answer."},{"response_id":"response-2","score":3,"feedback":"Good start. Add one more key detail."}]}',
+          '{"results":[{"response_id":"response_1","score":5,"feedback":"Excellent answer."},{"response_id":"response_2","score":3,"feedback":"Good start. Add one more key detail."}]}',
       }),
     })
 
@@ -680,6 +681,63 @@ describe('suggestTestOpenResponseGradesBatch', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(suggestions).toHaveLength(2)
+  })
+
+  it('uses pseudonymous provider refs instead of local response ids in batch prompts', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_text:
+          '{"results":[{"response_id":"response_1","score":5,"feedback":"Excellent answer for alex@example.com."}]}',
+      }),
+    })
+
+    const localResponseId = '018f3f57-7b4b-7123-8c04-48ac061c1111'
+    const suggestions = await suggestTestOpenResponseGradesBatch({
+      testTitle: 'Unit 3 Test',
+      questionText: 'Explain what a method does for https://example.com.',
+      maxPoints: 5,
+      answerKey: 'A method groups reusable instructions.',
+      responses: [
+        { responseId: localResponseId, responseText: 'Email me at alex@example.com.' },
+      ],
+    })
+
+    const gradingRequest = fetchMock.mock.calls[0]?.[1]
+    const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
+    const userPrompt = gradingBody.input?.[1]?.content?.[0]?.text as string
+
+    expect(userPrompt).toContain('response_id=response_1')
+    expect(userPrompt).toContain('[email redacted]')
+    expect(userPrompt).toContain('[url redacted]')
+    expect(userPrompt).not.toContain(localResponseId)
+    expect(userPrompt).not.toContain('alex@example.com')
+    expect(suggestions[0].responseId).toBe(localResponseId)
+    expect(suggestions[0].feedback).toContain('[email redacted]')
+  })
+
+  it('rejects unknown provider refs in batch output', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_text:
+          '{"results":[{"response_id":"response_99","score":5,"feedback":"Excellent answer."}]}',
+      }),
+    })
+
+    await expect(
+      suggestTestOpenResponseGradesBatch({
+        testTitle: 'Unit 3 Test',
+        questionText: 'Explain what a method does.',
+        maxPoints: 5,
+        answerKey: 'A method groups reusable instructions.',
+        responses: [
+          { responseId: 'response-1', responseText: 'A method is reusable code.' },
+        ],
+      }),
+    ).rejects.toThrow('AI batch grade suggestion returned unknown response response_99')
   })
 })
 

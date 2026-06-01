@@ -13,6 +13,12 @@ import {
   type AiPromptMetrics,
   type OpenAIResponseUsage,
 } from '@/lib/ai-prompt-metrics'
+import {
+  createProviderRefMap,
+  mapProviderRefToLocalId,
+  sanitizeAiOutputText,
+  sanitizeAiText,
+} from '@/lib/ai-sanitization'
 
 const DEFAULT_MODEL = 'gpt-5-nano'
 const MAX_REFERENCE_ANSWERS = 3
@@ -288,6 +294,7 @@ function buildOpenAIJsonBody(opts: {
 }) {
   return {
     model: opts.model,
+    store: false,
     input: [
       {
         role: 'system',
@@ -517,7 +524,7 @@ function normalizeReferenceAnswers(raw: unknown): string[] {
   }
 
   const normalized = raw
-    .map((value) => (typeof value === 'string' ? value.trim() : ''))
+    .map((value) => (typeof value === 'string' ? sanitizeAiOutputText(value.trim()) : ''))
     .filter((value) => value.length > 0)
 
   if (normalized.length === 0) {
@@ -787,9 +794,9 @@ Rules:
 - Provide 1-${MAX_REFERENCE_ANSWERS} concise, high-quality reference answers.
 - Each answer should describe acceptable content, not just keywords.
 - Do not include markdown code fences.${codingGuidance}`
-  const userPrompt = `Test: ${opts.testTitle}
+  const userPrompt = `Test: ${sanitizeAiText(opts.testTitle)}
 Question:
-${opts.questionText}
+${sanitizeAiText(opts.questionText)}
 
 Max points: ${opts.maxPoints}`
 
@@ -849,14 +856,16 @@ export function buildTestOpenResponsePreparedContext(input: {
   const maxPoints = Math.max(0, input.maxPoints)
   const promptProfile = input.promptProfile ?? 'manual'
   const isCodingQuestion = input.responseMonospace === true
+  const testTitle = sanitizeAiText(input.testTitle)
+  const questionText = sanitizeAiText(input.questionText)
   const promptGuideline = resolvePromptGuideline(
-    input.promptGuidelineOverride,
+    input.promptGuidelineOverride ? sanitizeAiText(input.promptGuidelineOverride) : input.promptGuidelineOverride,
     isCodingQuestion,
     promptProfile
   )
   const scoreBuckets = normalizeScoreBuckets(input.scoreBuckets, maxPoints)
-  const answerKey = normalizeAnswerKey(input.answerKey)
-  const sampleSolution = normalizeSampleSolution(input.sampleSolution)
+  const answerKey = normalizeAnswerKey(input.answerKey ? sanitizeAiText(input.answerKey) : input.answerKey)
+  const sampleSolution = normalizeSampleSolution(input.sampleSolution ? sanitizeAiText(input.sampleSolution) : input.sampleSolution)
   const normalizedReferenceAnswers =
     input.referenceAnswers != null ? normalizeReferenceAnswers(input.referenceAnswers) : []
 
@@ -913,9 +922,9 @@ ${sampleSolution}`
 Choose the nearest bucket for the score.`
     : 'No explicit score buckets were provided.'
 
-  const userPromptPrefix = `Test: ${input.testTitle}
+  const userPromptPrefix = `Test: ${testTitle}
 Question:
-${input.questionText}
+${questionText}
 
 ${gradingContext}
 ${sampleSolutionContext}
@@ -947,7 +956,7 @@ export function buildTestOpenResponseSingleUserPrompt(
   return `${prepared.userPromptPrefix}
 
 Student response:
-${responseText}`
+${sanitizeAiText(responseText)}`
 }
 
 export function buildTestOpenResponseBatchSystemPrompt(
@@ -970,8 +979,8 @@ Student responses:
 ${responses
   .map(
     (response, index) =>
-      `${index + 1}. response_id=${response.responseId}
-${response.responseText}`
+      `${index + 1}. response_id=${sanitizeAiText(response.responseId)}
+${sanitizeAiText(response.responseText)}`
   )
   .join('\n\n')}`
 }
@@ -1158,7 +1167,7 @@ export async function suggestTestOpenResponseGradeWithContext(
   }
   const score = normalizeSuggestedScore(rawScore, prepared.maxPoints, prepared.scoreBuckets)
 
-  const feedback = String(parsed?.feedback || '').trim()
+  const feedback = sanitizeAiOutputText(String(parsed?.feedback || '').trim())
   if (!feedback) {
     throw new Error('AI grade suggestion did not include feedback')
   }
@@ -1184,8 +1193,22 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
   }
   if (responses.length === 0) return []
 
+  const providerRequests = createProviderRefMap(
+    responses.map((response) => ({
+      localId: response.responseId,
+      responseText: response.responseText,
+    })),
+    'response',
+  )
+  const providerRefToLocalId = mapProviderRefToLocalId(providerRequests)
   const systemPrompt = buildTestOpenResponseBatchSystemPrompt(prepared)
-  const userPrompt = buildTestOpenResponseBatchUserPrompt(prepared, responses)
+  const userPrompt = buildTestOpenResponseBatchUserPrompt(
+    prepared,
+    providerRequests.map((response) => ({
+      responseId: response.providerRef,
+      responseText: response.responseText,
+    })),
+  )
   const promptMetrics = estimatePromptMetrics(systemPrompt, userPrompt)
   const { parsed, usage } = await callOpenAIForJson({
     apiKey,
@@ -1225,9 +1248,14 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
       throw new Error('AI batch grade suggestion returned an invalid result row')
     }
 
-    resultsById.set(responseId, {
+    const localResponseId = providerRefToLocalId.get(responseId)
+    if (!localResponseId) {
+      throw new Error(`AI batch grade suggestion returned unknown response ${responseId}`)
+    }
+
+    resultsById.set(localResponseId, {
       score: normalizeSuggestedScore(rawScore, prepared.maxPoints, prepared.scoreBuckets),
-      feedback,
+      feedback: sanitizeAiOutputText(feedback),
     })
   }
 
