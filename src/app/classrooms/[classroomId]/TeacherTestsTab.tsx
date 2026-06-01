@@ -44,6 +44,7 @@ import {
   type TeacherTestGradingRowUpdatedEventDetail,
 } from '@/lib/events'
 import { getDisplayAssessmentTitle } from '@/lib/assessment-titles'
+import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { getQuizExitCount } from '@/lib/quizzes'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
@@ -1106,6 +1107,7 @@ export function TeacherTestsTab({
       const detail = (event as CustomEvent<TeacherTestGradingRowUpdatedEventDetail>).detail
       if (!detail || detail.testId !== selectedTestId) return
 
+      invalidateGradebookForClassroom(classroom.id)
       setGradingStudents((prev) =>
         prev.map((student) => {
           if (student.student_id !== detail.studentId) return student
@@ -1123,7 +1125,7 @@ export function TeacherTestsTab({
 
     window.addEventListener(TEACHER_TEST_GRADING_ROW_UPDATED_EVENT, handleGradingRowUpdate)
     return () => window.removeEventListener(TEACHER_TEST_GRADING_ROW_UPDATED_EVENT, handleGradingRowUpdate)
-  }, [selectedTestId, selectedWorkspaceTab, workspaceState])
+  }, [classroom.id, selectedTestId, selectedWorkspaceTab, workspaceState])
 
   useEffect(() => {
     if (!onTestGradingContextChange) return
@@ -1248,6 +1250,7 @@ export function TeacherTestsTab({
     clearBatchSelection()
     void loadGradingRows()
     setTestGradingPanelRefreshToken((prev) => prev + 1)
+    invalidateGradebookForClassroom(classroom.id)
     onTestGradingDataRefresh?.()
 
     if (message.error) {
@@ -1258,7 +1261,7 @@ export function TeacherTestsTab({
       setGradingInfo('')
       setGradingError('')
     }
-  }, [activeTestAiRun, clearBatchSelection, hasActiveTestAiRun, loadGradingRows, onTestGradingDataRefresh, showMessage])
+  }, [activeTestAiRun, classroom.id, clearBatchSelection, hasActiveTestAiRun, loadGradingRows, onTestGradingDataRefresh, showMessage])
 
   function handleOpenTest(test: QuizWithStats) {
     navigateTestWorkspace({ testId: test.id, mode: 'grading', studentId: null })
@@ -1469,6 +1472,7 @@ export function TeacherTestsTab({
       }
       await loadGradingRows()
       setTestGradingPanelRefreshToken((prev) => prev + 1)
+      invalidateGradebookForClassroom(classroom.id)
       onTestGradingDataRefresh?.()
     } catch (error: any) {
       setGradingError(error.message || 'Auto-grade failed')
@@ -1507,6 +1511,7 @@ export function TeacherTestsTab({
       }
       await loadGradingRows()
       setTestGradingPanelRefreshToken((prev) => prev + 1)
+      invalidateGradebookForClassroom(classroom.id)
       onTestGradingDataRefresh?.()
     } catch (error: any) {
       setGradingError(error.message || 'Return failed')
@@ -1623,6 +1628,7 @@ export function TeacherTestsTab({
       setPendingUnsubmitStudent(null)
       await loadGradingRows()
       setTestGradingPanelRefreshToken((prev) => prev + 1)
+      invalidateGradebookForClassroom(classroom.id)
       onTestGradingDataRefresh?.()
     } catch (error: any) {
       setGradingError(error.message || 'Unsubmit failed')
@@ -1658,6 +1664,7 @@ export function TeacherTestsTab({
       setPendingDeleteStudentAttemptIds(null)
       await loadGradingRows()
       setTestGradingPanelRefreshToken((prev) => prev + 1)
+      invalidateGradebookForClassroom(classroom.id)
       onTestGradingDataRefresh?.()
     } catch (error: any) {
       setGradingError(error.message || 'Delete failed')

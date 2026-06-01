@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
-import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
+import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
+import { fetchJSONWithCache } from '@/lib/request-cache'
 import type { GradebookClassSummary, GradebookStudentDetail, GradebookStudentSummary } from '@/types'
 
 interface UseGradebookDataOptions {
@@ -65,7 +66,7 @@ export function useGradebookData({
 
   const handleGradebookClassSummaryChange = useCallback((summary: GradebookClassSummary | null) => {
     setGradebookClassSummary(summary)
-    invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
+    invalidateGradebookForClassroom(classroomId)
     setDetailRefreshToken((previous) => previous + 1)
   }, [classroomId])
 
