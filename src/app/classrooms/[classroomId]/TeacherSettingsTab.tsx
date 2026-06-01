@@ -49,11 +49,6 @@ const SYLLABUS_LESSON_PLAN_SCOPE_OPTIONS = [
   { value: 'all', label: 'All lesson plans' },
 ]
 
-const JOIN_POLICY_OPTIONS: Array<{ value: ClassroomJoinPolicy; label: string }> = [
-  { value: 'roster', label: 'Roster' },
-  { value: 'open_join', label: 'Open join' },
-]
-
 function visibleActualSiteConfig(config: ActualCourseSiteConfig | null | undefined): ActualCourseSiteConfig {
   return {
     ...(config || DEFAULT_ACTUAL_COURSE_SITE_CONFIG),
@@ -90,6 +85,53 @@ function SettingsHeading({ title, tooltip }: { title: string; tooltip?: string }
   )
 }
 
+function TwoChoiceToggle({
+  leftLabel,
+  rightLabel,
+  checked,
+  onChange,
+  disabled,
+  ariaLabel,
+}: {
+  leftLabel: string
+  rightLabel: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+  disabled?: boolean
+  ariaLabel: string
+}) {
+  return (
+    <div className="inline-flex items-center gap-2 text-sm">
+      <span className={cn('min-w-12 text-right', checked ? 'font-semibold text-text-default' : 'text-text-muted')}>
+        {leftLabel}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={ariaLabel}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          'relative h-7 w-14 rounded-full border border-border bg-surface-2 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-page',
+          disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-surface-hover',
+        )}
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            'absolute left-0 top-1 h-5 w-5 rounded-full bg-primary shadow-sm transition-transform',
+            checked ? 'translate-x-1' : 'translate-x-7',
+          )}
+        />
+      </button>
+      <span className={cn('min-w-14', checked ? 'text-text-muted' : 'font-semibold text-text-default')}>
+        {rightLabel}
+      </span>
+    </div>
+  )
+}
+
 interface SettingsTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   hasError?: boolean
 }
@@ -118,7 +160,6 @@ export function TeacherSettingsTab({
 }: Props) {
   const router = useRouter()
   const section: SettingsSection = sectionParam === 'class-days' ? 'class-days' : 'general'
-  const allowEnrollmentId = useId()
   const titleId = useId()
   const actualSiteSlugId = useId()
   const actualOverviewId = useId()
@@ -444,38 +485,35 @@ export function TeacherSettingsTab({
               </Button>
             </div>
 
-            <div className="flex items-center gap-3 border-t border-border pt-2">
-              <input
-                id={allowEnrollmentId}
-                type="checkbox"
+            <div className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center">
+              <TwoChoiceToggle
+                leftLabel="Allow"
+                rightLabel="Disallow"
                 checked={allowEnrollment}
-                onChange={(e) => saveAllowEnrollment(e.target.checked)}
+                onChange={saveAllowEnrollment}
                 disabled={saving || isReadOnly}
-                className="h-4 w-4"
+                ariaLabel="Allow new students to join"
               />
-              <label htmlFor={allowEnrollmentId} className="text-sm text-text-default">
-                Allow new students to join
-              </label>
+              <div className="text-sm font-medium text-text-default">Allow new students to join</div>
               {saving && <span className="text-sm text-text-muted">Saving...</span>}
             </div>
 
             <div className="space-y-2 border-t border-border pt-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <TwoChoiceToggle
+                  leftLabel="Roster"
+                  rightLabel="Open"
+                  checked={joinPolicy === 'roster'}
+                  onChange={(isRoster) => saveJoinPolicy(isRoster ? 'roster' : 'open_join')}
+                  disabled={saving || isReadOnly || !allowEnrollment}
+                  ariaLabel="Join mode"
+                />
                 <div>
                   <div className="text-sm font-medium text-text-default">Join mode</div>
                   <div className="text-xs text-text-muted">
                     Roster requires a matching email. Open join lets any signed-in student with the code join.
                   </div>
                 </div>
-                <SegmentedControl
-                  ariaLabel="Join mode"
-                  value={joinPolicy}
-                  options={JOIN_POLICY_OPTIONS.map((option) => ({
-                    ...option,
-                    disabled: saving || isReadOnly || !allowEnrollment,
-                  }))}
-                  onChange={saveJoinPolicy}
-                />
               </div>
 
               {allowEnrollment && joinPolicy === 'open_join' ? (

@@ -1062,3 +1062,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus mocked open-join roster desktop/mobile and student join form screenshots.
+
+## 2026-06-01 — Open join settings toggle polish
+
+**Completed:**
+- Replaced the Settings join checkbox and right-aligned segmented control with matching left-aligned two-choice toggles.
+- Updated the toggle states so `Allow`/`Roster` sit on the left and `Disallow`/`Open` sit on the right.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.

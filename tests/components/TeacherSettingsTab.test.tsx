@@ -323,10 +323,10 @@ describe('TeacherSettingsTab - Allow Joining', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const checkbox = screen.getByLabelText('Allow new students to join')
-    expect(checkbox).toBeChecked()
+    const toggle = screen.getByRole('switch', { name: 'Allow new students to join' })
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
 
-    fireEvent.click(checkbox)
+    fireEvent.click(toggle)
 
     await waitFor(() => {
       expect(screen.getByText('Settings saved')).toBeInTheDocument()
@@ -347,8 +347,10 @@ describe('TeacherSettingsTab - Allow Joining', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const joinMode = screen.getByRole('group', { name: 'Join mode' })
-    fireEvent.click(within(joinMode).getByRole('button', { name: 'Open join' }))
+    const joinMode = screen.getByRole('switch', { name: 'Join mode' })
+    expect(joinMode).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.click(joinMode)
 
     await waitFor(() => {
       expect(screen.getByText('Anyone with this code or link can join after entering their name.')).toBeInTheDocument()
@@ -465,8 +467,8 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const checkbox = screen.getByLabelText('Allow new students to join')
-    fireEvent.click(checkbox)
+    const toggle = screen.getByRole('switch', { name: 'Allow new students to join' })
+    fireEvent.click(toggle)
 
     // Advance microtasks to let the fetch resolve, but not the timeout
     await act(async () => {
