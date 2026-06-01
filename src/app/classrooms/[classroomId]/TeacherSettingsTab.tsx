@@ -519,13 +519,13 @@ export function TeacherSettingsTab({
                 <div className="text-sm text-text-muted">
                   {joinPolicy === 'roster' ? (
                     <>
-                      Roster requires matching email.{' '}
+                      <span className="font-medium text-text-default">Only students on roster can join.</span>{' '}
                       <Link href={`/classrooms/${classroom.id}?tab=roster`} className="text-primary underline">
-                        View roster
+                        view roster
                       </Link>
                     </>
                   ) : (
-                    'Open join via code/link.'
+                    <span className="font-medium text-text-default">Open join via code/link.</span>
                   )}
                 </div>
               </div>

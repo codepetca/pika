@@ -8,23 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-01 — AI grading roster sanitization follow-up
-
-**Completed:**
-- Addressed PR review feedback by loading classroom roster/profile names before assignment and test AI grading egress.
-- Threaded roster-aware sanitization context through assignment grading, manual test AI suggestions, and background test auto-grading batches.
-- Sanitized test reference prompts, answer keys, sample solutions, student responses, and cached/provided references with the same context.
-- Changed classroom sanitization context loading to fail closed on roster/profile lookup errors before AI provider calls.
-- Added focused unit coverage proving known student names become initials in assignment and test grading provider prompts.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/ai-sanitization.test.ts tests/unit/ai-grading.test.ts tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-ai-suggest.test.ts tests/lib/test-ai-grading-runs.test.ts tests/lib/assignment-ai-grading-runs.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/tests-auto-grade.test.ts`
-- `pnpm test tests/unit/ai-sanitization-server.test.ts tests/api/teacher/tests-ai-suggest.test.ts tests/lib/test-ai-grading-runs.test.ts tests/lib/assignment-ai-grading-runs.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/tests-auto-grade.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-
 ## 2026-05-27 — Required submission artifact display
 
 **Completed:**
@@ -1033,3 +1016,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`; checked the Disallow/X off state and restored the classroom to allowed.
+
+## 2026-06-01 — Roster join row wording
+
+**Completed:**
+- Changed the roster-mode row copy to `Only students on roster can join.` with a lowercase `view roster` link.
+- Matched the roster-mode row emphasis to the allow-new-joins row copy.
+- Updated focused settings coverage for the new copy and link text.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
