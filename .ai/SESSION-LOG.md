@@ -8,47 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-27 — Phase two systems and UI audit fixes
-
-**Completed:**
-- Blocked teacher entry detail reads across classroom ownership boundaries.
-- Gated snapshot list/file APIs behind the UI gallery flag plus authentication, and marked them dynamic.
-- Made student notification active-test counts respect selected-student availability and grading closure.
-- Required archived-classroom ownership checks for test AI grading run ticks.
-- Removed the roster tab's dead global right-sidebar route and aligned selected-student email actions with the gradebook pattern.
-- Updated focused API/component coverage for each fixed audit finding.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/teacher/entry-id.test.ts`
-- `pnpm test tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
-- `pnpm test tests/api/teacher/test-auto-grade-runs.test.ts tests/api/student/notifications.test.ts tests/components/TeacherRosterTab.test.tsx tests/unit/layout-config.test.ts`
-- `pnpm test tests/components/ThreePanelProvider.test.tsx tests/unit/layout-config.test.ts`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=roster'`
-- Browser selected-row screenshots: `/tmp/pika-roster-selected-desktop.png`, `/tmp/pika-roster-selected-mobile.png`, `/tmp/pika-roster-selected-email-menu-desktop.png`, `/tmp/pika-roster-selected-email-menu-mobile.png`
-
-## 2026-05-27 — Phase three audit fixes
-
-**Completed:**
-- Added shared selected-student enrollment validation for teacher test mutation routes.
-- Blocked test AI auto-grade run creation and open-response grade clearing when any selected student is outside the test classroom.
-- Normalized teacher settings controls toward `@/ui` primitives: shared segmented section switcher, cards, `FormField`, `Input`, `Select`, and a FormField-compatible textarea.
-- Fixed the syllabus lesson-plan visibility select's accessible label and added settings switcher coverage.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherSettingsTab.test.tsx tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-clear-open-grades.test.ts tests/unit/test-student-access.test.ts`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=settings&section=general'`
-- Browser screenshots: `/tmp/pika-settings-general-full-desktop.png`, `/tmp/pika-settings-general-full-mobile.png`, `/tmp/pika-settings-class-days-desktop.png`, `/tmp/pika-settings-class-days-mobile.png`, `/tmp/pika-settings-general-dark-desktop.png`
-- `pnpm test tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-clear-open-grades.test.ts tests/unit/test-student-access.test.ts`
-- `pnpm build`
-- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx`
-- `pnpm test`
-
 ## 2026-05-27 — Daily log history selected date clarity
 
 **Completed:**
@@ -1055,4 +1014,29 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/repo-review-ai.test.ts tests/unit/repo-review-analysis.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts`
 - `pnpm test tests/unit/repo-review-ai.test.ts tests/unit/repo-review-analysis.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/unit/log-summary.test.ts tests/api/cron/nightly-log-summaries.test.ts`
 - `pnpm test tests/unit/repo-review-ai.test.ts`
+- `pnpm lint`
+
+## 2026-06-01 — Snapshot gallery hardening phase-1 second pass
+
+**Completed:**
+- Added `requireSnapshotGalleryAccess()` in `src/lib/auth.ts` to gate snapshot endpoints to non-production teachers by default and allow production access only for `SNAPSHOT_GALLERY_ADMIN_EMAILS` allowlist entries.
+- Replaced `requireAuth()` with snapshot-specific access check in `src/app/api/snapshots/list/route.ts` and `src/app/api/snapshots/[filename]/route.ts`.
+- Updated snapshot API tests to mock and verify the new auth path.
+- Added unit coverage for snapshot-gallery access gating in `tests/unit/auth.test.ts`.
+- Added production admin allowlist env variable and clarified gallery security docs in `.env.example` and `docs/snapshot-gallery.md`.
+
+**Validation:**
+- `pnpm test tests/unit/auth.test.ts tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
+- `pnpm lint`
+
+## 2026-06-01 — Snapshot gallery production restriction finalized
+
+**Completed:**
+- Updated `requireSnapshotGalleryAccess()` to be strictly non-production only (no production allowlist fallback).
+- Removed `SNAPSHOT_GALLERY_ADMIN_EMAILS` from `.env.example`.
+- Updated snapshot gallery docs to reflect production-blocked policy.
+- Adjusted `requireSnapshotGalleryAccess` unit tests accordingly (`tests/unit/auth.test.ts`).
+
+**Validation:**
+- `pnpm test tests/unit/auth.test.ts tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
 - `pnpm lint`
