@@ -949,3 +949,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `pnpm lint`
 - `pnpm build`
+
+## 2026-05-31 — Student history cache reuse
+
+**Completed:**
+- Added a shared student entries client helper that caches `/api/student/entries` reads by classroom and optional limit.
+- Routed classroom student history and standalone student history class-day/entry reads through shared cached helpers.
+- Routed the today tab’s entry history refresh through the shared student entries cache and invalidated classroom entry caches after successful saves.
+- Added component coverage proving student history remounts reuse cached class days and entries, plus save invalidation coverage in today-tab history tests.
+- Addressed PR review feedback by clearing stale history rows after failed reloads, cancelling stale history requests after classroom changes, and invalidating/updating entry caches on save conflicts without caching partial conflict payloads as full history rows.
+- Spawned new read-only audit tracks for accessibility/mobile consistency, API standardization, classroom action surfaces, and client caching/freshness.
+
+**Validation:**
+- `pnpm vitest run tests/components/StudentHistoryTab.test.tsx tests/components/StudentTodayTabHistory.test.tsx`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
