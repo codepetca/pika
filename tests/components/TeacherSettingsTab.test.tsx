@@ -41,7 +41,7 @@ function Wrapper({ children }: { children: ReactNode }) {
   )
 }
 
-describe('TeacherSettingsTab - Course Name Editing', () => {
+describe('TeacherSettingsTab - Classroom name Editing', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
     mockRefresh.mockClear()
@@ -54,10 +54,10 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
     cleanup()
   })
 
-  it('renders with course name prefilled', () => {
+  it('renders with classroom name prefilled', () => {
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     expect(input).toHaveValue('Test Course')
     expect(screen.queryByLabelText('Quizzes')).toBeNull()
   })
@@ -124,7 +124,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: 'Updated Course' } })
     fireEvent.blur(input)
 
@@ -147,7 +147,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: 'Enter Saved' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 
@@ -158,16 +158,16 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ title: 'Enter Saved' })
   })
 
-  it('shows error when course name is empty', async () => {
+  it('shows error when classroom name is empty', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: '' } })
     fireEvent.blur(input)
 
-    expect(screen.getByText('Course name cannot be empty')).toBeInTheDocument()
+    expect(screen.getByText('Classroom name cannot be empty')).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -176,7 +176,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     // Change to same value
     fireEvent.change(input, { target: { value: 'Test Course' } })
     fireEvent.blur(input)
@@ -193,12 +193,12 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: 'New Name' } })
     fireEvent.blur(input)
 
     await waitFor(() => {
-      expect(screen.getByText('Course name updated')).toBeInTheDocument()
+      expect(screen.getByText('Classroom name updated')).toBeInTheDocument()
     })
   })
 
@@ -211,12 +211,12 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: 'Refreshed' } })
     fireEvent.blur(input)
 
     await waitFor(() => {
-      expect(screen.getByText('Course name updated')).toBeInTheDocument()
+      expect(screen.getByText('Classroom name updated')).toBeInTheDocument()
     })
     expect(mockRefresh).not.toHaveBeenCalled()
   })
@@ -230,7 +230,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: 'Will Fail' } })
     fireEvent.blur(input)
 
@@ -246,7 +246,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={archivedClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     expect(input).toBeDisabled()
   })
 
@@ -260,7 +260,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: 'New Title' } })
     fireEvent.blur(input)
 
@@ -283,7 +283,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
     })
   })
 
-  it('trims whitespace from course name before saving', async () => {
+  it('trims whitespace from classroom name before saving', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -292,7 +292,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: '  Trimmed  ' } })
     fireEvent.blur(input)
 
@@ -336,6 +336,15 @@ describe('TeacherSettingsTab - Allow Joining', () => {
     const [url, options] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/teacher/classrooms/cls-123')
     expect(JSON.parse(options.body)).toEqual({ allowEnrollment: false })
+  })
+
+  it('opens a title-only confirmation before generating a new join code', () => {
+    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate new join code' }))
+
+    expect(screen.getByRole('dialog', { name: 'Generate new join code?' })).toBeInTheDocument()
+    expect(screen.queryByText('This replaces the current code. Students will need the new code/link to join.')).not.toBeInTheDocument()
   })
 
   it('saves the open join mode', async () => {
@@ -434,7 +443,7 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
     cleanup()
   })
 
-  it('auto-clears course name success message after 2 seconds', async () => {
+  it('auto-clears classroom name success message after 2 seconds', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -443,7 +452,7 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const input = screen.getByLabelText('Course Name')
+    const input = screen.getByLabelText('Classroom name')
     fireEvent.change(input, { target: { value: 'New Name' } })
     fireEvent.blur(input)
 
@@ -453,7 +462,7 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
     })
 
     // Success message should appear
-    expect(screen.getByText('Course name updated')).toBeInTheDocument()
+    expect(screen.getByText('Classroom name updated')).toBeInTheDocument()
 
     // Advance time to trigger the short auto-clear
     await act(async () => {
@@ -461,7 +470,7 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
     })
 
     // Success message should be gone
-    expect(screen.queryByText('Course name updated')).not.toBeInTheDocument()
+    expect(screen.queryByText('Classroom name updated')).not.toBeInTheDocument()
   })
 
   it('auto-clears enrollment success message after 2 seconds', async () => {

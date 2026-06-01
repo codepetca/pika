@@ -3,7 +3,7 @@
 import { forwardRef, useMemo, useState, useId, type ReactNode, type TextareaHTMLAttributes } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Info, X } from 'lucide-react'
+import { Info, RefreshCw, X } from 'lucide-react'
 import {
   Button,
   Card,
@@ -226,7 +226,7 @@ export function TeacherSettingsTab({
     if (isReadOnly) return
     const trimmed = title.trim()
     if (!trimmed) {
-      setTitleError('Course name cannot be empty')
+      setTitleError('Classroom name cannot be empty')
       return
     }
     if (trimmed === classroom.title) {
@@ -242,12 +242,12 @@ export function TeacherSettingsTab({
       })
       const data = await res.json()
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to update course name')
+        throw new Error(data.error || 'Failed to update classroom name')
       }
       setTitle(data.classroom?.title || trimmed)
-      showMessage({ text: 'Course name updated', tone: 'success' })
+      showMessage({ text: 'Classroom name updated', tone: 'success' })
     } catch (err: any) {
-      setTitleError(err.message || 'Failed to update course name')
+      setTitleError(err.message || 'Failed to update classroom name')
     } finally {
       setTitleSaving(false)
     }
@@ -429,9 +429,9 @@ export function TeacherSettingsTab({
       {section === 'general' ? (
         <PageContent className="space-y-4 pt-0">
           <SettingsPanel>
-            <SettingsHeading title="Course Name" tooltip="Name shown to students and in reports" />
+            <SettingsHeading title="Classroom name" tooltip="Name shown to students and in reports" />
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-              <FormField label="Course Name" htmlFor={titleId} hideLabel error={titleError} className="flex-1">
+              <FormField label="Classroom name" htmlFor={titleId} hideLabel error={titleError} className="flex-1">
                 <Input
                   type="text"
                   value={title}
@@ -444,7 +444,7 @@ export function TeacherSettingsTab({
                     }
                   }}
                   disabled={titleSaving || isReadOnly}
-                  placeholder="Enter course name"
+                  placeholder="Enter classroom name"
                 />
               </FormField>
               {titleSaving && <span className="text-sm text-text-muted sm:pt-2">Saving...</span>}
@@ -458,25 +458,31 @@ export function TeacherSettingsTab({
             />
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
-              <Button
-                type="button"
-                variant="secondary"
-                size="md"
-                onClick={() => copyWithNotice('Join code', joinCode)}
-                aria-label="Copy join code"
-                className="w-full justify-start font-mono text-base font-semibold sm:w-auto"
-              >
-                {joinCode}
-              </Button>
+              <div className="flex w-full min-w-0 sm:w-auto">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="md"
+                  onClick={() => copyWithNotice('Join code', joinCode)}
+                  aria-label="Copy join code"
+                  className="min-w-0 flex-1 justify-start rounded-r-none border-r-0 font-mono text-base font-semibold sm:flex-none"
+                >
+                  {joinCode}
+                </Button>
 
-              <Button
-                variant="secondary"
-                onClick={() => setShowRegenerateConfirm(true)}
-                disabled={isRegenerating || isReadOnly}
-                className="w-full sm:w-auto"
-              >
-                {isRegenerating ? 'Generating...' : 'New code'}
-              </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="md"
+                  onClick={() => setShowRegenerateConfirm(true)}
+                  disabled={isRegenerating || isReadOnly}
+                  aria-label="Generate new join code"
+                  title="Generate new join code"
+                  className="h-11 w-11 shrink-0 rounded-l-none border-warning bg-warning-bg px-0 text-warning hover:bg-warning-bg focus:ring-warning"
+                >
+                  <RefreshCw className={cn('h-4 w-4', isRegenerating ? 'animate-spin' : '')} aria-hidden="true" />
+                </Button>
+              </div>
 
               <Button
                 type="button"
@@ -724,8 +730,7 @@ export function TeacherSettingsTab({
             <ConfirmDialog
               isOpen={showRegenerateConfirm}
               title="Generate new join code?"
-              description="This replaces the current code. Students will need the new code/link to join."
-              confirmLabel={isRegenerating ? 'Generating…' : 'New code'}
+              confirmLabel={isRegenerating ? 'Generating...' : 'Generate'}
               cancelLabel="Cancel"
               confirmVariant="danger"
               isConfirmDisabled={isRegenerating || isReadOnly}

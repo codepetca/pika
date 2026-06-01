@@ -8,23 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-27 — Required submission artifact display
-
-**Completed:**
-- Preserved structured required-submission artifacts as first-class teacher table items before adding free-floating content artifacts.
-- Added requirement title/metadata to teacher artifact display objects so student detail cards show labels like `Published demo` instead of generic `Public link`.
-- Highlighted required-submission artifact pills/cards and kept ordinary content-extracted artifacts visually regular.
-- Added regression coverage for multi-artifact teacher rows, required-submission labels, and student detail artifact titles.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/lib/assignment-submission-requirements.test.ts tests/api/teacher/assignments-id.test.ts tests/components/AssignmentArtifactsCell.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx -- --testTimeout=10000`
-- `pnpm test tests/components/AssignmentArtifactsCell.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx -- --testTimeout=10000`
-- `pnpm lint`
-- `pnpm test`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a&assignmentStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
-- Browser screenshots: `/tmp/pika-teacher-details-artifacts.png`, `/tmp/pika-student-loaded.png`, `/tmp/pika-teacher-mobile.png`
-
 ## 2026-05-27 — Next systems/UI audit slice
 
 **Completed:**
@@ -984,6 +967,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Validation:**
 - `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
 - `pnpm lint`
 - `pnpm build`
 - Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
@@ -1029,3 +1013,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Settings name and join-code controls
+
+**Completed:**
+- Renamed the Settings `Course Name` field to `Classroom name`, including validation and save messages.
+- Replaced the separate `New code` button with a warning-colored refresh icon attached to the join-code control.
+- Kept the join-code copy action on the code itself.
+- Removed the regenerate-code confirmation dialog description so the title stands alone.
+- Added focused coverage that the refresh icon opens the title-only confirmation dialog.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a mobile confirmation-dialog screenshot after clicking the refresh icon.
