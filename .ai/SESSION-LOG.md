@@ -768,6 +768,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `git diff --check`
 
+## 2026-05-31 — Gradex assignment adapter payload foundation
+
+**Completed:**
+- Added a server-side Gradex assignment payload builder for Pika assignment grading.
+- Produces both the Pika adapter request and the async Gradex `grading-runs` create request, plus local pseudonym mapping for the later polling slice.
+- Sanitizes assignment text and submission text, pseudonymizes assignment/submission/student/grade refs with an HMAC salt, summarizes artifacts by type/count only, and keeps provider/model/tier selection as Gradex-owned `auto` settings.
+- Added privacy and contract coverage proving raw Pika IDs, identity fields, raw history fields, repo identities, and raw URLs are excluded from the Gradex request.
+
+**Validation:**
+- `pnpm vitest run tests/lib/gradex-assignment-payload.test.ts`
+- `pnpm exec tsc --noEmit`
+
 ## 2026-05-31 — Student exam-mode e2e telemetry coverage
 
 **Completed:**
