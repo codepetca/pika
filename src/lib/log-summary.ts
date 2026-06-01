@@ -2,6 +2,7 @@ import type { LogSummaryActionItem } from '@/types'
 import {
   buildInitialsMap,
   redactDirectIdentifiers,
+  sanitizeAiOutputText,
   sanitizeTextWithStudentNames,
 } from '@/lib/ai-sanitization'
 
@@ -135,11 +136,11 @@ export async function callOpenAIForSummary(
   const obj = parsed as Record<string, unknown>
 
   return {
-    overview: String(obj.overview || ''),
+    overview: sanitizeAiOutputText(String(obj.overview || '')),
     action_items: Array.isArray(obj.action_items)
       ? obj.action_items.map((item: any) => ({
-          text: String(item.text || ''),
-          initials: String(item.initials || ''),
+          text: sanitizeAiOutputText(String(item.text || '')),
+          initials: sanitizeAiOutputText(String(item.initials || '')),
         }))
       : [],
   }
