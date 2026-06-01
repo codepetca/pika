@@ -1048,8 +1048,11 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Routed repo-review AI classification through provider refs, direct identifier redaction, and `store: false`.
 - Routed repo-review feedback generation through classroom sanitization context with pseudonymous repo/student refs and sanitized evidence/warnings.
 - Sanitized repo-review AI feedback before returning it for local persistence.
+- Addressed review feedback by sanitizing heuristic fallback feedback when OpenAI is unavailable or fails.
 - Sanitized daily log summary model output before cron persistence.
 
 **Validation:**
 - `pnpm test tests/unit/repo-review-ai.test.ts tests/unit/repo-review-analysis.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts`
 - `pnpm test tests/unit/repo-review-ai.test.ts tests/unit/repo-review-analysis.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/unit/log-summary.test.ts tests/api/cron/nightly-log-summaries.test.ts`
+- `pnpm test tests/unit/repo-review-ai.test.ts`
+- `pnpm lint`

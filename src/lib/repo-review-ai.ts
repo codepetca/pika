@@ -186,6 +186,19 @@ export function buildHeuristicRepoReviewFeedback(input: RepoReviewFeedbackInput)
   }
 }
 
+function sanitizeRepoReviewFeedbackResult(
+  result: RepoReviewFeedbackResult,
+  context?: AiSanitizationContext,
+): RepoReviewFeedbackResult {
+  return {
+    ...result,
+    summary: sanitizeAiText(result.summary, context),
+    strengths: result.strengths.map((strength) => sanitizeAiText(strength, context)),
+    concerns: result.concerns.map((concern) => sanitizeAiText(concern, context)),
+    feedback: sanitizeAiText(result.feedback, context),
+  }
+}
+
 function sanitizeRepoReviewValue(value: unknown, context?: AiSanitizationContext): SanitizedRepoReviewValue {
   if (typeof value === 'string') return sanitizeAiText(value, context)
   if (typeof value === 'number' || typeof value === 'boolean' || value === null) return value
@@ -272,7 +285,10 @@ Respond with JSON only:
 export async function gradeRepoReviewFeedback(input: RepoReviewFeedbackInput): Promise<RepoReviewFeedbackResult> {
   const apiKey = getOpenAIKey()
   if (!apiKey) {
-    return buildHeuristicRepoReviewFeedback(input)
+    return sanitizeRepoReviewFeedbackResult(
+      buildHeuristicRepoReviewFeedback(input),
+      input.sanitizationContext,
+    )
   }
 
   const model = process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
@@ -335,13 +351,19 @@ Respond with JSON only:
     })
 
     if (!res.ok) {
-      return buildHeuristicRepoReviewFeedback(input)
+      return sanitizeRepoReviewFeedbackResult(
+        buildHeuristicRepoReviewFeedback(input),
+        input.sanitizationContext,
+      )
     }
 
     const payload = await res.json()
     const outputText = extractResponseOutputText(payload)
     if (!outputText) {
-      return buildHeuristicRepoReviewFeedback(input)
+      return sanitizeRepoReviewFeedbackResult(
+        buildHeuristicRepoReviewFeedback(input),
+        input.sanitizationContext,
+      )
     }
 
     const parsed = parseJsonResponse(outputText, feedbackSchema)
@@ -361,6 +383,9 @@ Respond with JSON only:
       model,
     }
   } catch {
-    return buildHeuristicRepoReviewFeedback(input)
+    return sanitizeRepoReviewFeedbackResult(
+      buildHeuristicRepoReviewFeedback(input),
+      input.sanitizationContext,
+    )
   }
 }

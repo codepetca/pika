@@ -114,4 +114,41 @@ describe('repo-review AI egress', () => {
     expect(result.concerns[0]).toBe('Call [phone redacted].')
     expect(result.feedback).toContain('[email redacted]')
   })
+
+  it('sanitizes heuristic fallback feedback before persistence', async () => {
+    delete process.env.OPENAI_API_KEY
+    const sanitizationContext = buildAiSanitizationContext([
+      { firstName: 'Sam', lastName: 'Lee' },
+    ])
+
+    const result = await gradeRepoReviewFeedback({
+      assignmentTitle: 'Repo review',
+      repoName: 'student-login/private-repo',
+      studentName: 'Sam Lee',
+      githubLogin: 'samlee',
+      commitCount: 1,
+      activeDays: 1,
+      sessionCount: 1,
+      burstRatio: 0.9,
+      weightedContribution: 1,
+      relativeContributionShare: 1,
+      spreadScore: 0.2,
+      iterationScore: 0.2,
+      reviewActivityCount: 0,
+      areas: ['src'],
+      semanticBreakdown: { feature: 1 },
+      evidence: [],
+      warnings: ['Sam Lee emailed sam@example.com.'],
+      confidence: 0.8,
+      sanitizationContext,
+    })
+
+    expect(result.model).toBe('heuristic')
+    expect(result.summary).toBe('S.L. contributed 100% of mapped weighted work in student-login/private-repo.')
+    expect(result.concerns).toContain('S.L. emailed [email redacted].')
+    expect(result.feedback).not.toContain('Sam Lee')
+    expect(result.feedback).not.toContain('sam@example.com')
+    expect(result.feedback).toContain('S.L.')
+    expect(result.feedback).toContain('[email redacted]')
+  })
 })
