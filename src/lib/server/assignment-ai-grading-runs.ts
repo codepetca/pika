@@ -904,7 +904,6 @@ export async function tickAssignmentAiGradingRun(opts: {
     }
 
     const assignment = await loadAssignmentForRun(supabase, claimedRun.assignment_id)
-    const sanitizationContext = await loadClassroomAiSanitizationContext(supabase, assignment.classroom_id)
     const allItems = await fetchAssignmentAiGradingRunItems(supabase, claimedRun.id)
     const now = Date.now()
     const dueItems = allItems
@@ -916,6 +915,8 @@ export async function tickAssignmentAiGradingRun(opts: {
       .slice(0, ASSIGNMENT_AI_GRADING_RUN_CHUNK_SIZE)
 
     if (dueItems.length > 0) {
+      const sanitizationContext = await loadClassroomAiSanitizationContext(supabase, assignment.classroom_id)
+
       await mapWithConcurrency(
         dueItems,
         ASSIGNMENT_AI_GRADING_ITEM_CONCURRENCY,

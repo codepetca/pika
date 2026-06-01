@@ -12,6 +12,9 @@ that sanitized copy to the provider.
   student numbers, UUIDs, and street-like addresses.
 - Load classroom roster/profile names for grading paths and replace known
   student names with initials before provider egress.
+- If classroom roster/profile names cannot be loaded, fail closed before the
+  provider call instead of sending grading text with only direct-identifier
+  redaction.
 - Replace provider correlation IDs with local-only pseudonyms such as
   `response_1` or `submission_1`.
 - Keep the pseudonym-to-local-ID mapping inside Pika. Providers should never need

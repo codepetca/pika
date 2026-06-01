@@ -1233,10 +1233,6 @@ export async function tickTestAiGradingRun(opts: {
     }
 
     const test = await loadTestForRun(supabase, claimedRun.test_id)
-    const sanitizationContext = await loadClassroomAiSanitizationContext(
-      supabase,
-      test.classroom_id,
-    )
     const allItems = await fetchTestAiGradingRunItems(supabase, claimedRun.id)
     const now = Date.now()
     const dueItems = allItems
@@ -1248,6 +1244,10 @@ export async function tickTestAiGradingRun(opts: {
       .slice(0, TEST_AI_GRADING_RUN_CHUNK_SIZE)
 
     if (dueItems.length > 0) {
+      const sanitizationContext = await loadClassroomAiSanitizationContext(
+        supabase,
+        test.classroom_id,
+      )
       const responseIds = dueItems.map((item) => item.response_id)
       const questionIds = Array.from(new Set(dueItems.map((item) => item.question_id)))
 
