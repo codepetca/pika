@@ -184,6 +184,157 @@ describe('POST /api/student/classrooms/join', () => {
       expect(data.code).toBe('not_on_roster')
     })
 
+    it('should ask for profile details when open join has no roster row', async () => {
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classrooms') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'classroom-1',
+                    title: 'Math 101',
+                    class_code: 'MATH101',
+                    term_label: 'Fall 2024',
+                    allow_enrollment: true,
+                    join_policy: 'open_join',
+                  },
+                  error: null,
+                }),
+              })),
+            })),
+          }
+        }
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({ data: null, error: null }),
+            })),
+          }
+        }
+        if (table === 'classroom_roster') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+                })),
+              })),
+            })),
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
+        method: 'POST',
+        body: JSON.stringify({ classCode: 'MATH101' }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.code).toBe('profile_required')
+      expect(data.requiredFields).toEqual(['firstName', 'lastName'])
+    })
+
+    it('should self-roster and enroll student for open join with profile details', async () => {
+      const rosterUpsert = vi.fn().mockResolvedValue({ error: null })
+      const profileUpsert = vi.fn().mockResolvedValue({ error: null })
+      const mockInsert = vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'enrollment-new-1' },
+            error: null,
+          }),
+        })),
+      }))
+
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classrooms') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'classroom-1',
+                    title: 'Math 101',
+                    class_code: 'MATH101',
+                    term_label: 'Fall 2024',
+                    allow_enrollment: true,
+                    join_policy: 'open_join',
+                  },
+                  error: null,
+                }),
+              })),
+            })),
+          }
+        }
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({ data: null, error: null }),
+            })),
+            insert: mockInsert,
+          }
+        }
+        if (table === 'classroom_roster') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+                })),
+              })),
+            })),
+            upsert: rosterUpsert,
+          }
+        }
+        if (table === 'student_profiles') {
+          return { upsert: profileUpsert }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
+        method: 'POST',
+        body: JSON.stringify({
+          classCode: 'MATH101',
+          firstName: ' Ada ',
+          lastName: ' Lovelace ',
+          studentNumber: '',
+        }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(201)
+      expect(data.success).toBe(true)
+      expect(rosterUpsert).toHaveBeenCalledWith({
+        classroom_id: 'classroom-1',
+        email: 'test@student.com',
+        student_number: null,
+        first_name: 'Ada',
+        last_name: 'Lovelace',
+        counselor_email: null,
+        join_source: 'open_join',
+      }, { onConflict: 'classroom_id,email' })
+      expect(profileUpsert).toHaveBeenCalledWith({
+        user_id: 'student-1',
+        student_number: null,
+        first_name: 'Ada',
+        last_name: 'Lovelace',
+      }, { onConflict: 'user_id' })
+      expect(mockInsert).toHaveBeenCalledWith({
+        classroom_id: 'classroom-1',
+        student_id: 'student-1',
+      })
+    })
+
     it('should enroll student when classroom found by code', async () => {
       const mockInsert = vi.fn(() => ({
         select: vi.fn(() => ({

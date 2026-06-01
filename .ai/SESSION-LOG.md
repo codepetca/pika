@@ -1046,3 +1046,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/lib/gradex-assignment-payload.test.ts tests/unit/ai-sanitization.test.ts tests/unit/ai-grading.test.ts tests/lib/assignment-ai-grading-runs.test.ts`
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
+## 2026-06-01 — Open join classroom access mode
+
+**Completed:**
+- Added `classrooms.join_policy` and `classroom_roster.join_source` migration defaults/checks.
+- Added teacher Settings controls for `Roster` vs `Open join`, keeping `allow_enrollment` as the master join switch.
+- Updated student join-by-code flow so roster mode remains strict, while open join asks for first/last name and self-creates the roster/profile/enrollment rows.
+- Stamped manual roster adds as `manual`, CSV uploads as `csv`, and self-joins as `open_join`.
+- Added an `Open join` roster badge and source detail field for teacher review.
+
+**Validation:**
+- `pnpm test tests/api/student/classrooms-join.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/teacher/roster.test.ts tests/api/teacher/roster-add.test.ts tests/api/teacher/roster-upload-csv.test.ts tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test`
+- `pnpm test tests/components/TeacherRosterTab.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/api/student/classrooms-join.test.ts tests/api/teacher/roster.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus mocked open-join roster desktop/mobile and student join form screenshots.

@@ -40,6 +40,12 @@ describe('POST /api/teacher/classrooms/[id]/roster/add', () => {
   })
 
   it('upserts into classroom_roster', async () => {
+    const upsertMock = vi.fn(() => ({
+      select: vi.fn().mockResolvedValue({
+        data: [{ id: 'r-1', email: 'a@student.com' }],
+        error: null,
+      }),
+    }))
     const mockFrom = vi.fn((table: string) => {
       if (table === 'classrooms') {
         return {
@@ -52,12 +58,7 @@ describe('POST /api/teacher/classrooms/[id]/roster/add', () => {
       }
       if (table === 'classroom_roster') {
         return {
-          upsert: vi.fn(() => ({
-            select: vi.fn().mockResolvedValue({
-              data: [{ id: 'r-1', email: 'a@student.com' }],
-              error: null,
-            }),
-          })),
+          upsert: upsertMock,
         }
       }
       throw new Error(`Unexpected table: ${table}`)
@@ -77,5 +78,11 @@ describe('POST /api/teacher/classrooms/[id]/roster/add', () => {
     const data = await response.json()
     expect(response.status).toBe(200)
     expect(data.upsertedCount).toBe(1)
+    expect(upsertMock).toHaveBeenCalledWith([
+      expect.objectContaining({
+        email: 'a@student.com',
+        join_source: 'manual',
+      }),
+    ], { onConflict: 'classroom_id,email' })
   })
 })

@@ -24,6 +24,7 @@ const mockClassroom: Classroom = {
   class_code: 'ABC123',
   term_label: null,
   allow_enrollment: true,
+  join_policy: 'roster',
   start_date: '2026-01-01',
   end_date: '2026-06-01',
   created_at: '2026-01-01T00:00:00Z',
@@ -322,7 +323,7 @@ describe('TeacherSettingsTab - Allow Joining', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const checkbox = screen.getByLabelText('Allow joining')
+    const checkbox = screen.getByLabelText('Allow new students to join')
     expect(checkbox).toBeChecked()
 
     fireEvent.click(checkbox)
@@ -335,6 +336,27 @@ describe('TeacherSettingsTab - Allow Joining', () => {
     const [url, options] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/teacher/classrooms/cls-123')
     expect(JSON.parse(options.body)).toEqual({ allowEnrollment: false })
+  })
+
+  it('saves the open join mode', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ classroom: { ...mockClassroom, join_policy: 'open_join' } }),
+    })
+
+    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+
+    const joinMode = screen.getByRole('group', { name: 'Join mode' })
+    fireEvent.click(within(joinMode).getByRole('button', { name: 'Open join' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Anyone with this code or link can join after entering their name.')).toBeInTheDocument()
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [, options] = fetchMock.mock.calls[0]
+    expect(JSON.parse(options.body)).toEqual({ joinPolicy: 'open_join' })
   })
 })
 
@@ -443,7 +465,7 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    const checkbox = screen.getByLabelText('Allow joining')
+    const checkbox = screen.getByLabelText('Allow new students to join')
     fireEvent.click(checkbox)
 
     // Advance microtasks to let the fetch resolve, but not the timeout

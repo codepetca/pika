@@ -23,6 +23,7 @@ export function hydrateClassroomRecord(row: Record<string, any>): Classroom {
     actual_site_config: normalizeActualCourseSiteConfig(
       row.actual_site_config ?? DEFAULT_ACTUAL_COURSE_SITE_CONFIG
     ),
+    join_policy: row.join_policy === 'open_join' ? 'open_join' : 'roster',
     course_overview_markdown: row.course_overview_markdown ?? '',
     course_outline_markdown: row.course_outline_markdown ?? '',
   }

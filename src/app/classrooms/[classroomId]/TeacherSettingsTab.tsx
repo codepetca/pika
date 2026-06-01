@@ -20,7 +20,7 @@ import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG, slugifyCourseSiteValue } from '@/lib/course-site-publishing'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
-import type { ActualCourseSiteConfig, Classroom, LessonPlanVisibility } from '@/types'
+import type { ActualCourseSiteConfig, Classroom, ClassroomJoinPolicy, LessonPlanVisibility } from '@/types'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 
@@ -47,6 +47,11 @@ const SYLLABUS_LESSON_PLAN_SCOPE_OPTIONS = [
   { value: 'current_week', label: 'Current week (and earlier)' },
   { value: 'one_week_ahead', label: 'One week ahead' },
   { value: 'all', label: 'All lesson plans' },
+]
+
+const JOIN_POLICY_OPTIONS: Array<{ value: ClassroomJoinPolicy; label: string }> = [
+  { value: 'roster', label: 'Roster' },
+  { value: 'open_join', label: 'Open join' },
 ]
 
 function visibleActualSiteConfig(config: ActualCourseSiteConfig | null | undefined): ActualCourseSiteConfig {
@@ -127,6 +132,7 @@ export function TeacherSettingsTab({
   const [titleError, setTitleError] = useState<string>('')
   const [joinCode, setJoinCode] = useState(classroom.class_code)
   const [allowEnrollment, setAllowEnrollment] = useState<boolean>(classroom.allow_enrollment)
+  const [joinPolicy, setJoinPolicy] = useState<ClassroomJoinPolicy>(classroom.join_policy || 'roster')
   const [saving, setSaving] = useState(false)
   const [enrollmentError, setEnrollmentError] = useState<string>('')
   const [joinCodeError, setJoinCodeError] = useState<string>('')
@@ -218,6 +224,29 @@ export function TeacherSettingsTab({
         throw new Error(data.error || 'Failed to update settings')
       }
       setAllowEnrollment(!!data.classroom?.allow_enrollment)
+      showMessage({ text: 'Settings saved', tone: 'success' })
+    } catch (err: any) {
+      setEnrollmentError(err.message || 'Failed to update settings')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function saveJoinPolicy(nextValue: ClassroomJoinPolicy) {
+    if (isReadOnly || nextValue === joinPolicy) return
+    setSaving(true)
+    setEnrollmentError('')
+    try {
+      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ joinPolicy: nextValue }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update settings')
+      }
+      setJoinPolicy(data.classroom?.join_policy || nextValue)
       showMessage({ text: 'Settings saved', tone: 'success' })
     } catch (err: any) {
       setEnrollmentError(err.message || 'Failed to update settings')
@@ -379,7 +408,7 @@ export function TeacherSettingsTab({
           </SettingsPanel>
 
           <SettingsPanel>
-            <SettingsHeading title="Join Code" tooltip="Students must be on the roster to join" />
+            <SettingsHeading title="Joining" tooltip="Control how students can join this classroom" />
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
               <Button
@@ -425,9 +454,35 @@ export function TeacherSettingsTab({
                 className="h-4 w-4"
               />
               <label htmlFor={allowEnrollmentId} className="text-sm text-text-default">
-                Allow joining
+                Allow new students to join
               </label>
               {saving && <span className="text-sm text-text-muted">Saving...</span>}
+            </div>
+
+            <div className="space-y-2 border-t border-border pt-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-sm font-medium text-text-default">Join mode</div>
+                  <div className="text-xs text-text-muted">
+                    Roster requires a matching email. Open join lets any signed-in student with the code join.
+                  </div>
+                </div>
+                <SegmentedControl
+                  ariaLabel="Join mode"
+                  value={joinPolicy}
+                  options={JOIN_POLICY_OPTIONS.map((option) => ({
+                    ...option,
+                    disabled: saving || isReadOnly || !allowEnrollment,
+                  }))}
+                  onChange={saveJoinPolicy}
+                />
+              </div>
+
+              {allowEnrollment && joinPolicy === 'open_join' ? (
+                <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+                  Anyone with this code or link can join after entering their name.
+                </div>
+              ) : null}
             </div>
 
             {joinCodeError && <div className="text-sm text-danger">{joinCodeError}</div>}
