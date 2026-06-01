@@ -916,3 +916,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `git diff --check`
+
+## 2026-05-31 — Upload image route standardization
+
+**Completed:**
+- Replaced legacy direct `getSession()` handling in `/api/upload-image` with `requireAuth()`.
+- Converted upload-image validation and storage failure branches from manual `{ error }` responses to `ApiError` throws handled by `withErrorHandler`.
+- Updated API tests to cover wrapper-mapped authentication and `requireAuth` user-id filename scoping.
+- Addressed review feedback by preserving the malformed-session no-id guard before building storage filenames.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/upload-image.test.ts tests/unit/api-route-standards.test.ts -- --runInBand`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`

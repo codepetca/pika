@@ -10,7 +10,7 @@ import { IMAGE_MAX_SIZE } from '@/lib/image-upload'
 
 // Mock modules
 vi.mock('@/lib/auth', () => ({
-  getSession: vi.fn(),
+  requireAuth: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase', () => ({
@@ -18,8 +18,14 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 // Import mocked modules
-import { getSession } from '@/lib/auth'
+import { requireAuth } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
+
+function mockAuthenticationError(message = 'Not authenticated') {
+  const error = new Error(message)
+  error.name = 'AuthenticationError'
+  return error
+}
 
 // Helper to create a mock file with arrayBuffer method
 function createMockFile(
@@ -54,8 +60,10 @@ describe('POST /api/upload-image', () => {
     vi.clearAllMocks()
 
     // Default mock for authenticated user
-    ;(getSession as any).mockResolvedValue({
-      user: { id: 'user-123', email: 'test@example.com', role: 'student' },
+    ;(requireAuth as any).mockResolvedValue({
+      id: 'user-123',
+      email: 'test@example.com',
+      role: 'student',
     })
 
     // Default mock for Supabase storage
@@ -79,8 +87,8 @@ describe('POST /api/upload-image', () => {
   // ==========================================================================
 
   describe('authentication', () => {
-    it('should return 401 when not authenticated', async () => {
-      ;(getSession as any).mockResolvedValue({ user: null })
+    it('should return 401 when requireAuth rejects unauthenticated requests', async () => {
+      ;(requireAuth as any).mockRejectedValueOnce(mockAuthenticationError())
 
       const request = createMockRequest(createMockFile('test.png', 'image/png', 1024))
       const response = await POST(request)
@@ -88,10 +96,14 @@ describe('POST /api/upload-image', () => {
 
       expect(response.status).toBe(401)
       expect(data.error).toBe('Unauthorized')
+      expect(getServiceRoleClient).not.toHaveBeenCalled()
     })
 
-    it('should return 401 when session has no user id', async () => {
-      ;(getSession as any).mockResolvedValue({ user: { email: 'test@example.com' } })
+    it('should return 401 when authenticated user has no id', async () => {
+      ;(requireAuth as any).mockResolvedValueOnce({
+        email: 'test@example.com',
+        role: 'student',
+      })
 
       const request = createMockRequest(createMockFile('test.png', 'image/png', 1024))
       const response = await POST(request)
@@ -99,6 +111,21 @@ describe('POST /api/upload-image', () => {
 
       expect(response.status).toBe(401)
       expect(data.error).toBe('Unauthorized')
+      expect(getServiceRoleClient).not.toHaveBeenCalled()
+    })
+
+    it('should use requireAuth user id for storage filenames', async () => {
+      ;(requireAuth as any).mockResolvedValueOnce({
+        id: 'teacher-456',
+        email: 'teacher@example.com',
+        role: 'teacher',
+      })
+
+      const request = createMockRequest(createMockFile('test.png', 'image/png', 1024))
+      await POST(request)
+
+      expect(requireAuth).toHaveBeenCalledTimes(1)
+      expect(mockStorageUpload.mock.calls[0][0]).toMatch(/^teacher-456\//)
     })
   })
 
@@ -225,7 +252,7 @@ describe('POST /api/upload-image', () => {
     })
 
     it('should return 500 for unexpected errors', async () => {
-      ;(getSession as any).mockRejectedValue(new Error('Unexpected error'))
+      ;(requireAuth as any).mockRejectedValue(new Error('Unexpected error'))
 
       const request = createMockRequest(createMockFile('test.png', 'image/png', 1024))
       const response = await POST(request)
