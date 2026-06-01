@@ -8,25 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-27 — Phase three audit fixes
-
-**Completed:**
-- Added shared selected-student enrollment validation for teacher test mutation routes.
-- Blocked test AI auto-grade run creation and open-response grade clearing when any selected student is outside the test classroom.
-- Normalized teacher settings controls toward `@/ui` primitives: shared segmented section switcher, cards, `FormField`, `Input`, `Select`, and a FormField-compatible textarea.
-- Fixed the syllabus lesson-plan visibility select's accessible label and added settings switcher coverage.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherSettingsTab.test.tsx tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-clear-open-grades.test.ts tests/unit/test-student-access.test.ts`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=settings&section=general'`
-- Browser screenshots: `/tmp/pika-settings-general-full-desktop.png`, `/tmp/pika-settings-general-full-mobile.png`, `/tmp/pika-settings-class-days-desktop.png`, `/tmp/pika-settings-class-days-mobile.png`, `/tmp/pika-settings-general-dark-desktop.png`
-- `pnpm test tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-clear-open-grades.test.ts tests/unit/test-student-access.test.ts`
-- `pnpm build`
-- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx`
-- `pnpm test`
-
 ## 2026-05-27 — Daily log history selected date clarity
 
 **Completed:**
@@ -1068,6 +1049,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Completed:**
 - Replaced the Settings join checkbox and right-aligned segmented control with matching left-aligned two-choice toggles.
 - Updated the toggle states so `Allow`/`Roster` sit on the left and `Disallow`/`Open` sit on the right.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Joining tooltip copy consolidation
+
+**Completed:**
+- Moved the allow-new-students and join-mode explanatory copy into the `Joining` info tooltip.
+- Left the Settings rows as compact `Allow / Disallow` and `Roster / Open` toggles.
 
 **Validation:**
 - `pnpm test tests/components/TeacherSettingsTab.test.tsx`

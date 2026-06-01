@@ -70,7 +70,7 @@ function SettingsPanel({ children, className }: { children: ReactNode; className
   )
 }
 
-function SettingsHeading({ title, tooltip }: { title: string; tooltip?: string }) {
+function SettingsHeading({ title, tooltip }: { title: string; tooltip?: ReactNode }) {
   return (
     <div className="flex items-center gap-2">
       <div className="text-sm font-semibold text-text-default">{title}</div>
@@ -449,7 +449,19 @@ export function TeacherSettingsTab({
           </SettingsPanel>
 
           <SettingsPanel>
-            <SettingsHeading title="Joining" tooltip="Control how students can join this classroom" />
+            <SettingsHeading
+              title="Joining"
+              tooltip={
+                <div className="space-y-2">
+                  <p>
+                    <span className="font-semibold">Allow new students to join:</span> turns new joins on or off for this classroom.
+                  </p>
+                  <p>
+                    <span className="font-semibold">Join mode:</span> Roster requires a matching email. Open lets any signed-in student with the code join after entering their name.
+                  </p>
+                </div>
+              }
+            />
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
               <Button
@@ -494,7 +506,6 @@ export function TeacherSettingsTab({
                 disabled={saving || isReadOnly}
                 ariaLabel="Allow new students to join"
               />
-              <div className="text-sm font-medium text-text-default">Allow new students to join</div>
               {saving && <span className="text-sm text-text-muted">Saving...</span>}
             </div>
 
@@ -508,12 +519,6 @@ export function TeacherSettingsTab({
                   disabled={saving || isReadOnly || !allowEnrollment}
                   ariaLabel="Join mode"
                 />
-                <div>
-                  <div className="text-sm font-medium text-text-default">Join mode</div>
-                  <div className="text-xs text-text-muted">
-                    Roster requires a matching email. Open join lets any signed-in student with the code join.
-                  </div>
-                </div>
               </div>
 
               {allowEnrollment && joinPolicy === 'open_join' ? (
