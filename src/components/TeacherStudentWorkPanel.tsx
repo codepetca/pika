@@ -70,7 +70,7 @@ function RequiredSubmissionsList({
   function getArtifactFallbackLabel(artifact: AssignmentArtifact) {
     if (artifact.type === 'repo') return 'Repo link'
     if (artifact.type === 'image') return 'Image'
-    return 'Public link'
+    return 'Link'
   }
 
   function getArtifactKindLabel(artifact: AssignmentArtifact) {

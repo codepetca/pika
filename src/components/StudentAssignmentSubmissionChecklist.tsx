@@ -31,11 +31,14 @@ function RequirementIcon({ type }: { type: AssignmentSubmissionRequirement['type
 }
 
 function StatusIcon({ item }: { item: ReturnType<typeof getSubmissionRequirementCompletion>['items'][number] }) {
-  if (item.isPresent && !item.isBlocking) {
-    return <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
-  }
   if (item.artifact?.validation_status === 'pending') {
     return <Loader2 className="h-4 w-4 animate-spin text-text-muted" aria-hidden="true" />
+  }
+  if (item.isPresent && item.artifact?.validation_status === 'valid') {
+    return <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+  }
+  if (item.isPresent && !item.artifact?.validation_status) {
+    return <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
   }
   return <AlertCircle className="h-4 w-4 text-warning" aria-hidden="true" />
 }
@@ -60,6 +63,10 @@ function buildDraftState(
   }
 
   return next
+}
+
+function normalizeDraftValue(value: string | null | undefined) {
+  return (value ?? '').trim()
 }
 
 export function StudentAssignmentSubmissionChecklist({
@@ -167,6 +174,14 @@ export function StudentAssignmentSubmissionChecklist({
           const requirement = item.requirement
           const draft = drafts[requirement.id] ?? { url: '', githubLogin: '' }
           const isSaving = savingRequirementId === requirement.id
+          const savedGithubLogin =
+            typeof item.artifact?.metadata_json?.github_login === 'string'
+              ? item.artifact.metadata_json.github_login
+              : githubIdentity?.github_login ?? ''
+          const hasChanges =
+            normalizeDraftValue(draft.url) !== normalizeDraftValue(item.artifact?.url) ||
+            (requirement.type === 'repo_link' &&
+              normalizeDraftValue(draft.githubLogin) !== normalizeDraftValue(savedGithubLogin))
 
           return (
             <div key={requirement.id} className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
@@ -218,7 +233,7 @@ export function StudentAssignmentSubmissionChecklist({
               ) : (
                 <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
                   <div className={requirement.type === 'repo_link' ? 'grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(9rem,0.35fr)]' : ''}>
-                    <FormField label={requirement.type === 'repo_link' ? 'Repository URL' : 'Public URL'}>
+                    <FormField label={requirement.type === 'repo_link' ? 'Repository URL' : 'URL'}>
                       <Input
                         value={draft.url}
                         disabled={disabled || isSaving}
@@ -241,7 +256,7 @@ export function StudentAssignmentSubmissionChecklist({
                     <Button
                       type="button"
                       variant="secondary"
-                      disabled={disabled || isSaving}
+                      disabled={disabled || isSaving || !hasChanges}
                       onClick={() => saveUrlArtifact(requirement)}
                     >
                       {isSaving ? 'Saving...' : 'Save'}
