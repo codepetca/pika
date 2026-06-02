@@ -45,6 +45,16 @@ function getSubmissionArtifactStatusLabel(artifact: AssignmentArtifact): string 
   return null
 }
 
+function getArtifactValidationLabel(artifact: AssignmentArtifact): string {
+  if (artifact.validation_status === 'valid') {
+    return artifact.validation_level === 'verified' ? 'Verified' : 'Saved'
+  }
+  if (artifact.validation_status === 'warning' || artifact.validation_status === 'inaccessible') return 'Needs review'
+  if (artifact.validation_status === 'invalid') return 'Fix needed'
+  if (artifact.validation_status === 'pending') return 'Checking'
+  return 'Added'
+}
+
 function getArtifactIconClassName(artifact: AssignmentArtifact) {
   return [
     'h-3.5 w-3.5 shrink-0',
@@ -115,7 +125,15 @@ function ArtifactsTooltipList({
                   {getArtifactTypeLabel(artifact)} . {getArtifactSummary(artifact)}
                 </span>
                 <span className="block truncate text-[11px] text-text-muted">
-                  {statusLabel ?? getArtifactKindLabel(artifact)} . {artifact.url}
+                  {statusLabel ?? getArtifactKindLabel(artifact)} . {getArtifactValidationLabel(artifact)}
+                </span>
+                {artifact.validation_message ? (
+                  <span className="block truncate text-[11px] text-warning">
+                    {artifact.validation_message}
+                  </span>
+                ) : null}
+                <span className="block truncate text-[11px] text-text-muted">
+                  {artifact.url}
                 </span>
               </span>
             </a>
@@ -230,8 +248,14 @@ export function AssignmentArtifactsCell({
                     {getArtifactTypeLabel(artifact)} . {getArtifactSummary(artifact)}
                   </span>
                   <span className="mt-0.5 block truncate text-xs text-text-muted">
-                    {statusLabel ?? getArtifactKindLabel(artifact)} . {artifact.url}
+                    {statusLabel ?? getArtifactKindLabel(artifact)} . {getArtifactValidationLabel(artifact)}
                   </span>
+                  {artifact.validation_message ? (
+                    <span className="mt-0.5 block truncate text-xs text-warning">
+                      {artifact.validation_message}
+                    </span>
+                  ) : null}
+                  <span className="mt-0.5 block truncate text-xs text-text-muted">{artifact.url}</span>
                 </span>
                 <ExternalLink className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
               </a>

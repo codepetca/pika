@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   getSubmissionRequirementCompletion,
+  getSubmissionArtifactStatusLabel,
+  normalizeAssignmentSubmissionValidationPolicy,
   normalizeAssignmentSubmissionRequirementDrafts,
   submissionArtifactsToAssignmentArtifacts,
 } from '@/lib/assignment-submission-requirements'
@@ -16,7 +18,7 @@ function requirement(
     id: overrides.id ?? 'req-1',
     assignment_id: 'assignment-1',
     type: overrides.type ?? 'link',
-    label: overrides.label ?? 'Public link',
+    label: overrides.label ?? 'Link',
     instructions: overrides.instructions ?? '',
     required: overrides.required ?? true,
     position: overrides.position ?? 0,
@@ -72,6 +74,31 @@ describe('normalizeAssignmentSubmissionRequirementDrafts', () => {
       },
     ])
   })
+
+  it('normalizes link validation policy without requiring a migration', () => {
+    expect(normalizeAssignmentSubmissionValidationPolicy('link', {
+      mode: 'expected_domain',
+      expected_domains: [' https://www.CodeHS.com/sandbox ', 'codehs.com'],
+    })).toEqual({
+      mode: 'expected_domain',
+      expected_domains: ['codehs.com'],
+    })
+
+    expect(normalizeAssignmentSubmissionValidationPolicy('link', {
+      mode: 'expected_domain',
+      expected_domains: [],
+    })).toEqual({
+      mode: 'format_only',
+      expected_domains: [],
+    })
+
+    expect(normalizeAssignmentSubmissionValidationPolicy('repo_link', {
+      mode: 'reachable',
+    })).toEqual({
+      mode: 'format_only',
+      expected_domains: [],
+    })
+  })
 })
 
 describe('getSubmissionRequirementCompletion', () => {
@@ -108,6 +135,22 @@ describe('getSubmissionRequirementCompletion', () => {
     expect(invalidCompletion.canSubmit).toBe(false)
     expect(invalidCompletion.blockingRequirementIds).toEqual(['req-1'])
   })
+
+  it('labels format-only links as saved and verified links as verified', () => {
+    expect(getSubmissionArtifactStatusLabel(artifact({
+      validation_status: 'valid',
+      metadata_json: { validation_level: 'format_only' },
+    }))).toBe('Saved')
+
+    expect(getSubmissionArtifactStatusLabel(artifact({
+      validation_status: 'valid',
+      metadata_json: { validation_level: 'verified' },
+    }))).toBe('Verified')
+
+    expect(getSubmissionArtifactStatusLabel(artifact({
+      validation_status: 'warning',
+    }))).toBe('Needs review')
+  })
 })
 
 describe('submissionArtifactsToAssignmentArtifacts', () => {
@@ -137,6 +180,8 @@ describe('submissionArtifactsToAssignmentArtifacts', () => {
         is_required_submission: true,
         requirement_id: 'req-1',
         requirement_required: true,
+        validation_status: 'valid',
+        validation_message: null,
         repo_owner: 'codepetca',
         repo_name: 'pika',
         normalized_url: 'https://github.com/codepetca/pika',
@@ -148,6 +193,8 @@ describe('submissionArtifactsToAssignmentArtifacts', () => {
         is_required_submission: true,
         requirement_id: 'req-2',
         requirement_required: true,
+        validation_status: 'valid',
+        validation_message: null,
       },
     ])
   })
@@ -174,6 +221,8 @@ describe('submissionArtifactsToAssignmentArtifacts', () => {
         is_required_submission: false,
         requirement_id: 'req-demo',
         requirement_required: false,
+        validation_status: 'valid',
+        validation_message: null,
       },
     ])
   })

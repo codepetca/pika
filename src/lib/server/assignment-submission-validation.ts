@@ -1,5 +1,10 @@
 import { isIP } from 'node:net'
+import { lookup } from 'node:dns/promises'
 import { parseGitHubRepoReference } from '@/lib/github-repos'
+import {
+  normalizeAssignmentSubmissionValidationPolicy,
+  type AssignmentSubmissionValidationPolicy,
+} from '@/lib/assignment-submission-requirements'
 import { validatePublicGitHubRepo } from '@/lib/server/assignment-repo-targets'
 import type {
   AssignmentArtifactValidationStatus,
@@ -7,6 +12,9 @@ import type {
 } from '@/types'
 
 const GITHUB_API_BASE = 'https://api.github.com'
+const LINK_VALIDATION_TIMEOUT_MS = 3500
+const LINK_VALIDATION_REDIRECT_LIMIT = 3
+const LINK_VALIDATION_MAX_BODY_CHARS = 24_000
 
 export type ArtifactValidationResult = {
   validation_status: AssignmentArtifactValidationStatus
@@ -16,6 +24,19 @@ export type ArtifactValidationResult = {
   github_login_validation_status?: 'valid' | 'invalid' | 'inaccessible'
   github_login_validation_message?: string | null
 }
+
+type LinkReachabilityResult = {
+  ok: boolean
+  finalUrl: string
+  status: number | null
+  title: string | null
+  loginLike: boolean
+  error: string | null
+}
+
+type PublicResolutionResult =
+  | { ok: true }
+  | { ok: false; error: string }
 
 export function getGitHubIdentityValidationFromArtifact(
   validation: ArtifactValidationResult
@@ -148,6 +169,178 @@ export function normalizePublicUrl(value: string | null | undefined): string | n
   }
 }
 
+async function validatePublicUrlResolution(url: string): Promise<PublicResolutionResult> {
+  let hostname = ''
+  try {
+    hostname = new URL(url).hostname
+  } catch {
+    return { ok: false, error: 'Enter a public http or https URL.' }
+  }
+
+  if (isBlockedPublicLinkHostname(hostname)) {
+    return { ok: false, error: 'Enter a public http or https URL.' }
+  }
+
+  if (isIP(normalizeHostnameForIpCheck(hostname)) !== 0) {
+    return { ok: true }
+  }
+
+  try {
+    const addresses = await lookup(hostname, { all: true, verbatim: true })
+    if (addresses.length === 0) {
+      return { ok: false, error: 'Pika could not resolve this link right now.' }
+    }
+    if (addresses.some((address) => isBlockedIpAddress(address.address))) {
+      return { ok: false, error: 'Enter a public http or https URL.' }
+    }
+    return { ok: true }
+  } catch {
+    return { ok: false, error: 'Pika could not resolve this link right now.' }
+  }
+}
+
+function getComparableHostname(url: string): string | null {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, '')
+  } catch {
+    return null
+  }
+}
+
+function hostnameMatchesExpected(hostname: string, expectedDomains: string[]): boolean {
+  const comparable = hostname.toLowerCase().replace(/^www\./, '')
+  return expectedDomains.some((domain) => comparable === domain || comparable.endsWith(`.${domain}`))
+}
+
+function resolveRedirectUrl(currentUrl: string, location: string | null): string | null {
+  if (!location) return null
+
+  try {
+    return normalizePublicUrl(new URL(location, currentUrl).href)
+  } catch {
+    return null
+  }
+}
+
+function getHtmlTitle(html: string): string | null {
+  const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
+  if (!match?.[1]) return null
+  return match[1].replace(/\s+/g, ' ').trim().slice(0, 140) || null
+}
+
+function isLoginLikePage(url: string, html: string): boolean {
+  const haystack = `${url}\n${html.slice(0, LINK_VALIDATION_MAX_BODY_CHARS)}`.toLowerCase()
+  const loginSignals = [
+    'sign in',
+    'signin',
+    'log in',
+    'login',
+    'password',
+    'authentication required',
+    'access denied',
+    'permission denied',
+    'private',
+  ]
+  return loginSignals.some((signal) => haystack.includes(signal))
+}
+
+async function readSmallResponseBody(response: Response): Promise<string> {
+  if (!response.body) return ''
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+
+  try {
+    while (total < LINK_VALIDATION_MAX_BODY_CHARS) {
+      const result = await reader.read()
+      if (result.done) break
+      chunks.push(result.value)
+      total += result.value.byteLength
+    }
+  } finally {
+    reader.cancel().catch(() => {})
+  }
+
+  return new TextDecoder().decode(Buffer.concat(chunks).subarray(0, LINK_VALIDATION_MAX_BODY_CHARS))
+}
+
+async function checkPublicLinkReachability(url: string): Promise<LinkReachabilityResult> {
+  let currentUrl = url
+
+  for (let redirectCount = 0; redirectCount <= LINK_VALIDATION_REDIRECT_LIMIT; redirectCount += 1) {
+    const resolution = await validatePublicUrlResolution(currentUrl)
+    if (!resolution.ok) {
+      return {
+        ok: false,
+        finalUrl: currentUrl,
+        status: null,
+        title: null,
+        loginLike: false,
+        error: resolution.error,
+      }
+    }
+
+    try {
+      const response = await fetch(currentUrl, {
+        method: 'GET',
+        redirect: 'manual',
+        cache: 'no-store',
+        signal: AbortSignal.timeout(LINK_VALIDATION_TIMEOUT_MS),
+        headers: {
+          Accept: 'text/html,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.4',
+          Range: `bytes=0-${LINK_VALIDATION_MAX_BODY_CHARS - 1}`,
+        },
+      })
+
+      if (response.status >= 300 && response.status < 400) {
+        const nextUrl = resolveRedirectUrl(currentUrl, response.headers.get('location'))
+        if (!nextUrl) {
+          return {
+            ok: false,
+            finalUrl: currentUrl,
+            status: response.status,
+            title: null,
+            loginLike: false,
+            error: 'Redirect target is not a public URL.',
+          }
+        }
+        currentUrl = nextUrl
+        continue
+      }
+
+      const body = await readSmallResponseBody(response)
+      return {
+        ok: response.ok,
+        finalUrl: currentUrl,
+        status: response.status,
+        title: getHtmlTitle(body),
+        loginLike: isLoginLikePage(currentUrl, body),
+        error: response.ok ? null : `Page returned HTTP ${response.status}.`,
+      }
+    } catch (error) {
+      return {
+        ok: false,
+        finalUrl: currentUrl,
+        status: null,
+        title: null,
+        loginLike: false,
+        error: error instanceof Error && error.name === 'TimeoutError'
+          ? 'Pika could not reach this link before the check timed out.'
+          : 'Pika could not reach this link right now.',
+      }
+    }
+  }
+
+  return {
+    ok: false,
+    finalUrl: currentUrl,
+    status: null,
+    title: null,
+    loginLike: false,
+    error: 'Link redirected too many times.',
+  }
+}
+
 function getGitHubToken(): string | null {
   const key = process.env.GITHUB_PAT?.trim() || process.env.GITHUB_FEEDBACK_TOKEN?.trim() || ''
   return key || null
@@ -199,6 +392,7 @@ export async function validateAssignmentSubmissionArtifactValue(opts: {
   url?: string | null
   storagePath?: string | null
   githubLogin?: string | null
+  validationPolicy?: Record<string, unknown> | null
 }): Promise<ArtifactValidationResult> {
   if (opts.type === 'image') {
     if (!opts.storagePath?.trim()) {
@@ -284,10 +478,87 @@ export async function validateAssignmentSubmissionArtifactValue(opts: {
     }
   }
 
+  const policy: AssignmentSubmissionValidationPolicy = normalizeAssignmentSubmissionValidationPolicy(
+    opts.type,
+    opts.validationPolicy
+  )
+  if (policy.mode === 'format_only') {
+    return {
+      validation_status: 'valid',
+      validation_message: null,
+      metadata_json: {
+        validation: 'format_only',
+        validation_level: 'format_only',
+      },
+      normalized_url: normalizedUrl,
+    }
+  }
+
+  const initialHostname = getComparableHostname(normalizedUrl)
+  if (policy.mode === 'expected_domain' && initialHostname && !hostnameMatchesExpected(initialHostname, policy.expected_domains)) {
+    return {
+      validation_status: 'invalid',
+      validation_message: `Link must point to ${policy.expected_domains.join(' or ')}.`,
+      metadata_json: {
+        validation: policy.mode,
+        validation_level: 'format_only',
+        checked_host: initialHostname,
+        expected_domains: policy.expected_domains,
+      },
+      normalized_url: normalizedUrl,
+    }
+  }
+
+  const reachability = await checkPublicLinkReachability(normalizedUrl)
+  const finalHostname = getComparableHostname(reachability.finalUrl)
+  const metadata = {
+    validation: policy.mode,
+    validation_level: 'verified',
+    final_url: reachability.finalUrl,
+    checked_host: finalHostname,
+    http_status: reachability.status,
+    page_title: reachability.title,
+    expected_domains: policy.expected_domains,
+  }
+
+  if (policy.mode === 'expected_domain' && finalHostname && !hostnameMatchesExpected(finalHostname, policy.expected_domains)) {
+    return {
+      validation_status: 'invalid',
+      validation_message: `Link must point to ${policy.expected_domains.join(' or ')}.`,
+      metadata_json: metadata,
+      normalized_url: normalizedUrl,
+    }
+  }
+
+  if (!reachability.ok) {
+    return {
+      validation_status: 'warning',
+      validation_message: reachability.error ?? 'Pika could not verify this link right now.',
+      metadata_json: {
+        ...metadata,
+        validation_level: 'review',
+      },
+      normalized_url: normalizedUrl,
+    }
+  }
+
+  if (reachability.loginLike) {
+    return {
+      validation_status: 'warning',
+      validation_message: 'This page may require login or extra access. Your teacher may need to review it.',
+      metadata_json: {
+        ...metadata,
+        validation_level: 'review',
+        login_like: true,
+      },
+      normalized_url: normalizedUrl,
+    }
+  }
+
   return {
     validation_status: 'valid',
     validation_message: null,
-    metadata_json: { validation: 'format_only' },
+    metadata_json: metadata,
     normalized_url: normalizedUrl,
   }
 }

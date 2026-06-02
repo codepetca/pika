@@ -19,9 +19,12 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { FolderGit2, GripVertical, ImageIcon, Link2, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { Button, ConfirmDialog, FormField, Input, SplitButton, Tooltip, TooltipProvider, cn } from '@/ui'
+import { Button, ConfirmDialog, FormField, Input, Select, SplitButton, Tooltip, TooltipProvider, cn } from '@/ui'
 import {
   DEFAULT_REQUIREMENT_LABELS,
+  LINK_VALIDATION_MODE_LABELS,
+  normalizeAssignmentSubmissionValidationPolicy,
+  type AssignmentLinkValidationMode,
   type AssignmentSubmissionRequirementDraft,
 } from '@/lib/assignment-submission-requirements'
 import type { AssignmentSubmissionRequirementType } from '@/types'
@@ -39,6 +42,12 @@ const TYPE_OPTIONS: Array<{
   { type: 'link', label: 'Link' },
   { type: 'repo_link', label: 'Repo' },
   { type: 'image', label: 'Image' },
+]
+
+const LINK_VALIDATION_OPTIONS: Array<{ value: AssignmentLinkValidationMode; label: string }> = [
+  { value: 'format_only', label: LINK_VALIDATION_MODE_LABELS.format_only },
+  { value: 'reachable', label: LINK_VALIDATION_MODE_LABELS.reachable },
+  { value: 'expected_domain', label: LINK_VALIDATION_MODE_LABELS.expected_domain },
 ]
 
 function RequirementIcon({ type }: { type: AssignmentSubmissionRequirementType }) {
@@ -62,6 +71,18 @@ function AddRequirementLabel({ type, label }: {
 
 function withPositions(requirements: AssignmentSubmissionRequirementDraft[]) {
   return requirements.map((requirement, position) => ({ ...requirement, position }))
+}
+
+function buildLinkValidationPolicyPatch(
+  mode: AssignmentLinkValidationMode,
+  expectedDomain: string
+): Record<string, unknown> {
+  if (mode === 'format_only') return {}
+  if (mode === 'reachable') return { mode }
+  return {
+    mode,
+    expected_domains: expectedDomain.trim() ? [expectedDomain.trim()] : [],
+  }
 }
 
 interface SortableRequirementRowProps {
@@ -97,6 +118,34 @@ function SortableRequirementRow({
     transform: CSS.Transform.toString(transform),
     transition: isDragging ? undefined : transition,
   }
+  const linkPolicy = normalizeAssignmentSubmissionValidationPolicy(
+    requirement.type,
+    requirement.validation_policy_json
+  )
+  const rawMode = typeof requirement.validation_policy_json?.mode === 'string'
+    ? requirement.validation_policy_json.mode
+    : ''
+  const linkValidationMode = LINK_VALIDATION_OPTIONS.some((option) => option.value === rawMode)
+    ? rawMode as AssignmentLinkValidationMode
+    : linkPolicy.mode
+  const rawExpectedDomains = Array.isArray(requirement.validation_policy_json?.expected_domains)
+    ? requirement.validation_policy_json.expected_domains
+    : []
+  const expectedDomain = typeof rawExpectedDomains[0] === 'string'
+    ? rawExpectedDomains[0]
+    : linkPolicy.expected_domains[0] ?? ''
+
+  function updateLinkValidationMode(mode: AssignmentLinkValidationMode) {
+    onUpdate(index, {
+      validation_policy_json: buildLinkValidationPolicyPatch(mode, expectedDomain),
+    })
+  }
+
+  function updateExpectedDomain(domain: string) {
+    onUpdate(index, {
+      validation_policy_json: buildLinkValidationPolicyPatch('expected_domain', domain),
+    })
+  }
 
   return (
     <div
@@ -125,33 +174,57 @@ function SortableRequirementRow({
         </button>
         <RequirementIcon type={requirement.type} />
       </div>
-      <div className="grid gap-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_auto]">
-        <FormField label="Label" hideLabel>
-          <Input
-            value={requirement.label ?? ''}
-            disabled={disabled}
-            onChange={(event) => onUpdate(index, { label: event.target.value })}
-            placeholder="Submission label"
-          />
-        </FormField>
-        <FormField label="Instructions" hideLabel>
-          <Input
-            value={requirement.instructions ?? ''}
-            disabled={disabled}
-            onChange={(event) => onUpdate(index, { instructions: event.target.value })}
-            placeholder="Optional helper text"
-          />
-        </FormField>
-        <label className="flex items-end gap-2 pb-2 text-sm text-text-default">
-          <input
-            type="checkbox"
-            checked={requirement.required !== false}
-            disabled={disabled}
-            onChange={(event) => onUpdate(index, { required: event.target.checked })}
-            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-          />
-          Required
-        </label>
+      <div className="grid gap-2">
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_auto]">
+          <FormField label="Label" hideLabel>
+            <Input
+              value={requirement.label ?? ''}
+              disabled={disabled}
+              onChange={(event) => onUpdate(index, { label: event.target.value })}
+              placeholder="Submission label"
+            />
+          </FormField>
+          <FormField label="Instructions" hideLabel>
+            <Input
+              value={requirement.instructions ?? ''}
+              disabled={disabled}
+              onChange={(event) => onUpdate(index, { instructions: event.target.value })}
+              placeholder="Optional helper text"
+            />
+          </FormField>
+          <label className="flex items-end gap-2 pb-2 text-sm text-text-default">
+            <input
+              type="checkbox"
+              checked={requirement.required !== false}
+              disabled={disabled}
+              onChange={(event) => onUpdate(index, { required: event.target.checked })}
+              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+            />
+            Required
+          </label>
+        </div>
+        {requirement.type === 'link' ? (
+          <div className="grid gap-2 rounded-md border border-border bg-surface-2 p-2 sm:grid-cols-[minmax(9rem,0.4fr)_minmax(0,1fr)]">
+            <FormField label="Check">
+              <Select
+                value={linkValidationMode}
+                options={LINK_VALIDATION_OPTIONS}
+                disabled={disabled}
+                onChange={(event) => updateLinkValidationMode(event.target.value as AssignmentLinkValidationMode)}
+              />
+            </FormField>
+            {linkValidationMode === 'expected_domain' ? (
+              <FormField label="Expected domain">
+                <Input
+                  value={expectedDomain}
+                  disabled={disabled}
+                  placeholder="codehs.com"
+                  onChange={(event) => updateExpectedDomain(event.target.value)}
+                />
+              </FormField>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       <div className="flex items-center justify-end gap-1">
         <Tooltip content="Remove">

@@ -1000,3 +1000,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Post-PR draft recovery rerun: `pnpm test tests/components/StudentTodayTabHistory.test.tsx tests/components/AuthSessionWatcher.test.tsx tests/components/AppHeader.test.tsx && pnpm lint && pnpm build`
 - Post-PR restored-draft autosave rerun: `pnpm test tests/components/StudentTodayTabHistory.test.tsx tests/components/AuthSessionWatcher.test.tsx tests/components/AppHeader.test.tsx && pnpm lint && pnpm build`
+## 2026-06-02 — Assignment artifact validation policy
+
+**Completed:**
+- Renamed the default generic submission artifact label from `Public link` to `Link` and changed student link inputs from `Public URL` to `URL`.
+- Added link validation policy helpers for basic URL, reachable page, and expected-site checks using existing `validation_policy_json`.
+- Added compact teacher controls for link requirement validation and carried validation status into teacher artifact displays.
+- Extended generic link validation with safe URL normalization, DNS/private-host guards, host-first expected-domain rejection, bounded fetch checks, redirect caps, timeout handling, and soft `Needs review` results for inconclusive pages.
+- Updated focused unit/component/API coverage for validation policy behavior, student status copy, teacher controls, and artifact metadata.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/assignment-submission-validation.test.ts tests/lib/assignment-submission-requirements.test.ts tests/components/StudentAssignmentSubmissionChecklist.test.tsx tests/components/AssignmentModal.test.tsx tests/components/AssignmentArtifactsCell.test.tsx tests/api/teacher/assignments-id.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test` failed under concurrent build load with two unrelated 5s timeouts and one updated expectation; reran the failed tests successfully with `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/unit/ai-startup-docs.test.ts tests/api/teacher/assignments-id.test.ts`.
+- Visual verification: `pika-ui-verify` classroom screenshots plus targeted teacher assignment link-policy and student submission checklist screenshots.

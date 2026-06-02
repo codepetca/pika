@@ -7,6 +7,17 @@ import {
   validateAssignmentSubmissionArtifactValue,
 } from '@/lib/server/assignment-submission-validation'
 
+const dnsMocks = vi.hoisted(() => ({
+  lookup: vi.fn(async () => [{ address: '93.184.216.34', family: 4 }]),
+}))
+
+vi.mock('node:dns/promises', () => ({
+  lookup: dnsMocks.lookup,
+  default: {
+    lookup: dnsMocks.lookup,
+  },
+}))
+
 vi.mock('@/lib/server/assignment-repo-targets', () => ({
   validatePublicGitHubRepo: vi.fn(async (repoUrl: string) => ({
     repoUrl: 'https://github.com/codepetca/pika',
@@ -93,9 +104,104 @@ describe('assignment submission validation helpers', () => {
     expect(result).toEqual({
       validation_status: 'valid',
       validation_message: null,
-      metadata_json: { validation: 'format_only' },
+      metadata_json: {
+        validation: 'format_only',
+        validation_level: 'format_only',
+      },
       normalized_url: 'https://example.com/missing',
     })
+    expect(fetchSpy).not.toHaveBeenCalled()
+
+    vi.unstubAllGlobals()
+  })
+
+  it('verifies reachable links when the teacher asks for a page check', async () => {
+    dnsMocks.lookup.mockResolvedValueOnce([{ address: '93.184.216.34', family: 4 }])
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<title>Student Project</title>', {
+      status: 200,
+    })))
+
+    const result = await validateAssignmentSubmissionArtifactValue({
+      type: 'link',
+      url: 'https://example.com/project',
+      validationPolicy: { mode: 'reachable' },
+    })
+
+    expect(result.validation_status).toBe('valid')
+    expect(result.validation_message).toBeNull()
+    expect(result.metadata_json).toMatchObject({
+      validation: 'reachable',
+      validation_level: 'verified',
+      final_url: 'https://example.com/project',
+      checked_host: 'example.com',
+      http_status: 200,
+      page_title: 'Student Project',
+    })
+
+    vi.unstubAllGlobals()
+  })
+
+  it('flags expected-domain links when the final host does not match', async () => {
+    const fetchSpy = vi.fn(async () => new Response('<title>Wrong site</title>', {
+      status: 200,
+    }))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const result = await validateAssignmentSubmissionArtifactValue({
+      type: 'link',
+      url: 'https://example.com/project',
+      validationPolicy: {
+        mode: 'expected_domain',
+        expected_domains: ['codehs.com'],
+      },
+    })
+
+    expect(result).toMatchObject({
+      validation_status: 'invalid',
+      validation_message: 'Link must point to codehs.com.',
+      normalized_url: 'https://example.com/project',
+    })
+    expect(fetchSpy).not.toHaveBeenCalled()
+
+    vi.unstubAllGlobals()
+  })
+
+  it('marks unreachable policy-checked links for teacher review instead of blocking as inaccessible', async () => {
+    dnsMocks.lookup.mockResolvedValueOnce([{ address: '93.184.216.34', family: 4 }])
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not found', {
+      status: 404,
+    })))
+
+    const result = await validateAssignmentSubmissionArtifactValue({
+      type: 'link',
+      url: 'https://example.com/missing',
+      validationPolicy: { mode: 'reachable' },
+    })
+
+    expect(result.validation_status).toBe('warning')
+    expect(result.validation_message).toBe('Page returned HTTP 404.')
+    expect(result.metadata_json).toMatchObject({
+      validation: 'reachable',
+      validation_level: 'review',
+      http_status: 404,
+    })
+
+    vi.unstubAllGlobals()
+  })
+
+  it('does not fetch policy-checked links that resolve to private addresses', async () => {
+    const fetchSpy = vi.fn()
+    dnsMocks.lookup.mockResolvedValueOnce([{ address: '10.0.0.5', family: 4 }])
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const result = await validateAssignmentSubmissionArtifactValue({
+      type: 'link',
+      url: 'https://internal.example.com/project',
+      validationPolicy: { mode: 'reachable' },
+    })
+
+    expect(result.validation_status).toBe('warning')
+    expect(result.validation_message).toBe('Enter a public http or https URL.')
     expect(fetchSpy).not.toHaveBeenCalled()
 
     vi.unstubAllGlobals()

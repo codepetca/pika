@@ -13,7 +13,7 @@ Ship a small app and submit the required evidence.
 
 ### Submission Requirements
 - repo_link | Repo link | required | Use your public GitHub repository.
-- link | Public link | required | Paste the deployed project or demo URL.
+- link | Link | required | Paste the deployed project or demo URL.
 - image | Screenshot | optional | Upload a screenshot of the working app.
 ---
 ```

@@ -31,11 +31,14 @@ function RequirementIcon({ type }: { type: AssignmentSubmissionRequirement['type
 }
 
 function StatusIcon({ item }: { item: ReturnType<typeof getSubmissionRequirementCompletion>['items'][number] }) {
-  if (item.isPresent && !item.isBlocking) {
-    return <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
-  }
   if (item.artifact?.validation_status === 'pending') {
     return <Loader2 className="h-4 w-4 animate-spin text-text-muted" aria-hidden="true" />
+  }
+  if (item.isPresent && item.artifact?.validation_status === 'valid') {
+    return <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+  }
+  if (item.isPresent && !item.artifact?.validation_status) {
+    return <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
   }
   return <AlertCircle className="h-4 w-4 text-warning" aria-hidden="true" />
 }
@@ -218,7 +221,7 @@ export function StudentAssignmentSubmissionChecklist({
               ) : (
                 <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
                   <div className={requirement.type === 'repo_link' ? 'grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(9rem,0.35fr)]' : ''}>
-                    <FormField label={requirement.type === 'repo_link' ? 'Repository URL' : 'Public URL'}>
+                    <FormField label={requirement.type === 'repo_link' ? 'Repository URL' : 'URL'}>
                       <Input
                         value={draft.url}
                         disabled={disabled || isSaving}
