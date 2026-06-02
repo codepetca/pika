@@ -10,6 +10,7 @@ import {
   gradeAssignmentDocWithAi,
   markAssignmentDocMissingGrade,
 } from '@/lib/server/assignment-ai-grading-runs'
+import { isGradexAssignmentGradingEnabled } from '@/lib/server/gradex-assignment-grading'
 import { loadAssignmentSubmissionArtifactsForDoc } from '@/lib/server/assignment-submission-artifacts'
 import { validateClassroomStudentIds } from '@/lib/server/classroom-enrollment-validation'
 import { assertTeacherCanMutateAssignment } from '@/lib/server/repo-review'
@@ -52,7 +53,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
     return NextResponse.json({ error: 'Student is not enrolled in this classroom' }, { status: 400 })
   }
 
-  if (normalizedStudentIds.length > 1) {
+  if (normalizedStudentIds.length > 1 || isGradexAssignmentGradingEnabled()) {
     const runResult = await createOrResumeAssignmentAiGradingRun({
       assignmentId: id,
       teacherId: user.id,
