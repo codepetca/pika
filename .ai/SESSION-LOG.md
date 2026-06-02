@@ -8,23 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-28 — Assignment list stats enrollment scoping
-
-**Completed:**
-- Scoped teacher assignment list stats to currently enrolled classroom students.
-- Reused `getClassroomStudentIds()` for paginated enrollment ids and total student count.
-- Bulk-loaded assignment docs by assignment ids and enrolled student ids, chunking large `.in()` filters to avoid oversized PostgREST URLs while preserving the `teacher_cleared_at` missing-column fallback.
-- Added regressions for withdrawn-student docs, large-roster chunking, fallback scoping, zero-enrollment stats, and enrollment lookup failures.
-
-**Validation:**
-- `pnpm vitest run tests/api/teacher/assignments.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm test -- --runInBand`
-- `pnpm build`
-- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
-- `git diff --check`
-
 ## 2026-05-29 — Skill progression map from PR review patterns
 
 **Completed:**
@@ -124,6 +107,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm test`
 - `pnpm build`
+- `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
 - `git diff --check`
 
@@ -997,3 +981,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm smoke:gradex -- --dry-run`
 - `pnpm smoke:gradex` reached Gradex run creation against the configured deployed API URL, then stopped because no `GRADEX_INTERNAL_TOKEN`/worker is configured to process the queued run.
 - `GRADEX_API_URL=http://127.0.0.1:3001 GRADEX_API_KEY=... GRADEX_INTERNAL_TOKEN=... pnpm smoke:gradex` completed end-to-end against a controlled local Gradex dev server.
+
+## 2026-06-02 — Daily log save and session hardening
+
+**Completed:**
+- Fixed the student daily-log autosave race where an older save response could mark newer, still-unsaved visible content as `Saved`.
+- Added explicit daily-log handling for expired-session save responses so the entry remains `Unsaved`, shows a session-expired message, and redirects to login.
+- Added silent daily-log draft recovery in `sessionStorage` so unsaved text typed before an expired-session redirect is restored after login, remains marked `Unsaved`, and automatically retries saving once the page reloads with an active session.
+- Added a client-side authenticated-layout session watcher for classroom, student, and teacher pages to detect expired or wrong-role sessions while a stale page is still mounted.
+- Added focused regression coverage for stale daily-log save responses, expired-session save redirects, draft recovery, and the session watcher.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/StudentTodayTabHistory.test.tsx tests/components/AuthSessionWatcher.test.tsx tests/api/student/entries.test.ts tests/api/auth/me.test.ts`
+- `pnpm lint`
+- `pnpm test` (303 files, 2656 tests)
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Post-PR draft recovery rerun: `pnpm test tests/components/StudentTodayTabHistory.test.tsx tests/components/AuthSessionWatcher.test.tsx tests/components/AppHeader.test.tsx && pnpm lint && pnpm build`
+- Post-PR restored-draft autosave rerun: `pnpm test tests/components/StudentTodayTabHistory.test.tsx tests/components/AuthSessionWatcher.test.tsx tests/components/AppHeader.test.tsx && pnpm lint && pnpm build`
