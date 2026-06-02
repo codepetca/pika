@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import Link from 'next/link'
 import { PikaLogo } from '@/components/PikaLogo'
+import { AuthSessionWatcher } from '@/components/AuthSessionWatcher'
 
 export default async function StudentLayout({
   children,
@@ -20,6 +21,7 @@ export default async function StudentLayout({
 
   return (
     <div className="min-h-screen bg-page">
+      <AuthSessionWatcher expectedRole="student" />
       <nav className="bg-surface shadow-sm border-b border-border">
         <div className="mx-auto max-w-4xl px-4 py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
