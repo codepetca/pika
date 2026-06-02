@@ -8,22 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-30 — Validation pass completed
-
-**Completed:**
-- Installed worktree dependencies with `pnpm install --frozen-lockfile`.
-- Ran focused validation for the new guardrail and guidance work.
-- Fixed one over-strict unit-test expectation in [`tests/unit/query-chunks.test.ts`](/Users/stew/.codex/worktrees/f558/pika/tests/unit/query-chunks.test.ts) after confirming the loader legitimately re-applies filter chunks across pagination pages.
-- Fixed one TypeScript build issue in [`src/lib/server/query-chunks.ts`](/Users/stew/.codex/worktrees/f558/pika/src/lib/server/query-chunks.ts) by adding an explicit recursive return type for the internal `visit` helper.
-
-**Validation:**
-- `pnpm install --frozen-lockfile`
-- `pnpm vitest run tests/unit/query-chunks.test.ts tests/unit/classroom-enrollment-validation.test.ts tests/unit/ui-guidance-docs.test.ts tests/api/teacher/assignments-auto-grade.test.ts --reporter=verbose`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm lint`
-- `pnpm build`
-- `git diff --check`
-
 ## 2026-05-30 — Path-aware audit test matching
 
 **Completed:**
@@ -1007,3 +991,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - Rereview: no remaining findings in the updated link reachability path.
+
+## 2026-06-02 — Snapshot gallery phase-2 hardening
+
+**Completed:**
+- Added server-side hardening for `/snapshots-gallery` in [`src/app/snapshots-gallery/page.tsx`](/Users/stew/.codex/worktrees/pika/snapshot-gallery-phase2/src/app/snapshots-gallery/page.tsx):
+  - Gate for `ENABLE_UI_GALLERY === 'true'` with `notFound()`.
+  - Enforce authenticated teacher access via `requireSnapshotGalleryAccess()`.
+  - Redirect unauthenticated users to `/login` and 404 on authorization failures.
+- Hardened snapshot client loading in [`src/app/snapshots-gallery/SnapshotGallery.tsx`](/Users/stew/.codex/worktrees/pika/snapshot-gallery-phase2/src/app/snapshots-gallery/SnapshotGallery.tsx):
+  - Added non-OK HTTP response handling.
+  - Added runtime payload-shape validation before rendering.
+  - Added explicit error state and recoverable "no matching snapshots" filter-empty state.
+- Added regression coverage for snapshot gallery client loading in [`tests/components/SnapshotGallery.test.tsx`](/Users/stew/.codex/worktrees/pika/snapshot-gallery-phase2/tests/components/SnapshotGallery.test.tsx).
+
+**Validation:**
+- `pnpm exec vitest run tests/components/SnapshotGallery.test.tsx tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm build`
+- `bash scripts/trim-session-log.mjs`
