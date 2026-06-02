@@ -1,5 +1,8 @@
 import { isIP } from 'node:net'
 import { lookup } from 'node:dns/promises'
+import { request as httpRequest } from 'node:http'
+import { request as httpsRequest } from 'node:https'
+import type { IncomingMessage, RequestOptions } from 'node:http'
 import { parseGitHubRepoReference } from '@/lib/github-repos'
 import {
   normalizeAssignmentSubmissionValidationPolicy,
@@ -35,8 +38,14 @@ type LinkReachabilityResult = {
 }
 
 type PublicResolutionResult =
-  | { ok: true }
+  | { ok: true; address: string; family: 4 | 6 }
   | { ok: false; error: string }
+
+type BoundedHttpResponse = {
+  status: number
+  location: string | null
+  body: string
+}
 
 export function getGitHubIdentityValidationFromArtifact(
   validation: ArtifactValidationResult
@@ -181,8 +190,13 @@ async function validatePublicUrlResolution(url: string): Promise<PublicResolutio
     return { ok: false, error: 'Enter a public http or https URL.' }
   }
 
-  if (isIP(normalizeHostnameForIpCheck(hostname)) !== 0) {
-    return { ok: true }
+  const literalIpVersion = isIP(normalizeHostnameForIpCheck(hostname))
+  if (literalIpVersion === 4 || literalIpVersion === 6) {
+    return {
+      ok: true,
+      address: normalizeHostnameForIpCheck(hostname),
+      family: literalIpVersion,
+    }
   }
 
   try {
@@ -193,7 +207,15 @@ async function validatePublicUrlResolution(url: string): Promise<PublicResolutio
     if (addresses.some((address) => isBlockedIpAddress(address.address))) {
       return { ok: false, error: 'Enter a public http or https URL.' }
     }
-    return { ok: true }
+    const selectedAddress = addresses.find((address) => address.family === 4 || address.family === 6)
+    if (!selectedAddress || (selectedAddress.family !== 4 && selectedAddress.family !== 6)) {
+      return { ok: false, error: 'Pika could not resolve this link right now.' }
+    }
+    return {
+      ok: true,
+      address: selectedAddress.address,
+      family: selectedAddress.family,
+    }
   } catch {
     return { ok: false, error: 'Pika could not resolve this link right now.' }
   }
@@ -244,24 +266,84 @@ function isLoginLikePage(url: string, html: string): boolean {
   return loginSignals.some((signal) => haystack.includes(signal))
 }
 
-async function readSmallResponseBody(response: Response): Promise<string> {
-  if (!response.body) return ''
-  const reader = response.body.getReader()
-  const chunks: Uint8Array[] = []
+async function readSmallResponseBody(response: IncomingMessage): Promise<string> {
+  const chunks: Buffer[] = []
   let total = 0
 
-  try {
-    while (total < LINK_VALIDATION_MAX_BODY_CHARS) {
-      const result = await reader.read()
-      if (result.done) break
-      chunks.push(result.value)
-      total += result.value.byteLength
-    }
-  } finally {
-    reader.cancel().catch(() => {})
+  return await new Promise((resolve, reject) => {
+    response.on('data', (chunk: Buffer | string) => {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+      if (total < LINK_VALIDATION_MAX_BODY_CHARS) {
+        const remaining = LINK_VALIDATION_MAX_BODY_CHARS - total
+        chunks.push(buffer.subarray(0, remaining))
+        total += Math.min(buffer.byteLength, remaining)
+      }
+      if (total >= LINK_VALIDATION_MAX_BODY_CHARS) {
+        response.destroy()
+        resolve(Buffer.concat(chunks).subarray(0, LINK_VALIDATION_MAX_BODY_CHARS).toString('utf8'))
+      }
+    })
+    response.on('end', () => {
+      resolve(Buffer.concat(chunks).subarray(0, LINK_VALIDATION_MAX_BODY_CHARS).toString('utf8'))
+    })
+    response.on('error', (error) => {
+      if (total >= LINK_VALIDATION_MAX_BODY_CHARS) return
+      reject(error)
+    })
+  })
+}
+
+async function requestSmallPublicUrl(
+  url: string,
+  resolution: Extract<PublicResolutionResult, { ok: true }>
+): Promise<BoundedHttpResponse> {
+  const parsed = new URL(url)
+  const isHttps = parsed.protocol === 'https:'
+  const request = isHttps ? httpsRequest : httpRequest
+  const options: RequestOptions = {
+    protocol: parsed.protocol,
+    hostname: resolution.address,
+    family: resolution.family,
+    port: parsed.port ? Number(parsed.port) : isHttps ? 443 : 80,
+    path: `${parsed.pathname}${parsed.search}`,
+    method: 'GET',
+    headers: {
+      Host: parsed.host,
+      Accept: 'text/html,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.4',
+      Range: `bytes=0-${LINK_VALIDATION_MAX_BODY_CHARS - 1}`,
+    },
+    timeout: LINK_VALIDATION_TIMEOUT_MS,
+    ...(isHttps ? { servername: parsed.hostname } : {}),
   }
 
-  return new TextDecoder().decode(Buffer.concat(chunks).subarray(0, LINK_VALIDATION_MAX_BODY_CHARS))
+  return await new Promise((resolve, reject) => {
+    const req = request(options, async (response) => {
+      const status = response.statusCode ?? 0
+      const locationHeader = response.headers.location
+      const location = Array.isArray(locationHeader) ? locationHeader[0] ?? null : locationHeader ?? null
+
+      if (status >= 300 && status < 400) {
+        response.resume()
+        resolve({ status, location, body: '' })
+        return
+      }
+
+      try {
+        const body = await readSmallResponseBody(response)
+        resolve({ status, location, body })
+      } catch (error) {
+        reject(error)
+      }
+    })
+
+    req.on('timeout', () => {
+      const error = new Error('Request timed out')
+      error.name = 'TimeoutError'
+      req.destroy(error)
+    })
+    req.on('error', reject)
+    req.end()
+  })
 }
 
 async function checkPublicLinkReachability(url: string): Promise<LinkReachabilityResult> {
@@ -281,19 +363,10 @@ async function checkPublicLinkReachability(url: string): Promise<LinkReachabilit
     }
 
     try {
-      const response = await fetch(currentUrl, {
-        method: 'GET',
-        redirect: 'manual',
-        cache: 'no-store',
-        signal: AbortSignal.timeout(LINK_VALIDATION_TIMEOUT_MS),
-        headers: {
-          Accept: 'text/html,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.4',
-          Range: `bytes=0-${LINK_VALIDATION_MAX_BODY_CHARS - 1}`,
-        },
-      })
+      const response = await requestSmallPublicUrl(currentUrl, resolution)
 
       if (response.status >= 300 && response.status < 400) {
-        const nextUrl = resolveRedirectUrl(currentUrl, response.headers.get('location'))
+        const nextUrl = resolveRedirectUrl(currentUrl, response.location)
         if (!nextUrl) {
           return {
             ok: false,
@@ -308,14 +381,13 @@ async function checkPublicLinkReachability(url: string): Promise<LinkReachabilit
         continue
       }
 
-      const body = await readSmallResponseBody(response)
       return {
-        ok: response.ok,
+        ok: response.status >= 200 && response.status < 300,
         finalUrl: currentUrl,
         status: response.status,
-        title: getHtmlTitle(body),
-        loginLike: isLoginLikePage(currentUrl, body),
-        error: response.ok ? null : `Page returned HTTP ${response.status}.`,
+        title: getHtmlTitle(response.body),
+        loginLike: isLoginLikePage(currentUrl, response.body),
+        error: response.status >= 200 && response.status < 300 ? null : `Page returned HTTP ${response.status}.`,
       }
     } catch (error) {
       return {

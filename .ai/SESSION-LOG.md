@@ -8,47 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-29 — Skill progression map from PR review patterns
-
-**Completed:**
-- Reviewed recent merged PRs #665-#676 plus nearby audit-fix PRs for recurring review and self-review themes.
-- Identified repeat hotspots around enrollment-scoped authorization, PostgREST query sizing/pagination, accessibility semantics, and verification depth.
-- Wrote a concrete next-skill map anchored to those PR and review patterns for the automation memory.
-
-**Validation:**
-- `bash scripts/verify-env.sh` (failed only because `node_modules` is absent in this worktree)
-- `gh pr list --state merged --limit 12 --json number,title,mergedAt,url,author,reviewDecision`
-- `gh api graphql` against recent merged PR reviews
-
-## 2026-05-30 — Shared enrollment and list-stat guardrails
-
-**Completed:**
-- Added shared chunked/paged Supabase row loading in [`src/lib/server/query-chunks.ts`](/Users/stew/.codex/worktrees/f558/pika/src/lib/server/query-chunks.ts) to centralize filter chunking and stable pagination.
-- Added shared classroom enrollment validation in [`src/lib/server/classroom-enrollment-validation.ts`](/Users/stew/.codex/worktrees/f558/pika/src/lib/server/classroom-enrollment-validation.ts) and routed test enrollment checks through it.
-- Replaced duplicated list-stat loading logic in teacher quizzes, surveys, and tests routes with the shared loader.
-- Replaced duplicated classroom enrollment validation in assignment auto-grade and assignment repo-target routes with the shared validator.
-- Added focused regression coverage for chunked/paged row loading and 51-student enrollment validation boundaries.
-
-**Validation:**
-- `git diff --check`
-- Static readback of all touched server routes and new tests
-- Full test/lint/build not run because `node_modules` is absent in this worktree
-
-## 2026-05-30 — Accessibility and validation audit gates
-
-**Completed:**
-- Reviewed the shared guardrail refactor and found no blocking route/runtime issues on static inspection.
-- Added the governed composite-widget accessibility checklist in [`docs/guidance/ui/composite-widget-accessibility.md`](/Users/stew/.codex/worktrees/f558/pika/docs/guidance/ui/composite-widget-accessibility.md).
-- Wired the new checklist into the UI canon, design guidance, and audit prompt/skill docs.
-- Extended the Pika audit script to flag missing changed-test coverage for risky server/runtime work and composite-widget UI work, plus emit reminder output for required validation reporting.
-- Fixed one audit false positive by limiting the `manual-catch` violation to unwrapped route files instead of any wrapped route helper catch.
-- Added doc/prompt regression coverage in [`tests/unit/ui-guidance-docs.test.ts`](/Users/stew/.codex/worktrees/f558/pika/tests/unit/ui-guidance-docs.test.ts).
-
-**Validation:**
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- Full Vitest/lint/build still not run because `node_modules` is absent in this worktree
-
 ## 2026-05-30 — Validation pass completed
 
 **Completed:**
@@ -1000,6 +959,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Post-PR draft recovery rerun: `pnpm test tests/components/StudentTodayTabHistory.test.tsx tests/components/AuthSessionWatcher.test.tsx tests/components/AppHeader.test.tsx && pnpm lint && pnpm build`
 - Post-PR restored-draft autosave rerun: `pnpm test tests/components/StudentTodayTabHistory.test.tsx tests/components/AuthSessionWatcher.test.tsx tests/components/AppHeader.test.tsx && pnpm lint && pnpm build`
+
 ## 2026-06-02 — Assignment artifact validation policy
 
 **Completed:**
@@ -1031,3 +991,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `git diff --check`
 - Visual verification: `pika-ui-verify` classroom screenshots plus targeted student assignment-detail screenshot confirming both unchanged artifact `Save` buttons are disabled.
+
+## 2026-06-02 — Bound link reachability checks to validated DNS
+
+**Completed:**
+- Replaced generic server-side `fetch` for artifact link reachability with bounded `http`/`https` requests that connect to the already-validated public IP address.
+- Preserved the submitted host in the `Host` header and HTTPS SNI while preventing a second uncontrolled DNS lookup during the actual request.
+- Kept redirect, timeout, and body-size caps, and tightened response-body storage to the configured 24 KB limit.
+- Added a regression proving reachable-link requests use the validated public IP while preserving original host metadata.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/assignment-submission-validation.test.ts`
+- `pnpm test tests/unit/assignment-submission-validation.test.ts tests/lib/assignment-submission-requirements.test.ts tests/components/StudentAssignmentSubmissionChecklist.test.tsx tests/components/AssignmentModal.test.tsx tests/components/AssignmentArtifactsCell.test.tsx tests/api/teacher/assignments-id.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Rereview: no remaining findings in the updated link reachability path.
