@@ -218,6 +218,43 @@ function mockFetchByStudent(
       })
     }
 
+    if (url.includes('/api/teacher/assignments/') && url.endsWith('/feedback-return')) {
+      const body = JSON.parse(String(init?.body || '{}')) as {
+        student_id: string
+        feedback: string
+      }
+      const config = studentMap[body.student_id]
+      const baseDoc = makeStudentWork(body.student_id, config || { graded: false }).doc
+      const returnedAt = '2026-02-20T14:05:00Z'
+
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          doc: {
+            ...baseDoc,
+            feedback: body.feedback,
+            teacher_feedback_draft: body.feedback,
+            teacher_feedback_draft_updated_at: returnedAt,
+            feedback_returned_at: returnedAt,
+            ai_feedback_suggestion: null,
+            ai_feedback_suggested_at: null,
+            ai_feedback_model: null,
+          },
+          entry: {
+            id: 'feedback-return-1',
+            assignment_id: 'assignment-1',
+            assignment_doc_id: baseDoc.id,
+            student_id: body.student_id,
+            entry_kind: 'teacher_feedback',
+            body: body.feedback,
+            returned_at: returnedAt,
+            created_by: 'teacher-1',
+            created_at: returnedAt,
+          },
+        }),
+      })
+    }
+
     if (url.includes('/api/teacher/assignments/') && url.endsWith('/grade')) {
       const body = JSON.parse(String(init?.body || '{}')) as {
         student_id: string
@@ -344,6 +381,35 @@ describe('TeacherStudentWorkPanel', () => {
     expect(within(gradesSection).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
     const feedbackSection = screen.getByTestId('inspector-section-comments')
     expect(within(feedbackSection).getByRole('button', { name: 'Send comment' })).toBeInTheDocument()
+  })
+
+  it('clears the comment draft after sending a comment and shows the sent comment', async () => {
+    mockFetchByStudent({
+      'student-1': { graded: false },
+    })
+
+    const user = userEvent.setup()
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    const draft = await screen.findByPlaceholderText('Teacher comment draft')
+    await user.type(draft, 'Use stronger evidence in the second paragraph.')
+    await user.click(screen.getByRole('button', { name: 'Send comment' }))
+
+    await waitFor(() => {
+      expect(draft).toHaveValue('')
+    })
+    expect(screen.getByText('Comments Sent')).toBeInTheDocument()
+    expect(screen.getByText('Use stronger evidence in the second paragraph.')).toBeInTheDocument()
   })
 
   it('renders structured artifacts when the written response is empty', async () => {
@@ -1235,6 +1301,8 @@ describe('TeacherStudentWorkPanel', () => {
 
     expect(await screen.findByText('Returned feedback body')).toBeInTheDocument()
     expect(screen.getByText('Returned feedback body')).toBeInTheDocument()
+    expect(screen.getByText('Feb 20')).toBeInTheDocument()
+    expect(screen.queryByText('Feb 20, 9:00 AM')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Comments' }))
 

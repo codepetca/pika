@@ -1116,7 +1116,7 @@ describe('TeacherClassroomView', () => {
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
   })
 
-  it('refreshes selected assignment details from the workspace action bar', async () => {
+  it('does not show a manual refresh button in the assignment workspace action bar', async () => {
     let detailFetchCount = 0
 
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
@@ -1145,14 +1145,8 @@ describe('TeacherClassroomView', () => {
 
     await waitFor(() => {
       expect(detailFetchCount).toBe(1)
-      expect(screen.getByRole('button', { name: 'Refresh submissions' })).toBeEnabled()
     })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh submissions' }))
-
-    await waitFor(() => {
-      expect(detailFetchCount).toBe(2)
-    })
+    expect(screen.queryByRole('button', { name: 'Refresh submissions' })).not.toBeInTheDocument()
   })
 
   it('keeps draft and scheduled assignments opening the editor in normal mode', async () => {
@@ -1663,6 +1657,7 @@ describe('TeacherClassroomView', () => {
       expect(gradeSelectedOption).not.toBeDisabled()
     })
 
+    mockClearSelection.mockClear()
     fireEvent.click(gradeSelectedOption)
     expect(screen.getByText('Apply grade to 2 selected student(s)?')).toBeInTheDocument()
     expect(screen.getByText("The current student's grading will be applied to the selected students.")).toBeInTheDocument()
@@ -1681,7 +1676,7 @@ describe('TeacherClassroomView', () => {
       score_workflow: '9',
       save_mode: 'graded',
     })
-    expect(mockClearSelection).toHaveBeenCalled()
+    expect(mockClearSelection).not.toHaveBeenCalled()
     await waitFor(() => {
       expect(mockShowMessage).toHaveBeenCalledWith({
         text: 'Applied grade to 2 selected students',
@@ -1764,6 +1759,7 @@ describe('TeacherClassroomView', () => {
       expect(commentsSelectedOption).not.toBeDisabled()
     })
 
+    mockClearSelection.mockClear()
     fireEvent.click(commentsSelectedOption)
     expect(screen.getByText('Apply comments to 2 selected student(s)?')).toBeInTheDocument()
     expect(screen.getByText("The current student's comments will be applied to the selected students.")).toBeInTheDocument()
@@ -1779,7 +1775,7 @@ describe('TeacherClassroomView', () => {
       apply_target: 'comments',
       feedback: 'Use this feedback for the selected students.',
     })
-    expect(mockClearSelection).toHaveBeenCalled()
+    expect(mockClearSelection).not.toHaveBeenCalled()
     await waitFor(() => {
       expect(mockShowMessage).toHaveBeenCalledWith({
         text: 'Applied comments to 2 selected students',
@@ -2194,90 +2190,6 @@ describe('TeacherClassroomView', () => {
     fireEvent.scroll(scrollPane)
 
     fireEvent.click(screen.getAllByText('student-25')[0])
-
-    await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-25')
-    })
-    await waitFor(() => {
-      expect(screen.getByTestId('assignment-student-scroll-pane')).toHaveProperty('scrollTop', 520)
-    })
-  })
-
-  it('preserves the class-pane scroll position when refreshing submissions clamps the pane upward', async () => {
-    const detailPayload = {
-      assignment: makeAssignmentDetails('assignment-1', 'Assignment One', 'student-01').assignment,
-      students: Array.from({ length: 30 }, (_, index) =>
-        makeStudentSubmissionRow(`student-${String(index + 1).padStart(2, '0')}`),
-      ),
-    }
-    const refreshResponse = createDeferred<{
-      ok: boolean
-      json: () => Promise<typeof detailPayload>
-    }>()
-    let assignmentFetchCount = 0
-
-    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
-      const url = String(input)
-
-      if (url === `/api/classrooms/${classroom.id}/class-days`) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ class_days: [] }),
-        })
-      }
-
-      if (url === '/api/teacher/assignments/assignment-1') {
-        assignmentFetchCount += 1
-        if (assignmentFetchCount === 1) {
-          return Promise.resolve({
-            ok: true,
-            json: async () => detailPayload,
-          })
-        }
-        return refreshResponse.promise
-      }
-
-      return Promise.resolve({
-        ok: false,
-        json: async () => ({ error: `Unhandled fetch: ${url}` }),
-      })
-    })
-
-    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
-
-    render(<TeacherClassroomView classroom={classroom} />)
-
-    await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-01')
-    })
-
-    const scrollPane = screen.getByTestId('assignment-student-scroll-pane') as HTMLDivElement
-    scrollPane.scrollTop = 520
-    fireEvent.scroll(scrollPane)
-
-    fireEvent.click(screen.getAllByText('student-25')[0])
-
-    await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-25')
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh submissions' }))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('assignment-student-scroll-pane')).toBeInTheDocument()
-    })
-
-    const loadingScrollPane = screen.getByTestId('assignment-student-scroll-pane') as HTMLDivElement
-    loadingScrollPane.scrollTop = 0
-    fireEvent.scroll(loadingScrollPane)
-
-    await act(async () => {
-      refreshResponse.resolve({
-        ok: true,
-        json: async () => detailPayload,
-      })
-      await refreshResponse.promise
-    })
 
     await waitFor(() => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-25')

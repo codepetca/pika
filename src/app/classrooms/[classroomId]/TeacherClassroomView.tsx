@@ -32,7 +32,6 @@ import {
   MessageSquare,
   Pencil,
   Plus,
-  RefreshCw,
   Send,
   Table,
   Trash2,
@@ -1705,7 +1704,6 @@ export function TeacherClassroomView({
       const updatedCount = Number(data.updated_count ?? docsByStudentId.size)
       setInfo(`Applied ${applyTarget} to ${updatedCount} selected student${updatedCount === 1 ? '' : 's'}`)
       setGradeSelectedConfirmTarget(null)
-      batchClearSelection()
 
       if (activeSelectedStudentId && docsByStudentId.has(activeSelectedStudentId)) {
         setGradeSelectedRefreshCounter((count) => count + 1)
@@ -1822,12 +1820,6 @@ export function TeacherClassroomView({
     preserveClassPaneScrollPosition()
     setClassPaneRestoreCounter((count) => count + 1)
   }, [preserveClassPaneScrollPosition])
-
-  const handleRefreshSelectedAssignment = useCallback(() => {
-    if (selection.mode !== 'assignment') return
-    queueClassPaneScrollRestore()
-    setRefreshCounter((count) => count + 1)
-  }, [queueClassPaneScrollRestore, selection])
 
   const handleGoPrevStudent = useCallback(() => {
     if (selectedStudentIndex <= 0) return
@@ -2133,7 +2125,7 @@ export function TeacherClassroomView({
   const classPane = (
     <div
       ref={classPaneScrollRef}
-      className="h-full min-h-0 overflow-auto"
+      className="h-full min-h-0 overflow-auto scrollbar-hover"
       data-testid="assignment-student-scroll-pane"
       onScroll={preserveClassPaneScrollPosition}
     >
@@ -2349,22 +2341,6 @@ export function TeacherClassroomView({
             </span>
             <span className="sr-only">{splitPaneViewLabel}</span>
           </Button>
-        </span>
-      </Tooltip>
-      <Tooltip content="Refresh submissions">
-        <span className="inline-flex">
-          <button
-            type="button"
-            className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
-            onClick={handleRefreshSelectedAssignment}
-            disabled={selectedAssignmentLoading}
-            aria-label="Refresh submissions"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${selectedAssignmentLoading ? 'animate-spin' : ''}`}
-              aria-hidden="true"
-            />
-          </button>
         </span>
       </Tooltip>
       {classPaneActions}
