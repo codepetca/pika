@@ -1,8 +1,9 @@
 'use client'
 
 import { forwardRef, useMemo, useState, useId, type ReactNode, type TextareaHTMLAttributes } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Info } from 'lucide-react'
+import { Info, RefreshCw } from 'lucide-react'
 import {
   Button,
   Card,
@@ -20,7 +21,7 @@ import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG, slugifyCourseSiteValue } from '@/lib/course-site-publishing'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
-import type { ActualCourseSiteConfig, Classroom, LessonPlanVisibility } from '@/types'
+import type { ActualCourseSiteConfig, Classroom, ClassroomJoinPolicy, LessonPlanVisibility } from '@/types'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 
@@ -70,7 +71,7 @@ function SettingsPanel({ children, className }: { children: ReactNode; className
   )
 }
 
-function SettingsHeading({ title, tooltip }: { title: string; tooltip?: string }) {
+function SettingsHeading({ title, tooltip }: { title: string; tooltip?: ReactNode }) {
   return (
     <div className="flex items-center gap-2">
       <div className="text-sm font-semibold text-text-default">{title}</div>
@@ -81,6 +82,70 @@ function SettingsHeading({ title, tooltip }: { title: string; tooltip?: string }
           </span>
         </Tooltip>
       ) : null}
+    </div>
+  )
+}
+
+function SettingsSwitch({
+  checked,
+  onChange,
+  disabled,
+  ariaLabel,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  disabled?: boolean
+  ariaLabel: string
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'relative h-7 w-14 shrink-0 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-page',
+        disabled
+          ? 'cursor-not-allowed border-border bg-surface-2'
+          : checked
+            ? 'hover:border-primary-hover hover:bg-info-bg-hover'
+            : 'hover:bg-surface-hover',
+        !disabled && (checked ? 'border-primary bg-info-bg' : 'border-border bg-surface-2'),
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          'absolute left-0 top-1 h-5 w-5 rounded-full shadow-sm transition-transform',
+          checked ? 'translate-x-7' : 'translate-x-1',
+          'bg-primary',
+        )}
+      />
+    </button>
+  )
+}
+
+function SettingsSwitchRow({
+  checked,
+  onChange,
+  disabled,
+  ariaLabel,
+  children,
+  className,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  disabled?: boolean
+  ariaLabel: string
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn('flex items-center gap-3', className)}>
+      <SettingsSwitch checked={checked} onChange={onChange} disabled={disabled} ariaLabel={ariaLabel} />
+      <div className={cn('min-w-0 text-sm', disabled ? 'text-text-muted' : 'text-text-default')}>{children}</div>
     </div>
   )
 }
@@ -113,13 +178,11 @@ export function TeacherSettingsTab({
 }: Props) {
   const router = useRouter()
   const section: SettingsSection = sectionParam === 'class-days' ? 'class-days' : 'general'
-  const allowEnrollmentId = useId()
   const titleId = useId()
   const actualSiteSlugId = useId()
   const actualOverviewId = useId()
   const actualOutlineId = useId()
   const actualLessonPlanScopeId = useId()
-  const showMarkdownId = useId()
   const isReadOnly = !!classroom.archived_at
   const { showMarkdown, mounted: markdownMounted, setShowMarkdown } = useMarkdownPreference()
   const [title, setTitle] = useState(classroom.title)
@@ -127,6 +190,7 @@ export function TeacherSettingsTab({
   const [titleError, setTitleError] = useState<string>('')
   const [joinCode, setJoinCode] = useState(classroom.class_code)
   const [allowEnrollment, setAllowEnrollment] = useState<boolean>(classroom.allow_enrollment)
+  const [joinPolicy, setJoinPolicy] = useState<ClassroomJoinPolicy>(classroom.join_policy || 'roster')
   const [saving, setSaving] = useState(false)
   const [enrollmentError, setEnrollmentError] = useState<string>('')
   const [joinCodeError, setJoinCodeError] = useState<string>('')
@@ -176,7 +240,7 @@ export function TeacherSettingsTab({
     if (isReadOnly) return
     const trimmed = title.trim()
     if (!trimmed) {
-      setTitleError('Course name cannot be empty')
+      setTitleError('Classroom name cannot be empty')
       return
     }
     if (trimmed === classroom.title) {
@@ -192,12 +256,12 @@ export function TeacherSettingsTab({
       })
       const data = await res.json()
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to update course name')
+        throw new Error(data.error || 'Failed to update classroom name')
       }
       setTitle(data.classroom?.title || trimmed)
-      showMessage({ text: 'Course name updated', tone: 'success' })
+      showMessage({ text: 'Classroom name updated', tone: 'success' })
     } catch (err: any) {
-      setTitleError(err.message || 'Failed to update course name')
+      setTitleError(err.message || 'Failed to update classroom name')
     } finally {
       setTitleSaving(false)
     }
@@ -218,6 +282,29 @@ export function TeacherSettingsTab({
         throw new Error(data.error || 'Failed to update settings')
       }
       setAllowEnrollment(!!data.classroom?.allow_enrollment)
+      showMessage({ text: 'Settings saved', tone: 'success' })
+    } catch (err: any) {
+      setEnrollmentError(err.message || 'Failed to update settings')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function saveJoinPolicy(nextValue: ClassroomJoinPolicy) {
+    if (isReadOnly || nextValue === joinPolicy) return
+    setSaving(true)
+    setEnrollmentError('')
+    try {
+      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ joinPolicy: nextValue }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update settings')
+      }
+      setJoinPolicy(data.classroom?.join_policy || nextValue)
       showMessage({ text: 'Settings saved', tone: 'success' })
     } catch (err: any) {
       setEnrollmentError(err.message || 'Failed to update settings')
@@ -356,9 +443,9 @@ export function TeacherSettingsTab({
       {section === 'general' ? (
         <PageContent className="space-y-4 pt-0">
           <SettingsPanel>
-            <SettingsHeading title="Course Name" tooltip="Name shown to students and in reports" />
+            <SettingsHeading title="Classroom name" tooltip="Name shown to students and in reports" />
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-              <FormField label="Course Name" htmlFor={titleId} hideLabel error={titleError} className="flex-1">
+              <FormField label="Classroom name" htmlFor={titleId} hideLabel error={titleError} className="flex-1">
                 <Input
                   type="text"
                   value={title}
@@ -371,7 +458,7 @@ export function TeacherSettingsTab({
                     }
                   }}
                   disabled={titleSaving || isReadOnly}
-                  placeholder="Enter course name"
+                  placeholder="Enter classroom name"
                 />
               </FormField>
               {titleSaving && <span className="text-sm text-text-muted sm:pt-2">Saving...</span>}
@@ -379,12 +466,15 @@ export function TeacherSettingsTab({
           </SettingsPanel>
 
           <SettingsPanel>
-            <SettingsHeading title="Join Code" tooltip="Students must be on the roster to join" />
+            <SettingsHeading
+              title="Joining"
+              tooltip="Control new joins and whether students must be on the roster."
+            />
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
               <Button
                 type="button"
-                variant="secondary"
+                variant="subtle"
                 size="md"
                 onClick={() => copyWithNotice('Join code', joinCode)}
                 aria-label="Copy join code"
@@ -394,40 +484,69 @@ export function TeacherSettingsTab({
               </Button>
 
               <Button
-                variant="secondary"
-                onClick={() => setShowRegenerateConfirm(true)}
-                disabled={isRegenerating || isReadOnly}
-                className="w-full sm:w-auto"
+                type="button"
+                variant="subtle"
+                size="md"
+                onClick={() => copyWithNotice('Join link', joinLink)}
+                aria-label="Copy join link"
+                title={joinLink}
+                className="w-full min-w-0 justify-start font-mono text-xs sm:w-[30rem] sm:max-w-[45vw]"
               >
-                {isRegenerating ? 'Generating...' : 'New code'}
+                <span className="min-w-0 truncate">{joinLink}</span>
               </Button>
 
               <Button
                 type="button"
                 variant="secondary"
                 size="md"
-                onClick={() => copyWithNotice('Join link', joinLink)}
-                aria-label="Copy join link"
-                title={joinLink}
-                className="w-full min-w-0 justify-start font-mono text-xs sm:flex-1"
+                onClick={() => setShowRegenerateConfirm(true)}
+                disabled={isRegenerating || isReadOnly}
+                aria-label="Generate new join code and link"
+                title="Generate new join code and link"
+                className="h-11 w-11 shrink-0 border-warning bg-warning-bg px-0 text-warning hover:bg-warning-bg focus:ring-warning"
               >
-                <span className="min-w-0 truncate">{joinLink}</span>
+                <RefreshCw className={cn('h-4 w-4', isRegenerating ? 'animate-spin' : '')} aria-hidden="true" />
               </Button>
             </div>
 
-            <div className="flex items-center gap-3 border-t border-border pt-2">
-              <input
-                id={allowEnrollmentId}
-                type="checkbox"
-                checked={allowEnrollment}
-                onChange={(e) => saveAllowEnrollment(e.target.checked)}
-                disabled={saving || isReadOnly}
-                className="h-4 w-4"
-              />
-              <label htmlFor={allowEnrollmentId} className="text-sm text-text-default">
-                Allow joining
-              </label>
-              {saving && <span className="text-sm text-text-muted">Saving...</span>}
+            <div className="flex flex-col gap-2 border-t border-border pt-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <SettingsSwitchRow
+                  checked={allowEnrollment}
+                  onChange={saveAllowEnrollment}
+                  disabled={saving || isReadOnly}
+                  ariaLabel="Allow new students to join"
+                >
+                  <span className="font-medium">{allowEnrollment ? 'Allow new joins' : 'Disallow new joins'}</span>
+                </SettingsSwitchRow>
+                {saving && <span className="text-sm text-text-muted">Saving...</span>}
+              </div>
+            </div>
+
+            <div className="space-y-2 border-t border-border pt-3">
+              <SettingsSwitchRow
+                checked={joinPolicy === 'roster'}
+                onChange={(isRoster) => saveJoinPolicy(isRoster ? 'roster' : 'open_join')}
+                disabled={saving || isReadOnly || !allowEnrollment}
+                ariaLabel="Join mode"
+              >
+                {joinPolicy === 'roster' ? (
+                  <>
+                    <span className="font-medium text-text-default">Only students on roster can join.</span>{' '}
+                    <Link href={`/classrooms/${classroom.id}?tab=roster`} className="text-primary underline">
+                      view roster
+                    </Link>
+                  </>
+                ) : (
+                  <span className="font-medium text-text-default">Open join via code/link.</span>
+                )}
+              </SettingsSwitchRow>
+
+              {allowEnrollment && joinPolicy === 'open_join' ? (
+                <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+                  Anyone with this code or link can join after entering their name.
+                </div>
+              ) : null}
             </div>
 
             {joinCodeError && <div className="text-sm text-danger">{joinCodeError}</div>}
@@ -453,16 +572,13 @@ export function TeacherSettingsTab({
           <SettingsPanel>
             <div className="text-sm font-semibold text-text-default">Display</div>
 
-            <label htmlFor={showMarkdownId} className="flex items-center gap-3 text-sm text-text-default">
-              <input
-                id={showMarkdownId}
-                type="checkbox"
-                checked={markdownMounted ? showMarkdown : true}
-                onChange={(event) => setShowMarkdown(event.target.checked)}
-                className="h-4 w-4"
-              />
-              Show markdown
-            </label>
+            <SettingsSwitchRow
+              checked={markdownMounted ? showMarkdown : true}
+              onChange={setShowMarkdown}
+              ariaLabel="Show markdown"
+            >
+              <span className="font-medium">Show markdown</span>
+            </SettingsSwitchRow>
           </SettingsPanel>
 
           <SettingsPanel className="space-y-4">
@@ -489,16 +605,14 @@ export function TeacherSettingsTab({
               </div>
             </div>
 
-            <label className="flex items-center gap-3 text-sm text-text-default">
-              <input
-                type="checkbox"
-                checked={actualSitePublished}
-                onChange={(e) => setActualSitePublished(e.target.checked)}
-                disabled={siteSaving || isReadOnly}
-                className="h-4 w-4"
-              />
-              Publish this classroom syllabus
-            </label>
+            <SettingsSwitchRow
+              checked={actualSitePublished}
+              onChange={setActualSitePublished}
+              disabled={siteSaving || isReadOnly}
+              ariaLabel="Publish this classroom syllabus"
+            >
+              <span className="font-medium">Publish this classroom syllabus</span>
+            </SettingsSwitchRow>
 
             <div className="grid gap-3 md:grid-cols-2">
               {(
@@ -510,23 +624,26 @@ export function TeacherSettingsTab({
                   ['lesson_plans', 'Lesson plans'],
                   ['announcements', 'Announcements'],
                 ] as Array<[keyof ActualCourseSiteConfig, string]>
-              ).map(([key, label]) => (
-                <label key={key} className="flex items-center gap-3 text-sm text-text-default">
-                  <input
-                    type="checkbox"
-                    checked={typeof actualSiteConfig[key] === 'boolean' ? (actualSiteConfig[key] as boolean) : false}
-                    onChange={(e) =>
+              ).map(([key, label]) => {
+                const checked = typeof actualSiteConfig[key] === 'boolean' ? (actualSiteConfig[key] as boolean) : false
+
+                return (
+                  <SettingsSwitchRow
+                    key={key}
+                    checked={checked}
+                    onChange={(nextChecked) =>
                       setActualSiteConfig((current) => ({
                         ...current,
-                        [key]: e.target.checked,
+                        [key]: nextChecked,
                       }))
                     }
                     disabled={siteSaving || isReadOnly}
-                    className="h-4 w-4"
-                  />
-                  {label}
-                </label>
-              ))}
+                    ariaLabel={label}
+                  >
+                    <span className={checked ? 'font-medium' : undefined}>{label}</span>
+                  </SettingsSwitchRow>
+                )
+              })}
             </div>
 
             <FormField label="Lesson plan visibility on syllabus" htmlFor={actualLessonPlanScopeId}>
@@ -616,9 +733,8 @@ export function TeacherSettingsTab({
 
             <ConfirmDialog
               isOpen={showRegenerateConfirm}
-              title="Generate new join code?"
-              description="This replaces the current code. Students will need the new code/link to join."
-              confirmLabel={isRegenerating ? 'Generating…' : 'New code'}
+              title="Generate new join code and link?"
+              confirmLabel={isRegenerating ? 'Generating...' : 'Generate'}
               cancelLabel="Cancel"
               confirmVariant="danger"
               isConfirmDisabled={isRegenerating || isReadOnly}

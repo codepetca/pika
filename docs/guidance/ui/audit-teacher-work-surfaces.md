@@ -56,7 +56,7 @@ These are the current or proposed structural primitives for the teacher work-sur
 | --- | --- | --- | --- | --- | --- |
 | Page-shell primitives (`PageLayout`, `PageActionBar`, `PageContent`, `PageStack`) | assignments, quizzes/tests | shared already | stable | keep as primitives | now |
 | Calm empty-state container via `EmptyState` | quizzes/tests today, assignments via similar composition | intended family-wide | stable | keep as primitive | now |
-| Teacher workspace split container derived from assignments | assignment viewing/grading + shell sidebar behavior | intended for quizzes/tests later | experimental candidate | extract as new primitive | now |
+| Teacher workspace split container derived from assignments | integrated assignment viewing/grading panes | adopted by tests when grading needs side-by-side work | stable structural primitive | keep as primitive | now |
 | Shared teacher work-item card variant | `SortableAssignmentCard`, `QuizCard`, emerging test card variants | partial convergence only | experimental | revisit after convergence | later |
 | Generic teacher list/detail container | no single owner yet | conceptually repeated | unstable | do not extract yet | never for now |
 
@@ -82,7 +82,7 @@ These should not be extracted into primitives.
 | Quiz/test authoring rules, question editing, and validation | `TeacherQuizzesTab`, `QuizModal`, question editors | stable per feature | keep feature-local | now |
 | Test grading batch actions, AI grading strategy, and return flows | `TeacherQuizzesTab` | feature-local | keep feature-local | now |
 | Assessment-specific workspace mode state machines | assignments/tests/quizzes owners | feature-local | keep feature-local | now |
-| Right-sidebar open/close decisions tied to route/query behavior | `ClassroomPageClient`, layout hooks | mixed structural/feature-local | keep feature-local until split primitive is extracted | later |
+| Route-level right-sidebar open/close decisions | `ClassroomPageClient`, layout hooks | shell-level, not teacher-family default | keep route-local and disabled for teacher work surfaces unless a route-level inspector is explicitly justified | now |
 
 ## Current Assignment Audit
 
@@ -109,9 +109,10 @@ These are present or recently present patterns that should not be treated as reu
 
 ## Extraction Roadmap
 
-### Now: teacher workspace split
+### Current: teacher workspace split
 
-The first extraction target remains a reusable teacher workspace split derived from assignments.
+The reusable teacher workspace split now exists and should be treated as the structural primitive
+for active two-pane teacher workspaces.
 
 Responsibilities:
 
@@ -136,10 +137,12 @@ Non-goals:
 - no grading logic
 - no routing/query management beyond what a layout primitive strictly needs
 
-Adoption order:
+Adoption rule:
 
-1. assignments adopt it first
-2. teacher quizzes/tests adopt it only when their workspace state truly matches the pattern
+- teacher assignments and teacher tests may use it where the current workspace state truly matches
+  active primary-plus-inspector work
+- do not enable the classroom route's external `RightSidebar` as a substitute for the workspace split
+  in teacher assignment, quiz, or test summary/workspace states
 
 ### Later: teacher work-item card convergence
 

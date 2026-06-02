@@ -10,6 +10,9 @@ export interface AssignmentArtifact {
   is_required_submission?: boolean
   requirement_id?: string
   requirement_required?: boolean
+  validation_status?: 'missing' | 'pending' | 'valid' | 'warning' | 'invalid' | 'inaccessible'
+  validation_message?: string | null
+  validation_level?: string
   repo_owner?: string
   repo_name?: string
   normalized_url?: string

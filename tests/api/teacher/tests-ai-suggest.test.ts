@@ -4,9 +4,11 @@ import { POST } from '@/app/api/teacher/tests/[id]/responses/[responseId]/ai-sug
 
 const {
   mockAssertTeacherOwnsTest,
+  mockLoadClassroomAiSanitizationContext,
   mockValidateSelectedTestStudentEnrollment,
 } = vi.hoisted(() => ({
   mockAssertTeacherOwnsTest: vi.fn(),
+  mockLoadClassroomAiSanitizationContext: vi.fn(),
   mockValidateSelectedTestStudentEnrollment: vi.fn(),
 }))
 
@@ -25,6 +27,10 @@ vi.mock('@/lib/auth', () => ({
 vi.mock('@/lib/server/tests', () => ({
   assertTeacherOwnsTest: mockAssertTeacherOwnsTest,
   validateSelectedTestStudentEnrollment: mockValidateSelectedTestStudentEnrollment,
+}))
+
+vi.mock('@/lib/server/ai-sanitization', () => ({
+  loadClassroomAiSanitizationContext: mockLoadClassroomAiSanitizationContext,
 }))
 
 const getTestOpenResponseGradingModel = vi.fn(() => 'gpt-5-nano')
@@ -63,6 +69,10 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
       ok: true,
       enrolledStudentIds: new Set(['student-1']),
       missingStudentIds: [],
+    })
+    mockLoadClassroomAiSanitizationContext.mockResolvedValue({
+      students: [],
+      initialsMap: {},
     })
   })
 
@@ -134,12 +144,20 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
       'classroom-1',
       ['student-1']
     )
+    expect(mockLoadClassroomAiSanitizationContext).toHaveBeenCalledWith(
+      mockSupabaseClient,
+      'classroom-1',
+    )
     expect(prepareTestOpenResponseGradingContext).toHaveBeenCalledWith(
       expect.objectContaining({
         answerKey: expect.stringContaining('semi-permeable membrane'),
         sampleSolution: expect.stringContaining('explainOsmosis'),
         responseMonospace: true,
         promptProfile: 'manual',
+        sanitizationContext: {
+          students: [],
+          initialsMap: {},
+        },
       })
     )
     expect(suggestTestOpenResponseGradeWithContext).toHaveBeenCalledTimes(1)
@@ -170,6 +188,7 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
     expect(response.status).toBe(400)
     expect(data.error).toBe('Student is not enrolled in this classroom')
     expect(prepareTestOpenResponseGradingContext).not.toHaveBeenCalled()
+    expect(mockLoadClassroomAiSanitizationContext).not.toHaveBeenCalled()
     expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
   })
 
@@ -191,6 +210,29 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
     expect(response.status).toBe(500)
     expect(data.error).toBe('Failed to validate student enrollment')
     expect(prepareTestOpenResponseGradingContext).not.toHaveBeenCalled()
+    expect(mockLoadClassroomAiSanitizationContext).not.toHaveBeenCalled()
     expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when classroom sanitization context cannot be loaded', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    setupResponseRow()
+    mockLoadClassroomAiSanitizationContext.mockRejectedValueOnce(
+      new Error('Failed to load classroom names for AI sanitization'),
+    )
+
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/responses/response-1/ai-suggest', {
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ id: 'test-1', responseId: 'response-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe('Internal server error')
+    expect(prepareTestOpenResponseGradingContext).not.toHaveBeenCalled()
+    expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
+    consoleError.mockRestore()
   })
 })

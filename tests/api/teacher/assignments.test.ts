@@ -39,10 +39,15 @@ function buildAssignmentDocsStatsTable(options: {
   firstError?: unknown
   fallbackError?: unknown
   inCalls?: Array<{ columns: string; column: string; values: string[] }>
+  orderCalls?: Array<{ columns: string; column: string; options: Record<string, unknown> }>
+  rangeCalls?: Array<{ columns: string; from: number; to: number }>
 }) {
   return {
     select: vi.fn((columns: string) => {
       let selectedAssignmentIds: string[] = []
+      let selectedStudentIds: string[] = []
+      let rangeStart: number | null = null
+      let rangeEnd: number | null = null
       const query: any = {
         in: vi.fn((column: string, values: string[]) => {
           options.inCalls?.push({ columns, column, values })
@@ -51,19 +56,38 @@ function buildAssignmentDocsStatsTable(options: {
             return query
           }
           if (column === 'student_id') {
-            if (columns.includes('teacher_cleared_at') && options.firstError) {
-              return Promise.resolve({ data: null, error: options.firstError })
-            }
-
-            const rows = options.docs.filter(
-              (doc) => selectedAssignmentIds.includes(doc.assignment_id) && values.includes(doc.student_id)
-            )
-            return Promise.resolve({
-              data: rows,
-              error: columns.includes('teacher_cleared_at') ? null : options.fallbackError ?? null,
-            })
+            selectedStudentIds = values
+            return query
           }
           return query
+        }),
+        order: vi.fn((column: string, orderOptions: Record<string, unknown>) => {
+          options.orderCalls?.push({ columns, column, options: orderOptions })
+          return query
+        }),
+        range: vi.fn((from: number, to: number) => {
+          options.rangeCalls?.push({ columns, from, to })
+          rangeStart = from
+          rangeEnd = to
+          return query
+        }),
+        then: vi.fn((resolve: any) => {
+          if (columns.includes('teacher_cleared_at') && options.firstError) {
+            return resolve({ data: null, error: options.firstError })
+          }
+
+          const rows = options.docs.filter(
+            (doc) => selectedAssignmentIds.includes(doc.assignment_id) && selectedStudentIds.includes(doc.student_id)
+          )
+          const pagedRows =
+            rangeStart === null || rangeEnd === null
+              ? rows
+              : rows.slice(rangeStart, rangeEnd + 1)
+
+          return resolve({
+            data: pagedRows,
+            error: columns.includes('teacher_cleared_at') ? null : options.fallbackError ?? null,
+          })
         }),
       }
       return query
@@ -334,6 +358,122 @@ describe('GET /api/teacher/assignments', () => {
       new Set(assignmentRows.map((assignment) => assignment.id))
     )
     expect(new Set(studentFilterCalls.flatMap((call) => call.values))).toEqual(new Set(studentIds))
+  })
+
+  it('paginates dense assignment doc stats chunks past the Supabase default row cap', async () => {
+    const studentIds = Array.from({ length: 50 }, (_, index) => `student-${index + 1}`)
+    const assignmentRows = Array.from({ length: 50 }, (_, index) => ({
+      id: `assignment-${index + 1}`,
+      classroom_id: 'c1',
+      title: `Essay Draft ${index + 1}`,
+      description: '',
+      instructions_markdown: null,
+      rich_instructions: null,
+      due_at: '2026-03-14T23:59:59.000Z',
+    }))
+    const docs = assignmentRows.flatMap((assignment) =>
+      studentIds.map((studentId) => ({
+        assignment_id: assignment.id,
+        student_id: studentId,
+        is_submitted: true,
+        submitted_at: '2026-03-13T10:00:00.000Z',
+        returned_at: null,
+        teacher_cleared_at: null,
+      }))
+    )
+    const assignmentDocRangeCalls: Array<{ columns: string; from: number; to: number }> = []
+    const assignmentDocOrderCalls: Array<{ columns: string; column: string; options: Record<string, unknown> }> = []
+
+    mockGetClassroomStudentIds.mockResolvedValueOnce({
+      studentIds,
+      studentIdSet: new Set(studentIds),
+      totalStudents: studentIds.length,
+      error: null,
+    })
+
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        const builder: any = {}
+        builder.order = vi
+          .fn()
+          .mockImplementationOnce(() => builder)
+          .mockResolvedValue({ data: assignmentRows, error: null })
+
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: builder.order,
+            })),
+          })),
+        }
+      }
+
+      if (table === 'assignment_docs') {
+        return buildAssignmentDocsStatsTable({
+          docs,
+          orderCalls: assignmentDocOrderCalls,
+          rangeCalls: assignmentDocRangeCalls,
+        })
+      }
+
+      if (table === 'assignment_submission_requirements') {
+        return buildEmptySubmissionRequirementsTable()
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments?classroom_id=c1')
+    const response = await GET(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.assignments).toHaveLength(50)
+    expect(data.assignments[0].stats).toEqual({
+      total_students: 50,
+      submitted: 50,
+      late: 0,
+    })
+    expect(data.assignments[49].stats).toEqual({
+      total_students: 50,
+      submitted: 50,
+      late: 0,
+    })
+    expect(assignmentDocOrderCalls).toEqual([
+      {
+        columns: 'assignment_id, student_id, is_submitted, submitted_at, returned_at, teacher_cleared_at',
+        column: 'id',
+        options: { ascending: true },
+      },
+      {
+        columns: 'assignment_id, student_id, is_submitted, submitted_at, returned_at, teacher_cleared_at',
+        column: 'id',
+        options: { ascending: true },
+      },
+      {
+        columns: 'assignment_id, student_id, is_submitted, submitted_at, returned_at, teacher_cleared_at',
+        column: 'id',
+        options: { ascending: true },
+      },
+    ])
+    expect(assignmentDocRangeCalls).toEqual([
+      {
+        columns: 'assignment_id, student_id, is_submitted, submitted_at, returned_at, teacher_cleared_at',
+        from: 0,
+        to: 999,
+      },
+      {
+        columns: 'assignment_id, student_id, is_submitted, submitted_at, returned_at, teacher_cleared_at',
+        from: 1000,
+        to: 1999,
+      },
+      {
+        columns: 'assignment_id, student_id, is_submitted, submitted_at, returned_at, teacher_cleared_at',
+        from: 2000,
+        to: 2999,
+      },
+    ])
   })
 
   it('falls back only to returned_at when teacher_cleared_at is missing', async () => {

@@ -4,16 +4,21 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
-import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
+import { TEACHER_QUIZZES_UPDATED_EVENT, TEACHER_TEST_GRADING_ROW_UPDATED_EVENT } from '@/lib/events'
 import { createMockClassroom, createMockQuiz } from '../helpers/mocks'
 import type { QuizWithStats } from '@/types'
 
 const { setOpenMock } = vi.hoisted(() => ({
   setOpenMock: vi.fn(),
 }))
+const mockInvalidateGradebookForClassroom = vi.hoisted(() => vi.fn())
 
 vi.mock('@/components/layout', () => ({
   useRightSidebar: () => ({ setOpen: setOpenMock }),
+}))
+
+vi.mock('@/lib/gradebook-cache', () => ({
+  invalidateGradebookForClassroom: mockInvalidateGradebookForClassroom,
 }))
 
 vi.mock('@/components/QuizDetailPanel', () => ({
@@ -262,6 +267,7 @@ describe('TeacherTestsTab', () => {
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
     setOpenMock.mockReset()
+    mockInvalidateGradebookForClassroom.mockClear()
   })
 
   afterEach(() => {
@@ -365,9 +371,14 @@ describe('TeacherTestsTab', () => {
   })
 
   it('opens the edit modal from the selected test actions menu', async () => {
+    const updateSearchParams = vi.fn((updater: (params: URLSearchParams) => void) => {
+      const params = new URLSearchParams('tab=tests')
+      updater(params)
+    })
+
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
     fetchMock.mockResolvedValueOnce(makeResultsResponse())
-    renderTab()
+    renderTab({ updateSearchParams })
 
     fireEvent.click(await screen.findByText('Unit Test'))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
@@ -380,12 +391,61 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Test' }))
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
+    expect(updateSearchParams).toHaveBeenCalledTimes(2)
+    const params = new URLSearchParams('tab=tests&testId=test-1&testMode=grading&testStudentId=student-1')
+    updateSearchParams.mock.calls[1][0](params)
+    expect(params.get('testId')).toBe('test-1')
+    expect(params.get('testMode')).toBe('authoring')
+    expect(params.get('testStudentId')).toBeNull()
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
     expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Code' })).toHaveAttribute(
       'aria-pressed',
       'false'
     )
+  })
+
+  it('closes the edit modal when controlled params return from authoring to grading', async () => {
+    const updateSearchParams = vi.fn()
+
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
+
+    const view = renderTab({
+      selectedTestId: 'test-1',
+      selectedTestMode: 'grading',
+      updateSearchParams,
+    })
+
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Test' }))
+    expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
+
+    view.rerender(
+      <TeacherTestsTab
+        classroom={classroom}
+        selectedTestId="test-1"
+        selectedTestMode="authoring"
+        updateSearchParams={updateSearchParams}
+      />
+    )
+    expect(screen.getByTestId('mock-test-detail')).toBeInTheDocument()
+
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
+    view.rerender(
+      <TeacherTestsTab
+        classroom={classroom}
+        selectedTestId="test-1"
+        selectedTestMode="grading"
+        updateSearchParams={updateSearchParams}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('mock-test-detail')).not.toBeInTheDocument()
+    })
   })
 
   it('requests selected test deletion from the selected test actions menu', async () => {
@@ -999,6 +1059,38 @@ describe('TeacherTestsTab', () => {
     })
   })
 
+  it('invalidates gradebook caches when test grading rows update', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(TEACHER_TEST_GRADING_ROW_UPDATED_EVENT, {
+          detail: {
+            testId: 'test-1',
+            studentId: 'student-1',
+            pointsEarned: 4,
+            pointsPossible: 5,
+            percent: 80,
+            gradedOpenResponses: 1,
+            ungradedOpenResponses: 0,
+          },
+        })
+      )
+    })
+
+    expect(mockInvalidateGradebookForClassroom).toHaveBeenCalledWith(classroom.id)
+  })
+
   it('moves the selected grading student with up and down arrows', async () => {
     fetchMock
       .mockResolvedValueOnce({
@@ -1190,15 +1282,10 @@ describe('TeacherTestsTab', () => {
     expect(params.get('testStudentId')).toBeNull()
   })
 
-  it('treats legacy authoring params as grading mode', async () => {
+  it('opens controlled authoring params in the test editor', async () => {
     const updateSearchParams = vi.fn()
 
-    fetchMock
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
-      })
-      .mockResolvedValueOnce(makeResultsResponse())
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
 
     renderTab({
       selectedTestId: 'test-1',
@@ -1206,17 +1293,43 @@ describe('TeacherTestsTab', () => {
       updateSearchParams,
     })
 
-    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
+    expect(await screen.findByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
+    expect(screen.queryByText('Alice Zephyr')).not.toBeInTheDocument()
+    expect(resultsFetchCalls(fetchMock)).toHaveLength(0)
     expect(updateSearchParams).not.toHaveBeenCalled()
+  })
+
+  it('returns controlled authoring params to grading params when the editor closes', async () => {
+    const updateSearchParams = vi.fn((updater: (params: URLSearchParams) => void) => {
+      const params = new URLSearchParams('tab=tests&testId=test-1&testMode=authoring')
+      updater(params)
+    })
+
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+
+    renderTab({
+      selectedTestId: 'test-1',
+      selectedTestMode: 'authoring',
+      updateSearchParams,
+    })
+
+    expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(updateSearchParams).toHaveBeenCalledWith(expect.any(Function), { replace: true })
+    const params = new URLSearchParams('tab=tests&testId=test-1&testMode=authoring')
+    updateSearchParams.mock.calls[0][0](params)
+    expect(params.get('testId')).toBe('test-1')
+    expect(params.get('testMode')).toBe('grading')
+    expect(params.get('testStudentId')).toBeNull()
   })
 
   it('models Browser Back by following controlled test params back to summary', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
-    fetchMock.mockResolvedValueOnce(makeResultsResponse())
     const view = renderTab({ selectedTestId: 'test-1', selectedTestMode: 'authoring' })
 
-    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
 
     view.rerender(
       <TeacherTestsTab
@@ -1227,7 +1340,7 @@ describe('TeacherTestsTab', () => {
     )
 
     await waitFor(() => {
-      expect(screen.queryByText('Alice Zephyr')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('mock-test-detail')).not.toBeInTheDocument()
     })
     expect(screen.getByText('Unit Test')).toBeInTheDocument()
   })
@@ -1244,7 +1357,6 @@ describe('TeacherTestsTab', () => {
           resolveTests = resolve
         }) as unknown as Promise<Response>,
     )
-    fetchMock.mockResolvedValueOnce(makeResultsResponse())
 
     renderTab({
       selectedTestId: 'test-1',
@@ -1266,7 +1378,8 @@ describe('TeacherTestsTab', () => {
       await Promise.resolve()
     })
 
-    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
+    expect(resultsFetchCalls(fetchMock)).toHaveLength(0)
     expect(updateSearchParams).not.toHaveBeenCalled()
   })
 

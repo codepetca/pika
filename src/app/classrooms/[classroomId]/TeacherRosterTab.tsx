@@ -20,7 +20,7 @@ import {
   SortableHeaderCell,
   TableCard,
 } from '@/components/DataTable'
-import type { Classroom } from '@/types'
+import type { Classroom, RosterJoinSource } from '@/types'
 import { Check, Copy, Mail, Pencil, X } from 'lucide-react'
 import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { compareByNameFields, toggleSort } from '@/lib/table-sort'
@@ -36,6 +36,7 @@ interface RosterRow {
   last_name: string | null
   student_number: string | null
   counselor_email: string | null
+  join_source: RosterJoinSource
   created_at: string
   updated_at: string
   joined: boolean
@@ -64,6 +65,7 @@ function normalizeRosterRows(raw: any[]): RosterRow[] {
       last_name: row.last_name ?? null,
       student_number: row.student_number ?? null,
       counselor_email: row.counselor_email ?? null,
+      join_source: row.join_source === 'open_join' || row.join_source === 'csv' ? row.join_source : 'manual',
       created_at: row.created_at,
       updated_at: row.updated_at,
       joined: !!row.joined,
@@ -89,6 +91,16 @@ function formatRosterDate(iso: string | null): string {
   } catch {
     return iso
   }
+}
+
+function JoinSourceBadge({ source }: { source: RosterJoinSource }) {
+  if (source !== 'open_join') return null
+
+  return (
+    <span className="inline-flex shrink-0 rounded-badge border border-border bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-text-muted">
+      Open join
+    </span>
+  )
 }
 
 export function TeacherRosterTab({ classroom }: Props) {
@@ -491,6 +503,12 @@ export function TeacherRosterTab({ classroom }: Props) {
           <div className="text-xs text-text-muted">Joined</div>
           <div className="text-text-default">{selectedRosterRow.joined ? 'Yes' : 'No'}</div>
         </div>
+        <div>
+          <div className="text-xs text-text-muted">Source</div>
+          <div className="text-text-default">
+            {selectedRosterRow.join_source === 'open_join' ? 'Open join' : selectedRosterRow.join_source === 'csv' ? 'CSV' : 'Manual'}
+          </div>
+        </div>
       </div>
       <div>
         <div className="text-xs text-text-muted">Counselor</div>
@@ -636,7 +654,12 @@ export function TeacherRosterTab({ classroom }: Props) {
                         </DataTableCell>
                         <DataTableCell>{row.first_name ?? '—'}</DataTableCell>
                         <DataTableCell>{row.last_name ?? '—'}</DataTableCell>
-                        <DataTableCell className="hidden text-text-muted md:table-cell">{row.email}</DataTableCell>
+                        <DataTableCell className="hidden text-text-muted md:table-cell">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="truncate">{row.email}</span>
+                            <JoinSourceBadge source={row.join_source} />
+                          </div>
+                        </DataTableCell>
                         <DataTableCell className="hidden text-text-muted lg:table-cell">
                           {editingCounselorId === row.id ? (
                             <div className="flex items-center gap-1">

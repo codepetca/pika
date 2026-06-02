@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
+  mockLoadClassroomAiSanitizationContext,
   mockSupabaseClient,
   prepareTestOpenResponseGradingContext,
   resolveReusableTestOpenResponseReferenceAnswers,
   suggestTestOpenResponseGradeWithContext,
   suggestTestOpenResponseGradesBatchWithContext,
 } = vi.hoisted(() => ({
+  mockLoadClassroomAiSanitizationContext: vi.fn(),
   mockSupabaseClient: {
     from: vi.fn(),
     rpc: vi.fn(),
@@ -24,6 +26,10 @@ vi.mock('@/lib/supabase', () => ({
 vi.mock('@/lib/server/tests', () => ({
   isMissingTestAttemptReturnColumnsError: vi.fn(() => false),
   isMissingTestResponseAiColumnsError: vi.fn(() => false),
+}))
+
+vi.mock('@/lib/server/ai-sanitization', () => ({
+  loadClassroomAiSanitizationContext: mockLoadClassroomAiSanitizationContext,
 }))
 
 vi.mock('@/lib/ai-test-grading', () => ({
@@ -217,6 +223,7 @@ function buildTickHarness(opts: {
               data: {
                 id: 'test-1',
                 title: 'Test One',
+                classroom_id: 'classroom-1',
               },
               error: null,
             })),
@@ -288,6 +295,10 @@ describe('tickTestAiGradingRun', () => {
     vi.clearAllMocks()
     mockSupabaseClient.from.mockReset()
     mockSupabaseClient.rpc.mockReset()
+    mockLoadClassroomAiSanitizationContext.mockResolvedValue({
+      students: [],
+      initialsMap: {},
+    })
     resolveReusableTestOpenResponseReferenceAnswers.mockReturnValue({
       expectedCacheKey: 'cache-key',
       cacheHit: true,

@@ -11,18 +11,33 @@ import { useClassDaysContext } from '@/hooks/useClassDays'
 import { format, parseISO } from 'date-fns'
 import {
   safeSessionGetJson,
+  safeSessionRemove,
   safeSessionSetJson,
 } from '@/lib/client-storage'
 import {
   getStudentEntryHistoryCacheKey,
   upsertEntryIntoHistory,
 } from '@/lib/student-entry-history'
+import { fetchJSONWithCache } from '@/lib/request-cache'
+import {
+  fetchStudentEntriesForClassroom,
+  invalidateStudentEntriesForClassroom,
+} from '@/lib/student-entries-client'
+import {
+  isAuthFailureStatus,
+  redirectToLoginForReauth,
+  SESSION_EXPIRED_MESSAGE,
+} from '@/lib/client-auth'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import type { Classroom, Entry, JsonPatchOperation, LessonPlan, TiptapContent } from '@/types'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
+
+function getDailyLogDraftKey(classroomId: string, date: string): string {
+  return `daily-log-draft:${classroomId}:${date}`
+}
 
 function parseSavedContent(contentString: string | null): TiptapContent {
   if (!contentString) return EMPTY_DOC
@@ -76,6 +91,8 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAttemptAtRef = useRef(0)
   const pendingContentRef = useRef<TiptapContent | null>(null)
+  const restoredDraftAutosaveRef = useRef<TiptapContent | null>(null)
+  const currentContentRef = useRef<TiptapContent>(EMPTY_DOC)
   const entryIdRef = useRef<string | null>(null)
   const entryVersionRef = useRef(1)
   const todayRef = useRef('')
@@ -96,12 +113,24 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
         const cached = safeSessionGetJson<Entry[]>(historyCacheKey)
 
         // Fetch today's lesson plan (class days come from context)
-        const lessonPlanPromise = fetch(
-          `/api/student/classrooms/${classroom.id}/lesson-plans?start=${todayDate}&end=${todayDate}`
+        const lessonPlanPromise = fetchJSONWithCache<{ lesson_plans?: LessonPlan[]; lessonPlans?: LessonPlan[] }>(
+          `student-lesson-plans:${classroom.id}:${todayDate}:${todayDate}`,
+          async () => {
+            const response = await fetch(
+              `/api/student/classrooms/${classroom.id}/lesson-plans?start=${todayDate}&end=${todayDate}`
+            )
+            const data = await response.json().catch(() => ({ lesson_plans: [] }))
+            if (!response.ok) {
+              throw new Error(
+                typeof data.error === 'string' ? data.error : 'Failed to load lesson plan'
+              )
+            }
+            return data
+          },
+          20_000,
         )
-          .then(r => r.json())
           .then(data => {
-            const plans = data.lesson_plans || []
+            const plans = data.lesson_plans || data.lessonPlans || []
             const todayPlan = plans.find((p: LessonPlan) => p.date === todayDate) || null
             onLessonPlanLoad?.(todayPlan)
           })
@@ -112,10 +141,31 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
 
         const applyEntryState = (todayEntry: Entry | null) => {
           const loadedContent = resolveEntryContent(todayEntry)
-          setContent(loadedContent)
+          const draftContent = safeSessionGetJson<TiptapContent>(
+            getDailyLogDraftKey(classroom.id, todayDate)
+          )
+          if (
+            draftContent &&
+            !isEmpty(draftContent) &&
+            JSON.stringify(draftContent) !== JSON.stringify(loadedContent)
+          ) {
+            setContent(draftContent)
+            currentContentRef.current = draftContent
+            pendingContentRef.current = draftContent
+            restoredDraftAutosaveRef.current = draftContent
+            hasLocalEditSinceLoadRef.current = true
+            setSaveStatus('unsaved')
+          }
+
+          if (!draftContent || isEmpty(draftContent) || JSON.stringify(draftContent) === JSON.stringify(loadedContent)) {
+            setContent(loadedContent)
+            currentContentRef.current = loadedContent
+            pendingContentRef.current = null
+            hasLocalEditSinceLoadRef.current = false
+            setSaveStatus('saved')
+          }
+
           lastSavedContentRef.current = JSON.stringify(loadedContent)
-          hasLocalEditSinceLoadRef.current = false
-          setSaveStatus('saved')
           setSaveError('')
           setConflictEntry(null)
           entryIdRef.current = todayEntry?.id ?? null
@@ -129,16 +179,8 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
           setLoading(false)
         }
 
-        const entriesUrl = `/api/student/entries?classroom_id=${classroom.id}&limit=${historyLimit}`
-        const entriesPromise = fetch(entriesUrl)
-          .then(response => {
-            if (!response.ok) {
-              throw new Error('Failed to load entries')
-            }
-            return response.json()
-          })
-          .then(data => {
-            const entries: Entry[] = data.entries || []
+        const entriesPromise = fetchStudentEntriesForClassroom(classroom.id, { limit: historyLimit })
+          .then(entries => {
             if (hasLocalEditSinceLoadRef.current) {
               setHistoryEntries(prev => {
                 const currentTodayEntry = prev.find((e: Entry) => e.date === todayDate) || null
@@ -209,13 +251,17 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
 
     // Don't create a new DB record for empty content (e.g. TipTap mount normalization)
     const newContentStr = JSON.stringify(newContent)
+    const draftKey = getDailyLogDraftKey(classroom.id, entryDate)
+
     if (!entryIdRef.current && isEmpty(newContent)) {
       lastSavedContentRef.current = newContentStr
+      safeSessionRemove(draftKey)
       setSaveStatus('saved')
       return
     }
 
     if (!options?.forceFull && newContentStr === lastSavedContentRef.current) {
+      safeSessionRemove(draftKey)
       setSaveStatus('saved')
       return
     }
@@ -228,6 +274,7 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
 
     setSaveStatus('saving')
     setSaveError('')
+    safeSessionSetJson(draftKey, newContent)
     lastSaveAttemptAtRef.current = Date.now()
 
     const baseContent = parseSavedContent(lastSavedContentRef.current)
@@ -267,11 +314,36 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
 
       const data = await response.json()
 
+      if (isAuthFailureStatus(response.status)) {
+        setSaveStatus('unsaved')
+        setSaveError(SESSION_EXPIRED_MESSAGE)
+        redirectToLoginForReauth()
+        return
+      }
+
       if (response.status === 409) {
         const serverEntry = data.entry as Entry | undefined
         if (serverEntry) {
           setConflictEntry(serverEntry)
+          if (serverEntry.date) {
+            updateHistoryEntries(serverEntry)
+          } else {
+            safeSessionRemove(
+              getStudentEntryHistoryCacheKey({
+                classroomId: classroom.id,
+                limit: historyLimit,
+              })
+            )
+          }
+        } else {
+          safeSessionRemove(
+            getStudentEntryHistoryCacheKey({
+              classroomId: classroom.id,
+              limit: historyLimit,
+            })
+          )
         }
+        invalidateStudentEntriesForClassroom(classroom.id)
         if (saveTimeoutRef.current) {
           clearTimeout(saveTimeoutRef.current)
         }
@@ -294,20 +366,33 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
       }
 
       const savedEntry = data.entry as Entry
+      const savedContentStillCurrent = JSON.stringify(currentContentRef.current) === newContentStr
+      const savedEntryContent = resolveEntryContent(savedEntry)
+
       entryIdRef.current = savedEntry.id
       entryVersionRef.current = savedEntry.version ?? entryVersionRef.current
+
+      invalidateStudentEntriesForClassroom(classroom.id)
       updateHistoryEntries(savedEntry)
-      lastSavedContentRef.current = newContentStr
-      setSaveStatus('saved')
-      setSaveError('')
-      setConflictEntry(null)
-      notifications?.markTodayComplete()
+      lastSavedContentRef.current = JSON.stringify(savedEntryContent)
+      if (savedContentStillCurrent) {
+        safeSessionRemove(draftKey)
+        pendingContentRef.current = null
+        restoredDraftAutosaveRef.current = null
+        hasLocalEditSinceLoadRef.current = false
+        setSaveStatus('saved')
+        setSaveError('')
+        setConflictEntry(null)
+        notifications?.markTodayComplete()
+      } else {
+        setSaveStatus('unsaved')
+      }
     } catch (err: any) {
       console.error('Error saving:', err)
       setSaveStatus('unsaved')
       setSaveError(err.message || 'Failed to save')
     }
-  }, [MAX_CHARS, classroom.id, updateHistoryEntries, notifications])
+  }, [MAX_CHARS, classroom.id, historyLimit, updateHistoryEntries, notifications])
 
   const scheduleSave = useCallback((
     newContent: TiptapContent,
@@ -340,10 +425,25 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
     }, waitMs)
   }, [AUTOSAVE_MIN_INTERVAL_MS, conflictEntry, saveContent])
 
+  useEffect(() => {
+    if (loading || conflictEntry) return
+
+    const restoredDraft = restoredDraftAutosaveRef.current
+    if (!restoredDraft) return
+
+    restoredDraftAutosaveRef.current = null
+    scheduleSave(restoredDraft, { force: true })
+  }, [conflictEntry, loading, scheduleSave])
+
   function handleContentChange(newContent: TiptapContent) {
     setContent(newContent)
+    currentContentRef.current = newContent
 
     const newContentStr = JSON.stringify(newContent)
+    const draftKey = todayRef.current
+      ? getDailyLogDraftKey(classroom.id, todayRef.current)
+      : null
+
     if (newContentStr === lastSavedContentRef.current || (!entryIdRef.current && isEmpty(newContent))) {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
@@ -354,6 +454,9 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
         throttledSaveTimeoutRef.current = null
       }
       lastSavedContentRef.current = newContentStr
+      if (draftKey) {
+        safeSessionRemove(draftKey)
+      }
       pendingContentRef.current = null
       hasLocalEditSinceLoadRef.current = false
       setSaveStatus('saved')
@@ -364,6 +467,9 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
     hasLocalEditSinceLoadRef.current = true
     setSaveStatus('unsaved')
     pendingContentRef.current = newContent
+    if (draftKey) {
+      safeSessionSetJson(draftKey, newContent)
+    }
 
     if (!conflictEntry) {
       const nextCharCount = countCharacters(newContent)
@@ -394,14 +500,18 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
     if (!conflictEntry) return
     const serverContent = resolveEntryContent(conflictEntry)
     setContent(serverContent)
+    currentContentRef.current = serverContent
     lastSavedContentRef.current = JSON.stringify(serverContent)
+    if (todayRef.current) {
+      safeSessionRemove(getDailyLogDraftKey(classroom.id, todayRef.current))
+    }
     hasLocalEditSinceLoadRef.current = false
     entryIdRef.current = conflictEntry.id
     entryVersionRef.current = conflictEntry.version ?? entryVersionRef.current
     setSaveStatus('saved')
     setSaveError('')
     setConflictEntry(null)
-  }, [conflictEntry])
+  }, [classroom.id, conflictEntry])
 
   const retryAfterConflict = useCallback(() => {
     if (!conflictEntry) return

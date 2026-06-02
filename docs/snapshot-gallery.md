@@ -90,9 +90,9 @@ src/app/
 ## Implementation Details
 
 ### Security
-- Only serves PNG files from the snapshots directory
+- Requires authentication and only serves PNG files from the snapshots directory
 - Prevents directory traversal attacks
-- No authentication required (development tool)
+- Allowed by default only in non-production environments
 
 ### Performance
 - Images cached for 1 hour (`Cache-Control: public, max-age=3600`)

@@ -9,6 +9,7 @@ import {
   suggestTestOpenResponseGradeWithContext,
 } from '@/lib/ai-test-grading'
 import { withErrorHandler } from '@/lib/api-handler'
+import { loadClassroomAiSanitizationContext } from '@/lib/server/ai-sanitization'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -87,6 +88,10 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
   }
 
   const currentModel = getTestOpenResponseGradingModel()
+  const sanitizationContext = await loadClassroomAiSanitizationContext(
+    supabase,
+    access.test.classroom_id,
+  )
   const referenceCache = resolveReusableTestOpenResponseReferenceAnswers({
     testTitle: access.test.title,
     questionText: String(question.question_text || ''),
@@ -118,6 +123,7 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
       requestedStrategy: 'manual',
       resolvedStrategy: 'single',
     },
+    sanitizationContext,
   })
 
   if (

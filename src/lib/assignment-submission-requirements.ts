@@ -13,9 +13,31 @@ export const ASSIGNMENT_SUBMISSION_REQUIREMENT_TYPES: AssignmentSubmissionRequir
 
 export const DEFAULT_REQUIREMENT_LABELS: Record<AssignmentSubmissionRequirementType, string> = {
   repo_link: 'Repo link',
-  link: 'Public link',
+  link: 'Link',
   image: 'Screenshot',
 }
+
+export type AssignmentLinkValidationMode =
+  | 'format_only'
+  | 'reachable'
+  | 'expected_domain'
+
+export interface AssignmentSubmissionValidationPolicy {
+  mode: AssignmentLinkValidationMode
+  expected_domains: string[]
+}
+
+export const LINK_VALIDATION_MODE_LABELS: Record<AssignmentLinkValidationMode, string> = {
+  format_only: 'Basic URL',
+  reachable: 'Reachable page',
+  expected_domain: 'Expected site',
+}
+
+const LINK_VALIDATION_MODES = new Set<AssignmentLinkValidationMode>([
+  'format_only',
+  'reachable',
+  'expected_domain',
+])
 
 export type AssignmentSubmissionRequirementDraft = {
   id?: string
@@ -25,6 +47,63 @@ export type AssignmentSubmissionRequirementDraft = {
   required?: boolean | null
   position?: number | null
   validation_policy_json?: Record<string, unknown> | null
+}
+
+function normalizeExpectedDomain(value: unknown): string | null {
+  const raw = String(value ?? '').trim().toLowerCase()
+  if (!raw) return null
+
+  const withoutProtocol = raw.replace(/^https?:\/\//, '')
+  const hostname = withoutProtocol.split('/')[0]?.replace(/^www\./, '') ?? ''
+  if (!hostname || hostname.includes(':')) return null
+  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(hostname)) return null
+  return hostname
+}
+
+export function normalizeAssignmentSubmissionValidationPolicy(
+  type: AssignmentSubmissionRequirementType,
+  policy: Record<string, unknown> | null | undefined
+): AssignmentSubmissionValidationPolicy {
+  if (type !== 'link') {
+    return {
+      mode: 'format_only',
+      expected_domains: [],
+    }
+  }
+
+  const rawMode = typeof policy?.mode === 'string' ? policy.mode : ''
+  const mode = LINK_VALIDATION_MODES.has(rawMode as AssignmentLinkValidationMode)
+    ? rawMode as AssignmentLinkValidationMode
+    : 'format_only'
+  const expectedDomains = Array.isArray(policy?.expected_domains)
+    ? policy.expected_domains
+        .map(normalizeExpectedDomain)
+        .filter((domain): domain is string => Boolean(domain))
+    : []
+
+  return {
+    mode: mode === 'expected_domain' && expectedDomains.length === 0 ? 'format_only' : mode,
+    expected_domains: Array.from(new Set(expectedDomains)),
+  }
+}
+
+export function buildAssignmentSubmissionValidationPolicyJson(
+  type: AssignmentSubmissionRequirementType,
+  policy: Partial<AssignmentSubmissionValidationPolicy>
+): Record<string, unknown> {
+  const normalized = normalizeAssignmentSubmissionValidationPolicy(type, {
+    mode: policy.mode,
+    expected_domains: policy.expected_domains,
+  })
+
+  if (type !== 'link' || normalized.mode === 'format_only') return {}
+
+  return {
+    mode: normalized.mode,
+    ...(normalized.expected_domains.length > 0
+      ? { expected_domains: normalized.expected_domains }
+      : {}),
+  }
 }
 
 export type SubmissionRequirementCompletionItem = {
@@ -66,7 +145,10 @@ export function normalizeAssignmentSubmissionRequirementDrafts(
         instructions: draft.instructions?.trim() || '',
         required: draft.required !== false,
         position,
-        validation_policy_json: draft.validation_policy_json ?? {},
+        validation_policy_json: buildAssignmentSubmissionValidationPolicyJson(
+          draft.type,
+          normalizeAssignmentSubmissionValidationPolicy(draft.type, draft.validation_policy_json)
+        ),
       }
     })
 }
@@ -98,9 +180,9 @@ export function getSubmissionArtifactStatusLabel(
 
   switch (artifact.validation_status) {
     case 'valid':
-      return 'Checked'
+      return artifact.metadata_json?.validation_level === 'verified' ? 'Verified' : 'Saved'
     case 'warning':
-      return 'Warning'
+      return 'Needs review'
     case 'inaccessible':
       return 'Needs review'
     case 'pending':
@@ -168,11 +250,18 @@ function getRequirementArtifactFields(
   artifact: AssignmentSubmissionArtifact,
   requirement?: AssignmentSubmissionRequirement | null
 ) {
+  const validationLevel = typeof artifact.metadata_json?.validation_level === 'string'
+    ? artifact.metadata_json.validation_level
+    : undefined
+
   return {
     title: requirement?.label?.trim() || DEFAULT_REQUIREMENT_LABELS[artifact.type],
     is_required_submission: requirement?.required ?? true,
     requirement_id: artifact.requirement_id,
     requirement_required: requirement?.required ?? true,
+    validation_status: artifact.validation_status,
+    validation_message: artifact.validation_message,
+    ...(validationLevel ? { validation_level: validationLevel } : {}),
   }
 }
 

@@ -62,7 +62,30 @@ describe('GET /api/student/entries', () => {
   })
 
   describe('fetching entries', () => {
-    it('should return all entries for the student', async () => {
+    it('defaults broad active-classroom entry reads to a safe limit', async () => {
+      const limitMock = vi.fn((limit: number) => ({
+        order: vi.fn().mockResolvedValue({
+          data: [
+            {
+              id: 'entry-1',
+              student_id: 'student-1',
+              classroom_id: 'classroom-1',
+              date: '2024-10-15',
+              text: 'Entry 1',
+              on_time: true,
+            },
+            {
+              id: 'entry-2',
+              student_id: 'student-1',
+              classroom_id: 'classroom-1',
+              date: '2024-10-14',
+              text: 'Entry 2',
+              on_time: true,
+            },
+          ],
+          error: null,
+        }),
+      }))
       const mockFrom = vi.fn((table: string) => {
         if (table === 'classroom_enrollments') {
           return {
@@ -81,27 +104,7 @@ describe('GET /api/student/entries', () => {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
                 in: vi.fn(() => ({
-                  order: vi.fn().mockResolvedValue({
-                    data: [
-                      {
-                        id: 'entry-1',
-                        student_id: 'student-1',
-                        classroom_id: 'classroom-1',
-                        date: '2024-10-15',
-                        text: 'Entry 1',
-                        on_time: true,
-                      },
-                      {
-                        id: 'entry-2',
-                        student_id: 'student-1',
-                        classroom_id: 'classroom-1',
-                        date: '2024-10-14',
-                        text: 'Entry 2',
-                        on_time: true,
-                      },
-                    ],
-                    error: null,
-                  }),
+                  limit: limitMock,
                 })),
               })),
             })),
@@ -118,12 +121,56 @@ describe('GET /api/student/entries', () => {
       expect(response.status).toBe(200)
       expect(data.entries).toHaveLength(2)
       expect(data.entries[0].id).toBe('entry-1')
+      expect(limitMock).toHaveBeenCalledWith(100)
+    })
+
+    it('caps explicit broad active-classroom entry limits at 100', async () => {
+      const limitMock = vi.fn((limit: number) => ({
+        order: vi.fn().mockResolvedValue({
+          data: [],
+          error: null,
+        }),
+      }))
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                is: vi.fn(() => ({
+                  data: [{ classroom_id: 'classroom-1' }],
+                  error: null,
+                })),
+              })),
+            })),
+          }
+        }
+        if (table === 'entries') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                in: vi.fn(() => ({
+                  limit: limitMock,
+                })),
+              })),
+            })),
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries?limit=500')
+
+      const response = await GET(request)
+
+      expect(response.status).toBe(200)
+      expect(limitMock).toHaveBeenCalledWith(100)
     })
 
     it('should filter entries by classroom_id when provided', async () => {
       // Create a mock query object that is both chainable and thenable
       const mockQuery = {
         eq: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         then: vi.fn((resolve: any) => resolve({
           data: [{ id: 'entry-1', classroom_id: 'classroom-2' }],
@@ -143,9 +190,39 @@ describe('GET /api/student/entries', () => {
       // Verify eq was called twice: once for student_id, once for classroom_id
       expect(mockQuery.eq).toHaveBeenCalledWith('student_id', 'student-1')
       expect(mockQuery.eq).toHaveBeenCalledWith('classroom_id', 'classroom-2')
+      expect(mockQuery.limit).not.toHaveBeenCalled()
+    })
+
+    it('applies explicit classroom-scoped limits', async () => {
+      const mockQuery = {
+        eq: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        then: vi.fn((resolve: any) => resolve({
+          data: [{ id: 'entry-1', classroom_id: 'classroom-2' }],
+          error: null,
+        })),
+      }
+
+      const mockFrom = vi.fn(() => ({
+        select: vi.fn(() => mockQuery),
+      }))
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries?classroom_id=classroom-2&limit=12')
+
+      await GET(request)
+
+      expect(mockQuery.limit).toHaveBeenCalledWith(12)
     })
 
     it('should return 500 when database query fails', async () => {
+      const limitMock = vi.fn((limit: number) => ({
+        order: vi.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Database error' },
+        }),
+      }))
       const mockFrom = vi.fn((table: string) => {
         if (table === 'classroom_enrollments') {
           return {
@@ -164,10 +241,7 @@ describe('GET /api/student/entries', () => {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
                 in: vi.fn(() => ({
-                  order: vi.fn().mockResolvedValue({
-                    data: null,
-                    error: { message: 'Database error' },
-                  }),
+                  limit: limitMock,
                 })),
               })),
             })),

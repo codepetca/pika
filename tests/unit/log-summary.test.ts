@@ -261,9 +261,9 @@ describe('callOpenAIForSummary', () => {
 
   it('calls OpenAI and parses JSON response', async () => {
     const mockResponse = {
-      overview: 'Students are doing well overall.',
+      overview: 'Students are doing well overall. Contact alex@example.com.',
       action_items: [
-        { text: 'J.S. asked about deadline.', initials: 'J.S.' },
+        { text: 'J.S. asked about deadline at 416-555-1212.', initials: 'J.S.' },
       ],
     }
 
@@ -273,9 +273,9 @@ describe('callOpenAIForSummary', () => {
     } as Response)
 
     const result = await callOpenAIForSummary('system prompt', 'user prompt')
-    expect(result.overview).toBe('Students are doing well overall.')
+    expect(result.overview).toBe('Students are doing well overall. Contact [email redacted].')
     expect(result.action_items).toEqual([
-      { text: 'J.S. asked about deadline.', initials: 'J.S.' },
+      { text: 'J.S. asked about deadline at [phone redacted].', initials: 'J.S.' },
     ])
 
     const requestInit = fetchMock.mock.calls[0][1] as RequestInit

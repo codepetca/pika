@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { AppHeader } from './AppHeader'
+import { AuthSessionWatcher } from './AuthSessionWatcher'
 
 interface AppShellProps {
   children: ReactNode
@@ -53,6 +54,7 @@ export function AppShell({
 
   return (
     <div className={`flex min-h-dvh flex-col bg-page${shouldConstrainViewport ? ' lg:h-dvh lg:overflow-hidden' : ''}`}>
+      {user && <AuthSessionWatcher expectedRole={user.role} />}
       {showHeader && (
         <AppHeader
           user={user}

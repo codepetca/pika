@@ -33,6 +33,7 @@ import {
   getCurrentUser,
   requireAuth,
   requireRole,
+  requireSnapshotGalleryAccess,
   isTeacherEmail,
   AuthenticationError,
   AuthorizationError,
@@ -363,6 +364,45 @@ describe('auth utilities', () => {
       }
 
       await expect(requireRole('student')).rejects.toThrow()
+    })
+  })
+
+  // ==========================================================================
+  // requireSnapshotGalleryAccess()
+  // ==========================================================================
+
+  describe('requireSnapshotGalleryAccess', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs()
+    })
+
+    it('allows teacher access in non-production environments', async () => {
+      vi.stubEnv('NODE_ENV', 'development')
+      mockSession.user = {
+        id: 'teacher-1',
+        email: 'teacher@yrdsb.ca',
+        role: 'teacher',
+      }
+
+      const user = await requireSnapshotGalleryAccess()
+
+      expect(user).toEqual({
+        id: 'teacher-1',
+        email: 'teacher@yrdsb.ca',
+        role: 'teacher',
+      })
+    })
+
+    it('rejects all access in production', async () => {
+      vi.stubEnv('NODE_ENV', 'production')
+      mockSession.user = {
+        id: 'teacher-1',
+        email: 'teacher@yrdsb.ca',
+        role: 'teacher',
+      }
+
+      await expect(requireSnapshotGalleryAccess()).rejects.toThrow(AuthorizationError)
+      await expect(requireSnapshotGalleryAccess()).rejects.toThrow('Forbidden: snapshot gallery is disabled in production')
     })
   })
 

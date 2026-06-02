@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockSupabaseClient } = vi.hoisted(() => ({
+const { mockLoadClassroomAiSanitizationContext, mockSupabaseClient } = vi.hoisted(() => ({
+  mockLoadClassroomAiSanitizationContext: vi.fn(),
   mockSupabaseClient: {
     from: vi.fn(),
     rpc: vi.fn(),
@@ -10,6 +11,10 @@ const { mockSupabaseClient } = vi.hoisted(() => ({
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
+}))
+
+vi.mock('@/lib/server/ai-sanitization', () => ({
+  loadClassroomAiSanitizationContext: mockLoadClassroomAiSanitizationContext,
 }))
 
 import {
@@ -267,6 +272,10 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSupabaseClient.rpc.mockReset()
+    mockLoadClassroomAiSanitizationContext.mockResolvedValue({
+      students: [],
+      initialsMap: {},
+    })
   })
 
   it('creates the batch through the atomic RPC with queued and skipped item rows', async () => {
