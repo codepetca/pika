@@ -378,6 +378,10 @@ export interface AssignmentAiGradingRun {
   status: AssignmentAiGradingRunStatus
   triggered_by: string
   model: string | null
+  gradex_run_id?: string | null
+  gradex_status?: string | null
+  gradex_submitted_at?: string | null
+  gradex_last_polled_at?: string | null
   requested_student_ids_json: string[]
   selection_hash: string
   requested_count: number
