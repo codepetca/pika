@@ -8,39 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-27 — Required submission highlight polish
-
-**Completed:**
-- Removed the visible `R` marker from required-submission artifact pills in the teacher assignment student table.
-- Kept required artifact pills/cards blue without the primary outline treatment, including a stronger full-pill fill in the teacher student table.
-- Renamed the student work content section from `Submitted artifacts` to `Required submissions`.
-- Removed per-card `Required submission`/`Optional submission` labels from the content area and added dashed missing cards for unmet required submissions.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/AssignmentArtifactsCell.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
-- `pnpm test tests/components/AssignmentArtifactsCell.test.tsx`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=4ff75b59-3189-4240-ac5a-dd3e750467bf&assignmentStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
-- Screenshots reviewed: `/tmp/pika-teacher-ready.png`, `/tmp/pika-teacher-content.png`, `/tmp/pika-teacher-content-mobile.png`, `/tmp/pika-student.png`, `/tmp/pika-pr671-required-pill-table.png`
-
-## 2026-05-27 — Test focus telemetry selected access validation
-
-**Completed:**
-- Added selected-student availability validation before student test focus telemetry response reads or inserts.
-- Blocked focus telemetry when a teacher has closed access for the selected student, while preserving legacy behavior if the availability table is absent.
-- Allowed focus telemetry when a student-specific open override applies to a globally closed test.
-- Added API regressions for selected access closure/open overrides, availability lookup failures, missing availability table fallback, and successful active telemetry logging.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/student/tests-focus-events.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm run test:coverage`
-- `pnpm build`
-- `git diff --check`
-
 ## 2026-05-28 — Assignment list stats enrollment scoping
 
 **Completed:**
