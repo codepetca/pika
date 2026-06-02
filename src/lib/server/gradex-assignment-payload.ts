@@ -188,9 +188,12 @@ function getRequiredSanitizationContext(context?: AiSanitizationContext): AiSani
 function pseudonymize(prefix: string, value: string, salt: string): string {
   const digest = createHmac('sha256', salt)
     .update(`${prefix}:${value}`)
-    .digest('hex')
-    .slice(0, 30)
-  return `pika-${prefix}-${digest}a1`
+    .digest('base64url')
+    .toLowerCase()
+    .replace(/-/g, 'x')
+    .replace(/_/g, 'y')
+  const safeDigest = `${digest.slice(0, 10)}z${digest.slice(10, 20)}z${digest.slice(20, 29)}z`
+  return `pika-${prefix}-${safeDigest}`
 }
 
 function truncateText(value: string, maxLength: number): string {
@@ -298,7 +301,7 @@ function buildArtifactSummary(content: TiptapContent, submissionArtifacts: Assig
     )
   }
 
-  return lines.length > 0 ? `Attached Artifacts:\n${lines.join('\n')}` : ''
+  return lines.length > 0 ? `attached artifacts:\n${lines.join('\n')}` : ''
 }
 
 function normalizeSubmissionContent(

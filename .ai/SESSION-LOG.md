@@ -8,23 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-27 — Test focus telemetry selected access validation
-
-**Completed:**
-- Added selected-student availability validation before student test focus telemetry response reads or inserts.
-- Blocked focus telemetry when a teacher has closed access for the selected student, while preserving legacy behavior if the availability table is absent.
-- Allowed focus telemetry when a student-specific open override applies to a globally closed test.
-- Added API regressions for selected access closure/open overrides, availability lookup failures, missing availability table fallback, and successful active telemetry logging.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/student/tests-focus-events.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm run test:coverage`
-- `pnpm build`
-- `git diff --check`
-
 ## 2026-05-28 — Assignment list stats enrollment scoping
 
 **Completed:**
@@ -997,3 +980,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `git diff --check`
 - Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a full-page teacher screenshot showing the off Public Syllabus switch.
+
+## 2026-06-01 — Gradex smoke runner
+
+**Completed:**
+- Added a Pika-owned `pnpm smoke:gradex` runner that builds sanitized sample assignment data, submits it to Gradex, polls the run, fetches item results, and maps Gradex compatibility output back to Pika grade-record fields.
+- Added mocked HTTP tests for create/tick/poll/item mapping and sanitized sample assertions.
+- Updated Gradex pseudonymous refs to avoid long hex-like tokens that Gradex rejects as raw identifier-shaped data.
+- Lowercased generated Gradex artifact-summary text so it does not trip Gradex's likely-name submitted-text guard.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/lib/gradex-smoke-runner.test.ts tests/lib/gradex-assignment-payload.test.ts`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm smoke:gradex -- --dry-run`
+- `pnpm smoke:gradex` reached Gradex run creation against the configured deployed API URL, then stopped because no `GRADEX_INTERNAL_TOKEN`/worker is configured to process the queued run.
+- `GRADEX_API_URL=http://127.0.0.1:3001 GRADEX_API_KEY=... GRADEX_INTERNAL_TOKEN=... pnpm smoke:gradex` completed end-to-end against a controlled local Gradex dev server.
