@@ -1,6 +1,7 @@
 import { formatInTimeZone } from 'date-fns-tz'
 import { classifyAmbiguousRepoReviewChanges } from '@/lib/repo-review-ai'
 import { parseGitHubRepoReference } from '@/lib/github-repos'
+import type { AiSanitizationContext } from '@/lib/ai-sanitization'
 import type {
   AssignmentRepoReviewConfig,
   RepoReviewEvidenceItem,
@@ -643,8 +644,9 @@ export async function analyzeRepoReviewAssignment(opts: {
   config: AssignmentRepoReviewConfig
   identities: RepoReviewStudentIdentityInput[]
   reviewWindow: RepoReviewWindow
+  sanitizationContext?: AiSanitizationContext
 }): Promise<RepoReviewAnalysisResult> {
-  const { config, identities, reviewWindow } = opts
+  const { config, identities, reviewWindow, sanitizationContext } = opts
   const warnings: RepoReviewWarning[] = []
   const { commits: commitSummaries, truncated } = await listCommits(
     config.repo_owner,
@@ -691,7 +693,8 @@ export async function analyzeRepoReviewAssignment(opts: {
       .map((commit) => ({
         id: commit.sha,
         summary: buildAmbiguousClassificationSummary(commit.message, commit.files),
-      }))
+      })),
+    sanitizationContext,
   ).catch((error): Record<string, string> => {
     warnings.push({
       code: 'ai-classification-failed',

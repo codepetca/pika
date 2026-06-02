@@ -15,6 +15,7 @@ import {
   loadAssignmentSubmissionRequirements,
   replaceAssignmentSubmissionRequirements,
 } from '@/lib/server/assignment-submission-artifacts'
+import { loadChunkedRows } from '@/lib/server/query-chunks'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -39,18 +40,11 @@ type AssignmentStatsDocRow = {
 }
 
 const ASSIGNMENT_LIST_STATS_FILTER_CHUNK_SIZE = 50
+const ASSIGNMENT_LIST_STATS_PAGE_SIZE = 1000
 const ASSIGNMENT_LIST_STATS_COLUMNS =
   'assignment_id, student_id, is_submitted, submitted_at, returned_at, teacher_cleared_at'
 const ASSIGNMENT_LIST_STATS_FALLBACK_COLUMNS =
   'assignment_id, student_id, is_submitted, submitted_at, returned_at'
-
-function chunkIds(ids: string[], chunkSize: number): string[][] {
-  const chunks: string[][] = []
-  for (let index = 0; index < ids.length; index += chunkSize) {
-    chunks.push(ids.slice(index, index + chunkSize))
-  }
-  return chunks
-}
 
 async function loadAssignmentDocsForListStats(
   supabase: any,
@@ -61,57 +55,49 @@ async function loadAssignmentDocsForListStats(
     return { docs: [], error: null }
   }
 
-  const selectDocs = (columns: string, assignmentIdChunk: string[], studentIdChunk: string[]) =>
-    supabase
-      .from('assignment_docs')
-      .select(columns)
-      .in('assignment_id', assignmentIdChunk)
-      .in('student_id', studentIdChunk)
+  const filters = [
+    { column: 'assignment_id', values: assignmentIds },
+    { column: 'student_id', values: studentIds },
+  ]
+  const withMailboxTracking = await loadChunkedRows<AssignmentStatsDocRow>({
+    supabase,
+    table: 'assignment_docs',
+    select: ASSIGNMENT_LIST_STATS_COLUMNS,
+    filters,
+    chunkSize: ASSIGNMENT_LIST_STATS_FILTER_CHUNK_SIZE,
+    pageSize: ASSIGNMENT_LIST_STATS_PAGE_SIZE,
+    pageOrderColumn: 'id',
+  })
 
-  const docs: AssignmentStatsDocRow[] = []
-  let useMailboxTracking = true
-
-  for (const assignmentIdChunk of chunkIds(assignmentIds, ASSIGNMENT_LIST_STATS_FILTER_CHUNK_SIZE)) {
-    for (const studentIdChunk of chunkIds(studentIds, ASSIGNMENT_LIST_STATS_FILTER_CHUNK_SIZE)) {
-      if (useMailboxTracking) {
-        const withMailboxTracking = await selectDocs(
-          ASSIGNMENT_LIST_STATS_COLUMNS,
-          assignmentIdChunk,
-          studentIdChunk
-        )
-
-        if (!withMailboxTracking.error) {
-          docs.push(...(withMailboxTracking.data || []))
-          continue
-        }
-
-        if (!isMissingAssignmentTeacherClearedAtColumnError(withMailboxTracking.error)) {
-          return { docs: [], error: withMailboxTracking.error }
-        }
-
-        useMailboxTracking = false
-      }
-
-      const fallback = await selectDocs(
-        ASSIGNMENT_LIST_STATS_FALLBACK_COLUMNS,
-        assignmentIdChunk,
-        studentIdChunk
-      )
-
-      if (fallback.error) {
-        return { docs: [], error: fallback.error }
-      }
-
-      docs.push(
-        ...(fallback.data || []).map((doc: Omit<AssignmentStatsDocRow, 'teacher_cleared_at'>) => ({
-          ...doc,
-          teacher_cleared_at: null,
-        }))
-      )
-    }
+  if (!withMailboxTracking.error) {
+    return { docs: withMailboxTracking.rows, error: null }
   }
 
-  return { docs, error: null }
+  if (!isMissingAssignmentTeacherClearedAtColumnError(withMailboxTracking.error)) {
+    return { docs: [], error: withMailboxTracking.error }
+  }
+
+  const fallback = await loadChunkedRows<Omit<AssignmentStatsDocRow, 'teacher_cleared_at'>>({
+    supabase,
+    table: 'assignment_docs',
+    select: ASSIGNMENT_LIST_STATS_FALLBACK_COLUMNS,
+    filters,
+    chunkSize: ASSIGNMENT_LIST_STATS_FILTER_CHUNK_SIZE,
+    pageSize: ASSIGNMENT_LIST_STATS_PAGE_SIZE,
+    pageOrderColumn: 'id',
+  })
+
+  if (fallback.error) {
+    return { docs: [], error: fallback.error }
+  }
+
+  return {
+    docs: fallback.rows.map((doc) => ({
+      ...doc,
+      teacher_cleared_at: null,
+    })),
+    error: null,
+  }
 }
 
 // GET /api/teacher/assignments?classroom_id=xxx - List assignments for a classroom

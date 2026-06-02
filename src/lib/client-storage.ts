@@ -79,3 +79,11 @@ export function safeSessionSetJson(key: string, value: unknown) {
   }
 }
 
+export function safeSessionRemove(key: string) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.removeItem(key)
+  } catch {
+    // Ignore sessionStorage unavailable errors.
+  }
+}

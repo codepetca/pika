@@ -6,6 +6,8 @@ import { Spinner } from '@/components/Spinner'
 import { format, parse } from 'date-fns'
 import type { Entry, ClassDay, AttendanceStatus, Classroom } from '@/types'
 import { entryHasContent, getAttendanceIcon, getAttendanceLabel } from '@/lib/attendance'
+import { fetchClassDaysForClassroom } from '@/lib/class-days-client'
+import { fetchStudentEntriesForClassroom } from '@/lib/student-entries-client'
 import { getTodayInToronto } from '@/lib/timezone'
 
 interface HistoryEntry {
@@ -53,28 +55,26 @@ export default function HistoryPage() {
 
   // Load history when classroom selected
   useEffect(() => {
+    let cancelled = false
+
     if (!selectedClassroom) {
       setHistory([])
+      setLoadingHistory(false)
       return
     }
 
     async function loadHistory() {
       if (!selectedClassroom) return
       setLoadingHistory(true)
+      setHistory([])
       try {
-        // Fetch class days
-        const classDaysRes = await fetch(
-          `/api/classrooms/${selectedClassroom.id}/class-days`
-        )
-        const classDaysData = await classDaysRes.json()
-        const classDays: ClassDay[] = (classDaysData.class_days || []).filter(
+        const [classDaysData, entries] = await Promise.all([
+          fetchClassDaysForClassroom(selectedClassroom.id),
+          fetchStudentEntriesForClassroom(selectedClassroom.id),
+        ])
+        const classDays: ClassDay[] = classDaysData.filter(
           (day: ClassDay) => day.is_class_day
         )
-
-        // Fetch entries
-        const entriesRes = await fetch(`/api/student/entries?classroom_id=${selectedClassroom.id}`)
-        const entriesData = await entriesRes.json()
-        const entries: Entry[] = entriesData.entries || []
 
         // Build history
         const entryMap = new Map<string, Entry>()
@@ -102,15 +102,23 @@ export default function HistoryPage() {
         // Sort by date descending
         historyData.sort((a, b) => b.date.localeCompare(a.date))
 
+        if (cancelled) return
         setHistory(historyData)
       } catch (err) {
         console.error('Error loading history:', err)
+        if (cancelled) return
+        setHistory([])
       } finally {
+        if (cancelled) return
         setLoadingHistory(false)
       }
     }
 
     loadHistory()
+
+    return () => {
+      cancelled = true
+    }
   }, [selectedClassroom])
 
   async function handleJoinClassroom(e: FormEvent) {

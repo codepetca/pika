@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { useEffect, useRef } from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { AlertDialog, ConfirmDialog, ContentDialog } from '@/ui'
+import { AlertDialog, ConfirmDialog, ContentDialog, DialogPanel } from '@/ui'
 
 describe('AlertDialog', () => {
   const defaultProps = {
@@ -263,5 +264,38 @@ describe('ContentDialog', () => {
     const footerButton = closeButtons.find((btn) => btn.textContent === 'Close')!
     const footer = footerButton.parentElement!
     expect(footer.className).toContain('flex-shrink-0')
+  })
+})
+
+describe('DialogPanel', () => {
+  it('focuses the dialog panel when opened without an inner focus target', async () => {
+    render(
+      <DialogPanel isOpen onClose={vi.fn()} ariaLabelledBy="panel-title">
+        <h2 id="panel-title">Panel title</h2>
+      </DialogPanel>
+    )
+
+    const dialog = screen.getByRole('dialog', { name: 'Panel title' })
+    await waitFor(() => expect(dialog).toHaveFocus())
+  })
+
+  it('does not steal focus from a child that focuses itself on open', async () => {
+    function AutofocusField() {
+      const inputRef = useRef<HTMLInputElement | null>(null)
+      useEffect(() => {
+        inputRef.current?.focus()
+      }, [])
+      return <input ref={inputRef} aria-label="Classroom name" />
+    }
+
+    render(
+      <DialogPanel isOpen onClose={vi.fn()} ariaLabelledBy="panel-title">
+        <h2 id="panel-title">Panel title</h2>
+        <AutofocusField />
+      </DialogPanel>
+    )
+
+    const input = screen.getByRole('textbox', { name: 'Classroom name' })
+    await waitFor(() => expect(input).toHaveFocus())
   })
 })

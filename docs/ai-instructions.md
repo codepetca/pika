@@ -48,7 +48,7 @@ Inspect or modify source only after the startup set and the docs required by you
 - Tiptap content parsing: import `parseContentField` from `@/lib/tiptap-content`
 - UI primitives: import from `@/ui`; use semantic tokens in app code instead of raw `dark:` classes
 - Migrations: AI may create or edit migration files, but humans apply them manually
-- Workflow: do non-trivial work in a dedicated worktree, plan before coding, append a concise `.ai/SESSION-LOG.md` entry, and trim it with `node scripts/trim-session-log.mjs` while preserving the default weekly evidence window
+- Workflow: use worktree for non-trivial work; plan/discuss with `Model recommendation: <model> - <reason>` (`5.3-spark` low-risk; else `5.5 medium|high|extra high`), append `.ai/SESSION-LOG.md`; run `node scripts/trim-session-log.mjs`
 - Risk profile: for non-trivial work, declare `none`, `workspace-state`, `async-grading`, `exam-mode`, or `runtime-platform` in the plan
 
 ## Prompt And Command Map

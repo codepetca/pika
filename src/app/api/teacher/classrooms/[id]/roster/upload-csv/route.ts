@@ -152,6 +152,7 @@ export const POST = withErrorHandler('PostUploadRosterCsv', async (request, cont
     last_name: s.lastName || null,
     student_number: s.studentNumber || null,
     counselor_email: s.counselorEmail || null,
+    join_source: 'csv',
   }))
 
   const { data: upserted, error: upsertError } = await supabase

@@ -8,334 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-27 — Phase two systems and UI audit fixes
-
-**Completed:**
-- Blocked teacher entry detail reads across classroom ownership boundaries.
-- Gated snapshot list/file APIs behind the UI gallery flag plus authentication, and marked them dynamic.
-- Made student notification active-test counts respect selected-student availability and grading closure.
-- Required archived-classroom ownership checks for test AI grading run ticks.
-- Removed the roster tab's dead global right-sidebar route and aligned selected-student email actions with the gradebook pattern.
-- Updated focused API/component coverage for each fixed audit finding.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/teacher/entry-id.test.ts`
-- `pnpm test tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
-- `pnpm test tests/api/teacher/test-auto-grade-runs.test.ts tests/api/student/notifications.test.ts tests/components/TeacherRosterTab.test.tsx tests/unit/layout-config.test.ts`
-- `pnpm test tests/components/ThreePanelProvider.test.tsx tests/unit/layout-config.test.ts`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=roster'`
-- Browser selected-row screenshots: `/tmp/pika-roster-selected-desktop.png`, `/tmp/pika-roster-selected-mobile.png`, `/tmp/pika-roster-selected-email-menu-desktop.png`, `/tmp/pika-roster-selected-email-menu-mobile.png`
-
-## 2026-05-27 — Phase three audit fixes
-
-**Completed:**
-- Added shared selected-student enrollment validation for teacher test mutation routes.
-- Blocked test AI auto-grade run creation and open-response grade clearing when any selected student is outside the test classroom.
-- Normalized teacher settings controls toward `@/ui` primitives: shared segmented section switcher, cards, `FormField`, `Input`, `Select`, and a FormField-compatible textarea.
-- Fixed the syllabus lesson-plan visibility select's accessible label and added settings switcher coverage.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherSettingsTab.test.tsx tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-clear-open-grades.test.ts tests/unit/test-student-access.test.ts`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=settings&section=general'`
-- Browser screenshots: `/tmp/pika-settings-general-full-desktop.png`, `/tmp/pika-settings-general-full-mobile.png`, `/tmp/pika-settings-class-days-desktop.png`, `/tmp/pika-settings-class-days-mobile.png`, `/tmp/pika-settings-general-dark-desktop.png`
-- `pnpm test tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-clear-open-grades.test.ts tests/unit/test-student-access.test.ts`
-- `pnpm build`
-- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx`
-- `pnpm test`
-
-## 2026-05-27 — Daily log history selected date clarity
-
-**Completed:**
-- Changed the teacher Daily student-log inspector to keep entries in newest-first chronological order instead of pinning the selected entry above newer logs.
-- Highlighted the selected date in place with a selected-card treatment and bold date label.
-- Added an in-order highlighted `No log for this date.` row for selected dates without a student log.
-- Added focused component coverage for chronological selected entries, empty selected dates, and removal of the old `Selected date -` label.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/StudentLogHistory.test.tsx tests/components/TeacherAttendanceTab.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm test tests/unit/ai-startup-docs.test.ts`
-- `git diff --check`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=attendance'`
-- Browser screenshots: `/tmp/pika-teacher-daily-selected-history.png`, `/tmp/pika-teacher-daily-empty-selected-history.png`
-
-## 2026-05-27 — Phase four audit fixes
-
-**Completed:**
-- Added selected-student classroom enrollment validation to the teacher test return route before availability checks, finalization, response reads, or the return RPC.
-- Scoped teacher test result aggregation and open-response stats to currently enrolled classroom students.
-- Normalized the shared feedback dialog to use `@/ui` primitives for the dialog import, category segmented control, and submit button.
-- Updated focused API and integration coverage for selected test return/results enrollment scoping.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-results.test.ts`
-- `pnpm test tests/api/integration/test-return-visibility-flow.test.ts`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- Feedback dialog screenshots: `/tmp/pika-feedback-teacher-desktop-light-idle.png`, `/tmp/pika-feedback-teacher-desktop-light-error.png`, `/tmp/pika-feedback-teacher-desktop-light-submitting.png`, `/tmp/pika-feedback-teacher-desktop-light-success.png`, `/tmp/pika-feedback-teacher-mobile-dark-idle.png`, `/tmp/pika-feedback-student-desktop-dark-idle.png`, `/tmp/pika-feedback-student-mobile-light-error.png`
-- `pnpm test`
-- `pnpm build`
-
-## 2026-05-27 — Test results enrolled response query
-
-**Completed:**
-- Loaded classroom enrollments before teacher test response reads.
-- Scoped the service-role `test_responses` query to current classroom `student_id`s and skipped the query when no students are enrolled.
-- Kept the defensive in-memory response filter and updated route coverage to assert the scoped response query.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/tests-results.test.ts`
-- `pnpm vitest run tests/api/teacher/tests-results.test.ts tests/api/integration/test-return-visibility-flow.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-
-## 2026-05-27 — Required submission artifact display
-
-**Completed:**
-- Preserved structured required-submission artifacts as first-class teacher table items before adding free-floating content artifacts.
-- Added requirement title/metadata to teacher artifact display objects so student detail cards show labels like `Published demo` instead of generic `Public link`.
-- Highlighted required-submission artifact pills/cards and kept ordinary content-extracted artifacts visually regular.
-- Added regression coverage for multi-artifact teacher rows, required-submission labels, and student detail artifact titles.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/lib/assignment-submission-requirements.test.ts tests/api/teacher/assignments-id.test.ts tests/components/AssignmentArtifactsCell.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx -- --testTimeout=10000`
-- `pnpm test tests/components/AssignmentArtifactsCell.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx -- --testTimeout=10000`
-- `pnpm lint`
-- `pnpm test`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=34d744b5-2644-4ca1-baf2-e86270d0590a&assignmentStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
-- Browser screenshots: `/tmp/pika-teacher-details-artifacts.png`, `/tmp/pika-student-loaded.png`, `/tmp/pika-teacher-mobile.png`
-
-## 2026-05-27 — Next systems/UI audit slice
-
-**Completed:**
-- Hardened student test document snapshot access to respect draft status, selected-student availability, submitted work, grading lock state, and returned work.
-- Scoped student test result aggregates to currently enrolled students whose attempts have been returned.
-- Kept returned assignment grade/feedback fields visible while stripping teacher-only draft feedback and AI suggestion fields.
-- Added accessible names for student survey link/text responses, student open-response test answers, and teacher announcement body textareas.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/student/tests-documents-snapshot.test.ts tests/api/student/tests-results.test.ts tests/unit/assignments.test.ts tests/api/student/assignments.test.ts tests/components/StudentSurveyPanel.test.tsx tests/components/StudentQuizForm.test.tsx tests/components/AnnouncementsMarkdown.test.tsx`
-- `pnpm vitest run tests/api/integration/test-return-visibility-flow.test.ts --reporter=verbose`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=announcements'`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
-- UI screenshots reviewed from `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png` for each tab run.
-- `pnpm test`
-- `bash scripts/verify-env.sh`
-
-## 2026-05-27 — Student quiz/survey result enrollment scoping
-
-**Completed:**
-- Scoped student quiz result aggregates to current classroom enrollments before aggregating class responses.
-- Scoped student survey result aggregates and text/link response lists to current classroom enrollments.
-- Kept defensive in-memory filtering after scoped Supabase `.in('student_id', ...)` response reads.
-- Added API regressions that include stale/unenrolled response rows and assert enrolled-only result payloads.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/student/quizzes-results.test.ts tests/api/student/surveys-route.test.ts --reporter=verbose`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-- `git diff --check`
-
-## 2026-05-27 — Assessment authoring accessibility audit
-
-**Completed:**
-- Added accessible names for quiz/test question prompts, options, answer keys, sample solutions, correct-answer radios, remove buttons, markdown editors, and quiz delete controls.
-- Replaced the assessment workspace mode strip with the shared tab-style `TeacherWorkSurfaceModeBar`.
-- Wired the shared mode bar tabs to labelled `tabpanel` content after PR review flagged the incomplete ARIA tab pattern.
-- Fixed a narrow mobile overlap in the test question accordion header after visual review.
-- Added focused component coverage for mode tab semantics and authoring control names.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/QuizDetailPanel.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/TeacherWorkSurfaceModeBar.test.tsx --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-- `git diff --check`
-- `E2E_BASE_URL=http://localhost:3015 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
-- `E2E_BASE_URL=http://localhost:3015 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests&testId=210e30d4-f085-4c86-94d3-ee14bb66fd03&testMode=authoring'`
-- `E2E_BASE_URL=http://localhost:3015 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
-- Reviewed screenshots: `/tmp/pika-test-question-editor-teacher-fixed.png`, `/tmp/pika-test-question-editor-teacher-mobile-fixed.png`, `/tmp/pika-survey-code-editor-teacher.png`, `/tmp/pika-survey-code-editor-teacher-mobile.png`, plus teacher/student/teacher-mobile captures from the verifier.
-
-## 2026-05-27 — Teacher assessment enrollment scoping
-
-**Completed:**
-- Scoped teacher quiz result aggregates and responder hydration to current classroom enrollments.
-- Scoped teacher survey result aggregates, text/link responses, and responder hydration to current classroom enrollments.
-- Scoped teacher quiz and survey list response stats to enrolled student IDs before counting respondents.
-- Added paginated enrollment ID loading to avoid Supabase row-cap truncation.
-- Added fail-closed enrollment/response-stat query handling and regressions with stale/unenrolled response rows.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/quizzes-results.test.ts tests/api/teacher/quizzes-route.test.ts tests/api/teacher/surveys-route.test.ts tests/api/teacher/surveys-results.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm run test:coverage`
-- `pnpm build`
-- `git diff --check`
-
-## 2026-05-27 — Assignment return enrollment validation
-
-**Completed:**
-- Validated selected student enrollment before loading or mutating assignment return docs.
-- Skipped assignment doc reads/updates for selected students who are no longer enrolled.
-- Preserved unavailable-student response semantics while adding explicit not-enrolled counts and ids.
-- Added regressions for enrollment query failures, fully unenrolled selections, and stale existing assignment docs.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/assignments-id-return.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm run test:coverage`
-- `pnpm build`
-- `git diff --check`
-
-## 2026-05-27 — Assignment repo target enrollment validation
-
-**Completed:**
-- Validated current classroom enrollment before teacher repo-target override reads, deletes, or saves.
-- Failed closed on enrollment query errors and returned the existing not-enrolled bad request for stale students.
-- Added API coverage for unenrolled overrides, enrollment query failures, enrolled override saves, and override resets.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/assignments-repo-targets-studentId.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm run test:coverage`
-- `pnpm build`
-- `git diff --check`
-
-## 2026-05-27 — Test response enrollment validation
-
-**Completed:**
-- Validated the response student remains enrolled before teacher response grading updates.
-- Validated the response student remains enrolled before manual AI grade suggestions or reference-cache writes.
-- Bound response grade updates to the validated `student_id` as well as response and test ids.
-- Added API regressions for stale response students and enrollment validation failures in both routes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/tests-responses-grade.test.ts tests/api/teacher/tests-ai-suggest.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm run test:coverage`
-- `pnpm build`
-- `git diff --check`
-
-## 2026-05-27 — Required submission highlight polish
-
-**Completed:**
-- Removed the visible `R` marker from required-submission artifact pills in the teacher assignment student table.
-- Kept required artifact pills/cards blue without the primary outline treatment, including a stronger full-pill fill in the teacher student table.
-- Renamed the student work content section from `Submitted artifacts` to `Required submissions`.
-- Removed per-card `Required submission`/`Optional submission` labels from the content area and added dashed missing cards for unmet required submissions.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/AssignmentArtifactsCell.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
-- `pnpm test tests/components/AssignmentArtifactsCell.test.tsx`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=4ff75b59-3189-4240-ac5a-dd3e750467bf&assignmentStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
-- Screenshots reviewed: `/tmp/pika-teacher-ready.png`, `/tmp/pika-teacher-content.png`, `/tmp/pika-teacher-content-mobile.png`, `/tmp/pika-student.png`, `/tmp/pika-pr671-required-pill-table.png`
-
-## 2026-05-27 — Test focus telemetry selected access validation
-
-**Completed:**
-- Added selected-student availability validation before student test focus telemetry response reads or inserts.
-- Blocked focus telemetry when a teacher has closed access for the selected student, while preserving legacy behavior if the availability table is absent.
-- Allowed focus telemetry when a student-specific open override applies to a globally closed test.
-- Added API regressions for selected access closure/open overrides, availability lookup failures, missing availability table fallback, and successful active telemetry logging.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/student/tests-focus-events.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm run test:coverage`
-- `pnpm build`
-- `git diff --check`
-
-## 2026-05-28 — Assignment list stats enrollment scoping
-
-**Completed:**
-- Scoped teacher assignment list stats to currently enrolled classroom students.
-- Reused `getClassroomStudentIds()` for paginated enrollment ids and total student count.
-- Bulk-loaded assignment docs by assignment ids and enrolled student ids, chunking large `.in()` filters to avoid oversized PostgREST URLs while preserving the `teacher_cleared_at` missing-column fallback.
-- Added regressions for withdrawn-student docs, large-roster chunking, fallback scoping, zero-enrollment stats, and enrollment lookup failures.
-
-**Validation:**
-- `pnpm vitest run tests/api/teacher/assignments.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm test -- --runInBand`
-- `pnpm build`
-- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
-- `git diff --check`
-
-## 2026-05-29 — Skill progression map from PR review patterns
-
-**Completed:**
-- Reviewed recent merged PRs #665-#676 plus nearby audit-fix PRs for recurring review and self-review themes.
-- Identified repeat hotspots around enrollment-scoped authorization, PostgREST query sizing/pagination, accessibility semantics, and verification depth.
-- Wrote a concrete next-skill map anchored to those PR and review patterns for the automation memory.
-
-**Validation:**
-- `bash scripts/verify-env.sh` (failed only because `node_modules` is absent in this worktree)
-- `gh pr list --state merged --limit 12 --json number,title,mergedAt,url,author,reviewDecision`
-- `gh api graphql` against recent merged PR reviews
-
-## 2026-05-30 — Shared enrollment and list-stat guardrails
-
-**Completed:**
-- Added shared chunked/paged Supabase row loading in [`src/lib/server/query-chunks.ts`](/Users/stew/.codex/worktrees/f558/pika/src/lib/server/query-chunks.ts) to centralize filter chunking and stable pagination.
-- Added shared classroom enrollment validation in [`src/lib/server/classroom-enrollment-validation.ts`](/Users/stew/.codex/worktrees/f558/pika/src/lib/server/classroom-enrollment-validation.ts) and routed test enrollment checks through it.
-- Replaced duplicated list-stat loading logic in teacher quizzes, surveys, and tests routes with the shared loader.
-- Replaced duplicated classroom enrollment validation in assignment auto-grade and assignment repo-target routes with the shared validator.
-- Added focused regression coverage for chunked/paged row loading and 51-student enrollment validation boundaries.
-
-**Validation:**
-- `git diff --check`
-- Static readback of all touched server routes and new tests
-- Full test/lint/build not run because `node_modules` is absent in this worktree
-
-## 2026-05-30 — Accessibility and validation audit gates
-
-**Completed:**
-- Reviewed the shared guardrail refactor and found no blocking route/runtime issues on static inspection.
-- Added the governed composite-widget accessibility checklist in [`docs/guidance/ui/composite-widget-accessibility.md`](/Users/stew/.codex/worktrees/f558/pika/docs/guidance/ui/composite-widget-accessibility.md).
-- Wired the new checklist into the UI canon, design guidance, and audit prompt/skill docs.
-- Extended the Pika audit script to flag missing changed-test coverage for risky server/runtime work and composite-widget UI work, plus emit reminder output for required validation reporting.
-- Fixed one audit false positive by limiting the `manual-catch` violation to unwrapped route files instead of any wrapped route helper catch.
-- Added doc/prompt regression coverage in [`tests/unit/ui-guidance-docs.test.ts`](/Users/stew/.codex/worktrees/f558/pika/tests/unit/ui-guidance-docs.test.ts).
-
-**Validation:**
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- Full Vitest/lint/build still not run because `node_modules` is absent in this worktree
-
 ## 2026-05-30 — Validation pass completed
 
 **Completed:**
@@ -394,6 +66,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm test`
 - `pnpm build`
+- `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
 - `git diff --check`
 
@@ -768,6 +441,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `git diff --check`
 
+## 2026-05-31 — Gradex assignment adapter payload foundation
+
+**Completed:**
+- Added a server-side Gradex assignment payload builder for Pika assignment grading.
+- Produces both the Pika adapter request and the async Gradex `grading-runs` create request, plus local pseudonym mapping for the later polling slice.
+- Sanitizes assignment text and submission text, pseudonymizes assignment/submission/student/grade refs with an HMAC salt, summarizes artifacts by type/count only, and keeps provider/model/tier selection as Gradex-owned `auto` settings.
+- Added privacy and contract coverage proving raw Pika IDs, identity fields, raw history fields, repo identities, and raw URLs are excluded from the Gradex request.
+
+**Validation:**
+- `pnpm vitest run tests/lib/gradex-assignment-payload.test.ts`
+- `pnpm exec tsc --noEmit`
+
 ## 2026-05-31 — Student exam-mode e2e telemetry coverage
 
 **Completed:**
@@ -779,6 +464,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `VITEST_MAX_WORKERS=4 bash scripts/verify-env.sh`
 - `E2E_BASE_URL=http://localhost:3100 pnpm exec playwright test e2e/student-exam-mode.spec.ts -g "locks content only after sustained window loss"`
 - `pnpm lint`
+
 ## 2026-05-31 — PageActionBar mobile menu focus
 
 **Completed:**
@@ -798,3 +484,526 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3021 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh teacher/dashboard`
 - Manual Playwright mobile menu check: focus moved from `Course blueprints` to `Open classroom` with ArrowDown, Escape returned focus to `Open actions menu`, and the menu closed.
 - Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-page-actionbar-menu-mobile-viewport.png`, `/tmp/pika-page-actionbar-menu-mobile-keyboard.png`
+
+## 2026-05-31 — SplitButton menu focus
+
+**Completed:**
+- Hardened the shared `SplitButton` menu with focus-on-open, arrow/Home/End navigation over enabled items, and focus restoration to the opener on Escape, outside close, and item selection.
+- Added semantic component coverage for disabled-item skipping, wraparound keyboard movement, Escape close behavior, and selection focus restoration.
+- Addressed review follow-ups so parent rerenders from menu focus/hover do not reset keyboard focus, existing modal actions still restore focus normally, and `DialogPanel` moves focus into modal dialogs even when they open after async menu work.
+- Verified the teacher tests tab visually after the shared primitive change.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/ui/SplitButton.test.tsx`
+- `pnpm test tests/ui/SplitButton.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx -- --runInBand --testTimeout=10000`
+- `pnpm test tests/ui/SplitButton.test.tsx tests/ui/Dialog.test.tsx tests/components/AssignmentModal.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx -- --runInBand --testTimeout=10000`
+- `pnpm test tests/ui/Dialog.test.tsx tests/ui/SplitButton.test.tsx tests/components/CreateClassroomModal.test.tsx tests/components/AssignmentModal.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx -- --runInBand --testTimeout=10000`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `E2E_BASE_URL=http://localhost:3022 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
+- Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`
+
+## 2026-05-31 — Assignment list stats pagination
+
+**Completed:**
+- Routed teacher assignment list stats reads through the shared chunked/paged Supabase loader.
+- Preserved the legacy fallback for databases without `assignment_docs.teacher_cleared_at`.
+- Added a dense 2,500-row stats regression so list stats cannot silently stop at Supabase's default page.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/teacher/assignments.test.ts tests/unit/query-chunks.test.ts -- --runInBand`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+
+## 2026-05-31 — Student entries broad-read cap
+
+**Completed:**
+- Added a default cap for broad `/api/student/entries` reads that span all active classrooms.
+- Preserved classroom-scoped no-limit history behavior so attendance history surfaces do not mark older entries absent.
+- Added API coverage for broad default limiting, explicit broad limit capping, classroom-scoped no-limit behavior, and explicit classroom limits.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/student/entries.test.ts -- --runInBand`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+
+## 2026-05-31 — Teacher test authoring URL mode
+
+**Completed:**
+- Made `testMode=authoring` open the teacher test editor instead of silently falling back to grading.
+- Updated test workspace navigation so Edit Test and newly created tests write authoring mode, while editor close returns the URL to grading mode.
+- Routed teacher test list/detail reads through `fetchJSONWithCache` to satisfy the client-read audit gate.
+- Added component coverage for authoring deep links, editor close URL repair, Edit Test URL state, and Browser Back from authoring to grading.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx -- --runInBand --testTimeout=10000`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/ui/Dialog.test.tsx -- --runInBand --testTimeout=10000`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3024 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
+- Manual Playwright screenshots for `testMode=authoring`: `/tmp/pika-teacher-authoring.png`, `/tmp/pika-teacher-authoring-mobile.png`
+
+## 2026-05-31 — Teacher assignment passive sidebar removal
+
+**Completed:**
+- Disabled the external right sidebar for teacher assignment summary and workspace route keys.
+- Stopped rendering the classroom route's passive assignment sidebar fallback for teacher assignments.
+- Added coverage so teacher assignments match the tests work-surface rule: no external sidebar until an integrated workspace inspector is active.
+- Fixed review feedback so disabled right-sidebar routes clear stale mobile right-drawer state.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/layout-config.test.ts tests/components/ThreePanelProvider.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx -- --runInBand --testTimeout=10000`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3025 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
+- Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-teacher-assignments-loaded.png`
+
+## 2026-05-31 — UI sidebar guidance cleanup
+
+**Completed:**
+- Updated `docs/core/design.md` so the classroom shell treats `RightSidebar` as optional route-level chrome, not a default details pane.
+- Clarified the teacher work-surface canon: assignments/quizzes/tests should use integrated `TeacherWorkspaceSplit` inspectors only when active work justifies side-by-side panes.
+- Promoted the teacher workspace split audit language from proposed extraction to the current structural primitive and discouraged external right-sidebar substitutes for teacher work surfaces.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/layout-config.test.ts -- --runInBand`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+
+## 2026-05-31 — Composite widget audit relevance
+
+**Completed:**
+- Tightened the `missing-a11y-tests` audit guardrail so composite-widget changes require a changed semantic test that matches or references the changed component.
+- Kept the allowed test locations scoped to `tests/components`, `tests/ui`, or `tests/integration`.
+- Added fixture coverage for the bypass case where an unrelated component test changed beside a composite-widget component.
+- Addressed review feedback by making the no-changed-test path report `missing-a11y-tests` cleanly on Bash 3.2 and by avoiding loose content-reference matches for generic stems such as `button`.
+- Addressed follow-up review feedback by matching generic component stems against changed test filenames case-insensitively, with a `button.tsx` / `Button.test.tsx` regression fixture.
+- Tightened that follow-up so generic stems require exact changed test filename matches, avoiding false positives such as `page.tsx` passing through `PageActionBar.test.tsx`.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts -- --runInBand`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+
+## 2026-06-01 — AI grading egress sanitization
+
+**Completed:**
+- Added shared AI sanitization utilities for direct identifier redaction, roster-aware initials reuse, provider pseudonym refs, and egress allow-list validation.
+- Kept log summary APIs compatible while routing their redaction helpers through the shared sanitizer.
+- Sanitized assignment grading prompt fields, artifact metadata, and generated feedback, and added `store: false` to assignment grading OpenAI requests.
+- Sanitized test grading prompt fields, answer references, student responses, and generated feedback, added `store: false`, and changed batch grading to send pseudonymous provider refs mapped back locally.
+- Documented the AI grading egress contract for the upcoming GradeX adapter.
+
+**Validation:**
+- `pnpm test tests/unit/ai-sanitization.test.ts tests/unit/log-summary.test.ts tests/unit/ai-grading.test.ts tests/unit/ai-test-grading.test.ts tests/lib/ai-test-grading.test.ts`
+- `pnpm test tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/tests-ai-suggest.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/test-auto-grade-runs.test.ts tests/lib/test-ai-grading-runs.test.ts tests/lib/assignment-ai-grading-runs.test.ts`
+- `pnpm lint`
+- `pnpm test` (one unrelated `StudentAssignmentsTab` modal test failed during the full run; rerunning that file passed)
+- `pnpm test tests/components/StudentAssignmentsTab.test.tsx`
+- `pnpm build`
+- `git diff --check`
+
+## 2026-05-31 — Upload image route standardization
+
+**Completed:**
+- Replaced legacy direct `getSession()` handling in `/api/upload-image` with `requireAuth()`.
+- Converted upload-image validation and storage failure branches from manual `{ error }` responses to `ApiError` throws handled by `withErrorHandler`.
+- Updated API tests to cover wrapper-mapped authentication and `requireAuth` user-id filename scoping.
+- Addressed review feedback by preserving the malformed-session no-id guard before building storage filenames.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/api/upload-image.test.ts tests/unit/api-route-standards.test.ts -- --runInBand`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+
+## 2026-05-31 — Student lesson calendar cache reuse
+
+**Completed:**
+- Routed student lesson calendar assignment reads through the shared `student-assignments:<classroomId>` cache key.
+- Routed student lesson calendar announcement reads through the shared `student-announcements:<classroomId>` cache key.
+- Routed student lesson calendar lesson-plan reads through a range-specific `student-lesson-plans:<classroomId>:<start>:<end>` cache key.
+- Added remount coverage proving the calendar reuses cached lesson plans, assignments, and announcements.
+- Addressed review feedback by isolating per-endpoint load failures and strengthening remount coverage to wait for completed cached data.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/StudentLessonCalendarTab.test.tsx tests/unit/request-cache.test.ts -- --runInBand`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+
+## 2026-05-31 — Student history cache reuse
+
+**Completed:**
+- Added a shared student entries client helper that caches `/api/student/entries` reads by classroom and optional limit.
+- Routed classroom student history and standalone student history class-day/entry reads through shared cached helpers.
+- Routed the today tab’s entry history refresh through the shared student entries cache and invalidated classroom entry caches after successful saves.
+- Added component coverage proving student history remounts reuse cached class days and entries, plus save invalidation coverage in today-tab history tests.
+- Addressed PR review feedback by clearing stale history rows after failed reloads, cancelling stale history requests after classroom changes, and invalidating/updating entry caches on save conflicts without caching partial conflict payloads as full history rows.
+- Spawned new read-only audit tracks for accessibility/mobile consistency, API standardization, classroom action surfaces, and client caching/freshness.
+
+**Validation:**
+- `pnpm vitest run tests/components/StudentHistoryTab.test.tsx tests/components/StudentTodayTabHistory.test.tsx`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+
+## 2026-05-31 — Gradebook cache invalidation after grading
+
+**Completed:**
+- Added a shared `invalidateGradebookForClassroom()` helper for `gradebook:<classroomId>:` cache keys.
+- Routed the gradebook detail refresh path through the helper.
+- Invalidated gradebook caches when assignment grade-update events arrive, including auto-grade paths that refresh without a full doc payload.
+- Invalidated gradebook caches after test grading row updates, batch auto-grade completion, batch return, unsubmit, and attempt deletion refreshes.
+- Added focused component coverage for assignment and test grade-update invalidation.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/hooks/useGradebookData.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+
+## 2026-06-01 — Codex model recommendation workflow
+
+**Completed:**
+- Added a Codex model recommendation policy to `docs/ai-instructions.md`, including `5.3-spark` guidance and `5.5` reasoning-level guidance.
+- Added a startup checklist reminder to state the recommendation before implementation.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts`
+- `git diff --check`
+
+## 2026-06-01 — Repo-review AI egress sanitization
+
+**Completed:**
+- Routed repo-review AI classification through provider refs, direct identifier redaction, and `store: false`.
+- Routed repo-review feedback generation through classroom sanitization context with pseudonymous repo/student refs and sanitized evidence/warnings.
+- Sanitized repo-review AI feedback before returning it for local persistence.
+- Addressed review feedback by sanitizing heuristic fallback feedback when OpenAI is unavailable or fails.
+- Sanitized daily log summary model output before cron persistence.
+
+**Validation:**
+- `pnpm test tests/unit/repo-review-ai.test.ts tests/unit/repo-review-analysis.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts`
+- `pnpm test tests/unit/repo-review-ai.test.ts tests/unit/repo-review-analysis.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/unit/log-summary.test.ts tests/api/cron/nightly-log-summaries.test.ts`
+- `pnpm test tests/unit/repo-review-ai.test.ts`
+
+## 2026-06-01 — Gradex egress sanitization alignment
+
+**Completed:**
+- Refactored the Gradex assignment payload builder to require Pika's standard AI sanitization context.
+- Routed Gradex assignment title, instructions, and submission text through `sanitizeAiText` before Gradex payload construction.
+- Kept Gradex-specific pseudonymous refs and local mappings while preserving extra raw-token hardening for Pika DB identifiers and bare `www.` URLs.
+- Strengthened Gradex adapter tests for roster-name initials, required sanitization context, raw identifier exclusion, and Gradex-owned provider/model settings.
+
+**Validation:**
+- `pnpm test tests/lib/gradex-assignment-payload.test.ts tests/unit/ai-sanitization.test.ts tests/unit/ai-grading.test.ts tests/lib/assignment-ai-grading-runs.test.ts`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+
+## 2026-06-01 — Snapshot gallery hardening phase-1 second pass
+
+**Completed:**
+- Added `requireSnapshotGalleryAccess()` in `src/lib/auth.ts` to gate snapshot endpoints to non-production teachers by default and allow production access only for `SNAPSHOT_GALLERY_ADMIN_EMAILS` allowlist entries.
+- Replaced `requireAuth()` with snapshot-specific access check in `src/app/api/snapshots/list/route.ts` and `src/app/api/snapshots/[filename]/route.ts`.
+- Updated snapshot API tests to mock and verify the new auth path.
+- Added unit coverage for snapshot-gallery access gating in `tests/unit/auth.test.ts`.
+- Added production admin allowlist env variable and clarified gallery security docs in `.env.example` and `docs/snapshot-gallery.md`.
+
+**Validation:**
+- `pnpm test tests/unit/auth.test.ts tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
+- `pnpm lint`
+
+## 2026-06-01 — Snapshot gallery production restriction finalized
+
+**Completed:**
+- Updated `requireSnapshotGalleryAccess()` to be strictly non-production only (no production allowlist fallback).
+- Removed `SNAPSHOT_GALLERY_ADMIN_EMAILS` from `.env.example`.
+- Updated snapshot gallery docs to reflect production-blocked policy.
+- Adjusted `requireSnapshotGalleryAccess` unit tests accordingly (`tests/unit/auth.test.ts`).
+
+**Validation:**
+- `pnpm test tests/unit/auth.test.ts tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
+- `pnpm lint`
+
+## 2026-06-01 — Open join classroom access mode
+
+**Completed:**
+- Added `classrooms.join_policy` and `classroom_roster.join_source` migration defaults/checks.
+- Added teacher Settings controls for `Roster` vs `Open join`, keeping `allow_enrollment` as the master join switch.
+- Updated student join-by-code flow so roster mode remains strict, while open join asks for first/last name and self-creates the roster/profile/enrollment rows.
+- Stamped manual roster adds as `manual`, CSV uploads as `csv`, and self-joins as `open_join`.
+- Added an `Open join` roster badge and source detail field for teacher review.
+
+**Validation:**
+- `pnpm test tests/api/student/classrooms-join.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/teacher/roster.test.ts tests/api/teacher/roster-add.test.ts tests/api/teacher/roster-upload-csv.test.ts tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test`
+- `pnpm test tests/components/TeacherRosterTab.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/api/student/classrooms-join.test.ts tests/api/teacher/roster.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus mocked open-join roster desktop/mobile and student join form screenshots.
+
+## 2026-06-01 — Open join settings toggle polish
+
+**Completed:**
+- Replaced the Settings join checkbox and right-aligned segmented control with matching left-aligned two-choice toggles.
+- Updated the toggle states so `Allow`/`Roster` sit on the left and `Disallow`/`Open` sit on the right.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Joining tooltip copy consolidation
+
+**Completed:**
+- Moved the allow-new-students and join-mode explanatory copy into the `Joining` info tooltip.
+- Left the Settings rows as compact `Allow / Disallow` and `Roster / Open` toggles.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Joining row copy refinement
+
+**Completed:**
+- Restored brief row-level copy for joining controls while keeping the tooltip concise.
+- Added an X marker inside the off-side toggle thumb.
+- Linked the roster-mode row copy to the classroom roster tab.
+- Added focused coverage for the visible joining copy and roster link.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`; checked the Disallow/X off state and restored the classroom to allowed.
+
+## 2026-06-01 — Roster join row wording
+
+**Completed:**
+- Changed the roster-mode row copy to `Only students on roster can join.` with a lowercase `view roster` link.
+- Matched the roster-mode row emphasis to the allow-new-joins row copy.
+- Updated focused settings coverage for the new copy and link text.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Settings name and join-code controls
+
+**Completed:**
+- Renamed the Settings `Course Name` field to `Classroom name`, including validation and save messages.
+- Replaced the separate `New code` button with a warning-colored refresh icon attached to the join-code control.
+- Kept the join-code copy action on the code itself.
+- Removed the regenerate-code confirmation dialog description so the title stands alone.
+- Added focused coverage that the refresh icon opens the title-only confirmation dialog.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a mobile confirmation-dialog screenshot after clicking the refresh icon.
+
+## 2026-06-01 — Join copy affordance styling
+
+**Completed:**
+- Styled the join code and join URL copy buttons with primary underlined text so they read as clickable copy controls.
+- Kept the warning refresh icon visually distinct from the copy actions.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Join copy highlighted controls
+
+**Completed:**
+- Reverted the link-like underlined text styling on the join code and URL.
+- Highlighted the full join code and join URL controls with the existing subtle primary treatment so the whole textbox reads as clickable-to-copy.
+- Left the warning refresh icon separate from the copy controls.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Regenerate join link layout
+
+**Completed:**
+- Changed the regenerate confirmation title to `Generate new join code and link?`.
+- Moved the refresh icon into a separate warning button after the join URL copy control.
+- Shortened the desktop join URL copy control so it no longer stretches across the row.
+- Updated focused coverage for the new refresh button label and dialog title.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `pnpm build` after clearing stale `.next`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a mobile confirmation-dialog screenshot.
+
+## 2026-06-01 — Settings switch consistency
+
+**Completed:**
+- Replaced the settings page checkbox controls with a shared switch-row pattern.
+- Simplified the joining rows so each switch sits on the left with short state copy on the right.
+- Kept off states visually clear with the X thumb marker and muted switch styling.
+- Updated focused settings coverage for the markdown display switch semantics.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a full-page teacher screenshot for Public Syllabus switches.
+- `bash scripts/verify-env.sh` still has an unrelated timeout in `tests/components/TeacherStudentWorkPanel.test.tsx`.
+
+## 2026-06-01 — Settings switch off-state polish
+
+**Completed:**
+- Removed the X icon from settings switches.
+- Made off and disabled switch thumbs use the neutral grey token while preserving the blue on state.
+- Kept disabled switches on a neutral track with subtle opacity.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a full-page teacher screenshot showing the off Public Syllabus switch.
+
+## 2026-06-01 — Settings switch blue thumb restore
+
+**Completed:**
+- Restored the settings switch thumb to blue for off and disabled states.
+- Kept the off/disabled track neutral and left the X icon removed.
+- Removed whole-switch opacity so the thumb does not wash out.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus a full-page teacher screenshot showing the off Public Syllabus switch.
+
+## 2026-06-01 — Gradex smoke runner
+
+**Completed:**
+- Added a Pika-owned `pnpm smoke:gradex` runner that builds sanitized sample assignment data, submits it to Gradex, polls the run, fetches item results, and maps Gradex compatibility output back to Pika grade-record fields.
+- Added mocked HTTP tests for create/tick/poll/item mapping and sanitized sample assertions.
+- Updated Gradex pseudonymous refs to avoid long hex-like tokens that Gradex rejects as raw identifier-shaped data.
+- Lowercased generated Gradex artifact-summary text so it does not trip Gradex's likely-name submitted-text guard.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/lib/gradex-smoke-runner.test.ts tests/lib/gradex-assignment-payload.test.ts`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm smoke:gradex -- --dry-run`
+- `pnpm smoke:gradex` reached Gradex run creation against the configured deployed API URL, then stopped because no `GRADEX_INTERNAL_TOKEN`/worker is configured to process the queued run.
+- `GRADEX_API_URL=http://127.0.0.1:3001 GRADEX_API_KEY=... GRADEX_INTERNAL_TOKEN=... pnpm smoke:gradex` completed end-to-end against a controlled local Gradex dev server.
+
+## 2026-06-02 — Daily log save and session hardening
+
+**Completed:**
+- Fixed the student daily-log autosave race where an older save response could mark newer, still-unsaved visible content as `Saved`.
+- Added explicit daily-log handling for expired-session save responses so the entry remains `Unsaved`, shows a session-expired message, and redirects to login.
+- Added silent daily-log draft recovery in `sessionStorage` so unsaved text typed before an expired-session redirect is restored after login, remains marked `Unsaved`, and automatically retries saving once the page reloads with an active session.
+- Added a client-side authenticated-layout session watcher for classroom, student, and teacher pages to detect expired or wrong-role sessions while a stale page is still mounted.
+- Added focused regression coverage for stale daily-log save responses, expired-session save redirects, draft recovery, and the session watcher.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/StudentTodayTabHistory.test.tsx tests/components/AuthSessionWatcher.test.tsx tests/api/student/entries.test.ts tests/api/auth/me.test.ts`
+- `pnpm lint`
+- `pnpm test` (303 files, 2656 tests)
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Post-PR draft recovery rerun: `pnpm test tests/components/StudentTodayTabHistory.test.tsx tests/components/AuthSessionWatcher.test.tsx tests/components/AppHeader.test.tsx && pnpm lint && pnpm build`
+- Post-PR restored-draft autosave rerun: `pnpm test tests/components/StudentTodayTabHistory.test.tsx tests/components/AuthSessionWatcher.test.tsx tests/components/AppHeader.test.tsx && pnpm lint && pnpm build`
+
+## 2026-06-02 — Assignment artifact validation policy
+
+**Completed:**
+- Renamed the default generic submission artifact label from `Public link` to `Link` and changed student link inputs from `Public URL` to `URL`.
+- Added link validation policy helpers for basic URL, reachable page, and expected-site checks using existing `validation_policy_json`.
+- Added compact teacher controls for link requirement validation and carried validation status into teacher artifact displays.
+- Extended generic link validation with safe URL normalization, DNS/private-host guards, host-first expected-domain rejection, bounded fetch checks, redirect caps, timeout handling, and soft `Needs review` results for inconclusive pages.
+- Updated focused unit/component/API coverage for validation policy behavior, student status copy, teacher controls, and artifact metadata.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/assignment-submission-validation.test.ts tests/lib/assignment-submission-requirements.test.ts tests/components/StudentAssignmentSubmissionChecklist.test.tsx tests/components/AssignmentModal.test.tsx tests/components/AssignmentArtifactsCell.test.tsx tests/api/teacher/assignments-id.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test` failed under concurrent build load with two unrelated 5s timeouts and one updated expectation; reran the failed tests successfully with `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/unit/ai-startup-docs.test.ts tests/api/teacher/assignments-id.test.ts`.
+- Visual verification: `pika-ui-verify` classroom screenshots plus targeted teacher assignment link-policy and student submission checklist screenshots.
+
+## 2026-06-02 — Artifact Save disabled when unchanged
+
+**Completed:**
+- Disabled student artifact `Save` buttons until the draft URL differs from the saved artifact.
+- Included repo-link GitHub username changes in the same dirty-state check.
+- Added component regressions for unchanged generic links and repo username edits.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/StudentAssignmentSubmissionChecklist.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- Visual verification: `pika-ui-verify` classroom screenshots plus targeted student assignment-detail screenshot confirming both unchanged artifact `Save` buttons are disabled.
+
+## 2026-06-02 — Bound link reachability checks to validated DNS
+
+**Completed:**
+- Replaced generic server-side `fetch` for artifact link reachability with bounded `http`/`https` requests that connect to the already-validated public IP address.
+- Preserved the submitted host in the `Host` header and HTTPS SNI while preventing a second uncontrolled DNS lookup during the actual request.
+- Kept redirect, timeout, and body-size caps, and tightened response-body storage to the configured 24 KB limit.
+- Added a regression proving reachable-link requests use the validated public IP while preserving original host metadata.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/assignment-submission-validation.test.ts`
+- `pnpm test tests/unit/assignment-submission-validation.test.ts tests/lib/assignment-submission-requirements.test.ts tests/components/StudentAssignmentSubmissionChecklist.test.tsx tests/components/AssignmentModal.test.tsx tests/components/AssignmentArtifactsCell.test.tsx tests/api/teacher/assignments-id.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Rereview: no remaining findings in the updated link reachability path.

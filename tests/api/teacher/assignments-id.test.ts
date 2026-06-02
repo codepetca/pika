@@ -462,6 +462,8 @@ describe('GET /api/teacher/assignments/[id]', () => {
         is_required_submission: true,
         requirement_id: 'req-1',
         requirement_required: true,
+        validation_status: 'valid',
+        validation_message: null,
       },
       {
         type: 'link',
@@ -470,6 +472,8 @@ describe('GET /api/teacher/assignments/[id]', () => {
         is_required_submission: true,
         requirement_id: 'req-2',
         requirement_required: true,
+        validation_status: 'valid',
+        validation_message: null,
       },
       {
         type: 'repo',
@@ -478,6 +482,8 @@ describe('GET /api/teacher/assignments/[id]', () => {
         is_required_submission: true,
         requirement_id: 'req-3',
         requirement_required: true,
+        validation_status: 'valid',
+        validation_message: null,
         repo_owner: 'codepetca',
         repo_name: 'pika',
         normalized_url: 'https://github.com/codepetca/pika',

@@ -46,18 +46,23 @@ describe('getLayoutConfig', () => {
     expect(config.mainContent.maxWidth).toBe('full')
   })
 
-  it('should return 50% default width for assignments-teacher-viewing (dynamically set to 70% for student work)', () => {
+  it('should use integrated workspaces for teacher assignments instead of the external right sidebar', () => {
+    const listConfig = getLayoutConfig('assignments-teacher-list')
     const config = getLayoutConfig('assignments-teacher-viewing')
+
+    expect(listConfig.rightSidebar.enabled).toBe(false)
+    expect(listConfig.rightSidebar.defaultOpen).toBe(false)
     expect(config.rightSidebar.defaultWidth).toBe('50%')
-    expect(config.rightSidebar.defaultOpen).toBe(true)
-    expect(config.rightSidebar.desktopAlwaysOpen).toBe(true)
+    expect(config.rightSidebar.enabled).toBe(false)
+    expect(config.rightSidebar.defaultOpen).toBe(false)
+    expect(config.rightSidebar.desktopAlwaysOpen).toBeUndefined()
   })
 
-  it('should only force desktopAlwaysOpen while viewing teacher work', () => {
+  it('should not force desktopAlwaysOpen for teacher assignment routes', () => {
     const listConfig = getLayoutConfig('assignments-teacher-list')
     const viewingConfig = getLayoutConfig('assignments-teacher-viewing')
     expect(listConfig.rightSidebar.desktopAlwaysOpen).toBeUndefined()
-    expect(viewingConfig.rightSidebar.desktopAlwaysOpen).toBe(true)
+    expect(viewingConfig.rightSidebar.desktopAlwaysOpen).toBeUndefined()
   })
 
   it('should use single-pane layouts for resources and announcements tabs', () => {

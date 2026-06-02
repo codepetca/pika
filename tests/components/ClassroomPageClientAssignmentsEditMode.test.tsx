@@ -70,7 +70,7 @@ vi.mock('@/components/layout', async () => {
 
   return {
     ThreePanelProvider: ({ children, routeKey }: any) => {
-      const [isRightOpen, setRightOpen] = React.useState(routeKey === 'today')
+      const [isRightOpen, setRightOpen] = React.useState(routeKey === 'today' || routeKey === 'assignments-teacher-list')
       const [rightWidth, setRightWidth] = React.useState(320)
       const value = React.useMemo(
         () => ({
@@ -387,6 +387,13 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     renderClient()
 
     expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
+  })
+
+  it('does not render a passive external sidebar for teacher assignment summary', () => {
+    renderClient()
+
+    expect(screen.queryByText('Use the assignment workspace to review student work.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
   })
 
   it('clears the assignments summary label while assignment edit mode is active', () => {

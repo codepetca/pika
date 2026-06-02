@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { withErrorHandler } from '@/lib/api-handler'
-import { requireAuth } from '@/lib/auth'
+import { requireSnapshotGalleryAccess } from '@/lib/auth'
 
 const SNAPSHOTS_DIR = join(process.cwd(), 'e2e', '__snapshots__', 'ui-snapshots.spec.ts-snapshots')
 
@@ -19,7 +19,7 @@ export const GET = withErrorHandler('GetSnapshot', async (_request, context) => 
     return new NextResponse('Not found', { status: 404 })
   }
 
-  await requireAuth()
+  await requireSnapshotGalleryAccess()
 
   const { filename } = await context.params
 

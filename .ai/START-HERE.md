@@ -18,7 +18,7 @@
 [ ] Read: docs/ai-instructions.md
 [ ] Check features: node scripts/features.mjs next
 [ ] Load task-specific docs routed by docs/ai-instructions.md
-[ ] Plan before coding: state task, propose approach, wait for approval
+[ ] Plan before coding: task, model, approach, approval
 ```
 
 Do not code if verification fails. Read `.ai/SESSION-LOG.md` only for recent handoff context; `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.

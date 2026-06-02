@@ -184,7 +184,8 @@ describe('AssignmentModal', () => {
       expect(screen.getByRole('menuitem', { name: 'Link' })).toHaveTextContent('+')
       fireEvent.click(screen.getByRole('menuitem', { name: 'Link' }))
 
-      expect(requirementsGroup.getByDisplayValue('Public link')).toBeInTheDocument()
+      expect(requirementsGroup.getByDisplayValue('Link')).toBeInTheDocument()
+      expect(requirementsGroup.getByLabelText('Check')).toHaveValue('format_only')
       expect(requirementsGroup.getByPlaceholderText('Optional helper text')).toBeInTheDocument()
       expect(requirementsGroup.queryByText('1 item')).not.toBeInTheDocument()
       expect(requirementsGroup.queryByRole('button', { name: 'Move requirement up' })).not.toBeInTheDocument()
@@ -239,7 +240,7 @@ describe('AssignmentModal', () => {
                 id: 'requirement-link',
                 assignment_id: baseAssignment.id,
                 type: 'link',
-                label: 'Public link',
+                label: 'Link',
                 instructions: '',
                 required: true,
                 position: 0,
@@ -253,7 +254,7 @@ describe('AssignmentModal', () => {
         await Promise.resolve()
       })
 
-      expect(requirementsGroup.getByDisplayValue('Public link')).toBeInTheDocument()
+      expect(requirementsGroup.getByDisplayValue('Link')).toBeInTheDocument()
       expect(requirementsGroup.getByDisplayValue('Repo link')).toBeInTheDocument()
       expect(screen.getByText('Unsaved')).toBeInTheDocument()
     })
@@ -269,7 +270,7 @@ describe('AssignmentModal', () => {
               id: 'requirement-link',
               assignment_id: baseAssignment.id,
               type: 'link',
-              label: 'Public link',
+              label: 'Link',
               instructions: '',
               required: true,
               position: 0,
@@ -287,19 +288,50 @@ describe('AssignmentModal', () => {
       fireEvent.click(requirementsGroup.getByRole('button', { name: 'Remove requirement' }))
 
       let dialog = screen.getByRole('dialog', { name: 'Remove required submission?' })
-      expect(within(dialog).getByText('This removes "Public link" from the assignment.')).toBeInTheDocument()
+      expect(within(dialog).getByText('This removes "Link" from the assignment.')).toBeInTheDocument()
 
       fireEvent.click(within(dialog).getByRole('button', { name: 'Keep' }))
       expect(screen.queryByRole('dialog', { name: 'Remove required submission?' })).not.toBeInTheDocument()
-      expect(requirementsGroup.getByDisplayValue('Public link')).toBeInTheDocument()
+      expect(requirementsGroup.getByDisplayValue('Link')).toBeInTheDocument()
 
       fireEvent.click(requirementsGroup.getByRole('button', { name: 'Remove requirement' }))
       dialog = screen.getByRole('dialog', { name: 'Remove required submission?' })
       fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' }))
 
       expect(screen.queryByRole('dialog', { name: 'Remove required submission?' })).not.toBeInTheDocument()
-      expect(requirementsGroup.queryByDisplayValue('Public link')).not.toBeInTheDocument()
+      expect(requirementsGroup.queryByDisplayValue('Link')).not.toBeInTheDocument()
       expect(screen.getByText('Unsaved')).toBeInTheDocument()
+    })
+
+    it('stores expected-domain policy for link submissions without adding setup friction for other types', () => {
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={baseAssignment}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      const requirementsGroup = within(screen.getByRole('group', { name: 'Required submissions' }))
+      fireEvent.click(requirementsGroup.getByRole('button', { name: 'Add submission' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Link' }))
+
+      fireEvent.change(requirementsGroup.getByLabelText('Check'), {
+        target: { value: 'expected_domain' },
+      })
+      fireEvent.change(requirementsGroup.getByLabelText('Expected domain'), {
+        target: { value: 'codehs.com' },
+      })
+
+      fireEvent.click(requirementsGroup.getByRole('button', { name: 'Choose submission type' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Repo' }))
+
+      expect(requirementsGroup.getByLabelText('Check')).toHaveValue('expected_domain')
+      expect(requirementsGroup.getByLabelText('Expected domain')).toHaveValue('codehs.com')
+      expect(requirementsGroup.getAllByDisplayValue('Repo link')).toHaveLength(1)
+      expect(requirementsGroup.getAllByLabelText('Check')).toHaveLength(1)
     })
 
     it('shows save status indicator', () => {

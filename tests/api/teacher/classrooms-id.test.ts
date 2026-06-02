@@ -198,6 +198,32 @@ describe('PATCH /api/teacher/classrooms/[id]', () => {
     const data = await response.json()
     expect(data.error).toBe('A syllabus slug is required before publishing the syllabus')
   })
+
+  it('should update join policy', async () => {
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null, join_policy: 'open_join' },
+            error: null,
+          }),
+        }),
+      }),
+    })
+    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ update: mockUpdate }))
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ joinPolicy: 'open_join' }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'c-1' } })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.classroom.join_policy).toBe('open_join')
+    expect(mockUpdate).toHaveBeenCalledWith({ join_policy: 'open_join' })
+  })
 })
 
 describe('DELETE /api/teacher/classrooms/[id]', () => {

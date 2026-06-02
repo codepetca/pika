@@ -141,6 +141,7 @@ export const PUT = withErrorHandler('PutAssignmentSubmissionArtifact', async (re
     type: requirement.type,
     url,
     githubLogin,
+    validationPolicy: requirement.validation_policy_json,
   })
 
   const metadata = {

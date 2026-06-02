@@ -10,6 +10,7 @@ const {
   mockSaveAssignmentRepoTarget,
   mockValidatePublicGitHubRepo,
   mockAssertTeacherCanMutateAssignment,
+  mockLoadClassroomAiSanitizationContext,
 } = vi.hoisted(() => ({
   mockSupabaseClient: { from: vi.fn() },
   mockAnalyzeRepoReviewAssignment: vi.fn(),
@@ -19,6 +20,7 @@ const {
   mockSaveAssignmentRepoTarget: vi.fn(),
   mockValidatePublicGitHubRepo: vi.fn(),
   mockAssertTeacherCanMutateAssignment: vi.fn(),
+  mockLoadClassroomAiSanitizationContext: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -50,6 +52,10 @@ vi.mock('@/lib/server/assignment-repo-targets', () => ({
 
 vi.mock('@/lib/server/repo-review', () => ({
   assertTeacherCanMutateAssignment: mockAssertTeacherCanMutateAssignment,
+}))
+
+vi.mock('@/lib/server/ai-sanitization', () => ({
+  loadClassroomAiSanitizationContext: mockLoadClassroomAiSanitizationContext,
 }))
 
 import { POST } from '@/app/api/teacher/assignments/[id]/artifact-repo/run/route'
@@ -151,6 +157,10 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
       title: 'Repo review',
       due_at: '2026-04-20T03:59:00.000Z',
       released_at: '2026-04-01T12:00:00.000Z',
+    })
+    mockLoadClassroomAiSanitizationContext.mockResolvedValue({
+      students: [{ firstName: 'Sam', lastName: 'Lee' }],
+      initialsMap: { 'S.L.': 'Sam Lee' },
     })
   })
 
@@ -291,6 +301,22 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
       validationStatus: 'valid',
       repoOwner: 'codepetca',
       repoName: 'pika',
+    }))
+    expect(mockLoadClassroomAiSanitizationContext).toHaveBeenCalledWith(
+      mockSupabaseClient,
+      'classroom-1',
+    )
+    expect(mockAnalyzeRepoReviewAssignment).toHaveBeenCalledWith(expect.objectContaining({
+      sanitizationContext: {
+        students: [{ firstName: 'Sam', lastName: 'Lee' }],
+        initialsMap: { 'S.L.': 'Sam Lee' },
+      },
+    }))
+    expect(mockGradeRepoReviewFeedback).toHaveBeenCalledWith(expect.objectContaining({
+      sanitizationContext: {
+        students: [{ firstName: 'Sam', lastName: 'Lee' }],
+        initialsMap: { 'S.L.': 'Sam Lee' },
+      },
     }))
     expect(harness.insertedRuns).toHaveLength(1)
     expect(harness.insertedResults).toEqual([

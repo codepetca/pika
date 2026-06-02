@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { entryHasContent, getAttendanceIcon } from '@/lib/attendance'
+import { fetchClassDaysForClassroom } from '@/lib/class-days-client'
+import { fetchStudentEntriesForClassroom } from '@/lib/student-entries-client'
 import { getTodayInToronto } from '@/lib/timezone'
 import type { AttendanceStatus, ClassDay, Classroom, Entry } from '@/types'
 
@@ -22,16 +24,17 @@ export function StudentHistoryTab({ classroom }: Props) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let cancelled = false
+
     async function load() {
       setLoading(true)
+      setRows([])
       try {
-        const classDaysRes = await fetch(`/api/classrooms/${classroom.id}/class-days`)
-        const classDaysData = await classDaysRes.json()
-        const classDays: ClassDay[] = (classDaysData.class_days || []).filter((d: ClassDay) => d.is_class_day)
-
-        const entriesRes = await fetch(`/api/student/entries?classroom_id=${classroom.id}`)
-        const entriesData = await entriesRes.json()
-        const entries: Entry[] = entriesData.entries || []
+        const [classDaysData, entries] = await Promise.all([
+          fetchClassDaysForClassroom(classroom.id),
+          fetchStudentEntriesForClassroom(classroom.id),
+        ])
+        const classDays: ClassDay[] = classDaysData.filter((d: ClassDay) => d.is_class_day)
 
         const entryMap = new Map(entries.map(e => [e.date, e]))
         const today = getTodayInToronto()
@@ -51,14 +54,22 @@ export function StudentHistoryTab({ classroom }: Props) {
           })
           .sort((a, b) => b.date.localeCompare(a.date))
 
+        if (cancelled) return
         setRows(nextRows)
       } catch (err) {
         console.error('Error loading history:', err)
+        if (cancelled) return
+        setRows([])
       } finally {
+        if (cancelled) return
         setLoading(false)
       }
     }
     load()
+
+    return () => {
+      cancelled = true
+    }
   }, [classroom.id])
 
   if (loading) {

@@ -107,6 +107,7 @@ import { applyDirection, compareByNameFields, toggleSort as toggleSortState } fr
 import type { SortDirection } from '@/lib/table-sort'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { fetchClassDaysForClassroom } from '@/lib/class-days-client'
+import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { safeSessionGetJson, safeSessionSetJson } from '@/lib/client-storage'
 
@@ -1969,7 +1970,9 @@ export function TeacherClassroomView({
     function onGradeUpdated(event: Event) {
       const customEvent = event as CustomEvent<TeacherGradeUpdatedEventDetail>
       const detail = customEvent.detail
-      if (!detail?.assignmentId || !detail?.studentId || !detail?.doc) return
+      if (!detail?.assignmentId || !detail?.studentId) return
+      invalidateGradebookForClassroom(classroom.id)
+      if (!detail.doc) return
       const updatedDoc = detail.doc
       queueClassPaneScrollRestore()
 
@@ -1997,7 +2000,7 @@ export function TeacherClassroomView({
 
     window.addEventListener(TEACHER_GRADE_UPDATED_EVENT, onGradeUpdated)
     return () => window.removeEventListener(TEACHER_GRADE_UPDATED_EVENT, onGradeUpdated)
-  }, [queueClassPaneScrollRestore])
+  }, [classroom.id, queueClassPaneScrollRestore])
 
   function toggleSort(column: 'first' | 'last' | 'status') {
     setSortState((prev) => toggleSortState(prev, column))
