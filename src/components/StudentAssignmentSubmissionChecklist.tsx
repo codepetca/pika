@@ -65,6 +65,10 @@ function buildDraftState(
   return next
 }
 
+function normalizeDraftValue(value: string | null | undefined) {
+  return (value ?? '').trim()
+}
+
 export function StudentAssignmentSubmissionChecklist({
   assignmentId,
   requirements,
@@ -170,6 +174,14 @@ export function StudentAssignmentSubmissionChecklist({
           const requirement = item.requirement
           const draft = drafts[requirement.id] ?? { url: '', githubLogin: '' }
           const isSaving = savingRequirementId === requirement.id
+          const savedGithubLogin =
+            typeof item.artifact?.metadata_json?.github_login === 'string'
+              ? item.artifact.metadata_json.github_login
+              : githubIdentity?.github_login ?? ''
+          const hasChanges =
+            normalizeDraftValue(draft.url) !== normalizeDraftValue(item.artifact?.url) ||
+            (requirement.type === 'repo_link' &&
+              normalizeDraftValue(draft.githubLogin) !== normalizeDraftValue(savedGithubLogin))
 
           return (
             <div key={requirement.id} className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
@@ -244,7 +256,7 @@ export function StudentAssignmentSubmissionChecklist({
                     <Button
                       type="button"
                       variant="secondary"
-                      disabled={disabled || isSaving}
+                      disabled={disabled || isSaving || !hasChanges}
                       onClick={() => saveUrlArtifact(requirement)}
                     >
                       {isSaving ? 'Saving...' : 'Save'}

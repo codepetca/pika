@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { StudentAssignmentSubmissionChecklist } from '@/components/StudentAssignmentSubmissionChecklist'
 import type {
@@ -62,6 +62,56 @@ describe('StudentAssignmentSubmissionChecklist', () => {
     expect(screen.getByLabelText('URL')).toBeInTheDocument()
     expect(screen.queryByLabelText('Public URL')).not.toBeInTheDocument()
     expect(screen.getByText('Saved')).toBeInTheDocument()
+  })
+
+  it('disables saving an unchanged link until the student edits it', () => {
+    render(
+      <StudentAssignmentSubmissionChecklist
+        assignmentId="assignment-1"
+        requirements={[requirement({})]}
+        artifacts={[artifact({})]}
+        githubIdentity={null}
+        onArtifactsChange={vi.fn()}
+        onError={vi.fn()}
+      />
+    )
+
+    const urlInput = screen.getByLabelText('URL')
+    const saveButton = screen.getByRole('button', { name: 'Save' })
+
+    expect(saveButton).toBeDisabled()
+
+    fireEvent.change(urlInput, { target: { value: 'https://codehs.com/sandbox/updated' } })
+
+    expect(saveButton).toBeEnabled()
+  })
+
+  it('enables saving a repo link when the GitHub username changes', () => {
+    render(
+      <StudentAssignmentSubmissionChecklist
+        assignmentId="assignment-1"
+        requirements={[requirement({
+          type: 'repo_link',
+          label: 'Project repo',
+        })]}
+        artifacts={[artifact({
+          type: 'repo_link',
+          metadata_json: { github_login: 'saved-user' },
+        })]}
+        githubIdentity={{ github_id: 1234, github_login: 'saved-user' }}
+        onArtifactsChange={vi.fn()}
+        onError={vi.fn()}
+      />
+    )
+
+    const githubInput = screen.getByLabelText('GitHub username')
+    const saveButton = screen.getByRole('button', { name: 'Save' })
+
+    expect(saveButton).toBeDisabled()
+
+    fireEvent.change(githubInput, { target: { value: 'updated-user' } })
+
+    expect(saveButton).toBeEnabled()
   })
 
   it('shows policy warning results as needs review without removing the saved URL', () => {

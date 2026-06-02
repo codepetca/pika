@@ -1016,3 +1016,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm test` failed under concurrent build load with two unrelated 5s timeouts and one updated expectation; reran the failed tests successfully with `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/unit/ai-startup-docs.test.ts tests/api/teacher/assignments-id.test.ts`.
 - Visual verification: `pika-ui-verify` classroom screenshots plus targeted teacher assignment link-policy and student submission checklist screenshots.
+
+## 2026-06-02 — Artifact Save disabled when unchanged
+
+**Completed:**
+- Disabled student artifact `Save` buttons until the draft URL differs from the saved artifact.
+- Included repo-link GitHub username changes in the same dirty-state check.
+- Added component regressions for unchanged generic links and repo username edits.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/StudentAssignmentSubmissionChecklist.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- Visual verification: `pika-ui-verify` classroom screenshots plus targeted student assignment-detail screenshot confirming both unchanged artifact `Save` buttons are disabled.
