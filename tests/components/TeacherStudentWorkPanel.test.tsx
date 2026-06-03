@@ -233,8 +233,8 @@ function mockFetchByStudent(
           doc: {
             ...baseDoc,
             feedback: body.feedback,
-            teacher_feedback_draft: body.feedback,
-            teacher_feedback_draft_updated_at: returnedAt,
+            teacher_feedback_draft: null,
+            teacher_feedback_draft_updated_at: null,
             feedback_returned_at: returnedAt,
             ai_feedback_suggestion: null,
             ai_feedback_suggested_at: null,

@@ -8,21 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-30 — Simplify test schema-drift error shims
-
-**Completed:**
-- Extracted shared PostgREST error text normalization for schema-drift helpers in `src/lib/server/tests.ts`.
-- Added unit coverage for `details`/`hint` handling and case-insensitive matches.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm vitest run tests/unit/server-access.test.ts tests/unit/test-student-access.test.ts`
-- `pnpm test`
-- `pnpm lint`
-
-**PR:**
-- https://github.com/codepetca/pika/pull/677
-
 ## 2026-05-30 — Gradebook bulk-read hardening
 
 **Completed:**
@@ -1006,4 +991,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `pnpm test tests/unit/ai-startup-docs.test.ts`
 - `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `git diff --check`
+
+## 2026-06-03 — PR 719 review fix
+
+**Completed:**
+- Fixed review finding where sending an assignment comment cleared the textarea locally but left `teacher_feedback_draft` persisted on the server.
+- Updated the feedback-return route to store the sent comment in `feedback` while clearing draft and AI suggestion state.
+- Updated API and component mocks/tests so the cleared persisted draft state is covered.
+- Re-reviewed the updated PR diff with no remaining findings.
+
+**Validation:**
+- `pnpm test tests/api/teacher/assignments-id-feedback-return.test.ts tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
 - `git diff --check`
