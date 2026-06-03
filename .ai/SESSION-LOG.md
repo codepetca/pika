@@ -8,21 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-29 — Workflow guardrails for detached HEAD and weekly evidence
-
-**Completed:**
-- Raised the default session-log retention from 20 to 60 entries and updated startup/workflow docs to preserve roughly a week of evidence for weekly automations.
-- Made session-start report `detached HEAD` explicitly and updated follow-workflow plus commit/PR prompts to handle detached checkouts safely.
-- Removed the stale `$PIKA_WORKTREE` assumption from the weekly Pika e2e coverage automation prompt and aligned it with `git rev-parse --show-toplevel`.
-- Added workflow-doc tests for detached-HEAD wording and the larger session-log retention default.
-
-**Validation:**
-- `node scripts/trim-session-log.mjs --help`
-- Detached fixture run: `bash .codex/skills/pika-session-start/scripts/session_start.sh` reported `Checkout: detached HEAD at <sha>`
-- `rg -n '\$PIKA_WORKTREE|detached HEAD|latest 60 entries' .ai .claude .codex docs scripts tests /Users/stew/.codex/automations/pika-e2e-coverage-builder/automation.toml`
-- `git diff --check`
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/trim-session-log.test.ts` could not run because this checkout is missing `node_modules` and `vitest`
-
 ## 2026-05-30 — Simplify test schema-drift error shims
 
 **Completed:**
@@ -1010,3 +995,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/components/TeacherGradebookTab.test.tsx`
 - `pnpm lint`
 - Visual verification: targeted Playwright screenshots with intercepted below-50 final and Avg/Med summary values on teacher desktop/mobile, plus student mobile unaffected view.
+
+## 2026-06-03 — PR 719 CI recovery
+
+**Completed:**
+- Diagnosed PR #719's failing GitHub Actions run as the `.ai/SESSION-LOG.md` bound test finding 64 entries instead of 60.
+- Ran `node scripts/trim-session-log.mjs`, synced the PR branch with `origin/main`, and kept the merged session log at 60 entries.
+- Pushed the updated `codex/clear-assignment-comment-input` branch; GitHub now reports the PR merge state as clean.
+
+**Validation:**
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `git diff --check`
