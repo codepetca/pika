@@ -53,7 +53,10 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
     return NextResponse.json({ error: 'Student is not enrolled in this classroom' }, { status: 400 })
   }
 
-  if (normalizedStudentIds.length > 1 || isGradexAssignmentGradingEnabled()) {
+  const shouldUseBackgroundRun =
+    normalizedStudentIds.length > 1 || isGradexAssignmentGradingEnabled()
+
+  if (shouldUseBackgroundRun) {
     const runResult = await createOrResumeAssignmentAiGradingRun({
       assignmentId: id,
       teacherId: user.id,

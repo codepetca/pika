@@ -8,121 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-30 — Path-aware audit test matching
-
-**Completed:**
-- Tightened the audit heuristic in [`audit.sh`](/Users/stew/.codex/worktrees/f558/pika/.codex/skills/pika-audit/scripts/audit.sh) so risky API changes require relevant changed tests under `tests/api` or `tests/integration`, while `src/lib/server/*` can still be satisfied by `tests/lib` or `tests/unit`.
-- Kept composite-widget matching scoped to `tests/components`, `tests/ui`, or `tests/integration`.
-- Added fixture-based regression tests in [`tests/unit/ai-startup-docs.test.ts`](/Users/stew/.codex/worktrees/f558/pika/tests/unit/ai-startup-docs.test.ts) proving that:
-  - a risky API change plus an unrelated unit test now fails audit,
-  - the same risky API change plus a relevant API test passes audit.
-- Updated audit guidance assertions in [`tests/unit/ui-guidance-docs.test.ts`](/Users/stew/.codex/worktrees/f558/pika/tests/unit/ui-guidance-docs.test.ts).
-
-**Validation:**
-- `pnpm vitest run tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts --reporter=verbose`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-
-## 2026-05-30 — Audit message alignment
-
-**Completed:**
-- Fixed the minor audit messaging mismatch so `missing-risk-tests` now reports path-specific expectations that match the actual rule:
-  - API routes mention `tests/api` / `tests/integration`
-  - server modules mention `tests/api` / `tests/integration` / `tests/lib` / `tests/unit`
-
-**Validation:**
-- `pnpm vitest run tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts --reporter=verbose`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-
-## 2026-05-28 — Test list stats enrollment scoping
-
-**Completed:**
-- Scoped teacher test list respondent, submission, and availability stats to paginated current classroom enrollments.
-- Added chunked stats loaders for test questions, attempts, responses, availability overrides, and draft overlays to avoid oversized Supabase `.in()` filters on large test lists or rosters.
-- Returned a clear 500 when classroom enrollment loading fails instead of reporting empty stats.
-- Applied assessment draft overlays only to draft tests so active/closed list rows match canonical test metadata.
-- Added regressions for enrollment failures, current-enrollment scoping, 51x51 chunking, and stale draft overlays.
-
-**Validation:**
-- `pnpm vitest run tests/api/teacher/tests-route.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
-- `git diff --check`
-
-## 2026-05-28 — Quiz list stats chunked pagination
-
-**Completed:**
-- Added chunked and paginated quiz question and response stats loading for teacher quiz lists.
-- Ordered paged quiz stat reads by stable row id to prevent offset pagination skips or duplicates.
-- Preserved enrolled-student scoping while preventing large quiz lists or rosters from exceeding Supabase `.in()` and default row-limit behavior.
-- Chunked assessment draft overlay reads and pinned the existing active-quiz overlay behavior to match quiz detail parity.
-- Returned a clear 500 when quiz question stat loading fails instead of silently reporting zero questions.
-- Added regressions for stat load failures, 51x51 filter chunking, paginated stat rows, and active-list draft overlays.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/quizzes-route.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
-- `git diff --check`
-
-## 2026-05-28 — Survey list stats chunked pagination
-
-**Completed:**
-- Added chunked and paginated survey question and response stats loading for teacher survey lists.
-- Ordered paged survey stat reads by stable row id to prevent offset pagination skips or duplicates.
-- Preserved current-enrollment scoping for respondent counts while avoiding oversized Supabase `.in()` filters for large survey lists and rosters.
-- Returned a clear 500 when survey question stat loading fails instead of silently reporting zero questions.
-- Added regressions for missing-surveys migration fallback, base list failures, list ordering, zero-enrollment skips, stat load failures, 51x51 filter chunking, and paginated stat rows.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/surveys-route.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
-- `git diff --check`
-
-## 2026-05-29 — Workflow guardrails for detached HEAD and weekly evidence
-
-**Completed:**
-- Raised the default session-log retention from 20 to 60 entries and updated startup/workflow docs to preserve roughly a week of evidence for weekly automations.
-- Made session-start report `detached HEAD` explicitly and updated follow-workflow plus commit/PR prompts to handle detached checkouts safely.
-- Removed the stale `$PIKA_WORKTREE` assumption from the weekly Pika e2e coverage automation prompt and aligned it with `git rev-parse --show-toplevel`.
-- Added workflow-doc tests for detached-HEAD wording and the larger session-log retention default.
-
-**Validation:**
-- `node scripts/trim-session-log.mjs --help`
-- Detached fixture run: `bash .codex/skills/pika-session-start/scripts/session_start.sh` reported `Checkout: detached HEAD at <sha>`
-- `rg -n '\$PIKA_WORKTREE|detached HEAD|latest 60 entries' .ai .claude .codex docs scripts tests /Users/stew/.codex/automations/pika-e2e-coverage-builder/automation.toml`
-- `git diff --check`
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/trim-session-log.test.ts` could not run because this checkout is missing `node_modules` and `vitest`
-
-## 2026-05-30 — Simplify test schema-drift error shims
-
-**Completed:**
-- Extracted shared PostgREST error text normalization for schema-drift helpers in `src/lib/server/tests.ts`.
-- Added unit coverage for `details`/`hint` handling and case-insensitive matches.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm vitest run tests/unit/server-access.test.ts tests/unit/test-student-access.test.ts`
-- `pnpm test`
-- `pnpm lint`
-
-**PR:**
-- https://github.com/codepetca/pika/pull/677
-
 ## 2026-05-30 — Gradebook bulk-read hardening
 
 **Completed:**
@@ -992,6 +877,43 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - Rereview: no remaining findings in the updated link reachability path.
 
+## 2026-06-02 — Assignment comment textbox clear
+
+**Completed:**
+- Cleared the teacher assignment comment draft UI after a successful Send comment action while keeping the returned comment visible in Comments Sent.
+- Added component coverage for the send flow so the comment textbox must empty after a successful feedback return.
+- Preserved selected students after applying comments or grades to selected students.
+- Removed time-of-day from returned comment dates in the Comments Sent section.
+- Removed the manual Refresh submissions button from the teacher assignments workspace action bar.
+- Added hover-only scrollbar treatment to the teacher assignment class list, individual work, and inspector panes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+- Visual verification: teacher assignment review desktop/mobile and student mobile screenshots via `pika-ui-verify`, mocked Playwright send-flow plus apply-comments/apply-grade screenshots confirming the textbox clears and selected students remain checked without writing to the dev database, a date-only Comments Sent screenshot, and a loaded assignment workspace screenshot confirming the refresh button is gone and scroll panes use hover-only scrollbars.
+
+## 2026-06-02 — Snapshot gallery phase-2 hardening
+
+**Completed:**
+- Added server-side hardening for `/snapshots-gallery` in [`src/app/snapshots-gallery/page.tsx`](/Users/stew/.codex/worktrees/pika/snapshot-gallery-phase2/src/app/snapshots-gallery/page.tsx):
+  - Gate for `ENABLE_UI_GALLERY === 'true'` with `notFound()`.
+  - Enforce authenticated teacher access via `requireSnapshotGalleryAccess()`.
+  - Redirect unauthenticated users to `/login` and 404 on authorization failures.
+- Hardened snapshot client loading in [`src/app/snapshots-gallery/SnapshotGallery.tsx`](/Users/stew/.codex/worktrees/pika/snapshot-gallery-phase2/src/app/snapshots-gallery/SnapshotGallery.tsx):
+  - Added non-OK HTTP response handling.
+  - Added runtime payload-shape validation before rendering.
+  - Added explicit error state and recoverable "no matching snapshots" filter-empty state.
+- Added regression coverage for snapshot gallery client loading in [`tests/components/SnapshotGallery.test.tsx`](/Users/stew/.codex/worktrees/pika/snapshot-gallery-phase2/tests/components/SnapshotGallery.test.tsx).
+
+**Validation:**
+- `pnpm exec vitest run tests/components/SnapshotGallery.test.tsx tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm build`
+- `bash scripts/trim-session-log.mjs`
+
 ## 2026-06-02 — Gradex assignment adapter slice
 
 **Completed:**
@@ -1017,3 +939,70 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Follow-up:**
 - Apply migration 078 in the target Pika environment before enabling `GRADEX_ASSIGNMENT_GRADING_ENABLED`.
 - Run a real Pika assignment UI smoke with Gradex enabled after the migration and env vars are present.
+
+## 2026-06-03 — Gradex assignment UI cutover coverage
+
+**Completed:**
+- Confirmed the existing selected-students assignment `AI Grade` action uses the background assignment run path when Gradex assignment grading is enabled.
+- Clarified the assignment auto-grade route branch as `shouldUseBackgroundRun`, covering both multi-student selections and Gradex-enabled assignment grading.
+- Added a `TeacherClassroomView` regression for one selected student: the UI posts to assignment auto-grade, receives a Gradex-marked background run, polls/ticks it, clears the selection, and reports completion.
+- Re-ran the live Pika-to-Gradex assignment smoke against `https://gradex-two.vercel.app`.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/api/teacher/assignments-auto-grade.test.ts tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec tsc --noEmit`
+- `pnpm smoke:gradex:assignment`
+- `pnpm lint`
+
+## 2026-06-03 — Gradebook grade color bands
+
+**Completed:**
+- Added shared grade percentage text coloring in the teacher gradebook: below 50% uses danger text, 50% up to but not including 70% uses warning text, and 70% or higher remains default text.
+- Applied the bands to assessment cells, final grades, summary rows, and the selected-student detail panel while keeping ungraded/hidden values muted.
+- Persisted the gradebook email split button at zero selected students and moved `Show %` / `Show Raw` into its dropdown as radio-style menu items.
+- Added component coverage for red, amber, exact-70 default, and default grade bands plus the persistent split-button score-display menu.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- Visual verification: `pika-ui-verify` on `classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook` (teacher desktop, student mobile, teacher mobile) plus loaded table screenshots, open dropdown screenshot, and exact-70 boundary screenshot.
+
+## 2026-06-03 — Gradebook summary red color fix
+
+**Completed:**
+- Moved grade color classes onto inner value spans in the gradebook final column, assessment Avg/Med summary cells, and final Avg/Med summary cells so they reliably override `DataTableCell`'s default text color.
+- Added a regression proving below-50 student final marks and Avg/Med summary values render with `text-danger`, while 50-69.9 remains warning and exact 70 remains default.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- Visual verification: targeted Playwright screenshots with intercepted below-50 final and Avg/Med summary values on teacher desktop/mobile, plus student mobile unaffected view.
+
+## 2026-06-03 — PR 719 CI recovery
+
+**Completed:**
+- Diagnosed PR #719's failing GitHub Actions run as the `.ai/SESSION-LOG.md` bound test finding 64 entries instead of 60.
+- Ran `node scripts/trim-session-log.mjs`, synced the PR branch with `origin/main`, and kept the merged session log at 60 entries.
+- Pushed the updated `codex/clear-assignment-comment-input` branch; GitHub now reports the PR merge state as clean.
+
+**Validation:**
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `git diff --check`
+
+## 2026-06-03 — PR 719 review fix
+
+**Completed:**
+- Fixed review finding where sending an assignment comment cleared the textarea locally but left `teacher_feedback_draft` persisted on the server.
+- Updated the feedback-return route to store the sent comment in `feedback` while clearing draft and AI suggestion state.
+- Updated API and component mocks/tests so the cleared persisted draft state is covered.
+- Re-reviewed the updated PR diff with no remaining findings.
+
+**Validation:**
+- `pnpm test tests/api/teacher/assignments-id-feedback-return.test.ts tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `git diff --check`

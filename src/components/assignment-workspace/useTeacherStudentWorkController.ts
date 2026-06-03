@@ -819,7 +819,7 @@ export function useTeacherStudentWorkController({
             }
           : current,
       )
-      populateGradeForm(result.doc)
+      populateGradeForm(result.doc, '')
       dispatchGradeUpdated(result.doc)
     } catch (err: any) {
       setGradeError(err.message || 'Failed to return comments')

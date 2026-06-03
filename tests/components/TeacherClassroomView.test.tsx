@@ -1116,7 +1116,7 @@ describe('TeacherClassroomView', () => {
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
   })
 
-  it('refreshes selected assignment details from the workspace action bar', async () => {
+  it('does not show a manual refresh button in the assignment workspace action bar', async () => {
     let detailFetchCount = 0
 
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
@@ -1145,14 +1145,8 @@ describe('TeacherClassroomView', () => {
 
     await waitFor(() => {
       expect(detailFetchCount).toBe(1)
-      expect(screen.getByRole('button', { name: 'Refresh submissions' })).toBeEnabled()
     })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh submissions' }))
-
-    await waitFor(() => {
-      expect(detailFetchCount).toBe(2)
-    })
+    expect(screen.queryByRole('button', { name: 'Refresh submissions' })).not.toBeInTheDocument()
   })
 
   it('keeps draft and scheduled assignments opening the editor in normal mode', async () => {
@@ -1663,6 +1657,7 @@ describe('TeacherClassroomView', () => {
       expect(gradeSelectedOption).not.toBeDisabled()
     })
 
+    mockClearSelection.mockClear()
     fireEvent.click(gradeSelectedOption)
     expect(screen.getByText('Apply grade to 2 selected student(s)?')).toBeInTheDocument()
     expect(screen.getByText("The current student's grading will be applied to the selected students.")).toBeInTheDocument()
@@ -1681,7 +1676,7 @@ describe('TeacherClassroomView', () => {
       score_workflow: '9',
       save_mode: 'graded',
     })
-    expect(mockClearSelection).toHaveBeenCalled()
+    expect(mockClearSelection).not.toHaveBeenCalled()
     await waitFor(() => {
       expect(mockShowMessage).toHaveBeenCalledWith({
         text: 'Applied grade to 2 selected students',
@@ -1764,6 +1759,7 @@ describe('TeacherClassroomView', () => {
       expect(commentsSelectedOption).not.toBeDisabled()
     })
 
+    mockClearSelection.mockClear()
     fireEvent.click(commentsSelectedOption)
     expect(screen.getByText('Apply comments to 2 selected student(s)?')).toBeInTheDocument()
     expect(screen.getByText("The current student's comments will be applied to the selected students.")).toBeInTheDocument()
@@ -1779,7 +1775,7 @@ describe('TeacherClassroomView', () => {
       apply_target: 'comments',
       feedback: 'Use this feedback for the selected students.',
     })
-    expect(mockClearSelection).toHaveBeenCalled()
+    expect(mockClearSelection).not.toHaveBeenCalled()
     await waitFor(() => {
       expect(mockShowMessage).toHaveBeenCalledWith({
         text: 'Applied comments to 2 selected students',
@@ -2203,90 +2199,6 @@ describe('TeacherClassroomView', () => {
     })
   })
 
-  it('preserves the class-pane scroll position when refreshing submissions clamps the pane upward', async () => {
-    const detailPayload = {
-      assignment: makeAssignmentDetails('assignment-1', 'Assignment One', 'student-01').assignment,
-      students: Array.from({ length: 30 }, (_, index) =>
-        makeStudentSubmissionRow(`student-${String(index + 1).padStart(2, '0')}`),
-      ),
-    }
-    const refreshResponse = createDeferred<{
-      ok: boolean
-      json: () => Promise<typeof detailPayload>
-    }>()
-    let assignmentFetchCount = 0
-
-    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
-      const url = String(input)
-
-      if (url === `/api/classrooms/${classroom.id}/class-days`) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ class_days: [] }),
-        })
-      }
-
-      if (url === '/api/teacher/assignments/assignment-1') {
-        assignmentFetchCount += 1
-        if (assignmentFetchCount === 1) {
-          return Promise.resolve({
-            ok: true,
-            json: async () => detailPayload,
-          })
-        }
-        return refreshResponse.promise
-      }
-
-      return Promise.resolve({
-        ok: false,
-        json: async () => ({ error: `Unhandled fetch: ${url}` }),
-      })
-    })
-
-    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
-
-    render(<TeacherClassroomView classroom={classroom} />)
-
-    await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-01')
-    })
-
-    const scrollPane = screen.getByTestId('assignment-student-scroll-pane') as HTMLDivElement
-    scrollPane.scrollTop = 520
-    fireEvent.scroll(scrollPane)
-
-    fireEvent.click(screen.getAllByText('student-25')[0])
-
-    await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-25')
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh submissions' }))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('assignment-student-scroll-pane')).toBeInTheDocument()
-    })
-
-    const loadingScrollPane = screen.getByTestId('assignment-student-scroll-pane') as HTMLDivElement
-    loadingScrollPane.scrollTop = 0
-    fireEvent.scroll(loadingScrollPane)
-
-    await act(async () => {
-      refreshResponse.resolve({
-        ok: true,
-        json: async () => detailPayload,
-      })
-      await refreshResponse.promise
-    })
-
-    await waitFor(() => {
-      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-25')
-    })
-    await waitFor(() => {
-      expect(screen.getByTestId('assignment-student-scroll-pane')).toHaveProperty('scrollTop', 520)
-    })
-  })
-
   it('keeps the active student selected when Escape is pressed in class mode', async () => {
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input)
@@ -2420,6 +2332,133 @@ describe('TeacherClassroomView', () => {
       expect(mockShowMessage).toHaveBeenCalledWith({ text: 'Graded 1 • 1 missing', tone: 'info' })
     })
     expect(mockClearSelection).toHaveBeenCalled()
+  })
+
+  it('starts and polls a Gradex assignment run from the selected-students AI Grade action', async () => {
+    mockStudentSelectionState.selectedIds = new Set(['student-1'])
+    mockStudentSelectionState.selectedCount = 1
+
+    const gradexRun = {
+      id: 'run-gradex-1',
+      assignment_id: 'assignment-1',
+      status: 'queued',
+      model: 'gradex:pika-assignment-v1',
+      requested_count: 1,
+      gradable_count: 1,
+      processed_count: 0,
+      completed_count: 0,
+      skipped_missing_count: 0,
+      skipped_empty_count: 0,
+      failed_count: 0,
+      pending_count: 1,
+      next_retry_at: null,
+      error_samples: [],
+      started_at: null,
+      completed_at: null,
+      created_at: '2026-04-20T12:00:00Z',
+    }
+
+    const autoGradeBodies: Array<Record<string, unknown>> = []
+    let assignmentFetchCount = 0
+    let statusFetchCount = 0
+    let tickFetchCount = 0
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        assignmentFetchCount += 1
+        return Promise.resolve({
+          ok: true,
+          json: async () =>
+            makeAssignmentDetails(
+              'assignment-1',
+              'Assignment One',
+              'student-1',
+              assignmentFetchCount === 1 ? null : { ...gradexRun, status: 'completed', processed_count: 1, completed_count: 1, pending_count: 0 },
+            ),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1/auto-grade' && init?.method === 'POST') {
+        autoGradeBodies.push(JSON.parse(String(init.body || '{}')) as Record<string, unknown>)
+        return Promise.resolve({
+          ok: true,
+          status: 202,
+          json: async () => ({
+            mode: 'background',
+            run: gradexRun,
+          }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1/auto-grade-runs/run-gradex-1') {
+        statusFetchCount += 1
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            run: {
+              ...gradexRun,
+              status: 'running',
+              started_at: '2026-04-20T12:00:30Z',
+            },
+          }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1/auto-grade-runs/run-gradex-1/tick') {
+        tickFetchCount += 1
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            claimed: true,
+            run: {
+              ...gradexRun,
+              status: 'completed',
+              processed_count: 1,
+              completed_count: 1,
+              pending_count: 0,
+              started_at: '2026-04-20T12:00:30Z',
+              completed_at: '2026-04-20T12:01:00Z',
+            },
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /AI Grade/i }))
+
+    await waitFor(() => {
+      expect(autoGradeBodies).toEqual([{ student_ids: ['student-1'] }])
+    })
+    await waitFor(() => {
+      expect(tickFetchCount).toBe(1)
+    })
+    expect(statusFetchCount).toBeGreaterThanOrEqual(1)
+    expect(mockClearSelection).toHaveBeenCalled()
+    await waitFor(() => {
+      expect(mockShowMessage).toHaveBeenCalledWith({ text: 'Graded 1', tone: 'info' })
+    })
   })
 
   it('shows only unique true errors in the completion message and treats empty work as missing', async () => {
