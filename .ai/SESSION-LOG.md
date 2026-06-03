@@ -8,25 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-28 — Test list stats enrollment scoping
-
-**Completed:**
-- Scoped teacher test list respondent, submission, and availability stats to paginated current classroom enrollments.
-- Added chunked stats loaders for test questions, attempts, responses, availability overrides, and draft overlays to avoid oversized Supabase `.in()` filters on large test lists or rosters.
-- Returned a clear 500 when classroom enrollment loading fails instead of reporting empty stats.
-- Applied assessment draft overlays only to draft tests so active/closed list rows match canonical test metadata.
-- Added regressions for enrollment failures, current-enrollment scoping, 51x51 chunking, and stale draft overlays.
-
-**Validation:**
-- `pnpm vitest run tests/api/teacher/tests-route.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
-- `git diff --check`
-
 ## 2026-05-28 — Quiz list stats chunked pagination
 
 **Completed:**
@@ -1025,3 +1006,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm smoke:gradex:assignment`
 - `pnpm lint`
+
+## 2026-06-03 — Gradebook grade color bands
+
+**Completed:**
+- Added shared grade percentage text coloring in the teacher gradebook: below 50% uses danger text, 50% up to but not including 70% uses warning text, and 70% or higher remains default text.
+- Applied the bands to assessment cells, final grades, summary rows, and the selected-student detail panel while keeping ungraded/hidden values muted.
+- Persisted the gradebook email split button at zero selected students and moved `Show %` / `Show Raw` into its dropdown as radio-style menu items.
+- Added component coverage for red, amber, exact-70 default, and default grade bands plus the persistent split-button score-display menu.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- Visual verification: `pika-ui-verify` on `classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook` (teacher desktop, student mobile, teacher mobile) plus loaded table screenshots, open dropdown screenshot, and exact-70 boundary screenshot.
