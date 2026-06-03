@@ -362,11 +362,11 @@ describe('TeacherGradebookTab', () => {
     const grace = response.students.find((student) => student.student_id === 'student-2')
     if (!grace) throw new Error('Missing Grace fixture')
 
-    grace.final_percent = 60
+    grace.final_percent = 40
     grace.assessment_scores[0] = {
       ...grace.assessment_scores[0],
-      earned: 4,
-      percent: 40,
+      earned: 1,
+      percent: 10,
       is_graded: true,
     }
     grace.assessment_scores[2] = {
@@ -383,15 +383,25 @@ describe('TeacherGradebookTab', () => {
 
     renderGradebook('grades')
 
-    const graceRow = await screen.findByRole('row', { name: /Grace Hopper.*40%.*70%.*60\.0%/ })
-    expect(within(graceRow).getByText('40%')).toHaveClass('text-danger')
-    expect(within(graceRow).getByText('60.0%')).toHaveClass('text-warning')
+    const graceRow = await screen.findByRole('row', { name: /Grace Hopper.*10%.*70%.*40\.0%/ })
+    expect(within(graceRow).getByText('40.0%')).toHaveClass('text-danger')
+    expect(within(graceRow).getByText('10%')).toHaveClass('text-danger')
     expect(within(graceRow).getByText('70%')).toHaveClass('text-text-default')
+
+    const avgRow = screen.getByRole('row', { name: /Avg.*45%.*100%.*80%.*62\.5%/ })
+    expect(within(avgRow).getByText('45%')).toHaveClass('text-danger')
+    expect(within(avgRow).getByText('80%')).toHaveClass('text-text-default')
+    expect(within(avgRow).getByText('62.5%')).toHaveClass('text-warning')
+
+    const medRow = screen.getByRole('row', { name: /Med.*45%.*100%.*80%.*62\.5%/ })
+    expect(within(medRow).getByText('45%')).toHaveClass('text-danger')
+    expect(within(medRow).getByText('80%')).toHaveClass('text-text-default')
+    expect(within(medRow).getByText('62.5%')).toHaveClass('text-warning')
 
     fireEvent.click(graceRow)
     const detailPanel = screen.getByRole('region', { name: 'Grace Hopper assessment details' })
-    expect(within(detailPanel).getByText('60.0%')).toHaveClass('text-warning')
-    expect(within(detailPanel).getByText('40%')).toHaveClass('text-danger')
+    expect(within(detailPanel).getByText('40.0%')).toHaveClass('text-danger')
+    expect(within(detailPanel).getByText('10%')).toHaveClass('text-danger')
     expect(within(detailPanel).getByText('70%')).toHaveClass('text-text-default')
   })
 
