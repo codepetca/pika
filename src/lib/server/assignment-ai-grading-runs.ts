@@ -14,6 +14,12 @@ import {
   loadAssignmentSubmissionArtifactsForDoc,
   loadAssignmentSubmissionArtifactsForDocs,
 } from '@/lib/server/assignment-submission-artifacts'
+import {
+  GRADEX_ASSIGNMENT_RUN_MODEL,
+  isGradexAssignmentGradingEnabled,
+  isGradexAssignmentRun,
+  submitOrPollGradexAssignmentRun,
+} from '@/lib/server/gradex-assignment-grading'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { parseContentField } from '@/lib/tiptap-content'
 import type {
@@ -82,6 +88,10 @@ type SupabaseSchemaError = {
 
 function getModelAlias(): string {
   return process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
+}
+
+function getAssignmentRunModelAlias(): string {
+  return isGradexAssignmentGradingEnabled() ? GRADEX_ASSIGNMENT_RUN_MODEL : getModelAlias()
 }
 
 function normalizeStudentIds(studentIds: string[]): string[] {
@@ -810,7 +820,7 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
   const { data: run, error: runError } = await supabase.rpc('create_assignment_ai_grading_run_atomic', {
     p_assignment_id: opts.assignmentId,
     p_teacher_id: opts.teacherId,
-    p_model: getModelAlias(),
+    p_model: getAssignmentRunModelAlias(),
     p_requested_student_ids: normalizedStudentIds,
     p_selection_hash: selectionHash,
     p_gradable_count: gradableCount,
@@ -905,6 +915,20 @@ export async function tickAssignmentAiGradingRun(opts: {
 
     const assignment = await loadAssignmentForRun(supabase, claimedRun.assignment_id)
     const allItems = await fetchAssignmentAiGradingRunItems(supabase, claimedRun.id)
+    if (isGradexAssignmentRun(claimedRun)) {
+      await submitOrPollGradexAssignmentRun({
+        supabase,
+        assignment,
+        run: claimedRun,
+        items: allItems,
+      })
+
+      return {
+        run: await refreshAssignmentAiGradingRun(supabase, claimedRun.id, { clearLease: true }),
+        claimed: true,
+      }
+    }
+
     const now = Date.now()
     const dueItems = allItems
       .filter((item) => {

@@ -20,10 +20,8 @@ import type {
 import {
   Button,
   Input,
-  SegmentedControl,
   SplitButton,
   Tooltip,
-  type SegmentedControlOption,
   type SplitButtonOption,
   useAppMessage,
 } from '@/ui'
@@ -126,6 +124,20 @@ function formatCompactPercent(value: number | null): string {
   if (value == null) return '—'
   const rounded = round2(value)
   return `${Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)}%`
+}
+
+function getGradePercentTextClass(percent: number | null | undefined): string {
+  if (percent == null || !Number.isFinite(percent)) return 'text-text-muted'
+  if (percent < 50) return 'text-danger'
+  if (percent < 70) return 'text-warning'
+  return 'text-text-default'
+}
+
+function getAssessmentCellPercent(cell: GradebookAssessmentCell | null): number | null {
+  if (!cell?.is_graded) return null
+  if (cell.percent != null) return cell.percent
+  if (cell.earned != null && cell.possible > 0) return (cell.earned / cell.possible) * 100
+  return null
 }
 
 function formatWeightShare(weight: number, total: number): string {
@@ -416,7 +428,10 @@ function StudentAssessmentPanel({
         <div className="flex shrink-0 items-start gap-2">
           <div className="rounded-md bg-surface-2 px-2 py-1 text-right">
             <div className="text-[10px] font-semibold uppercase tracking-normal text-text-muted">Final</div>
-            <div className="text-sm font-semibold tabular-nums text-text-default">
+            <div className={[
+              'text-sm font-semibold tabular-nums',
+              getGradePercentTextClass(student.final_percent),
+            ].join(' ')}>
               {formatPercent(student.final_percent)}
             </div>
           </div>
@@ -442,6 +457,9 @@ function StudentAssessmentPanel({
               const secondaryScore = displayMode === 'raw' ? percentScore : rawScore
               const statusDisplay = getGradebookAssessmentStatusDisplay(cell?.status)
               const key = getAssessmentColumnKey(column)
+              const scoreTextClass = cell?.is_graded
+                ? getGradePercentTextClass(getAssessmentCellPercent(cell))
+                : 'text-text-muted'
               return (
                 <div key={key} className="px-3 py-2.5">
                   <div className="flex items-start justify-between gap-3">
@@ -470,11 +488,11 @@ function StudentAssessmentPanel({
                     <div className="shrink-0 text-right">
                       <div className={[
                         'text-sm font-normal tabular-nums',
-                        cell?.is_graded ? 'text-text-default' : 'text-text-muted',
+                        scoreTextClass,
                       ].join(' ')}>
                         {primaryScore}
                       </div>
-                      <div className="mt-1 text-xs tabular-nums text-text-muted">
+                      <div className={['mt-1 text-xs tabular-nums', scoreTextClass].join(' ')}>
                         {secondaryScore}
                       </div>
                     </div>
@@ -1140,6 +1158,9 @@ function AssessmentMatrixTable({
                   {renderedAssessmentColumns.map((column) => {
                     const hidden = hiddenAssessmentColumnKeys.has(getAssessmentColumnKey(column))
                     const cell = getAssessmentCell(student, column)
+                    const scoreTextClass = hidden
+                      ? 'text-text-muted'
+                      : getGradePercentTextClass(getAssessmentCellPercent(cell))
                     return (
                       <DataTableCell
                         key={`${student.student_id}:${column.assessment_type}:${column.assessment_id}`}
@@ -1149,7 +1170,7 @@ function AssessmentMatrixTable({
                         <span
                           className={[
                             'font-normal',
-                            hidden || !cell?.is_graded ? 'text-text-muted' : 'text-text-default',
+                            scoreTextClass,
                           ].join(' ')}
                         >
                           {formatAssessmentScore(cell, displayMode)}
@@ -1168,7 +1189,9 @@ function AssessmentMatrixTable({
                         !visibleColumns.final ? 'bg-surface-2 text-text-muted' : '',
                       ].join(' ')}
                     >
-                      {formatPercent(student.final_percent)}
+                      <span className={visibleColumns.final ? getGradePercentTextClass(student.final_percent) : 'text-text-muted'}>
+                        {formatPercent(student.final_percent)}
+                      </span>
                     </DataTableCell>
                   ) : null}
                 </DataTableRow>
@@ -1218,6 +1241,9 @@ function AssessmentMatrixTable({
                     {renderedAssessmentColumns.map((column) => {
                       const hidden = hiddenAssessmentColumnKeys.has(getAssessmentColumnKey(column))
                       const stats = getColumnStats(students, column)
+                      const scoreTextClass = hidden
+                        ? 'text-text-muted'
+                        : getGradePercentTextClass(stats.averagePercent)
                       return (
                         <DataTableCell
                           key={`average:${column.assessment_type}:${column.assessment_id}`}
@@ -1225,10 +1251,11 @@ function AssessmentMatrixTable({
                           className={[
                             'min-w-16 px-2 text-xs font-normal tabular-nums',
                             editColumnBorderClass,
-                            hidden ? 'text-text-muted' : 'text-text-default',
                           ].join(' ')}
                         >
-                          {formatColumnStat(stats, column, 'average', displayMode)}
+                          <span className={scoreTextClass}>
+                            {formatColumnStat(stats, column, 'average', displayMode)}
+                          </span>
                         </DataTableCell>
                       )
                     })}
@@ -1239,10 +1266,11 @@ function AssessmentMatrixTable({
                         className={[
                           'whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-10',
                           FINAL_COLUMN_SEPARATOR_CLASS,
-                          visibleColumns.final ? 'text-text-default' : 'text-text-muted',
                         ].join(' ')}
                       >
-                        {formatCompactPercent(finalAverage)}
+                        <span className={visibleColumns.final ? getGradePercentTextClass(finalAverage) : 'text-text-muted'}>
+                          {formatCompactPercent(finalAverage)}
+                        </span>
                       </DataTableCell>
                     ) : null}
                   </DataTableRow>
@@ -1282,6 +1310,9 @@ function AssessmentMatrixTable({
                     {renderedAssessmentColumns.map((column) => {
                       const hidden = hiddenAssessmentColumnKeys.has(getAssessmentColumnKey(column))
                       const stats = getColumnStats(students, column)
+                      const scoreTextClass = hidden
+                        ? 'text-text-muted'
+                        : getGradePercentTextClass(stats.medianPercent)
                       return (
                         <DataTableCell
                           key={`median:${column.assessment_type}:${column.assessment_id}`}
@@ -1289,10 +1320,11 @@ function AssessmentMatrixTable({
                           className={[
                             'min-w-16 px-2 text-xs font-normal tabular-nums',
                             editColumnBorderClass,
-                            hidden ? 'text-text-muted' : 'text-text-default',
                           ].join(' ')}
                         >
-                          {formatColumnStat(stats, column, 'median', displayMode)}
+                          <span className={scoreTextClass}>
+                            {formatColumnStat(stats, column, 'median', displayMode)}
+                          </span>
                         </DataTableCell>
                       )
                     })}
@@ -1303,10 +1335,11 @@ function AssessmentMatrixTable({
                         className={[
                           'whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-10',
                           FINAL_COLUMN_SEPARATOR_CLASS,
-                          visibleColumns.final ? 'text-text-default' : 'text-text-muted',
                         ].join(' ')}
                       >
-                        {formatCompactPercent(finalMedian)}
+                        <span className={visibleColumns.final ? getGradePercentTextClass(finalMedian) : 'text-text-muted'}>
+                          {formatCompactPercent(finalMedian)}
+                        </span>
                       </DataTableCell>
                     ) : null}
                   </DataTableRow>
@@ -1388,7 +1421,6 @@ export function TeacherGradebookTab({
     () => getValidEmailList(selectedStudents.map((student) => student.student_email)),
     [selectedStudents],
   )
-  const someStudentsSelected = selectedIds.size > 0
   const {
     scrollRef: gradebookTableScrollRef,
     preserveScrollPosition: preserveGradebookTableScrollPosition,
@@ -1630,22 +1662,24 @@ export function TeacherGradebookTab({
   }
 
   const isSettingsActive = columnEditorOpen
-  const showSelectedStudentEmailActions = someStudentsSelected && !isSettingsActive
-  const scoreDisplayOptions = [
-    {
-      value: 'percent',
-      label: 'Show %',
-    },
-    {
-      value: 'raw',
-      label: 'Show Raw',
-    },
-  ] satisfies Array<SegmentedControlOption<ScoreDisplayMode>>
   const gradebookEmailOptions: SplitButtonOption[] = [
+    {
+      id: 'show-percent',
+      label: 'Show %',
+      checked: scoreDisplayMode === 'percent',
+      onSelect: () => handleScoreDisplayModeChange('percent'),
+    },
+    {
+      id: 'show-raw',
+      label: 'Show Raw',
+      checked: scoreDisplayMode === 'raw',
+      onSelect: () => handleScoreDisplayModeChange('raw'),
+    },
     {
       id: 'copy-selected-emails',
       label: `Copy emails (${selectedStudentEmails.length})`,
       icon: <Copy className="h-4 w-4" aria-hidden="true" />,
+      dividerBefore: true,
       onSelect: () => {
         void copySelectedEmailsToClipboard()
       },
@@ -1671,28 +1705,18 @@ export function TeacherGradebookTab({
     <TeacherWorkSurfaceActionBar
       center={
         <div className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-1.5">
-          {showSelectedStudentEmailActions ? (
-            <SplitButton
-              label={
-                <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                  <Mail className="h-4 w-4" aria-hidden="true" />
-                  <span>Email ({selectedStudentEmails.length})</span>
-                </span>
-              }
-              onPrimaryClick={() => openDefaultEmail(selectedStudentEmails)}
-              options={gradebookEmailOptions}
-              disabled={selectedStudentEmails.length === 0}
-              size="sm"
-              toggleAriaLabel="Gradebook email actions"
-              menuPlacement="down"
-            />
-          ) : null}
-          <SegmentedControl
-            ariaLabel="Gradebook score display"
-            value={scoreDisplayMode}
-            options={scoreDisplayOptions}
-            onChange={handleScoreDisplayModeChange}
-            className="h-9"
+          <SplitButton
+            label={
+              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                <Mail className="h-4 w-4" aria-hidden="true" />
+                <span>Email ({selectedStudentEmails.length})</span>
+              </span>
+            }
+            onPrimaryClick={() => openDefaultEmail(selectedStudentEmails)}
+            options={gradebookEmailOptions}
+            size="sm"
+            toggleAriaLabel="Gradebook email actions"
+            menuPlacement="down"
           />
           <Tooltip content={isSettingsActive ? 'Hide gradebook settings' : 'Show gradebook settings'}>
             <Button
