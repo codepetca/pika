@@ -992,6 +992,25 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - Rereview: no remaining findings in the updated link reachability path.
 
+## 2026-06-02 — Snapshot gallery phase-2 hardening
+
+**Completed:**
+- Added server-side hardening for `/snapshots-gallery` in [`src/app/snapshots-gallery/page.tsx`](/Users/stew/.codex/worktrees/pika/snapshot-gallery-phase2/src/app/snapshots-gallery/page.tsx):
+  - Gate for `ENABLE_UI_GALLERY === 'true'` with `notFound()`.
+  - Enforce authenticated teacher access via `requireSnapshotGalleryAccess()`.
+  - Redirect unauthenticated users to `/login` and 404 on authorization failures.
+- Hardened snapshot client loading in [`src/app/snapshots-gallery/SnapshotGallery.tsx`](/Users/stew/.codex/worktrees/pika/snapshot-gallery-phase2/src/app/snapshots-gallery/SnapshotGallery.tsx):
+  - Added non-OK HTTP response handling.
+  - Added runtime payload-shape validation before rendering.
+  - Added explicit error state and recoverable "no matching snapshots" filter-empty state.
+- Added regression coverage for snapshot gallery client loading in [`tests/components/SnapshotGallery.test.tsx`](/Users/stew/.codex/worktrees/pika/snapshot-gallery-phase2/tests/components/SnapshotGallery.test.tsx).
+
+**Validation:**
+- `pnpm exec vitest run tests/components/SnapshotGallery.test.tsx tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm build`
+- `bash scripts/trim-session-log.mjs`
 ## 2026-06-02 — Gradex assignment adapter slice
 
 **Completed:**
