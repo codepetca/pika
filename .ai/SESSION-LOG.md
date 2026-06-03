@@ -1011,3 +1011,28 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm build`
 - `bash scripts/trim-session-log.mjs`
+## 2026-06-02 — Gradex assignment adapter slice
+
+**Completed:**
+- Deployed Gradex production from merged `main` and re-ran the Pika Gradex smoke against `https://gradex-two.vercel.app`.
+- Added feature-flagged Pika assignment grading integration for Gradex: `GRADEX_ASSIGNMENT_GRADING_ENABLED=true` routes assignment auto-grade selections through background runs marked `gradex:pika-assignment-v1`.
+- Added migration `078_assignment_gradex_run_metadata.sql` for storing Gradex run status metadata on Pika assignment AI grading runs.
+- Added a server-side Gradex assignment processor that submits sanitized Pika payloads, stores the Gradex run ID, polls Gradex, and maps completed results back into Pika grade fields.
+- Addressed PR review findings by adding Gradex transport retry handling, terminal-run unresolved item reconciliation, fetch timeouts, and a pseudonymous run idempotency marker in Gradex assignment metadata.
+- Addressed re-review feedback by making Gradex submit/poll honor queued item `next_retry_at` backoff before making another remote request.
+- Kept the existing Pika/OpenAI grading path as the default when the Gradex flag is off.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/lib/gradex-assignment-grading.test.ts tests/lib/assignment-ai-grading-runs.test.ts tests/lib/gradex-assignment-payload.test.ts tests/lib/gradex-smoke-runner.test.ts`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm test tests/unit/migration-filenames.test.ts tests/unit/ai-startup-docs.test.ts tests/unit/trim-session-log.test.ts`
+- `pnpm test tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/lib/gradex-assignment-grading.test.ts tests/lib/assignment-ai-grading-runs.test.ts tests/lib/gradex-assignment-payload.test.ts tests/lib/gradex-smoke-runner.test.ts tests/unit/migration-filenames.test.ts`
+- `pnpm smoke:gradex -- --dry-run`
+- `GRADEX_API_URL=https://gradex-two.vercel.app GRADEX_INTERNAL_TOKEN= GRADEX_INTERNAL_SECRET= GRADEX_SMOKE_POLL_INTERVAL_MS=1000 GRADEX_SMOKE_POLL_ATTEMPTS=60 pnpm smoke:gradex`
+- `pnpm build`
+
+**Follow-up:**
+- Apply migration 078 in the target Pika environment before enabling `GRADEX_ASSIGNMENT_GRADING_ENABLED`.
+- Run a real Pika assignment UI smoke with Gradex enabled after the migration and env vars are present.
