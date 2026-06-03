@@ -79,6 +79,7 @@ function mockAutoGradeTables(opts: {
 describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    delete process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED
     assertTeacherCanMutateAssignment.mockResolvedValue({
       id: 'assignment-1',
       classroom_id: 'classroom-1',
@@ -190,6 +191,38 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
         }),
       }),
     )
+  })
+
+  it('uses a background run for a single student when Gradex assignment grading is enabled', async () => {
+    process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED = 'true'
+    mockAutoGradeTables({
+      enrolledIds: ['student-1'],
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/auto-grade', {
+      method: 'POST',
+      body: JSON.stringify({
+        student_ids: ['student-1'],
+      }),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(202)
+    expect(data).toEqual({
+      mode: 'background',
+      run: expect.objectContaining({
+        id: 'run-1',
+        status: 'queued',
+      }),
+    })
+    expect(createOrResumeAssignmentAiGradingRun).toHaveBeenCalledWith({
+      assignmentId: 'assignment-1',
+      teacherId: 'teacher-1',
+      studentIds: ['student-1'],
+    })
+    expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
   })
 
   it('marks legacy stringified empty docs as missing without calling the grader', async () => {
