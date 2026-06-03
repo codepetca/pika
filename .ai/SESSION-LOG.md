@@ -8,33 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-30 — Path-aware audit test matching
-
-**Completed:**
-- Tightened the audit heuristic in [`audit.sh`](/Users/stew/.codex/worktrees/f558/pika/.codex/skills/pika-audit/scripts/audit.sh) so risky API changes require relevant changed tests under `tests/api` or `tests/integration`, while `src/lib/server/*` can still be satisfied by `tests/lib` or `tests/unit`.
-- Kept composite-widget matching scoped to `tests/components`, `tests/ui`, or `tests/integration`.
-- Added fixture-based regression tests in [`tests/unit/ai-startup-docs.test.ts`](/Users/stew/.codex/worktrees/f558/pika/tests/unit/ai-startup-docs.test.ts) proving that:
-  - a risky API change plus an unrelated unit test now fails audit,
-  - the same risky API change plus a relevant API test passes audit.
-- Updated audit guidance assertions in [`tests/unit/ui-guidance-docs.test.ts`](/Users/stew/.codex/worktrees/f558/pika/tests/unit/ui-guidance-docs.test.ts).
-
-**Validation:**
-- `pnpm vitest run tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts --reporter=verbose`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-
-## 2026-05-30 — Audit message alignment
-
-**Completed:**
-- Fixed the minor audit messaging mismatch so `missing-risk-tests` now reports path-specific expectations that match the actual rule:
-  - API routes mention `tests/api` / `tests/integration`
-  - server modules mention `tests/api` / `tests/integration` / `tests/lib` / `tests/unit`
-
-**Validation:**
-- `pnpm vitest run tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts --reporter=verbose`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-
 ## 2026-05-28 — Test list stats enrollment scoping
 
 **Completed:**
@@ -1011,6 +984,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm build`
 - `bash scripts/trim-session-log.mjs`
+
 ## 2026-06-02 — Gradex assignment adapter slice
 
 **Completed:**
@@ -1036,3 +1010,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Follow-up:**
 - Apply migration 078 in the target Pika environment before enabling `GRADEX_ASSIGNMENT_GRADING_ENABLED`.
 - Run a real Pika assignment UI smoke with Gradex enabled after the migration and env vars are present.
+
+## 2026-06-03 — Gradex assignment UI cutover coverage
+
+**Completed:**
+- Confirmed the existing selected-students assignment `AI Grade` action uses the background assignment run path when Gradex assignment grading is enabled.
+- Clarified the assignment auto-grade route branch as `shouldUseBackgroundRun`, covering both multi-student selections and Gradex-enabled assignment grading.
+- Added a `TeacherClassroomView` regression for one selected student: the UI posts to assignment auto-grade, receives a Gradex-marked background run, polls/ticks it, clears the selection, and reports completion.
+- Re-ran the live Pika-to-Gradex assignment smoke against `https://gradex-two.vercel.app`.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/api/teacher/assignments-auto-grade.test.ts tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec tsc --noEmit`
+- `pnpm smoke:gradex:assignment`
+- `pnpm lint`
