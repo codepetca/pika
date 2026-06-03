@@ -8,26 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-28 — Quiz list stats chunked pagination
-
-**Completed:**
-- Added chunked and paginated quiz question and response stats loading for teacher quiz lists.
-- Ordered paged quiz stat reads by stable row id to prevent offset pagination skips or duplicates.
-- Preserved enrolled-student scoping while preventing large quiz lists or rosters from exceeding Supabase `.in()` and default row-limit behavior.
-- Chunked assessment draft overlay reads and pinned the existing active-quiz overlay behavior to match quiz detail parity.
-- Returned a clear 500 when quiz question stat loading fails instead of silently reporting zero questions.
-- Added regressions for stat load failures, 51x51 filter chunking, paginated stat rows, and active-list draft overlays.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/quizzes-route.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
-- `git diff --check`
-
 ## 2026-05-28 — Survey list stats chunked pagination
 
 **Completed:**
@@ -1020,3 +1000,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/components/TeacherGradebookTab.test.tsx`
 - `pnpm lint`
 - Visual verification: `pika-ui-verify` on `classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook` (teacher desktop, student mobile, teacher mobile) plus loaded table screenshots, open dropdown screenshot, and exact-70 boundary screenshot.
+
+## 2026-06-03 — Gradebook summary red color fix
+
+**Completed:**
+- Moved grade color classes onto inner value spans in the gradebook final column, assessment Avg/Med summary cells, and final Avg/Med summary cells so they reliably override `DataTableCell`'s default text color.
+- Added a regression proving below-50 student final marks and Avg/Med summary values render with `text-danger`, while 50-69.9 remains warning and exact 70 remains default.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- Visual verification: targeted Playwright screenshots with intercepted below-50 final and Avg/Med summary values on teacher desktop/mobile, plus student mobile unaffected view.

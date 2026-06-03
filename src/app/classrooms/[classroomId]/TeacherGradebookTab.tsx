@@ -1187,10 +1187,11 @@ function AssessmentMatrixTable({
                         FINAL_COLUMN_SEPARATOR_CLASS,
                         isSelected ? 'bg-surface-selected group-hover:bg-surface-selected' : 'bg-surface group-hover:bg-surface-hover',
                         !visibleColumns.final ? 'bg-surface-2 text-text-muted' : '',
-                        visibleColumns.final ? getGradePercentTextClass(student.final_percent) : '',
                       ].join(' ')}
                     >
-                      {formatPercent(student.final_percent)}
+                      <span className={visibleColumns.final ? getGradePercentTextClass(student.final_percent) : 'text-text-muted'}>
+                        {formatPercent(student.final_percent)}
+                      </span>
                     </DataTableCell>
                   ) : null}
                 </DataTableRow>
@@ -1250,10 +1251,11 @@ function AssessmentMatrixTable({
                           className={[
                             'min-w-16 px-2 text-xs font-normal tabular-nums',
                             editColumnBorderClass,
-                            scoreTextClass,
                           ].join(' ')}
                         >
-                          {formatColumnStat(stats, column, 'average', displayMode)}
+                          <span className={scoreTextClass}>
+                            {formatColumnStat(stats, column, 'average', displayMode)}
+                          </span>
                         </DataTableCell>
                       )
                     })}
@@ -1264,10 +1266,11 @@ function AssessmentMatrixTable({
                         className={[
                           'whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-10',
                           FINAL_COLUMN_SEPARATOR_CLASS,
-                          visibleColumns.final ? getGradePercentTextClass(finalAverage) : 'text-text-muted',
                         ].join(' ')}
                       >
-                        {formatCompactPercent(finalAverage)}
+                        <span className={visibleColumns.final ? getGradePercentTextClass(finalAverage) : 'text-text-muted'}>
+                          {formatCompactPercent(finalAverage)}
+                        </span>
                       </DataTableCell>
                     ) : null}
                   </DataTableRow>
@@ -1317,10 +1320,11 @@ function AssessmentMatrixTable({
                           className={[
                             'min-w-16 px-2 text-xs font-normal tabular-nums',
                             editColumnBorderClass,
-                            scoreTextClass,
                           ].join(' ')}
                         >
-                          {formatColumnStat(stats, column, 'median', displayMode)}
+                          <span className={scoreTextClass}>
+                            {formatColumnStat(stats, column, 'median', displayMode)}
+                          </span>
                         </DataTableCell>
                       )
                     })}
@@ -1331,10 +1335,11 @@ function AssessmentMatrixTable({
                         className={[
                           'whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-10',
                           FINAL_COLUMN_SEPARATOR_CLASS,
-                          visibleColumns.final ? getGradePercentTextClass(finalMedian) : 'text-text-muted',
                         ].join(' ')}
                       >
-                        {formatCompactPercent(finalMedian)}
+                        <span className={visibleColumns.final ? getGradePercentTextClass(finalMedian) : 'text-text-muted'}>
+                          {formatCompactPercent(finalMedian)}
+                        </span>
                       </DataTableCell>
                     ) : null}
                   </DataTableRow>
