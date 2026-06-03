@@ -8,55 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-28 — Survey list stats chunked pagination
-
-**Completed:**
-- Added chunked and paginated survey question and response stats loading for teacher survey lists.
-- Ordered paged survey stat reads by stable row id to prevent offset pagination skips or duplicates.
-- Preserved current-enrollment scoping for respondent counts while avoiding oversized Supabase `.in()` filters for large survey lists and rosters.
-- Returned a clear 500 when survey question stat loading fails instead of silently reporting zero questions.
-- Added regressions for missing-surveys migration fallback, base list failures, list ordering, zero-enrollment skips, stat load failures, 51x51 filter chunking, and paginated stat rows.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/surveys-route.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
-- `git diff --check`
-
-## 2026-05-29 — Workflow guardrails for detached HEAD and weekly evidence
-
-**Completed:**
-- Raised the default session-log retention from 20 to 60 entries and updated startup/workflow docs to preserve roughly a week of evidence for weekly automations.
-- Made session-start report `detached HEAD` explicitly and updated follow-workflow plus commit/PR prompts to handle detached checkouts safely.
-- Removed the stale `$PIKA_WORKTREE` assumption from the weekly Pika e2e coverage automation prompt and aligned it with `git rev-parse --show-toplevel`.
-- Added workflow-doc tests for detached-HEAD wording and the larger session-log retention default.
-
-**Validation:**
-- `node scripts/trim-session-log.mjs --help`
-- Detached fixture run: `bash .codex/skills/pika-session-start/scripts/session_start.sh` reported `Checkout: detached HEAD at <sha>`
-- `rg -n '\$PIKA_WORKTREE|detached HEAD|latest 60 entries' .ai .claude .codex docs scripts tests /Users/stew/.codex/automations/pika-e2e-coverage-builder/automation.toml`
-- `git diff --check`
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/trim-session-log.test.ts` could not run because this checkout is missing `node_modules` and `vitest`
-
-## 2026-05-30 — Simplify test schema-drift error shims
-
-**Completed:**
-- Extracted shared PostgREST error text normalization for schema-drift helpers in `src/lib/server/tests.ts`.
-- Added unit coverage for `details`/`hint` handling and case-insensitive matches.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm vitest run tests/unit/server-access.test.ts tests/unit/test-student-access.test.ts`
-- `pnpm test`
-- `pnpm lint`
-
-**PR:**
-- https://github.com/codepetca/pika/pull/677
-
 ## 2026-05-30 — Gradebook bulk-read hardening
 
 **Completed:**
@@ -926,6 +877,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - Rereview: no remaining findings in the updated link reachability path.
 
+## 2026-06-02 — Assignment comment textbox clear
+
+**Completed:**
+- Cleared the teacher assignment comment draft UI after a successful Send comment action while keeping the returned comment visible in Comments Sent.
+- Added component coverage for the send flow so the comment textbox must empty after a successful feedback return.
+- Preserved selected students after applying comments or grades to selected students.
+- Removed time-of-day from returned comment dates in the Comments Sent section.
+- Removed the manual Refresh submissions button from the teacher assignments workspace action bar.
+- Added hover-only scrollbar treatment to the teacher assignment class list, individual work, and inspector panes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+- Visual verification: teacher assignment review desktop/mobile and student mobile screenshots via `pika-ui-verify`, mocked Playwright send-flow plus apply-comments/apply-grade screenshots confirming the textbox clears and selected students remain checked without writing to the dev database, a date-only Comments Sent screenshot, and a loaded assignment workspace screenshot confirming the refresh button is gone and scroll panes use hover-only scrollbars.
+
 ## 2026-06-02 — Snapshot gallery phase-2 hardening
 
 **Completed:**
@@ -1012,3 +980,29 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/components/TeacherGradebookTab.test.tsx`
 - `pnpm lint`
 - Visual verification: targeted Playwright screenshots with intercepted below-50 final and Avg/Med summary values on teacher desktop/mobile, plus student mobile unaffected view.
+
+## 2026-06-03 — PR 719 CI recovery
+
+**Completed:**
+- Diagnosed PR #719's failing GitHub Actions run as the `.ai/SESSION-LOG.md` bound test finding 64 entries instead of 60.
+- Ran `node scripts/trim-session-log.mjs`, synced the PR branch with `origin/main`, and kept the merged session log at 60 entries.
+- Pushed the updated `codex/clear-assignment-comment-input` branch; GitHub now reports the PR merge state as clean.
+
+**Validation:**
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `git diff --check`
+
+## 2026-06-03 — PR 719 review fix
+
+**Completed:**
+- Fixed review finding where sending an assignment comment cleared the textarea locally but left `teacher_feedback_draft` persisted on the server.
+- Updated the feedback-return route to store the sent comment in `feedback` while clearing draft and AI suggestion state.
+- Updated API and component mocks/tests so the cleared persisted draft state is covered.
+- Re-reviewed the updated PR diff with no remaining findings.
+
+**Validation:**
+- `pnpm test tests/api/teacher/assignments-id-feedback-return.test.ts tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `git diff --check`
