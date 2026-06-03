@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockLoadClassroomAiSanitizationContext, mockSupabaseClient } = vi.hoisted(() => ({
+const { mockLoadClassroomAiSanitizationContext, mockSubmitOrPollGradexAssignmentRun, mockSupabaseClient } = vi.hoisted(() => ({
   mockLoadClassroomAiSanitizationContext: vi.fn(),
+  mockSubmitOrPollGradexAssignmentRun: vi.fn(),
   mockSupabaseClient: {
     from: vi.fn(),
     rpc: vi.fn(),
@@ -15,6 +16,14 @@ vi.mock('@/lib/supabase', () => ({
 
 vi.mock('@/lib/server/ai-sanitization', () => ({
   loadClassroomAiSanitizationContext: mockLoadClassroomAiSanitizationContext,
+}))
+
+vi.mock('@/lib/server/gradex-assignment-grading', () => ({
+  GRADEX_ASSIGNMENT_RUN_MODEL: 'gradex:pika-assignment-v1',
+  isGradexAssignmentGradingEnabled: () =>
+    process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED?.trim().toLowerCase() === 'true',
+  isGradexAssignmentRun: (run: { model: string | null }) => run.model === 'gradex:pika-assignment-v1',
+  submitOrPollGradexAssignmentRun: mockSubmitOrPollGradexAssignmentRun,
 }))
 
 import {
@@ -98,6 +107,7 @@ function buildRunItemsTable(items: unknown[] = []) {
 
 function buildTickHarness(opts: {
   skipReason: 'missing_doc' | 'empty_doc'
+  model?: string
   assignmentDoc: {
     id: string
     student_id: string
@@ -112,7 +122,7 @@ function buildTickHarness(opts: {
     assignment_id: 'assignment-1',
     status: 'queued',
     triggered_by: 'teacher-1',
-    model: 'gpt-5-nano',
+    model: opts.model ?? 'gpt-5-nano',
     selection_hash: buildSelectionHash(['student-1']),
     requested_student_ids_json: ['student-1'],
     requested_count: 1,
@@ -272,6 +282,8 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSupabaseClient.rpc.mockReset()
+    mockSubmitOrPollGradexAssignmentRun.mockResolvedValue(undefined)
+    delete process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED
     mockLoadClassroomAiSanitizationContext.mockResolvedValue({
       students: [],
       initialsMap: {},
@@ -360,6 +372,59 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
             skip_reason: null,
           }),
         ],
+      }),
+    )
+  })
+
+  it('marks created assignment runs for Gradex when the Gradex grading flag is enabled', async () => {
+    process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED = 'true'
+    const runsTable = buildRunsTable()
+    const assignmentDocsTable = buildAssignmentDocsTable([
+      {
+        id: 'doc-gradable',
+        student_id: 'student-gradable',
+        content: JSON.stringify({
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'Final submission' }],
+            },
+          ],
+        }),
+      },
+    ])
+    const assignmentSubmissionArtifactsTable = buildAssignmentSubmissionArtifactsTable()
+
+    ;(mockSupabaseClient.from as any).mockImplementation((table: string) => {
+      if (table === 'assignment_ai_grading_runs') return runsTable
+      if (table === 'assignment_docs') return assignmentDocsTable
+      if (table === 'assignment_submission_artifacts') return assignmentSubmissionArtifactsTable
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    mockSupabaseClient.rpc.mockResolvedValue({
+      data: {
+        id: 'run-1',
+        assignment_id: 'assignment-1',
+        status: 'queued',
+        model: 'gradex:pika-assignment-v1',
+        created_at: '2026-04-21T12:00:00.000Z',
+      },
+      error: null,
+    })
+
+    const result = await createOrResumeAssignmentAiGradingRun({
+      assignmentId: 'assignment-1',
+      teacherId: 'teacher-1',
+      studentIds: ['student-gradable'],
+    })
+
+    expect(result.kind).toBe('created')
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'create_assignment_ai_grading_run_atomic',
+      expect.objectContaining({
+        p_model: 'gradex:pika-assignment-v1',
       }),
     )
   })
@@ -562,6 +627,46 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       last_error_code: 'save_missing_grade_failed',
       last_error_message: 'Failed to save missing grade for student student-1',
     }))
+  })
+
+  it('delegates Gradex-marked runs to the Gradex assignment processor', async () => {
+    const harness = buildTickHarness({
+      model: 'gradex:pika-assignment-v1',
+      skipReason: 'empty_doc',
+      assignmentDoc: {
+        id: 'doc-1',
+        student_id: 'student-1',
+        content: JSON.stringify({
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'Final submission' }],
+            },
+          ],
+        }),
+        feedback: null,
+        authenticity_score: null,
+      },
+      upsertError: null,
+    })
+
+    const result = await tickAssignmentAiGradingRun({
+      assignmentId: 'assignment-1',
+      runId: 'run-1',
+    })
+
+    expect(result.claimed).toBe(true)
+    expect(result.run).toEqual(expect.objectContaining({
+      id: 'run-1',
+      status: 'running',
+    }))
+    expect(mockSubmitOrPollGradexAssignmentRun).toHaveBeenCalledWith({
+      supabase: mockSupabaseClient,
+      assignment: expect.objectContaining({ id: 'assignment-1' }),
+      run: expect.objectContaining({ id: 'run-1', model: 'gradex:pika-assignment-v1' }),
+      items: harness.items,
+    })
   })
 
   it('marks an empty-doc item failed when saving the Missing grade fails', async () => {

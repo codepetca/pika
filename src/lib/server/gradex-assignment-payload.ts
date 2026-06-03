@@ -56,6 +56,8 @@ export interface GradexGradingRunCreateRequest {
     metadata: {
       adapter_version: typeof GRADEX_PIKA_ADAPTER_VERSION
       client: 'pika'
+      client_run_ref?: string
+      idempotency_key?: string
     }
   }
   rubric: GradexRubric
@@ -170,7 +172,7 @@ export const PIKA_ASSIGNMENT_GRADEX_RUBRIC: GradexRubric = {
   ],
 }
 
-function getRequiredPseudonymSalt(explicitSalt?: string): string {
+export function getRequiredPseudonymSalt(explicitSalt?: string): string {
   const salt = explicitSalt?.trim() || process.env.GRADEX_PIKA_PSEUDONYM_SALT?.trim()
   if (!salt) {
     throw new Error('GRADEX_PIKA_PSEUDONYM_SALT is not configured')
@@ -185,7 +187,7 @@ function getRequiredSanitizationContext(context?: AiSanitizationContext): AiSani
   return context
 }
 
-function pseudonymize(prefix: string, value: string, salt: string): string {
+export function pseudonymizePikaGradexRef(prefix: string, value: string, salt: string): string {
   const digest = createHmac('sha256', salt)
     .update(`${prefix}:${value}`)
     .digest('base64url')
@@ -404,7 +406,7 @@ export function buildPikaAssignmentGradexRunPayload(
     getAssignmentInstructionsMarkdown(opts.assignment).markdown,
   )
   const artifactsByDocId = groupArtifactsByDocId(opts.submissionArtifacts)
-  const assignmentRef = pseudonymize('assignment', opts.assignment.id, salt)
+  const assignmentRef = pseudonymizePikaGradexRef('assignment', opts.assignment.id, salt)
 
   const assignmentPayload = {
     pika_assignment_ref: assignmentRef,
@@ -419,9 +421,9 @@ export function buildPikaAssignmentGradexRunPayload(
   }
 
   const submissions = opts.assignmentDocs.map((assignmentDoc) => {
-    const submissionRef = pseudonymize('submission', assignmentDoc.id, salt)
-    const studentRef = pseudonymize('student', assignmentDoc.student_id, salt)
-    const gradeRef = pseudonymize('grade', assignmentDoc.id, salt)
+    const submissionRef = pseudonymizePikaGradexRef('submission', assignmentDoc.id, salt)
+    const studentRef = pseudonymizePikaGradexRef('student', assignmentDoc.student_id, salt)
+    const gradeRef = pseudonymizePikaGradexRef('grade', assignmentDoc.id, salt)
     const submittedAt = normalizeIsoDate(assignmentDoc.submitted_at)
 
     return {

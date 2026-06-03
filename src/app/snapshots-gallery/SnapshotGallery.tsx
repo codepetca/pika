@@ -9,22 +9,92 @@ interface Snapshot {
   name: string
 }
 
+interface SnapshotListResponse {
+  snapshots: Snapshot[]
+}
+
+function isSnapshotListResponse(value: unknown): value is SnapshotListResponse {
+  if (!value || typeof value !== 'object' || !('snapshots' in value)) {
+    return false
+  }
+
+  const snapshots = (value as { snapshots: unknown }).snapshots
+  if (!Array.isArray(snapshots)) {
+    return false
+  }
+
+  return snapshots.every(
+    (snapshot) =>
+      snapshot &&
+      typeof snapshot === 'object' &&
+      'filename' in snapshot &&
+      'name' in snapshot &&
+      typeof (snapshot as Snapshot).filename === 'string' &&
+      typeof (snapshot as Snapshot).name === 'string'
+  )
+}
+
+function formatErrorMessage(status: number) {
+  if (status === 401) {
+    return 'You must be signed in as an authorized user to view this page.'
+  }
+
+  if (status === 403) {
+    return 'The snapshot gallery is not available in this environment.'
+  }
+
+  if (status === 404) {
+    return 'The snapshot gallery is disabled.'
+  }
+
+  return `Unable to load snapshots (HTTP ${status}).`
+}
+
 export function SnapshotGallery() {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [filter, setFilter] = useState<'all' | 'auth' | 'teacher' | 'student'>('all')
 
   useEffect(() => {
-    fetch('/api/snapshots/list')
-      .then((res) => res.json())
-      .then((data) => {
-        setSnapshots(data.snapshots)
-        setLoading(false)
-      })
-      .catch((err) => {
-        console.error('Failed to load snapshots:', err)
-        setLoading(false)
-      })
+    let cancelled = false
+
+    const loadSnapshots = async () => {
+      try {
+        const response = await fetch('/api/snapshots/list')
+
+        if (!response.ok) {
+          const body = await response.text().catch(() => '')
+          const message = body.trim() || formatErrorMessage(response.status)
+          throw new Error(message)
+        }
+
+        const data = await response.json()
+        if (!isSnapshotListResponse(data)) {
+          throw new Error('Unexpected snapshot list response format.')
+        }
+
+        if (!cancelled) {
+          setSnapshots(data.snapshots)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Failed to load snapshots:', err)
+          setError(err instanceof Error ? err.message : 'Failed to load snapshots.')
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    setLoading(true)
+    void loadSnapshots()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const filteredSnapshots = snapshots.filter((snapshot) => {
@@ -46,6 +116,18 @@ export function SnapshotGallery() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-page flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-danger mb-2">Unable to load snapshots</h1>
+          <p className="text-text-muted">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  const hasSnapshots = filteredSnapshots.length > 0
   if (snapshots.length === 0) {
     return (
       <div className="min-h-screen bg-page flex items-center justify-center">
@@ -54,6 +136,19 @@ export function SnapshotGallery() {
           <p className="text-text-muted mb-4">
             Run <code className="bg-surface-2 px-2 py-1 rounded">pnpm run e2e:snapshots:update</code> to
             generate snapshots
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!hasSnapshots) {
+    return (
+      <div className="min-h-screen bg-page flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-text-default mb-2">No matching snapshots</h1>
+          <p className="text-text-muted mb-4">
+            Try changing the filter to view a different snapshot set.
           </p>
         </div>
       </div>

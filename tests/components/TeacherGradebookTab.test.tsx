@@ -214,30 +214,36 @@ describe('TeacherGradebookTab', () => {
     expect(firstResize).toHaveAttribute('aria-valuenow', '96')
     fireEvent.keyDown(firstResize, { key: 'ArrowRight' })
     expect(firstResize).toHaveAttribute('aria-valuenow', '104')
-    const scoreDisplayGroup = screen.getByRole('group', { name: 'Gradebook score display' })
-    const percentToggle = within(scoreDisplayGroup).getByRole('button', { name: 'Show %' })
-    const rawToggle = within(scoreDisplayGroup).getByRole('button', { name: 'Show Raw' })
-    expect(percentToggle).toHaveAttribute('aria-pressed', 'true')
-    expect(rawToggle).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.queryByRole('button', { name: 'Gradebook email actions' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Email (0)' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Gradebook email actions' }))
+    let gradebookMenu = screen.getByRole('menu')
+    const percentToggle = within(gradebookMenu).getByRole('menuitemradio', { name: 'Show %' })
+    const rawToggle = within(gradebookMenu).getByRole('menuitemradio', { name: 'Show Raw' })
+    expect(percentToggle).toHaveAttribute('aria-checked', 'true')
+    expect(rawToggle).toHaveAttribute('aria-checked', 'false')
+    expect(within(gradebookMenu).getByRole('menuitem', { name: 'Copy emails (0)' })).toBeDisabled()
+    expect(within(gradebookMenu).getByRole('menuitem', { name: 'Gmail' })).toBeDisabled()
+    expect(within(gradebookMenu).getByRole('menuitem', { name: 'Outlook' })).toBeDisabled()
     expect(screen.queryByRole('button', { name: 'Summary' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Gradebook view' })).not.toBeInTheDocument()
 
     fireEvent.click(rawToggle)
     expect(screen.getByRole('row', { name: /Ada Lovelace.*8\/10 10\/10 9\/10 85\.0%/ })).toBeInTheDocument()
     expect(screen.getByRole('row', { name: /Avg.*7\/10 10\/10 8\.5\/10 77\.5%/ })).toBeInTheDocument()
-    expect(percentToggle).toHaveAttribute('aria-pressed', 'false')
-    expect(rawToggle).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(percentToggle)
+    fireEvent.click(screen.getByRole('button', { name: 'Gradebook email actions' }))
+    gradebookMenu = screen.getByRole('menu')
+    expect(within(gradebookMenu).getByRole('menuitemradio', { name: 'Show %' })).toHaveAttribute('aria-checked', 'false')
+    expect(within(gradebookMenu).getByRole('menuitemradio', { name: 'Show Raw' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(within(gradebookMenu).getByRole('menuitemradio', { name: 'Show %' }))
     expect(screen.getByRole('row', { name: /Ada Lovelace.*80% 100% 90% 85\.0%/ })).toBeInTheDocument()
 
     const adaSelect = screen.getByRole('checkbox', { name: 'Select Ada Lovelace' })
     fireEvent.click(adaSelect)
     expect(screen.getByRole('button', { name: 'Email (1)' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Gradebook email actions' }))
-    const gradebookMenu = screen.getByRole('menu')
-    expect(within(gradebookMenu).queryByRole('separator')).not.toBeInTheDocument()
-    expect(within(gradebookMenu).queryByRole('menuitemradio', { name: 'Show %' })).not.toBeInTheDocument()
+    gradebookMenu = screen.getByRole('menu')
+    expect(within(gradebookMenu).getByRole('separator')).toBeInTheDocument()
+    expect(within(gradebookMenu).getByRole('menuitemradio', { name: 'Show %' })).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(within(gradebookMenu).getByRole('menuitem', { name: 'Copy emails (1)' }))
     await waitFor(() => {
       expect(clipboardWriteText).toHaveBeenCalledWith('ada@example.com')
@@ -351,13 +357,50 @@ describe('TeacherGradebookTab', () => {
     })
   })
 
+  it('color codes grade text by percentage band', async () => {
+    const response = gradebookResponse()
+    const grace = response.students.find((student) => student.student_id === 'student-2')
+    if (!grace) throw new Error('Missing Grace fixture')
+
+    grace.final_percent = 60
+    grace.assessment_scores[0] = {
+      ...grace.assessment_scores[0],
+      earned: 4,
+      percent: 40,
+      is_graded: true,
+    }
+    grace.assessment_scores[2] = {
+      ...grace.assessment_scores[2],
+      earned: 7,
+      percent: 70,
+      is_graded: true,
+    }
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => response,
+    })
+
+    renderGradebook('grades')
+
+    const graceRow = await screen.findByRole('row', { name: /Grace Hopper.*40%.*70%.*60\.0%/ })
+    expect(within(graceRow).getByText('40%')).toHaveClass('text-danger')
+    expect(within(graceRow).getByText('60.0%')).toHaveClass('text-warning')
+    expect(within(graceRow).getByText('70%')).toHaveClass('text-text-default')
+
+    fireEvent.click(graceRow)
+    const detailPanel = screen.getByRole('region', { name: 'Grace Hopper assessment details' })
+    expect(within(detailPanel).getByText('60.0%')).toHaveClass('text-warning')
+    expect(within(detailPanel).getByText('40%')).toHaveClass('text-danger')
+    expect(within(detailPanel).getByText('70%')).toHaveClass('text-text-default')
+  })
+
   it('keeps gradebook floating controls on the shared overlay layer', async () => {
     renderGradebook('grades')
 
     expect(await screen.findByText('Ada')).toBeInTheDocument()
 
-    const scoreDisplayGroup = screen.getByRole('group', { name: 'Gradebook score display' })
-    const floatingCluster = scoreDisplayGroup.parentElement?.parentElement
+    const floatingCluster = screen.getByRole('button', { name: 'Gradebook email actions' }).closest('.fixed')
     expect(floatingCluster).toHaveClass('fixed', 'z-40')
     expect(floatingCluster?.className).not.toContain('z-[70]')
     expect(screen.getByRole('columnheader', { name: 'First' })).toHaveClass('z-30')
@@ -381,13 +424,15 @@ describe('TeacherGradebookTab', () => {
 
     expect(onSectionChange).toHaveBeenCalledWith('settings')
     expect(screen.queryByRole('button', { name: 'Email (1)' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Gradebook email actions' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Email (0)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Gradebook email actions' })).toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: 'Select Ada Lovelace' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Gradebook settings' }))
 
     expect(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' })).not.toBeChecked()
     expect(screen.queryByRole('button', { name: 'Email (1)' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Email (0)' })).toBeInTheDocument()
   })
 
   it('renders edit controls with assessment weights only', async () => {
