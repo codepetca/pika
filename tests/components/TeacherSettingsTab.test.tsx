@@ -27,8 +27,52 @@ const mockClassroom: Classroom = {
   join_policy: 'roster',
   start_date: '2026-01-01',
   end_date: '2026-06-01',
+  lesson_plan_visibility: 'current_week',
+  source_blueprint_id: null,
+  source_blueprint_origin: null,
+  actual_site_slug: null,
+  actual_site_published: false,
+  actual_site_config: {
+    overview: true,
+    outline: true,
+    resources: true,
+    assignments: true,
+    quizzes: false,
+    tests: true,
+    lesson_plans: true,
+    announcements: true,
+    lesson_plan_scope: 'current_week',
+  },
+  course_overview_markdown: '',
+  course_outline_markdown: '',
+  archived_at: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
+}
+
+const secondClassroom: Classroom = {
+  ...mockClassroom,
+  id: 'cls-456',
+  title: 'Chemistry 12',
+  class_code: 'CHEM12',
+  allow_enrollment: false,
+  join_policy: 'open_join',
+  lesson_plan_visibility: 'all',
+  actual_site_slug: 'chemistry-12',
+  actual_site_published: true,
+  actual_site_config: {
+    overview: false,
+    outline: true,
+    resources: true,
+    assignments: false,
+    quizzes: false,
+    tests: true,
+    lesson_plans: false,
+    announcements: false,
+    lesson_plan_scope: 'one_week_ahead',
+  },
+  course_overview_markdown: 'Chemistry overview',
+  course_outline_markdown: 'Chemistry outline',
 }
 
 function Wrapper({ children }: { children: ReactNode }) {
@@ -60,6 +104,84 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
     const input = screen.getByLabelText('Classroom name')
     expect(input).toHaveValue('Test Course')
     expect(screen.queryByLabelText('Quizzes')).toBeNull()
+  })
+
+  it('resets classroom-derived form state when switching classrooms', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const firstClassroom = {
+      ...mockClassroom,
+      actual_site_slug: 'test-course',
+      actual_site_published: true,
+    }
+    const { rerender } = render(<TeacherSettingsTab classroom={firstClassroom} />, { wrapper: Wrapper })
+
+    fireEvent.change(screen.getByLabelText('Classroom name'), { target: { value: 'Unsaved Course A' } })
+    fireEvent.change(screen.getByLabelText('Syllabus slug'), { target: { value: 'course-a-draft' } })
+
+    rerender(<TeacherSettingsTab classroom={secondClassroom} />)
+
+    expect(screen.getByRole('link', { name: '/actual/chemistry-12' })).toHaveAttribute(
+      'href',
+      '/actual/chemistry-12',
+    )
+    expect(screen.queryByRole('link', { name: '/actual/test-course' })).not.toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Classroom name')).toHaveValue('Chemistry 12')
+    })
+    expect(screen.getByRole('button', { name: 'Copy join code' })).toHaveTextContent('CHEM12')
+    expect(screen.getByRole('switch', { name: 'Allow new students to join' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByLabelText('Calendar visibility')).toHaveValue('all')
+    expect(screen.getByLabelText('Syllabus slug')).toHaveValue('chemistry-12')
+    expect(screen.getByRole('switch', { name: 'Publish this classroom syllabus' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByLabelText('Lesson plan visibility on syllabus')).toHaveValue('one_week_ahead')
+    expect(screen.getByLabelText('Course overview')).toHaveValue('Chemistry overview')
+    expect(screen.getByLabelText('Course outline')).toHaveValue('Chemistry outline')
+
+    fireEvent.blur(screen.getByLabelText('Classroom name'))
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('ignores an in-flight classroom name save after switching away and back', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    let resolveSave!: (value: unknown) => void
+    fetchMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveSave = resolve
+      }),
+    )
+
+    const { rerender } = render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+
+    fireEvent.change(screen.getByLabelText('Classroom name'), { target: { value: 'Saved Course A' } })
+    fireEvent.blur(screen.getByLabelText('Classroom name'))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+
+    rerender(<TeacherSettingsTab classroom={secondClassroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Classroom name')).toHaveValue('Chemistry 12')
+    })
+
+    rerender(<TeacherSettingsTab classroom={mockClassroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Classroom name')).toHaveValue('Test Course')
+    })
+
+    await act(async () => {
+      resolveSave({
+        ok: true,
+        json: async () => ({ classroom: { ...mockClassroom, title: 'Saved Course A' } }),
+      })
+    })
+
+    expect(screen.getByLabelText('Classroom name')).toHaveValue('Test Course')
+    expect(screen.queryByText('Classroom name updated')).not.toBeInTheDocument()
   })
 
   it('hides syllabus markdown fields when the user preference is off', async () => {

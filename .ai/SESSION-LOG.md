@@ -8,29 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — Student notification count hardening
-
-**Completed:**
-- Routed student notification assignment, assignment-doc, test, response, attempt, selected-access, announcement, and announcement-read queries through paginated or chunked Supabase reads.
-- Scoped dense notification child reads by current student/user ids so stale same-id rows for other users cannot affect counts.
-- Counted returned assignment feedback as unread when return timestamps are newer than the student's last view, and refreshed `viewed_at` when the returned work is opened.
-- Counted closed tests reopened for the selected student by loading active and closed test candidates and passing the real status into effective-access checks.
-- Changed student test submission notifications to decrement one active-test notification instead of clearing all active-test notifications.
-- Added regressions for dense pagination/chunking, wrong-user scoping, returned-feedback notifications, reopened closed tests, child-read failures, and client decrement semantics.
-- Addressed subagent review follow-up by making the reopened-closed-test regression use the filter-aware paged mock and assert the `status in (active, closed)` query.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/student/notifications.test.ts tests/api/assignment-docs/assignment-docs-id.test.ts tests/components/StudentNotificationsProvider.test.tsx -- --runInBand`
-- `pnpm test tests/components/StudentQuizzesTab.test.tsx -- --runInBand`
-- `pnpm test tests/api/student/notifications.test.ts -- --runInBand`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm test:coverage`
-- `git diff --check`
-
 ## 2026-05-31 — History cleanup cron hardening
 
 **Completed:**
@@ -976,6 +953,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm vitest run tests/components/TeacherRosterTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
 - `pnpm vitest run tests/components/TeacherRosterTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/api/teacher/roster.test.ts tests/api/teacher/roster-add.test.ts tests/api/teacher/roster-bulk-delete.test.ts tests/api/teacher/roster-rosterId.test.ts tests/api/teacher/roster-upload-csv.test.ts`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+
+## 2026-06-04 — Teacher settings freshness audit
+
+**Completed:**
+- Reset teacher settings local form state when the active classroom changes so stale names, join controls, syllabus settings, and blueprint dialog state do not carry into the next classroom.
+- Guarded settings mutation completions with the originating classroom and form generation so late responses cannot overwrite a newly selected classroom, including switch-away-and-back cases.
+- Added component regressions for classroom A to B settings rerenders, unchanged-title blur after a switch, and in-flight title saves resolving after switching away and back.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherSettingsTab.test.tsx`
 - `git diff --check`
 - `pnpm lint`
 - `pnpm build`
