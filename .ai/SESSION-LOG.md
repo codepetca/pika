@@ -8,26 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-30 — Test results bulk-read hardening
-
-**Completed:**
-- Routed teacher test result reads through chunked, paginated loaders for roster, responses, student availability, attempts, users, profiles, and focus events.
-- Scoped test result reads by test id and currently enrolled student ids at query time while retaining defensive enrollment filtering.
-- Preserved legacy `test_attempts` return-column and closure-column fallbacks, including databases that are missing both sets of columns.
-- Returned explicit 500 responses for availability, user, profile, and focus-event load failures instead of silently rendering partial result data.
-- Preserved exact roster totals from the paginated enrollment helper and added deterministic student tie-break ordering.
-- Added route regressions for roster pagination beyond 1000 students, 51-student filter chunking, >1000 response-row pagination, availability migration fallback, attempt schema fallbacks, and hydration/focus failures.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/tests-results.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
-- `git diff --check`
-
 ## 2026-05-30 — Attendance export bulk-read hardening
 
 **Completed:**
@@ -992,3 +972,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - Baseline note: pre-edit session-start `pnpm test` failed on current `origin/main` in `tests/components/AssignmentModal.test.tsx`, `tests/components/TeacherGradebookTab.test.tsx`, and `tests/components/TeacherStudentWorkPanel.test.tsx`.
+
+## 2026-06-04 — Assignment doc boundary audit
+
+**Completed:**
+- Added a teacher read path to `GET /api/assignment-docs/[id]` that requires classroom ownership, an enrolled `student_id`, and does not create docs or mark student docs viewed.
+- Kept `PATCH /api/assignment-docs/[id]` student-only for student content saves.
+- Expanded assignment-doc GET/PATCH and history tests for teacher-owned reads, missing `student_id`, non-owner teachers, unenrolled students, draft assignment history reads, and student-only writes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/api/assignment-docs/assignment-docs-id.test.ts tests/api/assignment-docs/history.test.ts`
+- `pnpm vitest run tests/api/assignment-docs/assignment-docs-id.test.ts tests/api/assignment-docs/history.test.ts tests/api/assignment-docs/submit.test.ts tests/api/assignment-docs/unsubmit.test.ts tests/api/assignment-docs/restore.test.ts tests/api/assignment-docs/artifacts.test.ts tests/lib/assignment-doc-history.test.ts`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`

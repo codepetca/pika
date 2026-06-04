@@ -5,9 +5,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, PATCH } from '@/app/api/assignment-docs/[id]/route'
 import { NextRequest } from 'next/server'
+import * as auth from '@/lib/auth'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
-vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'student-1', role: 'student' })) }))
+vi.mock('@/lib/auth', () => ({
+  requireAuth: vi.fn(async () => ({ id: 'student-1', role: 'student' })),
+  requireRole: vi.fn(async () => ({ id: 'student-1', role: 'student' })),
+}))
 vi.mock('@/lib/server/classrooms', () => ({
   assertStudentCanAccessClassroom: vi.fn(async () => ({
     ok: true,
@@ -18,7 +22,10 @@ vi.mock('@/lib/server/classrooms', () => ({
 const mockSupabaseClient = { from: vi.fn() }
 
 describe('GET /api/assignment-docs/[id]', () => {
-  beforeEach(() => { vi.clearAllMocks() })
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(auth.requireAuth).mockResolvedValue({ id: 'student-1', role: 'student' } as any)
+  })
 
   it('should return 404 when assignment does not exist', async () => {
     const mockFrom = vi.fn((table: string) => {
@@ -158,10 +165,205 @@ describe('GET /api/assignment-docs/[id]', () => {
       viewed_at: expect.stringMatching(/^20/),
     })
   })
+
+  it('lets the classroom teacher read an enrolled student assignment doc without marking it viewed', async () => {
+    vi.mocked(auth.requireAuth).mockResolvedValueOnce({ id: 'teacher-1', role: 'teacher' } as any)
+    const viewedUpdate = vi.fn()
+    const enrollmentFilters: Array<[string, unknown]> = []
+    const docFilters: Array<[string, unknown]> = []
+    const existingDoc = {
+      id: 'doc-1',
+      assignment_id: 'assign-1',
+      student_id: 'student-1',
+      content: JSON.stringify({ type: 'doc', content: [] }),
+      viewed_at: null,
+      returned_at: null,
+      feedback_returned_at: null,
+    }
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'assign-1',
+                  classroom_id: 'class-1',
+                  is_draft: true,
+                  classrooms: { id: 'class-1', teacher_id: 'teacher-1' },
+                },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      if (table === 'classroom_enrollments') {
+        const enrollmentChain = {
+          eq: vi.fn((column: string, value: unknown) => {
+            enrollmentFilters.push([column, value])
+            return enrollmentChain
+          }),
+          single: vi.fn().mockResolvedValue({ data: { id: 'enroll-1' }, error: null }),
+        }
+        return {
+          select: vi.fn(() => enrollmentChain),
+        }
+      }
+      if (table === 'assignment_docs') {
+        const docChain = {
+          eq: vi.fn((column: string, value: unknown) => {
+            docFilters.push([column, value])
+            return docChain
+          }),
+          single: vi.fn().mockResolvedValue({ data: existingDoc, error: null }),
+        }
+        return {
+          select: vi.fn(() => docChain),
+          update: viewedUpdate,
+        }
+      }
+      if (table === 'assignment_feedback_entries') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockReturnThis(),
+            then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
+          })),
+        }
+      }
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-1?student_id=student-1')
+    const response = await GET(request, { params: { id: 'assign-1' } })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.doc.id).toBe('doc-1')
+    expect(data.doc.content).toEqual({ type: 'doc', content: [] })
+    expect(data.wasFirstView).toBe(false)
+    expect(viewedUpdate).not.toHaveBeenCalled()
+    expect(enrollmentFilters).toEqual([
+      ['classroom_id', 'class-1'],
+      ['student_id', 'student-1'],
+    ])
+    expect(docFilters).toEqual([
+      ['assignment_id', 'assign-1'],
+      ['student_id', 'student-1'],
+    ])
+  })
+
+  it('requires student_id for teacher reads', async () => {
+    vi.mocked(auth.requireAuth).mockResolvedValueOnce({ id: 'teacher-1', role: 'teacher' } as any)
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'assign-1',
+                  classroom_id: 'class-1',
+                  classrooms: { id: 'class-1', teacher_id: 'teacher-1' },
+                },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/assignment-docs/assign-1'),
+      { params: { id: 'assign-1' } }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('student_id is required')
+  })
+
+  it('blocks teacher reads for assignments they do not own', async () => {
+    vi.mocked(auth.requireAuth).mockResolvedValueOnce({ id: 'teacher-2', role: 'teacher' } as any)
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'assign-1',
+                  classroom_id: 'class-1',
+                  classrooms: { id: 'class-1', teacher_id: 'teacher-1' },
+                },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/assignment-docs/assign-1?student_id=student-1'),
+      { params: { id: 'assign-1' } }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(data.error).toBe('Unauthorized')
+  })
+
+  it('blocks teacher reads for students outside the assignment classroom', async () => {
+    vi.mocked(auth.requireAuth).mockResolvedValueOnce({ id: 'teacher-1', role: 'teacher' } as any)
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'assign-1',
+                  classroom_id: 'class-1',
+                  classrooms: { id: 'class-1', teacher_id: 'teacher-1' },
+                },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+          })),
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/assignment-docs/assign-1?student_id=student-2'),
+      { params: { id: 'assign-1' } }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(data.error).toBe('Not enrolled in this classroom')
+  })
 })
 
 describe('PATCH /api/assignment-docs/[id]', () => {
-  beforeEach(() => { vi.clearAllMocks() })
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(auth.requireRole).mockResolvedValue({ id: 'student-1', role: 'student' } as any)
+  })
 
   it('should return 403 when trying to update submitted doc', async () => {
     const mockFrom = vi.fn((table: string) => {
@@ -329,5 +531,24 @@ describe('PATCH /api/assignment-docs/[id]', () => {
     expect(historyUpdate).toHaveBeenCalled()
     expect(historyInsert).not.toHaveBeenCalled()
     dateSpy.mockRestore()
+  })
+
+  it('keeps assignment doc content updates student-only', async () => {
+    const error = new Error('Forbidden: student role required')
+    error.name = 'AuthorizationError'
+    vi.mocked(auth.requireRole).mockRejectedValueOnce(error)
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/assignment-docs/assign-1', {
+        method: 'PATCH',
+        body: JSON.stringify({ content: { type: 'doc', content: [] } }),
+      }),
+      { params: { id: 'assign-1' } }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(data.error).toBe('Forbidden')
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 })
