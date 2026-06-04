@@ -11,11 +11,15 @@ import { TeacherEditModeControls } from '@/components/teacher-work-surface/Teach
 import { applyPendingLessonPlanChanges, lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
 import { useClassDays } from '@/hooks/useClassDays'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
-import type { Classroom, LessonPlan, TiptapContent, Assignment, Announcement } from '@/types'
+import type { Classroom, LessonPlan, Assignment, Announcement } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
 import { normalizeLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import {
+  fetchTeacherLessonPlansForRange,
+  invalidateTeacherLessonPlansForClassroom,
+} from '@/lib/teacher-lesson-plans-client'
 
 /**
  * Returns true if the content change is identical to the last value emitted
@@ -144,11 +148,7 @@ export function TeacherLessonCalendarTab({
     async function loadLessonPlans() {
       setLoading(true)
       try {
-        const res = await fetch(
-          `/api/teacher/classrooms/${classroom.id}/lesson-plans?start=${fetchRange.start}&end=${fetchRange.end}`
-        )
-        const data = await res.json()
-        const plans = data.lesson_plans || []
+        const plans = await fetchTeacherLessonPlansForRange(classroom.id, fetchRange.start, fetchRange.end)
         // Seed last-seen content so Tiptap normalization doesn't trigger saves
         lastSeenContentRef.current.clear()
         for (const plan of plans) {
@@ -230,6 +230,8 @@ export function TeacherLessonCalendarTab({
         })
         if (res.ok) {
           const data = await res.json()
+          invalidateTeacherLessonPlansForClassroom(classroom.id)
+          needsRefreshRef.current = true
           setLessonPlans((prev) => {
             if (!data.lesson_plan) {
               return prev.filter((plan) => plan.date !== date)
@@ -340,20 +342,8 @@ export function TeacherLessonCalendarTab({
     try {
       const start = classroom.start_date || fetchRange.start
       const end = classroom.end_date || fetchRange.end
-      const res = await fetch(
-        `/api/teacher/classrooms/${classroom.id}/lesson-plans?start=${start}&end=${end}`
-      )
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-          throw new Error('Not authorized to view lesson plans')
-        } else if (res.status === 404) {
-          throw new Error('Classroom not found')
-        } else {
-          throw new Error(`Failed to load lesson plans (${res.status})`)
-        }
-      }
-      const data = await res.json()
-      const plans = applyPendingLessonPlanChanges(data.lesson_plans || [], pendingChangesRef.current, classroom.id)
+      const cachedPlans = await fetchTeacherLessonPlansForRange(classroom.id, start, end)
+      const plans = applyPendingLessonPlanChanges(cachedPlans, pendingChangesRef.current, classroom.id)
       const markdown = lessonPlansToMarkdown(classroom, plans, start, end)
       setMarkdownContent(markdown)
       markdownContentRef.current = markdown
@@ -417,6 +407,7 @@ export function TeacherLessonCalendarTab({
       }
 
       if (result.plans.length === 0 && result.clearedDates.length === 0) {
+        invalidateTeacherLessonPlansForClassroom(classroom.id)
         needsRefreshRef.current = true
         setSidebarOpen(false)
         setRefreshKey((k) => k + 1)
@@ -438,6 +429,7 @@ export function TeacherLessonCalendarTab({
       }
 
       // Success - close panel and refresh calendar
+      invalidateTeacherLessonPlansForClassroom(classroom.id)
       needsRefreshRef.current = true // Force refresh on next sidebar open
       setSidebarOpen(false)
       setRefreshKey((k) => k + 1)
