@@ -1,6 +1,15 @@
 'use client'
 
-import { forwardRef, useMemo, useState, useId, type ReactNode, type TextareaHTMLAttributes } from 'react'
+import {
+  forwardRef,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useId,
+  type ReactNode,
+  type TextareaHTMLAttributes,
+} from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Info, RefreshCw } from 'lucide-react'
@@ -184,6 +193,10 @@ export function TeacherSettingsTab({
   const actualOutlineId = useId()
   const actualLessonPlanScopeId = useId()
   const isReadOnly = !!classroom.archived_at
+  const activeClassroomIdRef = useRef(classroom.id)
+  const formClassroomIdRef = useRef(classroom.id)
+  const formGenerationRef = useRef(0)
+  activeClassroomIdRef.current = classroom.id
   const { showMarkdown, mounted: markdownMounted, setShowMarkdown } = useMarkdownPreference()
   const [title, setTitle] = useState(classroom.title)
   const [titleSaving, setTitleSaving] = useState(false)
@@ -220,8 +233,88 @@ export function TeacherSettingsTab({
     if (typeof window === 'undefined') return ''
     return window.location.origin
   }, [])
-  const joinLink = `${origin}/join/${joinCode}`
   const { showMessage } = useAppMessage()
+  const formStateReady = formClassroomIdRef.current === classroom.id
+  const displayedTitle = formStateReady ? title : classroom.title
+  const displayedTitleSaving = formStateReady && titleSaving
+  const displayedTitleError = formStateReady ? titleError : ''
+  const displayedJoinCode = formStateReady ? joinCode : classroom.class_code
+  const displayedAllowEnrollment = formStateReady ? allowEnrollment : classroom.allow_enrollment
+  const displayedJoinPolicy = formStateReady ? joinPolicy : classroom.join_policy || 'roster'
+  const displayedSaving = formStateReady && saving
+  const displayedEnrollmentError = formStateReady ? enrollmentError : ''
+  const displayedJoinCodeError = formStateReady ? joinCodeError : ''
+  const displayedShowRegenerateConfirm = formStateReady && showRegenerateConfirm
+  const displayedIsRegenerating = formStateReady && isRegenerating
+  const displayedLessonPlanVisibility = formStateReady
+    ? lessonPlanVisibility
+    : classroom.lesson_plan_visibility || 'current_week'
+  const displayedVisibilitySaving = formStateReady && visibilitySaving
+  const displayedVisibilityError = formStateReady ? visibilityError : ''
+  const displayedActualSiteSlug = formStateReady ? actualSiteSlug : classroom.actual_site_slug || ''
+  const displayedActualSitePublished = formStateReady
+    ? actualSitePublished
+    : !!classroom.actual_site_published
+  const displayedActualSiteConfig = formStateReady
+    ? actualSiteConfig
+    : visibleActualSiteConfig(classroom.actual_site_config)
+  const displayedCourseOverviewMarkdown = formStateReady
+    ? courseOverviewMarkdown
+    : classroom.course_overview_markdown || ''
+  const displayedCourseOutlineMarkdown = formStateReady
+    ? courseOutlineMarkdown
+    : classroom.course_outline_markdown || ''
+  const displayedSiteSaving = formStateReady && siteSaving
+  const displayedSiteError = formStateReady ? siteError : ''
+  const displayedShowCreateBlueprintDialog = formStateReady && showCreateBlueprintDialog
+  const displayedBlueprintTitle = formStateReady ? blueprintTitle : classroom.title
+  const displayedBlueprintBusy = formStateReady && blueprintBusy
+  const displayedBlueprintError = formStateReady ? blueprintError : ''
+  const joinLink = `${origin}/join/${displayedJoinCode}`
+
+  useEffect(() => {
+    formClassroomIdRef.current = classroom.id
+    formGenerationRef.current += 1
+    setTitle(classroom.title)
+    setTitleSaving(false)
+    setTitleError('')
+    setJoinCode(classroom.class_code)
+    setAllowEnrollment(classroom.allow_enrollment)
+    setJoinPolicy(classroom.join_policy || 'roster')
+    setSaving(false)
+    setEnrollmentError('')
+    setJoinCodeError('')
+    setShowRegenerateConfirm(false)
+    setIsRegenerating(false)
+    setLessonPlanVisibility(classroom.lesson_plan_visibility || 'current_week')
+    setVisibilityError('')
+    setVisibilitySaving(false)
+    setActualSiteSlug(classroom.actual_site_slug || '')
+    setActualSitePublished(!!classroom.actual_site_published)
+    setActualSiteConfig(visibleActualSiteConfig(classroom.actual_site_config))
+    setCourseOverviewMarkdown(classroom.course_overview_markdown || '')
+    setCourseOutlineMarkdown(classroom.course_outline_markdown || '')
+    setSiteSaving(false)
+    setSiteError('')
+    setShowCreateBlueprintDialog(false)
+    setBlueprintTitle(classroom.title)
+    setBlueprintBusy(false)
+    setBlueprintError('')
+    // Only reset on classroom switches. Same-classroom prop refreshes should not wipe in-progress edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classroom.id])
+
+  function isActiveClassroom(classroomId: string) {
+    return activeClassroomIdRef.current === classroomId
+  }
+
+  function hasCurrentFormState(classroomId: string) {
+    return formClassroomIdRef.current === classroomId
+  }
+
+  function isCurrentFormGeneration(classroomId: string, generation: number) {
+    return isActiveClassroom(classroomId) && formGenerationRef.current === generation
+  }
 
   async function copy(text: string) {
     try {
@@ -238,6 +331,9 @@ export function TeacherSettingsTab({
 
   async function saveTitle() {
     if (isReadOnly) return
+    const classroomId = classroom.id
+    if (!hasCurrentFormState(classroomId)) return
+    const formGeneration = formGenerationRef.current
     const trimmed = title.trim()
     if (!trimmed) {
       setTitleError('Classroom name cannot be empty')
@@ -249,7 +345,7 @@ export function TeacherSettingsTab({
     setTitleSaving(true)
     setTitleError('')
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+      const res = await fetch(`/api/teacher/classrooms/${classroomId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: trimmed }),
@@ -258,21 +354,28 @@ export function TeacherSettingsTab({
       if (!res.ok) {
         throw new Error(data.error || 'Failed to update classroom name')
       }
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setTitle(data.classroom?.title || trimmed)
       showMessage({ text: 'Classroom name updated', tone: 'success' })
     } catch (err: any) {
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setTitleError(err.message || 'Failed to update classroom name')
     } finally {
-      setTitleSaving(false)
+      if (isCurrentFormGeneration(classroomId, formGeneration)) {
+        setTitleSaving(false)
+      }
     }
   }
 
   async function saveAllowEnrollment(nextValue: boolean) {
     if (isReadOnly) return
+    const classroomId = classroom.id
+    if (!hasCurrentFormState(classroomId)) return
+    const formGeneration = formGenerationRef.current
     setSaving(true)
     setEnrollmentError('')
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+      const res = await fetch(`/api/teacher/classrooms/${classroomId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ allowEnrollment: nextValue }),
@@ -281,21 +384,28 @@ export function TeacherSettingsTab({
       if (!res.ok) {
         throw new Error(data.error || 'Failed to update settings')
       }
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setAllowEnrollment(!!data.classroom?.allow_enrollment)
       showMessage({ text: 'Settings saved', tone: 'success' })
     } catch (err: any) {
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setEnrollmentError(err.message || 'Failed to update settings')
     } finally {
-      setSaving(false)
+      if (isCurrentFormGeneration(classroomId, formGeneration)) {
+        setSaving(false)
+      }
     }
   }
 
   async function saveJoinPolicy(nextValue: ClassroomJoinPolicy) {
     if (isReadOnly || nextValue === joinPolicy) return
+    const classroomId = classroom.id
+    if (!hasCurrentFormState(classroomId)) return
+    const formGeneration = formGenerationRef.current
     setSaving(true)
     setEnrollmentError('')
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+      const res = await fetch(`/api/teacher/classrooms/${classroomId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ joinPolicy: nextValue }),
@@ -304,22 +414,29 @@ export function TeacherSettingsTab({
       if (!res.ok) {
         throw new Error(data.error || 'Failed to update settings')
       }
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setJoinPolicy(data.classroom?.join_policy || nextValue)
       showMessage({ text: 'Settings saved', tone: 'success' })
     } catch (err: any) {
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setEnrollmentError(err.message || 'Failed to update settings')
     } finally {
-      setSaving(false)
+      if (isCurrentFormGeneration(classroomId, formGeneration)) {
+        setSaving(false)
+      }
     }
   }
 
   async function regenerateJoinCode() {
     if (isReadOnly) return
+    const classroomId = classroom.id
+    if (!hasCurrentFormState(classroomId)) return
+    const formGeneration = formGenerationRef.current
     setIsRegenerating(true)
     setJoinCodeError('')
     try {
       const newCode = generateJoinCode()
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+      const res = await fetch(`/api/teacher/classrooms/${classroomId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ classCode: newCode }),
@@ -328,22 +445,29 @@ export function TeacherSettingsTab({
       if (!res.ok) {
         throw new Error(data.error || 'Failed to regenerate join code')
       }
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setJoinCode(data.classroom?.class_code || newCode)
       showMessage({ text: 'Join code regenerated', tone: 'success' })
     } catch (err: any) {
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setJoinCodeError(err.message || 'Failed to regenerate join code')
     } finally {
-      setIsRegenerating(false)
-      setShowRegenerateConfirm(false)
+      if (isCurrentFormGeneration(classroomId, formGeneration)) {
+        setIsRegenerating(false)
+        setShowRegenerateConfirm(false)
+      }
     }
   }
 
   async function saveLessonPlanVisibility(value: LessonPlanVisibility) {
     if (isReadOnly) return
+    const classroomId = classroom.id
+    if (!hasCurrentFormState(classroomId)) return
+    const formGeneration = formGenerationRef.current
     setVisibilitySaving(true)
     setVisibilityError('')
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+      const res = await fetch(`/api/teacher/classrooms/${classroomId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lessonPlanVisibility: value }),
@@ -352,21 +476,28 @@ export function TeacherSettingsTab({
       if (!res.ok) {
         throw new Error(data.error || 'Failed to update visibility setting')
       }
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setLessonPlanVisibility(data.classroom?.lesson_plan_visibility || value)
       showMessage({ text: 'Visibility updated', tone: 'success' })
     } catch (err: any) {
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setVisibilityError(err.message || 'Failed to update visibility setting')
     } finally {
-      setVisibilitySaving(false)
+      if (isCurrentFormGeneration(classroomId, formGeneration)) {
+        setVisibilitySaving(false)
+      }
     }
   }
 
   async function saveActualSiteSettings() {
     if (isReadOnly) return
+    const classroomId = classroom.id
+    if (!hasCurrentFormState(classroomId)) return
+    const formGeneration = formGenerationRef.current
     setSiteSaving(true)
     setSiteError('')
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+      const res = await fetch(`/api/teacher/classrooms/${classroomId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -381,6 +512,7 @@ export function TeacherSettingsTab({
       if (!res.ok) {
         throw new Error(data.error || 'Failed to save syllabus settings')
       }
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setActualSiteSlug(data.classroom?.actual_site_slug || '')
       setActualSitePublished(!!data.classroom?.actual_site_published)
       setActualSiteConfig(visibleActualSiteConfig(data.classroom?.actual_site_config || actualSiteConfig))
@@ -388,9 +520,12 @@ export function TeacherSettingsTab({
       setCourseOutlineMarkdown(data.classroom?.course_outline_markdown || courseOutlineMarkdown)
       showMessage({ text: 'Syllabus settings saved', tone: 'success' })
     } catch (err: any) {
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setSiteError(err.message || 'Failed to save syllabus settings')
     } finally {
-      setSiteSaving(false)
+      if (isCurrentFormGeneration(classroomId, formGeneration)) {
+        setSiteSaving(false)
+      }
     }
   }
 
@@ -408,10 +543,13 @@ export function TeacherSettingsTab({
 
   async function createBlueprintFromClassroom() {
     if (isReadOnly) return
+    const classroomId = classroom.id
+    if (!hasCurrentFormState(classroomId)) return
+    const formGeneration = formGenerationRef.current
     setBlueprintBusy(true)
     setBlueprintError('')
     try {
-      const response = await fetch(`/api/teacher/classrooms/${classroom.id}/blueprint`, {
+      const response = await fetch(`/api/teacher/classrooms/${classroomId}/blueprint`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: blueprintTitle.trim() || classroom.title }),
@@ -420,11 +558,15 @@ export function TeacherSettingsTab({
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save classroom as a course blueprint')
       }
-      router.push(data.redirect_url || `/teacher/blueprints?blueprint=${data.blueprint_id}&fromClassroom=${classroom.id}`)
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
+      router.push(data.redirect_url || `/teacher/blueprints?blueprint=${data.blueprint_id}&fromClassroom=${classroomId}`)
     } catch (err: any) {
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setBlueprintError(err.message || 'Failed to save classroom as a course blueprint')
     } finally {
-      setBlueprintBusy(false)
+      if (isCurrentFormGeneration(classroomId, formGeneration)) {
+        setBlueprintBusy(false)
+      }
     }
   }
 
@@ -445,10 +587,10 @@ export function TeacherSettingsTab({
           <SettingsPanel>
             <SettingsHeading title="Classroom name" tooltip="Name shown to students and in reports" />
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-              <FormField label="Classroom name" htmlFor={titleId} hideLabel error={titleError} className="flex-1">
+              <FormField label="Classroom name" htmlFor={titleId} hideLabel error={displayedTitleError} className="flex-1">
                 <Input
                   type="text"
-                  value={title}
+                  value={displayedTitle}
                   onChange={(e) => setTitle(e.target.value)}
                   onBlur={saveTitle}
                   onKeyDown={(e) => {
@@ -457,11 +599,11 @@ export function TeacherSettingsTab({
                       saveTitle()
                     }
                   }}
-                  disabled={titleSaving || isReadOnly}
+                  disabled={displayedTitleSaving || isReadOnly || !formStateReady}
                   placeholder="Enter classroom name"
                 />
               </FormField>
-              {titleSaving && <span className="text-sm text-text-muted sm:pt-2">Saving...</span>}
+              {displayedTitleSaving && <span className="text-sm text-text-muted sm:pt-2">Saving...</span>}
             </div>
           </SettingsPanel>
 
@@ -476,11 +618,12 @@ export function TeacherSettingsTab({
                 type="button"
                 variant="subtle"
                 size="md"
-                onClick={() => copyWithNotice('Join code', joinCode)}
+                onClick={() => copyWithNotice('Join code', displayedJoinCode)}
                 aria-label="Copy join code"
+                disabled={!formStateReady}
                 className="w-full justify-start font-mono text-base font-semibold sm:w-auto"
               >
-                {joinCode}
+                {displayedJoinCode}
               </Button>
 
               <Button
@@ -490,6 +633,7 @@ export function TeacherSettingsTab({
                 onClick={() => copyWithNotice('Join link', joinLink)}
                 aria-label="Copy join link"
                 title={joinLink}
+                disabled={!formStateReady}
                 className="w-full min-w-0 justify-start font-mono text-xs sm:w-[30rem] sm:max-w-[45vw]"
               >
                 <span className="min-w-0 truncate">{joinLink}</span>
@@ -500,7 +644,7 @@ export function TeacherSettingsTab({
                 variant="secondary"
                 size="md"
                 onClick={() => setShowRegenerateConfirm(true)}
-                disabled={isRegenerating || isReadOnly}
+                disabled={isRegenerating || isReadOnly || !formStateReady}
                 aria-label="Generate new join code and link"
                 title="Generate new join code and link"
                 className="h-11 w-11 shrink-0 border-warning bg-warning-bg px-0 text-warning hover:bg-warning-bg focus:ring-warning"
@@ -512,25 +656,25 @@ export function TeacherSettingsTab({
             <div className="flex flex-col gap-2 border-t border-border pt-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <SettingsSwitchRow
-                  checked={allowEnrollment}
+                  checked={displayedAllowEnrollment}
                   onChange={saveAllowEnrollment}
-                  disabled={saving || isReadOnly}
+                  disabled={displayedSaving || isReadOnly || !formStateReady}
                   ariaLabel="Allow new students to join"
                 >
-                  <span className="font-medium">{allowEnrollment ? 'Allow new joins' : 'Disallow new joins'}</span>
+                  <span className="font-medium">{displayedAllowEnrollment ? 'Allow new joins' : 'Disallow new joins'}</span>
                 </SettingsSwitchRow>
-                {saving && <span className="text-sm text-text-muted">Saving...</span>}
+                {displayedSaving && <span className="text-sm text-text-muted">Saving...</span>}
               </div>
             </div>
 
             <div className="space-y-2 border-t border-border pt-3">
               <SettingsSwitchRow
-                checked={joinPolicy === 'roster'}
+                checked={displayedJoinPolicy === 'roster'}
                 onChange={(isRoster) => saveJoinPolicy(isRoster ? 'roster' : 'open_join')}
-                disabled={saving || isReadOnly || !allowEnrollment}
+                disabled={displayedSaving || isReadOnly || !displayedAllowEnrollment || !formStateReady}
                 ariaLabel="Join mode"
               >
-                {joinPolicy === 'roster' ? (
+                {displayedJoinPolicy === 'roster' ? (
                   <>
                     <span className="font-medium text-text-default">Only students on roster can join.</span>{' '}
                     <Link href={`/classrooms/${classroom.id}?tab=roster`} className="text-primary underline">
@@ -542,30 +686,30 @@ export function TeacherSettingsTab({
                 )}
               </SettingsSwitchRow>
 
-              {allowEnrollment && joinPolicy === 'open_join' ? (
+              {displayedAllowEnrollment && displayedJoinPolicy === 'open_join' ? (
                 <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
                   Anyone with this code or link can join after entering their name.
                 </div>
               ) : null}
             </div>
 
-            {joinCodeError && <div className="text-sm text-danger">{joinCodeError}</div>}
-            {enrollmentError && <div className="text-sm text-danger">{enrollmentError}</div>}
+            {displayedJoinCodeError && <div className="text-sm text-danger">{displayedJoinCodeError}</div>}
+            {displayedEnrollmentError && <div className="text-sm text-danger">{displayedEnrollmentError}</div>}
           </SettingsPanel>
 
           <SettingsPanel>
             <SettingsHeading title="Calendar Visibility" tooltip="Control how far ahead students can see lesson plans" />
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-              <FormField label="Calendar visibility" htmlFor={visibilityId} hideLabel error={visibilityError} className="sm:max-w-md">
+              <FormField label="Calendar visibility" htmlFor={visibilityId} hideLabel error={displayedVisibilityError} className="sm:max-w-md">
                 <Select
                   options={LESSON_PLAN_VISIBILITY_OPTIONS}
-                  value={lessonPlanVisibility}
+                  value={displayedLessonPlanVisibility}
                   onChange={(e) => saveLessonPlanVisibility(e.target.value as LessonPlanVisibility)}
-                  disabled={visibilitySaving || isReadOnly}
+                  disabled={displayedVisibilitySaving || isReadOnly || !formStateReady}
                 />
               </FormField>
-              {visibilitySaving && <span className="text-sm text-text-muted sm:pt-2">Saving...</span>}
+              {displayedVisibilitySaving && <span className="text-sm text-text-muted sm:pt-2">Saving...</span>}
             </div>
           </SettingsPanel>
 
@@ -587,9 +731,9 @@ export function TeacherSettingsTab({
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr),auto]">
               <FormField label="Syllabus slug" htmlFor={actualSiteSlugId}>
                 <Input
-                  value={actualSiteSlug}
+                  value={displayedActualSiteSlug}
                   onChange={(e) => setActualSiteSlug(slugifyCourseSiteValue(e.target.value))}
-                  disabled={siteSaving || isReadOnly}
+                  disabled={displayedSiteSaving || isReadOnly || !formStateReady}
                   placeholder="career-studies-period-1"
                 />
               </FormField>
@@ -597,7 +741,7 @@ export function TeacherSettingsTab({
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={siteSaving || isReadOnly}
+                  disabled={displayedSiteSaving || isReadOnly || !formStateReady}
                   onClick={() => setActualSiteSlug(slugifyCourseSiteValue(title || classroom.title))}
                 >
                   Generate
@@ -606,9 +750,9 @@ export function TeacherSettingsTab({
             </div>
 
             <SettingsSwitchRow
-              checked={actualSitePublished}
+              checked={displayedActualSitePublished}
               onChange={setActualSitePublished}
-              disabled={siteSaving || isReadOnly}
+              disabled={displayedSiteSaving || isReadOnly || !formStateReady}
               ariaLabel="Publish this classroom syllabus"
             >
               <span className="font-medium">Publish this classroom syllabus</span>
@@ -625,7 +769,9 @@ export function TeacherSettingsTab({
                   ['announcements', 'Announcements'],
                 ] as Array<[keyof ActualCourseSiteConfig, string]>
               ).map(([key, label]) => {
-                const checked = typeof actualSiteConfig[key] === 'boolean' ? (actualSiteConfig[key] as boolean) : false
+                const checked = typeof displayedActualSiteConfig[key] === 'boolean'
+                  ? (displayedActualSiteConfig[key] as boolean)
+                  : false
 
                 return (
                   <SettingsSwitchRow
@@ -637,7 +783,7 @@ export function TeacherSettingsTab({
                         [key]: nextChecked,
                       }))
                     }
-                    disabled={siteSaving || isReadOnly}
+                    disabled={displayedSiteSaving || isReadOnly || !formStateReady}
                     ariaLabel={label}
                   >
                     <span className={checked ? 'font-medium' : undefined}>{label}</span>
@@ -649,14 +795,14 @@ export function TeacherSettingsTab({
             <FormField label="Lesson plan visibility on syllabus" htmlFor={actualLessonPlanScopeId}>
               <Select
                 options={SYLLABUS_LESSON_PLAN_SCOPE_OPTIONS}
-                value={actualSiteConfig.lesson_plan_scope}
+                value={displayedActualSiteConfig.lesson_plan_scope}
                 onChange={(e) =>
                   setActualSiteConfig((current) => ({
                     ...current,
                     lesson_plan_scope: e.target.value as ActualCourseSiteConfig['lesson_plan_scope'],
                   }))
                 }
-                disabled={siteSaving || isReadOnly}
+                disabled={displayedSiteSaving || isReadOnly || !formStateReady}
               />
             </FormField>
 
@@ -664,18 +810,18 @@ export function TeacherSettingsTab({
               <>
                 <FormField label="Course overview" htmlFor={actualOverviewId}>
                   <SettingsTextarea
-                    value={courseOverviewMarkdown}
+                    value={displayedCourseOverviewMarkdown}
                     onChange={(e) => setCourseOverviewMarkdown(e.target.value)}
-                    disabled={siteSaving || isReadOnly}
+                    disabled={displayedSiteSaving || isReadOnly || !formStateReady}
                     className="min-h-[140px] font-mono"
                   />
                 </FormField>
 
                 <FormField label="Course outline" htmlFor={actualOutlineId}>
                   <SettingsTextarea
-                    value={courseOutlineMarkdown}
+                    value={displayedCourseOutlineMarkdown}
                     onChange={(e) => setCourseOutlineMarkdown(e.target.value)}
-                    disabled={siteSaving || isReadOnly}
+                    disabled={displayedSiteSaving || isReadOnly || !formStateReady}
                     className="min-h-[160px] font-mono"
                   />
                 </FormField>
@@ -686,27 +832,27 @@ export function TeacherSettingsTab({
               </div>
             )}
 
-            {actualSitePublished && actualSiteSlug ? (
+            {displayedActualSitePublished && displayedActualSiteSlug ? (
               <div className="text-sm text-text-muted">
                 Syllabus URL:{' '}
                 <a
-                  href={`/actual/${actualSiteSlug}`}
+                  href={`/actual/${displayedActualSiteSlug}`}
                   target="_blank"
                   rel="noreferrer"
                   className="text-primary underline"
                 >
-                  {`/actual/${actualSiteSlug}`}
+                  {`/actual/${displayedActualSiteSlug}`}
                 </a>
               </div>
             ) : null}
 
             <div className="flex flex-wrap gap-3">
-              <Button type="button" onClick={saveActualSiteSettings} disabled={siteSaving || isReadOnly}>
-                {siteSaving ? 'Saving...' : 'Save Syllabus'}
+              <Button type="button" onClick={saveActualSiteSettings} disabled={displayedSiteSaving || isReadOnly || !formStateReady}>
+                {displayedSiteSaving ? 'Saving...' : 'Save Syllabus'}
               </Button>
             </div>
 
-            {siteError && <div className="text-sm text-danger">{siteError}</div>}
+            {displayedSiteError && <div className="text-sm text-danger">{displayedSiteError}</div>}
           </SettingsPanel>
 
           <SettingsPanel>
@@ -724,27 +870,27 @@ export function TeacherSettingsTab({
                 type="button"
                 variant="secondary"
                 onClick={openCreateBlueprintDialog}
-                disabled={blueprintBusy || isReadOnly}
+                disabled={displayedBlueprintBusy || isReadOnly || !formStateReady}
               >
-                {blueprintBusy ? 'Working...' : 'Save as Course Blueprint'}
+                {displayedBlueprintBusy ? 'Working...' : 'Save as Course Blueprint'}
               </Button>
             </div>
           </SettingsPanel>
 
             <ConfirmDialog
-              isOpen={showRegenerateConfirm}
+              isOpen={displayedShowRegenerateConfirm}
               title="Generate new join code and link?"
-              confirmLabel={isRegenerating ? 'Generating...' : 'Generate'}
+              confirmLabel={displayedIsRegenerating ? 'Generating...' : 'Generate'}
               cancelLabel="Cancel"
               confirmVariant="danger"
-              isConfirmDisabled={isRegenerating || isReadOnly}
-              isCancelDisabled={isRegenerating || isReadOnly}
-              onCancel={() => (isRegenerating || isReadOnly ? null : setShowRegenerateConfirm(false))}
+              isConfirmDisabled={displayedIsRegenerating || isReadOnly}
+              isCancelDisabled={displayedIsRegenerating || isReadOnly}
+              onCancel={() => (displayedIsRegenerating || isReadOnly ? null : setShowRegenerateConfirm(false))}
               onConfirm={regenerateJoinCode}
             />
 
             <DialogPanel
-              isOpen={showCreateBlueprintDialog}
+              isOpen={displayedShowCreateBlueprintDialog}
               onClose={closeCreateBlueprintDialog}
               maxWidth="max-w-xl"
               className="p-6"
@@ -757,9 +903,9 @@ export function TeacherSettingsTab({
               <div className="space-y-4">
                 <FormField label="Course Blueprint Title" required>
                   <Input
-                    value={blueprintTitle}
+                    value={displayedBlueprintTitle}
                     onChange={(e) => setBlueprintTitle(e.target.value)}
-                    disabled={blueprintBusy}
+                    disabled={displayedBlueprintBusy || !formStateReady}
                     placeholder="Grade 11 Computer Science"
                   />
                 </FormField>
@@ -768,9 +914,9 @@ export function TeacherSettingsTab({
                   The course blueprint will include teacher-authored course content only. Students, submissions, grades, attendance, join codes, and roster data are not included.
                 </div>
 
-                {blueprintError ? (
+                {displayedBlueprintError ? (
                   <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-                    {blueprintError}
+                    {displayedBlueprintError}
                   </div>
                 ) : null}
               </div>
@@ -781,7 +927,7 @@ export function TeacherSettingsTab({
                   variant="secondary"
                   onClick={closeCreateBlueprintDialog}
                   className="flex-1"
-                  disabled={blueprintBusy}
+                  disabled={displayedBlueprintBusy || !formStateReady}
                 >
                   Cancel
                 </Button>
@@ -789,9 +935,9 @@ export function TeacherSettingsTab({
                   type="button"
                   onClick={createBlueprintFromClassroom}
                   className="flex-1"
-                  disabled={blueprintBusy || !blueprintTitle.trim()}
+                  disabled={displayedBlueprintBusy || !displayedBlueprintTitle.trim() || !formStateReady}
                 >
-                  {blueprintBusy ? 'Saving...' : 'Save Blueprint'}
+                  {displayedBlueprintBusy ? 'Saving...' : 'Save Blueprint'}
                 </Button>
               </div>
             </DialogPanel>
