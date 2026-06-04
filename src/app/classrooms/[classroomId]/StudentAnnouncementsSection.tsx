@@ -17,12 +17,17 @@ interface Props {
 
 export function StudentAnnouncementsSection({ classroom, className }: Props) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAll, setShowAll] = useState(false)
   const hasMarkedRead = useRef(false)
+  const loadRequestIdRef = useRef(0)
   const notifications = useStudentNotifications()
 
   const loadAnnouncements = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
+    setLoading(true)
     try {
       const data = await fetchJSONWithCache(
         `student-announcements:${classroom.id}`,
@@ -33,12 +38,23 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
         },
         20_000,
       )
+      if (loadRequestIdRef.current !== requestId) return
       setAnnouncements(data.announcements || [])
+      setLoadedClassroomId(classroom.id)
     } catch (err) {
+      if (loadRequestIdRef.current !== requestId) return
+      setAnnouncements([])
+      setLoadedClassroomId(classroom.id)
       console.error('Error loading announcements:', err)
     } finally {
-      setLoading(false)
+      if (loadRequestIdRef.current === requestId) {
+        setLoading(false)
+      }
     }
+  }, [classroom.id])
+
+  useEffect(() => {
+    hasMarkedRead.current = false
   }, [classroom.id])
 
   const markAllAsRead = useCallback(async () => {
@@ -63,12 +79,15 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
     loadAnnouncements()
   }, [loadAnnouncements])
 
+  const currentAnnouncements = loadedClassroomId === classroom.id ? announcements : []
+  const isLoading = loading || loadedClassroomId !== classroom.id
+
   // Mark all as read when component mounts and announcements are loaded
   useEffect(() => {
-    if (!loading && announcements.length > 0) {
+    if (!isLoading && currentAnnouncements.length > 0) {
       markAllAsRead()
     }
-  }, [loading, announcements.length, markAllAsRead])
+  }, [isLoading, currentAnnouncements.length, markAllAsRead])
 
   function formatDate(dateString: string) {
     const date = new Date(dateString)
@@ -78,7 +97,7 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
     return `${weekday} ${monthDay}, ${time}`
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Spinner />
@@ -86,7 +105,7 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
     )
   }
 
-  if (announcements.length === 0) {
+  if (currentAnnouncements.length === 0) {
     return (
       <div className={cn('rounded-lg border border-border bg-surface-2 p-4', className ?? 'max-w-2xl mx-auto')}>
         <p className="text-sm text-text-muted">No announcements yet.</p>
@@ -94,7 +113,7 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
     )
   }
 
-  const sortedAnnouncements = sortAnnouncementsNewestFirst(announcements)
+  const sortedAnnouncements = sortAnnouncementsNewestFirst(currentAnnouncements)
 
   return (
     <div className={cn('space-y-3', className ?? 'max-w-2xl mx-auto')}>
@@ -120,13 +139,13 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
         )
       })}
 
-      {!showAll && announcements.length > 5 && (
+      {!showAll && currentAnnouncements.length > 5 && (
         <Button
           variant="secondary"
           onClick={() => setShowAll(true)}
           className="w-full"
         >
-          Show {announcements.length - 5} older announcement{announcements.length - 5 === 1 ? '' : 's'}
+          Show {currentAnnouncements.length - 5} older announcement{currentAnnouncements.length - 5 === 1 ? '' : 's'}
         </Button>
       )}
     </div>

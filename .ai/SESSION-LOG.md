@@ -8,26 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-30 — Teacher logs bulk-read hardening
-
-**Completed:**
-- Extracted the paginated classroom roster/profile loader into a neutral server helper shared by attendance/export and teacher logs.
-- Routed teacher logs roster, profile, and selected-date entry reads through chunked, paginated Supabase loaders.
-- Scoped selected-date log entries by currently enrolled student ids at query time so stale withdrawn-student entries cannot consume pages or appear in teacher logs.
-- Returned an explicit 500 for student profile hydration failures instead of silently rendering blank names after a failed read.
-- Chunked history-preview RPC calls and bounded the missing-RPC fallback to per-student batches.
-- Added API regressions for >1000-student roster pagination, 51-student profile/entry chunking, dense selected-date entry pagination, stale-entry scoping, profile failure handling, and history-preview RPC fallback.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/logs.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
-- `git diff --check`
-
 ## 2026-05-30 — Nightly log summary bulk-read hardening
 
 **Completed:**
@@ -981,6 +961,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `pnpm vitest run tests/components/TeacherLessonCalendarTab.test.tsx`
 - `pnpm vitest run tests/components/TeacherLessonCalendarTab.test.tsx tests/components/StudentLessonCalendarTab.test.tsx tests/components/calendar-view-persistence.test.tsx`
+- `pnpm test`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+
+## 2026-06-04 — Announcement freshness audit
+
+**Completed:**
+- Made teacher and student announcement reloads enter loading state on classroom changes and ignore stale responses from older classroom reads.
+- Reset the student announcement read-marker guard when the classroom changes so each classroom can mark its announcements read once.
+- Added component regressions for hiding stale teacher announcements during a classroom switch and marking student announcements read once per classroom.
+- Addressed PR review findings by keying displayed announcement state to the loaded classroom id, preventing one-frame stale paints and premature student read-marker POSTs during classroom switches.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/components/AnnouncementsMarkdown.test.tsx`
+- `pnpm vitest run tests/components/AnnouncementsMarkdown.test.tsx tests/api/teacher/announcements.test.ts tests/api/teacher/announcements-id.test.ts tests/api/student/announcements.test.ts tests/components/StudentNotificationsProvider.test.tsx`
 - `pnpm test`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `git diff --check`
