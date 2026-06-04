@@ -104,6 +104,20 @@ interface PendingExamNavigation {
   navigate: () => void
 }
 
+function buildInitialQueryString(
+  initialSearchParams: Record<string, string | undefined> | undefined,
+  initialTab: string | undefined,
+) {
+  const initial = new URLSearchParams()
+  for (const [key, value] of Object.entries(initialSearchParams || {})) {
+    if (value) initial.set(key, value)
+  }
+  if (!initial.get('tab') && initialTab) {
+    initial.set('tab', initialTab)
+  }
+  return initial.toString()
+}
+
 export function ClassroomPageClient({
   classroom,
   user,
@@ -125,26 +139,31 @@ export function ClassroomPageClient({
     [isTeacher]
   )
 
-  const [queryString, setQueryString] = useState(() => {
-    const initial = new URLSearchParams()
-    for (const [key, value] of Object.entries(initialSearchParams || {})) {
-      if (value) initial.set(key, value)
-    }
-    if (!initial.get('tab') && initialTab) {
-      initial.set('tab', initialTab)
-    }
-    return initial.toString()
-  })
+  const initialQueryString = buildInitialQueryString(initialSearchParams, initialTab)
+  const routeQueryKey = `${classroom.id}\n${initialQueryString}`
+  const [queryString, setQueryString] = useState(initialQueryString)
   const queryStringRef = useRef(queryString)
+  const routeQueryKeyRef = useRef(routeQueryKey)
+  const effectiveQueryString =
+    routeQueryKeyRef.current === routeQueryKey ? queryString : initialQueryString
+  queryStringRef.current = effectiveQueryString
 
   useEffect(() => {
-    queryStringRef.current = queryString
-  }, [queryString])
+    queryStringRef.current = effectiveQueryString
+  }, [effectiveQueryString])
+
+  useEffect(() => {
+    routeQueryKeyRef.current = routeQueryKey
+    queryStringRef.current = initialQueryString
+    setQueryString(initialQueryString)
+  }, [initialQueryString, routeQueryKey])
 
   useEffect(() => {
     const syncFromLocation = () => {
       const fromLocation = new URLSearchParams(window.location.search)
-      setQueryString(fromLocation.toString())
+      const next = fromLocation.toString()
+      queryStringRef.current = next
+      setQueryString(next)
     }
     syncFromLocation()
     window.addEventListener('popstate', syncFromLocation)
@@ -171,7 +190,7 @@ export function ClassroomPageClient({
     [basePath]
   )
 
-  const activeSearchParams = useMemo(() => new URLSearchParams(queryString), [queryString])
+  const activeSearchParams = useMemo(() => new URLSearchParams(effectiveQueryString), [effectiveQueryString])
   const tab = activeSearchParams.get('tab')
   const activeTab = (validTabs as readonly string[]).includes(tab ?? '') ? (tab as string) : defaultTab
 
