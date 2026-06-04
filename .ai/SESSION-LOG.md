@@ -8,27 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-30 — Gradebook bulk-read hardening
-
-**Completed:**
-- Added chunked and paginated loaders for teacher gradebook roster, profile, assignment doc, quiz, and test related reads.
-- Scoped assignment docs to currently enrolled students at query time so withdrawn-student docs cannot consume pages or affect current gradebook data.
-- Returned clear 500 responses for non-migration read failures that were previously swallowed into empty gradebook rows.
-- Preserved the `assignment_docs.teacher_cleared_at` missing-column fallback and optional test-table missing-table shims.
-- Added regressions for 51x51 filter chunking, >1000 related-row pagination, selected students beyond the first roster page, assignment-doc scoping, related-row failures, and migration fallbacks.
-- After rebasing onto the latest `main`, updated the assignment repo-target API test harness to match the shared chunked enrollment validator query shape.
-- Fixed PR review follow-up: legacy databases without `quiz_questions.correct_option` or `quiz_student_scores` now render the gradebook with quiz scoring/overrides empty instead of failing the route.
-
-**Validation:**
-- `pnpm vitest run tests/api/teacher/gradebook.test.ts --reporter=verbose`
-- `pnpm vitest run tests/api/teacher/assignments-repo-targets-studentId.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
-- `git diff --check`
-
 ## 2026-05-30 — Quiz and survey results bulk-read hardening
 
 **Completed:**
@@ -1006,3 +985,14 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/ai-startup-docs.test.ts`
 - `pnpm lint`
 - `git diff --check`
+
+## 2026-06-04 — PR 724 merge
+
+**Completed:**
+- Confirmed PR #724 was open, not draft, merge-clean, and all GitHub checks were passing after the CI recovery sync.
+- Squash-merged PR #724 into `main`, adding snapshot gallery API auth contract tests.
+- Fast-forwarded the hub checkout to `origin/main` and removed the finished `codex/snapshot-gallery-phase3` worktree and local branch.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `gh pr checks 724 --repo codepetca/pika`
