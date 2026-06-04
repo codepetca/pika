@@ -8,26 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — Teacher assignment detail bulk-read hardening
-
-**Completed:**
-- Routed teacher assignment detail enrollment reads through pagination.
-- Chunked and paged student profile, assignment doc, doc-history, and structured submission artifact reads.
-- Scoped assignment docs to currently enrolled student ids so withdrawn-student docs cannot consume pages or drive artifact/history hydration.
-- Returned explicit 500s for profile, doc, history, and artifact read failures instead of rendering partial detail data.
-- Added regressions for >1000-student detail pagination, 51-student chunking, stale withdrawn-student doc exclusion, dense history pagination, read-failure handling, and artifact helper chunking/pagination.
-- Addressed subagent review follow-up by tightening paged-table mocks so missing filtered columns no longer pass rows through.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/teacher/assignments-id.test.ts tests/lib/assignment-submission-artifacts.test.ts tests/unit/query-chunks.test.ts -- --runInBand`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm test:coverage`
-- `git diff --check`
-
 ## 2026-05-31 — Student assessment results bulk-read hardening
 
 **Completed:**
@@ -977,6 +957,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm vitest run tests/components/ClassResourcesSidebar.test.tsx`
 - `pnpm vitest run tests/components/ClassResourcesSidebar.test.tsx tests/components/ResourcesTab.test.tsx tests/api/teacher/resources.test.ts tests/api/student/resources.test.ts`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+
+## 2026-06-04 — Classwork materials freshness audit
+
+**Completed:**
+- Made the student assignments/materials/surveys tab reset loaded state on classroom changes, hide previous classroom classwork while the next classroom loads, and ignore stale classwork responses.
+- Guarded teacher classwork summary loads and rendered teacher classwork only from data loaded for the current classroom so older assignment/material/survey/class-day reads cannot overwrite or remain interactive under a new classroom shell.
+- Added component regressions for active student classroom switches, stale teacher classwork load completion after switching classrooms, and hiding already-loaded teacher classwork while the next classroom loads.
+- Addressed PR review feedback by requiring the selected teacher assignment workspace to belong to the currently loaded classroom before loading details, exposing workspace props, or accepting stale detail completions.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm vitest run tests/api/teacher/materials.test.ts tests/api/student/materials.test.ts tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `git diff --check`
 - `pnpm lint`

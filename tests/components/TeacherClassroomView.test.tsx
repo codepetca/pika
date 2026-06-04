@@ -691,6 +691,223 @@ describe('TeacherClassroomView', () => {
     expect(consoleError).toHaveBeenCalledWith('Error loading class days:', expect.any(Error))
   })
 
+  it('ignores stale teacher classwork loads after switching classrooms', async () => {
+    const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Chemistry' }
+    let resolveFirstAssignments: (() => void) | null = null
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return new Promise((resolve) => {
+          resolveFirstAssignments = () => resolve({
+            assignments: [
+              makeAssignmentSummary('assignment-first', 'First classroom assignment', {
+                classroom_id: classroom.id,
+              }),
+            ],
+          })
+        })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
+      if (key === `teacher-assignments:${secondClassroom.id}`) {
+        return Promise.resolve({
+          assignments: [
+            makeAssignmentSummary('assignment-second', 'Second classroom assignment', {
+              classroom_id: secondClassroom.id,
+            }),
+          ],
+        })
+      }
+      if (key === `teacher-materials:${secondClassroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${secondClassroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
+      return fetcher()
+    })
+
+    const view = render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+
+    await waitFor(() => {
+      expect(resolveFirstAssignments).toEqual(expect.any(Function))
+    })
+
+    view.rerender(<TeacherClassroomView classroom={secondClassroom} selectedAssignmentId={null} />)
+
+    expect(await screen.findByRole('button', { name: 'Second classroom assignment' })).toBeInTheDocument()
+
+    await act(async () => {
+      resolveFirstAssignments?.()
+    })
+
+    expect(screen.getByRole('button', { name: 'Second classroom assignment' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'First classroom assignment' })).not.toBeInTheDocument()
+  })
+
+  it('hides already-loaded teacher classwork while the next classroom loads', async () => {
+    const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Chemistry' }
+    let resolveSecondAssignments: (() => void) | null = null
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return Promise.resolve({
+          assignments: [
+            makeAssignmentSummary('assignment-first', 'First classroom assignment', {
+              classroom_id: classroom.id,
+            }),
+          ],
+        })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({
+          materials: [
+            makeMaterialSummary('material-first', 'First classroom material', {
+              classroom_id: classroom.id,
+            }),
+          ],
+        })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
+      if (key === `teacher-assignments:${secondClassroom.id}`) {
+        return new Promise((resolve) => {
+          resolveSecondAssignments = () => resolve({
+            assignments: [
+              makeAssignmentSummary('assignment-second', 'Second classroom assignment', {
+                classroom_id: secondClassroom.id,
+              }),
+            ],
+          })
+        })
+      }
+      if (key === `teacher-materials:${secondClassroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${secondClassroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
+      return fetcher()
+    })
+
+    const view = render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+
+    await screen.findByRole('button', { name: 'First classroom assignment' })
+    expect(screen.getByRole('button', { name: 'Open First classroom material' })).toBeInTheDocument()
+
+    view.rerender(<TeacherClassroomView classroom={secondClassroom} selectedAssignmentId={null} />)
+
+    expect(screen.queryByRole('button', { name: 'First classroom assignment' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Open First classroom material' })).not.toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(resolveSecondAssignments).toEqual(expect.any(Function))
+    })
+    await act(async () => {
+      resolveSecondAssignments?.()
+    })
+
+    expect(await screen.findByRole('button', { name: 'Second classroom assignment' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'First classroom assignment' })).not.toBeInTheDocument()
+  })
+
+  it('hides the selected assignment workspace while the next classroom loads', async () => {
+    const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Chemistry' }
+    let resolveSecondAssignments: (() => void) | null = null
+    let detailFetchCount = 0
+
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return Promise.resolve({
+          assignments: [
+            makeAssignmentSummary('assignment-first', 'First classroom assignment', {
+              classroom_id: classroom.id,
+            }),
+          ],
+        })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
+      if (key === `teacher-assignments:${secondClassroom.id}`) {
+        return new Promise((resolve) => {
+          resolveSecondAssignments = () => resolve({
+            assignments: [
+              makeAssignmentSummary('assignment-second', 'Second classroom assignment', {
+                classroom_id: secondClassroom.id,
+              }),
+            ],
+          })
+        })
+      }
+      if (key === `teacher-materials:${secondClassroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${secondClassroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
+      return fetcher()
+    })
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === '/api/teacher/assignments/assignment-first') {
+        detailFetchCount += 1
+        const details = makeAssignmentDetails('assignment-first', 'First classroom assignment', 'student-1')
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            ...details,
+            assignment: {
+              ...details.assignment,
+              classroom_id: classroom.id,
+            },
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    const view = render(
+      <TeacherClassroomView
+        classroom={classroom}
+        selectedAssignmentId="assignment-first"
+      />,
+    )
+
+    expect(await screen.findByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-first:student-1')
+    expect(detailFetchCount).toBe(1)
+
+    view.rerender(
+      <TeacherClassroomView
+        classroom={secondClassroom}
+        selectedAssignmentId="assignment-first"
+      />,
+    )
+
+    expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(resolveSecondAssignments).toEqual(expect.any(Function))
+    })
+    await act(async () => {
+      resolveSecondAssignments?.()
+    })
+
+    expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
+    expect(detailFetchCount).toBe(1)
+  })
+
   it('keeps New visible with an Edit Markdown dropdown action while edit mode is active', async () => {
     const onEditModeChange = vi.fn()
     const onOpenMarkdownEditor = vi.fn()
