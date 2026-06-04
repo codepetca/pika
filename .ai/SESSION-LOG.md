@@ -8,26 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-30 — Nightly log summary bulk-read hardening
-
-**Completed:**
-- Routed nightly log-summary active-classroom discovery through paginated entry reads.
-- Chunked class-day filtering for discovered classroom ids.
-- Loaded per-classroom enrollments before summary entries and scoped summary entry reads to currently enrolled students.
-- Paged enrollment, roster-name, and selected entry reads, and chunked student profile hydration.
-- Returned skip/failure for required profile reads instead of generating summaries with incomplete redaction context.
-- Added cron regressions for active-entry pagination, 51-classroom class-day chunking, scoped dense entry pagination, stale withdrawn-student exclusion, profile chunking, and profile-read failures.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/cron/nightly-log-summaries.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
-- `git diff --check`
-
 ## 2026-05-31 — Teacher assignment detail bulk-read hardening
 
 **Completed:**
@@ -984,3 +964,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `pnpm lint`
 - `pnpm build`
+
+## 2026-06-04 — Resource sidebar freshness audit
+
+**Completed:**
+- Added a shared client helper for teacher and student classroom resource reads, cache keys, and cross-role invalidation after teacher saves.
+- Made teacher and student resource sidebars ignore stale responses from older classroom reads and only render content for the classroom that actually finished loading.
+- Added sidebar regressions for hiding stale teacher/student resources during classroom switches and invalidating student resource cache after a teacher save.
+- Addressed PR review feedback by scoping pending teacher resource autosave drafts and save completions to their classroom id so blur/unload saves and stale in-flight saves cannot corrupt the newly selected classroom state.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/components/ClassResourcesSidebar.test.tsx`
+- `pnpm vitest run tests/components/ClassResourcesSidebar.test.tsx tests/components/ResourcesTab.test.tsx tests/api/teacher/resources.test.ts tests/api/student/resources.test.ts`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`

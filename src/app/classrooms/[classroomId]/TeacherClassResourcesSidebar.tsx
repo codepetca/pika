@@ -4,12 +4,20 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
 import type { Classroom, TiptapContent } from '@/types'
-import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { isEmpty } from '@/lib/tiptap-content'
+import {
+  fetchTeacherClassResources,
+  invalidateClassResourcesForClassroom,
+} from '@/lib/class-resources-client'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
 const AUTOSAVE_DEBOUNCE_MS = 2000
+
+type PendingResourceDraft = {
+  classroomId: string
+  content: TiptapContent
+}
 
 interface Props {
   classroom: Classroom
@@ -18,35 +26,47 @@ interface Props {
 export function TeacherClassResourcesSidebar({ classroom }: Props) {
   const [loading, setLoading] = useState(true)
   const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
+  const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const showLoadingSpinner = useDelayedBusy(loading)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const pendingContentRef = useRef<TiptapContent | null>(null)
+  const pendingContentRef = useRef<PendingResourceDraft | null>(null)
   const lastSavedContentRef = useRef<string>('')
+  const currentClassroomIdRef = useRef(classroom.id)
+  const loadRequestIdRef = useRef(0)
   const isArchived = !!classroom.archived_at
+  currentClassroomIdRef.current = classroom.id
 
   useEffect(() => {
     async function loadResources() {
+      const requestId = loadRequestIdRef.current + 1
+      loadRequestIdRef.current = requestId
+      pendingContentRef.current = null
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = null
+      }
+      setSaveStatus('saved')
       setLoading(true)
       try {
-        const data = await fetchJSONWithCache(
-          `teacher-resources:${classroom.id}`,
-          async () => {
-            const res = await fetch(`/api/teacher/classrooms/${classroom.id}/resources`)
-            if (!res.ok) throw new Error('Failed to load resources')
-            return res.json()
-          },
-          20_000,
-        )
-        const loadedContent = data.resources?.content || EMPTY_DOC
+        const loadedContent = await fetchTeacherClassResources(classroom.id) ?? EMPTY_DOC
+        if (loadRequestIdRef.current !== requestId) return
         setContent(loadedContent)
         lastSavedContentRef.current = JSON.stringify(loadedContent)
         setSaveStatus('saved')
+        setLoadedClassroomId(classroom.id)
       } catch (err) {
+        if (loadRequestIdRef.current !== requestId) return
+        setContent(EMPTY_DOC)
+        lastSavedContentRef.current = JSON.stringify(EMPTY_DOC)
+        setSaveStatus('saved')
+        setLoadedClassroomId(classroom.id)
         console.error('Error loading resources:', err)
       } finally {
-        setLoading(false)
+        if (loadRequestIdRef.current === requestId) {
+          setLoading(false)
+        }
       }
     }
 
@@ -54,16 +74,25 @@ export function TeacherClassResourcesSidebar({ classroom }: Props) {
   }, [classroom.id])
 
   const saveContent = useCallback(async (newContent: TiptapContent) => {
+    const saveClassroomId = classroom.id
     const newContentStr = JSON.stringify(newContent)
     if (newContentStr === lastSavedContentRef.current) {
-      setSaveStatus('saved')
+      const pending = pendingContentRef.current
+      if (pending?.classroomId === saveClassroomId && JSON.stringify(pending.content) === newContentStr) {
+        pendingContentRef.current = null
+      }
+      if (currentClassroomIdRef.current === saveClassroomId) {
+        setSaveStatus('saved')
+      }
       return
     }
 
-    setSaveStatus('saving')
+    if (currentClassroomIdRef.current === saveClassroomId) {
+      setSaveStatus('saving')
+    }
 
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/resources`, {
+      const res = await fetch(`/api/teacher/classrooms/${saveClassroomId}/resources`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: newContent }),
@@ -73,20 +102,34 @@ export function TeacherClassResourcesSidebar({ classroom }: Props) {
         throw new Error('Failed to save')
       }
 
-      invalidateCachedJSON(`teacher-resources:${classroom.id}`)
-      invalidateCachedJSON(`student-resources:${classroom.id}`)
+      invalidateClassResourcesForClassroom(saveClassroomId)
+      if (currentClassroomIdRef.current !== saveClassroomId) {
+        return
+      }
+
       lastSavedContentRef.current = newContentStr
-      setSaveStatus('saved')
+      const pending = pendingContentRef.current
+      const pendingMatchesSavedDraft =
+        pending?.classroomId === saveClassroomId && JSON.stringify(pending.content) === newContentStr
+      if (!pending || pendingMatchesSavedDraft) {
+        pendingContentRef.current = null
+        setSaveStatus('saved')
+      }
     } catch (err) {
       console.error('Error saving resources:', err)
-      setSaveStatus('unsaved')
+      if (currentClassroomIdRef.current === saveClassroomId) {
+        setSaveStatus('unsaved')
+      }
     }
   }, [classroom.id])
 
   const handleContentChange = useCallback((newContent: TiptapContent) => {
     setContent(newContent)
     setSaveStatus('unsaved')
-    pendingContentRef.current = newContent
+    pendingContentRef.current = {
+      classroomId: classroom.id,
+      content: newContent,
+    }
 
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
@@ -95,25 +138,28 @@ export function TeacherClassResourcesSidebar({ classroom }: Props) {
     saveTimeoutRef.current = setTimeout(() => {
       saveContent(newContent)
     }, AUTOSAVE_DEBOUNCE_MS)
-  }, [saveContent])
+  }, [classroom.id, saveContent])
 
   const handleBlur = useCallback(() => {
-    if (saveStatus === 'unsaved' && pendingContentRef.current) {
+    const pending = pendingContentRef.current
+    if (saveStatus === 'unsaved' && pending?.classroomId === classroom.id) {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = null
       }
-      saveContent(pendingContentRef.current)
+      saveContent(pending.content)
     }
-  }, [saveStatus, saveContent])
+  }, [classroom.id, saveStatus, saveContent])
 
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (pendingContentRef.current) {
-        const contentStr = JSON.stringify(pendingContentRef.current)
+      const pending = pendingContentRef.current
+      if (pending) {
+        const contentStr = JSON.stringify(pending.content)
         if (contentStr !== lastSavedContentRef.current) {
           navigator.sendBeacon(
-            `/api/teacher/classrooms/${classroom.id}/resources`,
-            new Blob([JSON.stringify({ content: pendingContentRef.current })], { type: 'application/json' }),
+            `/api/teacher/classrooms/${pending.classroomId}/resources`,
+            new Blob([JSON.stringify({ content: pending.content })], { type: 'application/json' }),
           )
         }
       }
@@ -129,7 +175,8 @@ export function TeacherClassResourcesSidebar({ classroom }: Props) {
     }
   }, [classroom.id])
 
-  const hasContent = !isEmpty(content)
+  const currentContent = loadedClassroomId === classroom.id ? content : EMPTY_DOC
+  const hasContent = !isEmpty(currentContent)
   if (showLoadingSpinner) {
     return (
       <div className="flex h-full items-center justify-center p-6">
@@ -163,7 +210,7 @@ export function TeacherClassResourcesSidebar({ classroom }: Props) {
 
         <div className="rounded-lg bg-surface p-4 shadow-sm">
           <RichTextEditor
-            content={content}
+            content={currentContent}
             onChange={handleContentChange}
             onBlur={handleBlur}
             placeholder="Add resources for your students..."
