@@ -46,6 +46,28 @@ describe('GET /api/snapshots/list', () => {
     expect(readdirMock).not.toHaveBeenCalled()
   })
 
+  it('returns 401 when snapshot gallery access is unauthenticated', async () => {
+    requireSnapshotGalleryAccessMock.mockRejectedValue(Object.assign(new Error('Not authenticated'), { name: 'AuthenticationError' }))
+
+    const response = await GET()
+    const data = await response.json()
+
+    expect(response.status).toBe(401)
+    expect(data).toEqual({ error: 'Unauthorized' })
+    expect(readdirMock).not.toHaveBeenCalled()
+  })
+
+  it('returns 403 when snapshot gallery access is unauthorized', async () => {
+    requireSnapshotGalleryAccessMock.mockRejectedValue(Object.assign(new Error('Forbidden'), { name: 'AuthorizationError' }))
+
+    const response = await GET()
+    const data = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(data).toEqual({ error: 'Forbidden' })
+    expect(readdirMock).not.toHaveBeenCalled()
+  })
+
   it('returns sorted png snapshots with readable names', async () => {
     readdirMock.mockResolvedValue([
       'b-view-chromium-desktop-darwin.png',
