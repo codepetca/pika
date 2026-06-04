@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { forwardRef, useEffect, useImperativeHandle } from 'react'
 import { StudentAssignmentsTab } from '@/app/classrooms/[classroomId]/StudentAssignmentsTab'
+import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 import type { Classroom, AssignmentWithStatus, ClassworkMaterial } from '@/types'
 
 // --- Mocks ---
@@ -113,6 +114,13 @@ function mockFetchClasswork(assignments: AssignmentWithStatus[], materials: Clas
 }
 
 const mockFetchAssignments = mockFetchClasswork
+
+function mockJSONResponse(body: unknown) {
+  return {
+    ok: true,
+    json: async () => body,
+  }
+}
 
 describe('StudentAssignmentsTab', () => {
   beforeEach(() => {
@@ -317,6 +325,71 @@ describe('StudentAssignmentsTab', () => {
     expect(cards[0]).toHaveClass('border-border')
     expect(cards[0]).not.toHaveClass('border-primary/40')
     expect(cards[0].querySelector('.border-l-2')).not.toBeInTheDocument()
+  })
+
+  it('reloads active classwork on classroom change without showing stale classwork', async () => {
+    invalidateCachedJSONMatching('student-assignments:')
+    invalidateCachedJSONMatching('student-materials:')
+    invalidateCachedJSONMatching('student-surveys:')
+    const firstClassroom = { ...classroom, id: 'cls-first-classwork' }
+    const secondClassroom = { ...classroom, id: 'cls-second-classwork' }
+    let resolveSecondAssignments: (() => void) | null = null
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/api/student/assignments') && url.includes(firstClassroom.id)) {
+          return mockJSONResponse({
+            assignments: [
+              makeAssignment({
+                id: 'asgn-first',
+                classroom_id: firstClassroom.id,
+                title: 'First classroom assignment',
+              }),
+            ],
+          })
+        }
+        if (url.includes('/api/student/assignments') && url.includes(secondClassroom.id)) {
+          return new Promise((resolve) => {
+            resolveSecondAssignments = () => resolve(mockJSONResponse({
+              assignments: [
+                makeAssignment({
+                  id: 'asgn-second',
+                  classroom_id: secondClassroom.id,
+                  title: 'Second classroom assignment',
+                }),
+              ],
+            }))
+          })
+        }
+        if (url.includes('/materials')) {
+          return mockJSONResponse({ materials: [] })
+        }
+        if (url.includes('/api/student/surveys')) {
+          return mockJSONResponse({ surveys: [] })
+        }
+        throw new Error(`Unexpected request: ${url}`)
+      }),
+    )
+
+    const view = render(<StudentAssignmentsTab classroom={firstClassroom} />)
+
+    await screen.findByText('First classroom assignment')
+
+    view.rerender(<StudentAssignmentsTab classroom={secondClassroom} />)
+
+    expect(screen.queryByText('First classroom assignment')).not.toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(resolveSecondAssignments).toEqual(expect.any(Function))
+    })
+    await act(async () => {
+      resolveSecondAssignments?.()
+    })
+
+    expect(await screen.findByText('Second classroom assignment')).toBeInTheDocument()
+    expect(screen.queryByText('First classroom assignment')).not.toBeInTheDocument()
   })
 
   it('freezes assignment card timing once work is submitted', async () => {
