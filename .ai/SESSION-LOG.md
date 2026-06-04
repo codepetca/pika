@@ -8,26 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-30 — Attendance export bulk-read hardening
-
-**Completed:**
-- Added a shared server attendance report loader for teacher attendance and CSV export routes.
-- Routed class-day, enrollment, profile, and entry reads through chunked, paginated loaders.
-- Scoped attendance entry reads by classroom id and currently enrolled student ids so stale withdrawn-student entries cannot consume pages or affect exports.
-- Returned explicit 500s for student profile hydration failures instead of rendering blank names after a failed read.
-- Added deterministic student ordering by email with id tie-breaks.
-- Added API regressions for >1000-student roster pagination, 51-student profile/entry chunking, dense entry pagination, stale-entry scoping, and profile failure handling.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/attendance.test.ts tests/api/teacher/export-csv.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
-- `git diff --check`
-
 ## 2026-05-30 — Teacher logs bulk-read hardening
 
 **Completed:**
@@ -984,6 +964,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm vitest run tests/api/assignment-docs/assignment-docs-id.test.ts tests/api/assignment-docs/history.test.ts`
 - `pnpm vitest run tests/api/assignment-docs/assignment-docs-id.test.ts tests/api/assignment-docs/history.test.ts tests/api/assignment-docs/submit.test.ts tests/api/assignment-docs/unsubmit.test.ts tests/api/assignment-docs/restore.test.ts tests/api/assignment-docs/artifacts.test.ts tests/lib/assignment-doc-history.test.ts`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+
+## 2026-06-04 — Teacher lesson calendar cache audit
+
+**Completed:**
+- Added a shared teacher lesson-plan range cache helper with classroom-prefix invalidation.
+- Routed teacher calendar and markdown-panel lesson-plan reads through the helper.
+- Invalidated teacher lesson-plan caches after single autosaves and markdown bulk/no-op saves to avoid stale remount or refresh reads.
+- Added focused teacher calendar tests for cached remount reuse and post-autosave invalidation.
+- Addressed PR review findings by marking markdown content stale after inline autosaves, surfacing malformed successful JSON as a load error, and covering markdown sidebar reload/error behavior.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherLessonCalendarTab.test.tsx`
+- `pnpm vitest run tests/components/TeacherLessonCalendarTab.test.tsx tests/components/StudentLessonCalendarTab.test.tsx tests/components/calendar-view-persistence.test.tsx`
+- `pnpm test`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `git diff --check`
 - `pnpm lint`
