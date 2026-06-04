@@ -8,26 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-30 — Quiz and survey results bulk-read hardening
-
-**Completed:**
-- Routed teacher quiz and survey result response reads through the shared chunked, paginated Supabase loader.
-- Scoped result reads by assessment id and currently enrolled student ids at query time while preserving stale-row filtering as a defensive guard.
-- Routed responder user/profile hydration through chunked, paginated reads and returned explicit 500s on hydration failures instead of silently dropping names or emails.
-- Added stable response ordering and responder id tie-breaks.
-- Added route regressions for 51-student chunking, >1000 response-row pagination, stale unenrolled rows, and responder hydration failures.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/teacher/quizzes-results.test.ts --reporter=verbose`
-- `pnpm vitest run tests/api/teacher/surveys-results.test.ts --reporter=verbose`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm vitest run --coverage --no-file-parallelism --reporter=dot`
-- `git diff --check`
-
 ## 2026-05-30 — Test results bulk-read hardening
 
 **Completed:**
@@ -996,3 +976,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `bash scripts/verify-env.sh`
 - `gh pr checks 724 --repo codepetca/pika`
+
+## 2026-06-04 — Student test history visibility audit
+
+**Completed:**
+- Tightened `/api/student/tests/[id]/history` so student requests use the same draft, per-student availability, submitted, returned, and closed-for-grading visibility gate as the main student test route before returning history or migration hints.
+- Preserved teacher-owned history access with the existing `student_id` enrollment boundary.
+- Expanded `tests/api/student/tests-history.test.ts` for draft-hidden, student-closed-hidden, submitted-closed-allowed, and teacher-owned access cases.
+
+**Validation:**
+- `pnpm vitest run tests/api/student/tests-history.test.ts`
+- `pnpm vitest run tests/api/student/tests-history.test.ts tests/api/student/tests-id.test.ts tests/unit/test-student-access.test.ts tests/api/student/tests-documents-snapshot.test.ts tests/api/student/tests-focus-events.test.ts`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+- Baseline note: pre-edit session-start `pnpm test` failed on current `origin/main` in `tests/components/AssignmentModal.test.tsx`, `tests/components/TeacherGradebookTab.test.tsx`, and `tests/components/TeacherStudentWorkPanel.test.tsx`.
