@@ -8,26 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — Student assessment results bulk-read hardening
-
-**Completed:**
-- Routed student quiz, survey, and test result question reads through paginated loaders.
-- Chunked and paged classroom-scoped quiz/survey response aggregation by currently enrolled student ids.
-- Chunked and paged returned-student test attempt discovery and returned test response aggregation.
-- Paged current-student quiz/test response reads used for visibility, response maps, and returned test detail summaries.
-- Preserved defense-in-depth filtering so stale or unenrolled student responses cannot affect aggregate result payloads.
-- Returned explicit 500s for current-student response read failures instead of treating failed reads as empty work.
-- Updated route and integration tests for paged Supabase mocks, dense result pagination, 51-student chunking, stale-response exclusion, and read-failure handling.
-
-**Validation:**
-- `pnpm test tests/api/student/quizzes-results.test.ts tests/api/student/surveys-route.test.ts tests/api/student/tests-results.test.ts -- --runInBand`
-- `pnpm test tests/api/integration/test-return-visibility-flow.test.ts -- --runInBand`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `git diff --check`
-
 ## 2026-05-31 — Student notification count hardening
 
 **Completed:**
@@ -975,6 +955,26 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm vitest run tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
 - `pnpm vitest run tests/api/teacher/materials.test.ts tests/api/student/materials.test.ts tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+
+## 2026-06-04 — Classroom shell freshness audit
+
+**Completed:**
+- Reset the classroom page shell's local query state from the new server-provided search params when the classroom route changes so old assignment/test/student detail params cannot leak into the next classroom.
+- Made the teacher roster tab cache repeated roster reads, hide old roster rows while the next classroom loads, and ignore stale roster responses after classroom switches.
+- Scoped roster mutation completions to the classroom that started them and invalidated roster cache entries after counselor, add, upload, and removal changes.
+- Added regressions for stale test detail query params on classroom rerender plus stale/pending roster loads during classroom switches.
+- Addressed PR review feedback by deriving new-classroom query params synchronously before child props are computed and by invalidating originating-classroom roster caches before guarding UI updates after mutation completions.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/components/TeacherRosterTab.test.tsx`
+- `pnpm vitest run tests/components/TeacherRosterTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm vitest run tests/components/TeacherRosterTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/api/teacher/roster.test.ts tests/api/teacher/roster-add.test.ts tests/api/teacher/roster-bulk-delete.test.ts tests/api/teacher/roster-rosterId.test.ts tests/api/teacher/roster-upload-csv.test.ts`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `git diff --check`
 - `pnpm lint`
