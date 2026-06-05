@@ -100,7 +100,11 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const selectedWorkspaceRef = useRef<HTMLDivElement | null>(null)
+  const onSelectEntryRef = useRef(onSelectEntry)
   const hasLoadedOnceRef = useRef(false)
+  const loadRequestIdRef = useRef(0)
+  const currentClassroomIdRef = useRef(classroom.id)
+  const currentSelectedDateRef = useRef('')
   const [detailPaneWidth, setDetailPaneWidth] = useState(50)
   const [summaryPanelCollapsed, setSummaryPanelCollapsed] = useState(false)
   const [summaryPanelHeight, setSummaryPanelHeight] = useState(SUMMARY_PANEL_DEFAULT_HEIGHT)
@@ -119,6 +123,28 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     column: SortColumn
     direction: 'asc' | 'desc'
   }>({ column: 'last_name', direction: 'asc' })
+  currentClassroomIdRef.current = classroom.id
+  currentSelectedDateRef.current = selectedDate
+  onSelectEntryRef.current = onSelectEntry
+
+  const isCurrentLogsRequest = useCallback((requestId: number, classroomId: string, date: string) => {
+    return (
+      loadRequestIdRef.current === requestId &&
+      currentClassroomIdRef.current === classroomId &&
+      currentSelectedDateRef.current === date
+    )
+  }, [])
+
+  useEffect(() => {
+    loadRequestIdRef.current += 1
+    hasLoadedOnceRef.current = false
+    setLogs([])
+    setLoading(true)
+    setRefreshing(false)
+    setSelectedDate('')
+    setSelectedStudentId(null)
+    onSelectEntryRef.current?.(null, '', null)
+  }, [classroom.id])
 
   // Set initial date once class days are loaded from context
   useEffect(() => {
@@ -158,11 +184,17 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     async function loadLogs() {
       if (!selectedDate) return
       if (!isActive) return
-      if (!isClassDayOnDate(classDays, selectedDate)) {
+      const classroomId = classroom.id
+      const date = selectedDate
+      const requestId = loadRequestIdRef.current + 1
+      loadRequestIdRef.current = requestId
+
+      if (!isClassDayOnDate(classDays, date)) {
+        if (!isCurrentLogsRequest(requestId, classroomId, date)) return
         setLogs([])
         hasLoadedOnceRef.current = true
         setSelectedStudentId(null)
-        onSelectEntry?.(null, '', null)
+        onSelectEntryRef.current?.(null, '', null)
         setLoading(false)
         setRefreshing(false)
         return
@@ -174,8 +206,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         setLoading(true)
       }
       try {
-        const res = await fetch(`/api/teacher/logs?classroom_id=${classroom.id}&date=${selectedDate}`)
+        const res = await fetch(`/api/teacher/logs?classroom_id=${classroomId}&date=${date}`)
         const data = await res.json()
+        if (!isCurrentLogsRequest(requestId, classroomId, date)) return
         const rawLogs = data.logs || []
         const mappedLogs = rawLogs.map((log: any) => ({
           ...log,
@@ -185,17 +218,19 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
         // Clear selection when date changes so summary is visible
         setSelectedStudentId(null)
-        onSelectEntry?.(null, '', null)
+        onSelectEntryRef.current?.(null, '', null)
         hasLoadedOnceRef.current = true
       } catch (err) {
+        if (!isCurrentLogsRequest(requestId, classroomId, date)) return
         console.error('Error loading logs:', err)
       } finally {
+        if (!isCurrentLogsRequest(requestId, classroomId, date)) return
         setLoading(false)
         setRefreshing(false)
       }
     }
     loadLogs()
-  }, [classroom.id, classDays, selectedDate, onSelectEntry, isActive])
+  }, [classroom.id, classDays, selectedDate, isActive, isCurrentLogsRequest])
 
   const isClassDay = useMemo(() => {
     if (!selectedDate) return true

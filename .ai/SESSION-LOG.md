@@ -963,3 +963,26 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts`
 - `node scripts/trim-session-log.mjs --check`
 - `git diff --check`
+## 2026-06-05 — Skill progression map refresh
+
+**Completed:**
+- Reviewed startup context, current repo invariants, and recent merged PR history before making recommendations.
+- Collected evidence from merged PRs `#719`, `#724`, `#725`, `#726`, `#728`, `#729`, `#730`, `#731`, `#732`, `#733`, `#734`, `#735`, `#736`, plus self-review notes on `#709` and `#711`.
+- Identified recurring themes around classroom freshness/cache invalidation, contract-boundary hardening, component regression testing, and Gradex integration follow-through.
+
+**Validation:**
+- `bash scripts/verify-env.sh` (fails: `node_modules` missing in this worktree)
+- `gh pr list --state merged --limit 12 --json number,title,mergedAt,author,labels,url`
+- `gh pr view <pr> --json number,title,mergedAt,files,reviews,url`
+- `gh api graphql` against recent merged PR review metadata
+
+## 2026-06-05 — Teacher attendance freshness guards
+
+**Completed:**
+- Added request-generation guards to `TeacherAttendanceTab` so stale classroom/date log responses cannot repaint the active teacher daily view after a classroom switch or date change.
+- Reset teacher attendance local state on classroom changes so date/selection/loading state reinitializes against the next classroom instead of carrying the prior classroom forward.
+- Added matching request-generation guards to `LogSummary` and created regression tests covering stale classroom summary responses plus stale teacher-log responses after a classroom switch.
+
+**Validation:**
+- `git diff --check`
+- `pnpm vitest run tests/components/TeacherAttendanceTab.test.tsx tests/components/LogSummary.test.tsx` (fails in this worktree: `vitest` command unavailable because dependencies are not installed)

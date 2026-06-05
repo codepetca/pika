@@ -78,6 +78,13 @@ const classroom: Classroom = {
   updated_at: '2026-01-01T00:00:00Z',
 }
 
+const secondClassroom: Classroom = {
+  ...classroom,
+  id: 'classroom-2',
+  title: 'Second Classroom',
+  class_code: 'DEF456',
+}
+
 function entry(overrides: Partial<Entry>): Entry {
   return {
     id: 'entry-1',
@@ -101,6 +108,16 @@ const longLogText =
 
 function mockJson(data: unknown, ok = true) {
   return Promise.resolve({ ok, json: () => Promise.resolve(data) }) as any
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+  return { promise, resolve, reject }
 }
 
 function mockLogsFetch() {
@@ -445,5 +462,76 @@ describe('TeacherAttendanceTab', () => {
     })
     expect(screen.getByRole('columnheader', { name: 'Log' })).toBeInTheDocument()
     expect(container.querySelector('.daily-table-enter')).toBeInTheDocument()
+  })
+
+  it('ignores an older classroom log request after switching classrooms', async () => {
+    const firstRequest = deferred<any>()
+    classDaysMock.classDays = [
+      {
+        id: 'day-1',
+        classroom_id: 'classroom-1',
+        date: '2026-05-05',
+        prompt_text: null,
+        is_class_day: true,
+      },
+    ]
+
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/api/teacher/logs?classroom_id=classroom-1&date=2026-05-05') {
+        return firstRequest.promise
+      }
+      if (url === '/api/teacher/logs?classroom_id=classroom-2&date=2026-05-07') {
+        return mockJson({
+          logs: [
+            {
+              student_id: 'student-2',
+              student_email: 'student2@example.com',
+              student_first_name: 'Second',
+              student_last_name: 'Student',
+              entry: entry({ id: 'entry-2', student_id: 'student-2', classroom_id: 'classroom-2', date: '2026-05-07' }),
+              history_preview: [],
+            },
+          ],
+        })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { rerender } = render(<TeacherAttendanceTab classroom={classroom} />)
+
+    classDaysMock.classDays = [
+      {
+        id: 'day-2',
+        classroom_id: 'classroom-2',
+        date: '2026-05-07',
+        prompt_text: null,
+        is_class_day: true,
+      },
+    ]
+
+    rerender(<TeacherAttendanceTab classroom={secondClassroom} />)
+
+    expect(await screen.findByRole('cell', { name: 'Second', exact: true })).toBeInTheDocument()
+    expect(screen.queryByRole('cell', { name: 'Student1', exact: true })).not.toBeInTheDocument()
+
+    firstRequest.resolve(await mockJson({
+      logs: [
+        {
+          student_id: 'student-1',
+          student_email: 'student1@example.com',
+          student_first_name: 'Student1',
+          student_last_name: 'Test',
+          entry: entry({ text: longLogText }),
+          history_preview: [],
+        },
+      ],
+    }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('cell', { name: 'Student1', exact: true })).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('cell', { name: 'Second', exact: true })).toBeInTheDocument()
   })
 })
