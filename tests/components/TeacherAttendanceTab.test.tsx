@@ -481,7 +481,7 @@ describe('TeacherAttendanceTab', () => {
       if (url === '/api/teacher/logs?classroom_id=classroom-1&date=2026-05-05') {
         return firstRequest.promise
       }
-      if (url === '/api/teacher/logs?classroom_id=classroom-2&date=2026-05-07') {
+      if (url === '/api/teacher/logs?classroom_id=classroom-2&date=2026-05-05') {
         return mockJson({
           logs: [
             {
@@ -489,7 +489,7 @@ describe('TeacherAttendanceTab', () => {
               student_email: 'student2@example.com',
               student_first_name: 'Second',
               student_last_name: 'Student',
-              entry: entry({ id: 'entry-2', student_id: 'student-2', classroom_id: 'classroom-2', date: '2026-05-07' }),
+              entry: entry({ id: 'entry-2', student_id: 'student-2', classroom_id: 'classroom-2', date: '2026-05-05' }),
               history_preview: [],
             },
           ],
@@ -501,12 +501,11 @@ describe('TeacherAttendanceTab', () => {
 
     const { rerender } = render(<TeacherAttendanceTab classroom={classroom} />)
 
-    todayMock.today = '2026-05-08'
     classDaysMock.classDays = [
       {
         id: 'day-2',
         classroom_id: 'classroom-2',
-        date: '2026-05-07',
+        date: '2026-05-05',
         prompt_text: null,
         is_class_day: true,
       },
