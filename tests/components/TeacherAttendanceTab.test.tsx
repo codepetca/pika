@@ -501,6 +501,7 @@ describe('TeacherAttendanceTab', () => {
 
     const { rerender } = render(<TeacherAttendanceTab classroom={classroom} />)
 
+    todayMock.today = '2026-05-08'
     classDaysMock.classDays = [
       {
         id: 'day-2',
