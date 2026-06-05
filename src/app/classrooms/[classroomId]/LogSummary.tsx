@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import type { LogSummaryActionItem } from '@/types'
 
@@ -23,19 +23,36 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
   const [summaryStatus, setSummaryStatus] = useState<SummaryStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const requestIdRef = useRef(0)
+  const currentClassroomIdRef = useRef(classroomId)
+  const currentDateRef = useRef(date)
+  currentClassroomIdRef.current = classroomId
+  currentDateRef.current = date
 
   useEffect(() => {
     if (!date) {
+      requestIdRef.current += 1
       setSummary(null)
       setSummaryStatus(null)
+      setError(null)
       setLoading(false)
       return
     }
 
-    let cancelled = false
+    const requestId = requestIdRef.current + 1
+    requestIdRef.current = requestId
     setLoading(true)
     setError(null)
+    setSummary(null)
     setSummaryStatus(null)
+
+    function isCurrentRequest() {
+      return (
+        requestIdRef.current === requestId &&
+        currentClassroomIdRef.current === classroomId &&
+        currentDateRef.current === date
+      )
+    }
 
     async function fetchSummary() {
       try {
@@ -46,24 +63,25 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
           throw new Error('Failed to load summary')
         }
         const data = await res.json()
-        if (!cancelled) {
-          setSummary(data.summary)
-          setSummaryStatus(data.summary_status || (data.summary ? 'ready' : null))
-        }
+        if (!isCurrentRequest()) return
+        setSummary(data.summary)
+        setSummaryStatus(data.summary_status || (data.summary ? 'ready' : null))
       } catch (err) {
-        if (!cancelled) {
-          console.error('Error fetching log summary:', err)
-          setError('Failed to load summary')
-        }
+        if (!isCurrentRequest()) return
+        console.error('Error fetching log summary:', err)
+        setError('Failed to load summary')
       } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
+        if (!isCurrentRequest()) return
+        setLoading(false)
       }
     }
 
     fetchSummary()
-    return () => { cancelled = true }
+    return () => {
+      if (requestIdRef.current === requestId) {
+        requestIdRef.current += 1
+      }
+    }
   }, [classroomId, date])
 
   if (loading) {
