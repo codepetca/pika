@@ -3,31 +3,10 @@
 Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
 
 **Rules:**
-- Append one concise entry for meaningful work at the end of a session.
-- Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 60 entries.
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- The trim step keeps only the latest 60 entries; use `node scripts/trim-session-log.mjs --check` to verify it was not missed.
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
-
-## 2026-05-31 — History cleanup cron hardening
-
-**Completed:**
-- Scheduled `/api/cron/cleanup-history` as a daily repo-managed Vercel cron and documented both current cron schedules.
-- Routed expired-classroom, assignment, assignment-doc, test, and test-attempt discovery through paged/chunked Supabase reads.
-- Kept history cleanup scoped through classrooms whose `end_date` is older than the 30-day Toronto cutoff.
-- Added cleanup for `test_attempt_history` alongside existing assignment doc history cleanup.
-- Preserved chunked deletes for history tables and returned explicit 500s for each read/delete failure path.
-- Rebuilt cleanup cron tests with filter-aware paged mocks and regressions for dense parent chunking, child result pagination, assignmentless test cleanup, retention boundary behavior, and all read/delete errors.
-- Addressed subagent review follow-ups by aligning cron configuration docs and proving child-table pagination for >1000 docs/attempts under a single parent.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/cron/cleanup-history.test.ts -- --runInBand`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm test`
-- `pnpm build`
-- `pnpm test:coverage`
-- `git diff --check`
 
 ## 2026-05-31 — Gradebook FAB layering consistency
 
@@ -971,3 +950,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - `pnpm test`
+
+## 2026-06-05 — Session-log trim guardrail
+
+**Completed:**
+- Added `node scripts/trim-session-log.mjs --check` so CI and agents can detect untrimmed session logs without modifying files.
+- Updated session-log workflow guidance to require append-then-trim in the same change while keeping the 60-entry retention cap.
+- Strengthened startup and trim-script tests so missed trims point directly to `node scripts/trim-session-log.mjs`.
+
+**Validation:**
+- `pnpm install --frozen-lockfile`
+- `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts`
+- `node scripts/trim-session-log.mjs --check`
+- `git diff --check`
