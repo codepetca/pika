@@ -31,7 +31,7 @@ Read this at the start of every AI session. Use `.ai/SESSION-LOG.md` only for re
 
 - Do not work in the hub checkout for non-trivial changes; create or open a dedicated worktree first
 - Do not tail `.ai/JOURNAL-ARCHIVE.md` by default; it is intentionally large
-- Keep `.ai/SESSION-LOG.md` as a rolling recent log and run `node scripts/trim-session-log.mjs` after appending
+- Keep `.ai/SESSION-LOG.md` rolling; immediately run `node scripts/trim-session-log.mjs` after each append
 - Do not run `supabase db push`, `supabase db reset`, or other migration-application commands as an AI agent
 - `main` accepts linear history only; `production` merges go through the protected PR flow
 

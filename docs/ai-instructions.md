@@ -13,7 +13,7 @@ Read these files at the start of every session:
 3. [`.ai/features.json`](../.ai/features.json)
 4. [`docs/ai-instructions.md`](./ai-instructions.md)
 
-Do not tail `.ai/JOURNAL-ARCHIVE.md` by default. Use `.ai/SESSION-LOG.md` only for recent handoff context; the rolling log should retain enough entries for weekly automations to inspect roughly the last week.
+Do not tail `.ai/JOURNAL-ARCHIVE.md` by default. Use `.ai/SESSION-LOG.md` only for recent handoff context; after each append, immediately run `node scripts/trim-session-log.mjs`.
 
 ## Load Only The Docs You Need
 
@@ -48,7 +48,7 @@ Inspect or modify source only after the startup set and the docs required by you
 - Tiptap content parsing: import `parseContentField` from `@/lib/tiptap-content`
 - UI primitives: import from `@/ui`; use semantic tokens in app code instead of raw `dark:` classes
 - Migrations: AI may create or edit migration files, but humans apply them manually
-- Workflow: use worktree for non-trivial work; plan/discuss with `Model recommendation: <model> - <reason>` (`5.3-spark` low-risk; else `5.5 medium|high|extra high`), append `.ai/SESSION-LOG.md`; run `node scripts/trim-session-log.mjs`
+- Workflow: use worktree for non-trivial work; plan/discuss with `Model recommendation: <model> - <reason>` (`5.3-spark` low-risk; else `5.5 medium|high|extra high`), append `.ai/SESSION-LOG.md`, and immediately run `node scripts/trim-session-log.mjs`
 - Risk profile: for non-trivial work, declare `none`, `workspace-state`, `async-grading`, `exam-mode`, or `runtime-platform` in the plan
 
 ## Prompt And Command Map
