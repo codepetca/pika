@@ -8,18 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — Gradex assignment adapter payload foundation
-
-**Completed:**
-- Added a server-side Gradex assignment payload builder for Pika assignment grading.
-- Produces both the Pika adapter request and the async Gradex `grading-runs` create request, plus local pseudonym mapping for the later polling slice.
-- Sanitizes assignment text and submission text, pseudonymizes assignment/submission/student/grade refs with an HMAC salt, summarizes artifacts by type/count only, and keeps provider/model/tier selection as Gradex-owned `auto` settings.
-- Added privacy and contract coverage proving raw Pika IDs, identity fields, raw history fields, repo identities, and raw URLs are excluded from the Gradex request.
-
-**Validation:**
-- `pnpm vitest run tests/lib/gradex-assignment-payload.test.ts`
-- `pnpm exec tsc --noEmit`
-
 ## 2026-05-31 — Student exam-mode e2e telemetry coverage
 
 **Completed:**
@@ -948,3 +936,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `pnpm lint`
 - `pnpm build`
+
+## 2026-06-06 — Teacher blueprints cache audit
+
+**Completed:**
+- Routed `/teacher/blueprints` list and detail reads through a verified-user-scoped `fetchJSONWithCache` helper.
+- Bypassed blueprint caching when `/api/auth/me` cannot verify a user id.
+- Invalidated blueprint caches after metadata, content, planned-site, import, AI, merge, and create mutations.
+- Addressed PR review feedback by also invalidating blueprint caches after course-package imports and blueprint instantiation from `CreateClassroomModal`.
+- Added request-generation guards so stale blueprint detail responses cannot overwrite the active selection.
+- Added component/unit coverage for scoped cache keys, stale detail responses, mutation invalidation, modal import/instantiate invalidation, and auth-scope cache bypass.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (initially failed on pre-existing blueprint component fixture gap)
+- `pnpm vitest run tests/components/TeacherBlueprintsPage.test.tsx tests/unit/teacher-blueprints-client.test.ts tests/unit/request-cache.test.ts`
+- `pnpm vitest run tests/components/TeacherBlueprintsPage.test.tsx tests/unit/teacher-blueprints-client.test.ts tests/components/CreateClassroomModal.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/api/teacher/course-blueprints-route.test.ts tests/api/teacher/course-blueprint-publication-routes.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts tests/unit/request-cache.test.ts`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`

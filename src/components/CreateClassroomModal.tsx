@@ -5,6 +5,7 @@ import { Input, Button, DialogPanel, FormField, SplitButton } from '@/ui'
 import { format } from 'date-fns'
 import type { CourseBlueprint } from '@/types'
 import { invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
+import { invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 
 type WizardStep = 'name' | 'blueprint' | 'calendar'
 type CalendarMode = 'preset' | 'custom'
@@ -142,6 +143,7 @@ export function CreateClassroomModal({
       }
 
       const blueprint = data.blueprint as CourseBlueprint
+      invalidateTeacherBlueprints()
       setAvailableBlueprints((current) => {
         const withoutImported = current.filter((item) => item.id !== blueprint.id)
         return [blueprint, ...withoutImported]
@@ -194,6 +196,7 @@ export function CreateClassroomModal({
           throw new Error(instantiateData.error || 'Failed to create classroom from blueprint')
         }
         classroom = instantiateData.classroom
+        invalidateTeacherBlueprints()
       } else {
         const createResponse = await fetch('/api/teacher/classrooms', {
           method: 'POST',

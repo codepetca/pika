@@ -24,6 +24,11 @@ import {
   DEFAULT_PLANNED_COURSE_SITE_CONFIG,
   slugifyCourseSiteValue,
 } from '@/lib/course-site-publishing'
+import {
+  fetchTeacherBlueprintDetail,
+  fetchTeacherBlueprints,
+  invalidateTeacherBlueprints,
+} from '@/lib/teacher-blueprints-client'
 import type {
   BlueprintMergeSuggestionSet,
   CourseBlueprint,
@@ -134,6 +139,9 @@ export default function TeacherBlueprintsPage() {
   const [mergeSelection, setMergeSelection] = useState<Record<string, boolean>>({})
   const [mergeLoading, setMergeLoading] = useState(false)
   const [mergeApplying, setMergeApplying] = useState(false)
+  const detailRequestIdRef = useRef(0)
+  const selectedBlueprintIdRef = useRef<string | null>(null)
+  selectedBlueprintIdRef.current = selectedBlueprintId
   const preferredBlueprintId = searchParams.get('blueprint')
   const fromClassroomId = searchParams.get('fromClassroom')
 
@@ -159,12 +167,7 @@ export default function TeacherBlueprintsPage() {
     setLoadingList(true)
     setError('')
     try {
-      const response = await fetch('/api/teacher/course-blueprints')
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to load course blueprints')
-      }
-      const nextBlueprints = (data.blueprints || []) as CourseBlueprint[]
+      const nextBlueprints = await fetchTeacherBlueprints()
       setBlueprints(nextBlueprints)
       setSelectedBlueprintId((current) => preferredId || current || nextBlueprints[0]?.id || null)
     } catch (err: any) {
@@ -175,15 +178,13 @@ export default function TeacherBlueprintsPage() {
   }
 
   async function loadDetail(id: string) {
+    const requestId = detailRequestIdRef.current + 1
+    detailRequestIdRef.current = requestId
     setLoadingDetail(true)
     setError('')
     try {
-      const response = await fetch(`/api/teacher/course-blueprints/${id}`)
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to load course blueprint')
-      }
-      const blueprint = data.blueprint as CourseBlueprintDetail
+      const blueprint = await fetchTeacherBlueprintDetail(id)
+      if (detailRequestIdRef.current !== requestId || selectedBlueprintIdRef.current !== id) return
       setDetail(blueprint)
       setMeta({
         title: blueprint.title,
@@ -212,8 +213,10 @@ export default function TeacherBlueprintsPage() {
       setAiPreview(null)
       setAiAnalysis(null)
     } catch (err: any) {
+      if (detailRequestIdRef.current !== requestId || selectedBlueprintIdRef.current !== id) return
       setError(err.message || 'Failed to load course blueprint')
     } finally {
+      if (detailRequestIdRef.current !== requestId || selectedBlueprintIdRef.current !== id) return
       setLoadingDetail(false)
     }
   }
@@ -224,6 +227,7 @@ export default function TeacherBlueprintsPage() {
 
   useEffect(() => {
     if (!selectedBlueprintId) {
+      detailRequestIdRef.current += 1
       setDetail(null)
       return
     }
@@ -244,6 +248,7 @@ export default function TeacherBlueprintsPage() {
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save metadata')
       }
+      invalidateTeacherBlueprints()
       await loadBlueprints(selectedBlueprintId)
       await loadDetail(selectedBlueprintId)
     } catch (err: any) {
@@ -319,6 +324,7 @@ export default function TeacherBlueprintsPage() {
         }
       }
 
+      invalidateTeacherBlueprints()
       await loadBlueprints(selectedBlueprintId)
       await loadDetail(selectedBlueprintId)
     } catch (err: any) {
@@ -346,6 +352,7 @@ export default function TeacherBlueprintsPage() {
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save planned site settings')
       }
+      invalidateTeacherBlueprints()
       await loadBlueprints(selectedBlueprintId)
       await loadDetail(selectedBlueprintId)
     } catch (err: any) {
@@ -405,6 +412,7 @@ export default function TeacherBlueprintsPage() {
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save classroom changes to the course blueprint')
       }
+      invalidateTeacherBlueprints()
       await loadDetail(selectedBlueprintId)
       await loadMergeSuggestions(mergeClassroomId)
     } catch (err: any) {
@@ -466,6 +474,7 @@ export default function TeacherBlueprintsPage() {
       if (!response.ok) {
         throw new Error(data.errors?.join('\n') || data.error || 'Failed to import course package')
       }
+      invalidateTeacherBlueprints()
       await loadBlueprints(data.blueprint.id)
     } catch (err: any) {
       setError(err.message || 'Failed to import course package')
@@ -518,6 +527,7 @@ export default function TeacherBlueprintsPage() {
       }
       setActiveTab(aiPreview.target === 'lesson-plans' ? 'lesson-plans' : aiPreview.target)
       setAiPreview(null)
+      invalidateTeacherBlueprints()
       await loadDetail(selectedBlueprintId)
     } catch (err: any) {
       setError(err.message || 'Failed to apply copilot preview')
@@ -942,6 +952,7 @@ export default function TeacherBlueprintsPage() {
         onClose={() => setShowCreate(false)}
         onSuccess={async (blueprint) => {
           setShowCreate(false)
+          invalidateTeacherBlueprints()
           await loadBlueprints(blueprint.id)
         }}
       />
