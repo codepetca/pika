@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import CalendarPage from '@/app/teacher/calendar/page'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { createMockClassroom } from '../helpers/mocks'
-import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchJSONWithCache, invalidateCachedJSON, invalidateCachedJSONMatching } from '@/lib/request-cache'
 import type { ClassDay, Classroom } from '@/types'
 
 vi.mock('@/components/CreateClassroomModal', () => ({
@@ -91,6 +91,12 @@ function installFetchMock(options?: {
     const url = String(input)
     const method = init?.method ?? 'GET'
 
+    if (url === '/api/auth/me' && method === 'GET') {
+      return Promise.resolve(jsonResponse({
+        user: { id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' },
+      }))
+    }
+
     if (url === '/api/teacher/classrooms' && method === 'GET') {
       return Promise.resolve(jsonResponse({ classrooms }))
     }
@@ -130,6 +136,7 @@ describe('Teacher calendar page', () => {
   beforeEach(() => {
     vi.mocked(fetchJSONWithCache).mockImplementation((_key, load) => load())
     vi.mocked(invalidateCachedJSON).mockClear()
+    vi.mocked(invalidateCachedJSONMatching).mockClear()
   })
 
   afterEach(() => {
@@ -144,7 +151,7 @@ describe('Teacher calendar page', () => {
 
     expect(await screen.findByText('Create Calendar')).toBeInTheDocument()
     expect(fetchJSONWithCache).toHaveBeenCalledWith(
-      'teacher-classrooms:list',
+      'teacher-classrooms:teacher-1:list',
       expect.any(Function),
       20_000,
     )
@@ -170,7 +177,7 @@ describe('Teacher calendar page', () => {
         expect.objectContaining({ method: 'POST' }),
       )
     })
-    expect(invalidateCachedJSON).toHaveBeenCalledWith('teacher-classrooms:list')
+    expect(invalidateCachedJSONMatching).toHaveBeenCalledWith('teacher-classrooms:')
     expect(invalidateCachedJSON).toHaveBeenCalledWith('class-days:c1')
   })
 

@@ -8,25 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — Class-days shared loader cache
-
-**Completed:**
-- Added a shared client loader for classroom class-days backed by `fetchJSONWithCache`.
-- Routed `ClassDaysProvider` and fallback `useClassDays` reads through the shared loader to dedupe concurrent consumers.
-- Routed the teacher assignments summary class-days read through the same loader so non-OK class-days responses do not cache empty successes.
-- Invalidated the class-days cache on explicit provider refresh, class-days update events, and teacher calendar generate/toggle mutations.
-- Added latest-request guards so an older class-days response cannot overwrite state after a forced refresh.
-- Added direct context/hook coverage for cache deduplication, forced refresh, stale response ordering, update-event invalidation, failed responses, and avoiding double-fetches inside the provider.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/contexts/ClassDaysContext.test.tsx tests/components/TeacherAttendanceTab.test.tsx tests/components/StudentTodayTabHistory.test.tsx tests/components/StudentLessonCalendarTab.test.tsx`
-- `pnpm lint`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm test`
-- `pnpm build`
-- `git diff --check`
-
 ## 2026-05-31 — Gradex assignment adapter payload foundation
 
 **Completed:**
@@ -221,6 +202,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `pnpm lint`
 - `pnpm build`
+- `pnpm test`
 
 ## 2026-05-31 — Student lesson calendar cache reuse
 
@@ -947,3 +929,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - `pnpm test`
+
+## 2026-06-06 — Teacher dashboard cache audit
+
+**Completed:**
+- Routed `/teacher/dashboard` classroom and attendance reads through shared `fetchJSONWithCache` helpers.
+- Scoped the shared teacher-classrooms cache key by the active `/api/auth/me` user id and switched classroom-list invalidation to a prefix clear.
+- Kept teacher dashboard entry-detail reads fresh instead of caching them because student entry edits have no teacher-side invalidation path.
+- Invalidated dashboard attendance caches after roster upload, classroom creation, and classroom deletion.
+- Added request-generation guards so stale attendance responses cannot repaint the dashboard after switching classrooms or after a roster-upload refresh.
+- Added component coverage for cache usage, roster-upload invalidation, fresh entry-detail reads, and stale attendance responses.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/components/TeacherDashboardPage.test.tsx tests/unit/request-cache.test.ts`
+- `pnpm vitest run tests/components/TeacherDashboardPage.test.tsx tests/components/TeacherCalendarPage.test.tsx tests/components/CreateClassroomModal.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/unit/request-cache.test.ts`
+- `pnpm vitest run tests/unit/teacher-classrooms-client.test.ts tests/components/TeacherDashboardPage.test.tsx tests/components/TeacherCalendarPage.test.tsx tests/unit/request-cache.test.ts`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
