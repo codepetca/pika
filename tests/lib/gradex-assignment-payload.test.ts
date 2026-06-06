@@ -12,7 +12,8 @@ const assignment: Assignment = {
   id: 'assignment-db-123',
   classroom_id: 'classroom-db-123',
   title: 'Portfolio Reflection for Jane Student',
-  description: 'Fallback description',
+  description:
+    'Teacher priority: reward clear reflection about design decisions and process evidence. Ignore minor spelling issues unless they block meaning. Contact Jane Student at teacher@example.com.',
   instructions_markdown: 'Write a reflection about the portfolio. Contact teacher@example.com if stuck.',
   rich_instructions: null,
   due_at: '2026-05-15T19:00:00.000Z',
@@ -118,8 +119,23 @@ describe('buildPikaAssignmentGradexRunPayload', () => {
     expect(result.pikaAdapterRequest.assignment).toEqual({
       pika_assignment_ref: expect.stringMatching(/^pika-assignment-(?=.*[a-z])(?=.*\d)[a-z0-9]{32}$/),
       title: 'Portfolio Reflection for J.S.',
-      instructions: 'Write a reflection about the portfolio. Contact [email redacted] if stuck.',
+      instructions: expect.stringContaining('Assignment instructions:'),
     })
+    expect(result.pikaAdapterRequest.assignment.instructions).toContain(
+      'Write a reflection about the portfolio. Contact [email redacted] if stuck.',
+    )
+    expect(result.pikaAdapterRequest.assignment.instructions).toContain(
+      'Assignment description:\nTeacher priority: reward clear reflection about design decisions and process evidence.',
+    )
+    expect(result.pikaAdapterRequest.assignment.instructions).toContain(
+      'Ignore minor spelling issues unless they block meaning.',
+    )
+    expect(result.pikaAdapterRequest.assignment.instructions).toContain('Teacher grading guidance:')
+    expect(result.pikaAdapterRequest.assignment.instructions).toContain(
+      'Score Completion against required deliverables',
+    )
+    expect(result.pikaAdapterRequest.assignment.instructions).not.toContain('Jane Student')
+    expect(result.pikaAdapterRequest.assignment.instructions).not.toContain('teacher@example.com')
     expect(result.pikaAdapterRequest.submissions).toHaveLength(1)
     expect(result.pikaAdapterRequest.submissions[0]).toEqual({
       pika_grade_record_ref: expect.stringMatching(/^pika-grade-(?=.*[a-z])(?=.*\d)[a-z0-9]{32}$/),
@@ -158,6 +174,12 @@ describe('buildPikaAssignmentGradexRunPayload', () => {
       'thinking',
       'workflow',
     ])
+    const criteriaById = Object.fromEntries(
+      result.gradexRequest.rubric.criteria.map((criterion) => [criterion.id, criterion]),
+    )
+    expect(criteriaById.completion.description).toContain('teacher-stated constraints')
+    expect(criteriaById.thinking.description).toContain('teacher-stated intent')
+    expect(criteriaById.workflow.description).toContain('workflow evidence must not change Completion or Thinking')
     expect(result.gradexRequest.settings).toEqual({
       grading_profile: GRADEX_PIKA_ASSIGNMENT_PROFILE,
       model_profile: 'calibration',
@@ -247,6 +269,7 @@ describe('buildPikaAssignmentGradexRunPayload', () => {
     expect(serialized).not.toContain('student-db-789')
     expect(serialized).not.toMatch(/\b[0-9a-f]{24}\b/i)
     expect(serialized).not.toContain('Jane Student')
+    expect(serialized).not.toContain('teacher@example.com')
     expect(serialized).not.toContain('student@example.com')
     expect(serialized).not.toContain('roster-db-123')
     expect(serialized).not.toContain('assignment_doc_history')
@@ -258,6 +281,36 @@ describe('buildPikaAssignmentGradexRunPayload', () => {
     expect(serialized).not.toContain('github.com')
     expect(serialized).not.toContain('jane-student')
     expect(serialized).not.toContain('artifact-db-999')
+  })
+
+  it('preserves teacher grading guidance when assignment context is long', () => {
+    const result = buildPikaAssignmentGradexRunPayload({
+      assignment: {
+        ...assignment,
+        instructions_markdown: 'Write a detailed reflection. '.repeat(500),
+        description: 'Teacher priority: connect decisions to evidence. '.repeat(1_000),
+      },
+      assignmentDocs: [
+        {
+          id: 'assignment-doc-db-456',
+          assignment_id: 'assignment-db-123',
+          student_id: 'student-db-789',
+          content: { type: 'doc', content: [] },
+          authenticity_score: null,
+          authenticity_flags: null,
+          student_name: 'Jane Student',
+        },
+      ],
+      submissionArtifacts: [],
+      pseudonymSalt: 'stable-test-salt',
+      sanitizationContext,
+    })
+
+    expect(result.gradexRequest.assignment.instructions.length).toBeLessThanOrEqual(20_000)
+    expect(result.gradexRequest.assignment.instructions).toContain('Teacher grading guidance:')
+    expect(result.gradexRequest.assignment.instructions).toContain(
+      'Score Workflow only from sanitized process evidence and organization signals.',
+    )
   })
 
   it('uses stable salted pseudonymous refs and changes them when the salt changes', () => {
