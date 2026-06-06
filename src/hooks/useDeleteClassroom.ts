@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import type { Classroom } from '@/types'
+import { invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
 
 interface UseDeleteClassroomOptions {
   onSuccess: (deletedId: string) => void
@@ -38,6 +39,7 @@ export function useDeleteClassroom({ onSuccess, onError }: UseDeleteClassroomOpt
         return
       }
 
+      invalidateTeacherClassrooms()
       onSuccess(classroomToDelete.id)
     } catch (err) {
       console.error('Error deleting classroom:', err)

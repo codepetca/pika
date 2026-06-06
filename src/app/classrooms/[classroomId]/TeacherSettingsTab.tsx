@@ -29,6 +29,7 @@ import {
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG, slugifyCourseSiteValue } from '@/lib/course-site-publishing'
+import { invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
 import type { ActualCourseSiteConfig, Classroom, ClassroomJoinPolicy, LessonPlanVisibility } from '@/types'
 
@@ -354,6 +355,7 @@ export function TeacherSettingsTab({
       if (!res.ok) {
         throw new Error(data.error || 'Failed to update classroom name')
       }
+      invalidateTeacherClassrooms()
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setTitle(data.classroom?.title || trimmed)
       showMessage({ text: 'Classroom name updated', tone: 'success' })
@@ -384,6 +386,7 @@ export function TeacherSettingsTab({
       if (!res.ok) {
         throw new Error(data.error || 'Failed to update settings')
       }
+      invalidateTeacherClassrooms()
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setAllowEnrollment(!!data.classroom?.allow_enrollment)
       showMessage({ text: 'Settings saved', tone: 'success' })
@@ -414,6 +417,7 @@ export function TeacherSettingsTab({
       if (!res.ok) {
         throw new Error(data.error || 'Failed to update settings')
       }
+      invalidateTeacherClassrooms()
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setJoinPolicy(data.classroom?.join_policy || nextValue)
       showMessage({ text: 'Settings saved', tone: 'success' })
@@ -445,6 +449,7 @@ export function TeacherSettingsTab({
       if (!res.ok) {
         throw new Error(data.error || 'Failed to regenerate join code')
       }
+      invalidateTeacherClassrooms()
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setJoinCode(data.classroom?.class_code || newCode)
       showMessage({ text: 'Join code regenerated', tone: 'success' })
@@ -476,6 +481,7 @@ export function TeacherSettingsTab({
       if (!res.ok) {
         throw new Error(data.error || 'Failed to update visibility setting')
       }
+      invalidateTeacherClassrooms()
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setLessonPlanVisibility(data.classroom?.lesson_plan_visibility || value)
       showMessage({ text: 'Visibility updated', tone: 'success' })
@@ -512,6 +518,7 @@ export function TeacherSettingsTab({
       if (!res.ok) {
         throw new Error(data.error || 'Failed to save syllabus settings')
       }
+      invalidateTeacherClassrooms()
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return
       setActualSiteSlug(data.classroom?.actual_site_slug || '')
       setActualSitePublished(!!data.classroom?.actual_site_published)
