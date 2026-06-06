@@ -135,6 +135,7 @@ export interface BuildPikaAssignmentGradexRunPayloadOptions {
 }
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 25_000
+const ASSIGNMENT_INSTRUCTIONS_MAX_LENGTH = 20_000
 const BARE_WWW_URL_PATTERN = /\bwww\.[^\s<>"'`]+/gi
 const IDENTITY_KEY_PATTERN = /(email|first_?name|last_?name|full_?name|display_?name|student_?name|teacher_?name|username|github_?username)/i
 const RAW_ID_KEY_PATTERN = /(^id$|_id$|id$|roster|sis|school|database|assignment_doc|classroom|created_by)/i
@@ -145,7 +146,8 @@ export const PIKA_ASSIGNMENT_GRADEX_RUBRIC: GradexRubric = {
     {
       id: 'completion',
       label: 'Completion',
-      description: 'Did the student complete all parts of the assignment?',
+      description:
+        'Grade whether the submission satisfies the sanitized assignment instructions, required deliverables, and teacher-stated constraints.',
       kind: 'content',
       scale: { min: 0, max: 10 },
       weight: 1,
@@ -154,7 +156,8 @@ export const PIKA_ASSIGNMENT_GRADEX_RUBRIC: GradexRubric = {
     {
       id: 'thinking',
       label: 'Thinking',
-      description: 'Does the work show depth of thought, analysis, or understanding?',
+      description:
+        'Grade reasoning, evidence, reflection, and understanding according to the teacher-stated intent; do not over-penalize surface polish unless the assignment asks for it.',
       kind: 'thinking',
       scale: { min: 0, max: 10 },
       weight: 1,
@@ -163,7 +166,8 @@ export const PIKA_ASSIGNMENT_GRADEX_RUBRIC: GradexRubric = {
     {
       id: 'workflow',
       label: 'Workflow',
-      description: 'Is the work organized, clear, well-presented, and supported by process evidence?',
+      description:
+        'Grade only organization and sanitized process evidence here; workflow evidence must not change Completion or Thinking unless the rubric explicitly says it should.',
       kind: 'workflow',
       scale: { min: 0, max: 10 },
       weight: 1,
@@ -258,6 +262,67 @@ function sanitizeGradexText(
   }
 
   return sanitized
+}
+
+function normalizeForComparison(value: string): string {
+  return value.replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+function sanitizedAssignmentSection(
+  value: string,
+  sensitiveTokens: string[],
+  sanitizationContext: AiSanitizationContext,
+): string {
+  return sanitizeGradexText(value, sensitiveTokens, sanitizationContext).trim()
+}
+
+function buildAssignmentGradingInstructions(
+  assignment: Assignment,
+  sensitiveTokens: string[],
+  sanitizationContext: AiSanitizationContext,
+): string {
+  const instructionText = limitedMarkdownToPlainText(
+    getAssignmentInstructionsMarkdown(assignment).markdown,
+  )
+  const descriptionText = limitedMarkdownToPlainText(String(assignment.description ?? ''))
+
+  const sections: Array<{ label: string; value: string }> = []
+  const seen = new Set<string>()
+
+  for (const section of [
+    { label: 'Assignment instructions', value: instructionText },
+    { label: 'Assignment description', value: descriptionText },
+  ]) {
+    const sanitized = sanitizedAssignmentSection(
+      section.value,
+      sensitiveTokens,
+      sanitizationContext,
+    )
+    const normalized = normalizeForComparison(sanitized)
+    if (!normalized || seen.has(normalized)) continue
+    seen.add(normalized)
+    sections.push({ label: section.label, value: sanitized })
+  }
+
+  const teacherContext =
+    sections.length > 0
+      ? sections.map((section) => `${section.label}:\n${section.value}`).join('\n\n')
+      : 'Assignment instructions:\nNo assignment instructions provided.'
+
+  const gradingGuidance = [
+    'Teacher grading guidance:',
+    '- Use the assignment context above as the teacher intent for this grading run.',
+    '- Score Completion against required deliverables, constraints, and what the student was asked to produce.',
+    '- Score Thinking for reasoning, evidence, reflection, and understanding; avoid harshly penalizing polish unless the assignment asks for polish.',
+    '- Score Workflow only from sanitized process evidence and organization signals.',
+  ].join('\n')
+  const separator = '\n\n'
+  const teacherContextMaxLength = Math.max(
+    0,
+    ASSIGNMENT_INSTRUCTIONS_MAX_LENGTH - separator.length - gradingGuidance.length,
+  )
+
+  return `${truncateText(teacherContext, teacherContextMaxLength)}${separator}${gradingGuidance}`
 }
 
 function groupArtifactsByDocId(artifacts: AssignmentSubmissionArtifact[] = []) {
@@ -402,8 +467,10 @@ export function buildPikaAssignmentGradexRunPayload(
   const salt = getRequiredPseudonymSalt(opts.pseudonymSalt)
   const sensitiveTokens = collectSanitizationTokens(opts.assignment, opts.assignmentDocs)
   const sanitizationContext = getRequiredSanitizationContext(opts.sanitizationContext)
-  const instructions = limitedMarkdownToPlainText(
-    getAssignmentInstructionsMarkdown(opts.assignment).markdown,
+  const instructions = buildAssignmentGradingInstructions(
+    opts.assignment,
+    sensitiveTokens,
+    sanitizationContext,
   )
   const artifactsByDocId = groupArtifactsByDocId(opts.submissionArtifacts)
   const assignmentRef = pseudonymizePikaGradexRef('assignment', opts.assignment.id, salt)
@@ -416,7 +483,7 @@ export function buildPikaAssignmentGradexRunPayload(
     ),
     instructions: truncateText(
       sanitizeGradexText(instructions, sensitiveTokens, sanitizationContext).trim() || 'No assignment instructions provided.',
-      20_000,
+      ASSIGNMENT_INSTRUCTIONS_MAX_LENGTH,
     ),
   }
 

@@ -8,46 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — Classroom bottom controls FAB consistency
-
-**Completed:**
-- Extended `FloatingActionCluster` with a bottom placement for full-width floating controls.
-- Migrated the teacher classroom index edit/view bottom bar off its local fixed chrome and onto the shared floating cluster.
-- Added safe-area-aware bottom placement for mobile classroom controls while preserving the existing centered desktop width.
-- Added component coverage for the migrated bottom bar class contract.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx tests/components/TeacherWorkSurfaceActionBar.test.tsx`
-- `pnpm lint`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm test`
-- `pnpm build`
-- `git diff --check`
-- `E2E_BASE_URL=http://localhost:3018 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-classrooms-edit-desktop.png`, `/tmp/pika-classrooms-edit-mobile.png`
-
-## 2026-05-31 — Assignment status badge consistency
-
-**Completed:**
-- Moved assignment status badge and icon helpers from raw Tailwind palette classes to semantic design tokens.
-- Made the assignment badge helper own the shared pill shape so student assignment list and editor badges stay aligned.
-- Added the shared status badge to the embedded student assignment editor header, which is the route students use from the assignments tab.
-- Added tests that assert semantic badge/icon contracts and reject raw palette utilities.
-- Used a read-only subagent audit to confirm the live editor route and screenshot path before visual verification.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/assignments.test.ts tests/components/StudentAssignmentsTab.test.tsx tests/components/StudentAssignmentEditor.feedback-card.test.tsx`
-- `pnpm lint`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm test`
-- `pnpm build`
-- `git diff --check`
-- `E2E_BASE_URL=http://localhost:3019 pnpm e2e:auth`
-- `E2E_BASE_URL=http://localhost:3019 pnpm e2e:verify assessment-ux-parity`
-- Reviewed screenshots: `/tmp/pika-assignment-list-desktop.png`, `/tmp/pika-assignment-editor-desktop.png`, `/tmp/pika-assignment-list-mobile.png`, `/tmp/pika-assignment-editor-mobile.png`, `artifacts/assessment-ux-parity/student-assignments-reference.png`
-
 ## 2026-05-31 — Class-days shared loader cache
 
 **Completed:**
@@ -949,3 +909,28 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `git diff --check`
 - `pnpm vitest run tests/components/TeacherAttendanceTab.test.tsx tests/components/LogSummary.test.tsx` (fails in this worktree: `vitest` command unavailable because dependencies are not installed)
+
+## 2026-06-04 — Gradex teacher intent egress
+
+**Completed:**
+- Updated the Pika Gradex assignment payload builder to include sanitized assignment instructions and sanitized assignment description in a structured teacher-context block.
+- Added explicit teacher grading guidance to the existing `assignment.instructions` field so Gradex can score against teacher intent without a contract/schema change.
+- Tightened the fixed Pika-compatible Gradex rubric descriptions for `completion`, `thinking`, and `workflow`, including keeping workflow evidence scoped to workflow/process scoring.
+- Expanded payload tests to verify teacher context is included, PII is redacted, raw emails/names do not leave Pika, and the rubric remains the same three criteria.
+
+**Validation:**
+- `pnpm test tests/lib/gradex-assignment-payload.test.ts`
+- `pnpm test tests/lib/gradex-assignment-payload.test.ts tests/lib/gradex-assignment-grading.test.ts tests/lib/gradex-smoke-runner.test.ts`
+- `pnpm exec tsc --noEmit`
+- `git diff --check`
+
+## 2026-06-06 — Gradex teacher intent PR prep
+
+**Completed:**
+- Reviewed the teacher-intent payload diff for PR readiness.
+- Verified the branch scope stayed limited to Gradex assignment payload construction, focused tests, and the rolling session log.
+- Reserved space for fixed teacher grading guidance so long assignment context cannot truncate it out of the Gradex instructions payload.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `git diff --check`
