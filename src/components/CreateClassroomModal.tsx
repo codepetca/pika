@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Input, Button, DialogPanel, FormField, SplitButton } from '@/ui'
 import { format } from 'date-fns'
 import type { CourseBlueprint } from '@/types'
+import { invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
 
 type WizardStep = 'name' | 'blueprint' | 'calendar'
 type CalendarMode = 'preset' | 'custom'
@@ -216,6 +217,7 @@ export function CreateClassroomModal({
         })
       }
 
+      invalidateTeacherClassrooms()
       onSuccess(classroom)
       resetForm()
       onClose()

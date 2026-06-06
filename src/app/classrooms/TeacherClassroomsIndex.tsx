@@ -28,6 +28,7 @@ import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import type { Classroom } from '@/types'
+import { invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
 
 interface Props {
   initialClassrooms: Classroom[]
@@ -141,6 +142,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       if (!res.ok) {
         throw new Error(data.error || 'Failed to save classroom order')
       }
+      invalidateTeacherClassrooms()
     } catch (err: any) {
       setError(err.message || 'Failed to save classroom order')
       refreshActiveClassrooms()
@@ -211,6 +213,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         throw new Error(data.error || 'Failed to archive classroom')
       }
       const updated = data.classroom || classroom
+      invalidateTeacherClassrooms()
       setActiveClassrooms((prev) => prev.filter((c) => c.id !== classroom.id))
       setArchivedClassrooms((prev) => [updated, ...prev.filter((c) => c.id !== classroom.id)])
     } catch (err: any) {
@@ -235,6 +238,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         throw new Error(data.error || 'Failed to restore classroom')
       }
       const updated = data.classroom || classroom
+      invalidateTeacherClassrooms()
       setArchivedClassrooms((prev) => prev.filter((c) => c.id !== classroom.id))
       setActiveClassrooms((prev) => [updated, ...prev.filter((c) => c.id !== classroom.id)])
     } catch (err: any) {
@@ -254,6 +258,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       if (!res.ok) {
         throw new Error(data.error || 'Failed to delete classroom')
       }
+      invalidateTeacherClassrooms()
       setArchivedClassrooms((prev) => prev.filter((c) => c.id !== classroom.id))
     } catch (err: any) {
       setError(err.message || 'Failed to delete classroom')

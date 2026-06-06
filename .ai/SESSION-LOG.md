@@ -8,27 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — Assignment status badge consistency
-
-**Completed:**
-- Moved assignment status badge and icon helpers from raw Tailwind palette classes to semantic design tokens.
-- Made the assignment badge helper own the shared pill shape so student assignment list and editor badges stay aligned.
-- Added the shared status badge to the embedded student assignment editor header, which is the route students use from the assignments tab.
-- Added tests that assert semantic badge/icon contracts and reject raw palette utilities.
-- Used a read-only subagent audit to confirm the live editor route and screenshot path before visual verification.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/assignments.test.ts tests/components/StudentAssignmentsTab.test.tsx tests/components/StudentAssignmentEditor.feedback-card.test.tsx`
-- `pnpm lint`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm test`
-- `pnpm build`
-- `git diff --check`
-- `E2E_BASE_URL=http://localhost:3019 pnpm e2e:auth`
-- `E2E_BASE_URL=http://localhost:3019 pnpm e2e:verify assessment-ux-parity`
-- Reviewed screenshots: `/tmp/pika-assignment-list-desktop.png`, `/tmp/pika-assignment-editor-desktop.png`, `/tmp/pika-assignment-list-mobile.png`, `/tmp/pika-assignment-editor-mobile.png`, `artifacts/assessment-ux-parity/student-assignments-reference.png`
-
 ## 2026-05-31 — Class-days shared loader cache
 
 **Completed:**
@@ -949,3 +928,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm vitest run tests/components/TeacherGradebookTab.test.tsx`
 - `pnpm lint`
 - `pnpm build`
+
+## 2026-06-06 — Teacher calendar cache audit
+
+**Completed:**
+- Routed `/teacher/calendar` classroom list reads through `fetchJSONWithCache` with a shared teacher-classrooms cache key.
+- Reused the shared class-days client for cached class-day reads instead of raw page-level GETs.
+- Invalidated classroom and class-day caches after calendar generation, class-day toggles, classroom creation, and classroom deletion.
+- Added component coverage for cached classroom/class-day loads plus generation and toggle invalidation behavior.
+- Addressed PR review feedback by moving classroom-list caching to a shared teacher-classrooms client, invalidating it from cross-route classroom mutations, and guarding `/teacher/calendar` against stale overlapping class-day responses.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/components/TeacherCalendarPage.test.tsx`
+- `pnpm vitest run tests/components/TeacherCalendarPage.test.tsx tests/contexts/ClassDaysContext.test.tsx tests/unit/request-cache.test.ts`
+- `pnpm vitest run tests/components/TeacherCalendarPage.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/CreateClassroomModal.test.tsx tests/contexts/ClassDaysContext.test.tsx tests/unit/request-cache.test.ts`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
