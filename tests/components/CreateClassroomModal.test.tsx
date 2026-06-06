@@ -2,7 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
+import { invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 import type { CourseBlueprint } from '@/types'
+
+vi.mock('@/lib/teacher-blueprints-client', () => ({
+  invalidateTeacherBlueprints: vi.fn(),
+}))
+
+vi.mock('@/lib/teacher-classrooms-client', () => ({
+  invalidateTeacherClassrooms: vi.fn(),
+}))
 
 const mockBlueprint: CourseBlueprint = {
   id: 'bp-1',
@@ -40,6 +49,7 @@ describe('CreateClassroomModal', () => {
       json: async () => ({ blueprints: [mockBlueprint] }),
     })
     vi.stubGlobal('fetch', fetchMock)
+    vi.mocked(invalidateTeacherBlueprints).mockClear()
   })
 
   afterEach(() => {
@@ -156,10 +166,55 @@ describe('CreateClassroomModal', () => {
     await waitFor(() => {
       expect(getBlueprintSelect()).toHaveValue(mockBlueprint.id)
     })
+    expect(invalidateTeacherBlueprints).toHaveBeenCalledOnce()
     expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
+  })
+
+  it('invalidates blueprint caches after creating a classroom from a blueprint', async () => {
+    const onSuccess = vi.fn()
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method || 'GET'
+      if (url === '/api/teacher/course-blueprints' && method === 'GET') {
+        return {
+          ok: true,
+          json: async () => ({ blueprints: [mockBlueprint] }),
+        }
+      }
+      if (url === `/api/teacher/course-blueprints/${mockBlueprint.id}/instantiate` && method === 'POST') {
+        return {
+          ok: true,
+          json: async () => ({ classroom: { id: 'classroom-1', title: 'Computer Science 11 - Period 2' } }),
+        }
+      }
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+
+    renderModal({ initialBlueprintId: mockBlueprint.id, onSuccess })
+
+    fireEvent.change(getClassroomNameInput(), {
+      target: { value: 'Computer Science 11 - Period 2' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(await screen.findByRole('combobox', { name: /course blueprint/i })).toHaveValue(mockBlueprint.id)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        `/api/teacher/course-blueprints/${mockBlueprint.id}/instantiate`,
+        expect.objectContaining({ method: 'POST' }),
+      )
+    })
+    expect(invalidateTeacherBlueprints).toHaveBeenCalledOnce()
+    expect(onSuccess).toHaveBeenCalledWith({ id: 'classroom-1', title: 'Computer Science 11 - Period 2' })
   })
 
   it('preserves the preselected blueprint flow when launched from the blueprints page', async () => {

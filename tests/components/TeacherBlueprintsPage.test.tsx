@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, cleanup } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import TeacherBlueprintsPage from '@/app/teacher/blueprints/page'
+import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
 
 const mockPush = vi.fn()
 let searchParamsMap = new Map<string, string>()
@@ -37,6 +38,13 @@ vi.mock('@/components/CreateClassroomModal', () => ({
 
 vi.mock('@/components/Spinner', () => ({
   Spinner: () => <div>Loading…</div>,
+}))
+
+vi.mock('@/lib/request-cache', () => ({
+  fetchJSONWithCache: vi.fn((_key: string, load: () => Promise<unknown>) => load()),
+  invalidateCachedJSON: vi.fn(),
+  invalidateCachedJSONMatching: vi.fn(),
+  prefetchJSON: vi.fn(),
 }))
 
 const blueprintList = [
@@ -96,6 +104,23 @@ const blueprintDetail = {
   ],
 }
 
+const blueprintOneDetail = {
+  ...blueprintDetail,
+  id: 'b-1',
+  title: 'Blueprint One',
+  subject: '',
+  grade_level: '',
+  course_code: '',
+  linked_classrooms: [],
+}
+
+function jsonResponse(body: unknown, ok = true): Response {
+  return {
+    ok,
+    json: async () => body,
+  } as Response
+}
+
 describe('TeacherBlueprintsPage', () => {
   beforeEach(() => {
     searchParamsMap = new Map([
@@ -103,19 +128,25 @@ describe('TeacherBlueprintsPage', () => {
       ['fromClassroom', 'c-9'],
     ])
     mockPush.mockClear()
-    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+    vi.mocked(fetchJSONWithCache).mockImplementation((_key, load) => load())
+    vi.mocked(invalidateCachedJSONMatching).mockClear()
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
-      if (url === '/api/teacher/course-blueprints') {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ blueprints: blueprintList }),
-        })
+      const method = init?.method || 'GET'
+      if (url === '/api/auth/me') {
+        return Promise.resolve(jsonResponse({ user: { id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' } }))
       }
-      if (url === '/api/teacher/course-blueprints/b-2') {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ blueprint: blueprintDetail }),
-        })
+      if (url === '/api/teacher/course-blueprints' && method === 'GET') {
+        return Promise.resolve(jsonResponse({ blueprints: blueprintList }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-1' && method === 'GET') {
+        return Promise.resolve(jsonResponse({ blueprint: blueprintOneDetail }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-2' && method === 'GET') {
+        return Promise.resolve(jsonResponse({ blueprint: blueprintDetail }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-2' && method === 'PATCH') {
+        return Promise.resolve(jsonResponse({ blueprint: blueprintDetail }))
       }
       return Promise.reject(new Error(`Unexpected fetch: ${url}`))
     }) as any)
@@ -143,5 +174,69 @@ describe('TeacherBlueprintsPage', () => {
     expect(screen.getByText('Portable Course Package')).toBeInTheDocument()
     expect(screen.getByText(/Exports a .course-package.tar file with manifest.json and editable Markdown files./)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Quizzes' })).toBeNull()
+    expect(fetchJSONWithCache).toHaveBeenCalledWith(
+      'teacher-blueprints:teacher-1:list',
+      expect.any(Function),
+      20_000,
+    )
+    expect(fetchJSONWithCache).toHaveBeenCalledWith(
+      'teacher-blueprints:teacher-1:detail:b-2',
+      expect.any(Function),
+      20_000,
+    )
+  })
+
+  it('ignores stale detail responses after selecting a different blueprint', async () => {
+    let resolveDelayedDetail: ((response: Response) => void) | undefined
+    const delayedDetail = new Promise<Response>((resolve) => {
+      resolveDelayedDetail = resolve
+    })
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method || 'GET'
+      if (url === '/api/auth/me') {
+        return Promise.resolve(jsonResponse({ user: { id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' } }))
+      }
+      if (url === '/api/teacher/course-blueprints' && method === 'GET') {
+        return Promise.resolve(jsonResponse({ blueprints: blueprintList }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-2' && method === 'GET') {
+        return delayedDetail
+      }
+      if (url === '/api/teacher/course-blueprints/b-1' && method === 'GET') {
+        return Promise.resolve(jsonResponse({ blueprint: blueprintOneDetail }))
+      }
+      return Promise.reject(new Error(`Unexpected fetch: ${url}`))
+    }) as any)
+
+    render(<TeacherBlueprintsPage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Blueprint One/ }))
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      resolveDelayedDetail?.(jsonResponse({ blueprint: blueprintDetail }))
+      await delayedDetail
+    })
+
+    expect(screen.getByDisplayValue('Blueprint One')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('Blueprint Two')).toBeNull()
+  })
+
+  it('invalidates blueprint caches before reloading after saving metadata', async () => {
+    render(<TeacherBlueprintsPage />)
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Details' }))
+
+    await waitFor(() => {
+      expect(invalidateCachedJSONMatching).toHaveBeenCalledWith('teacher-blueprints:')
+    })
   })
 })
