@@ -5,6 +5,7 @@ import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
 } from '@/lib/events'
+import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 import type { QuizFocusSummary } from '@/types'
 import { createMockClassroom } from '../helpers/mocks'
 
@@ -39,9 +40,24 @@ describe('StudentQuizzesTab exam mode', () => {
       configurable: true,
       value: 768,
     })
+    invalidateCachedJSONMatching('student-assessments:')
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
+
+  function createDeferred<T>() {
+    let resolve!: (value: T) => void
+    let reject!: (reason?: unknown) => void
+    const promise = new Promise<T>((promiseResolve, promiseReject) => {
+      resolve = promiseResolve
+      reject = promiseReject
+    })
+    return { promise, resolve, reject }
+  }
+
+  function jsonResponse(body: unknown): Response {
+    return { ok: true, json: async () => body } as Response
+  }
 
   function queueTestList() {
     fetchMock.mockResolvedValueOnce({
@@ -91,6 +107,160 @@ describe('StudentQuizzesTab exam mode', () => {
       }),
     })
   }
+
+  it('ignores stale assessment list responses after classroom changes', async () => {
+    const firstClassroom = createMockClassroom({ id: 'classroom-a', title: 'Classroom A' })
+    const secondClassroom = createMockClassroom({ id: 'classroom-b', title: 'Classroom B' })
+    const firstList = createDeferred<Response>()
+    const secondList = createDeferred<Response>()
+
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes('/api/student/quizzes?classroom_id=classroom-a')) return firstList.promise
+      if (url.includes('/api/student/quizzes?classroom_id=classroom-b')) return secondList.promise
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+
+    const { rerender } = render(
+      <StudentQuizzesTab classroom={firstClassroom} assessmentType="quiz" />
+    )
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/student/quizzes?classroom_id=classroom-a')
+    })
+
+    rerender(<StudentQuizzesTab classroom={secondClassroom} assessmentType="quiz" />)
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/student/quizzes?classroom_id=classroom-b')
+    })
+
+    await act(async () => {
+      secondList.resolve(jsonResponse({
+        quizzes: [{
+          id: 'quiz-current',
+          title: 'Current Classroom Quiz',
+          assessment_type: 'quiz',
+          status: 'active',
+          show_results: false,
+          position: 0,
+          student_status: 'not_started',
+        }],
+      }))
+      await secondList.promise
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Current Classroom Quiz')).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      firstList.resolve(jsonResponse({
+        quizzes: [{
+          id: 'quiz-stale',
+          title: 'Stale Classroom Quiz',
+          assessment_type: 'quiz',
+          status: 'active',
+          show_results: false,
+          position: 0,
+          student_status: 'not_started',
+        }],
+      }))
+      await firstList.promise
+    })
+
+    expect(screen.getByText('Current Classroom Quiz')).toBeInTheDocument()
+    expect(screen.queryByText('Stale Classroom Quiz')).not.toBeInTheDocument()
+  })
+
+  it('ignores stale assessment detail responses after classroom changes', async () => {
+    const firstClassroom = createMockClassroom({ id: 'classroom-a', title: 'Classroom A' })
+    const secondClassroom = createMockClassroom({ id: 'classroom-b', title: 'Classroom B' })
+    const firstDetail = createDeferred<Response>()
+
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes('/api/student/quizzes?classroom_id=classroom-a')) {
+        return Promise.resolve(jsonResponse({
+          quizzes: [{
+            id: 'quiz-old',
+            title: 'Older Quiz',
+            assessment_type: 'quiz',
+            status: 'active',
+            show_results: false,
+            position: 0,
+            student_status: 'not_started',
+          }],
+        }))
+      }
+      if (url.includes('/api/student/quizzes?classroom_id=classroom-b')) {
+        return Promise.resolve(jsonResponse({
+          quizzes: [{
+            id: 'quiz-current',
+            title: 'Current Classroom Quiz',
+            assessment_type: 'quiz',
+            status: 'active',
+            show_results: false,
+            position: 0,
+            student_status: 'not_started',
+          }],
+        }))
+      }
+      if (url.endsWith('/api/student/quizzes/quiz-old')) return firstDetail.promise
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+
+    const { rerender } = render(
+      <StudentQuizzesTab classroom={firstClassroom} assessmentType="quiz" />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Older Quiz')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Older Quiz'))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/student/quizzes/quiz-old')
+    })
+
+    rerender(<StudentQuizzesTab classroom={secondClassroom} assessmentType="quiz" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Current Classroom Quiz')).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      firstDetail.resolve(jsonResponse({
+        quiz: {
+          id: 'quiz-old',
+          title: 'Older Quiz',
+          assessment_type: 'quiz',
+          status: 'active',
+          show_results: false,
+          position: 0,
+          student_status: 'not_started',
+        },
+        student_status: 'not_started',
+        questions: [
+          {
+            id: 'q-stale',
+            quiz_id: 'quiz-old',
+            question_text: 'Stale detail question',
+            options: ['A', 'B'],
+            question_type: 'multiple_choice',
+            points: 1,
+            response_max_chars: 5000,
+            position: 0,
+          },
+        ],
+        student_responses: {},
+        focus_summary: null,
+      }))
+      await firstDetail.promise
+    })
+
+    expect(screen.getByText('Current Classroom Quiz')).toBeInTheDocument()
+    expect(screen.queryByText('Stale detail question')).not.toBeInTheDocument()
+  })
 
   function getSplitContainer(container: HTMLElement): HTMLDivElement {
     const splitContainer = container.querySelector(

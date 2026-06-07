@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import {
@@ -69,22 +69,35 @@ export function StudentQuizResults({
   const [payload, setPayload] = useState<ResultsPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const requestIdRef = useRef(0)
   const isTestsView =
     assessmentType === 'test' || apiBasePath.includes('/tests')
 
   useEffect(() => {
+    const requestId = requestIdRef.current + 1
+    requestIdRef.current = requestId
+    setLoading(true)
+    setError('')
+    setPayload(null)
+
     async function loadResults() {
       try {
+        // Bypass fetchJSONWithCache so returned results always follow the selected quizId.
         const res = await fetch(`${apiBasePath}/${quizId}/results`)
         const data = await res.json()
+        if (requestIdRef.current !== requestId) return
         if (!res.ok) {
           throw new Error(data.error || 'Failed to load results')
         }
         setPayload(data as ResultsPayload)
       } catch (err: any) {
-        setError(err.message || 'Failed to load results')
+        if (requestIdRef.current === requestId) {
+          setError(err.message || 'Failed to load results')
+        }
       } finally {
-        setLoading(false)
+        if (requestIdRef.current === requestId) {
+          setLoading(false)
+        }
       }
     }
     loadResults()
