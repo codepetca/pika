@@ -151,7 +151,7 @@ describe('Teacher calendar page', () => {
 
     expect(await screen.findByText('Create Calendar')).toBeInTheDocument()
     expect(fetchJSONWithCache).toHaveBeenCalledWith(
-      'teacher-classrooms:teacher-1:list',
+      'teacher-classrooms:teacher-1:active-list',
       expect.any(Function),
       20_000,
     )

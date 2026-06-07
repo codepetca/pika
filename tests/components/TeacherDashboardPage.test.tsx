@@ -206,7 +206,7 @@ describe('Teacher dashboard page', () => {
 
     expect(await screen.findByText('student@example.com')).toBeInTheDocument()
     expect(fetchJSONWithCache).toHaveBeenCalledWith(
-      'teacher-classrooms:teacher-1:list',
+      'teacher-classrooms:teacher-1:active-list',
       expect.any(Function),
       20_000,
     )
