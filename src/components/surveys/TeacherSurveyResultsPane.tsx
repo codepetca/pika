@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { BarChart3 } from 'lucide-react'
 import { Card } from '@/ui'
 import { Spinner } from '@/components/Spinner'
@@ -20,20 +20,34 @@ interface TeacherSurveyResultsPaneProps {
 }
 
 export function TeacherSurveyResultsPane({ survey }: TeacherSurveyResultsPaneProps) {
-  const [payload, setPayload] = useState<SurveyResultsPayload | null>(null)
+  const [payloadState, setPayloadState] = useState<{ surveyId: string; payload: SurveyResultsPayload } | null>(null)
   const [error, setError] = useState('')
+  const loadRequestIdRef = useRef(0)
+  const currentSurveyIdRef = useRef(survey.id)
+  currentSurveyIdRef.current = survey.id
+  const payload = payloadState?.surveyId === survey.id ? payloadState.payload : null
 
   const loadResults = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
+    const requestedSurveyId = survey.id
     setError('')
-    setPayload(null)
+    setPayloadState(null)
     try {
+      // Bypass fetchJSONWithCache for selected survey results freshness; request ids guard stale responses.
       const response = await fetch(`/api/teacher/surveys/${survey.id}/results`)
       const data = await response.json()
+      if (loadRequestIdRef.current !== requestId || currentSurveyIdRef.current !== requestedSurveyId) return
       if (!response.ok) throw new Error(data.error || 'Failed to load survey results')
-      setPayload(data)
+      setPayloadState({ surveyId: requestedSurveyId, payload: data })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load survey results')
-      setPayload({ results: [], stats: { responded: 0, total_students: survey.stats.total_students || 0 } })
+      if (loadRequestIdRef.current === requestId && currentSurveyIdRef.current === requestedSurveyId) {
+        setError(err instanceof Error ? err.message : 'Failed to load survey results')
+        setPayloadState({
+          surveyId: requestedSurveyId,
+          payload: { results: [], stats: { responded: 0, total_students: survey.stats.total_students || 0 } },
+        })
+      }
     }
   }, [survey.id, survey.stats.total_students])
 
