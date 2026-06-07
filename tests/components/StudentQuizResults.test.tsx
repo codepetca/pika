@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import { StudentQuizResults } from '@/components/StudentQuizResults'
 import type { QuizResultsAggregate } from '@/types'
 
@@ -28,6 +28,20 @@ describe('StudentQuizResults', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
+
+  function createDeferred<T>() {
+    let resolve!: (value: T) => void
+    let reject!: (reason?: unknown) => void
+    const promise = new Promise<T>((promiseResolve, promiseReject) => {
+      resolve = promiseResolve
+      reject = promiseReject
+    })
+    return { promise, resolve, reject }
+  }
+
+  function jsonResponse(body: unknown): Response {
+    return { ok: true, json: async () => body } as Response
+  }
 
   it('shows loading spinner initially', () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
@@ -86,6 +100,65 @@ describe('StudentQuizResults', () => {
     // Check options and percentages
     expect(screen.getByText('London')).toBeInTheDocument()
     expect(screen.getByText('15 (75%)')).toBeInTheDocument() // Paris
+  })
+
+  it('resets and ignores stale result responses when quizId changes', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const staleResults = createDeferred<Response>()
+    const currentResults = createDeferred<Response>()
+
+    fetchMock.mockImplementation((url: string) => {
+      if (url.endsWith('/api/student/quizzes/quiz-1/results')) return staleResults.promise
+      if (url.endsWith('/api/student/quizzes/quiz-2/results')) return currentResults.promise
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+
+    const { rerender } = render(
+      <StudentQuizResults quizId="quiz-1" myResponses={{}} />
+    )
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/student/quizzes/quiz-1/results')
+    })
+
+    rerender(<StudentQuizResults quizId="quiz-2" myResponses={{}} />)
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/student/quizzes/quiz-2/results')
+    })
+
+    await act(async () => {
+      currentResults.resolve(jsonResponse({
+        results: [{
+          question_id: 'q-current',
+          question_text: 'Current result question',
+          options: ['A', 'B'],
+          counts: [1, 0],
+          total_responses: 1,
+        }],
+      }))
+      await currentResults.promise
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Current result question')).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      staleResults.resolve(jsonResponse({
+        results: [{
+          question_id: 'q-stale',
+          question_text: 'Stale result question',
+          options: ['A', 'B'],
+          counts: [0, 1],
+          total_responses: 1,
+        }],
+      }))
+      await staleResults.promise
+    })
+
+    expect(screen.getByText('Current result question')).toBeInTheDocument()
+    expect(screen.queryByText('Stale result question')).not.toBeInTheDocument()
   })
 
   it('highlights the student\'s own answer', async () => {
