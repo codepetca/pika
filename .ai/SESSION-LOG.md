@@ -8,18 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — Student exam-mode e2e telemetry coverage
-
-**Completed:**
-- Extended the existing student exam-mode Playwright flow for sustained window loss.
-- Asserted that a sustained resize records a window/full-screen exit and does not increment route-exit telemetry.
-- Preserved existing checks for content locking, restoration, and open-response draft survival.
-
-**Validation:**
-- `VITEST_MAX_WORKERS=4 bash scripts/verify-env.sh`
-- `E2E_BASE_URL=http://localhost:3100 pnpm exec playwright test e2e/student-exam-mode.spec.ts -g "locks content only after sustained window loss"`
-- `pnpm lint`
-
 ## 2026-05-31 — PageActionBar mobile menu focus
 
 **Completed:**
@@ -951,6 +939,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh` (initially failed on pre-existing blueprint component fixture gap)
 - `pnpm vitest run tests/components/TeacherBlueprintsPage.test.tsx tests/unit/teacher-blueprints-client.test.ts tests/unit/request-cache.test.ts`
 - `pnpm vitest run tests/components/TeacherBlueprintsPage.test.tsx tests/unit/teacher-blueprints-client.test.ts tests/components/CreateClassroomModal.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/api/teacher/course-blueprints-route.test.ts tests/api/teacher/course-blueprint-publication-routes.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts tests/unit/request-cache.test.ts`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+
+## 2026-06-06 — Student classrooms cache audit
+
+**Completed:**
+- Added a verified-user-scoped `student-classrooms` client for `/api/student/classrooms` repeated reads.
+- Routed `/student/history` classroom list reads through the shared cache helper.
+- Invalidated student classroom caches after joining from `/student/history` and `/join/[code]`.
+- Added coverage for scoped list caching, auth-scope cache bypass, history-page cache usage, and join invalidation.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/unit/student-classrooms-client.test.ts tests/components/StudentHistoryPage.test.tsx tests/components/JoinClassroomPage.test.tsx tests/unit/request-cache.test.ts`
+- `pnpm vitest run tests/unit/student-classrooms-client.test.ts tests/components/StudentHistoryPage.test.tsx tests/components/JoinClassroomPage.test.tsx tests/components/StudentHistoryTab.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/api/student/classrooms.test.ts tests/api/student/classrooms-join.test.ts tests/api/student/classrooms-id.test.ts tests/unit/request-cache.test.ts`
 - `git diff --check`
 - `pnpm lint`
 - `pnpm build`
