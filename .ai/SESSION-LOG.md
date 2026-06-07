@@ -8,24 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — Teacher assignment passive sidebar removal
-
-**Completed:**
-- Disabled the external right sidebar for teacher assignment summary and workspace route keys.
-- Stopped rendering the classroom route's passive assignment sidebar fallback for teacher assignments.
-- Added coverage so teacher assignments match the tests work-surface rule: no external sidebar until an integrated workspace inspector is active.
-- Fixed review feedback so disabled right-sidebar routes clear stale mobile right-drawer state.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/layout-config.test.ts tests/components/ThreePanelProvider.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx -- --runInBand --testTimeout=10000`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `E2E_BASE_URL=http://localhost:3025 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
-- Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-teacher-assignments-loaded.png`
-
 ## 2026-05-31 — UI sidebar guidance cleanup
 
 **Completed:**
@@ -964,3 +946,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm vitest run tests/components/QuizDetailPanel.test.tsx`
+
+## 2026-06-06 — Survey detail freshness audit
+
+**Completed:**
+- Added request-id and selected-survey guards to teacher survey authoring detail loads, teacher survey results loads, and student survey detail/results loads.
+- Scoped already-loaded teacher/student survey detail and result payloads to the active selected survey so old survey content is hidden immediately on selection changes.
+- Reset student survey result payloads while a new selected survey or result request is loading.
+- Kept selected survey detail/results reads raw for freshness and guarded stale responses explicitly.
+- Added component coverage for stale teacher survey detail/results responses, stale student survey detail/results responses, and already-loaded old detail/results after survey switches.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/components/TeacherSurveyWorkspace.test.tsx tests/components/TeacherSurveyResultsPane.test.tsx tests/components/StudentSurveyPanel.test.tsx`
+- `git diff --check`
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm build`
+- `pnpm test`
