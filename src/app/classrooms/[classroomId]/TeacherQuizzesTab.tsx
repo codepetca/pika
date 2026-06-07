@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Code, Plus, Trash2 } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { QuizModal } from '@/components/QuizModal'
@@ -10,6 +10,7 @@ import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWo
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
+import { fetchJSONWithCache } from '@/lib/request-cache'
 import { Button, DialogPanel, EmptyState, Tooltip } from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
@@ -46,6 +47,9 @@ export function TeacherQuizzesTab({
 }: Props) {
   const apiBasePath = '/api/teacher/quizzes'
   const isReadOnly = !!classroom.archived_at
+  const loadRequestIdRef = useRef(0)
+  const currentClassroomIdRef = useRef(classroom.id)
+  currentClassroomIdRef.current = classroom.id
 
   const [quizzes, setQuizzes] = useState<QuizWithStats[]>([])
   const [loading, setLoading] = useState(true)
@@ -123,17 +127,36 @@ export function TeacherQuizzesTab({
     navigateQuizWorkspace(null, options)
   }, [navigateQuizWorkspace])
 
-  const loadQuizzes = useCallback(async () => {
+  const loadQuizzes = useCallback(async (options: { forceRefresh?: boolean } = {}) => {
+    const classroomId = classroom.id
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
     setLoading(true)
     try {
-      const query = new URLSearchParams({ classroom_id: classroom.id })
-      const response = await fetch(`${apiBasePath}?${query.toString()}`)
-      const data = await response.json()
+      const query = new URLSearchParams({ classroom_id: classroomId })
+      const data = await fetchJSONWithCache<{ quizzes?: QuizWithStats[] }>(
+        options.forceRefresh
+          ? `teacher-quizzes:${classroomId}:refresh:${requestId}`
+          : `teacher-quizzes:${classroomId}`,
+        async () => {
+          // fetchJSONWithCache wraps this repeated GET; force refreshes use one-off keys.
+          const response = await fetch(`${apiBasePath}?${query.toString()}`)
+          const payload = await response.json()
+          if (!response.ok) throw new Error(payload.error || 'Failed to load quizzes')
+          return payload
+        },
+        0,
+      )
+      if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setQuizzes(data.quizzes || [])
     } catch (error) {
-      console.error('Error loading quizzes:', error)
+      if (loadRequestIdRef.current === requestId && currentClassroomIdRef.current === classroomId) {
+        console.error('Error loading quizzes:', error)
+      }
     } finally {
-      setLoading(false)
+      if (loadRequestIdRef.current === requestId && currentClassroomIdRef.current === classroomId) {
+        setLoading(false)
+      }
     }
   }, [classroom.id])
 
@@ -145,7 +168,7 @@ export function TeacherQuizzesTab({
     function handleQuizzesUpdated(event: Event) {
       const detail = (event as CustomEvent<{ classroomId?: string }>).detail
       if (!detail || detail.classroomId !== classroom.id) return
-      void loadQuizzes()
+      void loadQuizzes({ forceRefresh: true })
     }
 
     window.addEventListener(TEACHER_QUIZZES_UPDATED_EVENT, handleQuizzesUpdated)
@@ -274,9 +297,7 @@ export function TeacherQuizzesTab({
           isSelected={selectedQuizId === quiz.id}
           isReadOnly={isReadOnly}
           onSelect={() => handleCardSelect(quiz)}
-          onQuizUpdate={() => {
-            void loadQuizzes()
-          }}
+          onQuizUpdate={() => undefined}
         />
       ))}
     </TeacherWorkItemList>
@@ -294,7 +315,7 @@ export function TeacherQuizzesTab({
           applyQuizSummaryPatch(selectedQuizWorkspace.id, update)
           return
         }
-        void loadQuizzes()
+        void loadQuizzes({ forceRefresh: true })
       }}
       onRequestDelete={onRequestDelete}
       showInlineDeleteAction={false}
