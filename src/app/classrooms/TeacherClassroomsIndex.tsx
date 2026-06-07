@@ -28,7 +28,7 @@ import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import type { Classroom } from '@/types'
-import { invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
+import { fetchTeacherClassrooms, invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
 
 interface Props {
   initialClassrooms: Classroom[]
@@ -85,12 +85,8 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     setIsLoadingArchived(true)
     setError('')
     try {
-      const res = await fetch('/api/teacher/classrooms?archived=true')
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to load archived classrooms')
-      }
-      setArchivedClassrooms(data.classrooms || [])
+      const classrooms = await fetchTeacherClassrooms({ archived: true })
+      setArchivedClassrooms(classrooms)
     } catch (err: any) {
       setError(err.message || 'Failed to load archived classrooms')
     } finally {
@@ -100,11 +96,8 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
   const refreshActiveClassrooms = useCallback(async () => {
     try {
-      const res = await fetch('/api/teacher/classrooms')
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.classrooms) {
-        setActiveClassrooms(data.classrooms)
-      }
+      const classrooms = await fetchTeacherClassrooms()
+      setActiveClassrooms(classrooms)
     } catch {
       // Ignore; the page still has server-rendered data.
     }

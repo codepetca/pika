@@ -8,26 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — PageActionBar mobile menu focus
-
-**Completed:**
-- Added explicit focus management for the shared `PageActionBar` mobile overflow menu.
-- Connected the overflow trigger to its menu with `aria-controls`.
-- Moved focus to the first enabled menu item on open, added arrow/Home/End menu navigation, and restored focus to the trigger on Escape, outside close, and item selection.
-- Added component coverage for trigger/menu relationships, focus movement, keyboard navigation, and focus restoration.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/PageActionBar.test.tsx tests/ui/SplitButton.test.tsx`
-- `pnpm lint`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm test`
-- `pnpm build`
-- `git diff --check`
-- `E2E_BASE_URL=http://localhost:3021 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh teacher/dashboard`
-- Manual Playwright mobile menu check: focus moved from `Course blueprints` to `Open classroom` with ArrowDown, Escape returned focus to `Open actions menu`, and the menu closed.
-- Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`, `/tmp/pika-page-actionbar-menu-mobile-viewport.png`, `/tmp/pika-page-actionbar-menu-mobile-keyboard.png`
-
 ## 2026-05-31 — SplitButton menu focus
 
 **Completed:**
@@ -956,6 +936,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm vitest run tests/unit/student-classrooms-client.test.ts tests/components/StudentHistoryPage.test.tsx tests/components/JoinClassroomPage.test.tsx tests/unit/request-cache.test.ts`
 - `pnpm vitest run tests/unit/student-classrooms-client.test.ts tests/components/StudentHistoryPage.test.tsx tests/components/JoinClassroomPage.test.tsx tests/components/StudentHistoryTab.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/api/student/classrooms.test.ts tests/api/student/classrooms-join.test.ts tests/api/student/classrooms-id.test.ts tests/unit/request-cache.test.ts`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+
+## 2026-06-06 — Teacher classroom index cache audit
+
+**Completed:**
+- Extended the shared teacher-classrooms client to cache active and archived classroom lists separately.
+- Routed `TeacherClassroomsIndex` active refresh and archived-list loads through the shared helper instead of raw list fetches.
+- Preserved prefix invalidation after archive, restore, delete, reorder, and create flows.
+- Added coverage for separate active/archived cache keys and archived-view helper usage.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/unit/teacher-classrooms-client.test.ts tests/components/TeacherClassroomsIndex.test.tsx tests/unit/request-cache.test.ts`
+- `pnpm vitest run tests/unit/teacher-classrooms-client.test.ts tests/components/TeacherClassroomsIndex.test.tsx tests/components/TeacherCalendarPage.test.tsx tests/components/TeacherDashboardPage.test.tsx tests/components/CreateClassroomModal.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/unit/request-cache.test.ts`
 - `git diff --check`
 - `pnpm lint`
 - `pnpm build`
