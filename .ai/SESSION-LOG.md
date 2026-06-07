@@ -8,26 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — SplitButton menu focus
-
-**Completed:**
-- Hardened the shared `SplitButton` menu with focus-on-open, arrow/Home/End navigation over enabled items, and focus restoration to the opener on Escape, outside close, and item selection.
-- Added semantic component coverage for disabled-item skipping, wraparound keyboard movement, Escape close behavior, and selection focus restoration.
-- Addressed review follow-ups so parent rerenders from menu focus/hover do not reset keyboard focus, existing modal actions still restore focus normally, and `DialogPanel` moves focus into modal dialogs even when they open after async menu work.
-- Verified the teacher tests tab visually after the shared primitive change.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/ui/SplitButton.test.tsx`
-- `pnpm test tests/ui/SplitButton.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx -- --runInBand --testTimeout=10000`
-- `pnpm test tests/ui/SplitButton.test.tsx tests/ui/Dialog.test.tsx tests/components/AssignmentModal.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx -- --runInBand --testTimeout=10000`
-- `pnpm test tests/ui/Dialog.test.tsx tests/ui/SplitButton.test.tsx tests/components/CreateClassroomModal.test.tsx tests/components/AssignmentModal.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx -- --runInBand --testTimeout=10000`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `E2E_BASE_URL=http://localhost:3022 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
-- Reviewed screenshots: `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, `/tmp/pika-teacher-mobile.png`
-
 ## 2026-05-31 — Assignment list stats pagination
 
 **Completed:**
@@ -957,3 +937,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - `pnpm test`
+
+## 2026-06-06 — Classroom blueprint modal cache audit
+
+**Completed:**
+- Routed `CreateClassroomModal` blueprint list loads through the shared `fetchTeacherBlueprints` cache helper instead of a raw `/api/teacher/course-blueprints` fetch.
+- Kept import and instantiate mutation paths raw and preserved blueprint/classroom cache invalidation after successful mutations.
+- Added a stale-load guard so a closed/reopened modal cannot have a prior blueprint list response wipe the current options.
+- Addressed PR review feedback by bumping the list-load generation after blueprint imports so pending open-time list loads cannot erase imported options.
+- Updated modal coverage for cached list loading, empty blueprint lists, mutation fetches, stale close/reopen responses, and import-while-list-load-is-pending races.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/components/CreateClassroomModal.test.tsx tests/unit/teacher-blueprints-client.test.ts tests/unit/request-cache.test.ts`
+- `pnpm vitest run tests/components/CreateClassroomModal.test.tsx tests/components/TeacherBlueprintsPage.test.tsx tests/unit/teacher-blueprints-client.test.ts tests/components/TeacherClassroomsIndex.test.tsx tests/components/TeacherCalendarPage.test.tsx tests/components/TeacherDashboardPage.test.tsx tests/unit/teacher-classrooms-client.test.ts tests/unit/request-cache.test.ts`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`

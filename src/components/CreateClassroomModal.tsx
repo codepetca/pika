@@ -5,7 +5,7 @@ import { Input, Button, DialogPanel, FormField, SplitButton } from '@/ui'
 import { format } from 'date-fns'
 import type { CourseBlueprint } from '@/types'
 import { invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
-import { invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
+import { fetchTeacherBlueprints, invalidateTeacherBlueprints } from '@/lib/teacher-blueprints-client'
 
 type WizardStep = 'name' | 'blueprint' | 'calendar'
 type CalendarMode = 'preset' | 'custom'
@@ -30,6 +30,7 @@ export function CreateClassroomModal({
   const startMonthId = useId()
   const endMonthId = useId()
   const importInputRef = useRef<HTMLInputElement | null>(null)
+  const blueprintLoadGenerationRef = useRef(0)
 
   const [step, setStep] = useState<WizardStep>('name')
   const [title, setTitle] = useState('')
@@ -52,12 +53,21 @@ export function CreateClassroomModal({
 
   useEffect(() => {
     if (!isOpen) return
+    let isCurrent = true
+    const loadGeneration = blueprintLoadGenerationRef.current + 1
+    blueprintLoadGenerationRef.current = loadGeneration
     setCreationMode(initialBlueprintId ? 'blueprint' : 'blank')
     setSelectedBlueprintId(initialBlueprintId || '')
-    fetch('/api/teacher/course-blueprints')
-      .then((response) => response.json().catch(() => ({})))
-      .then((data) => setAvailableBlueprints((data.blueprints || []) as CourseBlueprint[]))
-      .catch(() => setAvailableBlueprints([]))
+    fetchTeacherBlueprints()
+      .then((blueprints) => {
+        if (isCurrent && blueprintLoadGenerationRef.current === loadGeneration) setAvailableBlueprints(blueprints)
+      })
+      .catch(() => {
+        if (isCurrent && blueprintLoadGenerationRef.current === loadGeneration) setAvailableBlueprints([])
+      })
+    return () => {
+      isCurrent = false
+    }
   }, [initialBlueprintId, isOpen])
 
   function getSemesterYears() {
@@ -144,6 +154,7 @@ export function CreateClassroomModal({
 
       const blueprint = data.blueprint as CourseBlueprint
       invalidateTeacherBlueprints()
+      blueprintLoadGenerationRef.current += 1
       setAvailableBlueprints((current) => {
         const withoutImported = current.filter((item) => item.id !== blueprint.id)
         return [blueprint, ...withoutImported]
