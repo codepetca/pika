@@ -41,7 +41,7 @@ export type PublishedPlannedCourseSiteData = {
 }
 
 export type PublishedCourseSiteGradingCategory = {
-  id: 'assignments' | 'quizzes' | 'tests'
+  id: 'assignments' | 'tests'
   label: string
   points_possible: number
   item_count: number
@@ -50,7 +50,7 @@ export type PublishedCourseSiteGradingCategory = {
 
 export type PublishedCourseSiteGradingItem = {
   key: string
-  category: 'assignments' | 'quizzes' | 'tests'
+  category: 'assignments' | 'tests'
   category_label: string
   title: string
   points_possible: number | null
@@ -134,7 +134,7 @@ function buildItemSuggestions(
 }
 
 function compareMarkdownArea(
-  area: Exclude<BlueprintMergeSuggestionArea, 'assignments' | 'quizzes' | 'tests' | 'lesson-plans' | 'announcements'>,
+  area: Exclude<BlueprintMergeSuggestionArea, 'assignments' | 'tests' | 'lesson-plans' | 'announcements'>,
   title: string,
   currentMarkdown: string,
   proposedMarkdown: string
@@ -208,7 +208,6 @@ function getTestPointsPossible(test: Record<string, any>) {
 
 function buildCourseSiteGradingSummary(
   assignments: Array<Record<string, any>>,
-  quizzes: Array<Record<string, any>>,
   tests: Array<Record<string, any>>
 ): PublishedCourseSiteGradingSummary | null {
   const items: WeightedPublishedCourseSiteGradingItem[] = [
@@ -220,17 +219,6 @@ function buildCourseSiteGradingSummary(
       points_possible: getNumber(assignment.points_possible, null),
       assessment_weight: getAssessmentWeight(assignment.gradebook_weight),
       include_in_final: assignment.include_in_final !== false,
-      course_weight_percent: null,
-      category_weight_percent: null,
-    })),
-    ...quizzes.map((quiz, index) => ({
-      key: `quiz:${quiz.position ?? index}:${quiz.title}`,
-      category: 'quizzes' as const,
-      category_label: 'Quizzes',
-      title: String(quiz.title || 'Untitled quiz'),
-      points_possible: getNumber(quiz.points_possible, 100),
-      assessment_weight: getAssessmentWeight(quiz.gradebook_weight),
-      include_in_final: quiz.include_in_final !== false,
       course_weight_percent: null,
       category_weight_percent: null,
     })),
@@ -254,9 +242,6 @@ function buildCourseSiteGradingSummary(
     assignments: includedItems
       .filter((item) => item.category === 'assignments')
       .reduce((sum, item) => sum + Number(item.points_possible), 0),
-    quizzes: includedItems
-      .filter((item) => item.category === 'quizzes')
-      .reduce((sum, item) => sum + Number(item.points_possible), 0),
     tests: includedItems
       .filter((item) => item.category === 'tests')
       .reduce((sum, item) => sum + Number(item.points_possible), 0),
@@ -265,18 +250,14 @@ function buildCourseSiteGradingSummary(
     assignments: includedItems
       .filter((item) => item.category === 'assignments')
       .reduce((sum, item) => sum + item.assessment_weight, 0),
-    quizzes: includedItems
-      .filter((item) => item.category === 'quizzes')
-      .reduce((sum, item) => sum + item.assessment_weight, 0),
     tests: includedItems
       .filter((item) => item.category === 'tests')
       .reduce((sum, item) => sum + item.assessment_weight, 0),
   }
-  const totalWeight = categoryWeights.assignments + categoryWeights.quizzes + categoryWeights.tests
+  const totalWeight = categoryWeights.assignments + categoryWeights.tests
 
   const categories = ([
     ['assignments', 'Assignments'],
-    ['quizzes', 'Quizzes'],
     ['tests', 'Tests'],
   ] as const)
     .reduce<PublishedCourseSiteGradingCategory[]>((next, [id, label]) => {
@@ -361,7 +342,7 @@ export async function getPublishedActualCourseSite(
   const nowIso = new Date().toISOString()
   const maxLessonDate = getMaxAllowedLessonDate(classroom.actual_site_config.lesson_plan_scope)
   const assignments = sourceResult.source.assignments.filter((assignment) => !assignment.is_draft)
-  const quizzes = sourceResult.source.quizzes
+  const quizzes: Array<Record<string, any>> = []
   const tests = sourceResult.source.tests
 
   return {
@@ -373,7 +354,7 @@ export async function getPublishedActualCourseSite(
       assignments,
       quizzes,
       tests,
-      grading: buildCourseSiteGradingSummary(assignments, quizzes, tests),
+      grading: buildCourseSiteGradingSummary(assignments, tests),
       lesson_plans: sourceResult.source.lesson_templates.filter((lesson) => {
         if (!maxLessonDate) return true
         const match = lesson.title.match(/\((\d{4}-\d{2}-\d{2})\)$/)
@@ -454,29 +435,6 @@ export async function getBlueprintMergeSuggestionSet(
     })
   }
 
-  const currentQuizzes = blueprint.assessments.filter((assessment) => assessment.assessment_type === 'quiz')
-  const quizItems = buildItemSuggestions(
-    currentQuizzes.map((quiz) => ({
-      key: quiz.title.trim().toLowerCase(),
-      label: quiz.title,
-      summary: summarizeMergeText(JSON.stringify(quiz.content), 'Quiz'),
-    })),
-    source.quizzes.map((quiz) => ({
-      key: quiz.title.trim().toLowerCase(),
-      label: quiz.title,
-      summary: summarizeMergeText(JSON.stringify(quiz.content), 'Quiz'),
-    }))
-  )
-  if (quizItems.length > 0) {
-    suggestions.push({
-      area: 'quizzes',
-      title: 'Quizzes',
-      summary: 'Quiz changes in the classroom can replace the reusable blueprint quiz set.',
-      items: quizItems,
-      preview_markdown: courseBlueprintAssessmentsToMarkdown(source.quizzes as any, 'quiz'),
-    })
-  }
-
   const currentTests = blueprint.assessments.filter((assessment) => assessment.assessment_type === 'test')
   const testItems = buildItemSuggestions(
     currentTests.map((test) => ({
@@ -538,7 +496,7 @@ export async function applyBlueprintMergeSuggestions(
   teacherId: string,
   blueprintId: string,
   classroomId: string,
-  areas: Array<'overview' | 'outline' | 'resources' | 'assignments' | 'quizzes' | 'tests' | 'lesson-plans'>
+  areas: Array<'overview' | 'outline' | 'resources' | 'assignments' | 'tests' | 'lesson-plans'>
 ): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
   const blueprintAccess = await assertTeacherOwnsCourseBlueprint(teacherId, blueprintId)
   if (!blueprintAccess.ok) {
@@ -581,14 +539,6 @@ export async function applyBlueprintMergeSuggestions(
 
     if (area === 'assignments') {
       const result = await syncCourseBlueprintAssignments(teacherId, blueprintId, source.assignments)
-      if (!result.ok) return result
-      continue
-    }
-
-    if (area === 'quizzes') {
-      const result = await syncCourseBlueprintAssessments(teacherId, blueprintId, source.quizzes, {
-        replaceTypes: ['quiz'],
-      })
       if (!result.ok) return result
       continue
     }

@@ -52,14 +52,13 @@ export const POST = withErrorHandler('PostTeacherCourseBlueprintAiApply', async 
     return NextResponse.json({ success: true, warnings: parsed.warnings })
   }
 
-  if (target === 'quizzes' || target === 'tests') {
-    const parsed = markdownToCourseBlueprintAssessments(content, detailResult.detail.assessments as any, target === 'quizzes' ? 'quiz' : 'test')
+  if (target === 'tests') {
+    const parsed = markdownToCourseBlueprintAssessments(content, detailResult.detail.assessments as any, 'test')
     if (parsed.errors.length > 0) {
       return NextResponse.json({ errors: parsed.errors }, { status: 400 })
     }
-    const assessmentType = target === 'quizzes' ? 'quiz' : 'test'
     const result = await syncCourseBlueprintAssessments(user.id, id, parsed.assessments as any, {
-      replaceTypes: [assessmentType],
+      replaceTypes: ['test'],
     })
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status })

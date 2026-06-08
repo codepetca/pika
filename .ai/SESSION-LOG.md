@@ -8,23 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — Gradebook cache invalidation after grading
-
-**Completed:**
-- Added a shared `invalidateGradebookForClassroom()` helper for `gradebook:<classroomId>:` cache keys.
-- Routed the gradebook detail refresh path through the helper.
-- Invalidated gradebook caches when assignment grade-update events arrive, including auto-grade paths that refresh without a full doc payload.
-- Invalidated gradebook caches after test grading row updates, batch auto-grade completion, batch return, unsubmit, and attempt deletion refreshes.
-- Added focused component coverage for assignment and test grade-update invalidation.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/hooks/useGradebookData.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-
 ## 2026-06-01 — Codex model recommendation workflow
 
 **Completed:**
@@ -957,3 +940,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
 - Visual verification screenshots for teacher Classwork, Tests, Gradebook, Roster, Announcements, plus student Classwork sanity check.
+
+## 2026-06-08 — Product quiz removal
+
+**Completed:**
+- Removed teacher and student `/api/*/quizzes` product routes, quiz override route, teacher quiz tab, quiz card/modal components, and matching route/component tests.
+- Made the student assessment tab and shared legacy-named quiz components operate against tests by default while preserving test database compatibility.
+- Removed quizzes from gradebook output, course blueprint package import/export, blueprint AI targets, classroom blueprint source loading, and course-site grading summaries.
+- Renamed the teacher assessment update browser event from the old quiz name to a tests-specific event.
+- Updated AI routing, architecture, course blueprint package, and teacher work-surface docs so quizzes are no longer described as an active product surface.
+- PR self-review tightened remaining blueprint and actual-site paths so legacy quiz assessments are not cloned or rendered.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test --run tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizzesTab.test.tsx tests/components/StudentQuizResults.test.tsx tests/components/StudentQuizForm.test.tsx`
+- `pnpm test` (301 files / 2655 tests)
+- Post-review focused checks for blueprint/test paths and isolated `StudentHistoryPage` flake rerun.
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms"`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests"`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook"`

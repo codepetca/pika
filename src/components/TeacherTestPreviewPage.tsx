@@ -6,7 +6,7 @@ import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { StudentQuizForm } from '@/components/StudentQuizForm'
 import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
-import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
+import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
 import type { QuizQuestion, TestDocument } from '@/types'
 
@@ -244,9 +244,9 @@ export function TeacherTestPreviewPage({
       void loadPreviewData()
     }
 
-    window.addEventListener(TEACHER_QUIZZES_UPDATED_EVENT, handleTestsUpdated)
+    window.addEventListener(TEACHER_TESTS_UPDATED_EVENT, handleTestsUpdated)
     return () => {
-      window.removeEventListener(TEACHER_QUIZZES_UPDATED_EVENT, handleTestsUpdated)
+      window.removeEventListener(TEACHER_TESTS_UPDATED_EVENT, handleTestsUpdated)
     }
   }, [classroomId, listenForUpdates, loadPreviewData])
 

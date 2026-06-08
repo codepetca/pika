@@ -41,7 +41,6 @@ type EditorTab =
   | 'outline'
   | 'resources'
   | 'assignments'
-  | 'quizzes'
   | 'tests'
   | 'lesson-plans'
   | 'copilot'
@@ -55,7 +54,6 @@ const TAB_LABELS: Record<EditorTab, string> = {
   outline: 'Outline',
   resources: 'Resources',
   assignments: 'Assignments',
-  quizzes: 'Quizzes',
   tests: 'Tests',
   'lesson-plans': 'Lesson Plans',
   copilot: 'AI Drafting',
@@ -63,9 +61,7 @@ const TAB_LABELS: Record<EditorTab, string> = {
   sync: 'Classroom Updates',
 }
 
-const VISIBLE_EDITOR_TABS = (Object.keys(TAB_LABELS) as EditorTab[]).filter(
-  (tab) => tab !== 'quizzes'
-)
+const VISIBLE_EDITOR_TABS = Object.keys(TAB_LABELS) as EditorTab[]
 
 const PLANNED_SITE_CONFIG_OPTIONS: Array<[keyof PlannedCourseSiteConfig, string]> = [
   ['overview', 'overview'],
@@ -91,7 +87,6 @@ function emptyDraftState(): DraftState {
     outline: '',
     resources: '',
     assignments: '',
-    quizzes: '',
     tests: '',
     'lesson-plans': '',
   }
@@ -149,7 +144,6 @@ export default function TeacherBlueprintsPage() {
     if (!detail) return null
     return {
       assignments: detail.assignments.length,
-      quizzes: detail.assessments.filter((assessment) => assessment.assessment_type === 'quiz').length,
       tests: detail.assessments.filter((assessment) => assessment.assessment_type === 'test').length,
       lesson_templates: detail.lesson_templates.length,
     }
@@ -203,7 +197,6 @@ export default function TeacherBlueprintsPage() {
         outline: blueprint.outline_markdown || '',
         resources: blueprint.resources_markdown || '',
         assignments: courseBlueprintAssignmentsToMarkdown(blueprint.assignments),
-        quizzes: courseBlueprintAssessmentsToMarkdown(blueprint.assessments as any, 'quiz'),
         tests: courseBlueprintAssessmentsToMarkdown(blueprint.assessments as any, 'test'),
         'lesson-plans': courseBlueprintLessonTemplatesToMarkdown(blueprint.lesson_templates),
       })
@@ -291,11 +284,11 @@ export default function TeacherBlueprintsPage() {
         if (!response.ok) {
           throw new Error(data.error || 'Failed to save assignments')
         }
-      } else if (activeTab === 'quizzes' || activeTab === 'tests') {
+      } else if (activeTab === 'tests') {
         const parsed = markdownToCourseBlueprintAssessments(
           drafts[activeTab],
           detail.assessments as any,
-          activeTab === 'quizzes' ? 'quiz' : 'test'
+          'test'
         )
         if (parsed.errors.length > 0) throw new Error(parsed.errors.join('\n'))
         const response = await fetch(`/api/teacher/course-blueprints/${selectedBlueprintId}/assessments/bulk`, {
@@ -303,7 +296,7 @@ export default function TeacherBlueprintsPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             assessments: parsed.assessments,
-            assessmentType: activeTab === 'quizzes' ? 'quiz' : 'test',
+            assessmentType: 'test',
           }),
         })
         const data = await response.json().catch(() => ({}))

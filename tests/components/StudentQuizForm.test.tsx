@@ -253,31 +253,6 @@ describe('StudentQuizForm preview mode', () => {
     expect(screen.queryByText(/```/)).not.toBeInTheDocument()
   })
 
-  it('keeps the sticky submit footer for quizzes', async () => {
-    const onSubmitted = vi.fn()
-
-    render(
-      <StudentQuizForm
-        quizId="quiz-footer-id"
-        questions={[
-          createMockQuizQuestion({
-            id: 'q1',
-            question_text: 'Quiz question?',
-            options: ['A', 'B'],
-            question_type: 'multiple_choice',
-            position: 0,
-          }),
-        ]}
-        assessmentType="quiz"
-        onSubmitted={onSubmitted}
-      />
-    )
-
-    const actionPanel = screen.getByTestId('student-quiz-action-footer')
-    expect(actionPanel.className).toContain('sticky')
-    expect(within(actionPanel).getByRole('button', { name: 'Submit' })).toBeInTheDocument()
-  })
-
   it('notifies the parent when a submit fails because the test is no longer active', async () => {
     const onSubmitted = vi.fn()
     const onAvailabilityLoss = vi.fn()

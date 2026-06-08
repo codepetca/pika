@@ -147,7 +147,7 @@ function summarizeDraftContent(
 export function QuizDetailPanel({
   quiz,
   classroomId,
-  apiBasePath = '/api/teacher/quizzes',
+  apiBasePath = '/api/teacher/tests',
   onQuizUpdate,
   onDraftSummaryChange,
   onRequestDelete,

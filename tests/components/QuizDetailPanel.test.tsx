@@ -50,10 +50,6 @@ const summaryDetailQuestions: QuizQuestion[] = [
   }),
 ]
 
-const sampleResults: QuizResultsAggregate[] = [
-  { question_id: 'q1', question_text: 'Favorite color?', options: ['Red', 'Blue', 'Green'], counts: [5, 10, 5], total_responses: 20 },
-  { question_id: 'q2', question_text: 'Favorite animal?', options: ['Cat', 'Dog'], counts: [12, 8], total_responses: 20 },
-]
 const markdownQuestionId1 = '11111111-1111-4111-8111-111111111111'
 const markdownQuestionId2 = '22222222-2222-4222-8222-222222222222'
 
@@ -138,8 +134,8 @@ describe('QuizDetailPanel', () => {
     })
 
     fetchMock.mockImplementation((url: string) => {
-      if (url.endsWith('/api/teacher/quizzes/quiz-stale/draft')) return staleDraft.promise
-      if (url.endsWith('/api/teacher/quizzes/quiz-current/draft')) return currentDraft.promise
+      if (url.endsWith('/api/teacher/tests/quiz-stale/draft')) return staleDraft.promise
+      if (url.endsWith('/api/teacher/tests/quiz-current/draft')) return currentDraft.promise
       throw new Error(`Unexpected fetch: ${url}`)
     })
 
@@ -151,7 +147,7 @@ describe('QuizDetailPanel', () => {
     )
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/quizzes/quiz-stale/draft')
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/quiz-stale/draft')
     })
 
     rerender(
@@ -159,7 +155,7 @@ describe('QuizDetailPanel', () => {
     )
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/quizzes/quiz-current/draft')
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/quiz-current/draft')
     })
 
     await act(async () => {
@@ -303,107 +299,6 @@ describe('QuizDetailPanel', () => {
     expect(screen.queryByText('Stale Reference')).not.toBeInTheDocument()
   })
 
-  it('ignores stale result responses after selected assessment changes', async () => {
-    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-    const staleResults = createDeferred<Response>()
-    const currentResults = createDeferred<Response>()
-
-    fetchMock.mockImplementation((url: string) => {
-      if (url.endsWith('/api/teacher/quizzes/quiz-stale/draft')) {
-        return Promise.resolve(jsonResponse({
-          draft: {
-            version: 1,
-            content: {
-              title: 'Stale Quiz',
-              show_results: true,
-              questions: sampleQuestions,
-            },
-          },
-        }))
-      }
-      if (url.endsWith('/api/teacher/quizzes/quiz-current/draft')) {
-        return Promise.resolve(jsonResponse({
-          draft: {
-            version: 1,
-            content: {
-              title: 'Current Quiz',
-              show_results: true,
-              questions: sampleQuestions,
-            },
-          },
-        }))
-      }
-      if (url.endsWith('/api/teacher/quizzes/quiz-stale/results')) return staleResults.promise
-      if (url.endsWith('/api/teacher/quizzes/quiz-current/results')) return currentResults.promise
-      throw new Error(`Unexpected fetch: ${url}`)
-    })
-
-    const staleQuiz = makeQuizWithStats({
-      id: 'quiz-stale',
-      title: 'Stale Quiz',
-      stats: { total_students: 25, responded: 1, questions_count: 1 },
-    })
-    const currentQuiz = makeQuizWithStats({
-      id: 'quiz-current',
-      title: 'Current Quiz',
-      stats: { total_students: 25, responded: 1, questions_count: 1 },
-    })
-    const { rerender } = render(
-      <QuizDetailPanel quiz={staleQuiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />,
-      { wrapper: Wrapper }
-    )
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/quizzes/quiz-stale/results')
-    })
-
-    rerender(
-      <QuizDetailPanel quiz={currentQuiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />
-    )
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/quizzes/quiz-current/results')
-    })
-
-    await act(async () => {
-      currentResults.resolve(jsonResponse({
-        results: [{
-          question_id: 'q-current',
-          question_text: 'Current results question',
-          options: ['A', 'B'],
-          counts: [1, 0],
-          total_responses: 1,
-        }],
-      }))
-      await currentResults.promise
-    })
-
-    await waitFor(() => {
-      expect(screen.getByRole('tab', { name: 'Results (1)' })).toBeInTheDocument()
-    })
-    fireEvent.click(screen.getByRole('tab', { name: 'Results (1)' }))
-
-    await waitFor(() => {
-      expect(screen.getByText('Current results question')).toBeInTheDocument()
-    })
-
-    await act(async () => {
-      staleResults.resolve(jsonResponse({
-        results: [{
-          question_id: 'q-stale',
-          question_text: 'Stale results question',
-          options: ['A', 'B'],
-          counts: [0, 1],
-          total_responses: 1,
-        }],
-      }))
-      await staleResults.promise
-    })
-
-    expect(screen.getByText('Current results question')).toBeInTheDocument()
-    expect(screen.queryByText('Stale results question')).not.toBeInTheDocument()
-  })
-
   it('invalidates stale loads when assessment type changes for the same id', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     const staleQuizDraft = createDeferred<Response>()
@@ -411,11 +306,11 @@ describe('QuizDetailPanel', () => {
     let draftReads = 0
 
     fetchMock.mockImplementation((url: string) => {
-      if (url.endsWith('/api/teacher/quizzes/assessment-1/draft')) {
+      if (url.endsWith('/api/teacher/tests/assessment-1/draft')) {
         draftReads += 1
         return draftReads === 1 ? staleQuizDraft.promise : currentTestDraft.promise
       }
-      if (url.endsWith('/api/teacher/quizzes/assessment-1')) {
+      if (url.endsWith('/api/teacher/tests/assessment-1')) {
         return Promise.resolve(jsonResponse({
           quiz: {
             documents: [
@@ -443,7 +338,7 @@ describe('QuizDetailPanel', () => {
     )
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/quizzes/assessment-1/draft')
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/assessment-1/draft')
     })
 
     rerender(
@@ -514,21 +409,7 @@ describe('QuizDetailPanel', () => {
     expect(screen.queryByDisplayValue('Stale same-id quiz question')).not.toBeInTheDocument()
   })
 
-  describe('tabs', () => {
-    it('renders Questions, Preview, and Results tabs for quizzes', async () => {
-      mockFetchForQuiz(sampleQuestions)
-      const quiz = makeQuizWithStats()
-
-      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
-
-      await waitFor(() => {
-        expect(screen.getByText(/Questions/)).toBeInTheDocument()
-      })
-      expect(screen.getByText('Preview')).toBeInTheDocument()
-      expect(screen.getByText(/Results/)).toBeInTheDocument()
-    })
-
-    it('shows question count in Questions tab', async () => {
+  describe('tabs', () => {    it('shows question count in Questions tab', async () => {
       mockFetchForQuiz(sampleQuestions)
       const quiz = makeQuizWithStats()
 
@@ -536,17 +417,6 @@ describe('QuizDetailPanel', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Questions (2)')).toBeInTheDocument()
-      })
-    })
-
-    it('shows response count in Results tab', async () => {
-      mockFetchForQuiz(sampleQuestions, sampleResults)
-      const quiz = makeQuizWithStats({ stats: { total_students: 25, responded: 20, questions_count: 2 } })
-
-      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
-
-      await waitFor(() => {
-        expect(screen.getByText('Results (20)')).toBeInTheDocument()
       })
     })
 
@@ -655,44 +525,7 @@ describe('QuizDetailPanel', () => {
       expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
     })
 
-    it('moves across workspace mode tabs with keyboard navigation', async () => {
-      mockFetchForQuiz(sampleQuestions, sampleResults)
-      const quiz = makeQuizWithStats({ stats: { total_students: 25, responded: 20, questions_count: 2 } })
-
-      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
-
-      const tabList = await screen.findByRole('tablist', { name: 'Quiz workspace modes' })
-      const questionsTab = within(tabList).getByRole('tab', { name: 'Questions (2)' })
-      const nextTab = within(tabList).getAllByRole('tab')[1]
-
-      questionsTab.focus()
-      fireEvent.keyDown(questionsTab, { key: 'ArrowRight' })
-
-      await waitFor(() => {
-        expect(nextTab).toHaveAttribute('aria-selected', 'true')
-        expect(nextTab).toHaveFocus()
-      })
-    })
-
-    it('exposes quiz question inline editing controls with accessible names', async () => {
-      mockFetchForQuiz(sampleQuestions)
-      const quiz = makeQuizWithStats()
-
-      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
-
-      const editPromptButton = await screen.findByRole('button', { name: 'Edit question 1 prompt' })
-      expect(screen.getByRole('button', { name: 'Delete question 1' })).toBeInTheDocument()
-
-      fireEvent.click(editPromptButton)
-      const promptInput = screen.getByLabelText('Question 1 prompt') as HTMLInputElement
-      expect(promptInput).toHaveValue('Favorite color?')
-      fireEvent.blur(promptInput)
-
-      fireEvent.click(screen.getByRole('button', { name: 'Edit question 1 option A' }))
-      expect(screen.getByLabelText('Question 1 option A')).toHaveValue('Red')
-    })
-
-    it('exposes test question card controls with accessible names', async () => {
+  it('exposes test question card controls with accessible names', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -1069,132 +902,7 @@ describe('QuizDetailPanel', () => {
       expect(screen.queryByText('Markdown')).not.toBeInTheDocument()
     })
 
-    it('renders quizzes in editor-only mode without test documents', async () => {
-      mockFetchForQuiz(sampleQuestions)
-      const quiz = makeQuizWithStats({
-        title: 'Quiz Editor Modal',
-        stats: { total_students: 25, responded: 0, questions_count: 2 },
-      })
-
-      render(
-        <QuizDetailPanel
-          quiz={quiz}
-          classroomId="classroom-1"
-          onQuizUpdate={vi.fn()}
-          assessmentQuestionLayout="editor-only"
-          showPreviewButton={false}
-          showResultsTab={false}
-        />,
-        { wrapper: Wrapper }
-      )
-
-      expect(await screen.findByTestId('quiz-editor-only-layout')).toBeInTheDocument()
-      const editorPane = screen.getByTestId('quiz-question-editor-pane')
-      expect(editorPane).toBeInTheDocument()
-      expect(screen.queryByTestId('test-documents-card')).not.toBeInTheDocument()
-      expect(within(editorPane).getByText('2 questions')).toBeInTheDocument()
-      expect(within(editorPane).getByRole('button', { name: 'Add Question' })).toBeInTheDocument()
-    })
-
-    it('renders quizzes in markdown-only mode and saves through the quiz draft endpoint', async () => {
-      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-      fetchMock
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            draft: {
-              version: 1,
-              content: {
-                title: 'Quiz Markdown Modal',
-                show_results: false,
-                questions: sampleQuestions,
-              },
-            },
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            draft: {
-              version: 2,
-              content: {
-                title: 'Quiz Markdown Modal Updated',
-                show_results: true,
-                questions: [
-                  {
-                    id: '33333333-3333-4333-8333-333333333333',
-                    question_text: 'Updated quiz prompt?',
-                    options: ['A', 'B'],
-                  },
-                ],
-                source_format: 'markdown',
-              },
-            },
-          }),
-        })
-
-      const quiz = makeQuizWithStats({
-        id: 'quiz-markdown-modal-id',
-        title: 'Quiz Markdown Modal',
-        stats: { total_students: 25, responded: 0, questions_count: 2 },
-      })
-
-      render(
-        <QuizDetailPanel
-          quiz={quiz}
-          classroomId="classroom-1"
-          onQuizUpdate={vi.fn()}
-          assessmentQuestionLayout="markdown-only"
-          showPreviewButton={false}
-          showResultsTab={false}
-        />,
-        { wrapper: Wrapper }
-      )
-
-      expect(await screen.findByTestId('quiz-markdown-only-layout')).toBeInTheDocument()
-      const markdownEditor = screen.getByTestId('quiz-markdown-editor') as HTMLTextAreaElement
-      expect(markdownEditor.value).toContain('Quiz Markdown Modal')
-      expect(markdownEditor).toHaveProperty('readOnly', false)
-
-      fireEvent.change(markdownEditor, {
-        target: {
-          value: `# Quiz
-Title: Quiz Markdown Modal Updated
-Show Results: true
-
-## Questions
-### Question 1
-Prompt:
-Updated quiz prompt?
-Options:
-- A
-- B
-`,
-        },
-      })
-      fireEvent.click(screen.getByRole('button', { name: 'Apply Markdown' }))
-
-      await waitFor(() => {
-        expect(screen.getByText('Markdown applied')).toBeInTheDocument()
-      })
-
-      const patchCall = fetchMock.mock.calls.find(
-        (call: any[]) =>
-          typeof call[0] === 'string' &&
-          call[0].includes('/api/teacher/quizzes/quiz-markdown-modal-id/draft') &&
-          call[1]?.method === 'PATCH'
-      )
-      expect(patchCall).toBeTruthy()
-      const body = JSON.parse(patchCall?.[1]?.body ?? '{}')
-      expect(body.content.title).toBe('Quiz Markdown Modal Updated')
-      expect(body.content.show_results).toBe(true)
-      expect(body.content.questions).toHaveLength(1)
-      expect(body.content.source_format).toBe('markdown')
-      expect(body.content.source_markdown).toContain('Updated quiz prompt?')
-      expect(body.documents).toBeUndefined()
-    })
-
-    it('cleans up interrupted summary-detail drags and resets on double click', async () => {
+  it('cleans up interrupted summary-detail drags and resets on double click', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -2453,49 +2161,6 @@ _None_
     })
   })
 
-  describe('Preview tab', () => {
-    it('shows quiz preview with radio buttons', async () => {
-      mockFetchForQuiz(sampleQuestions)
-      const quiz = makeQuizWithStats()
-
-      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
-
-      await waitFor(() => {
-        expect(screen.getByText('Preview')).toBeInTheDocument()
-      })
-
-      fireEvent.click(screen.getByText('Preview'))
-
-      await waitFor(() => {
-        expect(screen.getByText('Favorite color?')).toBeInTheDocument()
-        expect(screen.getByText('Favorite animal?')).toBeInTheDocument()
-      })
-
-      expect(screen.getByText('Red')).toBeInTheDocument()
-      expect(screen.getByText('Blue')).toBeInTheDocument()
-      expect(screen.getByText('Cat')).toBeInTheDocument()
-      expect(screen.getByText('Dog')).toBeInTheDocument()
-      expect(screen.getByText(/Selections are not saved/)).toBeInTheDocument()
-    })
-
-    it('shows empty preview when no questions', async () => {
-      mockFetchForQuiz([])
-      const quiz = makeQuizWithStats()
-
-      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
-
-      await waitFor(() => {
-        expect(screen.getByText('Preview')).toBeInTheDocument()
-      })
-
-      fireEvent.click(screen.getByText('Preview'))
-
-      await waitFor(() => {
-        expect(screen.getByText('No questions to preview.')).toBeInTheDocument()
-      })
-    })
-  })
-
   describe('Markdown tab', () => {
     it('loads persisted markdown as a read-only mirror and undo restores it after edits', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
@@ -2889,43 +2554,19 @@ Prompt:
   })
 
   describe('Questions tab', () => {
-    it('shows quiz title that is click-to-edit', async () => {
+    it('shows test title that is click-to-edit', async () => {
       mockFetchForQuiz(sampleQuestions)
-      const quiz = makeQuizWithStats({ title: 'My Cool Quiz' })
+      const quiz = makeQuizWithStats({ title: 'My Cool Test' })
 
       render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        expect(screen.getByText('My Cool Quiz')).toBeInTheDocument()
+        expect(screen.getByText('My Cool Test')).toBeInTheDocument()
       })
 
       // Click to enter edit mode
-      fireEvent.click(screen.getByText('My Cool Quiz'))
-      expect(screen.getByDisplayValue('My Cool Quiz')).toBeInTheDocument()
-    })
-
-    it('allows editing controls when quiz has responses', async () => {
-      mockFetchForQuiz(sampleQuestions, sampleResults)
-      const quiz = makeQuizWithStats({ stats: { total_students: 25, responded: 5, questions_count: 2 } })
-
-      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
-
-      await waitFor(() => {
-        expect(screen.queryByText('Questions cannot be edited after students have responded.')).not.toBeInTheDocument()
-      })
-
-      expect(screen.getByText('Add Question')).toBeInTheDocument()
-    })
-
-    it('shows Add Question button when editable', async () => {
-      mockFetchForQuiz(sampleQuestions)
-      const quiz = makeQuizWithStats({ status: 'draft' })
-
-      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
-
-      await waitFor(() => {
-        expect(screen.getByText('Add Question')).toBeInTheDocument()
-      })
+      fireEvent.click(screen.getByText('My Cool Test'))
+      expect(screen.getByDisplayValue('My Cool Test')).toBeInTheDocument()
     })
 
     it('does not show activation warning label when no questions', async () => {
@@ -3658,88 +3299,6 @@ Prompt:
 
       expect(screen.getByRole('heading', { name: 'Add Document' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Choose file' })).toBeInTheDocument()
-    })
-  })
-
-  describe('Results tab', () => {
-    it('shows aggregate results with bar charts', async () => {
-      mockFetchForQuiz(sampleQuestions, sampleResults)
-      const quiz = makeQuizWithStats({ stats: { total_students: 25, responded: 20, questions_count: 2 } })
-
-      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
-
-      await waitFor(() => {
-        expect(screen.getByText(/Results/)).toBeInTheDocument()
-      })
-
-      fireEvent.click(screen.getByText(/Results \(20\)/))
-
-      await waitFor(() => {
-        expect(screen.getByText('Favorite color?')).toBeInTheDocument()
-        expect(screen.getByText('Favorite animal?')).toBeInTheDocument()
-      })
-
-      expect(screen.getByText('10 (50%)')).toBeInTheDocument() // Blue
-      expect(screen.getByText('12 (60%)')).toBeInTheDocument() // Cat
-    })
-
-    it('shows individual responses section for teacher', async () => {
-      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-      // Quiz draft
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          draft: {
-            version: 1,
-            content: {
-              title: 'Untitled Quiz',
-              show_results: true,
-              questions: sampleQuestions,
-            },
-          },
-        }),
-      })
-      // Results
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ results: sampleResults, responders: [
-          { student_id: 's1', name: 'Alice', email: 'alice@test.com' },
-          { student_id: 's2', name: 'Bob', email: 'bob@test.com' },
-        ] }),
-      })
-
-      const quiz = makeQuizWithStats({ stats: { total_students: 25, responded: 2, questions_count: 2 } })
-
-      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
-
-      await waitFor(() => {
-        expect(screen.getByText(/Results/)).toBeInTheDocument()
-      })
-
-      fireEvent.click(screen.getByText(/Results \(2\)/))
-
-      // The individual responses component fetches its own data
-      // Just verify the section exists
-      await waitFor(() => {
-        expect(screen.getByText('Favorite color?')).toBeInTheDocument()
-      })
-    })
-
-    it('shows no responses message when empty', async () => {
-      mockFetchForQuiz(sampleQuestions)
-      const quiz = makeQuizWithStats({ stats: { total_students: 25, responded: 0, questions_count: 2 } })
-
-      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
-
-      await waitFor(() => {
-        expect(screen.getByText(/Results/)).toBeInTheDocument()
-      })
-
-      fireEvent.click(screen.getByText(/Results \(0\)/))
-
-      await waitFor(() => {
-        expect(screen.getByText('No responses yet.')).toBeInTheDocument()
-      })
     })
   })
 

@@ -45,7 +45,6 @@ The current governed slices are:
 - Cross-cutting stable guidance for assignments, attendance, and shared classroom shell behavior that directly supports those workflows
 - A dedicated teacher work-surface canon for:
   - teacher assignments
-  - teacher quizzes
   - teacher tests
 
 This is intentionally smaller than the full app.

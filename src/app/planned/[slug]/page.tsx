@@ -76,14 +76,12 @@ export default async function PlannedCourseSitePage({ params }: PageProps) {
           </section>
         ) : null}
 
-        {(config.quizzes || config.tests) && blueprint.assessments.length > 0 ? (
+        {config.tests && blueprint.assessments.length > 0 ? (
           <section className="rounded-card border border-border bg-surface p-5">
             <h2 className="text-lg font-semibold text-text-default">Assessments</h2>
             <div className="mt-4 space-y-3">
               {blueprint.assessments
-                .filter((assessment) =>
-                  assessment.assessment_type === 'quiz' ? config.quizzes : config.tests
-                )
+                .filter((assessment) => assessment.assessment_type === 'test')
                 .map((assessment) => {
                   const questions = Array.isArray((assessment.content as any)?.questions)
                     ? (assessment.content as any).questions.length

@@ -103,7 +103,7 @@ function buildDueAt(startDate: string | null, defaultDueDays: number, defaultDue
 
 async function maybeInsertAssessmentDraft(
   supabase: SupabaseClient,
-  assessmentType: 'quiz' | 'test',
+  assessmentType: 'test',
   classroomId: string,
   assessmentId: string,
   teacherId: string,
@@ -431,14 +431,14 @@ export async function syncCourseBlueprintAssessments(
   blueprintId: string,
   assessments: Array<{
     id?: string
-    assessment_type: 'quiz' | 'test'
+    assessment_type: 'test'
     title: string
     content: QuizDraftContent | TestDraftContent
     documents: TestDocument[]
     position: number
   }>,
   options?: {
-    replaceTypes?: Array<'quiz' | 'test'>
+    replaceTypes?: Array<'test'>
   }
 ) {
   const ownership = await assertTeacherOwnsCourseBlueprint(teacherId, blueprintId)
@@ -459,7 +459,7 @@ export async function syncCourseBlueprintAssessments(
   const existingAssessmentTypesById = new Map(
     (existingAssessments || []).map((assessment) => [
       assessment.id as string,
-      assessment.assessment_type as 'quiz' | 'test',
+      assessment.assessment_type as 'test',
     ])
   )
   const unknownUpdate = updates.find((assessment) => !existingAssessmentTypesById.has(assessment.id!))
@@ -488,7 +488,7 @@ export async function syncCourseBlueprintAssessments(
 
   const deleteIds = (existingAssessments || [])
     .filter((assessment) => {
-      const assessmentType = assessment.assessment_type as 'quiz' | 'test'
+      const assessmentType = assessment.assessment_type as 'test'
       if (replaceTypes && !replaceTypes.has(assessmentType)) return false
       return !incomingIds.has(assessment.id as string)
     })
@@ -723,10 +723,7 @@ export async function createCourseBlueprintFromClassroom(
       return assignmentsResult
     }
 
-    const assessmentsResult = await syncCourseBlueprintAssessments(teacherId, blueprint.id, [
-      ...source.quizzes,
-      ...source.tests,
-    ])
+    const assessmentsResult = await syncCourseBlueprintAssessments(teacherId, blueprint.id, source.tests)
     if (!assessmentsResult.ok) {
       await rollbackBlueprintCreation(supabase, blueprint.id)
       return assessmentsResult
@@ -860,39 +857,6 @@ async function cloneBlueprintIntoClassroom(
   }
 
   for (const assessment of blueprintDetail.assessments) {
-    if (assessment.assessment_type === 'quiz') {
-      const draft = assessment.content as unknown as QuizDraftContent
-      const { data: createdQuiz, error: quizError } = await supabase
-        .from('quizzes')
-        .insert({
-          classroom_id: classroom.id,
-          title: assessment.title,
-          created_by: teacherId,
-          position: assessment.position,
-          assessment_type: 'quiz',
-          show_results: draft.show_results,
-        })
-        .select()
-        .single()
-
-      if (quizError || !createdQuiz) throw new Error('Failed to clone blueprint quiz')
-
-      if (draft.questions.length > 0) {
-        const { error: questionError } = await supabase.from('quiz_questions').insert(
-          draft.questions.map((question, index) => ({
-            quiz_id: createdQuiz.id,
-            question_text: question.question_text,
-            options: question.options,
-            position: index,
-          }))
-        )
-        if (questionError) throw new Error('Failed to clone blueprint quiz questions')
-      }
-
-      await maybeInsertAssessmentDraft(supabase, 'quiz', classroom.id, createdQuiz.id, teacherId, draft)
-      continue
-    }
-
     const draft = assessment.content as unknown as TestDraftContent
     const { data: createdTest, error: testError } = await supabase
       .from('tests')
