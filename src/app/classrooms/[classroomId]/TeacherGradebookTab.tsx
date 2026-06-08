@@ -10,7 +10,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
-import { ChevronDown, ChevronUp, Copy, ListFilter, Mail, Settings, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Copy, Mail, Settings, X } from 'lucide-react'
 import type {
   GradebookAssessmentCell,
   GradebookAssessmentColumn,
@@ -20,8 +20,10 @@ import type {
 import {
   Button,
   Input,
+  SegmentedControl,
   SplitButton,
   Tooltip,
+  type SegmentedControlOption,
   type SplitButtonOption,
   useAppMessage,
 } from '@/ui'
@@ -1662,18 +1664,14 @@ export function TeacherGradebookTab({
   }
 
   const isSettingsActive = columnEditorOpen
-  const scoreDisplayOptions: SplitButtonOption[] = [
+  const scoreDisplayOptions: Array<SegmentedControlOption<ScoreDisplayMode>> = [
     {
-      id: 'show-percent',
-      label: 'Show %',
-      checked: scoreDisplayMode === 'percent',
-      onSelect: () => handleScoreDisplayModeChange('percent'),
+      value: 'percent',
+      label: 'Scores: %',
     },
     {
-      id: 'show-raw',
-      label: 'Show Raw',
-      checked: scoreDisplayMode === 'raw',
-      onSelect: () => handleScoreDisplayModeChange('raw'),
+      value: 'raw',
+      label: 'Scores: Raw',
     },
   ]
   const selectedEmailOptions: SplitButtonOption[] = [
@@ -1698,26 +1696,16 @@ export function TeacherGradebookTab({
       onSelect: () => openOutlook(selectedStudentEmails),
     },
   ]
-  const nextScoreDisplayMode: ScoreDisplayMode = scoreDisplayMode === 'percent' ? 'raw' : 'percent'
-  const scoreDisplayLabel = scoreDisplayMode === 'percent' ? 'Scores: %' : 'Scores: Raw'
-
   const actionBar = (
     <TeacherWorkSurfaceActionBar
       center={
         <div className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-1.5">
-          <SplitButton
-            label={
-              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                <ListFilter className="h-4 w-4" aria-hidden="true" />
-                <span>{scoreDisplayLabel}</span>
-              </span>
-            }
-            onPrimaryClick={() => handleScoreDisplayModeChange(nextScoreDisplayMode)}
+          <SegmentedControl<ScoreDisplayMode>
+            ariaLabel="Gradebook score display"
+            value={scoreDisplayMode}
             options={scoreDisplayOptions}
-            variant="secondary"
-            size="sm"
-            toggleAriaLabel="Gradebook score display actions"
-            menuPlacement="down"
+            onChange={handleScoreDisplayModeChange}
+            className="h-9"
           />
           {selectedStudentEmails.length > 0 ? (
             <SplitButton
