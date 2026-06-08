@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Maximize, X } from 'lucide-react'
 import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
-import { StudentQuizForm } from '@/components/StudentQuizForm'
+import { StudentTestForm } from '@/components/StudentTestForm'
 import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
@@ -519,7 +519,7 @@ export function TeacherTestPreviewPage({
             <section className="h-full overflow-y-auto rounded-xl border border-border bg-surface p-3 scrollbar-none sm:p-4">
               <h2 className="text-xl font-bold text-text-default">{title}</h2>
               {questions.length > 0 ? (
-                <StudentQuizForm
+                <StudentTestForm
                   quizId={testId}
                   questions={questions}
                   assessmentType="test"

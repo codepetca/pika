@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { StudentQuizForm } from '@/components/StudentQuizForm'
+import { StudentTestForm } from '@/components/StudentTestForm'
 import { createMockQuizQuestion } from '../helpers/mocks'
 
-describe('StudentQuizForm preview mode', () => {
+describe('StudentTestForm preview mode', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
     localStorage.clear()
@@ -19,7 +19,7 @@ describe('StudentQuizForm preview mode', () => {
     const onSubmitted = vi.fn()
 
     render(
-      <StudentQuizForm
+      <StudentTestForm
         quizId="test-preview-id"
         questions={[
           createMockQuizQuestion({
@@ -50,7 +50,7 @@ describe('StudentQuizForm preview mode', () => {
 
   it('labels open-response textboxes for assistive technology', () => {
     render(
-      <StudentQuizForm
+      <StudentTestForm
         quizId="test-open-response-label-id"
         questions={[
           createMockQuizQuestion({
@@ -73,7 +73,7 @@ describe('StudentQuizForm preview mode', () => {
     const onSubmitted = vi.fn()
 
     render(
-      <StudentQuizForm
+      <StudentTestForm
         quizId="test-flag-id"
         questions={[
           createMockQuizQuestion({
@@ -116,7 +116,7 @@ describe('StudentQuizForm preview mode', () => {
     const onSubmitted = vi.fn()
 
     render(
-      <StudentQuizForm
+      <StudentTestForm
         quizId="test-warning-id"
         questions={[
           createMockQuizQuestion({
@@ -153,7 +153,7 @@ describe('StudentQuizForm preview mode', () => {
     const onSubmitted = vi.fn()
 
     render(
-      <StudentQuizForm
+      <StudentTestForm
         quizId="test-footer-id"
         questions={[
           createMockQuizQuestion({
@@ -198,7 +198,7 @@ describe('StudentQuizForm preview mode', () => {
     const onSubmitted = vi.fn()
 
     render(
-      <StudentQuizForm
+      <StudentTestForm
         quizId="test-radio-position-id"
         questions={[
           createMockQuizQuestion({
@@ -228,7 +228,7 @@ describe('StudentQuizForm preview mode', () => {
     const onSubmitted = vi.fn()
 
     render(
-      <StudentQuizForm
+      <StudentTestForm
         quizId="test-markdown-options-id"
         questions={[
           createMockQuizQuestion({
@@ -263,7 +263,7 @@ describe('StudentQuizForm preview mode', () => {
     })
 
     render(
-      <StudentQuizForm
+      <StudentTestForm
         quizId="test-closed-id"
         questions={[
           createMockQuizQuestion({
