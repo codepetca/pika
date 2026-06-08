@@ -297,15 +297,11 @@ describe('TeacherRosterTab', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Select Grace Hopper' }))
 
     expect(screen.getByRole('button', { name: '+ Students' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Email \(2\)/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Email \(2\)/ })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Roster actions' }))
     expect(screen.getByRole('menuitem', { name: '+ CSV' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Remove students' })).toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: /Gmail/ })).not.toBeInTheDocument()
-
-    await user.keyboard('{Escape}')
-    await user.click(screen.getByRole('button', { name: 'Roster email actions' }))
     expect(screen.getByRole('menuitem', { name: 'Copy emails (2)' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Gmail' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Outlook' })).toBeInTheDocument()

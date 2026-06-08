@@ -19,7 +19,6 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  BarChart3,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -37,7 +36,7 @@ import {
   Trash2,
   Unlock,
 } from 'lucide-react'
-import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, SplitButton, Tooltip, useAppMessage, useOverlayMessage, type SplitButtonOption } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
@@ -59,7 +58,6 @@ import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/T
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
-import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
 import { RichTextEditor } from '@/components/editor'
 import {
   ACTIONBAR_ICON_BUTTON_CLASSNAME,
@@ -77,7 +75,6 @@ import {
   getAssignmentSplitPaneViewSessionKey,
   getAssignmentWorkspaceStudentCookieName,
   getDefaultAssignmentSplitPaneView,
-  getNextAssignmentSplitPaneView,
   parseAssignmentSplitPaneView,
   parseAssignmentWorkspaceStudentId,
   type AssignmentSplitPaneView,
@@ -194,24 +191,6 @@ function AssignmentSplitPaneIcon({
   }
 
   return <FileText className="h-4 w-4" aria-hidden="true" />
-}
-
-function HiddenResultsIcon() {
-  return (
-    <span className="relative inline-flex h-4 w-4 items-center justify-center" aria-hidden="true">
-      <BarChart3 className="h-4 w-4" />
-      <span className="absolute h-0.5 w-5 rotate-45 rounded-full bg-current" />
-    </span>
-  )
-}
-
-function surveyStateButtonClassName(isOn: boolean) {
-  return [
-    'h-10 w-10 p-0',
-    isOn
-      ? 'border-success bg-success-bg text-success hover:bg-success-bg-hover'
-      : 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover',
-  ].join(' ')
 }
 
 function TeacherMaterialCard({
@@ -1986,9 +1965,7 @@ export function TeacherClassroomView({
     return currentStudentRows[0]?.student_id ?? null
   }, [classroom.id, currentStudentRows, selectedStudentId, selection])
 
-  const handleCycleSplitPaneView = useCallback(() => {
-    const nextView = getNextAssignmentSplitPaneView(splitPaneView)
-
+  const handleSelectSplitPaneView = useCallback((nextView: AssignmentSplitPaneView) => {
     if (nextView !== 'students-grading') {
       const nextStudentId = resolveDetailsStudentId()
       if (!nextStudentId) return
@@ -2001,7 +1978,6 @@ export function TeacherClassroomView({
     resolveDetailsStudentId,
     setPersistedSplitPaneView,
     setSelectedStudentAndNavigate,
-    splitPaneView,
   ])
 
   useEffect(() => {
@@ -2215,12 +2191,42 @@ export function TeacherClassroomView({
     </div>
   )
 
+  const splitPaneViewIndicator = ASSIGNMENT_SPLIT_PANE_VIEW_INDICATORS[splitPaneView]
+
+  const assignmentPaneOptions: SplitButtonOption[] = (Object.keys(ASSIGNMENT_SPLIT_PANE_VIEW_LABELS) as AssignmentSplitPaneView[]).map((view) => ({
+    id: `pane-${view}`,
+    label: ASSIGNMENT_SPLIT_PANE_VIEW_LABELS[view],
+    checked: splitPaneView === view,
+    onSelect: () => handleSelectSplitPaneView(view),
+    disabled: !canCycleSplitPaneView,
+  }))
+
   const classPaneActions = (
     <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
       <span className="inline-flex">
         <SplitButton
           label={
-            <span className="inline-flex items-center gap-2">
+            <span className="inline-flex items-center gap-2 whitespace-nowrap">
+              <span
+                className="inline-flex items-center gap-1.5"
+                data-testid="assignment-split-pane-indicator"
+                data-view-index={splitPaneViewIndicator.index}
+                data-view-icon={splitPaneViewIndicator.icon}
+                aria-hidden="true"
+              >
+                <span
+                  className="min-w-3 text-center text-xs font-semibold tabular-nums"
+                  data-testid="assignment-split-pane-index"
+                >
+                  {splitPaneViewIndicator.index}
+                </span>
+                <span
+                  className="inline-flex"
+                  data-testid="assignment-split-pane-icon"
+                >
+                  <AssignmentSplitPaneIcon pane={splitPaneViewIndicator.icon} />
+                </span>
+              </span>
               <Check className="h-4 w-4" aria-hidden="true" />
               <span>AI Grade</span>
             </span>
@@ -2229,6 +2235,7 @@ export function TeacherClassroomView({
             void handleBatchAutoGrade()
           }}
           options={[
+            ...assignmentPaneOptions,
             {
               id: 'edit-assignment',
               label: (
@@ -2243,6 +2250,7 @@ export function TeacherClassroomView({
                 }
               },
               disabled: !canEditAssignment,
+              dividerBefore: true,
             },
             {
               id: 'delete-assignment',
@@ -2365,66 +2373,11 @@ export function TeacherClassroomView({
     </div>
   ) : null
 
-  const assignmentSummaryEditControls = (
-    <TeacherEditModeControls
-      active={assignmentEditMode}
-      onActiveChange={setAssignmentEditMode}
-      disabled={isReadOnly}
-      variant="secondary"
-    />
-  )
-
-  const splitPaneViewLabel = ASSIGNMENT_SPLIT_PANE_VIEW_LABELS[splitPaneView]
-  const nextSplitPaneView = getNextAssignmentSplitPaneView(splitPaneView)
-  const nextSplitPaneViewLabel = ASSIGNMENT_SPLIT_PANE_VIEW_LABELS[nextSplitPaneView]
-  const splitPaneViewIndicator = ASSIGNMENT_SPLIT_PANE_VIEW_INDICATORS[splitPaneView]
-
   const assignmentWorkspaceControls = selection.mode === 'assignment' ? (
     <div
       data-testid="assignment-workspace-actionbar-center"
       className="relative flex min-w-0 items-center justify-center gap-2"
     >
-      <Tooltip
-        content={
-          canCycleSplitPaneView
-            ? `Current: ${splitPaneViewLabel}. Next: ${nextSplitPaneViewLabel}.`
-            : 'No students available for split views yet.'
-        }
-      >
-        <span className="inline-flex">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="inline-flex min-w-0 items-center gap-1.5"
-            onClick={handleCycleSplitPaneView}
-            disabled={!canCycleSplitPaneView}
-            aria-label={`Assignment panes: ${splitPaneViewLabel}. Switch to ${nextSplitPaneViewLabel}.`}
-          >
-            <span
-              className="inline-flex items-center gap-1.5"
-              data-testid="assignment-split-pane-indicator"
-              data-view-index={splitPaneViewIndicator.index}
-              data-view-icon={splitPaneViewIndicator.icon}
-            >
-              <span
-                className="min-w-3 text-center text-xs font-semibold tabular-nums"
-                data-testid="assignment-split-pane-index"
-                aria-hidden="true"
-              >
-                {splitPaneViewIndicator.index}
-              </span>
-              <span
-                className="inline-flex"
-                data-testid="assignment-split-pane-icon"
-              >
-                <AssignmentSplitPaneIcon pane={splitPaneViewIndicator.icon} />
-              </span>
-            </span>
-            <span className="sr-only">{splitPaneViewLabel}</span>
-          </Button>
-        </span>
-      </Tooltip>
       {classPaneActions}
       {workspaceStatus}
     </div>
@@ -2445,71 +2398,104 @@ export function TeacherClassroomView({
         }
       >
         <span className="inline-flex">
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            className={surveyStateButtonClassName(selectedSurvey.status === 'active')}
-            aria-label={selectedSurvey.status === 'active' ? 'Close poll' : 'Open poll'}
-            aria-pressed={selectedSurvey.status === 'active'}
-            onClick={() => {
+          <SplitButton
+            label={
+              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                {selectedSurvey.status === 'active' ? (
+                  <Unlock className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <Lock className="h-4 w-4" aria-hidden="true" />
+                )}
+                <span>{selectedSurvey.status === 'active' ? 'Close poll' : 'Open poll'}</span>
+              </span>
+            }
+            onPrimaryClick={() => {
               void patchSelectedSurvey({
                 status: selectedSurvey.status === 'active' ? 'closed' : 'active',
               })
             }}
+            options={[
+              {
+                id: 'open-poll',
+                label: 'Open poll',
+                checked: selectedSurvey.status === 'active',
+                onSelect: () => {
+                  void patchSelectedSurvey({ status: 'active' })
+                },
+                disabled:
+                  isReadOnly ||
+                  surveyActionBusy ||
+                  isDeletingSurvey ||
+                  selectedSurvey.status === 'active' ||
+                  selectedSurvey.stats.questions_count === 0,
+              },
+              {
+                id: 'close-poll',
+                label: 'Close poll',
+                checked: selectedSurvey.status !== 'active',
+                onSelect: () => {
+                  void patchSelectedSurvey({ status: 'closed' })
+                },
+                disabled:
+                  isReadOnly ||
+                  surveyActionBusy ||
+                  isDeletingSurvey ||
+                  selectedSurvey.status !== 'active',
+              },
+              {
+                id: 'show-results',
+                label: 'Show results',
+                checked: selectedSurvey.show_results,
+                onSelect: () => {
+                  void patchSelectedSurvey({ show_results: true })
+                },
+                disabled: isReadOnly || surveyActionBusy || isDeletingSurvey || selectedSurvey.show_results,
+              },
+              {
+                id: 'hide-results',
+                label: 'Hide results',
+                checked: !selectedSurvey.show_results,
+                onSelect: () => {
+                  void patchSelectedSurvey({ show_results: false })
+                },
+                disabled: isReadOnly || surveyActionBusy || isDeletingSurvey || !selectedSurvey.show_results,
+              },
+              {
+                id: 'edit-survey',
+                label: (
+                  <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                    <span>Edit survey</span>
+                  </span>
+                ),
+                onSelect: () => {
+                  setCreatedSurveyEditorIntent({ surveyId: selectedSurvey.id, editMode: 'edit' })
+                  openSurveyModal(selectedSurvey.id)
+                },
+                disabled: isReadOnly || surveyActionBusy || isDeletingSurvey,
+                dividerBefore: true,
+              },
+            ]}
+            size="sm"
+            variant="secondary"
             disabled={
               isReadOnly ||
               surveyActionBusy ||
-              isDeletingSurvey ||
-              (selectedSurvey.status === 'draft' && selectedSurvey.stats.questions_count === 0)
+              isDeletingSurvey
             }
-          >
-            {selectedSurvey.status === 'active' ? (
-              <Unlock className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <Lock className="h-4 w-4" aria-hidden="true" />
-            )}
-          </Button>
-        </span>
-      </Tooltip>
-      <Tooltip content={selectedSurvey.show_results ? 'Hide results' : 'Show results'}>
-        <span className="inline-flex">
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            className={surveyStateButtonClassName(selectedSurvey.show_results)}
-            aria-label={selectedSurvey.show_results ? 'Hide results' : 'Show results'}
-            aria-pressed={selectedSurvey.show_results}
-            onClick={() => {
-              void patchSelectedSurvey({ show_results: !selectedSurvey.show_results })
+            className="inline-flex"
+            toggleAriaLabel="More survey actions"
+            menuPlacement="down"
+            primaryButtonProps={{
+              'aria-label': selectedSurvey.status === 'active' ? 'Close poll' : 'Open poll',
+              'aria-pressed': selectedSurvey.status === 'active',
+              disabled:
+                isReadOnly ||
+                surveyActionBusy ||
+                isDeletingSurvey ||
+                (selectedSurvey.status === 'draft' && selectedSurvey.stats.questions_count === 0),
             }}
-            disabled={isReadOnly || surveyActionBusy || isDeletingSurvey}
-          >
-            {selectedSurvey.show_results ? (
-              <BarChart3 className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <HiddenResultsIcon />
-            )}
-          </Button>
-        </span>
-      </Tooltip>
-      <Tooltip content="Edit survey">
-        <span className="inline-flex">
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            className="h-10 w-10 p-0"
-            aria-label="Edit survey"
-            onClick={() => {
-              setCreatedSurveyEditorIntent({ surveyId: selectedSurvey.id, editMode: 'edit' })
-              openSurveyModal(selectedSurvey.id)
-            }}
-            disabled={isReadOnly || surveyActionBusy || isDeletingSurvey}
-          >
-            <Pencil className="h-4 w-4" aria-hidden="true" />
-          </Button>
+          />
         </span>
       </Tooltip>
     </div>
@@ -2519,63 +2505,67 @@ export function TeacherClassroomView({
     selection.mode === 'summary' ? (
       <TeacherWorkSurfaceActionBar
         testId="assignment-summary-actionbar-center"
-        center={
-          <div className="flex items-center justify-center gap-1.5">
-            <Tooltip content="Create a new assignment">
-              <span className="inline-flex">
-                <SplitButton
-                  label={
-                    <span className="inline-flex items-center gap-1.5">
-                      <Plus className="h-4 w-4" aria-hidden="true" />
-                      <span>New</span>
-                    </span>
-                  }
-                  onPrimaryClick={() => setIsCreateModalOpen(true)}
-                  options={[
-                    {
-                      id: 'assignment',
-                      label: 'Assignment',
-                      onSelect: () => setIsCreateModalOpen(true),
-                    },
-                    {
-                      id: 'material',
-                      label: 'Material',
-                      onSelect: () => {
-                        setEditMaterial(null)
-                        setIsMaterialModalOpen(true)
-                      },
-                    },
-                    {
-                      id: 'survey',
-                      label: 'Survey',
-                      onSelect: () => setIsSurveyCreateModalOpen(true),
-                    },
-                    ...(showMarkdownEditorOption
-                      ? [
-                          {
-                            id: 'edit-markdown',
-                            label: (
-                              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                                <FileText className="h-4 w-4" aria-hidden="true" />
-                                <span>Edit Markdown</span>
-                              </span>
-                            ),
-                            onSelect: () => onOpenMarkdownEditor?.(),
-                            disabled: !onOpenMarkdownEditor || isReadOnly,
-                          },
-                        ]
-                      : []),
-                  ]}
-                  disabled={isReadOnly}
-                  toggleAriaLabel="Choose classwork type"
-                  menuPlacement="down"
-                  primaryButtonProps={{ 'aria-label': 'New assignment' }}
-                />
-              </span>
-            </Tooltip>
-            {assignmentSummaryEditControls}
-          </div>
-        }
+        floatingAction={{
+          label: (
+            <span className="inline-flex items-center gap-1.5">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              <span>New</span>
+            </span>
+          ),
+          onPrimaryClick: () => setIsCreateModalOpen(true),
+          options: [
+            {
+              id: 'assignment',
+              label: 'Assignment',
+              onSelect: () => setIsCreateModalOpen(true),
+            },
+            {
+              id: 'material',
+              label: 'Material',
+              onSelect: () => {
+                setEditMaterial(null)
+                setIsMaterialModalOpen(true)
+              },
+            },
+            {
+              id: 'survey',
+              label: 'Survey',
+              onSelect: () => setIsSurveyCreateModalOpen(true),
+            },
+            {
+              id: 'edit-classwork-list',
+              label: (
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                  <Pencil className="h-4 w-4" aria-hidden="true" />
+                  <span>Edit list controls</span>
+                </span>
+              ),
+              checked: assignmentEditMode,
+              onSelect: () => setAssignmentEditMode(!assignmentEditMode),
+              disabled: isReadOnly,
+              dividerBefore: true,
+            },
+            ...(showMarkdownEditorOption
+              ? [
+                  {
+                    id: 'edit-markdown',
+                    label: (
+                      <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                        <FileText className="h-4 w-4" aria-hidden="true" />
+                        <span>Edit Markdown</span>
+                      </span>
+                    ),
+                    onSelect: () => onOpenMarkdownEditor?.(),
+                    disabled: !onOpenMarkdownEditor || isReadOnly,
+                  },
+                ]
+              : []),
+          ],
+          disabled: isReadOnly,
+          toggleAriaLabel: 'Choose classwork action',
+          menuPlacement: 'down',
+          primaryButtonProps: { 'aria-label': 'New assignment' },
+        }}
         centerPlacement="floating"
       />
     ) : (

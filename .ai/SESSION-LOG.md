@@ -8,23 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — Student history cache reuse
-
-**Completed:**
-- Added a shared student entries client helper that caches `/api/student/entries` reads by classroom and optional limit.
-- Routed classroom student history and standalone student history class-day/entry reads through shared cached helpers.
-- Routed the today tab’s entry history refresh through the shared student entries cache and invalidated classroom entry caches after successful saves.
-- Added component coverage proving student history remounts reuse cached class days and entries, plus save invalidation coverage in today-tab history tests.
-- Addressed PR review feedback by clearing stale history rows after failed reloads, cancelling stale history requests after classroom changes, and invalidating/updating entry caches on save conflicts without caching partial conflict payloads as full history rows.
-- Spawned new read-only audit tracks for accessibility/mobile consistency, API standardization, classroom action surfaces, and client caching/freshness.
-
-**Validation:**
-- `pnpm vitest run tests/components/StudentHistoryTab.test.tsx tests/components/StudentTodayTabHistory.test.tsx`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-
 ## 2026-05-31 — Gradebook cache invalidation after grading
 
 **Completed:**
@@ -957,3 +940,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm vitest run tests/components/TeacherClassroomView.test.tsx`
 - `pnpm lint`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+
+## 2026-06-08 — FAB subshell standardization
+
+**Completed:**
+- Added a standardized `floatingAction` split-button slot to `TeacherWorkSurfaceActionBar`.
+- Migrated teacher Classwork, Tests, Gradebook, Roster, and Announcements FAB clusters to one split action per first-level tab/workspace, moving secondary toggles/actions into the split menu.
+- Consolidated selected-assignment pane switching, survey visibility/edit actions, gradebook score display/column/email actions, roster CSV/remove/email actions, and announcement creation into standardized split menus.
+- Left Calendar/Attendance unchanged because their FAB controls are date/view navigation rather than action menus.
+- Deferred product quiz removal to a later pass; Tests remain in scope.
+
+**Validation:**
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm exec vitest run tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherGradebookTab.test.tsx tests/components/TeacherRosterTab.test.tsx tests/components/TeacherWorkSurfaceActionBar.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- Visual verification screenshots for teacher Classwork, Tests, Gradebook, Roster, Announcements, plus student Classwork sanity check.

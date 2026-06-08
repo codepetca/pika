@@ -115,6 +115,7 @@ vi.mock('@/ui', () => ({
           type="button"
           onClick={option.onSelect}
           disabled={option.disabled}
+          aria-pressed={option.checked}
           onMouseEnter={() => option.onHoverChange?.(true)}
           onMouseLeave={() => option.onHoverChange?.(false)}
           onFocus={() => option.onHoverChange?.(true)}
@@ -937,14 +938,14 @@ describe('TeacherClassroomView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit Markdown' }))
     expect(onOpenMarkdownEditor).toHaveBeenCalledTimes(1)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit list controls' }))
 
-    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Edit list controls' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Edit Markdown' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
     expect(onEditModeChange).toHaveBeenLastCalledWith(true)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit list controls' }))
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
   })
@@ -961,14 +962,14 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
-    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit list controls' }))
+    expect(screen.getByRole('button', { name: 'Edit list controls' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
 
     fireEvent.keyDown(document, { key: 'Escape' })
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'false')
+      expect(screen.getByRole('button', { name: 'Edit list controls' })).toHaveAttribute('aria-pressed', 'false')
     })
   })
 
@@ -987,7 +988,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit list controls' }))
     fireEvent.click(screen.getByRole('button', { name: 'Assignment One' }))
 
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment One')
@@ -1025,7 +1026,7 @@ describe('TeacherClassroomView', () => {
       materialButton.compareDocumentPosition(assignmentButton) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit list controls' }))
     expect(screen.getByRole('button', { name: 'Drag to reorder material' })).toBeInTheDocument()
     expect(materialButton.querySelector('.border-l-2')).not.toBeInTheDocument()
     expect(materialButton.closest('.bg-info-bg')).not.toHaveClass('border-primary/40')
@@ -1074,10 +1075,10 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByTestId('mock-survey-results-pane')).toHaveTextContent('Survey results survey-1')
     expect(screen.getByTestId('survey-workspace-actionbar-center').parentElement).toHaveClass('fixed')
     expect(screen.getByRole('button', { name: 'Edit survey' })).toBeInTheDocument()
-    const closePollButton = screen.getByRole('button', { name: 'Close poll' })
+    const closePollButton = screen.getAllByRole('button', { name: 'Close poll' })[0]
     const hideResultsButton = screen.getByRole('button', { name: 'Hide results' })
-    expect(closePollButton).toHaveClass('bg-success-bg', 'text-success')
-    expect(hideResultsButton).toHaveClass('bg-success-bg', 'text-success')
+    expect(closePollButton).toHaveAttribute('aria-pressed', 'true')
+    expect(hideResultsButton).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('button', { name: 'Lock responses' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete survey' })).not.toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -1100,7 +1101,8 @@ describe('TeacherClassroomView', () => {
       )
     })
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Show results' })).toHaveClass('bg-danger-bg', 'text-danger')
+      expect(screen.getByRole('button', { name: 'Show results' })).toHaveAttribute('aria-pressed', 'false')
+      expect(screen.getByRole('button', { name: 'Hide results' })).toHaveAttribute('aria-pressed', 'true')
     })
 
     const { params } = applySearchParamsUpdate(updateSearchParams.mock.calls[0])
@@ -1142,9 +1144,9 @@ describe('TeacherClassroomView', () => {
     )
 
     expect(await screen.findByTestId('mock-survey-results-pane')).toHaveTextContent('Survey results survey-1')
-    const openPollButton = screen.getByRole('button', { name: 'Open poll' })
+    const openPollButton = screen.getAllByRole('button', { name: 'Open poll' })[0]
     expect(openPollButton).toBeDisabled()
-    expect(openPollButton).toHaveClass('bg-danger-bg', 'text-danger')
+    expect(openPollButton).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
   })
@@ -1177,13 +1179,14 @@ describe('TeacherClassroomView', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Draft Survey' }))
 
-    expect(screen.getByRole('button', { name: 'Open poll' })).toBeDisabled()
+    expect(screen.getAllByRole('button', { name: 'Open poll' })[0]).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Edit survey' })).not.toBeDisabled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit survey' }))
     fireEvent.click(screen.getByRole('button', { name: 'Mock add survey question' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Open poll' })).not.toBeDisabled()
+      expect(screen.getAllByRole('button', { name: 'Open poll' })[0]).not.toBeDisabled()
     })
   })
 
@@ -1266,8 +1269,8 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
-    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit list controls' }))
+    expect(screen.getByRole('button', { name: 'Edit list controls' })).toHaveAttribute('aria-pressed', 'true')
 
     fireEvent.click(screen.getByRole('button', { name: 'New assignment' }))
     expect(screen.getByRole('dialog')).toHaveTextContent('New Assignment')
@@ -1275,7 +1278,7 @@ describe('TeacherClassroomView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'false')
+      expect(screen.getByRole('button', { name: 'Edit list controls' })).toHaveAttribute('aria-pressed', 'false')
     })
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
   })
@@ -1318,8 +1321,8 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
-    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit list controls' }))
+    expect(screen.getByRole('button', { name: 'Edit list controls' })).toHaveAttribute('aria-pressed', 'true')
 
     rerender(
       <TeacherClassroomView
@@ -1330,7 +1333,7 @@ describe('TeacherClassroomView', () => {
     )
 
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Edit list controls' })).not.toBeInTheDocument()
     })
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
   })
@@ -1718,9 +1721,8 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    expect(screen.getByRole('button', {
-      name: 'Assignment panes: Students + grading. Switch to Content + grading.',
-    })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Students + grading' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Content + grading' })).toHaveAttribute('aria-pressed', 'false')
     expectAssignmentSplitPaneIndicator({
       index: '1',
       icon: 'grading',
@@ -1734,7 +1736,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: /Return/i })).toHaveLength(1)
     expect(screen.getByTestId('assignment-workspace-actionbar-center').parentElement).toHaveClass('fixed')
-    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit list controls' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit assignment' })).not.toBeInTheDocument()
 
     expect(screen.getByRole('button', { name: 'Edit Assignment' })).toBeInTheDocument()
@@ -2139,9 +2141,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(screen.getByRole('button', {
-      name: 'Assignment panes: Students + grading. Switch to Content + grading.',
-    }))
+    fireEvent.click(screen.getByRole('button', { name: 'Content + grading' }))
 
     await waitFor(() => {
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('content-grading')
@@ -2159,9 +2159,8 @@ describe('TeacherClassroomView', () => {
       inspectorCollapsed: false,
       inspectorWidth: 61,
     })
-    expect(screen.getByRole('button', {
-      name: 'Assignment panes: Content + grading. Switch to Students + content.',
-    })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Content + grading' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Students + content' })).toHaveAttribute('aria-pressed', 'false')
     expectAssignmentSplitPaneIndicator({
       index: '2',
       icon: 'content',
@@ -2209,7 +2208,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(screen.getByRole('button', { name: /Assignment panes:/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Content + grading' }))
 
     await waitFor(() => {
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('content-grading')
@@ -2222,7 +2221,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(screen.getByRole('button', { name: /Assignment panes:/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Students + content' }))
 
     await waitFor(() => {
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-content')
@@ -2236,7 +2235,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('assignment-right-pane')).not.toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(screen.getByRole('button', { name: /Assignment panes:/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Students + grading' }))
 
     await waitFor(() => {
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-grading')
@@ -2294,9 +2293,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('assignment-right-pane')).toHaveTextContent('work:assignment-1:student-1')
       expect(screen.getByTestId('assignment-right-pane')).not.toHaveTextContent('grading:assignment-1:student-1')
     })
-    expect(screen.getByRole('button', {
-      name: 'Assignment panes: Students + content. Switch to Students + grading.',
-    })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Students + content' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('keeps the students and grading view active when clicking a student row', async () => {
@@ -2362,9 +2359,7 @@ describe('TeacherClassroomView', () => {
     })
 
     expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-grading')
-    expect(screen.getByRole('button', {
-      name: 'Assignment panes: Students + grading. Switch to Content + grading.',
-    })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Students + grading' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('restores the class-pane scroll position after selecting a lower student row', async () => {
