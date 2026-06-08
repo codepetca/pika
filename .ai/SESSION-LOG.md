@@ -8,24 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-01 — AI grading egress sanitization
-
-**Completed:**
-- Added shared AI sanitization utilities for direct identifier redaction, roster-aware initials reuse, provider pseudonym refs, and egress allow-list validation.
-- Kept log summary APIs compatible while routing their redaction helpers through the shared sanitizer.
-- Sanitized assignment grading prompt fields, artifact metadata, and generated feedback, and added `store: false` to assignment grading OpenAI requests.
-- Sanitized test grading prompt fields, answer references, student responses, and generated feedback, added `store: false`, and changed batch grading to send pseudonymous provider refs mapped back locally.
-- Documented the AI grading egress contract for the upcoming GradeX adapter.
-
-**Validation:**
-- `pnpm test tests/unit/ai-sanitization.test.ts tests/unit/log-summary.test.ts tests/unit/ai-grading.test.ts tests/unit/ai-test-grading.test.ts tests/lib/ai-test-grading.test.ts`
-- `pnpm test tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/tests-ai-suggest.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/test-auto-grade-runs.test.ts tests/lib/test-ai-grading-runs.test.ts tests/lib/assignment-ai-grading-runs.test.ts`
-- `pnpm lint`
-- `pnpm test` (one unrelated `StudentAssignmentsTab` modal test failed during the full run; rerunning that file passed)
-- `pnpm test tests/components/StudentAssignmentsTab.test.tsx`
-- `pnpm build`
-- `git diff --check`
-
 ## 2026-05-31 — Upload image route standardization
 
 **Completed:**
@@ -958,3 +940,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Headless Playwright check: Daily → Classwork → assignment detail → Back returned to Classwork summary.
 - `pnpm test -- tests/components/NavItems.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx` (ran the full suite due script argument handling; only failed the pre-existing `TeacherGradebookTab.test.tsx` timeout)
+
+## 2026-06-08 — Quiz individual responses freshness audit
+
+**Completed:**
+- Scoped `QuizIndividualResponses` loaded responders, questions, stats, load errors, and grading notices to the active assessment scope.
+- Added request-id guards so stale individual-response result loads cannot overwrite after selected quiz/test id, API base, or assessment type changes.
+- Guarded save/clear/suggest completion paths so old assessment grading callbacks cannot repaint notices or trigger parent refreshes after a selection switch.
+- Added direct component coverage for stale result response overwrites and already-loaded old responses being hidden immediately on quiz switches.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/components/QuizIndividualResponses.test.tsx tests/components/QuizDetailPanel.test.tsx`
+- `git diff --check`
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm build`
+- `pnpm vitest run tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm test`
