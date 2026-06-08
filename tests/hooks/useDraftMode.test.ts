@@ -10,7 +10,7 @@ function makeOptions(overrides: Partial<Parameters<typeof useDraftMode>[0]> = {}
     quizId: 'quiz-1',
     quizTitle: 'Test Quiz',
     showResults: false,
-    apiBasePath: '/api/teacher/quizzes',
+    apiBasePath: '/api/teacher/tests',
     onUpdate: vi.fn(),
     onError: vi.fn(),
     onQuestionsChange: vi.fn(),
@@ -123,7 +123,7 @@ describe('useDraftMode', () => {
 
       await waitFor(() => {
         expect(fetchSpy).toHaveBeenCalledWith(
-          expect.stringContaining('/api/teacher/quizzes/quiz-1/draft'),
+          expect.stringContaining('/api/teacher/tests/quiz-1/draft'),
           expect.objectContaining({ method: 'PATCH' })
         )
       })

@@ -50,7 +50,7 @@ export function StudentQuizForm({
   previewMode = false,
   isInteractionLocked = false,
   assessmentType,
-  apiBasePath = '/api/student/quizzes',
+  apiBasePath = '/api/student/tests',
   onAvailabilityLoss,
   onSubmitted,
 }: Props) {

@@ -9,7 +9,7 @@ Use the automated command for the full workflow:
 1. `gh issue view <N> --json number,title,body,labels`
 2. Read `.ai/START-HERE.md`, `.ai/CURRENT.md`, and `docs/ai-instructions.md`
 3. If the issue touches UI/UX, also read `docs/guidance/ui/README.md` and `docs/guidance/ui/stable.md`
-4. If the issue touches teacher assignments, teacher quizzes, or teacher tests, also read `docs/guidance/ui/teacher-work-surfaces.md` and `docs/guidance/ui/audit-teacher-work-surfaces.md`
+4. If the issue touches teacher assignments or teacher tests, also read `docs/guidance/ui/teacher-work-surfaces.md` and `docs/guidance/ui/audit-teacher-work-surfaces.md`
 5. Draft plan: branch name, files to change, tests to write first, migration needed?
 6. For UI/UX work, include a UI guidance declaration:
    - guidance read

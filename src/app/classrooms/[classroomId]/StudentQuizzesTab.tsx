@@ -239,7 +239,7 @@ function getRemoteClosureDescription(
   return 'This test is no longer available.'
 }
 
-export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }: Props) {
+export function StudentQuizzesTab({ classroom, isActive = true }: Props) {
   const notifications = useStudentNotifications()
   const [quizzes, setQuizzes] = useState<StudentQuizView[]>([])
   const [loading, setLoading] = useState(true)
@@ -276,9 +276,10 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   const sessionStatusInFlightRef = useRef(false)
   const listRequestIdRef = useRef(0)
   const detailRequestIdRef = useRef(0)
+  const assessmentType: QuizAssessmentType = 'test'
   const currentScopeRef = useRef({ classroomId: classroom.id, assessmentType })
-  const isTestsView = assessmentType === 'test'
-  const apiBasePath = isTestsView ? '/api/student/tests' : '/api/student/quizzes'
+  const isTestsView = true
+  const apiBasePath = '/api/student/tests'
   currentScopeRef.current = { classroomId: classroom.id, assessmentType }
   const focusEnabled = useMemo(() => {
     if (!selectedQuiz) return false
@@ -390,7 +391,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
         currentScopeRef.current.classroomId === classroomId &&
         currentScopeRef.current.assessmentType === viewAssessmentType
       ) {
-        console.error('Error loading quizzes:', err)
+        console.error('Error loading tests:', err)
       }
     } finally {
       if (
@@ -497,7 +498,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
         currentScopeRef.current.classroomId === classroomId &&
         currentScopeRef.current.assessmentType === viewAssessmentType
       ) {
-        console.error('Error loading quiz:', err)
+        console.error('Error loading test:', err)
       }
     } finally {
       if (
@@ -1164,7 +1165,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     if (quizzes.length === 0) {
       return (
         <p className="text-text-muted text-center py-8">
-          No {assessmentType === 'test' ? 'tests' : 'quizzes'} available.
+          No tests available.
         </p>
       )
     }
@@ -1243,26 +1244,25 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     )
   }
 
-  if (isTestsView) {
-    const hasSelectedQuiz = selectedQuizId !== null && selectedQuiz !== null
-    const hasResponded = hasSelectedQuiz && selectedQuiz.quiz.student_status !== 'not_started'
-    const requiresStart =
-      hasSelectedQuiz &&
-      selectedQuiz.quiz.student_status === 'not_started' &&
-      startedTestId !== selectedQuiz.quiz.id
-    const isViewingResults =
-      hasSelectedQuiz &&
-      hasResponded &&
-      selectedQuiz.quiz.student_status === 'can_view_results'
-    const showCurrentTestInfoPanel = hasSelectedQuiz && focusEnabled
-    const showDocPanel = showCurrentTestInfoPanel && activeDoc !== null
-    const awayDurationLabel = formatDuration(focusSummary?.away_total_seconds ?? 0)
-    const exitsCount = getQuizExitCount(focusSummary)
-    const awayCount = focusSummary?.away_count ?? 0
-    const routeExitAttempts = focusSummary?.route_exit_attempts ?? 0
-    const windowUnmaximizeAttempts = focusSummary?.window_unmaximize_attempts ?? 0
-    const showNotMaximizedWarning =
-      EXAM_LOCK_OVERLAY_ENABLED && showCurrentTestInfoPanel && !isWindowCompliantStable
+  const hasSelectedQuiz = selectedQuizId !== null && selectedQuiz !== null
+  const hasResponded = hasSelectedQuiz && selectedQuiz.quiz.student_status !== 'not_started'
+  const requiresStart =
+    hasSelectedQuiz &&
+    selectedQuiz.quiz.student_status === 'not_started' &&
+    startedTestId !== selectedQuiz.quiz.id
+  const isViewingResults =
+    hasSelectedQuiz &&
+    hasResponded &&
+    selectedQuiz.quiz.student_status === 'can_view_results'
+  const showCurrentTestInfoPanel = hasSelectedQuiz && focusEnabled
+  const showDocPanel = showCurrentTestInfoPanel && activeDoc !== null
+  const awayDurationLabel = formatDuration(focusSummary?.away_total_seconds ?? 0)
+  const exitsCount = getQuizExitCount(focusSummary)
+  const awayCount = focusSummary?.away_count ?? 0
+  const routeExitAttempts = focusSummary?.route_exit_attempts ?? 0
+  const windowUnmaximizeAttempts = focusSummary?.window_unmaximize_attempts ?? 0
+  const showNotMaximizedWarning =
+    EXAM_LOCK_OVERLAY_ENABLED && showCurrentTestInfoPanel && !isWindowCompliantStable
     const iframeDocs = allowedDocs.filter((doc) => doc.source !== 'text' && Boolean(doc.url))
     const selectedTestTitle = hasSelectedQuiz ? selectedQuiz.quiz.title : ''
     const selectedTestPanelTitle = isViewingResults
@@ -1745,87 +1745,4 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
         />
       </PageLayout>
     )
-  }
-
-  // Loading quiz details
-  if (selectedQuizId && loadingQuiz) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
-    )
-  }
-
-  // Quiz detail view (non-test assessments)
-  if (selectedQuizId && selectedQuiz) {
-    const hasResponded = selectedQuiz.quiz.student_status !== 'not_started'
-    const assessmentLabel = 'quiz'
-    const assessmentLabelPlural = 'quizzes'
-
-    return (
-      <PageLayout>
-        <PageContent>
-          <div className="max-w-2xl mx-auto">
-            <button
-              type="button"
-              onClick={handleBack}
-              className="flex items-center gap-1 text-sm text-text-muted hover:text-text-default mb-4"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Back to {assessmentLabelPlural}
-            </button>
-
-            <h2 className="text-xl font-bold text-text-default mb-1">{selectedQuiz.quiz.title}</h2>
-
-            {hasResponded && selectedQuiz.quiz.show_results && selectedQuiz.quiz.status === 'closed' ? (
-              <StudentQuizResults
-                quizId={selectedQuizId}
-                myResponses={selectedQuiz.studentResponses}
-                assessmentType={assessmentType}
-                apiBasePath={apiBasePath}
-              />
-            ) : hasResponded ? (
-              <div className="mt-6 p-4 bg-success-bg rounded-lg text-center">
-                <p className="text-success font-medium">Response Submitted</p>
-                {selectedQuiz.quiz.status !== 'closed' && selectedQuiz.quiz.show_results ? (
-                  <p className="text-sm text-text-muted mt-1">
-                    Results will be available after the {assessmentLabel} closes.
-                  </p>
-                ) : selectedQuiz.quiz.status === 'closed' && !selectedQuiz.quiz.show_results ? (
-                  <p className="text-sm text-text-muted mt-1">
-                    Results are not available for this {assessmentLabel}.
-                  </p>
-                ) : (
-                  <p className="text-sm text-text-muted mt-1">
-                    Your response has been recorded.
-                  </p>
-                )}
-              </div>
-            ) : (
-              <StudentQuizForm
-                quizId={selectedQuizId}
-                questions={selectedQuiz.questions}
-                initialResponses={selectedQuiz.studentResponses}
-                enableDraftAutosave={isTestsView}
-                assessmentType={assessmentType}
-                apiBasePath={apiBasePath}
-                onSubmitted={handleQuizSubmitted}
-              />
-            )}
-          </div>
-        </PageContent>
-      </PageLayout>
-    )
-  }
-
-  // Quiz list view (non-test assessments)
-  return (
-    <PageLayout>
-      <PageContent>
-        <div className="max-w-2xl mx-auto">
-          {renderAssessmentList(false)}
-        </div>
-      </PageContent>
-    </PageLayout>
-  )
 }

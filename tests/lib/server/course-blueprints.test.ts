@@ -750,7 +750,10 @@ describe('course-blueprints server helpers', () => {
       expect.arrayContaining([expect.objectContaining({ title: 'Essay' })])
     )
     expect(assessmentInsertBuilder.insert).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ title: 'Quiz 1' }), expect.objectContaining({ title: 'Unit Test' })])
+      expect.arrayContaining([expect.objectContaining({ title: 'Unit Test' })])
+    )
+    expect(assessmentInsertBuilder.insert).not.toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ title: 'Quiz 1' })])
     )
     expect(lessonInsertBuilder.insert).toHaveBeenCalledWith(
       expect.arrayContaining([expect.objectContaining({ title: 'Lesson 1' })])

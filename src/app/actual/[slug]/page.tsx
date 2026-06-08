@@ -119,7 +119,7 @@ export default async function ActualCourseSitePage({ params }: PageProps) {
     notFound()
   }
 
-  const { classroom, assignments, quizzes, tests, grading } = result.site
+  const { classroom, assignments, tests, grading } = result.site
   const config = classroom.actual_site_config
   const courseItems: SyllabusCourseItem[] = [
     ...(config.assignments
@@ -131,17 +131,6 @@ export default async function ActualCourseSitePage({ params }: PageProps) {
           unitLabel: extractUnitLabel(assignment.title, assignment.instructions_markdown),
           weekLabel: extractWeekLabel(assignment.title, assignment.instructions_markdown),
           sortPosition: Number(assignment.position ?? index),
-        }))
-      : []),
-    ...(config.quizzes
-      ? quizzes.map((quiz, index) => ({
-          key: `quiz:${quiz.position ?? index}:${quiz.title}`,
-          code: `Q${index + 1}`,
-          title: String(quiz.title || 'Untitled quiz'),
-          weight: getGradingItemMeta(grading?.items || [], 'quizzes', quiz.title),
-          unitLabel: extractUnitLabel(quiz.title),
-          weekLabel: extractWeekLabel(quiz.title),
-          sortPosition: Number(quiz.position ?? index) + 0.25,
         }))
       : []),
     ...(config.tests

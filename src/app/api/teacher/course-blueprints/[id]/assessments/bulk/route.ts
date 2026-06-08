@@ -16,7 +16,7 @@ export const POST = withErrorHandler('PostTeacherCourseBlueprintAssessmentsBulk'
 
   const result = await syncCourseBlueprintAssessments(user.id, id, body.assessments, {
     replaceTypes:
-      body.assessmentType === 'quiz' || body.assessmentType === 'test'
+      body.assessmentType === 'test'
         ? [body.assessmentType]
         : undefined,
   })

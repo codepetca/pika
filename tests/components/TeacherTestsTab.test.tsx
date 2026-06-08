@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
-import { TEACHER_QUIZZES_UPDATED_EVENT, TEACHER_TEST_GRADING_ROW_UPDATED_EVENT } from '@/lib/events'
+import { TEACHER_TESTS_UPDATED_EVENT, TEACHER_TEST_GRADING_ROW_UPDATED_EVENT } from '@/lib/events'
 import { createMockClassroom, createMockQuiz } from '../helpers/mocks'
 import type { QuizWithStats } from '@/types'
 
@@ -2619,7 +2619,7 @@ describe('TeacherTestsTab', () => {
 
     act(() => {
       window.dispatchEvent(
-        new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, {
+        new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, {
           detail: { classroomId: classroom.id },
         })
       )

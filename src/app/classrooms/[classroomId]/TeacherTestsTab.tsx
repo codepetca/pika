@@ -39,7 +39,7 @@ import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWo
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import {
-  TEACHER_QUIZZES_UPDATED_EVENT,
+  TEACHER_TESTS_UPDATED_EVENT,
   TEACHER_TEST_GRADING_ROW_UPDATED_EVENT,
   type TeacherTestGradingRowUpdatedEventDetail,
 } from '@/lib/events'
@@ -863,8 +863,8 @@ export function TeacherTestsTab({
       void loadTests()
     }
 
-    window.addEventListener(TEACHER_QUIZZES_UPDATED_EVENT, handleTestsUpdated)
-    return () => window.removeEventListener(TEACHER_QUIZZES_UPDATED_EVENT, handleTestsUpdated)
+    window.addEventListener(TEACHER_TESTS_UPDATED_EVENT, handleTestsUpdated)
+    return () => window.removeEventListener(TEACHER_TESTS_UPDATED_EVENT, handleTestsUpdated)
   }, [classroom.id, loadTests])
 
   useEffect(() => {
@@ -1335,7 +1335,7 @@ export function TeacherTestsTab({
     setTestEditModalView('edit')
     setShowEditModal(true)
     window.dispatchEvent(
-      new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
+      new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
     )
   }
 
@@ -1357,7 +1357,7 @@ export function TeacherTestsTab({
       setPendingDeleteTest(null)
       setTestEditMode(false)
       window.dispatchEvent(
-        new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
+        new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
       )
       showMessage({ text: 'Deleted test', tone: 'info' })
     } catch (error: any) {
@@ -1394,7 +1394,7 @@ export function TeacherTestsTab({
         }
 
         window.dispatchEvent(
-          new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
+          new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
         )
       } catch (error) {
         console.error('Failed to reorder tests:', error)

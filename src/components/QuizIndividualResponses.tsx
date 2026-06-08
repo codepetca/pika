@@ -80,8 +80,8 @@ function toTestAnswerDetail(answer: number | TestAnswerDetail | undefined): Test
 
 export function QuizIndividualResponses({
   quizId,
-  apiBasePath = '/api/teacher/quizzes',
-  assessmentType = 'quiz',
+  apiBasePath = '/api/teacher/tests',
+  assessmentType = 'test',
   onUpdated,
 }: Props) {
   const isTestsView = assessmentType === 'test'

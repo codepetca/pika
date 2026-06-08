@@ -3,20 +3,19 @@
 This document is the stable canon for the teacher-side work-surface family:
 
 - teacher assignments
-- teacher quizzes
 - teacher tests
 
-It governs how those three tabs should feel, compose, and evolve. It does not govern:
+It governs how those two tabs should feel, compose, and evolve. It does not govern:
 
 - the main classroom shell as a whole
 - unrelated teacher tabs such as attendance, roster, settings, gradebook, or calendar
 - the student product
 
-Assignments are the current baseline source of truth for this family because they express the clearest teacher summary-to-workspace progression today. They are not permanent authority. If quizzes or tests later produce a better family pattern, this canon should be updated and assignments can then follow.
+Assignments are the current baseline source of truth for this family because they express the clearest teacher summary-to-workspace progression today. They are not permanent authority. If tests later produce a better family pattern, this canon should be updated and assignments can then follow.
 
 ## Read Order
 
-When a task touches teacher assignments, teacher quizzes, or teacher tests, read in this order:
+When a task touches teacher assignments or teacher tests, read in this order:
 
 1. [`docs/core/design.md`](/docs/core/design.md)
 2. [`src/ui/README.md`](/src/ui/README.md)
@@ -28,7 +27,7 @@ When a task touches teacher assignments, teacher quizzes, or teacher tests, read
 ## Authority Model
 
 - `stable.md` remains the source of truth for cross-cutting UI rules.
-- This file is the stable authority for teacher assignments/quizzes/tests interaction structure, shell behavior, and family taste.
+- This file is the stable authority for teacher assignments/tests interaction structure, shell behavior, and family taste.
 - [`docs/guidance/assignment-ux-language.md`](/docs/guidance/assignment-ux-language.md) is the assignment-specific reference implementation, not a competing stable canon.
 - Nothing becomes stable for this family until this canon and the audit agree it is stable.
 
@@ -84,7 +83,7 @@ What the teacher sees:
 
 Allowed:
 
-- one obvious primary action such as `New Assignment`, `New Test`, or `New Quiz`
+- one obvious primary action such as `New Assignment` or `New Test`
 - quiet secondary controls when they are needed and visually subordinate
 - a single quiet `EmptyState`
 
@@ -248,7 +247,7 @@ an older joined split is explicitly desired.
 - The right sidebar should be closed or visually inactive by default in `entry` and `summary`.
 - Open the inspector only when the current workspace mode and current selection justify active side-by-side work.
 - Desktop split layouts are workspace tools, not default family chrome.
-- For teacher assignments, teacher quizzes, and teacher tests, prefer an integrated `TeacherWorkspaceSplit`
+- For teacher assignments and teacher tests, prefer an integrated `TeacherWorkspaceSplit`
   inside the selected workspace over the classroom route's external `RightSidebar`.
 - Keep the external route-level `RightSidebar` disabled for this family unless a future task explicitly
   defines a route-level inspector that is not part of the selected work surface.
@@ -338,15 +337,15 @@ Keep these reusable:
 Keep these feature-local:
 
 - grading behavior
-- quiz/test authoring rules and validation
+- test authoring rules and validation
 - assignment grading logic
 - assessment-specific state machines and domain controls
 
-Do not introduce a generic assessment mega-shell that tries to own assignments, quizzes, and tests in one abstraction.
+Do not introduce a generic assessment mega-shell that tries to own assignments and tests in one abstraction.
 
 ## Implemented Primitive Map
 
-The assignment refactor created stable structural primitives, plus assignment-local implementations that demonstrate how to compose them. Future tests/quizzes/gradebook work should use this map instead of inferring reuse from filenames alone.
+The assignment refactor created stable structural primitives, plus assignment-local implementations that demonstrate how to compose them. Future tests/gradebook work should use this map instead of inferring reuse from filenames alone.
 
 Stable structural primitives:
 
@@ -360,9 +359,9 @@ Assignment-local reference implementations:
 
 | Component | Role | Reuse boundary |
 |---|---|---|
-| `TeacherAssignmentStudentTable` | assignment student-status table with selection, artifacts, assignment statuses, and assignment grade summary | copy the table rhythm only after creating a domain-specific table for tests/quizzes; do not import it outside assignment work |
+| `TeacherAssignmentStudentTable` | assignment student-status table with selection, artifacts, assignment statuses, and assignment grade summary | copy the table rhythm only after creating a domain-specific table for tests; do not import it outside assignment work |
 | `TeacherStudentWorkPanel` | assignment document review surface that composes content preview with an inspector | use as a behavioral reference, not as a generic assessment panel |
-| `TeacherWorkInspector` | assignment grading/history/repo/comments inspector | assignment-only; tests/quizzes need their own inspector if their data and controls differ |
+| `TeacherWorkInspector` | assignment grading/history/repo/comments inspector | assignment-only; tests need their own inspector if their data and controls differ |
 | `useTeacherStudentWorkController` | assignment document loading, grading, autosave, history, repo analysis, and feedback return orchestration | assignment-only business logic |
 
 Stable hierarchy for teacher work tabs:
@@ -384,7 +383,7 @@ Inside `workspace`, use `TeacherWorkSurfaceModeBar` only when the selected item 
 
 ## AI Adoption Contract
 
-Use this language when asking an AI agent to migrate tests, quizzes, or another teacher work tab:
+Use this language when asking an AI agent to migrate tests or another teacher work tab:
 
 ```text
 Use the assignment tab as the reference implementation, but do not copy assignment-specific components or logic.
@@ -397,22 +396,22 @@ Preserve the teacher work-surface ladder: summary -> selected workspace -> optio
 
 Keep data loading, routing/query behavior, selection state, grading state, return behavior, draft state, browser-event handling, and assessment-specific mode logic in the feature tab or feature-specific hooks, not in the shared shell primitives.
 
-Stop and reassess if a shared primitive needs props named after assignment, quiz, test, gradebook, student grading, AI runs, return flow, rubric, attempt, artifact, or assessment status.
+Stop and reassess if a shared primitive needs props named after assignment, test, gradebook, student grading, AI runs, return flow, rubric, attempt, artifact, or assessment status.
 ```
 
-## Tests And Quizzes Migration Template
+## Tests Migration Template
 
-For future teacher tests/quizzes work, migrate in this order:
+For future teacher tests work, migrate in this order:
 
 1. Identify the existing states in the formal ladder: `summary`, `workspace`, `workspace_mode`, and `inspector_active`.
 2. Replace only the outer page rhythm with `TeacherWorkSurfaceShell`.
 3. Move selected-item mode controls into `TeacherWorkSurfaceModeBar` if the modes are real workflow changes.
 4. Use `TeacherWorkspaceSplit` only for active side-by-side review, grading, or authoring work.
-5. Extract feature-specific inner pieces under a feature-specific path such as `src/components/test-workspace/` or `src/components/quiz-workspace/`.
+5. Extract feature-specific inner pieces under a feature-specific path such as `src/components/test-workspace/`.
 6. Add focused component tests for shell state, mode tabs, split bounds, selected-workspace behavior, and browser-back behavior.
 7. Run UI verification against the migrated tab and compare it to the pre-refactor screenshots before migrating another tab.
 
-Do not migrate tests and quizzes in the same pass unless assignment parity has already been accepted and the first non-assignment migration has passed visual review.
+Do not migrate another work-surface in the same pass unless assignment parity has already been accepted and the first non-assignment migration has passed visual review.
 
 ## Componentization Rules
 

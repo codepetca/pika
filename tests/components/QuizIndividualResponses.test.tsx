@@ -61,8 +61,8 @@ describe('QuizIndividualResponses', () => {
     const currentResults = createDeferred<Response>()
     const fetchMock = vi.fn((url: string | URL) => {
       const href = String(url)
-      if (href.endsWith('/api/teacher/quizzes/quiz-stale/results')) return staleResults.promise
-      if (href.endsWith('/api/teacher/quizzes/quiz-current/results')) return currentResults.promise
+      if (href.endsWith('/api/teacher/tests/quiz-stale/results')) return staleResults.promise
+      if (href.endsWith('/api/teacher/tests/quiz-current/results')) return currentResults.promise
       throw new Error(`Unexpected fetch: ${href}`)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -93,10 +93,10 @@ describe('QuizIndividualResponses', () => {
     const currentResults = createDeferred<Response>()
     const fetchMock = vi.fn((url: string | URL) => {
       const href = String(url)
-      if (href.endsWith('/api/teacher/quizzes/quiz-stale/results')) {
+      if (href.endsWith('/api/teacher/tests/quiz-stale/results')) {
         return Promise.resolve(jsonResponse(quizResultsPayload('quiz-stale', 'Already Loaded Student')))
       }
-      if (href.endsWith('/api/teacher/quizzes/quiz-current/results')) return currentResults.promise
+      if (href.endsWith('/api/teacher/tests/quiz-current/results')) return currentResults.promise
       throw new Error(`Unexpected fetch: ${href}`)
     })
     vi.stubGlobal('fetch', fetchMock)

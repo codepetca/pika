@@ -29,7 +29,6 @@ export const COURSE_BLUEPRINT_PACKAGE_FILE_NAMES = [
   'course-outline.md',
   'resources.md',
   'assignments.md',
-  'quizzes.md',
   'tests.md',
   'lesson-plans.md',
 ] as const
@@ -231,14 +230,16 @@ export function buildCourseBlueprintExportBundle(detail: CourseBlueprintDetail):
     position: assignment.position,
   }))
 
-  const assessments = detail.assessments.map((assessment) => ({
-    id: assessment.id,
-    assessment_type: assessment.assessment_type,
-    title: assessment.title,
-    content: assessment.content as any,
-    documents: assessment.documents ?? [],
-    position: assessment.position,
-  }))
+  const assessments = detail.assessments
+    .filter((assessment) => assessment.assessment_type === 'test')
+    .map((assessment) => ({
+      id: assessment.id,
+      assessment_type: 'test' as const,
+      title: assessment.title,
+      content: assessment.content as any,
+      documents: assessment.documents ?? [],
+      position: assessment.position,
+    }))
 
   const lessonTemplates = detail.lesson_templates.map((lesson) => ({
     id: lesson.id,
@@ -254,7 +255,6 @@ export function buildCourseBlueprintExportBundle(detail: CourseBlueprintDetail):
       'course-outline.md': detail.outline_markdown ?? '',
       'resources.md': detail.resources_markdown ?? '',
       'assignments.md': courseBlueprintAssignmentsToMarkdown(assignments),
-      'quizzes.md': courseBlueprintAssessmentsToMarkdown(assessments, 'quiz'),
       'tests.md': courseBlueprintAssessmentsToMarkdown(assessments, 'test'),
       'lesson-plans.md': courseBlueprintLessonTemplatesToMarkdown(lessonTemplates),
     },
@@ -325,7 +325,6 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
   const manifest = bundle.manifest
   const files = bundle.files
   const assignmentResult = markdownToCourseBlueprintAssignments(files['assignments.md'] ?? '', [])
-  const quizResult = markdownToCourseBlueprintAssessments(files['quizzes.md'] ?? '', [], 'quiz')
   const testResult = markdownToCourseBlueprintAssessments(files['tests.md'] ?? '', [], 'test')
   const lessonResult = markdownToCourseBlueprintLessonTemplates(files['lesson-plans.md'] ?? '', [])
 
@@ -346,11 +345,10 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
         : DEFAULT_PLANNED_COURSE_SITE_CONFIG,
     },
     assignments: assignmentResult.assignments,
-    assessments: [...quizResult.assessments, ...testResult.assessments].sort((left, right) => left.position - right.position),
+    assessments: testResult.assessments.sort((left, right) => left.position - right.position),
     lesson_templates: lessonResult.lesson_templates,
     errors: [
       ...assignmentResult.errors,
-      ...quizResult.errors,
       ...testResult.errors,
       ...lessonResult.errors,
     ],
@@ -365,9 +363,6 @@ export function analyzeCourseBlueprintCompleteness(detail: CourseBlueprintDetail
   if (!detail.outline_markdown.trim()) missing.push('course outline')
   if (!detail.resources_markdown.trim()) missing.push('resources')
   if (detail.assignments.length === 0) missing.push('assignments')
-  if (detail.assessments.filter((assessment) => assessment.assessment_type === 'quiz').length === 0) {
-    missing.push('quizzes')
-  }
   if (detail.assessments.filter((assessment) => assessment.assessment_type === 'test').length === 0) {
     missing.push('tests')
   }
@@ -391,7 +386,6 @@ export function analyzeCourseBlueprintCompleteness(detail: CourseBlueprintDetail
     suggestions,
     counts: {
       assignments: detail.assignments.length,
-      quizzes: detail.assessments.filter((assessment) => assessment.assessment_type === 'quiz').length,
       tests: detail.assessments.filter((assessment) => assessment.assessment_type === 'test').length,
       lesson_templates: detail.lesson_templates.length,
     },

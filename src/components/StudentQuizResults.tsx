@@ -63,7 +63,7 @@ export function StudentQuizResults({
   quizId,
   myResponses,
   assessmentType,
-  apiBasePath = '/api/student/quizzes',
+  apiBasePath = '/api/student/tests',
   showSubmissionBanner = true,
 }: Props) {
   const [payload, setPayload] = useState<ResultsPayload | null>(null)
