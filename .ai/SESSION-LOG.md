@@ -8,23 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — Upload image route standardization
-
-**Completed:**
-- Replaced legacy direct `getSession()` handling in `/api/upload-image` with `requireAuth()`.
-- Converted upload-image validation and storage failure branches from manual `{ error }` responses to `ApiError` throws handled by `withErrorHandler`.
-- Updated API tests to cover wrapper-mapped authentication and `requireAuth` user-id filename scoping.
-- Addressed review feedback by preserving the malformed-session no-id guard before building storage filenames.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/api/upload-image.test.ts tests/unit/api-route-standards.test.ts -- --runInBand`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-
 ## 2026-05-31 — Student lesson calendar cache reuse
 
 **Completed:**
@@ -958,3 +941,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm vitest run tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherGradebookTab.test.tsx`
 - `pnpm test`
+
+## 2026-06-08 — Gradebook action consistency audit
+
+**Completed:**
+- Replaced the Gradebook score-display split button with the shared `SegmentedControl`, keeping score display as a two-state mode control instead of an action menu.
+- Kept selected-student email actions as the only Gradebook split action, shown only when at least one valid selected student email exists.
+- Updated Gradebook component coverage to assert score-display pressed state, absence of the old score-display action menu, and separation between score-display controls and selected-email menu actions.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (initial run hit a `TeacherGradebookTab` timeout; reran `pnpm vitest run tests/components/TeacherGradebookTab.test.tsx`, then `bash scripts/verify-env.sh` passed)
+- `pnpm vitest run tests/components/TeacherGradebookTab.test.tsx`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook'`
+- Manual loaded recaptures: `/tmp/pika-teacher-loaded.png`, `/tmp/pika-teacher-selected.png`, `/tmp/pika-teacher-mobile-loaded.png`
+- `git diff --check`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test` (one unrelated `StudentHistoryPage` concurrency failure; isolated rerun passed)
+- `pnpm vitest run tests/components/StudentHistoryPage.test.tsx`
+- `pnpm vitest run --sequence.concurrent=false`
