@@ -1034,7 +1034,7 @@ function ClassroomPageContent({
           params.delete('testStudentId')
         }
         params.delete('quizId')
-      })
+      }, { replace: true })
       window.requestAnimationFrame(() => {
         markClassroomTabSwitchReady(tab)
       })

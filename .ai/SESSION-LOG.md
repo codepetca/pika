@@ -8,24 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — Composite widget audit relevance
-
-**Completed:**
-- Tightened the `missing-a11y-tests` audit guardrail so composite-widget changes require a changed semantic test that matches or references the changed component.
-- Kept the allowed test locations scoped to `tests/components`, `tests/ui`, or `tests/integration`.
-- Added fixture coverage for the bypass case where an unrelated component test changed beside a composite-widget component.
-- Addressed review feedback by making the no-changed-test path report `missing-a11y-tests` cleanly on Bash 3.2 and by avoiding loose content-reference matches for generic stems such as `button`.
-- Addressed follow-up review feedback by matching generic component stems against changed test filenames case-insensitively, with a `button.tsx` / `Button.test.tsx` regression fixture.
-- Tightened that follow-up so generic stems require exact changed test filename matches, avoiding false positives such as `page.tsx` passing through `PageActionBar.test.tsx`.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts -- --runInBand`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-
 ## 2026-06-01 — AI grading egress sanitization
 
 **Completed:**
@@ -962,3 +944,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh` (initially failed until `pnpm install` restored `node_modules`; rerun via `bash scripts/verify-env.sh` passed)
 - `pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop -g "resumes an in-progress"`
 - `pnpm lint`
+
+## 2026-06-08 — Classroom sidebar history tightening
+
+**Completed:**
+- Changed first-level classroom sidebar navigation to replace the current history entry instead of pushing a lateral tab entry.
+- Changed the Classwork sidebar reset path to clear selected assignment state with replace for both teacher and student nav.
+- Added regression coverage for generic sidebar tab replacement and the Classwork selection-clear replace behavior while preserving existing in-tab workspace push coverage.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/NavItems.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Headless Playwright check: Daily → Classwork → assignment detail → Back returned to Classwork summary.
+- `pnpm test -- tests/components/NavItems.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx` (ran the full suite due script argument handling; only failed the pre-existing `TeacherGradebookTab.test.tsx` timeout)
