@@ -8,19 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — UI sidebar guidance cleanup
-
-**Completed:**
-- Updated `docs/core/design.md` so the classroom shell treats `RightSidebar` as optional route-level chrome, not a default details pane.
-- Clarified the teacher work-surface canon: assignments/quizzes/tests should use integrated `TeacherWorkspaceSplit` inspectors only when active work justifies side-by-side panes.
-- Promoted the teacher workspace split audit language from proposed extraction to the current structural primitive and discouraged external right-sidebar substitutes for teacher work surfaces.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/layout-config.test.ts -- --runInBand`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-
 ## 2026-05-31 — Composite widget audit relevance
 
 **Completed:**
@@ -964,3 +951,14 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm build`
 - `pnpm test`
+
+## 2026-06-07 — Student exam reload-resume e2e coverage
+
+**Completed:**
+- Added a focused Playwright student exam-mode flow that starts an open-response test, waits for draft autosave, reloads the browser, reopens the test, and verifies the draft resumes.
+- Asserted reload telemetry is recorded as route-exit activity while window/full-screen exit telemetry remains unchanged.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (initially failed until `pnpm install` restored `node_modules`; rerun via `bash scripts/verify-env.sh` passed)
+- `pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop -g "resumes an in-progress"`
+- `pnpm lint`
