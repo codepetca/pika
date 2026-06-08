@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { getQuizExitCount } from '@/lib/quizzes'
 import { Button, Input } from '@/ui'
@@ -51,6 +51,21 @@ interface TestStats {
   ungraded_open_responses?: number
 }
 
+interface ResponsesDataState {
+  scope: string
+  responders: Responder[]
+  questions: QuestionInfo[]
+  stats: TestStats | null
+}
+
+interface ScopedMessageState {
+  scope: string
+  message: string
+}
+
+const EMPTY_RESPONDERS: Responder[] = []
+const EMPTY_QUESTIONS: QuestionInfo[] = []
+
 function formatDuration(totalSeconds: number): string {
   const safe = Math.max(0, Math.round(totalSeconds))
   const minutes = Math.floor(safe / 60)
@@ -70,30 +85,49 @@ export function QuizIndividualResponses({
   onUpdated,
 }: Props) {
   const isTestsView = assessmentType === 'test'
-  const [responders, setResponders] = useState<Responder[]>([])
-  const [questions, setQuestions] = useState<QuestionInfo[]>([])
+  const scope = `${assessmentType}:${apiBasePath}:${quizId}`
+  const [dataState, setDataState] = useState<ResponsesDataState | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [errorState, setErrorState] = useState<ScopedMessageState | null>(null)
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null)
-  const [stats, setStats] = useState<TestStats | null>(null)
   const [gradeDrafts, setGradeDrafts] = useState<Record<string, GradeDraft>>({})
   const [savingResponseId, setSavingResponseId] = useState<string | null>(null)
   const [suggestingResponseId, setSuggestingResponseId] = useState<string | null>(null)
-  const [gradingError, setGradingError] = useState('')
-  const [gradingMessage, setGradingMessage] = useState('')
+  const [gradingErrorState, setGradingErrorState] = useState<ScopedMessageState | null>(null)
+  const [gradingMessageState, setGradingMessageState] = useState<ScopedMessageState | null>(null)
+  const loadRequestIdRef = useRef(0)
+  const currentScopeRef = useRef(scope)
+  currentScopeRef.current = scope
+
+  const activeData = dataState?.scope === scope ? dataState : null
+  const responders = activeData?.responders ?? EMPTY_RESPONDERS
+  const questions = activeData?.questions ?? EMPTY_QUESTIONS
+  const stats = activeData?.stats ?? null
+  const error = errorState?.scope === scope ? errorState.message : ''
+  const gradingError = gradingErrorState?.scope === scope ? gradingErrorState.message : ''
+  const gradingMessage = gradingMessageState?.scope === scope ? gradingMessageState.message : ''
 
   const load = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
+    const requestedScope = scope
+    if (currentScopeRef.current !== requestedScope) return
     setLoading(true)
-    setError('')
+    setErrorState(null)
     try {
+      // Bypass fetchJSONWithCache for selected assessment responses freshness; request ids guard stale responses.
       const res = await fetch(`${apiBasePath}/${quizId}/results`)
       const data = await res.json()
+      if (loadRequestIdRef.current !== requestId || currentScopeRef.current !== requestedScope) return
       if (!res.ok) throw new Error(data.error || 'Failed to load')
 
       const nextResponders = data.responders || []
-      setResponders(nextResponders)
-      setQuestions(data.questions || [])
-      setStats((data.stats as TestStats | null) || null)
+      setDataState({
+        scope: requestedScope,
+        responders: nextResponders,
+        questions: data.questions || [],
+        stats: (data.stats as TestStats | null) || null,
+      })
 
       if (isTestsView) {
         const nextDrafts: Record<string, GradeDraft> = {}
@@ -108,13 +142,22 @@ export function QuizIndividualResponses({
           }
         }
         setGradeDrafts(nextDrafts)
+      } else {
+        setGradeDrafts({})
       }
     } catch (loadError: any) {
-      setError(loadError.message || 'Failed to load responses')
+      if (loadRequestIdRef.current === requestId && currentScopeRef.current === requestedScope) {
+        setErrorState({
+          scope: requestedScope,
+          message: loadError.message || 'Failed to load responses',
+        })
+      }
     } finally {
-      setLoading(false)
+      if (loadRequestIdRef.current === requestId && currentScopeRef.current === requestedScope) {
+        setLoading(false)
+      }
     }
-  }, [apiBasePath, isTestsView, quizId])
+  }, [apiBasePath, isTestsView, quizId, scope])
 
   useEffect(() => {
     void load()
@@ -139,41 +182,57 @@ export function QuizIndividualResponses({
   async function handleSuggestGrade(
     responseId: string
   ) {
-    setGradingError('')
-    setGradingMessage('')
+    const operationScope = scope
+    setGradingErrorState(null)
+    setGradingMessageState(null)
     setSuggestingResponseId(responseId)
     try {
       const res = await fetch(`${apiBasePath}/${quizId}/responses/${responseId}/ai-suggest`, {
         method: 'POST',
       })
       const data = await res.json()
+      if (currentScopeRef.current !== operationScope) return
       if (!res.ok) throw new Error(data.error || 'Failed to generate AI suggestion')
 
       updateDraft(responseId, {
         score: data.suggestion?.score != null ? String(data.suggestion.score) : '',
         feedback: data.suggestion?.feedback || '',
       })
-      setGradingMessage('AI suggestion loaded. Review before saving.')
+      setGradingMessageState({
+        scope: operationScope,
+        message: 'AI suggestion loaded. Review before saving.',
+      })
     } catch (suggestError: any) {
-      setGradingError(suggestError.message || 'Failed to generate AI suggestion')
+      if (currentScopeRef.current === operationScope) {
+        setGradingErrorState({
+          scope: operationScope,
+          message: suggestError.message || 'Failed to generate AI suggestion',
+        })
+      }
     }
     finally {
-      setSuggestingResponseId(null)
+      if (currentScopeRef.current === operationScope) {
+        setSuggestingResponseId(null)
+      }
     }
   }
 
   async function handleSaveGrade(responseId: string, maxPoints: number) {
+    const operationScope = scope
     const draft = gradeDrafts[responseId]
     if (!draft) return
 
     const score = Number(draft.score)
     if (!Number.isFinite(score) || score < 0 || score > maxPoints) {
-      setGradingError(`Score must be between 0 and ${maxPoints}`)
+      setGradingErrorState({
+        scope: operationScope,
+        message: `Score must be between 0 and ${maxPoints}`,
+      })
       return
     }
 
-    setGradingError('')
-    setGradingMessage('')
+    setGradingErrorState(null)
+    setGradingMessageState(null)
     setSavingResponseId(responseId)
     try {
       const res = await fetch(`${apiBasePath}/${quizId}/responses/${responseId}`, {
@@ -185,21 +244,32 @@ export function QuizIndividualResponses({
         }),
       })
       const data = await res.json()
+      if (currentScopeRef.current !== operationScope) return
       if (!res.ok) throw new Error(data.error || 'Failed to save grade')
 
-      setGradingMessage('Grade saved.')
+      setGradingMessageState({ scope: operationScope, message: 'Grade saved.' })
       await load()
-      onUpdated?.()
+      if (currentScopeRef.current === operationScope) {
+        onUpdated?.()
+      }
     } catch (saveError: any) {
-      setGradingError(saveError.message || 'Failed to save grade')
+      if (currentScopeRef.current === operationScope) {
+        setGradingErrorState({
+          scope: operationScope,
+          message: saveError.message || 'Failed to save grade',
+        })
+      }
     } finally {
-      setSavingResponseId(null)
+      if (currentScopeRef.current === operationScope) {
+        setSavingResponseId(null)
+      }
     }
   }
 
   async function handleClearGrade(responseId: string) {
-    setGradingError('')
-    setGradingMessage('')
+    const operationScope = scope
+    setGradingErrorState(null)
+    setGradingMessageState(null)
     setSavingResponseId(responseId)
     try {
       const res = await fetch(`${apiBasePath}/${quizId}/responses/${responseId}`, {
@@ -208,19 +278,29 @@ export function QuizIndividualResponses({
         body: JSON.stringify({ clear_grade: true }),
       })
       const data = await res.json()
+      if (currentScopeRef.current !== operationScope) return
       if (!res.ok) throw new Error(data.error || 'Failed to clear grade')
 
-      setGradingMessage('Grade cleared.')
+      setGradingMessageState({ scope: operationScope, message: 'Grade cleared.' })
       await load()
-      onUpdated?.()
+      if (currentScopeRef.current === operationScope) {
+        onUpdated?.()
+      }
     } catch (clearError: any) {
-      setGradingError(clearError.message || 'Failed to clear grade')
+      if (currentScopeRef.current === operationScope) {
+        setGradingErrorState({
+          scope: operationScope,
+          message: clearError.message || 'Failed to clear grade',
+        })
+      }
     } finally {
-      setSavingResponseId(null)
+      if (currentScopeRef.current === operationScope) {
+        setSavingResponseId(null)
+      }
     }
   }
 
-  if (loading) {
+  if (loading || (!activeData && !error)) {
     return (
       <div className="flex justify-center py-4">
         <Spinner />
