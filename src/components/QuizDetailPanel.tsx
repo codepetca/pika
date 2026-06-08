@@ -77,6 +77,27 @@ type AssessmentEditorDraft = {
   source_markdown?: string
 }
 
+type AssessmentRequestScope = {
+  quizId: string
+  classroomId: string
+  apiBasePath: string
+  assessmentType: QuizWithStats['assessment_type']
+  isTestsView: boolean
+}
+
+type DraftSaveContext = {
+  scope: AssessmentRequestScope
+  draftVersion: number
+  lastSavedDraft: string
+}
+
+type SaveDraftOptions = {
+  forceFull?: boolean
+  documents?: TestDocument[]
+  sourceMarkdown?: string
+  saveContext?: DraftSaveContext
+}
+
 type AssessmentViewMode = 'questions' | 'documents' | 'markdown' | 'preview' | 'results'
 
 const TEST_SUMMARY_DETAIL_LAYOUT = {
@@ -190,7 +211,7 @@ export function QuizDetailPanel({
   const saveDraftRef = useRef<
     | ((
         nextDraft: AssessmentEditorDraft,
-        options?: { forceFull?: boolean; documents?: TestDocument[]; sourceMarkdown?: string }
+        options?: SaveDraftOptions
       ) => Promise<boolean>)
     | null
   >(null)
@@ -203,11 +224,26 @@ export function QuizDetailPanel({
   const summaryDetailWorkspaceRef = useRef<HTMLDivElement>(null)
   const summaryDetailResizeCleanupRef = useRef<(() => void) | null>(null)
   const quizDefaultsRef = useRef({ title: quiz.title, show_results: quiz.show_results })
+  const loadRequestIdRef = useRef(0)
+  const currentLoadScopeRef = useRef({
+    quizId: quiz.id,
+    classroomId,
+    apiBasePath,
+    assessmentType: quiz.assessment_type,
+    isTestsView,
+  })
   const [summaryDetailMarkdownWidthPercent, setSummaryDetailMarkdownWidthPercent] = useState<number>(
     TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth
   )
   const loadedDraftQuizIdRef = useRef<string | null>(null)
   quizDefaultsRef.current = { title: quiz.title, show_results: quiz.show_results }
+  currentLoadScopeRef.current = {
+    quizId: quiz.id,
+    classroomId,
+    apiBasePath,
+    assessmentType: quiz.assessment_type,
+    isTestsView,
+  }
 
   const updateSaveStatus = useCallback((status: 'saved' | 'saving' | 'unsaved') => {
     saveStatusRef.current = status
@@ -219,6 +255,27 @@ export function QuizDetailPanel({
     draftMutationRevisionRef.current += 1
     updateSaveStatus('unsaved')
   }, [updateSaveStatus])
+
+  const isCurrentAssessmentScope = useCallback((scope: AssessmentRequestScope) => {
+    const currentScope = currentLoadScopeRef.current
+    return (
+      currentScope.quizId === scope.quizId &&
+      currentScope.classroomId === scope.classroomId &&
+      currentScope.apiBasePath === scope.apiBasePath &&
+      currentScope.assessmentType === scope.assessmentType &&
+      currentScope.isTestsView === scope.isTestsView
+    )
+  }, [])
+
+  const isCurrentLoadRequest = useCallback((requestId: number, scope: AssessmentRequestScope) => {
+    return loadRequestIdRef.current === requestId && isCurrentAssessmentScope(scope)
+  }, [isCurrentAssessmentScope])
+
+  const createDraftSaveContext = useCallback((): DraftSaveContext => ({
+    scope: { ...currentLoadScopeRef.current },
+    draftVersion: draftVersionRef.current,
+    lastSavedDraft: lastSavedDraftRef.current,
+  }), [])
 
   const requestCurrentWindowFullscreen = useCallback(async () => {
     const fullscreenElement = document.documentElement as HTMLElement & {
@@ -393,16 +450,24 @@ export function QuizDetailPanel({
   // Reset local draft state only when the selected quiz/test changes.
   useEffect(() => {
     const quizDefaults = quizDefaultsRef.current
+    loadRequestIdRef.current += 1
+    draftMutationRevisionRef.current += 1
+    saveTimeoutRef.current = null
+    throttledSaveTimeoutRef.current = null
+    pendingDraftRef.current = null
+    lastSavedDraftRef.current = ''
+    draftVersionRef.current = 1
     loadedDraftQuizIdRef.current = null
     setEditTitle(quizDefaults.title)
     setDraftShowResults(quizDefaults.show_results)
+    setResults(null)
     setConflictDraft(null)
     setIsMarkdownEditing(false)
     setMarkdownDirty(false)
     markdownDirtyRef.current = false
     setMarkdownError('')
     setMarkdownInfo('')
-  }, [quiz.id])
+  }, [apiBasePath, classroomId, isTestsView, quiz.assessment_type, quiz.id])
 
   useEffect(() => {
     setDocuments(normalizeTestDocuments((quiz as { documents?: unknown }).documents))
@@ -593,8 +658,25 @@ export function QuizDetailPanel({
   const saveDraft = useCallback(
     async (
       nextDraft: AssessmentEditorDraft,
-      options?: { forceFull?: boolean; documents?: TestDocument[]; sourceMarkdown?: string }
+      options?: SaveDraftOptions
     ) => {
+      const saveContext = options?.saveContext
+      const saveScope = saveContext?.scope ?? {
+        quizId: quiz.id,
+        classroomId,
+        apiBasePath,
+        assessmentType: quiz.assessment_type,
+        isTestsView,
+      }
+      const saveRevision = draftMutationRevisionRef.current
+      const canPersistSave = Boolean(saveContext) || isCurrentAssessmentScope(saveScope)
+      const shouldApplySaveLocally = () => (
+        saveRevision === draftMutationRevisionRef.current &&
+        isCurrentAssessmentScope(saveScope)
+      )
+      if (!canPersistSave) {
+        return false
+      }
       const shouldPersistMarkdownSource =
         isTestsView ||
         isMarkdownSurfaceEnabled ||
@@ -622,24 +704,24 @@ export function QuizDetailPanel({
             }
           : nextDraft
       const nextSerialized = JSON.stringify(contentDraft)
-      const saveRevision = draftMutationRevisionRef.current
-      const isLatestSave = () => saveRevision === draftMutationRevisionRef.current
-      if (!options?.forceFull && nextSerialized === lastSavedDraftRef.current) {
-        if (isLatestSave()) {
+      const baseSerialized = saveContext?.lastSavedDraft ?? lastSavedDraftRef.current
+      const draftVersion = saveContext?.draftVersion ?? draftVersionRef.current
+      if (!options?.forceFull && nextSerialized === baseSerialized) {
+        if (shouldApplySaveLocally()) {
           updateSaveStatus('saved')
         }
         return true
       }
 
-      if (isLatestSave()) {
+      if (shouldApplySaveLocally()) {
         updateSaveStatus('saving')
       }
       lastSaveAttemptAtRef.current = Date.now()
 
       let baseDraft = contentDraft
       try {
-        if (lastSavedDraftRef.current) {
-          baseDraft = JSON.parse(lastSavedDraftRef.current) as AssessmentEditorDraft
+        if (baseSerialized) {
+          baseDraft = JSON.parse(baseSerialized) as AssessmentEditorDraft
         }
       } catch {
         baseDraft = contentDraft
@@ -658,7 +740,7 @@ export function QuizDetailPanel({
         content?: AssessmentEditorDraft
         documents?: TestDocument[]
       } = {
-        version: draftVersionRef.current,
+        version: draftVersion,
       }
 
       if (shouldSendPatch) {
@@ -678,8 +760,12 @@ export function QuizDetailPanel({
         })
         const data = await response.json()
 
+        if (!shouldApplySaveLocally()) {
+          return response.ok
+        }
+
         if (response.status === 409) {
-          if (!isLatestSave()) {
+          if (!shouldApplySaveLocally()) {
             return false
           }
 
@@ -714,7 +800,7 @@ export function QuizDetailPanel({
         if (serverDraft?.content) {
           draftVersionRef.current = serverDraft.version
           lastSavedDraftRef.current = nextSerialized
-          if (isLatestSave()) {
+          if (shouldApplySaveLocally()) {
             applyServerDraft(serverDraft)
             onQuizUpdate({
               title:
@@ -733,7 +819,7 @@ export function QuizDetailPanel({
         } else {
           draftVersionRef.current += 1
           lastSavedDraftRef.current = nextSerialized
-          if (isLatestSave()) {
+          if (shouldApplySaveLocally()) {
             pendingDraftRef.current = nextDraft
             updateSaveStatus('saved')
             setError('')
@@ -744,7 +830,7 @@ export function QuizDetailPanel({
         return true
       } catch (saveError: any) {
         console.error('Error saving draft:', saveError)
-        if (isLatestSave()) {
+        if (shouldApplySaveLocally()) {
           updateSaveStatus('unsaved')
           setError(saveError?.message || 'Failed to save draft')
         }
@@ -754,11 +840,14 @@ export function QuizDetailPanel({
     [
       apiBasePath,
       applyServerDraft,
+      classroomId,
       documents,
+      isCurrentAssessmentScope,
       isMarkdownSurfaceEnabled,
       isTestsView,
       normalizeDraftQuestions,
       onQuizUpdate,
+      quiz.assessment_type,
       quiz.id,
       updateSaveStatus,
     ]
@@ -767,11 +856,12 @@ export function QuizDetailPanel({
   const scheduleSave = useCallback(
     (
       nextDraft: AssessmentEditorDraft,
-      options?: { force?: boolean }
+      options?: { force?: boolean; saveContext?: DraftSaveContext }
     ) => {
       if (conflictDraft) return
 
       pendingDraftRef.current = nextDraft
+      const saveContext = options?.saveContext ?? createDraftSaveContext()
 
       if (throttledSaveTimeoutRef.current) {
         clearTimeout(throttledSaveTimeoutRef.current)
@@ -782,20 +872,18 @@ export function QuizDetailPanel({
       const msSinceLastAttempt = now - lastSaveAttemptAtRef.current
 
       if (options?.force || msSinceLastAttempt >= AUTOSAVE_MIN_INTERVAL_MS) {
-        void saveDraft(nextDraft)
+        void saveDraft(nextDraft, { saveContext })
         return
       }
 
       const waitMs = AUTOSAVE_MIN_INTERVAL_MS - msSinceLastAttempt
+      const scheduledDraft = nextDraft
       throttledSaveTimeoutRef.current = setTimeout(() => {
         throttledSaveTimeoutRef.current = null
-        const latestDraft = pendingDraftRef.current
-        if (latestDraft) {
-          void saveDraft(latestDraft)
-        }
+        void saveDraft(scheduledDraft, { saveContext })
       }, waitMs)
     },
-    [AUTOSAVE_MIN_INTERVAL_MS, conflictDraft, saveDraft]
+    [AUTOSAVE_MIN_INTERVAL_MS, conflictDraft, createDraftSaveContext, saveDraft]
   )
 
   const scheduleAutosave = useCallback(
@@ -803,6 +891,7 @@ export function QuizDetailPanel({
       if (conflictDraft) return
 
       pendingDraftRef.current = nextDraft
+      const saveContext = createDraftSaveContext()
       markDraftUnsaved()
       setError('')
 
@@ -811,17 +900,29 @@ export function QuizDetailPanel({
       }
 
       saveTimeoutRef.current = setTimeout(() => {
-        scheduleSave(nextDraft)
+        saveTimeoutRef.current = null
+        scheduleSave(nextDraft, { saveContext })
       }, AUTOSAVE_DEBOUNCE_MS)
     },
-    [AUTOSAVE_DEBOUNCE_MS, conflictDraft, markDraftUnsaved, scheduleSave]
+    [AUTOSAVE_DEBOUNCE_MS, conflictDraft, createDraftSaveContext, markDraftUnsaved, scheduleSave]
   )
 
   const loadQuizDetails = useCallback(async () => {
+    const scope = {
+      quizId: quiz.id,
+      classroomId,
+      apiBasePath,
+      assessmentType: quiz.assessment_type,
+      isTestsView,
+    }
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
     setLoading(true)
     try {
+      // Bypass fetchJSONWithCache for selected assessment freshness; request ids guard stale responses.
       const draftRes = await fetch(`${apiBasePath}/${quiz.id}/draft`)
       const draftData = await draftRes.json()
+      if (!isCurrentLoadRequest(requestId, scope)) return
       if (!draftRes.ok) {
         throw new Error(draftData.error || 'Failed to load assessment draft')
       }
@@ -840,27 +941,45 @@ export function QuizDetailPanel({
       applyServerDraft(normalizedDraft)
 
       if (isTestsView) {
+        // Bypass fetchJSONWithCache so test documents always follow the selected assessment.
         const detailRes = await fetch(`${apiBasePath}/${quiz.id}`)
         if (detailRes?.ok) {
           const detailData = await detailRes.json()
+          if (!isCurrentLoadRequest(requestId, scope)) return
           setDocuments(normalizeTestDocuments(detailData?.quiz?.documents))
         }
       }
 
       if (hasResponses) {
+        // Bypass fetchJSONWithCache so results always follow the selected assessment.
         const resultsRes = await fetch(`${apiBasePath}/${quiz.id}/results`)
         const resultsData = await resultsRes.json()
+        if (!isCurrentLoadRequest(requestId, scope)) return
         setResults(resultsData.results || [])
       } else {
+        if (!isCurrentLoadRequest(requestId, scope)) return
         setResults(null)
       }
     } catch (err: any) {
-      console.error('Error loading quiz details:', err)
-      setError(err?.message || 'Failed to load assessment details')
+      if (isCurrentLoadRequest(requestId, scope)) {
+        console.error('Error loading quiz details:', err)
+        setError(err?.message || 'Failed to load assessment details')
+      }
     } finally {
-      setLoading(false)
+      if (isCurrentLoadRequest(requestId, scope)) {
+        setLoading(false)
+      }
     }
-  }, [apiBasePath, applyServerDraft, hasResponses, isTestsView, quiz.id])
+  }, [
+    apiBasePath,
+    applyServerDraft,
+    classroomId,
+    hasResponses,
+    isCurrentLoadRequest,
+    isTestsView,
+    quiz.assessment_type,
+    quiz.id,
+  ])
 
   useEffect(() => {
     loadQuizDetails()

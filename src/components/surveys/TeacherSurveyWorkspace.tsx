@@ -480,13 +480,17 @@ export function TeacherSurveyWorkspace({
   const [surveyMarkdownInfo, setSurveyMarkdownInfo] = useState('')
   const onSurveyUpdatedRef = useRef(onSurveyUpdated)
   const consumedInitialEditModeRef = useRef<string | null>(null)
+  const loadRequestIdRef = useRef(0)
+  const currentSurveyIdRef = useRef(surveyId)
+  currentSurveyIdRef.current = surveyId
 
   useEffect(() => {
     onSurveyUpdatedRef.current = onSurveyUpdated
   }, [onSurveyUpdated])
 
-  const survey = detail?.survey ?? null
-  const questions = useMemo(() => detail?.questions ?? [], [detail?.questions])
+  const activeDetail = detail?.survey?.id === surveyId ? detail : null
+  const survey = activeDetail?.survey ?? null
+  const questions = useMemo(() => activeDetail?.questions ?? [], [activeDetail?.questions])
   const statusClassName = survey ? getSurveyStatusBadgeClass(survey.status) : ''
   const currentSurveyMarkdown = useMemo(
     () => (survey ? surveyToMarkdown({ survey, questions }) : ''),
@@ -494,19 +498,28 @@ export function TeacherSurveyWorkspace({
   )
 
   const loadSurvey = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
+    const requestedSurveyId = surveyId
     setLoading(true)
     setError('')
     try {
+      // Bypass fetchJSONWithCache for selected survey freshness; request ids guard stale responses.
       const response = await fetch(`/api/teacher/surveys/${surveyId}`)
       const data = await response.json()
+      if (loadRequestIdRef.current !== requestId || currentSurveyIdRef.current !== requestedSurveyId) return
       if (!response.ok) throw new Error(data.error || 'Failed to load survey')
       setDetail({ survey: data.survey, questions: data.questions || [] })
       onSurveyUpdatedRef.current(data.survey)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load survey')
-      setDetail(null)
+      if (loadRequestIdRef.current === requestId && currentSurveyIdRef.current === requestedSurveyId) {
+        setError(err instanceof Error ? err.message : 'Failed to load survey')
+        setDetail(null)
+      }
     } finally {
-      setLoading(false)
+      if (loadRequestIdRef.current === requestId && currentSurveyIdRef.current === requestedSurveyId) {
+        setLoading(false)
+      }
     }
   }, [surveyId])
 
@@ -758,7 +771,7 @@ export function TeacherSurveyWorkspace({
     }
   }
 
-  if (loading) {
+  if (loading || (detail !== null && !activeDetail)) {
     return (
       <div className="flex flex-1 items-center justify-center py-12">
         <Spinner />

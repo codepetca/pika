@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
+import { requireAuth, requireRole } from '@/lib/auth'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { countCharacters, countWords, isValidTiptapContent, parseContentField } from '@/lib/tiptap-content'
 import { sanitizeDocForStudent } from '@/lib/assignments'
@@ -82,14 +82,22 @@ async function loadStudentSubmissionContext(
 // GET /api/assignment-docs/[id] - Get assignment doc (creates if doesn't exist)
 // The [id] here is the assignment_id, not the doc id
 export const GET = withErrorHandler('GetAssignmentDoc', async (request, context) => {
-  const user = await requireRole('student')
+  const user = await requireAuth()
   const { id: assignmentId } = await context.params
+  const { searchParams } = new URL(request.url)
+  const requestedStudentId = searchParams.get('student_id')
   const supabase = getServiceRoleClient()
 
   // Get assignment and verify student is enrolled
   const { data: assignment, error: assignmentError } = await supabase
     .from('assignments')
-    .select('*')
+    .select(`
+      *,
+      classrooms!inner (
+        id,
+        teacher_id
+      )
+    `)
     .eq('id', assignmentId)
     .single()
 
@@ -100,19 +108,59 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
     )
   }
 
-  if (!isAssignmentVisibleToStudents(assignment)) {
-    return NextResponse.json(
-      { error: 'Assignment not found' },
-      { status: 404 }
-    )
+  let studentId = user.id
+  const assignmentData = assignment as typeof assignment & {
+    classroom_id: string
+    classrooms?: { teacher_id?: string } | Array<{ teacher_id?: string }>
   }
 
-  const access = await assertStudentCanAccessClassroom(user.id, assignment.classroom_id)
-  if (!access.ok) {
-    return NextResponse.json(
-      { error: access.error },
-      { status: access.status }
-    )
+  const classroomTeacherId = Array.isArray(assignmentData.classrooms)
+    ? assignmentData.classrooms[0]?.teacher_id
+    : assignmentData.classrooms?.teacher_id
+
+  if (user.role === 'teacher') {
+    if (classroomTeacherId !== user.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 403 }
+      )
+    }
+    if (!requestedStudentId) {
+      return NextResponse.json(
+        { error: 'student_id is required' },
+        { status: 400 }
+      )
+    }
+    studentId = requestedStudentId
+
+    const { data: enrollment } = await supabase
+      .from('classroom_enrollments')
+      .select('id')
+      .eq('classroom_id', assignmentData.classroom_id)
+      .eq('student_id', studentId)
+      .single()
+
+    if (!enrollment) {
+      return NextResponse.json(
+        { error: 'Not enrolled in this classroom' },
+        { status: 403 }
+      )
+    }
+  } else {
+    if (!isAssignmentVisibleToStudents(assignment)) {
+      return NextResponse.json(
+        { error: 'Assignment not found' },
+        { status: 404 }
+      )
+    }
+
+    const access = await assertStudentCanAccessClassroom(user.id, assignment.classroom_id)
+    if (!access.ok) {
+      return NextResponse.json(
+        { error: access.error },
+        { status: access.status }
+      )
+    }
   }
 
   // Get or create assignment doc for this student
@@ -120,7 +168,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
     .from('assignment_docs')
     .select('*')
     .eq('assignment_id', assignmentId)
-    .eq('student_id', user.id)
+    .eq('student_id', studentId)
     .single()
 
   // Track whether this request cleared an assignment notification.
@@ -128,6 +176,21 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
 
   if (docError) {
     if (docError.code === 'PGRST116') {
+      if (user.role === 'teacher') {
+        const submissionContext = await loadStudentSubmissionContext(supabase, assignmentId, null, studentId)
+        const feedbackEntries = await loadAssignmentFeedbackEntries(assignmentId, studentId)
+        return NextResponse.json({
+          assignment: {
+            ...assignment,
+            instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
+          },
+          doc: null,
+          feedback_entries: feedbackEntries,
+          ...submissionContext,
+          wasFirstView: false,
+        })
+      }
+
       const { data: created, error: createError } = await supabase
         .from('assignment_docs')
         .insert({
@@ -201,6 +264,21 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
   // Parse content if it's a string (for backwards compatibility)
   if (existingDoc) {
     existingDoc.content = parseContentField(existingDoc.content)
+  }
+
+  if (user.role === 'teacher') {
+    const feedbackEntries = await loadAssignmentFeedbackEntries(assignmentId, studentId)
+    const submissionContext = await loadStudentSubmissionContext(supabase, assignmentId, existingDoc.id, studentId)
+    return NextResponse.json({
+      assignment: {
+        ...assignment,
+        instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
+      },
+      doc: existingDoc,
+      feedback_entries: feedbackEntries,
+      ...submissionContext,
+      wasFirstView: false,
+    })
   }
 
   // Mark as viewed if this request clears a first-view or returned-feedback notification.

@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Spinner } from '@/components/Spinner'
 import { Button, FormField, Input } from '@/ui'
+import { invalidateStudentClassrooms } from '@/lib/student-classrooms-client'
 
 export default function JoinClassroomPage() {
   const router = useRouter()
@@ -59,6 +60,7 @@ export default function JoinClassroomPage() {
         throw new Error(data?.error || 'Unable to join. Check your code and email, or ask your teacher to add you.')
       }
 
+      invalidateStudentClassrooms()
       router.push(`/classrooms/${data.classroom.id}?tab=today`)
     } catch (err: any) {
       console.error('Join error:', err)

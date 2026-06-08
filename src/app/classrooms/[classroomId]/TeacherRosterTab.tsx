@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { ConfirmDialog, SplitButton, type SplitButtonOption, useAppMessage } from '@/ui'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
@@ -26,6 +26,7 @@ import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { compareByNameFields, toggleSort } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 
 type Role = 'student' | 'teacher'
 
@@ -120,6 +121,10 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [isRemoving, setIsRemoving] = useState(false)
   const [selectedRosterId, setSelectedRosterId] = useState<string | null>(null)
   const [detailPaneWidth, setDetailPaneWidth] = useState(50)
+  const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
+  const loadRequestIdRef = useRef(0)
+  const currentClassroomIdRef = useRef(classroom.id)
+  currentClassroomIdRef.current = classroom.id
 
   // Selection state
   const { showMessage } = useAppMessage()
@@ -129,8 +134,14 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [editingCounselorValue, setEditingCounselorValue] = useState('')
   const [isSavingCounselor, setIsSavingCounselor] = useState(false)
 
+  const hasCurrentRoster = loadedClassroomId === classroom.id
+  const currentRoster = useMemo(
+    () => (hasCurrentRoster ? roster : []),
+    [hasCurrentRoster, roster],
+  )
+
   const sortedRoster = useMemo(() => {
-    const rows = [...roster]
+    const rows = [...currentRoster]
     rows.sort((a, b) =>
       compareByNameFields(
         { firstName: a.first_name, lastName: a.last_name, id: a.email },
@@ -140,47 +151,83 @@ export function TeacherRosterTab({ classroom }: Props) {
       )
     )
     return rows
-  }, [roster, sortColumn, sortDirection])
+  }, [currentRoster, sortColumn, sortDirection])
 
   const rosterIds = useMemo(() => sortedRoster.map((r) => r.id), [sortedRoster])
   const joinedCount = useMemo(() => sortedRoster.filter((r) => r.joined).length, [sortedRoster])
   const { selectedIds, toggleSelect, toggleSelectAll, allSelected, clearSelection } = useStudentSelection(rosterIds)
+  const isRosterLoading = loading || !hasCurrentRoster
 
   function onSort(column: 'first_name' | 'last_name') {
     setSortState((prev) => toggleSort(prev, column))
   }
 
   async function loadRoster() {
+    const classroomId = classroom.id
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster`)
-      const data = await res.json()
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-          try {
-            const meRes = await fetch('/api/auth/me')
-            const meData = await meRes.json().catch(() => ({}))
-            const role = (meData?.user?.role ?? null) as Role | null
-            if (role && role !== 'teacher') {
-              throw new Error('You are not signed in as a teacher. Log out and sign back in as a teacher (student sign-in in another tab replaces the session).')
+      const data = await fetchJSONWithCache(
+        `teacher-roster:${classroomId}`,
+        async () => {
+          const res = await fetch(`/api/teacher/classrooms/${classroomId}/roster`)
+          const data = await res.json()
+          if (!res.ok) {
+            if (res.status === 401 || res.status === 403) {
+              try {
+                const meData = await fetchJSONWithCache(
+                  'auth-me:roster-error',
+                  async () => {
+                    const meRes = await fetch('/api/auth/me')
+                    return meRes.json().catch(() => ({}))
+                  },
+                  2_000,
+                )
+                const role = (meData?.user?.role ?? null) as Role | null
+                if (role && role !== 'teacher') {
+                  throw new Error('You are not signed in as a teacher. Log out and sign back in as a teacher (student sign-in in another tab replaces the session).')
+                }
+              } catch {
+                // Fallback to generic message below
+              }
             }
-          } catch {
-            // Fallback to generic message below
+            throw new Error(data.error || 'Failed to load roster')
           }
-        }
-        throw new Error(data.error || 'Failed to load roster')
-      }
+          return data
+        },
+        20_000,
+      )
+      if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setRoster(normalizeRosterRows(data.roster || []))
+      setLoadedClassroomId(classroomId)
       clearSelection()
     } catch (err: any) {
+      if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
+      setRoster([])
+      setLoadedClassroomId(classroomId)
       setError(err.message || 'Failed to load roster')
     } finally {
-      setLoading(false)
+      if (loadRequestIdRef.current === requestId && currentClassroomIdRef.current === classroomId) {
+        setLoading(false)
+      }
     }
   }
 
   useEffect(() => {
+    loadRequestIdRef.current += 1
+    setRoster([])
+    setLoadedClassroomId(null)
+    setError('')
+    setPendingRemoval(null)
+    setSelectedRosterId(null)
+    setUploadModalOpen(false)
+    setAddModalOpen(false)
+    setIsRemoving(false)
+    setEditingCounselorId(null)
+    setEditingCounselorValue('')
+    setIsSavingCounselor(false)
     loadRoster()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroom.id])
@@ -188,12 +235,13 @@ export function TeacherRosterTab({ classroom }: Props) {
   async function confirmRemoveStudent() {
     if (!pendingRemoval || pendingRemoval.rows.length === 0) return
     if (isReadOnly) return
+    const classroomId = classroom.id
     setIsRemoving(true)
     setError('')
     const fallbackError = pendingRemoval.rows.length > 1 ? 'Failed to remove students' : 'Failed to remove student'
 
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster/bulk-delete`, {
+      const res = await fetch(`/api/teacher/classrooms/${classroomId}/roster/bulk-delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roster_ids: pendingRemoval.rows.map((row) => row.rosterId) }),
@@ -202,12 +250,17 @@ export function TeacherRosterTab({ classroom }: Props) {
       if (!res.ok) {
         throw new Error(data.error || fallbackError)
       }
+      invalidateCachedJSON(`teacher-roster:${classroomId}`)
+      if (currentClassroomIdRef.current !== classroomId) return
       setPendingRemoval(null)
       await loadRoster()
     } catch (err: any) {
+      if (currentClassroomIdRef.current !== classroomId) return
       setError(err.message || fallbackError)
     } finally {
-      setIsRemoving(false)
+      if (currentClassroomIdRef.current === classroomId) {
+        setIsRemoving(false)
+      }
     }
   }
 
@@ -224,11 +277,11 @@ export function TeacherRosterTab({ classroom }: Props) {
     preserveScrollPosition: preserveRosterTableScrollPosition,
   } = useScrollPositionMemory<HTMLDivElement>({
     key: `${classroom.id}:roster`,
-    enabled: !loading,
+    enabled: !isRosterLoading,
     restoreToken: [
       selectedRosterId ?? 'none',
       sortedRoster.length,
-      loading ? 'loading' : 'ready',
+      isRosterLoading ? 'loading' : 'ready',
     ].join(':'),
   })
   const selectRosterId = useCallback((nextRosterId: string | null) => {
@@ -237,10 +290,10 @@ export function TeacherRosterTab({ classroom }: Props) {
   }, [preserveRosterTableScrollPosition])
 
   useEffect(() => {
-    if (selectedRosterId && !roster.some((row) => row.id === selectedRosterId)) {
+    if (selectedRosterId && !currentRoster.some((row) => row.id === selectedRosterId)) {
       setSelectedRosterId(null)
     }
-  }, [roster, selectedRosterId])
+  }, [currentRoster, selectedRosterId])
 
   async function copyToClipboard(emails: string[], label: string) {
     const text = emails.join(', ')
@@ -293,11 +346,12 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   async function saveCounselorEmail(rosterId: string) {
     if (isReadOnly) return
+    const classroomId = classroom.id
     setIsSavingCounselor(true)
     setError('')
 
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster/${rosterId}`, {
+      const res = await fetch(`/api/teacher/classrooms/${classroomId}/roster/${rosterId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ counselor_email: editingCounselorValue.trim() || null }),
@@ -306,6 +360,8 @@ export function TeacherRosterTab({ classroom }: Props) {
       if (!res.ok) {
         throw new Error(data.error || 'Failed to update counselor email')
       }
+      invalidateCachedJSON(`teacher-roster:${classroomId}`)
+      if (currentClassroomIdRef.current !== classroomId) return
       // Update local state
       setRoster((prev) =>
         prev.map((r) =>
@@ -315,9 +371,12 @@ export function TeacherRosterTab({ classroom }: Props) {
       setEditingCounselorId(null)
       setEditingCounselorValue('')
     } catch (err: any) {
+      if (currentClassroomIdRef.current !== classroomId) return
       setError(err.message || 'Failed to update counselor email')
     } finally {
-      setIsSavingCounselor(false)
+      if (currentClassroomIdRef.current === classroomId) {
+        setIsSavingCounselor(false)
+      }
     }
   }
 
@@ -334,6 +393,11 @@ export function TeacherRosterTab({ classroom }: Props) {
   function openRemoveStudentDialog(rows: RosterRow[]) {
     if (rows.length === 0 || isReadOnly) return
     setPendingRemoval({ rows: rows.map(toRemovalTarget) })
+  }
+
+  function refreshRosterAfterMutation() {
+    invalidateCachedJSON(`teacher-roster:${classroom.id}`)
+    void loadRoster()
   }
 
   function getRemovalMenuLabel(rowCount: number) {
@@ -373,7 +437,7 @@ export function TeacherRosterTab({ classroom }: Props) {
       id: 'upload-csv',
       label: '+ CSV',
       onSelect: () => setUploadModalOpen(true),
-      disabled: isReadOnly || loading,
+      disabled: isReadOnly || isRosterLoading,
     },
   ]
 
@@ -382,7 +446,7 @@ export function TeacherRosterTab({ classroom }: Props) {
       id: 'remove-student',
       label: <span className="text-danger">{getRemovalMenuLabel(removalTargetRows.length)}</span>,
       onSelect: () => openRemoveStudentDialog(removalTargetRows),
-      disabled: isReadOnly || loading || isRemoving || removalTargetRows.length === 0,
+      disabled: isReadOnly || isRosterLoading || isRemoving || removalTargetRows.length === 0,
       destructive: true,
     })
   }
@@ -449,11 +513,11 @@ export function TeacherRosterTab({ classroom }: Props) {
           <SplitButton
             label="+ Students"
             onPrimaryClick={() => {
-              if (isReadOnly || loading) return
+              if (isReadOnly || isRosterLoading) return
               setAddModalOpen(true)
             }}
             options={rosterActionOptions}
-            disabled={isReadOnly || loading}
+            disabled={isReadOnly || isRosterLoading}
             size="sm"
             toggleAriaLabel="Roster actions"
             menuPlacement="down"
@@ -552,7 +616,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     </div>
   )
 
-  const workspace = loading ? (
+  const workspace = isRosterLoading ? (
     <div className="flex flex-1 justify-center py-12">
       <Spinner size="lg" />
     </div>
@@ -762,14 +826,14 @@ export function TeacherRosterTab({ classroom }: Props) {
         isOpen={isAddModalOpen}
         onClose={() => setAddModalOpen(false)}
         classroomId={classroom.id}
-        onSuccess={loadRoster}
+        onSuccess={refreshRosterAfterMutation}
       />
 
       <UploadRosterModal
         isOpen={isUploadModalOpen}
         onClose={() => setUploadModalOpen(false)}
         classroomId={classroom.id}
-        onSuccess={loadRoster}
+        onSuccess={refreshRosterAfterMutation}
       />
 
       <ConfirmDialog

@@ -301,6 +301,68 @@ test.describe('student exam mode', () => {
     }
   })
 
+  test('resumes an in-progress test after browser reload and classifies the exit as a route exit', async ({ browser, page }) => {
+    test.setTimeout(90_000)
+    let testId: string | null = null
+
+    try {
+      await page.goto('/classrooms', { waitUntil: 'domcontentloaded' })
+
+      const testTitle = uniqueTitle()
+      const classroom = await withTeacherPage(browser, async (teacherPage) => {
+        const shared = await findSharedClassroom(page, teacherPage)
+        const testRecord = await createActiveOpenResponseTest(teacherPage, shared.id, testTitle)
+        testId = testRecord.id
+        return shared
+      })
+
+      await page.goto(`/classrooms/${classroom.id}?tab=tests`, { waitUntil: 'domcontentloaded' })
+      await page.getByRole('button', { name: new RegExp(testTitle) }).first().click()
+      await prepareExamWindowForViewportCompliance(page)
+
+      await page.getByRole('button', { name: 'Start the Test' }).click()
+      await page.getByRole('button', { name: 'Start test' }).click()
+
+      const splitShell = page.locator('[data-testid="student-test-split-container"]')
+      await expect(splitShell).toBeVisible({ timeout: 15_000 })
+
+      const responseBox = page.locator('textarea[placeholder="Write your response..."]')
+      await expect(responseBox).toBeVisible()
+      await responseBox.fill('Draft resumes after a browser reload.')
+      await expect(page.getByText('Unsaved changes')).toBeVisible()
+      await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 20_000 })
+
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      await page.getByRole('button', { name: new RegExp(testTitle) }).first().click()
+      await prepareExamWindowForViewportCompliance(page)
+      await page.getByRole('button', { name: 'Start the Test' }).click()
+      await page.getByRole('button', { name: 'Start test' }).click()
+
+      await expect(splitShell).toBeVisible({ timeout: 15_000 })
+      await expect(responseBox).toBeVisible()
+      await expect(responseBox).toHaveValue('Draft resumes after a browser reload.')
+
+      await expect.poll(async () => {
+        if (!testId) return { routeExitAttempts: 0, windowUnmaximizeAttempts: -1 }
+        const detail = await loadJson<StudentTestDetailRecord>(page, `/api/student/tests/${testId}`)
+        return {
+          routeExitAttempts: detail.focus_summary?.route_exit_attempts ?? 0,
+          windowUnmaximizeAttempts: detail.focus_summary?.window_unmaximize_attempts ?? 0,
+        }
+      }).toEqual(expect.objectContaining({
+        routeExitAttempts: expect.any(Number),
+        windowUnmaximizeAttempts: 0,
+      }))
+      await expect.poll(async () => {
+        if (!testId) return 0
+        const detail = await loadJson<StudentTestDetailRecord>(page, `/api/student/tests/${testId}`)
+        return detail.focus_summary?.route_exit_attempts ?? 0
+      }).toBeGreaterThanOrEqual(1)
+    } finally {
+      await cleanupTest(browser, testId)
+    }
+  })
+
   test('records restored away focus without hiding the open-response draft', async ({ browser, page }) => {
     test.setTimeout(90_000)
     let testId: string | null = null

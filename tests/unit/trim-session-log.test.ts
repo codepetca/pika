@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -43,6 +43,7 @@ describe('trim-session-log script', () => {
 
       expect(output).toContain('# Pika Session Log')
       expect(output).toContain('latest 60 entries')
+      expect(output).toContain('Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.')
       expect(output).not.toContain('## 2026-05-01 - First')
       expect(output).toContain('## 2026-05-02 - Second')
       expect(output).toContain('## 2026-05-03 - Third')
@@ -94,5 +95,47 @@ describe('trim-session-log script', () => {
 
     expect(script).toContain('const DEFAULT_KEEP = 60')
     expect(script).toContain('[--keep 60]')
+    expect(script).toContain('--check')
+  })
+
+  it('checks whether the session log is already trimmed without writing it', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'pika-session-log-check-'))
+
+    try {
+      const sourcePath = join(repoRoot, 'source.md')
+      const original = [
+        '# Pika Session Log',
+        '',
+        '## 2026-05-01 - First',
+        'first entry',
+        '',
+        '## 2026-05-02 - Second',
+        'second entry',
+        '',
+        '## 2026-05-03 - Third',
+        'third entry',
+        '',
+      ].join('\n')
+
+      writeFileSync(sourcePath, original)
+
+      const failedCheck = spawnSync('node', [scriptPath, '--check', '--source', sourcePath, '--keep', '2'], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(failedCheck.status).toBe(1)
+      expect(failedCheck.stderr).toContain('run node scripts/trim-session-log.mjs')
+      expect(readFileSync(sourcePath, 'utf8')).toBe(original)
+
+      const output = execFileSync('node', [scriptPath, '--check', '--source', sourcePath, '--keep', '3'], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(output).toContain('source.md is trimmed: 3/3 entries')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
   })
 })

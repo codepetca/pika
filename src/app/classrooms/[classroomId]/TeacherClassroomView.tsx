@@ -32,7 +32,6 @@ import {
   MessageSquare,
   Pencil,
   Plus,
-  RefreshCw,
   Send,
   Table,
   Trash2,
@@ -607,6 +606,7 @@ export function TeacherClassroomView({
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
   const [materials, setMaterials] = useState<ClassworkMaterial[]>([])
   const [surveys, setSurveys] = useState<SurveyWithStats[]>([])
+  const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [loading, setLoading] = useState(true)
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
@@ -691,10 +691,29 @@ export function TeacherClassroomView({
   const [classPaneRestoreCounter, setClassPaneRestoreCounter] = useState(0)
   const [refreshCounter, setRefreshCounter] = useState(0)
   const tableContainerRef = useRef<HTMLDivElement>(null)
+  const loadRequestIdRef = useRef(0)
+  const currentClassroomIdRef = useRef(classroom.id)
   const wasActiveRef = useRef(isActive)
   const handledCompletedRunKeysRef = useRef<Set<string>>(new Set())
+  currentClassroomIdRef.current = classroom.id
+  const hasCurrentClassroomData = loadedClassroomId === classroom.id
+  const currentAssignments = useMemo(
+    () => (hasCurrentClassroomData ? assignments : []),
+    [assignments, hasCurrentClassroomData],
+  )
+  const currentMaterials = useMemo(
+    () => (hasCurrentClassroomData ? materials : []),
+    [hasCurrentClassroomData, materials],
+  )
+  const currentSurveys = useMemo(
+    () => (hasCurrentClassroomData ? surveys : []),
+    [hasCurrentClassroomData, surveys],
+  )
   const showSummarySpinner = useDelayedBusy(
-    loading && assignments.length === 0 && materials.length === 0 && surveys.length === 0
+    (loading || !hasCurrentClassroomData)
+      && currentAssignments.length === 0
+      && currentMaterials.length === 0
+      && currentSurveys.length === 0
   )
   const { showMessage } = useAppMessage()
   const {
@@ -703,6 +722,8 @@ export function TeacherClassroomView({
   } = useAssignmentGradingLayout(classroom.id, workspaceWidth)
 
   const loadAssignments = useCallback(async (options?: { preserveContent?: boolean }) => {
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
     const preserveContent = options?.preserveContent ?? false
     if (!preserveContent) {
       setLoading(true)
@@ -741,10 +762,12 @@ export function TeacherClassroomView({
           return []
         }),
       ])
+      if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
       setAssignments(assignmentsData.assignments || [])
       setMaterials(materialsData.materials || [])
       setSurveys(surveysData.surveys || [])
       setClassDays(classDaysData)
+      setLoadedClassroomId(classroom.id)
       setHasLoadedOnce(true)
       window.dispatchEvent(
         new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
@@ -752,10 +775,39 @@ export function TeacherClassroomView({
         })
       )
     } catch (err) {
+      if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
+      setAssignments([])
+      setMaterials([])
+      setSurveys([])
+      setClassDays([])
+      setLoadedClassroomId(classroom.id)
+      setHasLoadedOnce(true)
       console.error('Error loading assignments:', err)
     } finally {
-      setLoading(false)
+      if (loadRequestIdRef.current === requestId && currentClassroomIdRef.current === classroom.id) {
+        setLoading(false)
+      }
     }
+  }, [classroom.id])
+
+  useEffect(() => {
+    loadRequestIdRef.current += 1
+    setAssignments([])
+    setMaterials([])
+    setSurveys([])
+    setClassDays([])
+    setLoadedClassroomId(null)
+    setHasLoadedOnce(false)
+    setSelection({ mode: 'summary' })
+    setEditAssignment(null)
+    setEditMaterial(null)
+    setPendingMaterialDelete(null)
+    setPendingSurveyDelete(null)
+    setSurveyModalId(null)
+    setSelectedAssignmentData(null)
+    setAssignmentAiGradingRun(null)
+    setSelectedAssignmentError('')
+    setSelectedAssignmentLoading(false)
   }, [classroom.id])
 
   useEffect(() => {
@@ -920,8 +972,8 @@ export function TeacherClassroomView({
   }, [selection.mode, selectedStudentId, splitPaneViewState.view])
 
   const classworkItems = useMemo(
-    () => buildOrderedClassworkItems(assignments, materials, surveys),
-    [assignments, materials, surveys],
+    () => buildOrderedClassworkItems(currentAssignments, currentMaterials, currentSurveys),
+    [currentAssignments, currentMaterials, currentSurveys],
   )
 
   const handleDragEnd = useCallback(
@@ -999,6 +1051,7 @@ export function TeacherClassroomView({
   useEffect(() => {
     if (isUrlSelectionControlled) return
     if (loading) return
+    if (!hasCurrentClassroomData) return
     const cookieName = `teacherAssignmentsSelection:${classroom.id}`
     const value = readCookie(cookieName)
     if (!value || value === 'summary') {
@@ -1007,11 +1060,11 @@ export function TeacherClassroomView({
     }
     if (value.startsWith('survey:')) {
       const surveyId = value.slice('survey:'.length)
-      const survey = surveys.find((item) => item.id === surveyId)
+      const survey = currentSurveys.find((item) => item.id === surveyId)
       setSelection(survey ? { mode: 'survey', surveyId } : { mode: 'summary' })
       return
     }
-    const assignment = assignments.find((a) => a.id === value)
+    const assignment = currentAssignments.find((a) => a.id === value)
     if (!assignment) {
       setSelection({ mode: 'summary' })
       return
@@ -1023,15 +1076,16 @@ export function TeacherClassroomView({
     } else {
       setSelection({ mode: 'assignment', assignmentId: value })
     }
-  }, [assignments, classroom.id, isUrlSelectionControlled, loading, surveys])
+  }, [classroom.id, currentAssignments, currentSurveys, hasCurrentClassroomData, isUrlSelectionControlled, loading])
 
   useEffect(() => {
     if (!isUrlSelectionControlled) return
     if (loading) return
+    if (!hasCurrentClassroomData) return
 
     const cookieName = `teacherAssignmentsSelection:${classroom.id}`
     if (selectedSurveyIdProp) {
-      const survey = surveys.find((item) => item.id === selectedSurveyIdProp)
+      const survey = currentSurveys.find((item) => item.id === selectedSurveyIdProp)
       if (survey) {
         writeCookie(cookieName, `survey:${selectedSurveyIdProp}`)
         setSelection({ mode: 'survey', surveyId: selectedSurveyIdProp })
@@ -1051,7 +1105,7 @@ export function TeacherClassroomView({
       return
     }
 
-    const assignment = assignments.find((a) => a.id === value)
+    const assignment = currentAssignments.find((a) => a.id === value)
     if (!assignment) {
       writeCookie(cookieName, 'summary')
       setSelection({ mode: 'summary' })
@@ -1073,7 +1127,7 @@ export function TeacherClassroomView({
       writeCookie(cookieName, value)
       setSelection({ mode: 'assignment', assignmentId: value })
     }
-  }, [assignments, classroom.id, isUrlSelectionControlled, loading, selectedAssignmentIdProp, selectedSurveyIdProp, surveys, updateSearchParams])
+  }, [classroom.id, currentAssignments, currentSurveys, hasCurrentClassroomData, isUrlSelectionControlled, loading, selectedAssignmentIdProp, selectedSurveyIdProp, updateSearchParams])
 
   useEffect(() => {
     function onSelectionEvent(e: Event) {
@@ -1087,7 +1141,7 @@ export function TeacherClassroomView({
         setSelection({ mode: 'summary' })
         return
       }
-      const assignment = assignments.find((a) => a.id === value)
+      const assignment = currentAssignments.find((a) => a.id === value)
       if (!assignment) {
         setSelection({ mode: 'summary' })
         return
@@ -1103,10 +1157,19 @@ export function TeacherClassroomView({
 
     window.addEventListener(TEACHER_ASSIGNMENTS_SELECTION_EVENT, onSelectionEvent)
     return () => window.removeEventListener(TEACHER_ASSIGNMENTS_SELECTION_EVENT, onSelectionEvent)
-  }, [assignments, classroom.id, isUrlSelectionControlled])
+  }, [classroom.id, currentAssignments, isUrlSelectionControlled])
+
+  const selectedAssignmentSummary = useMemo(() => {
+    if (selection.mode !== 'assignment') return null
+    return currentAssignments.find((item) => item.id === selection.assignmentId) ?? null
+  }, [currentAssignments, selection])
+  const selectedAssignmentBelongsToCurrentClassroom =
+    selection.mode === 'assignment' &&
+    hasCurrentClassroomData &&
+    selectedAssignmentSummary?.classroom_id === classroom.id
 
   useEffect(() => {
-    if (selection.mode !== 'assignment') {
+    if (selection.mode !== 'assignment' || !selectedAssignmentBelongsToCurrentClassroom) {
       setSelectedAssignmentData(null)
       setAssignmentAiGradingRun(null)
       setSelectedAssignmentError('')
@@ -1115,23 +1178,27 @@ export function TeacherClassroomView({
     }
 
     const assignmentId = selection.assignmentId
+    const classroomId = classroom.id
+    let ignore = false
 
-	    async function loadSelectedAssignment() {
-	      setSelectedAssignmentLoading(true)
-	      setSelectedAssignmentError('')
-	      try {
-	        const data = await fetchJSONWithCache(
-	          `teacher-assignment-detail:${assignmentId}:${refreshCounter}`,
-	          async () => {
-	            const response = await fetch(`/api/teacher/assignments/${assignmentId}`)
-	            const payload = await response.json()
-	            if (!response.ok) {
-	              throw new Error(payload.error || 'Failed to load assignment')
-	            }
-	            return payload
-	          },
-	          2_000,
-	        )
+    async function loadSelectedAssignment() {
+      setSelectedAssignmentLoading(true)
+      setSelectedAssignmentError('')
+      try {
+        const data = await fetchJSONWithCache(
+          `teacher-assignment-detail:${assignmentId}:${refreshCounter}`,
+          async () => {
+            const response = await fetch(`/api/teacher/assignments/${assignmentId}`)
+            const payload = await response.json()
+            if (!response.ok) {
+              throw new Error(payload.error || 'Failed to load assignment')
+            }
+            return payload
+          },
+          2_000,
+        )
+
+        if (ignore || currentClassroomIdRef.current !== classroomId) return
 
         setSelectedAssignmentData({
           assignment: data.assignment,
@@ -1139,16 +1206,22 @@ export function TeacherClassroomView({
         })
         setAssignmentAiGradingRun((data.active_ai_grading_run as AssignmentAiGradingRunSummary | null) ?? null)
       } catch (err: any) {
+        if (ignore || currentClassroomIdRef.current !== classroomId) return
         setSelectedAssignmentError(err.message || 'Failed to load assignment')
         setSelectedAssignmentData(null)
         setAssignmentAiGradingRun(null)
       } finally {
-        setSelectedAssignmentLoading(false)
+        if (!ignore && currentClassroomIdRef.current === classroomId) {
+          setSelectedAssignmentLoading(false)
+        }
       }
     }
 
     loadSelectedAssignment()
-  }, [assignments, refreshCounter, selection])
+    return () => {
+      ignore = true
+    }
+  }, [classroom.id, refreshCounter, selectedAssignmentBelongsToCurrentClassroom, selection])
 
   useEffect(() => {
     if (selection.mode !== 'assignment') {
@@ -1159,23 +1232,25 @@ export function TeacherClassroomView({
   }, [selection])
 
   const activeSelectedAssignmentData = useMemo(() => {
-    if (selection.mode !== 'assignment' || !selectedAssignmentData) return null
+    if (selection.mode !== 'assignment' || !selectedAssignmentBelongsToCurrentClassroom || !selectedAssignmentData) {
+      return null
+    }
+    if (selectedAssignmentData.assignment.classroom_id !== classroom.id) return null
     return selectedAssignmentData.assignment.id === selection.assignmentId
       ? selectedAssignmentData
       : null
-  }, [selectedAssignmentData, selection])
+  }, [classroom.id, selectedAssignmentBelongsToCurrentClassroom, selectedAssignmentData, selection])
 
   const activeAssignmentAiRun = useMemo(() => {
-    if (selection.mode !== 'assignment' || !assignmentAiGradingRun) return null
+    if (selection.mode !== 'assignment' || !selectedAssignmentBelongsToCurrentClassroom || !assignmentAiGradingRun) {
+      return null
+    }
     return assignmentAiGradingRun.assignment_id === selection.assignmentId
       ? assignmentAiGradingRun
       : null
-  }, [assignmentAiGradingRun, selection])
+  }, [assignmentAiGradingRun, selectedAssignmentBelongsToCurrentClassroom, selection])
   const activeAssignmentAiRunId = activeAssignmentAiRun?.id ?? null
   const hasActiveAssignmentAiRun = isAssignmentAiGradingRunActive(activeAssignmentAiRun)
-  const selectedAssignmentSummary = selection.mode === 'assignment'
-    ? assignments.find((item) => item.id === selection.assignmentId) ?? null
-    : null
 
   // Notify parent about selected assignment for sidebar
   useEffect(() => {
@@ -1705,7 +1780,6 @@ export function TeacherClassroomView({
       const updatedCount = Number(data.updated_count ?? docsByStudentId.size)
       setInfo(`Applied ${applyTarget} to ${updatedCount} selected student${updatedCount === 1 ? '' : 's'}`)
       setGradeSelectedConfirmTarget(null)
-      batchClearSelection()
 
       if (activeSelectedStudentId && docsByStudentId.has(activeSelectedStudentId)) {
         setGradeSelectedRefreshCounter((count) => count + 1)
@@ -1729,7 +1803,7 @@ export function TeacherClassroomView({
     return currentStudentRows.find((student) => student.student_id === selectedStudentId) ?? null
   }, [currentStudentRows, selectedStudentId])
   const activeSelectedStudentId = selectedStudentRow?.student_id ?? null
-  const selectedAssignmentId = selection.mode === 'assignment' ? selection.assignmentId : null
+  const selectedAssignmentId = selectedAssignmentBelongsToCurrentClassroom ? selection.assignmentId : null
   const splitPaneViewSessionKey = selectedAssignmentId
     ? getAssignmentSplitPaneViewSessionKey(classroom.id, selectedAssignmentId)
     : null
@@ -1772,8 +1846,8 @@ export function TeacherClassroomView({
   const selectedSurveyId = selection.mode === 'survey' ? selection.surveyId : null
   const selectedSurvey = useMemo(() => {
     if (!selectedSurveyId) return null
-    return surveys.find((survey) => survey.id === selectedSurveyId) ?? null
-  }, [selectedSurveyId, surveys])
+    return currentSurveys.find((survey) => survey.id === selectedSurveyId) ?? null
+  }, [currentSurveys, selectedSurveyId])
 
   const patchSelectedSurvey = useCallback(async (update: Record<string, unknown>) => {
     if (!selectedSurveyId) return
@@ -1822,12 +1896,6 @@ export function TeacherClassroomView({
     preserveClassPaneScrollPosition()
     setClassPaneRestoreCounter((count) => count + 1)
   }, [preserveClassPaneScrollPosition])
-
-  const handleRefreshSelectedAssignment = useCallback(() => {
-    if (selection.mode !== 'assignment') return
-    queueClassPaneScrollRestore()
-    setRefreshCounter((count) => count + 1)
-  }, [queueClassPaneScrollRestore, selection])
 
   const handleGoPrevStudent = useCallback(() => {
     if (selectedStudentIndex <= 0) return
@@ -2133,7 +2201,7 @@ export function TeacherClassroomView({
   const classPane = (
     <div
       ref={classPaneScrollRef}
-      className="h-full min-h-0 overflow-auto"
+      className="h-full min-h-0 overflow-auto scrollbar-hover"
       data-testid="assignment-student-scroll-pane"
       onScroll={preserveClassPaneScrollPosition}
     >
@@ -2351,22 +2419,6 @@ export function TeacherClassroomView({
           </Button>
         </span>
       </Tooltip>
-      <Tooltip content="Refresh submissions">
-        <span className="inline-flex">
-          <button
-            type="button"
-            className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
-            onClick={handleRefreshSelectedAssignment}
-            disabled={selectedAssignmentLoading}
-            aria-label="Refresh submissions"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${selectedAssignmentLoading ? 'animate-spin' : ''}`}
-              aria-hidden="true"
-            />
-          </button>
-        </span>
-      </Tooltip>
       {classPaneActions}
       {workspaceStatus}
     </div>
@@ -2541,7 +2593,7 @@ export function TeacherClassroomView({
     <div className="flex justify-center py-8">
       <Spinner />
     </div>
-  ) : assignments.length === 0 && materials.length === 0 && surveys.length === 0 ? (
+  ) : currentAssignments.length === 0 && currentMaterials.length === 0 && currentSurveys.length === 0 ? (
     <div className="py-6 text-center text-sm text-text-muted">
       No classwork yet
     </div>

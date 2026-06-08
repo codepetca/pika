@@ -8,6 +8,7 @@ import type { Entry, ClassDay, AttendanceStatus, Classroom } from '@/types'
 import { entryHasContent, getAttendanceIcon, getAttendanceLabel } from '@/lib/attendance'
 import { fetchClassDaysForClassroom } from '@/lib/class-days-client'
 import { fetchStudentEntriesForClassroom } from '@/lib/student-entries-client'
+import { fetchStudentClassrooms, invalidateStudentClassrooms } from '@/lib/student-classrooms-client'
 import { getTodayInToronto } from '@/lib/timezone'
 
 interface HistoryEntry {
@@ -34,14 +35,13 @@ export default function HistoryPage() {
   useEffect(() => {
     async function loadClassrooms() {
       try {
-        const response = await fetch('/api/student/classrooms')
-        const data = await response.json()
+        const nextClassrooms = await fetchStudentClassrooms()
 
-        setClassrooms(data.classrooms || [])
+        setClassrooms(nextClassrooms)
 
         // Auto-select first classroom
-        if (data.classrooms && data.classrooms.length > 0) {
-          setSelectedClassroom(data.classrooms[0])
+        if (nextClassrooms.length > 0) {
+          setSelectedClassroom(nextClassrooms[0])
         }
       } catch (err) {
         console.error('Error loading classrooms:', err)
@@ -140,7 +140,8 @@ export default function HistoryPage() {
       }
 
       // Add to list and select
-      setClassrooms([data.classroom, ...classrooms])
+      invalidateStudentClassrooms()
+      setClassrooms((current) => [data.classroom, ...current.filter((classroom) => classroom.id !== data.classroom.id)])
       setSelectedClassroom(data.classroom)
       setJoinCode('')
       setShowJoinFlow(false)

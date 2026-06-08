@@ -73,6 +73,7 @@ function parseDateTime(isoString: string): { date: string; time: string } {
 
 export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAll, setShowAll] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -99,10 +100,14 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   const newTextareaRef = useRef<HTMLTextAreaElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const editDropdownRef = useRef<HTMLDivElement>(null)
+  const loadRequestIdRef = useRef(0)
 
   const isReadOnly = !!classroom.archived_at
 
   const loadAnnouncements = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
+    setLoading(true)
     try {
       const data = await fetchJSONWithCache(
         `teacher-announcements:${classroom.id}`,
@@ -113,11 +118,18 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
         },
         20_000,
       )
+      if (loadRequestIdRef.current !== requestId) return
       setAnnouncements(data.announcements || [])
+      setLoadedClassroomId(classroom.id)
     } catch (err) {
+      if (loadRequestIdRef.current !== requestId) return
+      setAnnouncements([])
+      setLoadedClassroomId(classroom.id)
       console.error('Error loading announcements:', err)
     } finally {
-      setLoading(false)
+      if (loadRequestIdRef.current === requestId) {
+        setLoading(false)
+      }
     }
   }, [classroom.id])
 
@@ -386,7 +398,10 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     setShowEditScheduleDropdown(true)
   }
 
-  if (loading) {
+  const currentAnnouncements = loadedClassroomId === classroom.id ? announcements : []
+  const isLoading = loading || loadedClassroomId !== classroom.id
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Spinner />
@@ -536,7 +551,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
       ) : null}
 
       {/* Empty state */}
-      {announcements.length === 0 && !isCreating && (
+      {currentAnnouncements.length === 0 && !isCreating && (
         <div className="rounded-lg border border-border bg-surface-2 p-4">
           <p className="text-sm text-text-muted">
             No announcements yet. Create one to share updates with your students.
@@ -545,8 +560,8 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
       )}
 
       {/* Announcements list */}
-      {announcements.length > 0 && (() => {
-        const sortedAnnouncements = sortAnnouncementsNewestFirst(announcements)
+      {currentAnnouncements.length > 0 && (() => {
+        const sortedAnnouncements = sortAnnouncementsNewestFirst(currentAnnouncements)
         const displayedAnnouncements = showAll ? sortedAnnouncements : sortedAnnouncements.slice(0, 5)
 
         return (

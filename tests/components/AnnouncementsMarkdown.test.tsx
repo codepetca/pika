@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TeacherAnnouncementsSection } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsSection'
 import { StudentAnnouncementsSection } from '@/app/classrooms/[classroomId]/StudentAnnouncementsSection'
@@ -46,6 +46,12 @@ const markdownAnnouncement: Announcement = {
   scheduled_for: null,
   created_at: '2026-05-13T12:00:00.000Z',
   updated_at: '2026-05-13T12:00:00.000Z',
+}
+
+const secondClassroom: Classroom = {
+  ...classroom,
+  id: 'classroom-announcements-second',
+  title: 'Second Announcements',
 }
 
 function mockAnnouncementFetch(announcements: Announcement[] = [markdownAnnouncement]) {
@@ -171,5 +177,121 @@ describe('announcement markdown rendering', () => {
     expect(link).toHaveAttribute('target', '_blank')
     expect(screen.getByText('Unit update')).toBeInTheDocument()
     expect(screen.getByText('bring notes')).toBeInTheDocument()
+  })
+
+  it('does not keep stale teacher announcements visible while loading another classroom', async () => {
+    let resolveSecondRead: ((response: Response) => void) | null = null
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes(secondClassroom.id)) {
+          return new Promise<Response>((resolve) => {
+            resolveSecondRead = resolve
+          })
+        }
+
+        return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+
+    const secondAnnouncement: Announcement = {
+      ...markdownAnnouncement,
+      id: 'second-announcement',
+      classroom_id: secondClassroom.id,
+      title: 'Second classroom update',
+    }
+
+    const view = render(<TeacherAnnouncementsSection classroom={classroom} />)
+
+    await screen.findByText('Unit update')
+
+    view.rerender(<TeacherAnnouncementsSection classroom={secondClassroom} />)
+
+    expect(screen.queryByText('Unit update')).not.toBeInTheDocument()
+
+    await act(async () => {
+      resolveSecondRead?.(
+        new Response(JSON.stringify({ announcements: [secondAnnouncement] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    })
+
+    expect(await screen.findByText('Second classroom update')).toBeInTheDocument()
+  })
+
+  it('marks student announcements read once per classroom', async () => {
+    const markedReadUrls: string[] = []
+    let resolveSecondRead: ((response: Response) => void) | null = null
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (init?.method === 'POST') {
+          markedReadUrls.push(url)
+          return new Response(JSON.stringify({ success: true, marked: 1 }), { status: 200 })
+        }
+
+        if (url.includes(secondClassroom.id)) {
+          return new Promise<Response>((resolve) => {
+            resolveSecondRead = resolve
+          })
+        }
+
+        return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }),
+    )
+
+    const view = render(<StudentAnnouncementsSection classroom={classroom} />)
+
+    await screen.findByText('Unit update')
+    await waitFor(() => {
+      expect(markedReadUrls).toEqual([
+        `/api/student/classrooms/${classroom.id}/announcements`,
+      ])
+    })
+
+    view.rerender(<StudentAnnouncementsSection classroom={secondClassroom} />)
+
+    expect(markedReadUrls).toEqual([
+      `/api/student/classrooms/${classroom.id}/announcements`,
+    ])
+
+    await act(async () => {
+      resolveSecondRead?.(
+        new Response(
+          JSON.stringify({
+            announcements: [
+              {
+                ...markdownAnnouncement,
+                id: 'second-student-announcement',
+                classroom_id: secondClassroom.id,
+                title: 'Second student update',
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      )
+    })
+
+    await screen.findByText('Second student update')
+    await waitFor(() => {
+      expect(markedReadUrls).toEqual([
+        `/api/student/classrooms/${classroom.id}/announcements`,
+        `/api/student/classrooms/${secondClassroom.id}/announcements`,
+      ])
+    })
   })
 })

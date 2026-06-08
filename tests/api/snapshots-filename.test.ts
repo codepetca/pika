@@ -50,6 +50,34 @@ describe('GET /api/snapshots/[filename]', () => {
     expect(readFileMock).not.toHaveBeenCalled()
   })
 
+  it('returns 401 when snapshot gallery access is unauthenticated', async () => {
+    requireSnapshotGalleryAccessMock.mockRejectedValue(Object.assign(new Error('Not authenticated'), { name: 'AuthenticationError' }))
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/snapshots/view.png'),
+      { params: { filename: 'view.png' } }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(401)
+    expect(data).toEqual({ error: 'Unauthorized' })
+    expect(readFileMock).not.toHaveBeenCalled()
+  })
+
+  it('returns 403 when snapshot gallery access is unauthorized', async () => {
+    requireSnapshotGalleryAccessMock.mockRejectedValue(Object.assign(new Error('Forbidden'), { name: 'AuthorizationError' }))
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/snapshots/view.png'),
+      { params: { filename: 'view.png' } }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(data).toEqual({ error: 'Forbidden' })
+    expect(readFileMock).not.toHaveBeenCalled()
+  })
+
   it('rejects invalid filenames', async () => {
     const response = await GET(
       new NextRequest('http://localhost:3000/api/snapshots/../../secret.txt'),

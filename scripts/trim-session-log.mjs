@@ -10,6 +10,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 function parseArgs(argv) {
   const args = {
+    check: false,
     keep: DEFAULT_KEEP,
     source: DEFAULT_SOURCE,
     output: DEFAULT_OUTPUT,
@@ -22,6 +23,8 @@ function parseArgs(argv) {
     if (arg === '--keep' && next) {
       args.keep = Number.parseInt(next, 10)
       index += 1
+    } else if (arg === '--check') {
+      args.check = true
     } else if (arg === '--source' && next) {
       args.source = next
       index += 1
@@ -45,8 +48,10 @@ function parseArgs(argv) {
 function usage() {
   return [
     'Usage: node scripts/trim-session-log.mjs [--keep 60] [--source .ai/SESSION-LOG.md] [--output .ai/SESSION-LOG.md]',
+    '       node scripts/trim-session-log.mjs --check [--keep 60] [--source .ai/SESSION-LOG.md]',
     '',
     'Keeps the latest session entries, where each entry starts with a markdown "## " heading.',
+    'Use --check to fail when the source has more entries than the retention window.',
   ].join('\n')
 }
 
@@ -68,8 +73,8 @@ function buildSessionLog(entries) {
     'Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.',
     '',
     '**Rules:**',
-    '- Append one concise entry for meaningful work at the end of a session.',
-    '- Run `node scripts/trim-session-log.mjs` after appending to keep only the latest 60 entries.',
+    '- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.',
+    '- The trim step keeps only the latest 60 entries; use `node scripts/trim-session-log.mjs --check` to verify it was not missed.',
     '- Keep enough recent entries for weekly automations to inspect roughly the last week of work.',
     '- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.',
     '',
@@ -100,6 +105,28 @@ function trimSessionLog({ keep, source, output }) {
   }
 }
 
+function checkSessionLog({ keep, source }) {
+  const sourcePath = resolve(repoRoot, source)
+  const markdown = readFileSync(sourcePath, 'utf8')
+  const entries = extractEntries(markdown)
+
+  if (entries.length === 0) {
+    throw new Error(`No session entries found in ${source}`)
+  }
+
+  if (entries.length > keep) {
+    throw new Error(
+      `${source} has ${entries.length} entries; run node scripts/trim-session-log.mjs to keep only the latest ${keep}.`,
+    )
+  }
+
+  return {
+    source,
+    total: entries.length,
+    keep,
+  }
+}
+
 try {
   const args = parseArgs(process.argv.slice(2))
 
@@ -108,10 +135,15 @@ try {
     process.exit(0)
   }
 
-  const result = trimSessionLog(args)
-  console.log(
-    `Trimmed ${result.output}: kept ${result.retained} of ${result.total} entries from ${result.source}`,
-  )
+  if (args.check) {
+    const result = checkSessionLog(args)
+    console.log(`${result.source} is trimmed: ${result.total}/${result.keep} entries`)
+  } else {
+    const result = trimSessionLog(args)
+    console.log(
+      `Trimmed ${result.output}: kept ${result.retained} of ${result.total} entries from ${result.source}`,
+    )
+  }
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error))
   console.error(usage())

@@ -55,6 +55,9 @@ export function ClassDaysProvider({ classroomId, children }: ClassDaysProviderPr
 
   // Initial load
   useEffect(() => {
+    loadSequenceRef.current += 1
+    setClassDays([])
+    setIsLoading(true)
     loadClassDays()
   }, [loadClassDays])
 

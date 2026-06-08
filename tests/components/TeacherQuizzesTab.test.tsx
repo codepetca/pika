@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { TeacherQuizzesTab } from '@/app/classrooms/[classroomId]/TeacherQuizzesTab'
 import { TooltipProvider } from '@/ui'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
+import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 import { createMockClassroom, createMockQuiz } from '../helpers/mocks'
 import type { QuizAssessmentType, QuizWithStats } from '@/types'
 
@@ -83,6 +84,23 @@ function listFetchCalls(fetchMock: ReturnType<typeof vi.fn>) {
   )
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+  return { promise, resolve, reject }
+}
+
+function jsonResponse(body: unknown, ok = true): Response {
+  return {
+    ok,
+    json: async () => body,
+  } as Response
+}
+
 describe('TeacherQuizzesTab', () => {
   const classroom = createMockClassroom()
   let fetchMock: ReturnType<typeof vi.fn>
@@ -94,6 +112,7 @@ describe('TeacherQuizzesTab', () => {
   })
 
   afterEach(() => {
+    invalidateCachedJSONMatching('teacher-quizzes:')
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -136,6 +155,48 @@ describe('TeacherQuizzesTab', () => {
     expect(listFetchCalls(fetchMock)[0][0]).toContain('/api/teacher/quizzes?classroom_id=')
   })
 
+  it('ignores stale quiz list responses after classroom changes', async () => {
+    const firstLoad = createDeferred<Response>()
+    const secondLoad = createDeferred<Response>()
+    const firstClassroom = createMockClassroom({ id: 'classroom-a', title: 'Classroom A' })
+    const secondClassroom = createMockClassroom({ id: 'classroom-b', title: 'Classroom B' })
+    fetchMock
+      .mockReturnValueOnce(firstLoad.promise)
+      .mockReturnValueOnce(secondLoad.promise)
+
+    const view = render(
+      <TeacherQuizzesTab classroom={firstClassroom} assessmentType="quiz" />,
+      { wrapper: Wrapper },
+    )
+
+    await waitFor(() => {
+      expect(listFetchCalls(fetchMock)).toHaveLength(1)
+    })
+
+    view.rerender(<TeacherQuizzesTab classroom={secondClassroom} assessmentType="quiz" />)
+
+    await waitFor(() => {
+      expect(listFetchCalls(fetchMock)).toHaveLength(2)
+    })
+
+    await act(async () => {
+      secondLoad.resolve(jsonResponse({
+        quizzes: [makeQuiz({ id: 'quiz-current', title: 'Current Classroom Quiz' })],
+      }))
+    })
+
+    expect(await screen.findByText('Current Classroom Quiz')).toBeInTheDocument()
+
+    await act(async () => {
+      firstLoad.resolve(jsonResponse({
+        quizzes: [makeQuiz({ id: 'quiz-stale', title: 'Stale Classroom Quiz' })],
+      }))
+    })
+
+    expect(screen.getByText('Current Classroom Quiz')).toBeInTheDocument()
+    expect(screen.queryByText('Stale Classroom Quiz')).not.toBeInTheDocument()
+  })
+
   it('fetches quizzes once when update event fires (not twice)', async () => {
     mockQuizzesResponse([])
     renderTab()
@@ -175,6 +236,47 @@ describe('TeacherQuizzesTab', () => {
     await waitFor(() => {
       expect(listFetchCalls(fetchMock)).toHaveLength(2)
     })
+  })
+
+  it('forces a fresh quiz list reload after creation while the initial load is pending', async () => {
+    const initialLoad = createDeferred<Response>()
+    const postCreateLoad = createDeferred<Response>()
+    fetchMock
+      .mockReturnValueOnce(initialLoad.promise)
+      .mockReturnValueOnce(postCreateLoad.promise)
+
+    renderTab()
+
+    await waitFor(() => {
+      expect(listFetchCalls(fetchMock)).toHaveLength(1)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'New' }))
+    fireEvent.click(screen.getByTestId('mock-quiz-save'))
+
+    await waitFor(() => {
+      expect(listFetchCalls(fetchMock)).toHaveLength(2)
+    })
+
+    await act(async () => {
+      postCreateLoad.resolve(jsonResponse({
+        quizzes: [makeQuiz({ id: 'created-quiz-id', title: 'Created Quiz' })],
+      }))
+    })
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('mock-quiz-detail').some((item) =>
+        item.textContent?.includes('Detail for Created Quiz')
+      )).toBe(true)
+    })
+
+    await act(async () => {
+      initialLoad.resolve(jsonResponse({ quizzes: [] }))
+    })
+
+    expect(screen.getAllByTestId('mock-quiz-detail').some((item) =>
+      item.textContent?.includes('Detail for Created Quiz')
+    )).toBe(true)
   })
 
   it('renders quiz mode with the quiz API and primary action', async () => {
