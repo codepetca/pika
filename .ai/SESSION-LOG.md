@@ -8,23 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-05-31 — Student lesson calendar cache reuse
-
-**Completed:**
-- Routed student lesson calendar assignment reads through the shared `student-assignments:<classroomId>` cache key.
-- Routed student lesson calendar announcement reads through the shared `student-announcements:<classroomId>` cache key.
-- Routed student lesson calendar lesson-plan reads through a range-specific `student-lesson-plans:<classroomId>:<start>:<end>` cache key.
-- Added remount coverage proving the calendar reuses cached lesson plans, assignments, and announcements.
-- Addressed review feedback by isolating per-endpoint load failures and strengthening remount coverage to wait for completed cached data.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/StudentLessonCalendarTab.test.tsx tests/unit/request-cache.test.ts -- --runInBand`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-
 ## 2026-05-31 — Student history cache reuse
 
 **Completed:**
@@ -961,3 +944,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test` (one unrelated `StudentHistoryPage` concurrency failure; isolated rerun passed)
 - `pnpm vitest run tests/components/StudentHistoryPage.test.tsx`
 - `pnpm vitest run --sequence.concurrent=false`
+
+## 2026-06-08 — Assignment AI grading pane refresh
+
+**Completed:**
+- Refreshed the mounted selected-student assignment grading pane when a background assignment AI grading run completes, avoiding a full page refresh.
+- Applied the same pane refresh to the legacy synchronous batch auto-grade path.
+- Added classroom-view coverage that asserts a mounted grading pane receives a refresh-key bump after background AI grading completion.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (worktree rerun failed in baseline verification only: `LoginClient.test.tsx` two failures and `crypto.test.ts` password hash timeout; prior hub startup run failed different unrelated tests)
+- `pnpm vitest run tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
