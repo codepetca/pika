@@ -243,6 +243,7 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
     splitPaneView = 'students-grading',
     studentHeader,
     inspectorWidth,
+    refreshKey = 0,
     onLayoutChange,
     onDetailsMetaChange,
     onGradeTemplateChange,
@@ -276,6 +277,7 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
         <div
           data-testid="teacher-work-panel"
           data-highlighted-sections={highlightedInspectorSections.join(',')}
+          data-refresh-key={refreshKey}
         >
           <div data-testid="assignment-split-pane-view">{splitPaneView}</div>
           <div data-testid="assignment-workspace-inspector-width">{inspectorWidth}</div>
@@ -2676,6 +2678,7 @@ describe('TeacherClassroomView', () => {
     await waitFor(() => {
       expect(mockShowMessage).toHaveBeenCalledWith({ text: 'Graded 1', tone: 'info' })
     })
+    expect(screen.getByTestId('teacher-work-panel')).toHaveAttribute('data-refresh-key', '1')
   })
 
   it('shows only unique true errors in the completion message and treats empty work as missing', async () => {

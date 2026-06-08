@@ -1585,6 +1585,9 @@ export function TeacherClassroomView({
     const message = formatAssignmentAiGradingRunMessage(activeAssignmentAiRun)
     batchClearSelection()
     setRefreshCounter((count) => count + 1)
+    if (selectedStudentId) {
+      setGradeSelectedRefreshCounter((count) => count + 1)
+    }
 
     if (message.error) {
       setError(message.error)
@@ -1593,7 +1596,7 @@ export function TeacherClassroomView({
       setInfo(message.info)
       setError('')
     }
-  }, [activeAssignmentAiRun, batchClearSelection, hasActiveAssignmentAiRun])
+  }, [activeAssignmentAiRun, batchClearSelection, hasActiveAssignmentAiRun, selectedStudentId])
 
   async function handleBatchAutoGrade() {
     if (!selectedAssignmentData || batchSelectedCount === 0) return
@@ -1628,6 +1631,9 @@ export function TeacherClassroomView({
       batchClearSelection()
       // Reload assignment data to refresh statuses/grades
       setRefreshCounter((c) => c + 1)
+      if (selectedStudentId) {
+        setGradeSelectedRefreshCounter((c) => c + 1)
+      }
     } catch (err: any) {
       setError(err.message || 'Auto-grade failed')
     } finally {
