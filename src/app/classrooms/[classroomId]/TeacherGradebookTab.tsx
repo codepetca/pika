@@ -10,7 +10,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
-import { ChevronDown, ChevronUp, Copy, Mail, Settings, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Copy, ListFilter, Mail, Settings, X } from 'lucide-react'
 import type {
   GradebookAssessmentCell,
   GradebookAssessmentColumn,
@@ -18,12 +18,8 @@ import type {
   GradebookStudentSummary,
 } from '@/types'
 import {
-  Button,
   Input,
-  SegmentedControl,
-  SplitButton,
   Tooltip,
-  type SegmentedControlOption,
   type SplitButtonOption,
   useAppMessage,
 } from '@/ui'
@@ -1664,14 +1660,18 @@ export function TeacherGradebookTab({
   }
 
   const isSettingsActive = columnEditorOpen
-  const scoreDisplayOptions: Array<SegmentedControlOption<ScoreDisplayMode>> = [
+  const scoreDisplayOptions: SplitButtonOption[] = [
     {
-      value: 'percent',
-      label: 'Scores: %',
+      id: 'score-display-percent',
+      label: 'Show %',
+      checked: scoreDisplayMode === 'percent',
+      onSelect: () => handleScoreDisplayModeChange('percent'),
     },
     {
-      value: 'raw',
-      label: 'Scores: Raw',
+      id: 'score-display-raw',
+      label: 'Show Raw',
+      checked: scoreDisplayMode === 'raw',
+      onSelect: () => handleScoreDisplayModeChange('raw'),
     },
   ]
   const selectedEmailOptions: SplitButtonOption[] = [
@@ -1696,53 +1696,54 @@ export function TeacherGradebookTab({
       onSelect: () => openOutlook(selectedStudentEmails),
     },
   ]
+  const gradebookActionOptions: SplitButtonOption[] = [
+    ...scoreDisplayOptions,
+    {
+      id: 'column-controls',
+      label: (
+        <span className="inline-flex items-center gap-2 whitespace-nowrap">
+          <Settings className="h-4 w-4" aria-hidden="true" />
+          <span>Column controls</span>
+        </span>
+      ),
+      checked: isSettingsActive,
+      onSelect: () => handleSettingsActiveChange(!isSettingsActive),
+      dividerBefore: true,
+    },
+    ...(selectedStudentEmails.length > 0
+      ? selectedEmailOptions.map((option, index) => ({
+          ...option,
+          dividerBefore: index === 0 ? true : option.dividerBefore,
+        }))
+      : []),
+  ]
+  const nextScoreDisplayMode: ScoreDisplayMode = scoreDisplayMode === 'percent' ? 'raw' : 'percent'
+  const scoreDisplayLabel = scoreDisplayMode === 'percent' ? 'Scores: %' : 'Scores: Raw'
+  const hasSelectedEmailActions = selectedStudentEmails.length > 0
+
   const actionBar = (
     <TeacherWorkSurfaceActionBar
-      center={
-        <div className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-1.5">
-          <SegmentedControl<ScoreDisplayMode>
-            ariaLabel="Gradebook score display"
-            value={scoreDisplayMode}
-            options={scoreDisplayOptions}
-            onChange={handleScoreDisplayModeChange}
-            className="h-9"
-          />
-          {selectedStudentEmails.length > 0 ? (
-            <SplitButton
-              label={
-                <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                  <Mail className="h-4 w-4" aria-hidden="true" />
-                  <span>Email ({selectedStudentEmails.length})</span>
-                </span>
-              }
-              onPrimaryClick={() => openDefaultEmail(selectedStudentEmails)}
-              options={selectedEmailOptions}
-              size="sm"
-              toggleAriaLabel="Gradebook email actions"
-              menuPlacement="down"
-            />
-          ) : null}
-          <Tooltip content={isSettingsActive ? 'Hide gradebook column controls' : 'Show gradebook column controls'}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-label="Gradebook column controls"
-              aria-pressed={isSettingsActive}
-              title="Gradebook column controls"
-              className={[
-                'h-9 w-9 px-0',
-                isSettingsActive
-                  ? 'border-primary/40 bg-info-bg text-primary shadow-inner hover:bg-info-bg-hover hover:text-primary'
-                  : '',
-              ].join(' ')}
-              onClick={() => handleSettingsActiveChange(!isSettingsActive)}
-            >
-              <Settings className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </Tooltip>
-        </div>
-      }
+      floatingAction={{
+        label: hasSelectedEmailActions ? (
+          <span className="inline-flex items-center gap-2 whitespace-nowrap">
+            <Mail className="h-4 w-4" aria-hidden="true" />
+            <span>Email ({selectedStudentEmails.length})</span>
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-2 whitespace-nowrap">
+            <ListFilter className="h-4 w-4" aria-hidden="true" />
+            <span>{scoreDisplayLabel}</span>
+          </span>
+        ),
+        onPrimaryClick: hasSelectedEmailActions
+          ? () => openDefaultEmail(selectedStudentEmails)
+          : () => handleScoreDisplayModeChange(nextScoreDisplayMode),
+        options: gradebookActionOptions,
+        variant: hasSelectedEmailActions ? 'primary' : 'secondary',
+        size: 'sm',
+        toggleAriaLabel: 'Gradebook actions',
+        menuPlacement: 'down',
+      }}
       centerPlacement="floating"
     />
   )

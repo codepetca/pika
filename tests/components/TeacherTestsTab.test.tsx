@@ -327,13 +327,19 @@ describe('TeacherTestsTab', () => {
     return screen.findByTestId('mock-test-detail')
   }
 
+  function toggleTestListControls() {
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'List controls' }))
+  }
+
   it('renders the tests list by default with no selected workspace', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
     renderTab()
 
     expect(await screen.findByText('Unit Test')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Test list settings' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New test' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    expect(screen.getByRole('menuitemradio', { name: 'List controls' })).toHaveAttribute('aria-checked', 'false')
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(screen.queryByText('Choose a test to review settings, questions, and grading details.')).not.toBeInTheDocument()
@@ -607,7 +613,7 @@ describe('TeacherTestsTab', () => {
       return Promise.reject(new Error(`Unexpected fetch ${String(url)}`))
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'New' }))
+    fireEvent.click(screen.getByRole('button', { name: 'New test' }))
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Untitled 2026-05-14 10:45:00')
     const dialog = screen.getByRole('dialog')
@@ -929,17 +935,16 @@ describe('TeacherTestsTab', () => {
     expect(await screen.findByText('Unit Test')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Drag to reorder Unit Test' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete Unit Test' })).not.toBeInTheDocument()
-    const settingsButton = screen.getByRole('button', { name: 'Test list settings' })
-    expect(settingsButton).toHaveAttribute('aria-pressed', 'false')
-    fireEvent.click(settingsButton)
+    toggleTestListControls()
 
     expect(screen.getByRole('button', { name: 'Drag to reorder Unit Test' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete Unit Test' })).toBeInTheDocument()
-    expect(settingsButton).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(settingsButton)
+    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
+    expect(screen.getByRole('menuitemradio', { name: 'List controls' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'List controls' }))
     expect(screen.queryByRole('button', { name: 'Drag to reorder Unit Test' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Test list settings' }))
+    toggleTestListControls()
     view.rerender(
       <TeacherTestsTab
         classroom={classroom}
@@ -959,7 +964,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     expect(await screen.findByText('Unit Test')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Test list settings' }))
+    toggleTestListControls()
 
     expect(screen.getByRole('button', { name: 'Drag to reorder Unit Test' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete Unit Test' })).toBeInTheDocument()
@@ -981,7 +986,7 @@ describe('TeacherTestsTab', () => {
         json: async () => ({ tests: [] }),
       })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Test list settings' }))
+    toggleTestListControls()
     fireEvent.click(screen.getByRole('button', { name: 'Delete Unit Test' }))
     expect(await screen.findByText('Delete test?')).toBeInTheDocument()
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
