@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { NavItems } from '@/components/layout/NavItems'
 
@@ -162,5 +162,29 @@ describe('NavItems notification dots', () => {
     expect(screen.queryByRole('link', { name: 'Quizzes' })).toBeNull()
     expect(container.querySelector('[data-new-activity-dot="true"]')).toBeNull()
     expect(screen.queryByRole('link', { name: /new activity/i })).toBeNull()
+  })
+
+  it('clears classwork selection with replace when the sidebar tab is clicked', () => {
+    const onTabChange = vi.fn()
+    const updateSearchParams = vi.fn()
+    render(
+      <NavItems
+        classroomId="classroom-1"
+        role="teacher"
+        activeTab="assignments"
+        onTabChange={onTabChange}
+        updateSearchParams={updateSearchParams}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('link', { name: 'Classwork' }))
+
+    expect(onTabChange).toHaveBeenCalledWith('assignments')
+    expect(updateSearchParams).toHaveBeenCalledWith(expect.any(Function), { replace: true })
+    const params = new URLSearchParams('tab=assignments&assignmentId=assignment-1&assignmentStudentId=student-1')
+    updateSearchParams.mock.calls[0][0](params)
+    expect(params.get('tab')).toBe('assignments')
+    expect(params.get('assignmentId')).toBeNull()
+    expect(params.get('assignmentStudentId')).toBeNull()
   })
 })
