@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button, ConfirmDialog, AlertDialog, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
@@ -8,6 +8,8 @@ import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/co
 import { useAlertDialog } from '@/hooks/useAlertDialog'
 import { useDeleteClassroom } from '@/hooks/useDeleteClassroom'
 import type { ClassDay, Classroom } from '@/types'
+import { fetchClassDaysForClassroom, invalidateClassDaysForClassroom } from '@/lib/class-days-client'
+import { fetchTeacherClassrooms, invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
 import {
   format,
   startOfMonth,
@@ -39,10 +41,15 @@ export default function CalendarPage() {
   const [startYear, setStartYear] = useState(currentYear)
   const [endMonth, setEndMonth] = useState(1) // January
   const [endYear, setEndYear] = useState(currentYear + 1)
+  const classDaysRequestIdRef = useRef(0)
+  const selectedClassroomIdRef = useRef<string | null>(null)
+  selectedClassroomIdRef.current = selectedClassroom?.id ?? null
 
   const { alertState, showError, showSuccess, closeAlert } = useAlertDialog()
 
   const handleDeleteSuccess = useCallback((deletedId: string) => {
+    invalidateTeacherClassrooms()
+    invalidateClassDaysForClassroom(deletedId)
     const updatedClassrooms = classrooms.filter(c => c.id !== deletedId)
     setClassrooms(updatedClassrooms)
     setSelectedClassroom(updatedClassrooms.length > 0 ? updatedClassrooms[0] : null)
@@ -95,14 +102,13 @@ export default function CalendarPage() {
   useEffect(() => {
     async function loadClassrooms() {
       try {
-        const response = await fetch('/api/teacher/classrooms')
-        const data = await response.json()
+        const nextClassrooms = await fetchTeacherClassrooms()
 
-        setClassrooms(data.classrooms || [])
+        setClassrooms(nextClassrooms)
 
         // Auto-select first classroom
-        if (data.classrooms && data.classrooms.length > 0) {
-          setSelectedClassroom(data.classrooms[0])
+        if (nextClassrooms.length > 0) {
+          setSelectedClassroom(nextClassrooms[0])
         }
       } catch (err) {
         console.error('Error loading classrooms:', err)
@@ -117,15 +123,19 @@ export default function CalendarPage() {
   const loadClassDays = useCallback(async () => {
     const classroomId = selectedClassroom?.id
     if (!classroomId) return
+    const requestId = classDaysRequestIdRef.current + 1
+    classDaysRequestIdRef.current = requestId
 
     setLoadingCalendar(true)
     try {
-      const response = await fetch(`/api/classrooms/${classroomId}/class-days`)
-      const data = await response.json()
-      setClassDays(data.class_days || [])
+      const nextClassDays = await fetchClassDaysForClassroom(classroomId)
+      if (classDaysRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
+      setClassDays(nextClassDays)
     } catch (err) {
+      if (classDaysRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
       console.error('Error loading class days:', err)
     } finally {
+      if (classDaysRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
       setLoadingCalendar(false)
     }
   }, [selectedClassroom?.id])
@@ -133,6 +143,7 @@ export default function CalendarPage() {
   // Load calendar when classroom selected
   useEffect(() => {
     if (!selectedClassroom) {
+      classDaysRequestIdRef.current += 1
       setClassDays([])
       return
     }
@@ -171,9 +182,9 @@ export default function CalendarPage() {
 
       if (response.ok) {
         // Refresh classroom list to pick up start/end date updates.
-        const classroomsRes = await fetch('/api/teacher/classrooms')
-        const classroomsData = await classroomsRes.json()
-        const nextClassrooms: Classroom[] = classroomsData.classrooms || []
+        invalidateTeacherClassrooms()
+        invalidateClassDaysForClassroom(selectedClassroom.id)
+        const nextClassrooms = await fetchTeacherClassrooms()
         setClassrooms(nextClassrooms)
         const refreshed = nextClassrooms.find(c => c.id === selectedClassroom.id) ?? null
         if (refreshed) setSelectedClassroom(refreshed)
@@ -204,6 +215,7 @@ export default function CalendarPage() {
       })
 
       if (response.ok) {
+        invalidateClassDaysForClassroom(selectedClassroom.id)
         await loadClassDays()
       }
     } catch (err) {
@@ -212,6 +224,8 @@ export default function CalendarPage() {
   }
 
   function handleClassroomCreated(classroom: Classroom) {
+    invalidateTeacherClassrooms()
+    invalidateClassDaysForClassroom(classroom.id)
     setClassrooms([classroom, ...classrooms])
     setSelectedClassroom(classroom)
   }

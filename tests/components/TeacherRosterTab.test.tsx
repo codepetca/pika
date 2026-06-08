@@ -1,10 +1,11 @@
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TeacherRosterTab } from '@/app/classrooms/[classroomId]/TeacherRosterTab'
 import type { Classroom } from '@/types'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
+import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 
 vi.mock('@/components/AddStudentsModal', () => ({
   AddStudentsModal: () => null,
@@ -84,13 +85,23 @@ function mockRosterFetch() {
   return fetchMock
 }
 
-function renderRoster() {
+function renderRoster(targetClassroom = classroom) {
   return render(
     <TooltipProvider>
       <AppMessageProvider>
-        <TeacherRosterTab classroom={classroom} />
+        <TeacherRosterTab classroom={targetClassroom} />
       </AppMessageProvider>
     </TooltipProvider>,
+  )
+}
+
+function renderRosterElement(targetClassroom = classroom) {
+  return (
+    <TooltipProvider>
+      <AppMessageProvider>
+        <TeacherRosterTab classroom={targetClassroom} />
+      </AppMessageProvider>
+    </TooltipProvider>
   )
 }
 
@@ -119,7 +130,98 @@ function getRequestBody(call: unknown[]) {
 describe('TeacherRosterTab', () => {
   afterEach(() => {
     cleanup()
+    invalidateCachedJSONMatching('teacher-roster:')
+    invalidateCachedJSONMatching('auth-me:')
     vi.unstubAllGlobals()
+  })
+
+  it('ignores stale roster loads after switching classrooms', async () => {
+    const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Second Roster' }
+    let resolveFirstRoster: (() => void) | null = null
+
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
+        return new Promise((resolve) => {
+          resolveFirstRoster = () => resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ roster: [rosterRow] }),
+          })
+        })
+      }
+
+      if (url === `/api/teacher/classrooms/${secondClassroom.id}/roster` && method === 'GET') {
+        return mockJson({ roster: [secondRosterRow] })
+      }
+
+      throw new Error(`Unhandled fetch: ${method} ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const view = renderRoster()
+
+    await waitFor(() => {
+      expect(resolveFirstRoster).toEqual(expect.any(Function))
+    })
+
+    view.rerender(renderRosterElement(secondClassroom))
+
+    expect(await screen.findByText('Grace')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveFirstRoster?.()
+    })
+
+    expect(screen.getByText('Grace')).toBeInTheDocument()
+    expect(screen.queryByText('Ada')).not.toBeInTheDocument()
+  })
+
+  it('hides the current roster while the next classroom roster loads', async () => {
+    const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Second Roster' }
+    let resolveSecondRoster: (() => void) | null = null
+
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+
+      if (url === `/api/teacher/classrooms/${classroom.id}/roster` && method === 'GET') {
+        return mockJson({ roster: [rosterRow] })
+      }
+
+      if (url === `/api/teacher/classrooms/${secondClassroom.id}/roster` && method === 'GET') {
+        return new Promise((resolve) => {
+          resolveSecondRoster = () => resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ roster: [secondRosterRow] }),
+          })
+        })
+      }
+
+      throw new Error(`Unhandled fetch: ${method} ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const view = renderRoster()
+
+    expect(await screen.findByText('Ada')).toBeInTheDocument()
+
+    view.rerender(renderRosterElement(secondClassroom))
+
+    expect(screen.queryByText('Ada')).not.toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(resolveSecondRoster).toEqual(expect.any(Function))
+    })
+    await act(async () => {
+      resolveSecondRoster?.()
+    })
+
+    expect(await screen.findByText('Grace')).toBeInTheDocument()
+    expect(screen.queryByText('Ada')).not.toBeInTheDocument()
   })
 
   it('opens single-student removal from the floating roster actions dropdown with confirmation', async () => {

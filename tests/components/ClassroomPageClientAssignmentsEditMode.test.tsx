@@ -6,6 +6,7 @@ import type { Classroom } from '@/types'
 
 const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
 const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
+const mockTeacherTestsTabProps = vi.hoisted(() => vi.fn())
 const mockClassDays = vi.hoisted(() => [
   { id: 'day-today', classroom_id: 'classroom-1', date: '2026-05-12', is_class_day: true, prompt_text: null },
   { id: 'day-last', classroom_id: 'classroom-1', date: '2026-05-11', is_class_day: true, prompt_text: null },
@@ -255,16 +256,19 @@ vi.mock('@/app/classrooms/[classroomId]/StudentAnnouncementsTab', () => ({
   StudentAnnouncementsTab: () => <div />,
 }))
 vi.mock('@/app/classrooms/[classroomId]/TeacherTestsTab', () => ({
-  TeacherTestsTab: ({ onSelectTest }: any) => (
-    <div>
-      <button
-        type="button"
-        onClick={() => onSelectTest?.({ id: 'test-1', title: 'Test One' })}
-      >
-        Select test workspace
-      </button>
-    </div>
-  ),
+  TeacherTestsTab: (props: any) => {
+    mockTeacherTestsTabProps(props)
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => props.onSelectTest?.({ id: 'test-1', title: 'Test One' })}
+        >
+          Select test workspace
+        </button>
+      </div>
+    )
+  },
 }))
 vi.mock('@/app/classrooms/[classroomId]/StudentQuizzesTab', () => ({
   StudentQuizzesTab: () => <div />,
@@ -294,16 +298,21 @@ const classroom: Classroom = {
   updated_at: '2026-01-01T00:00:00Z',
 }
 
-function renderClient(options?: { initialTab?: string; initialSearchParams?: Record<string, string | undefined> }) {
+function renderClient(options?: {
+  classroom?: Classroom
+  initialTab?: string
+  initialSearchParams?: Record<string, string | undefined>
+}) {
+  const targetClassroom = options?.classroom ?? classroom
   const initialTab = options?.initialTab ?? 'assignments'
   const initialSearchParams = options?.initialSearchParams ?? { tab: initialTab }
 
   return render(
     <MarkdownPreferenceProvider>
       <ClassroomPageClient
-        classroom={classroom}
+        classroom={targetClassroom}
         user={{ id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' }}
-        teacherClassrooms={[classroom]}
+        teacherClassrooms={[targetClassroom]}
         initialTab={initialTab}
         initialSearchParams={initialSearchParams}
       />
@@ -338,6 +347,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     })
     mockFetchJSONWithCache.mockReset()
     mockAssignmentsToMarkdown.mockReset()
+    mockTeacherTestsTabProps.mockReset()
     mockFetchJSONWithCache.mockResolvedValue({
       assignments: [
         {
@@ -501,6 +511,71 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Select test workspace' }))
 
     expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
+  })
+
+  it('resets stale tests detail query params when the classroom route changes', async () => {
+    const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Chemistry' }
+    window.history.replaceState(
+      {},
+      '',
+      '/classrooms/classroom-1?tab=tests&testId=old-test&testMode=grading&testStudentId=old-student',
+    )
+
+    const view = renderClient({
+      classroom,
+      initialTab: 'tests',
+      initialSearchParams: {
+        tab: 'tests',
+        testId: 'old-test',
+        testMode: 'grading',
+        testStudentId: 'old-student',
+      },
+    })
+
+    await waitFor(() => {
+      expect(mockTeacherTestsTabProps).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          classroom,
+          selectedTestId: 'old-test',
+          selectedTestMode: 'grading',
+          selectedTestStudentId: 'old-student',
+        }),
+      )
+    })
+
+    mockTeacherTestsTabProps.mockClear()
+
+    view.rerender(
+      <MarkdownPreferenceProvider>
+        <ClassroomPageClient
+          classroom={secondClassroom}
+          user={{ id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' }}
+          teacherClassrooms={[secondClassroom]}
+          initialTab="tests"
+          initialSearchParams={{ tab: 'tests' }}
+        />
+      </MarkdownPreferenceProvider>,
+    )
+
+    expect(
+      mockTeacherTestsTabProps.mock.calls.some(([props]) =>
+        props.classroom?.id === secondClassroom.id &&
+        (props.selectedTestId === 'old-test' ||
+          props.selectedTestMode === 'grading' ||
+          props.selectedTestStudentId === 'old-student')
+      ),
+    ).toBe(false)
+
+    await waitFor(() => {
+      expect(mockTeacherTestsTabProps).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          classroom: secondClassroom,
+          selectedTestId: null,
+          selectedTestMode: null,
+          selectedTestStudentId: null,
+        }),
+      )
+    })
   })
 
   it('does not open assignment markdown when assignment edit mode activates', async () => {

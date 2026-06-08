@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, ConfirmDialog, AlertDialog, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
@@ -11,6 +11,12 @@ import { useDeleteClassroom } from '@/hooks/useDeleteClassroom'
 import type { Classroom, AttendanceRecord, Entry } from '@/types'
 import { getAttendanceIcon } from '@/lib/attendance'
 import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
+import {
+  fetchTeacherDashboardAttendance,
+  fetchTeacherDashboardEntries,
+  invalidateTeacherDashboardAttendance,
+} from '@/lib/teacher-dashboard-client'
+import { fetchTeacherClassrooms, invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
 
 export default function TeacherDashboardPage() {
   const router = useRouter()
@@ -24,10 +30,15 @@ export default function TeacherDashboardPage() {
   const [loadingEntry, setLoadingEntry] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
+  const attendanceRequestIdRef = useRef(0)
+  const selectedClassroomIdRef = useRef<string | null>(null)
+  selectedClassroomIdRef.current = selectedClassroom?.id ?? null
 
   const { alertState, showSuccess, showError, closeAlert } = useAlertDialog()
 
   const handleDeleteSuccess = useCallback((deletedId: string) => {
+    invalidateTeacherClassrooms()
+    invalidateTeacherDashboardAttendance(deletedId)
     const updatedClassrooms = classrooms.filter(c => c.id !== deletedId)
     setClassrooms(updatedClassrooms)
     setSelectedClassroom(updatedClassrooms.length > 0 ? updatedClassrooms[0] : null)
@@ -47,14 +58,12 @@ export default function TeacherDashboardPage() {
   useEffect(() => {
     async function loadClassrooms() {
       try {
-        const response = await fetch('/api/teacher/classrooms')
-        const data = await response.json()
-
-        setClassrooms(data.classrooms || [])
+        const nextClassrooms = await fetchTeacherClassrooms()
+        setClassrooms(nextClassrooms)
 
         // Auto-select first classroom
-        if (data.classrooms && data.classrooms.length > 0) {
-          setSelectedClassroom(data.classrooms[0])
+        if (nextClassrooms.length > 0) {
+          setSelectedClassroom(nextClassrooms[0])
         }
       } catch (err) {
         console.error('Error loading classrooms:', err)
@@ -69,6 +78,7 @@ export default function TeacherDashboardPage() {
   // Load attendance when classroom selected
   useEffect(() => {
     if (!selectedClassroom) {
+      attendanceRequestIdRef.current += 1
       setAttendance([])
       setDates([])
       return
@@ -76,16 +86,22 @@ export default function TeacherDashboardPage() {
 
     async function loadAttendance() {
       if (!selectedClassroom) return
+      const classroomId = selectedClassroom.id
+      const requestId = attendanceRequestIdRef.current + 1
+      attendanceRequestIdRef.current = requestId
+
       setLoadingAttendance(true)
       try {
-        const response = await fetch(`/api/teacher/attendance?classroom_id=${selectedClassroom.id}`)
-        const data = await response.json()
+        const data = await fetchTeacherDashboardAttendance(classroomId)
 
+        if (attendanceRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
         setAttendance(data.attendance || [])
         setDates(data.dates || [])
       } catch (err) {
+        if (attendanceRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
         console.error('Error loading attendance:', err)
       } finally {
+        if (attendanceRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
         setLoadingAttendance(false)
       }
     }
@@ -99,10 +115,9 @@ export default function TeacherDashboardPage() {
     setLoadingEntry(true)
 
     try {
-      const response = await fetch(`/api/student/entries?classroom_id=${selectedClassroom.id}`)
-      const data = await response.json()
+      const entries = await fetchTeacherDashboardEntries(selectedClassroom.id)
 
-      const entry = (data.entries || []).find(
+      const entry = entries.find(
         (e: Entry) => e.student_id === studentId && e.date === date
       )
 
@@ -122,6 +137,8 @@ export default function TeacherDashboardPage() {
   }
 
   function handleClassroomCreated(classroom: Classroom) {
+    invalidateTeacherClassrooms()
+    invalidateTeacherDashboardAttendance(classroom.id)
     setClassrooms([classroom, ...classrooms])
     setSelectedClassroom(classroom)
   }
@@ -439,16 +456,22 @@ export default function TeacherDashboardPage() {
           isOpen={showUploadModal}
           onClose={() => setShowUploadModal(false)}
           classroomId={selectedClassroom.id}
-          onSuccess={() => {
-            // Reload attendance to show new students
+          onSuccess={async () => {
+            const classroomId = selectedClassroom.id
+            const requestId = attendanceRequestIdRef.current + 1
+            attendanceRequestIdRef.current = requestId
+            invalidateTeacherDashboardAttendance(classroomId)
             setLoadingAttendance(true)
-            fetch(`/api/teacher/attendance?classroom_id=${selectedClassroom.id}`)
-              .then(r => r.json())
-              .then(data => {
-                setAttendance(data.attendance || [])
-                setDates(data.dates || [])
-              })
-              .finally(() => setLoadingAttendance(false))
+            try {
+              const data = await fetchTeacherDashboardAttendance(classroomId)
+              if (attendanceRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
+              setAttendance(data.attendance)
+              setDates(data.dates)
+            } finally {
+              if (attendanceRequestIdRef.current === requestId && selectedClassroomIdRef.current === classroomId) {
+                setLoadingAttendance(false)
+              }
+            }
           }}
         />
       )}

@@ -10,7 +10,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
-import { ChevronDown, ChevronUp, Copy, Mail, Settings, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Copy, ListFilter, Mail, Settings, X } from 'lucide-react'
 import type {
   GradebookAssessmentCell,
   GradebookAssessmentColumn,
@@ -1187,10 +1187,11 @@ function AssessmentMatrixTable({
                         FINAL_COLUMN_SEPARATOR_CLASS,
                         isSelected ? 'bg-surface-selected group-hover:bg-surface-selected' : 'bg-surface group-hover:bg-surface-hover',
                         !visibleColumns.final ? 'bg-surface-2 text-text-muted' : '',
-                        visibleColumns.final ? getGradePercentTextClass(student.final_percent) : '',
                       ].join(' ')}
                     >
-                      {formatPercent(student.final_percent)}
+                      <span className={visibleColumns.final ? getGradePercentTextClass(student.final_percent) : 'text-text-muted'}>
+                        {formatPercent(student.final_percent)}
+                      </span>
                     </DataTableCell>
                   ) : null}
                 </DataTableRow>
@@ -1250,10 +1251,11 @@ function AssessmentMatrixTable({
                           className={[
                             'min-w-16 px-2 text-xs font-normal tabular-nums',
                             editColumnBorderClass,
-                            scoreTextClass,
                           ].join(' ')}
                         >
-                          {formatColumnStat(stats, column, 'average', displayMode)}
+                          <span className={scoreTextClass}>
+                            {formatColumnStat(stats, column, 'average', displayMode)}
+                          </span>
                         </DataTableCell>
                       )
                     })}
@@ -1264,10 +1266,11 @@ function AssessmentMatrixTable({
                         className={[
                           'whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-10',
                           FINAL_COLUMN_SEPARATOR_CLASS,
-                          visibleColumns.final ? getGradePercentTextClass(finalAverage) : 'text-text-muted',
                         ].join(' ')}
                       >
-                        {formatCompactPercent(finalAverage)}
+                        <span className={visibleColumns.final ? getGradePercentTextClass(finalAverage) : 'text-text-muted'}>
+                          {formatCompactPercent(finalAverage)}
+                        </span>
                       </DataTableCell>
                     ) : null}
                   </DataTableRow>
@@ -1317,10 +1320,11 @@ function AssessmentMatrixTable({
                           className={[
                             'min-w-16 px-2 text-xs font-normal tabular-nums',
                             editColumnBorderClass,
-                            scoreTextClass,
                           ].join(' ')}
                         >
-                          {formatColumnStat(stats, column, 'median', displayMode)}
+                          <span className={scoreTextClass}>
+                            {formatColumnStat(stats, column, 'median', displayMode)}
+                          </span>
                         </DataTableCell>
                       )
                     })}
@@ -1331,10 +1335,11 @@ function AssessmentMatrixTable({
                         className={[
                           'whitespace-nowrap bg-surface-2 text-xs font-semibold tabular-nums md:sticky md:right-0 md:z-10',
                           FINAL_COLUMN_SEPARATOR_CLASS,
-                          visibleColumns.final ? getGradePercentTextClass(finalMedian) : 'text-text-muted',
                         ].join(' ')}
                       >
-                        {formatCompactPercent(finalMedian)}
+                        <span className={visibleColumns.final ? getGradePercentTextClass(finalMedian) : 'text-text-muted'}>
+                          {formatCompactPercent(finalMedian)}
+                        </span>
                       </DataTableCell>
                     ) : null}
                   </DataTableRow>
@@ -1657,7 +1662,7 @@ export function TeacherGradebookTab({
   }
 
   const isSettingsActive = columnEditorOpen
-  const gradebookEmailOptions: SplitButtonOption[] = [
+  const scoreDisplayOptions: SplitButtonOption[] = [
     {
       id: 'show-percent',
       label: 'Show %',
@@ -1670,31 +1675,31 @@ export function TeacherGradebookTab({
       checked: scoreDisplayMode === 'raw',
       onSelect: () => handleScoreDisplayModeChange('raw'),
     },
+  ]
+  const selectedEmailOptions: SplitButtonOption[] = [
     {
       id: 'copy-selected-emails',
       label: `Copy emails (${selectedStudentEmails.length})`,
       icon: <Copy className="h-4 w-4" aria-hidden="true" />,
-      dividerBefore: true,
       onSelect: () => {
         void copySelectedEmailsToClipboard()
       },
-      disabled: selectedStudentEmails.length === 0,
     },
     {
       id: 'gmail-selected-students',
       label: 'Gmail',
       icon: <Mail className="h-4 w-4" aria-hidden="true" />,
       onSelect: () => openGmail(selectedStudentEmails),
-      disabled: selectedStudentEmails.length === 0,
     },
     {
       id: 'outlook-selected-students',
       label: 'Outlook',
       icon: <Mail className="h-4 w-4" aria-hidden="true" />,
       onSelect: () => openOutlook(selectedStudentEmails),
-      disabled: selectedStudentEmails.length === 0,
     },
   ]
+  const nextScoreDisplayMode: ScoreDisplayMode = scoreDisplayMode === 'percent' ? 'raw' : 'percent'
+  const scoreDisplayLabel = scoreDisplayMode === 'percent' ? 'Scores: %' : 'Scores: Raw'
 
   const actionBar = (
     <TeacherWorkSurfaceActionBar
@@ -1703,24 +1708,40 @@ export function TeacherGradebookTab({
           <SplitButton
             label={
               <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                <Mail className="h-4 w-4" aria-hidden="true" />
-                <span>Email ({selectedStudentEmails.length})</span>
+                <ListFilter className="h-4 w-4" aria-hidden="true" />
+                <span>{scoreDisplayLabel}</span>
               </span>
             }
-            onPrimaryClick={() => openDefaultEmail(selectedStudentEmails)}
-            options={gradebookEmailOptions}
+            onPrimaryClick={() => handleScoreDisplayModeChange(nextScoreDisplayMode)}
+            options={scoreDisplayOptions}
+            variant="secondary"
             size="sm"
-            toggleAriaLabel="Gradebook email actions"
+            toggleAriaLabel="Gradebook score display actions"
             menuPlacement="down"
           />
-          <Tooltip content={isSettingsActive ? 'Hide gradebook settings' : 'Show gradebook settings'}>
+          {selectedStudentEmails.length > 0 ? (
+            <SplitButton
+              label={
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                  <Mail className="h-4 w-4" aria-hidden="true" />
+                  <span>Email ({selectedStudentEmails.length})</span>
+                </span>
+              }
+              onPrimaryClick={() => openDefaultEmail(selectedStudentEmails)}
+              options={selectedEmailOptions}
+              size="sm"
+              toggleAriaLabel="Gradebook email actions"
+              menuPlacement="down"
+            />
+          ) : null}
+          <Tooltip content={isSettingsActive ? 'Hide gradebook column controls' : 'Show gradebook column controls'}>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              aria-label="Gradebook settings"
+              aria-label="Gradebook column controls"
               aria-pressed={isSettingsActive}
-              title="Gradebook settings"
+              title="Gradebook column controls"
               className={[
                 'h-9 w-9 px-0',
                 isSettingsActive

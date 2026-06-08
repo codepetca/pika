@@ -54,7 +54,7 @@ Do not proceed until the user approves the plan.
 ## 7) Update AI Continuity Layer
 Before ending a session:
 - Append a concise entry to `.ai/SESSION-LOG.md`.
-- Run `node scripts/trim-session-log.mjs`.
+- Immediately run `node scripts/trim-session-log.mjs` in the same change.
 - Update `.ai/features.json` if feature status changed:
   ```bash
   node scripts/features.mjs pass <feature-id>

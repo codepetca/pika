@@ -39,7 +39,7 @@ describe('POST /api/teacher/assignments/[id]/feedback-return', () => {
     })
   })
 
-  it('returns feedback without clearing mailbox state', async () => {
+  it('returns feedback and clears the sent draft state', async () => {
     const existingDoc = {
       id: 'doc-1',
       assignment_id: 'assignment-1',
@@ -113,6 +113,9 @@ describe('POST /api/teacher/assignments/[id]/feedback-return', () => {
       is_submitted: true,
       submitted_at: '2026-03-20T12:00:00.000Z',
       feedback_returned_at: expect.any(String),
+      feedback: 'Draft feedback',
+      teacher_feedback_draft: null,
+      teacher_feedback_draft_updated_at: null,
       ai_feedback_suggestion: null,
       ai_feedback_suggested_at: null,
       ai_feedback_model: null,
@@ -121,5 +124,7 @@ describe('POST /api/teacher/assignments/[id]/feedback-return', () => {
     expect(payload).not.toHaveProperty('returned_at')
     expect(options).toEqual(expect.objectContaining({ onConflict: 'assignment_id,student_id' }))
     expect(data.doc.is_submitted).toBe(true)
+    expect(data.doc.feedback).toBe('Draft feedback')
+    expect(data.doc.teacher_feedback_draft).toBeNull()
   })
 })

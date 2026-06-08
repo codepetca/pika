@@ -48,6 +48,7 @@ export function StudentAssignmentsTab({
   const [assignments, setAssignments] = useState<AssignmentWithStatus[]>([])
   const [materials, setMaterials] = useState<ClassworkMaterial[]>([])
   const [surveys, setSurveys] = useState<StudentSurveyView[]>([])
+  const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [hasLoaded, setHasLoaded] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -60,12 +61,30 @@ export function StudentAssignmentsTab({
   })
   const editorRef = useRef<StudentAssignmentEditorHandle>(null)
   const wasActiveRef = useRef(isActive)
+  const loadRequestIdRef = useRef(0)
+  const currentClassroomIdRef = useRef(classroom.id)
+  currentClassroomIdRef.current = classroom.id
+  const hasCurrentClassroomData = loadedClassroomId === classroom.id
+  const currentAssignments = useMemo(
+    () => (hasCurrentClassroomData ? assignments : []),
+    [assignments, hasCurrentClassroomData],
+  )
+  const currentMaterials = useMemo(
+    () => (hasCurrentClassroomData ? materials : []),
+    [hasCurrentClassroomData, materials],
+  )
+  const currentSurveys = useMemo(
+    () => (hasCurrentClassroomData ? surveys : []),
+    [hasCurrentClassroomData, surveys],
+  )
   const showBlockingSpinner = useDelayedBusy(
-    loading && assignments.length === 0 && materials.length === 0 && surveys.length === 0
+    loading && currentAssignments.length === 0 && currentMaterials.length === 0 && currentSurveys.length === 0
   )
 
   const loadAssignments = useCallback(
     async (options?: { preserveContent?: boolean }) => {
+      const requestId = loadRequestIdRef.current + 1
+      loadRequestIdRef.current = requestId
       const preserveContent = options?.preserveContent ?? false
       if (preserveContent) {
         setRefreshing(true)
@@ -102,19 +121,39 @@ export function StudentAssignmentsTab({
             20_000,
           ).catch(() => ({ surveys: [] })),
         ])
+        if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
         setAssignments(assignmentsData.assignments || [])
         setMaterials(materialsData.materials || [])
         setSurveys(surveysData.surveys || [])
+        setLoadedClassroomId(classroom.id)
         setHasLoaded(true)
       } catch (err) {
+        if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
+        setAssignments([])
+        setMaterials([])
+        setSurveys([])
+        setLoadedClassroomId(classroom.id)
+        setHasLoaded(true)
         console.error('Error loading assignments:', err)
       } finally {
-        setLoading(false)
-        setRefreshing(false)
+        if (loadRequestIdRef.current === requestId && currentClassroomIdRef.current === classroom.id) {
+          setLoading(false)
+          setRefreshing(false)
+        }
       }
     },
     [classroom.id]
   )
+
+  useEffect(() => {
+    loadRequestIdRef.current += 1
+    setAssignments([])
+    setMaterials([])
+    setSurveys([])
+    setLoadedClassroomId(null)
+    setHasLoaded(false)
+    setRefreshing(false)
+  }, [classroom.id])
 
   useEffect(() => {
     if (isActive && !hasLoaded) {
@@ -130,22 +169,22 @@ export function StudentAssignmentsTab({
 
   const selectedAssignment = useMemo(() => {
     if (!selectedAssignmentId) return null
-    return assignments.find((a) => a.id === selectedAssignmentId) ?? null
-  }, [assignments, selectedAssignmentId])
+    return currentAssignments.find((a) => a.id === selectedAssignmentId) ?? null
+  }, [currentAssignments, selectedAssignmentId])
 
   const selectedMaterial = useMemo(() => {
     if (!selectedMaterialId) return null
-    return materials.find((material) => material.id === selectedMaterialId) ?? null
-  }, [materials, selectedMaterialId])
+    return currentMaterials.find((material) => material.id === selectedMaterialId) ?? null
+  }, [currentMaterials, selectedMaterialId])
 
   const selectedSurvey = useMemo(() => {
     if (!selectedSurveyId) return null
-    return surveys.find((survey) => survey.id === selectedSurveyId) ?? null
-  }, [selectedSurveyId, surveys])
+    return currentSurveys.find((survey) => survey.id === selectedSurveyId) ?? null
+  }, [currentSurveys, selectedSurveyId])
 
   const classworkItems = useMemo(
-    () => buildOrderedClassworkItems(assignments, materials, surveys),
-    [assignments, materials, surveys],
+    () => buildOrderedClassworkItems(currentAssignments, currentMaterials, currentSurveys),
+    [currentAssignments, currentMaterials, currentSurveys],
   )
 
   const view: StudentAssignmentsView = useMemo(() => {
@@ -299,7 +338,7 @@ export function StudentAssignmentsTab({
                 </div>
               </Card>
             ) : view === 'summary' ? (
-              assignments.length === 0 && materials.length === 0 && surveys.length === 0 ? (
+              currentAssignments.length === 0 && currentMaterials.length === 0 && currentSurveys.length === 0 ? (
                 <EmptyState
                   title="No classwork yet"
                   description="When your teacher posts assignments, materials, or surveys, they will show up here."

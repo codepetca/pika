@@ -68,6 +68,20 @@ describe('QuizDetailPanel', () => {
     vi.restoreAllMocks()
   })
 
+  function createDeferred<T>() {
+    let resolve!: (value: T) => void
+    let reject!: (reason?: unknown) => void
+    const promise = new Promise<T>((promiseResolve, promiseReject) => {
+      resolve = promiseResolve
+      reject = promiseReject
+    })
+    return { promise, resolve, reject }
+  }
+
+  function jsonResponse(body: unknown): Response {
+    return { ok: true, json: async () => body } as Response
+  }
+
   function mockFetchForQuiz(
     questions: QuizQuestion[],
     results?: QuizResultsAggregate[],
@@ -105,6 +119,400 @@ describe('QuizDetailPanel', () => {
     }
     return fetchMock
   }
+
+  it('ignores stale draft responses after selected assessment changes', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const staleDraft = createDeferred<Response>()
+    const currentDraft = createDeferred<Response>()
+    const staleQuestion = createMockQuizQuestion({
+      id: 'q-stale',
+      quiz_id: 'quiz-stale',
+      question_text: 'Stale draft question',
+      position: 0,
+    })
+    const currentQuestion = createMockQuizQuestion({
+      id: 'q-current',
+      quiz_id: 'quiz-current',
+      question_text: 'Current draft question',
+      position: 0,
+    })
+
+    fetchMock.mockImplementation((url: string) => {
+      if (url.endsWith('/api/teacher/quizzes/quiz-stale/draft')) return staleDraft.promise
+      if (url.endsWith('/api/teacher/quizzes/quiz-current/draft')) return currentDraft.promise
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+
+    const staleQuiz = makeQuizWithStats({ id: 'quiz-stale', title: 'Stale Quiz' })
+    const currentQuiz = makeQuizWithStats({ id: 'quiz-current', title: 'Current Quiz' })
+    const { rerender } = render(
+      <QuizDetailPanel quiz={staleQuiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />,
+      { wrapper: Wrapper }
+    )
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/quizzes/quiz-stale/draft')
+    })
+
+    rerender(
+      <QuizDetailPanel quiz={currentQuiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />
+    )
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/quizzes/quiz-current/draft')
+    })
+
+    await act(async () => {
+      currentDraft.resolve(jsonResponse({
+        draft: {
+          version: 1,
+          content: {
+            title: 'Current Quiz',
+            show_results: true,
+            questions: [currentQuestion],
+          },
+        },
+      }))
+      await currentDraft.promise
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Current draft question')).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      staleDraft.resolve(jsonResponse({
+        draft: {
+          version: 1,
+          content: {
+            title: 'Stale Quiz',
+            show_results: true,
+            questions: [staleQuestion],
+          },
+        },
+      }))
+      await staleDraft.promise
+    })
+
+    expect(screen.getByText('Current draft question')).toBeInTheDocument()
+    expect(screen.queryByText('Stale draft question')).not.toBeInTheDocument()
+  })
+
+  it('ignores stale test detail documents after selected assessment changes', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const staleDetail = createDeferred<Response>()
+    const currentDetail = createDeferred<Response>()
+
+    fetchMock.mockImplementation((url: string) => {
+      if (url.endsWith('/api/teacher/tests/test-stale/draft')) {
+        return Promise.resolve(jsonResponse({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Stale Test',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }))
+      }
+      if (url.endsWith('/api/teacher/tests/test-current/draft')) {
+        return Promise.resolve(jsonResponse({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Current Test',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }))
+      }
+      if (url.endsWith('/api/teacher/tests/test-stale')) return staleDetail.promise
+      if (url.endsWith('/api/teacher/tests/test-current')) return currentDetail.promise
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+
+    const staleTest = makeQuizWithStats({
+      id: 'test-stale',
+      title: 'Stale Test',
+      assessment_type: 'test',
+    })
+    const currentTest = makeQuizWithStats({
+      id: 'test-current',
+      title: 'Current Test',
+      assessment_type: 'test',
+    })
+    const { rerender } = render(
+      <QuizDetailPanel
+        quiz={staleTest}
+        classroomId="classroom-1"
+        apiBasePath="/api/teacher/tests"
+        onQuizUpdate={vi.fn()}
+      />,
+      { wrapper: Wrapper }
+    )
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-stale')
+    })
+
+    rerender(
+      <QuizDetailPanel
+        quiz={currentTest}
+        classroomId="classroom-1"
+        apiBasePath="/api/teacher/tests"
+        onQuizUpdate={vi.fn()}
+      />
+    )
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-current')
+    })
+
+    await act(async () => {
+      currentDetail.resolve(jsonResponse({
+        quiz: {
+          documents: [
+            { id: 'doc-current', title: 'Current Reference', source: 'text', content: 'Current' },
+          ],
+        },
+      }))
+      await currentDetail.promise
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Documents (1)' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Documents (1)' }))
+    expect(screen.getByText('Current Reference')).toBeInTheDocument()
+
+    await act(async () => {
+      staleDetail.resolve(jsonResponse({
+        quiz: {
+          documents: [
+            { id: 'doc-stale', title: 'Stale Reference', source: 'text', content: 'Stale' },
+          ],
+        },
+      }))
+      await staleDetail.promise
+    })
+
+    expect(screen.getByText('Current Reference')).toBeInTheDocument()
+    expect(screen.queryByText('Stale Reference')).not.toBeInTheDocument()
+  })
+
+  it('ignores stale result responses after selected assessment changes', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const staleResults = createDeferred<Response>()
+    const currentResults = createDeferred<Response>()
+
+    fetchMock.mockImplementation((url: string) => {
+      if (url.endsWith('/api/teacher/quizzes/quiz-stale/draft')) {
+        return Promise.resolve(jsonResponse({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Stale Quiz',
+              show_results: true,
+              questions: sampleQuestions,
+            },
+          },
+        }))
+      }
+      if (url.endsWith('/api/teacher/quizzes/quiz-current/draft')) {
+        return Promise.resolve(jsonResponse({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Current Quiz',
+              show_results: true,
+              questions: sampleQuestions,
+            },
+          },
+        }))
+      }
+      if (url.endsWith('/api/teacher/quizzes/quiz-stale/results')) return staleResults.promise
+      if (url.endsWith('/api/teacher/quizzes/quiz-current/results')) return currentResults.promise
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+
+    const staleQuiz = makeQuizWithStats({
+      id: 'quiz-stale',
+      title: 'Stale Quiz',
+      stats: { total_students: 25, responded: 1, questions_count: 1 },
+    })
+    const currentQuiz = makeQuizWithStats({
+      id: 'quiz-current',
+      title: 'Current Quiz',
+      stats: { total_students: 25, responded: 1, questions_count: 1 },
+    })
+    const { rerender } = render(
+      <QuizDetailPanel quiz={staleQuiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />,
+      { wrapper: Wrapper }
+    )
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/quizzes/quiz-stale/results')
+    })
+
+    rerender(
+      <QuizDetailPanel quiz={currentQuiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />
+    )
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/quizzes/quiz-current/results')
+    })
+
+    await act(async () => {
+      currentResults.resolve(jsonResponse({
+        results: [{
+          question_id: 'q-current',
+          question_text: 'Current results question',
+          options: ['A', 'B'],
+          counts: [1, 0],
+          total_responses: 1,
+        }],
+      }))
+      await currentResults.promise
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Results (1)' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('tab', { name: 'Results (1)' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Current results question')).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      staleResults.resolve(jsonResponse({
+        results: [{
+          question_id: 'q-stale',
+          question_text: 'Stale results question',
+          options: ['A', 'B'],
+          counts: [0, 1],
+          total_responses: 1,
+        }],
+      }))
+      await staleResults.promise
+    })
+
+    expect(screen.getByText('Current results question')).toBeInTheDocument()
+    expect(screen.queryByText('Stale results question')).not.toBeInTheDocument()
+  })
+
+  it('invalidates stale loads when assessment type changes for the same id', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const staleQuizDraft = createDeferred<Response>()
+    const currentTestDraft = createDeferred<Response>()
+    let draftReads = 0
+
+    fetchMock.mockImplementation((url: string) => {
+      if (url.endsWith('/api/teacher/quizzes/assessment-1/draft')) {
+        draftReads += 1
+        return draftReads === 1 ? staleQuizDraft.promise : currentTestDraft.promise
+      }
+      if (url.endsWith('/api/teacher/quizzes/assessment-1')) {
+        return Promise.resolve(jsonResponse({
+          quiz: {
+            documents: [
+              { id: 'doc-current', title: 'Current Test Reference', source: 'text', content: 'Current' },
+            ],
+          },
+        }))
+      }
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+
+    const sameIdQuiz = makeQuizWithStats({
+      id: 'assessment-1',
+      title: 'Same Id Quiz',
+      assessment_type: 'quiz',
+    })
+    const sameIdTest = makeQuizWithStats({
+      id: 'assessment-1',
+      title: 'Same Id Test',
+      assessment_type: 'test',
+    })
+    const { rerender } = render(
+      <QuizDetailPanel quiz={sameIdQuiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />,
+      { wrapper: Wrapper }
+    )
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/quizzes/assessment-1/draft')
+    })
+
+    rerender(
+      <QuizDetailPanel quiz={sameIdTest} classroomId="classroom-1" onQuizUpdate={vi.fn()} />
+    )
+
+    await waitFor(() => {
+      expect(draftReads).toBe(2)
+    })
+
+    await act(async () => {
+      currentTestDraft.resolve(jsonResponse({
+        draft: {
+          version: 1,
+          content: {
+            title: 'Same Id Test',
+            show_results: true,
+            questions: [
+              createMockQuizQuestion({
+                id: 'q-current-test',
+                quiz_id: 'assessment-1',
+                assessment_type: 'test',
+                question_type: 'open_response',
+                question_text: 'Current same-id test question',
+                options: [],
+                correct_option: null,
+                points: 2,
+                position: 0,
+              }),
+            ],
+          },
+        },
+      }))
+      await currentTestDraft.promise
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Documents (1)' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Documents (1)' }))
+    expect(screen.getByText('Current Test Reference')).toBeInTheDocument()
+
+    await act(async () => {
+      staleQuizDraft.resolve(jsonResponse({
+        draft: {
+          version: 1,
+          content: {
+            title: 'Same Id Quiz',
+            show_results: true,
+            questions: [
+              createMockQuizQuestion({
+                id: 'q-stale-quiz',
+                quiz_id: 'assessment-1',
+                question_text: 'Stale same-id quiz question',
+                position: 0,
+              }),
+            ],
+          },
+        },
+      }))
+      await staleQuizDraft.promise
+    })
+
+    expect(screen.getByText('Current Test Reference')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Questions (1)' }))
+    expect(screen.getByDisplayValue('Current same-id test question')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('Stale same-id quiz question')).not.toBeInTheDocument()
+  })
 
   describe('tabs', () => {
     it('renders Questions, Preview, and Results tabs for quizzes', async () => {
@@ -1245,6 +1653,245 @@ Options:
 
       expect(onSaveStatusChange).not.toHaveBeenCalledWith('saved')
       expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+    })
+
+    it('ignores stale save responses after selected assessment changes', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      const staleSave = createDeferred<Response>()
+      const currentQuestion = createMockQuizQuestion({
+        id: 'q-current-save-scope',
+        assessment_type: 'test',
+        question_type: 'open_response',
+        question_text: 'Current switched test question',
+        options: [],
+        correct_option: null,
+        points: 2,
+        position: 0,
+      })
+
+      fetchMock.mockImplementation((url: string, options?: RequestInit) => {
+        if (url === '/api/teacher/tests/test-save-stale/draft' && options?.method === 'PATCH') {
+          return staleSave.promise
+        }
+        if (url === '/api/teacher/tests/test-save-stale/draft' && !options) {
+          return Promise.resolve(jsonResponse({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Stale Save Test',
+                show_results: false,
+                questions: [],
+              },
+            },
+          }))
+        }
+        if (url === '/api/teacher/tests/test-save-stale' && !options) {
+          return Promise.resolve(jsonResponse({ quiz: { documents: [] } }))
+        }
+        if (url === '/api/teacher/tests/test-save-current/draft' && !options) {
+          return Promise.resolve(jsonResponse({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Current Save Test',
+                show_results: false,
+                questions: [currentQuestion],
+              },
+            },
+          }))
+        }
+        if (url === '/api/teacher/tests/test-save-current' && !options) {
+          return Promise.resolve(jsonResponse({ quiz: { documents: [] } }))
+        }
+
+        throw new Error(`Unexpected fetch: ${url} ${options?.method || 'GET'}`)
+      })
+
+      const staleTest = makeQuizWithStats({
+        id: 'test-save-stale',
+        assessment_type: 'test',
+        title: 'Stale Save Test',
+        show_results: false,
+        stats: { total_students: 25, responded: 0, questions_count: 0 },
+      })
+      const currentTest = makeQuizWithStats({
+        id: 'test-save-current',
+        assessment_type: 'test',
+        title: 'Current Save Test',
+        show_results: false,
+        stats: { total_students: 25, responded: 0, questions_count: 1 },
+      })
+
+      const { rerender } = render(
+        <QuizDetailPanel
+          quiz={staleTest}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const addQuestionButton = await screen.findByRole('button', { name: '+ MC Question' })
+      vi.useFakeTimers()
+
+      fireEvent.click(addQuestionButton)
+
+      await act(async () => {
+        vi.advanceTimersByTime(3_100)
+      })
+
+      expect(fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')).toHaveLength(1)
+      vi.useRealTimers()
+
+      rerender(
+        <QuizDetailPanel
+          quiz={currentTest}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />
+      )
+
+      expect(await screen.findByDisplayValue('Current switched test question')).toBeInTheDocument()
+
+      await act(async () => {
+        staleSave.resolve(jsonResponse({
+          draft: {
+            version: 2,
+            content: {
+              title: 'Stale Save Test',
+              show_results: false,
+              questions: [
+                createMockQuizQuestion({
+                  id: 'q-stale-save-scope',
+                  assessment_type: 'test',
+                  question_type: 'multiple_choice',
+                  question_text: 'Stale saved question',
+                  position: 0,
+                }),
+              ],
+            },
+          },
+        }))
+        await staleSave.promise
+      })
+
+      expect(screen.getByDisplayValue('Current switched test question')).toBeInTheDocument()
+      expect(screen.queryByDisplayValue('Stale saved question')).not.toBeInTheDocument()
+    })
+
+    it('persists pending debounced saves after selected assessment changes', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+
+      fetchMock.mockImplementation((url: string, options?: RequestInit) => {
+        if (url === '/api/teacher/tests/test-pending-save/draft' && options?.method === 'PATCH') {
+          const body = JSON.parse(String(options.body ?? '{}'))
+          return Promise.resolve(jsonResponse({
+            draft: {
+              version: Number(body.version ?? 1) + 1,
+              content: body.content,
+            },
+          }))
+        }
+        if (url === '/api/teacher/tests/test-pending-save/draft' && !options) {
+          return Promise.resolve(jsonResponse({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Pending Save Test',
+                show_results: false,
+                questions: [],
+              },
+            },
+          }))
+        }
+        if (url === '/api/teacher/tests/test-pending-save' && !options) {
+          return Promise.resolve(jsonResponse({ quiz: { documents: [] } }))
+        }
+        if (url === '/api/teacher/tests/test-pending-current/draft' && !options) {
+          return Promise.resolve(jsonResponse({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Pending Current Test',
+                show_results: false,
+                questions: [],
+              },
+            },
+          }))
+        }
+        if (url === '/api/teacher/tests/test-pending-current' && !options) {
+          return Promise.resolve(jsonResponse({ quiz: { documents: [] } }))
+        }
+
+        throw new Error(`Unexpected fetch: ${url} ${options?.method || 'GET'}`)
+      })
+
+      const staleTest = makeQuizWithStats({
+        id: 'test-pending-save',
+        assessment_type: 'test',
+        title: 'Pending Save Test',
+        show_results: false,
+        stats: { total_students: 25, responded: 0, questions_count: 0 },
+      })
+      const currentTest = makeQuizWithStats({
+        id: 'test-pending-current',
+        assessment_type: 'test',
+        title: 'Pending Current Test',
+        show_results: false,
+        stats: { total_students: 25, responded: 0, questions_count: 0 },
+      })
+
+      const { rerender } = render(
+        <QuizDetailPanel
+          quiz={staleTest}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const addQuestionButton = await screen.findByRole('button', { name: '+ MC Question' })
+      vi.useFakeTimers()
+
+      fireEvent.click(addQuestionButton)
+      expect(fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')).toHaveLength(0)
+
+      rerender(
+        <QuizDetailPanel
+          quiz={currentTest}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />
+      )
+
+      await act(async () => {
+        await Promise.resolve()
+        vi.advanceTimersByTime(3_100)
+        await Promise.resolve()
+      })
+      vi.useRealTimers()
+
+      const patchCalls = fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')
+      expect(patchCalls).toHaveLength(1)
+      expect(String(patchCalls[0]?.[0])).toBe('/api/teacher/tests/test-pending-save/draft')
+      const patchBody = JSON.parse(String(patchCalls[0]?.[1]?.body ?? '{}'))
+      expect(patchBody.content?.questions).toHaveLength(1)
     })
 
     it('duplicates a test question immediately below the source in summary-detail mode', async () => {

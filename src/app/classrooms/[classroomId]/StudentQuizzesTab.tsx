@@ -11,6 +11,7 @@ import {
   getQuizStatusBadgeClass,
   QUIZ_EXIT_BURST_WINDOW_MS,
 } from '@/lib/quizzes'
+import { fetchJSONWithCache } from '@/lib/request-cache'
 import { StudentQuizForm } from '@/components/StudentQuizForm'
 import { StudentQuizResults } from '@/components/StudentQuizResults'
 import { Button, ConfirmDialog, EmptyState } from '@/ui'
@@ -67,6 +68,18 @@ interface StudentTestSessionStatusResponse {
   returned_at: string | null
   can_continue: boolean
   message: string | null
+}
+
+interface StudentAssessmentListResponse {
+  quizzes?: StudentQuizView[]
+}
+
+interface StudentAssessmentDetailResponse {
+  quiz: StudentQuizView
+  questions?: QuizQuestion[]
+  student_responses?: Record<string, number | TestResponseDraftValue>
+  student_status?: StudentQuizStatus
+  focus_summary?: QuizFocusSummary | null
 }
 
 type FullscreenCapableElement = HTMLElement & {
@@ -261,8 +274,12 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   const findSuppressionUntilRef = useRef(0)
   const docsInteractionSuppressionUntilRef = useRef(0)
   const sessionStatusInFlightRef = useRef(false)
+  const listRequestIdRef = useRef(0)
+  const detailRequestIdRef = useRef(0)
+  const currentScopeRef = useRef({ classroomId: classroom.id, assessmentType })
   const isTestsView = assessmentType === 'test'
   const apiBasePath = isTestsView ? '/api/student/tests' : '/api/student/quizzes'
+  currentScopeRef.current = { classroomId: classroom.id, assessmentType }
   const focusEnabled = useMemo(() => {
     if (!selectedQuiz) return false
     const hasSubmitted = selectedQuiz.quiz.student_status !== 'not_started'
@@ -339,23 +356,69 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     }
   }, [clearPendingNonCompliantTimeout])
 
-  const loadQuizzes = useCallback(async () => {
+  const loadQuizzes = useCallback(async (options: { forceRefresh?: boolean } = {}) => {
+    const classroomId = classroom.id
+    const viewAssessmentType = assessmentType
+    const basePath = apiBasePath
+    const requestId = listRequestIdRef.current + 1
+    listRequestIdRef.current = requestId
     setLoading(true)
     try {
-      const query = new URLSearchParams({ classroom_id: classroom.id })
-      const res = await fetch(`${apiBasePath}?${query.toString()}`)
-      const data = await res.json()
+      const query = new URLSearchParams({ classroom_id: classroomId })
+      const data = await fetchJSONWithCache<StudentAssessmentListResponse>(
+        options.forceRefresh
+          ? `student-assessments:${viewAssessmentType}:${classroomId}:refresh:${requestId}`
+          : `student-assessments:${viewAssessmentType}:${classroomId}`,
+        async () => {
+          // fetchJSONWithCache wraps this repeated GET; force refreshes use one-off keys.
+          const res = await fetch(`${basePath}?${query.toString()}`)
+          return res.json()
+        },
+        0,
+      )
+      if (
+        listRequestIdRef.current !== requestId ||
+        currentScopeRef.current.classroomId !== classroomId ||
+        currentScopeRef.current.assessmentType !== viewAssessmentType
+      ) {
+        return
+      }
       setQuizzes(data.quizzes || [])
     } catch (err) {
-      console.error('Error loading quizzes:', err)
+      if (
+        listRequestIdRef.current === requestId &&
+        currentScopeRef.current.classroomId === classroomId &&
+        currentScopeRef.current.assessmentType === viewAssessmentType
+      ) {
+        console.error('Error loading quizzes:', err)
+      }
     } finally {
-      setLoading(false)
+      if (
+        listRequestIdRef.current === requestId &&
+        currentScopeRef.current.classroomId === classroomId &&
+        currentScopeRef.current.assessmentType === viewAssessmentType
+      ) {
+        setLoading(false)
+      }
     }
-  }, [apiBasePath, classroom.id])
+  }, [apiBasePath, assessmentType, classroom.id])
 
   useEffect(() => {
     loadQuizzes()
   }, [loadQuizzes])
+
+  useEffect(() => {
+    detailRequestIdRef.current += 1
+    selectedQuizIdRef.current = null
+    setSelectedQuizId(null)
+    setSelectedQuiz(null)
+    setFocusSummary(null)
+    setStartedTestId(null)
+    setShowStartTestConfirm(false)
+    setPendingStartTestId(null)
+    setActiveDoc(null)
+    setRemoteClosureNotice(null)
+  }, [assessmentType, classroom.id])
 
   const handleRemoteTestClosure = useCallback((options?: {
     studentStatus?: StudentQuizStatus
@@ -389,6 +452,12 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   }, [clearPendingNonCompliantTimeout])
 
   async function handleSelectQuiz(quizId: string) {
+    const classroomId = classroom.id
+    const viewAssessmentType = assessmentType
+    const basePath = apiBasePath
+    const requestId = detailRequestIdRef.current + 1
+    detailRequestIdRef.current = requestId
+    selectedQuizIdRef.current = quizId
     setSelectedQuizId(quizId)
     setLoadingQuiz(true)
     setActiveDoc(null)
@@ -402,8 +471,17 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     docsInteractionSuppressionUntilRef.current = 0
 
     try {
-      const res = await fetch(`${apiBasePath}/${quizId}`)
-      const data = await res.json()
+      // Bypass fetchJSONWithCache for selected detail freshness; request ids guard stale responses.
+      const res = await fetch(`${basePath}/${quizId}`)
+      const data = await res.json() as StudentAssessmentDetailResponse
+      if (
+        detailRequestIdRef.current !== requestId ||
+        selectedQuizIdRef.current !== quizId ||
+        currentScopeRef.current.classroomId !== classroomId ||
+        currentScopeRef.current.assessmentType !== viewAssessmentType
+      ) {
+        return
+      }
       const listQuiz = quizzes.find((quiz) => quiz.id === quizId)
       const studentStatus = data.student_status ?? data.quiz?.student_status ?? listQuiz?.student_status ?? 'not_started'
       setSelectedQuiz({
@@ -413,9 +491,23 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       })
       setFocusSummary((data.focus_summary as QuizFocusSummary | null) || null)
     } catch (err) {
-      console.error('Error loading quiz:', err)
+      if (
+        detailRequestIdRef.current === requestId &&
+        selectedQuizIdRef.current === quizId &&
+        currentScopeRef.current.classroomId === classroomId &&
+        currentScopeRef.current.assessmentType === viewAssessmentType
+      ) {
+        console.error('Error loading quiz:', err)
+      }
     } finally {
-      setLoadingQuiz(false)
+      if (
+        detailRequestIdRef.current === requestId &&
+        selectedQuizIdRef.current === quizId &&
+        currentScopeRef.current.classroomId === classroomId &&
+        currentScopeRef.current.assessmentType === viewAssessmentType
+      ) {
+        setLoadingQuiz(false)
+      }
     }
   }
 
@@ -428,6 +520,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
 
     sessionStatusInFlightRef.current = true
     try {
+      // Bypass fetchJSONWithCache for active exam session freshness.
       const res = await fetch(`${apiBasePath}/${quizId}/session-status`, {
         cache: 'no-store',
       })
@@ -771,7 +864,9 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   ])
 
   const performBackToAssessmentList = useCallback(() => {
+    detailRequestIdRef.current += 1
     clearPendingNonCompliantTimeout()
+    selectedQuizIdRef.current = null
     setSelectedQuizId(null)
     setSelectedQuiz(null)
     setStartedTestId(null)
@@ -790,7 +885,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     findIntentUntilRef.current = 0
     findSuppressionUntilRef.current = 0
     docsInteractionSuppressionUntilRef.current = 0
-    loadQuizzes() // Refresh list to get updated status
+    loadQuizzes({ forceRefresh: true }) // Refresh list to get updated status
   }, [applyWindowComplianceSnapshot, clearPendingNonCompliantTimeout, loadQuizzes])
 
   function handleBack() {
@@ -802,7 +897,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     if (isTestsView) {
       notifications?.decrementActiveTestsCount()
     }
-    void loadQuizzes()
+    void loadQuizzes({ forceRefresh: true })
 
     // Reload selected assessment details to get updated status/feedback.
     if (selectedQuizIdRef.current) {

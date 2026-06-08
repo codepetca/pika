@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { flushSync } from 'react-dom'
+import { createRoot } from 'react-dom/client'
+import type { ReactNode } from 'react'
 import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
 import type { Survey } from '@/types'
 
@@ -17,6 +20,33 @@ function makeSurvey(overrides: Partial<Survey> = {}): Survey {
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',
     ...overrides,
+  }
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+  return { promise, resolve, reject }
+}
+
+function jsonResponse(body: unknown): Response {
+  return { ok: true, json: async () => body } as Response
+}
+
+function createMountedRoot() {
+  const host = document.createElement('div')
+  document.body.appendChild(host)
+  const root = createRoot(host)
+  return {
+    render: (node: ReactNode) => root.render(node),
+    cleanup: () => {
+      root.unmount()
+      host.remove()
+    },
   }
 }
 
@@ -50,6 +80,168 @@ describe('TeacherSurveyWorkspace', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('ignores stale detail responses after selected survey changes', async () => {
+    const staleDetail = createDeferred<Response>()
+    const currentDetail = createDeferred<Response>()
+
+    fetchMock.mockImplementation((url: string | URL) => {
+      const href = String(url)
+      if (href.endsWith('/api/teacher/surveys/survey-stale')) return staleDetail.promise
+      if (href.endsWith('/api/teacher/surveys/survey-current')) return currentDetail.promise
+      throw new Error(`Unexpected fetch: ${href}`)
+    })
+
+    const { rerender } = render(
+      <TeacherSurveyWorkspace
+        classroomId="classroom-1"
+        surveyId="survey-stale"
+        onBack={vi.fn()}
+        onSurveyUpdated={vi.fn()}
+        onSurveyDeleted={vi.fn()}
+      />
+    )
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/surveys/survey-stale')
+    })
+
+    rerender(
+      <TeacherSurveyWorkspace
+        classroomId="classroom-1"
+        surveyId="survey-current"
+        onBack={vi.fn()}
+        onSurveyUpdated={vi.fn()}
+        onSurveyDeleted={vi.fn()}
+      />
+    )
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/surveys/survey-current')
+    })
+
+    await act(async () => {
+      currentDetail.resolve(jsonResponse({
+        survey: makeSurvey({ id: 'survey-current', title: 'Current Survey' }),
+        questions: [{
+          id: 'question-current',
+          survey_id: 'survey-current',
+          question_type: 'short_text',
+          question_text: 'Current survey question',
+          options: [],
+          response_max_chars: 1200,
+          position: 0,
+          created_at: '2026-01-01T00:00:00.000Z',
+          updated_at: '2026-01-01T00:00:00.000Z',
+        }],
+      }))
+      await currentDetail.promise
+    })
+
+    expect(await screen.findByRole('button', { name: 'Edit survey title' })).toHaveTextContent('Current Survey')
+    expect(screen.getByDisplayValue('Current survey question')).toBeInTheDocument()
+
+    await act(async () => {
+      staleDetail.resolve(jsonResponse({
+        survey: makeSurvey({ id: 'survey-stale', title: 'Stale Survey' }),
+        questions: [{
+          id: 'question-stale',
+          survey_id: 'survey-stale',
+          question_type: 'short_text',
+          question_text: 'Stale survey question',
+          options: [],
+          response_max_chars: 1200,
+          position: 0,
+          created_at: '2026-01-01T00:00:00.000Z',
+          updated_at: '2026-01-01T00:00:00.000Z',
+        }],
+      }))
+      await staleDetail.promise
+    })
+
+    expect(screen.getByRole('button', { name: 'Edit survey title' })).toHaveTextContent('Current Survey')
+    expect(screen.getByDisplayValue('Current survey question')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('Stale survey question')).not.toBeInTheDocument()
+  })
+
+  it('hides loaded detail immediately when selected survey changes', async () => {
+    const currentDetail = createDeferred<Response>()
+
+    fetchMock.mockImplementation((url: string | URL) => {
+      const href = String(url)
+      if (href.endsWith('/api/teacher/surveys/survey-stale')) {
+        return Promise.resolve(jsonResponse({
+          survey: makeSurvey({ id: 'survey-stale', title: 'Already Loaded Stale Survey' }),
+          questions: [{
+            id: 'question-stale',
+            survey_id: 'survey-stale',
+            question_type: 'short_text',
+            question_text: 'Already loaded stale question',
+            options: [],
+            response_max_chars: 1200,
+            position: 0,
+            created_at: '2026-01-01T00:00:00.000Z',
+            updated_at: '2026-01-01T00:00:00.000Z',
+          }],
+        }))
+      }
+      if (href.endsWith('/api/teacher/surveys/survey-current')) return currentDetail.promise
+      throw new Error(`Unexpected fetch: ${href}`)
+    })
+
+    const mounted = createMountedRoot()
+    try {
+      await act(async () => {
+        mounted.render(
+          <TeacherSurveyWorkspace
+            classroomId="classroom-1"
+            surveyId="survey-stale"
+            onBack={vi.fn()}
+            onSurveyUpdated={vi.fn()}
+            onSurveyDeleted={vi.fn()}
+          />
+        )
+      })
+
+      expect(await screen.findByDisplayValue('Already loaded stale question')).toBeInTheDocument()
+
+      flushSync(() => {
+        mounted.render(
+          <TeacherSurveyWorkspace
+            classroomId="classroom-1"
+            surveyId="survey-current"
+            onBack={vi.fn()}
+            onSurveyUpdated={vi.fn()}
+            onSurveyDeleted={vi.fn()}
+          />
+        )
+      })
+
+      expect(screen.queryByDisplayValue('Already loaded stale question')).not.toBeInTheDocument()
+
+      await act(async () => {
+        currentDetail.resolve(jsonResponse({
+          survey: makeSurvey({ id: 'survey-current', title: 'Current Survey' }),
+          questions: [{
+            id: 'question-current',
+            survey_id: 'survey-current',
+            question_type: 'short_text',
+            question_text: 'Current loaded question',
+            options: [],
+            response_max_chars: 1200,
+            position: 0,
+            created_at: '2026-01-01T00:00:00.000Z',
+            updated_at: '2026-01-01T00:00:00.000Z',
+          }],
+        }))
+        await currentDetail.promise
+      })
+
+      expect(await screen.findByDisplayValue('Current loaded question')).toBeInTheDocument()
+    } finally {
+      mounted.cleanup()
+    }
   })
 
   it('honors an explicit markdown authoring mode', async () => {

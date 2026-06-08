@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { TeacherClassroomsIndex } from '@/app/classrooms/TeacherClassroomsIndex'
+import { fetchTeacherClassrooms } from '@/lib/teacher-classrooms-client'
 import { TooltipProvider } from '@/ui'
 import { createMockClassroom } from '../helpers/mocks'
 import type { Classroom } from '@/types'
@@ -10,6 +11,11 @@ const push = vi.hoisted(() => vi.fn())
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
   usePathname: () => '/classrooms',
+}))
+
+vi.mock('@/lib/teacher-classrooms-client', () => ({
+  fetchTeacherClassrooms: vi.fn(),
+  invalidateTeacherClassrooms: vi.fn(),
 }))
 
 function renderTeacherClassroomsIndex(initialClassrooms: Classroom[]) {
@@ -26,6 +32,7 @@ describe('TeacherClassroomsIndex', () => {
   beforeEach(() => {
     fetchMock = vi.fn()
     push.mockReset()
+    vi.mocked(fetchTeacherClassrooms).mockResolvedValue([])
     vi.stubGlobal('fetch', fetchMock)
   })
 
@@ -51,12 +58,9 @@ describe('TeacherClassroomsIndex', () => {
   })
 
   it('never shows the create button in archived view', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        classrooms: [createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' })],
-      }),
-    })
+    vi.mocked(fetchTeacherClassrooms).mockResolvedValueOnce([
+      createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' }),
+    ])
 
     renderTeacherClassroomsIndex([])
 
@@ -64,6 +68,7 @@ describe('TeacherClassroomsIndex', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
 
     expect(await screen.findByRole('button', { name: /^Archived/ })).toBeInTheDocument()
+    expect(fetchTeacherClassrooms).toHaveBeenCalledWith({ archived: true })
     expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
   })
 
@@ -120,12 +125,9 @@ describe('TeacherClassroomsIndex', () => {
   })
 
   it('returns to active view when edit mode is turned off from archived view', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        classrooms: [createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' })],
-      }),
-    })
+    vi.mocked(fetchTeacherClassrooms).mockResolvedValueOnce([
+      createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' }),
+    ])
 
     renderTeacherClassroomsIndex([])
 

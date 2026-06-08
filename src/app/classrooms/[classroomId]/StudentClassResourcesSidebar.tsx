@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
 import type { Classroom, TiptapContent } from '@/types'
-import { fetchJSONWithCache } from '@/lib/request-cache'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { isEmpty } from '@/lib/tiptap-content'
+import { fetchStudentClassResources } from '@/lib/class-resources-client'
 
 interface Props {
   classroom: Classroom
@@ -15,33 +15,37 @@ interface Props {
 export function StudentClassResourcesSidebar({ classroom }: Props) {
   const [loading, setLoading] = useState(true)
   const [content, setContent] = useState<TiptapContent | null>(null)
+  const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
+  const loadRequestIdRef = useRef(0)
   const showLoadingSpinner = useDelayedBusy(loading)
 
   useEffect(() => {
     async function loadResources() {
+      const requestId = loadRequestIdRef.current + 1
+      loadRequestIdRef.current = requestId
       setLoading(true)
       try {
-        const data = await fetchJSONWithCache(
-          `student-resources:${classroom.id}`,
-          async () => {
-            const res = await fetch(`/api/student/classrooms/${classroom.id}/resources`)
-            if (!res.ok) throw new Error('Failed to load resources')
-            return res.json()
-          },
-          20_000,
-        )
-        setContent(data.resources?.content || null)
+        const loadedContent = await fetchStudentClassResources(classroom.id)
+        if (loadRequestIdRef.current !== requestId) return
+        setContent(loadedContent)
+        setLoadedClassroomId(classroom.id)
       } catch (err) {
+        if (loadRequestIdRef.current !== requestId) return
+        setContent(null)
+        setLoadedClassroomId(classroom.id)
         console.error('Error loading resources:', err)
       } finally {
-        setLoading(false)
+        if (loadRequestIdRef.current === requestId) {
+          setLoading(false)
+        }
       }
     }
 
     loadResources()
   }, [classroom.id])
 
-  const hasContent = content ? !isEmpty(content) : false
+  const currentContent = loadedClassroomId === classroom.id ? content : null
+  const hasContent = currentContent ? !isEmpty(currentContent) : false
 
   if (showLoadingSpinner) {
     return (
@@ -55,7 +59,7 @@ export function StudentClassResourcesSidebar({ classroom }: Props) {
     <div className="px-3 py-3">
       {hasContent ? (
         <div className="rounded-lg bg-surface p-4 shadow-sm">
-          <RichTextViewer content={content!} />
+          <RichTextViewer content={currentContent!} />
         </div>
       ) : (
         <div className="rounded-lg border border-border bg-surface-2 p-4">

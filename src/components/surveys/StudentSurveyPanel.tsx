@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ExternalLink, Pencil } from 'lucide-react'
 import { Button, Card, Input } from '@/ui'
 import { FloatingActionCluster } from '@/components/FloatingActionCluster'
@@ -116,37 +116,61 @@ export function StudentSurveyPanel({
 }: StudentSurveyPanelProps) {
   const [detail, setDetail] = useState<SurveyDetailPayload | null>(null)
   const [responses, setResponses] = useState<Record<string, SurveyResponseValue>>({})
-  const [results, setResults] = useState<SurveyResultsPayload | null>(null)
+  const [resultsState, setResultsState] = useState<{ surveyId: string; payload: SurveyResultsPayload } | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [isEditingResponse, setIsEditingResponse] = useState(false)
   const [error, setError] = useState('')
+  const detailRequestIdRef = useRef(0)
+  const resultsRequestIdRef = useRef(0)
+  const currentSurveyIdRef = useRef(surveyId)
+  currentSurveyIdRef.current = surveyId
+  const activeDetail = detail?.survey?.id === surveyId ? detail : null
+  const results = resultsState?.surveyId === surveyId ? resultsState.payload : null
 
   const loadSurvey = useCallback(async () => {
+    const requestId = detailRequestIdRef.current + 1
+    detailRequestIdRef.current = requestId
+    const requestedSurveyId = surveyId
     setLoading(true)
     setError('')
+    setResultsState(null)
     try {
+      // Bypass fetchJSONWithCache for selected survey freshness; request ids guard stale responses.
       const response = await fetch(`/api/student/surveys/${surveyId}`)
       const data = await response.json()
+      if (detailRequestIdRef.current !== requestId || currentSurveyIdRef.current !== requestedSurveyId) return
       if (!response.ok) throw new Error(data.error || 'Failed to load survey')
       setDetail(data)
       setResponses(data.student_responses || {})
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load survey')
-      setDetail(null)
+      if (detailRequestIdRef.current === requestId && currentSurveyIdRef.current === requestedSurveyId) {
+        setError(err instanceof Error ? err.message : 'Failed to load survey')
+        setDetail(null)
+      }
     } finally {
-      setLoading(false)
+      if (detailRequestIdRef.current === requestId && currentSurveyIdRef.current === requestedSurveyId) {
+        setLoading(false)
+      }
     }
   }, [surveyId])
 
   const loadResults = useCallback(async () => {
+    const requestId = resultsRequestIdRef.current + 1
+    resultsRequestIdRef.current = requestId
+    const requestedSurveyId = surveyId
+    setResultsState(null)
     try {
+      // Bypass fetchJSONWithCache for selected survey results freshness; request ids guard stale responses.
       const response = await fetch(`/api/student/surveys/${surveyId}/results`)
       const data = await response.json()
+      if (resultsRequestIdRef.current !== requestId || currentSurveyIdRef.current !== requestedSurveyId) return
       if (!response.ok) throw new Error(data.error || 'Failed to load results')
-      setResults(data)
+      setResultsState({ surveyId: requestedSurveyId, payload: data })
     } catch {
-      setResults(null)
+      if (resultsRequestIdRef.current === requestId && currentSurveyIdRef.current === requestedSurveyId) {
+        setResultsState(null)
+      }
     }
   }, [surveyId])
 
@@ -155,29 +179,29 @@ export function StudentSurveyPanel({
   }, [loadSurvey])
 
   useEffect(() => {
-    if (detail?.survey && canStudentViewSurveyResults(detail.survey)) {
+    if (activeDetail?.survey && canStudentViewSurveyResults(activeDetail.survey)) {
       void loadResults()
     } else {
-      setResults(null)
+      setResultsState(null)
     }
-  }, [detail?.survey, loadResults])
+  }, [activeDetail?.survey, loadResults])
 
   useEffect(() => {
-    const survey = detail?.survey
+    const survey = activeDetail?.survey
     if (!survey) return
     setIsEditingResponse(!canStudentViewSurveyResults(survey))
-  }, [detail?.survey])
+  }, [activeDetail?.survey])
 
   const canRespond = useMemo(() => {
-    if (!detail) return false
-    if (detail.survey.status !== 'active') return false
-    const hasSubmitted = detail.has_submitted ?? Object.keys(detail.student_responses || {}).length > 0
-    return !hasSubmitted || detail.survey.dynamic_responses
-  }, [detail])
+    if (!activeDetail) return false
+    if (activeDetail.survey.status !== 'active') return false
+    const hasSubmitted = activeDetail.has_submitted ?? Object.keys(activeDetail.student_responses || {}).length > 0
+    return !hasSubmitted || activeDetail.survey.dynamic_responses
+  }, [activeDetail])
 
   const allAnswered = useMemo(() => {
-    if (!detail) return false
-    return detail.questions.every((question) => {
+    if (!activeDetail) return false
+    return activeDetail.questions.every((question) => {
       const response = responses[question.id]
       if (!response) return false
       if (question.question_type === 'multiple_choice') {
@@ -185,10 +209,10 @@ export function StudentSurveyPanel({
       }
       return response.question_type !== 'multiple_choice' && response.response_text.trim().length > 0
     })
-  }, [detail, responses])
+  }, [activeDetail, responses])
 
   async function submitResponses() {
-    if (!detail) return
+    if (!activeDetail) return
     setSubmitting(true)
     setError('')
     try {
@@ -201,8 +225,8 @@ export function StudentSurveyPanel({
       if (!response.ok) throw new Error(data.error || 'Failed to submit responses')
       onCompleted?.()
       await loadSurvey()
-      if (canStudentViewSurveyResults(detail.survey)) await loadResults()
-      if (canStudentViewSurveyResults(detail.survey)) setIsEditingResponse(false)
+      if (canStudentViewSurveyResults(activeDetail.survey)) await loadResults()
+      if (canStudentViewSurveyResults(activeDetail.survey)) setIsEditingResponse(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit responses')
     } finally {
@@ -210,7 +234,7 @@ export function StudentSurveyPanel({
     }
   }
 
-  if (loading) {
+  if (loading || (detail !== null && !activeDetail)) {
     return (
       <Card tone="panel" padding="lg">
         <div className="flex justify-center py-8">
@@ -220,7 +244,7 @@ export function StudentSurveyPanel({
     )
   }
 
-  if (!detail) {
+  if (!activeDetail) {
     return (
       <Card tone="panel" padding="lg">
         <p className="text-sm text-danger">{error || 'Survey unavailable'}</p>
@@ -228,8 +252,8 @@ export function StudentSurveyPanel({
     )
   }
 
-  const { survey, questions } = detail
-  const hasSubmitted = detail.has_submitted ?? Object.keys(detail.student_responses || {}).length > 0
+  const { survey, questions } = activeDetail
+  const hasSubmitted = activeDetail.has_submitted ?? Object.keys(activeDetail.student_responses || {}).length > 0
   const canViewResults = canStudentViewSurveyResults(survey)
   const showResponseForm = isEditingResponse || !canViewResults
   const showResults = canViewResults

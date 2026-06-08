@@ -470,7 +470,7 @@ export function TeacherStudentWorkPanel({
           </div>
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto scrollbar-hover">
         {displayContent && !isEmpty(displayContent) ? (
           <RichTextViewer content={displayContent} fillHeight chrome="flush" />
         ) : !hasRequiredSubmissionCards ? (

@@ -634,7 +634,7 @@ export function TeacherWorkInspector({
                         {formatInTimeZone(
                           new Date(entry.returned_at),
                           'America/Toronto',
-                          'MMM d, h:mm a',
+                          'MMM d',
                         )}
                       </div>
                       <div className="whitespace-pre-wrap text-sm text-text-default">
@@ -656,7 +656,7 @@ export function TeacherWorkInspector({
       data-testid="grading-inspector-pane"
       className="flex h-full min-h-0 flex-col bg-surface"
     >
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto scrollbar-hover">
         <div>
           {sections
             .filter((section) => editMode || visibleSections.includes(section.id))
