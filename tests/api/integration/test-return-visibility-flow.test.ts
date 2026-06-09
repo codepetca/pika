@@ -451,7 +451,7 @@ describe('Test Return Visibility Integration', () => {
     )
     const listBeforeData = await listBefore.json()
     expect(listBefore.status).toBe(200)
-    expect(listBeforeData.quizzes[0].student_status).toBe('responded')
+    expect(listBeforeData.tests[0].student_status).toBe('responded')
 
     const detailBefore = await getStudentTestDetail(
       new NextRequest('http://localhost:3000/api/student/tests/test-1'),
@@ -488,7 +488,7 @@ describe('Test Return Visibility Integration', () => {
     )
     const listAfterData = await listAfter.json()
     expect(listAfter.status).toBe(200)
-    expect(listAfterData.quizzes[0].student_status).toBe('can_view_results')
+    expect(listAfterData.tests[0].student_status).toBe('can_view_results')
 
     const detailAfter = await getStudentTestDetail(
       new NextRequest('http://localhost:3000/api/student/tests/test-1'),
@@ -497,7 +497,7 @@ describe('Test Return Visibility Integration', () => {
     const detailAfterData = await detailAfter.json()
     expect(detailAfter.status).toBe(200)
     expect(detailAfterData.student_status).toBe('can_view_results')
-    expect(detailAfterData.quiz.returned_at).not.toBeNull()
+    expect(detailAfterData.test.returned_at).not.toBeNull()
 
     const resultsAfter = await getStudentTestResults(
       new NextRequest('http://localhost:3000/api/student/tests/test-1/results'),
@@ -505,7 +505,7 @@ describe('Test Return Visibility Integration', () => {
     )
     const resultsAfterData = await resultsAfter.json()
     expect(resultsAfter.status).toBe(200)
-    expect(resultsAfterData.quiz.returned_at).not.toBeNull()
+    expect(resultsAfterData.test.returned_at).not.toBeNull()
     expect(resultsAfterData.summary.earned_points).toBe(4)
   })
 
@@ -549,7 +549,7 @@ describe('Test Return Visibility Integration', () => {
     )
     const listAfterData = await listAfter.json()
     expect(listAfter.status).toBe(200)
-    expect(listAfterData.quizzes[0].student_status).toBe('can_view_results')
+    expect(listAfterData.tests[0].student_status).toBe('can_view_results')
 
     const detailAfter = await getStudentTestDetail(
       new NextRequest('http://localhost:3000/api/student/tests/test-1'),

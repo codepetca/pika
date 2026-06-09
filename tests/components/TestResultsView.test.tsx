@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { TestResultsView } from '@/components/TestResultsView'
-import type { QuizResultsAggregate } from '@/types'
+import type { TestResultsAggregate } from '@/types'
 
-const sampleResults: QuizResultsAggregate[] = [
+const sampleResults: TestResultsAggregate[] = [
   {
     question_id: 'q1',
     question_text: 'What is the capital of France?',
@@ -84,7 +84,7 @@ describe('TestResultsView', () => {
   })
 
   it('handles single response correctly', () => {
-    const single: QuizResultsAggregate[] = [
+    const single: TestResultsAggregate[] = [
       {
         question_id: 'q1',
         question_text: 'Yes or no?',

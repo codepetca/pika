@@ -268,9 +268,9 @@ describe('GET /api/student/tests', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.quizzes).toHaveLength(2)
+    expect(data.tests).toHaveLength(2)
     const byId = Object.fromEntries(
-      (data.quizzes as Array<{ id: string; student_status: string }>).map((quiz) => [quiz.id, quiz.student_status])
+      (data.tests as Array<{ id: string; student_status: string }>).map((test) => [test.id, test.student_status])
     )
     expect(byId['test-closed-returned']).toBe('can_view_results')
     expect(byId['test-closed-responded']).toBe('responded')
@@ -354,8 +354,8 @@ describe('GET /api/student/tests', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.quizzes).toHaveLength(1)
-    expect(data.quizzes[0]).toMatchObject({
+    expect(data.tests).toHaveLength(1)
+    expect(data.tests[0]).toMatchObject({
       id: 'test-closed-opened',
       student_status: 'not_started',
       access_state: 'open',
@@ -486,7 +486,7 @@ describe('GET /api/student/tests', () => {
       { status: 'active', column: 'position', ascending: false },
       { status: 'closed', column: 'position', ascending: false },
     ])
-    expect((data.quizzes as Array<{ id: string }>).map((quiz) => quiz.id)).toEqual([
+    expect((data.tests as Array<{ id: string }>).map((test) => test.id)).toEqual([
       'test-active-new',
       'test-active-old',
       'test-closed-new',
@@ -562,6 +562,6 @@ describe('GET /api/student/tests', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.quizzes).toHaveLength(0)
+    expect(data.tests).toHaveLength(0)
   })
 })

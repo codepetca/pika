@@ -8,18 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-01 — Snapshot gallery production restriction finalized
-
-**Completed:**
-- Updated `requireSnapshotGalleryAccess()` to be strictly non-production only (no production allowlist fallback).
-- Removed `SNAPSHOT_GALLERY_ADMIN_EMAILS` from `.env.example`.
-- Updated snapshot gallery docs to reflect production-blocked policy.
-- Adjusted `requireSnapshotGalleryAccess` unit tests accordingly (`tests/unit/auth.test.ts`).
-
-**Validation:**
-- `pnpm test tests/unit/auth.test.ts tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
-- `pnpm lint`
-
 ## 2026-06-01 — Open join classroom access mode
 
 **Completed:**
@@ -972,3 +960,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check`
 - `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
 - `pnpm test` (301 files / 2655 tests)
+
+## 2026-06-09 — Legacy quiz internal test naming pass
+
+**Completed:**
+- Merged PR #762 (`Clean up legacy quiz test contracts`) into `main`.
+- Created `codex/legacy-quiz-internal-test-names` from the merged `origin/main`.
+- Continued the safe internal naming transition by moving active `/tests` route/test type imports to `Test*` aliases.
+- Updated active `/api/*/tests` assertions and the return-visibility integration test to read `test`/`tests` first while preserving explicit legacy `quiz`/`quizzes` equality checks.
+- Added test-named mock factories (`createMockTest`, `createMockTestQuestion`, `createMockTestResponse`) over the legacy DB-shaped contracts.
+- Migrated `TestDetailPanel` component test fixtures to test-named aliases/helpers without changing the component prop contract or schema-shaped `quiz_id` fields.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2655 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm vitest run tests/api/teacher/tests-route.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/api/student/tests-session-status.test.ts tests/api/integration/test-return-visibility-flow.test.ts tests/components/TestResultsView.test.tsx tests/components/TestDetailPanel.test.tsx tests/hooks/useDraftMode.test.ts tests/components/StudentTestsTab.test.tsx`
+- `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check`

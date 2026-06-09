@@ -6,7 +6,7 @@ import {
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
 } from '@/lib/events'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
-import type { QuizFocusSummary } from '@/types'
+import type { TestFocusSummary } from '@/types'
 import { createMockClassroom } from '../helpers/mocks'
 
 describe('StudentTestsTab exam mode', () => {
@@ -280,7 +280,7 @@ describe('StudentTestsTab exam mode', () => {
     return splitContainer instanceof HTMLDivElement ? splitContainer : null
   }
 
-  function makeFocusSummary(overrides: Partial<QuizFocusSummary> = {}): QuizFocusSummary {
+  function makeFocusSummary(overrides: Partial<TestFocusSummary> = {}): TestFocusSummary {
     return {
       exit_count: 0,
       away_count: 0,
