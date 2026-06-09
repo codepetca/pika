@@ -88,7 +88,22 @@ vi.mock('@/components/layout', async () => {
     ThreePanelShell: ({ children }: any) => <div>{children}</div>,
     LeftSidebar: ({ children }: any) => <div>{children}</div>,
     MainContent: ({ children }: any) => <main>{children}</main>,
-    NavItems: () => <nav />,
+    NavItems: ({ onTabChange }: any) => (
+      <nav>
+        <button type="button" onClick={() => onTabChange('attendance')}>
+          Go Daily
+        </button>
+        <button type="button" onClick={() => onTabChange('assignments')}>
+          Go Classwork
+        </button>
+        <button type="button" onClick={() => onTabChange('tests')}>
+          Go Tests
+        </button>
+        <button type="button" onClick={() => onTabChange('resources')}>
+          Go Syllabus
+        </button>
+      </nav>
+    ),
     RightSidebar: ({ children, headerActions, title }: any) => {
       const { isRightOpen, setRightOpen } = useLayoutContext()
       if (!isRightOpen) return null
@@ -270,8 +285,8 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherTestsTab', () => ({
     )
   },
 }))
-vi.mock('@/app/classrooms/[classroomId]/StudentQuizzesTab', () => ({
-  StudentQuizzesTab: () => <div />,
+vi.mock('@/app/classrooms/[classroomId]/StudentTestsTab', () => ({
+  StudentTestsTab: () => <div />,
 }))
 vi.mock('@/components/StudentLogHistory', () => ({
   StudentLogHistory: () => <div />,
@@ -362,6 +377,19 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       markdown: '## Assignment One',
       hasRichContent: false,
     })
+  })
+
+  it('replaces history when sidebar navigation changes first-level tabs', () => {
+    renderClient()
+    const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+    const pushStateSpy = vi.spyOn(window.history, 'pushState')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go Syllabus' }))
+
+    expect(pushStateSpy).not.toHaveBeenCalled()
+    expect(replaceStateSpy).toHaveBeenCalled()
+    const lastReplaceCall = replaceStateSpy.mock.calls.at(-1)
+    expect(lastReplaceCall?.[2]).toBe('/classrooms/classroom-1?tab=resources')
   })
 
   it('opens assignment markdown from the assignments FAB dropdown and closes it from the modal', async () => {

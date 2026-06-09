@@ -18,7 +18,7 @@ import {
 } from '@dnd-kit/sortable'
 import { Check, ClockAlert, Code, ExternalLink, Lock, LogOut, Pencil, Plus, RotateCcw, Send, Settings, Trash2, Unlock, X } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
-import { QuizDetailPanel } from '@/components/QuizDetailPanel'
+import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
 import {
   AssessmentStatusIndicator,
@@ -39,7 +39,7 @@ import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWo
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import {
-  TEACHER_QUIZZES_UPDATED_EVENT,
+  TEACHER_TESTS_UPDATED_EVENT,
   TEACHER_TEST_GRADING_ROW_UPDATED_EVENT,
   type TeacherTestGradingRowUpdatedEventDetail,
 } from '@/lib/events'
@@ -51,7 +51,7 @@ import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { compareByNameFields } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
-import { Button, ConfirmDialog, DialogPanel, EmptyState, RefreshingIndicator, Select, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, EmptyState, RefreshingIndicator, Select, Tooltip, useAppMessage, useOverlayMessage, type SplitButtonProps } from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
   AssessmentWorkspaceSummaryPatch,
@@ -863,8 +863,8 @@ export function TeacherTestsTab({
       void loadTests()
     }
 
-    window.addEventListener(TEACHER_QUIZZES_UPDATED_EVENT, handleTestsUpdated)
-    return () => window.removeEventListener(TEACHER_QUIZZES_UPDATED_EVENT, handleTestsUpdated)
+    window.addEventListener(TEACHER_TESTS_UPDATED_EVENT, handleTestsUpdated)
+    return () => window.removeEventListener(TEACHER_TESTS_UPDATED_EVENT, handleTestsUpdated)
   }, [classroom.id, loadTests])
 
   useEffect(() => {
@@ -1335,7 +1335,7 @@ export function TeacherTestsTab({
     setTestEditModalView('edit')
     setShowEditModal(true)
     window.dispatchEvent(
-      new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
+      new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
     )
   }
 
@@ -1357,7 +1357,7 @@ export function TeacherTestsTab({
       setPendingDeleteTest(null)
       setTestEditMode(false)
       window.dispatchEvent(
-        new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
+        new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
       )
       showMessage({ text: 'Deleted test', tone: 'info' })
     } catch (error: any) {
@@ -1394,7 +1394,7 @@ export function TeacherTestsTab({
         }
 
         window.dispatchEvent(
-          new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
+          new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
         )
       } catch (error) {
         console.error('Failed to reorder tests:', error)
@@ -2269,16 +2269,15 @@ export function TeacherTestsTab({
     </div>
   )
 
-  const selectedTestActions = selectedTestWorkspace ? (
-    <SplitButton
-      label={
+  const selectedTestAction: SplitButtonProps | null = selectedTestWorkspace ? {
+      label: (
         <span className="inline-flex items-center gap-2">
           {getAccessActionIcon(accessPrimaryState)}
           <span>{getAccessActionLabel(accessPrimaryState, accessPrimaryScope, accessPrimaryCount)}</span>
         </span>
-      }
-      onPrimaryClick={() => handleAccessAction(accessPrimaryState)}
-      options={[
+      ),
+      onPrimaryClick: () => handleAccessAction(accessPrimaryState),
+      options: [
         {
           id: `${accessAlternateState}-${accessPrimaryScope.toLowerCase()}`,
           label: (
@@ -2401,18 +2400,17 @@ export function TeacherTestsTab({
             isCombinedTestActionsBusy,
           destructive: true,
         },
-      ]}
-      variant="secondary"
-      size="sm"
-      className="inline-flex"
-      toggleAriaLabel="More test actions"
-      menuPlacement="down"
-      primaryButtonProps={{
+      ],
+      variant: 'secondary',
+      size: 'sm',
+      className: 'inline-flex',
+      toggleAriaLabel: 'More test actions',
+      menuPlacement: 'down',
+      primaryButtonProps: {
         'aria-label': getAccessActionLabel(accessPrimaryState, accessPrimaryScope, accessPrimaryCount),
         disabled: isAccessActionDisabled,
-      }}
-    />
-  ) : null
+      },
+    } : null
 
   const workspaceModeStatus =
     selectedWorkspaceTab === 'grading' && selectedStudentId && testGradingSaveState.status !== 'idle' ? (
@@ -2433,13 +2431,6 @@ export function TeacherTestsTab({
             : 'Unsaved'}
       </span>
     ) : null
-
-  const selectedWorkspaceControls = workspaceState === 'selected' ? (
-    <div className="flex min-w-0 flex-wrap items-center justify-center gap-2 sm:gap-3">
-      {selectedTestActions}
-      {workspaceModeStatus}
-    </div>
-  ) : null
 
   const activeTestGradingMessage =
     workspaceState === 'selected' && selectedWorkspaceTab === 'grading'
@@ -2494,46 +2485,48 @@ export function TeacherTestsTab({
 
   const primaryContent = workspaceState === 'selected' ? (
     <TeacherWorkSurfaceActionBar
-      center={selectedWorkspaceControls}
+      floatingAction={selectedTestAction ?? undefined}
+      floatingActionStatus={workspaceModeStatus}
       centerPlacement="floating"
     />
   ) : (
     <TeacherWorkSurfaceActionBar
-      center={
-        <div className="flex items-center justify-center gap-1.5">
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            className="gap-1.5"
-            onClick={handleNewTest}
-            disabled={isReadOnly || isCreatingTest || loading}
-          >
+      floatingAction={{
+        label: (
+          <span className="inline-flex items-center gap-1.5">
             <Plus className="h-4 w-4" aria-hidden="true" />
             <span>{isCreatingTest ? 'Creating...' : 'New'}</span>
-          </Button>
-          <Tooltip content={testEditMode ? 'Hide test list controls' : 'Show test list controls'}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-label="Test list settings"
-              title="Test list settings"
-              aria-pressed={testEditMode}
-              className={[
-                'h-9 w-9 px-0',
-                testEditMode
-                  ? 'border-primary/40 bg-info-bg text-primary shadow-inner hover:bg-info-bg-hover hover:text-primary'
-                  : '',
-              ].join(' ')}
-              onClick={() => setTestEditMode((prev) => !prev)}
-              disabled={isReadOnly}
-            >
-              <Settings className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </Tooltip>
-        </div>
-      }
+          </span>
+        ),
+        onPrimaryClick: handleNewTest,
+        options: [
+          {
+            id: 'new-test',
+            label: 'Test',
+            onSelect: handleNewTest,
+            disabled: isReadOnly || isCreatingTest || loading,
+          },
+          {
+            id: 'test-list-controls',
+            label: (
+              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                <Settings className="h-4 w-4" aria-hidden="true" />
+                <span>List controls</span>
+              </span>
+            ),
+            checked: testEditMode,
+            onSelect: () => setTestEditMode((prev) => !prev),
+            disabled: isReadOnly,
+            dividerBefore: true,
+          },
+        ],
+        disabled: isReadOnly || isCreatingTest || loading,
+        variant: 'primary',
+        size: 'sm',
+        toggleAriaLabel: 'More test actions',
+        menuPlacement: 'down',
+        primaryButtonProps: { 'aria-label': 'New test' },
+      }}
       centerPlacement="floating"
     />
   )
@@ -2722,7 +2715,7 @@ export function TeacherTestsTab({
         </div>
         <div className="min-h-0 flex-1 overflow-hidden">
           {selectedTestWorkspace ? (
-            <QuizDetailPanel
+            <TestDetailPanel
               quiz={selectedTestWorkspace}
               classroomId={classroom.id}
               apiBasePath={apiBasePath}

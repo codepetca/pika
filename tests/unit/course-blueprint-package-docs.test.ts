@@ -18,7 +18,6 @@ describe('course blueprint package docs', () => {
     expect(docs).toContain('manifest.json')
     expect(docs).toContain('course-overview.md')
     expect(docs).toContain('assignments.md')
-    expect(docs).toContain('quizzes.md')
     expect(docs).toContain('tests.md')
     expect(docs).toContain('lesson-plans.md')
     expect(docs).toContain('students, submissions, grades, attendance')

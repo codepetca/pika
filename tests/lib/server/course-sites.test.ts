@@ -267,20 +267,18 @@ describe('course-sites server helpers', () => {
         ok: true,
         site: expect.objectContaining({
           assignments: [expect.objectContaining({ title: 'Essay' })],
-          quizzes: [expect.objectContaining({ title: 'Quiz 1' })],
+          quizzes: [],
           tests: [expect.objectContaining({ title: 'Unit Test' })],
           grading: expect.objectContaining({
             mode: 'weighted',
             mode_label: 'Weighted by assessment',
             categories: expect.arrayContaining([
-              expect.objectContaining({ id: 'assignments', weight_percent: 10 }),
-              expect.objectContaining({ id: 'quizzes', weight_percent: 20 }),
-              expect.objectContaining({ id: 'tests', weight_percent: 70 }),
+              expect.objectContaining({ id: 'assignments', weight_percent: 12.5 }),
+              expect.objectContaining({ id: 'tests', weight_percent: 87.5 }),
             ]),
             items: expect.arrayContaining([
-              expect.objectContaining({ title: 'Essay', course_weight_percent: 10 }),
-              expect.objectContaining({ title: 'Quiz 1', course_weight_percent: 20 }),
-              expect.objectContaining({ title: 'Unit Test', course_weight_percent: 70 }),
+              expect.objectContaining({ title: 'Essay', course_weight_percent: 12.5 }),
+              expect.objectContaining({ title: 'Unit Test', course_weight_percent: 87.5 }),
             ]),
           }),
           lesson_plans: [expect.objectContaining({ title: 'Lesson 1 (2026-04-16)' })],
@@ -324,7 +322,6 @@ describe('course-sites server helpers', () => {
             expect.objectContaining({ area: 'outline' }),
             expect.objectContaining({ area: 'resources' }),
             expect.objectContaining({ area: 'assignments' }),
-            expect.objectContaining({ area: 'quizzes' }),
             expect.objectContaining({ area: 'tests' }),
             expect.objectContaining({ area: 'lesson-plans' }),
           ]),
@@ -348,7 +345,6 @@ describe('course-sites server helpers', () => {
       'outline',
       'resources',
       'assignments',
-      'quizzes',
       'tests',
       'lesson-plans',
     ])).resolves.toEqual({ ok: true })
@@ -361,16 +357,8 @@ describe('course-sites server helpers', () => {
       'b-1',
       expect.arrayContaining([expect.objectContaining({ title: 'Essay' })])
     )
-    expect(mockSyncAssessments).toHaveBeenCalledTimes(2)
-    expect(mockSyncAssessments).toHaveBeenNthCalledWith(
-      1,
-      'teacher-1',
-      'b-1',
-      expect.arrayContaining([expect.objectContaining({ title: 'Quiz 1' })]),
-      { replaceTypes: ['quiz'] }
-    )
-    expect(mockSyncAssessments).toHaveBeenNthCalledWith(
-      2,
+    expect(mockSyncAssessments).toHaveBeenCalledTimes(1)
+    expect(mockSyncAssessments).toHaveBeenCalledWith(
       'teacher-1',
       'b-1',
       expect.arrayContaining([expect.objectContaining({ title: 'Unit Test' })]),

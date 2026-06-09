@@ -11,14 +11,14 @@ Creation modals for classroom work items should share one compact, authoring-fir
 
 - `src/components/AssignmentModal.tsx`
 - `src/components/AssignmentForm.tsx`
-- `src/components/QuizModal.tsx`
+- test creation/editing surfaces
 - `src/components/surveys/SurveyCreationModal.tsx`
 - `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`
 - `src/components/creation/CreationModalShell.tsx`
 
 ## Observed Pattern
 
-Teachers create assignments, tests, quizzes, and surveys from the same classroom workstream. The older assessment setup shell used a visible modal title bar and footer actions, while assignment creation moved toward a faster single-row start: title, scheduling or compact metadata when relevant, and the primary action.
+Teachers create assignments, tests, and surveys from the same classroom workstream. The older assessment setup shell used a visible modal title bar and footer actions, while assignment creation moved toward a faster single-row start: title, scheduling or compact metadata when relevant, and the primary action.
 
 ## Proposed Guidance
 
@@ -31,7 +31,7 @@ Teachers create assignments, tests, quizzes, and surveys from the same classroom
 
 ## Why This Is Experimental
 
-The shell now covers assignment, quiz/test, and survey creation, but it has not yet been reviewed as a stable app-wide modal standard for every creation flow.
+The shell now covers assignment, test, and survey creation, but it has not yet been reviewed as a stable app-wide modal standard for every creation flow.
 
 ## Human Review Required
 
@@ -39,6 +39,6 @@ Confirm whether this shell should be promoted for all classroom creation modals 
 
 ## Promotion Criteria
 
-- Assignment, quiz/test, and survey creation screenshots look coherent together on desktop and mobile.
+- Assignment, test, and survey creation screenshots look coherent together on desktop and mobile.
 - The shell does not force sparse or awkward layouts for simple creation forms.
 - Users can complete creation faster than with the old header/footer assessment setup shell.

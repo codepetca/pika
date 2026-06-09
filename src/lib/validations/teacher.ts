@@ -77,12 +77,12 @@ export const createCourseBlueprintFromClassroomSchema = z.object({
 })
 
 export const courseBlueprintAiSuggestSchema = z.object({
-  target: z.enum(['analyze', 'overview', 'outline', 'resources', 'assignments', 'quizzes', 'tests', 'lesson-plans']),
+  target: z.enum(['analyze', 'overview', 'outline', 'resources', 'assignments', 'tests', 'lesson-plans']),
   prompt: z.string().optional().default(''),
 })
 
 export const courseBlueprintAiApplySchema = z.object({
-  target: z.enum(['overview', 'outline', 'resources', 'assignments', 'quizzes', 'tests', 'lesson-plans']),
+  target: z.enum(['overview', 'outline', 'resources', 'assignments', 'tests', 'lesson-plans']),
   content: z.string(),
 })
 
@@ -116,6 +116,6 @@ export const blueprintMergeSuggestionQuerySchema = z.object({
 export const applyBlueprintMergeSchema = z.object({
   classroomId: z.string().uuid(),
   areas: z
-    .array(z.enum(['overview', 'outline', 'resources', 'assignments', 'quizzes', 'tests', 'lesson-plans']))
+    .array(z.enum(['overview', 'outline', 'resources', 'assignments', 'tests', 'lesson-plans']))
     .min(1, 'Select at least one area to apply'),
 })

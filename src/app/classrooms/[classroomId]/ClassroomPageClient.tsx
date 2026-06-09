@@ -18,7 +18,7 @@ import { StudentResourcesTab } from './StudentResourcesTab'
 import { TeacherAnnouncementsTab } from './TeacherAnnouncementsTab'
 import { StudentAnnouncementsTab } from './StudentAnnouncementsTab'
 import { TeacherTestsTab } from './TeacherTestsTab'
-import { StudentQuizzesTab } from './StudentQuizzesTab'
+import { StudentTestsTab } from './StudentTestsTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
 import { ClassDaysProvider, useClassDaysContext } from '@/hooks/useClassDays'
 import { getMostRecentClassDayBefore } from '@/lib/class-days'
@@ -40,7 +40,7 @@ import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
   TEACHER_ASSIGNMENTS_UPDATED_EVENT,
-  TEACHER_QUIZZES_UPDATED_EVENT,
+  TEACHER_TESTS_UPDATED_EVENT,
 } from '@/lib/events'
 import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
@@ -1034,7 +1034,7 @@ function ClassroomPageContent({
           params.delete('testStudentId')
         }
         params.delete('quizId')
-      })
+      }, { replace: true })
       window.requestAnimationFrame(() => {
         markClassroomTabSwitchReady(tab)
       })
@@ -1143,7 +1143,7 @@ function ClassroomPageContent({
         params.delete('quizId')
       }, { replace: true })
       window.dispatchEvent(
-        new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
+        new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
       )
       setPendingAssessmentDelete(null)
     } catch (error) {
@@ -1355,7 +1355,7 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.tests && (
                     <TabContentTransition isActive={activeTab === 'tests'}>
-                      <StudentQuizzesTab classroom={classroom} assessmentType="test" isActive={activeTab === 'tests'} />
+                      <StudentTestsTab classroom={classroom} assessmentType="test" isActive={activeTab === 'tests'} />
                     </TabContentTransition>
                   )}
                   {mountedTabs.calendar && (

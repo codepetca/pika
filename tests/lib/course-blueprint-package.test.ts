@@ -127,7 +127,8 @@ describe('course blueprint package', () => {
     expect(parsed.blueprint.planned_site_published).toBe(true)
     expect(parsed.blueprint.planned_site_config.quizzes).toBe(false)
     expect(parsed.assignments).toHaveLength(1)
-    expect(parsed.assessments).toHaveLength(2)
+    expect(parsed.assessments).toHaveLength(1)
+    expect(parsed.assessments[0].assessment_type).toBe('test')
     expect(parsed.lesson_templates).toHaveLength(1)
   })
 
@@ -144,7 +145,8 @@ describe('course blueprint package', () => {
     expect(parsed.blueprint.title).toBe('Computer Science 11')
     expect(parsed.blueprint.planned_site_slug).toBe('computer-science-11')
     expect(parsed.assignments).toHaveLength(1)
-    expect(parsed.assessments).toHaveLength(2)
+    expect(parsed.assessments).toHaveLength(1)
+    expect(parsed.assessments[0].assessment_type).toBe('test')
     expect(parsed.lesson_templates).toHaveLength(1)
   })
 

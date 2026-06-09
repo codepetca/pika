@@ -4,7 +4,7 @@ These are the stable cross-cutting UI rules for the current governed slices.
 
 Use these by default for new work.
 
-For teacher assignments, teacher quizzes, and teacher tests, also read:
+For teacher assignments and teacher tests, also read:
 
 - [`docs/guidance/ui/teacher-work-surfaces.md`](/docs/guidance/ui/teacher-work-surfaces.md)
 - [`docs/guidance/ui/audit-teacher-work-surfaces.md`](/docs/guidance/ui/audit-teacher-work-surfaces.md)

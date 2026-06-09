@@ -12,7 +12,7 @@ import {
 } from '@/lib/course-blueprint-lesson-templates'
 import type { CourseBlueprintDetail } from '@/types'
 import { analyzeCourseBlueprintCompleteness } from '@/lib/course-blueprint-package'
-import type { QuizDraftContent, TestDraftContent } from '@/lib/server/assessment-drafts'
+import type { TestDraftContent } from '@/lib/server/assessment-drafts'
 import { DEFAULT_OPEN_RESPONSE_MAX_CHARS } from '@/lib/test-attempts'
 
 type SuggestTarget =
@@ -21,7 +21,6 @@ type SuggestTarget =
   | 'outline'
   | 'resources'
   | 'assignments'
-  | 'quizzes'
   | 'tests'
   | 'lesson-plans'
 
@@ -148,39 +147,6 @@ This course blueprint is designed for ${detail.grade_level || 'the target grade 
     return {
       target,
       content: courseBlueprintAssignmentsToMarkdown(assignments),
-      analysis,
-    }
-  }
-
-  if (target === 'quizzes') {
-    const quizzes: CourseBlueprintAssessmentMarkdownRecord[] = [
-      {
-        assessment_type: 'quiz',
-        title: `${detail.subject || detail.title} check-in quiz`,
-        content: {
-          title: `${detail.subject || detail.title} check-in quiz`,
-          show_results: false,
-          questions: [
-            {
-              id: '11111111-1111-4111-8111-111111111111',
-              question_text: 'Which concept from the opening lessons is most important to remember?',
-              options: ['Concept A', 'Concept B', 'Concept C', 'Concept D'],
-            },
-            {
-              id: '22222222-2222-4222-8222-222222222222',
-              question_text: 'Which process should students follow first when starting a task?',
-              options: ['Plan', 'Submit', 'Ignore instructions', 'Restart without checking'],
-            },
-          ],
-        } satisfies QuizDraftContent,
-        documents: [],
-        position: 0,
-      },
-    ]
-
-    return {
-      target,
-      content: courseBlueprintAssessmentsToMarkdown(quizzes, 'quiz'),
       analysis,
     }
   }

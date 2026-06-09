@@ -17,13 +17,12 @@ const DEFAULT_SETTINGS = {
 }
 
 const ASSIGNMENT_POINTS_DEFAULT = 30
-const QUIZ_POINTS_DEFAULT = 100
 const ASSESSMENT_WEIGHT_DEFAULT = 10
 const ASSESSMENT_WEIGHT_MAX = 999
 const GRADEBOOK_BULK_FILTER_CHUNK_SIZE = 50
 const GRADEBOOK_BULK_PAGE_SIZE = 1000
 
-type GradebookAssessmentType = 'assignment' | 'quiz' | 'test'
+type GradebookAssessmentType = 'assignment' | 'test'
 type GradebookAssessmentStatus =
   | 'missing'
   | 'late'
@@ -236,14 +235,13 @@ function normalizeAssessmentWeight(value: unknown): number {
   return Number.isFinite(weight) && weight > 0 ? Math.round(weight) : ASSESSMENT_WEIGHT_DEFAULT
 }
 
-function assessmentTableName(assessmentType: GradebookAssessmentType): 'assignments' | 'quizzes' | 'tests' {
+function assessmentTableName(assessmentType: GradebookAssessmentType): 'assignments' | 'tests' {
   if (assessmentType === 'assignment') return 'assignments'
-  if (assessmentType === 'quiz') return 'quizzes'
   return 'tests'
 }
 
 function isGradebookAssessmentType(value: unknown): value is GradebookAssessmentType {
-  return value === 'assignment' || value === 'quiz' || value === 'test'
+  return value === 'assignment' || value === 'test'
 }
 
 function isPastDue(dueAt: string): boolean {
@@ -306,18 +304,6 @@ function getAssignmentGradebookStatus(
   if (status === 'submitted_late') return 'submitted_late'
   if (status === 'resubmitted') return 'resubmitted'
   if (!isGraded && status === 'submitted_on_time') return 'submitted'
-  return null
-}
-
-function getQuizGradebookStatus(input: {
-  quizStatus: 'draft' | 'active' | 'closed' | null
-  hasResponses: boolean
-  hasManualOverride: boolean
-  isGraded: boolean
-}): GradebookAssessmentStatus | null {
-  if (input.quizStatus === 'draft') return null
-  if (input.quizStatus === 'closed' && !input.hasResponses && !input.hasManualOverride) return 'not_submitted'
-  if (!input.isGraded && input.hasResponses) return 'started'
   return null
 }
 
@@ -569,257 +555,6 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
     const rows = assignmentRowsByStudent.get(doc.student_id) || []
     rows.push({ earned, possible, weight: assignment.gradebook_weight })
     assignmentRowsByStudent.set(doc.student_id, rows)
-  }
-
-  let quizzes: Array<{
-    id: string
-    title: string
-    position: number
-    status: 'draft' | 'active' | 'closed' | null
-    points_possible: number
-    include_in_final: boolean
-    gradebook_weight: number
-  }> = []
-
-  const {
-    rows: quizzesWithMeta,
-    error: quizzesWithMetaError,
-  } = await loadPagedRows<any>(() =>
-    supabase
-      .from('quizzes')
-      .select('id, title, status, position, points_possible, include_in_final, gradebook_weight')
-      .eq('classroom_id', classroomId)
-  )
-
-  if (!quizzesWithMetaError) {
-    quizzes = (quizzesWithMeta || []).map((quiz) => ({
-      id: quiz.id,
-      title: quiz.title,
-      position: Number(quiz.position ?? 0),
-      status: quiz.status ?? null,
-      points_possible: Number(quiz.points_possible ?? QUIZ_POINTS_DEFAULT),
-      include_in_final: quiz.include_in_final !== false,
-      gradebook_weight: normalizeAssessmentWeight(quiz.gradebook_weight),
-    }))
-  } else {
-    const quizSelection = mentionsMissingField(quizzesWithMetaError, 'gradebook_weight')
-      ? 'id, title, status, position, points_possible, include_in_final'
-      : 'id, title, status, position'
-
-    // Backward-compatible fallback for databases that have not applied gradebook metadata columns yet.
-    const {
-      rows: quizzesLegacy,
-      error: quizzesLegacyError,
-    } = await loadPagedRows<any>(() =>
-      supabase
-        .from('quizzes')
-        .select(quizSelection)
-        .eq('classroom_id', classroomId)
-    )
-
-    if (quizzesLegacyError) {
-      console.error('Error loading quizzes for gradebook:', quizzesWithMetaError, quizzesLegacyError)
-      return NextResponse.json({ error: 'Failed to load quizzes for gradebook' }, { status: 500 })
-    }
-
-    quizzes = ((quizzesLegacy || []) as Array<any>).map((quiz) => ({
-      id: quiz.id,
-      title: quiz.title,
-      position: Number(quiz.position ?? 0),
-      status: quiz.status ?? null,
-      points_possible: Number(quiz.points_possible ?? QUIZ_POINTS_DEFAULT),
-      include_in_final: quiz.include_in_final !== false,
-      gradebook_weight: normalizeAssessmentWeight(quiz.gradebook_weight),
-    }))
-  }
-  quizzes.sort(comparePositionThenTitle)
-
-  const quizIds = quizzes.map((q) => q.id)
-
-  let quizQuestions: Array<any> = []
-  let quizQuestionsResult = await loadSingleFilterRows<any>(
-    supabase,
-    'quiz_questions',
-    'id, quiz_id, correct_option',
-    'quiz_id',
-    quizIds
-  )
-
-  if (quizQuestionsResult.error && mentionsMissingField(quizQuestionsResult.error, 'correct_option')) {
-    quizQuestionsResult = await loadSingleFilterRows<any>(
-      supabase,
-      'quiz_questions',
-      'id, quiz_id',
-      'quiz_id',
-      quizIds
-    )
-    if (!quizQuestionsResult.error) {
-      quizQuestions = quizQuestionsResult.rows.map((question) => ({ ...question, correct_option: null }))
-    }
-  } else if (!quizQuestionsResult.error) {
-    quizQuestions = quizQuestionsResult.rows
-  }
-
-  if (quizQuestionsResult.error) {
-    console.error('Error loading quiz questions for gradebook:', quizQuestionsResult.error)
-    return NextResponse.json({ error: 'Failed to load quiz questions for gradebook' }, { status: 500 })
-  }
-
-  const {
-    rows: quizResponses,
-    error: quizResponsesError,
-  } = await loadStudentScopedRows<any>(
-    supabase,
-    'quiz_responses',
-    'quiz_id, question_id, student_id, selected_option',
-    'quiz_id',
-    quizIds,
-    studentIds
-  )
-
-  if (quizResponsesError) {
-    console.error('Error loading quiz responses for gradebook:', quizResponsesError)
-    return NextResponse.json({ error: 'Failed to load quiz responses for gradebook' }, { status: 500 })
-  }
-
-  const {
-    rows: overrideRows,
-    error: overridesError,
-  } = await loadStudentScopedRows<any>(
-    supabase,
-    'quiz_student_scores',
-    'quiz_id, student_id, manual_override_score',
-    'quiz_id',
-    quizIds,
-    studentIds
-  )
-
-  let overrides = overrideRows
-
-  if (overridesError && (
-    isMissingTableError(overridesError) ||
-    mentionsMissingField(overridesError, 'manual_override_score')
-  )) {
-    overrides = []
-  } else if (overridesError) {
-    console.error('Error loading quiz override scores for gradebook:', overridesError)
-    return NextResponse.json({ error: 'Failed to load quiz override scores for gradebook' }, { status: 500 })
-  }
-
-  const quizMap = new Map(quizzes.map((q) => [q.id, q]))
-
-  const responsesByStudentQuiz = new Map<string, Map<string, Array<{ question_id: string; selected_option: number }>>>()
-  for (const response of quizResponses || []) {
-    const byQuiz = responsesByStudentQuiz.get(response.student_id) || new Map<string, Array<{ question_id: string; selected_option: number }>>()
-    const rows = byQuiz.get(response.quiz_id) || []
-    rows.push({ question_id: response.question_id, selected_option: response.selected_option })
-    byQuiz.set(response.quiz_id, rows)
-    responsesByStudentQuiz.set(response.student_id, byQuiz)
-  }
-
-  const overrideMap = new Map<string, number | null>()
-  for (const row of overrides || []) {
-    overrideMap.set(`${row.quiz_id}:${row.student_id}`, row.manual_override_score)
-  }
-
-  const questionIdsByQuiz = new Map<string, Array<{ id: string; correct_option: number | null }>>()
-  for (const question of quizQuestions || []) {
-    const rows = questionIdsByQuiz.get(question.quiz_id) || []
-    rows.push({ id: question.id, correct_option: question.correct_option })
-    questionIdsByQuiz.set(question.quiz_id, rows)
-  }
-
-  const quizRowsByStudent = new Map<string, Array<{ earned: number; possible: number; weight: number }>>()
-  const quizScoresByQuiz = new Map<string, Array<{ earned: number; possible: number }>>()
-  const quizCellMap = new Map<string, GradebookAssessmentCell>()
-  const quizDetailsByStudent = new Map<string, Array<{
-    quiz_id: string
-    title: string
-    earned: number
-    possible: number
-    percent: number
-    status: 'active' | 'closed' | 'draft' | null
-    is_manual_override: boolean
-  }>>()
-
-  for (const studentId of studentIds) {
-    for (const quizId of quizIds) {
-      const quiz = quizMap.get(quizId)
-      if (!quiz) continue
-
-      const possible = Number(quiz.points_possible ?? QUIZ_POINTS_DEFAULT)
-      const override = overrideMap.get(`${quizId}:${studentId}`)
-      const hasManualOverride = override != null
-      const selected = responsesByStudentQuiz.get(studentId)?.get(quizId) || []
-
-      let earned: number | null = override ?? null
-      if (quiz.status === 'draft') {
-        earned = null
-      } else if (earned == null) {
-        const quizQuestionsForQuiz = questionIdsByQuiz.get(quizId) || []
-        const scorable = quizQuestionsForQuiz.filter((q) => q.correct_option != null)
-        if (scorable.length > 0) {
-          if (selected.length === 0 && quiz.status !== 'closed') {
-            continue
-          }
-          const selectedByQuestion = new Map(selected.map((s) => [s.question_id, s.selected_option]))
-
-          let correctCount = 0
-          for (const question of scorable) {
-            const studentAnswer = selectedByQuestion.get(question.id)
-            if (studentAnswer != null && studentAnswer === question.correct_option) {
-              correctCount += 1
-            }
-          }
-          earned = (correctCount / scorable.length) * possible
-        }
-      }
-
-      const quizCellStatus = getQuizGradebookStatus({
-        quizStatus: quiz.status,
-        hasResponses: selected.length > 0,
-        hasManualOverride,
-        isGraded: earned != null,
-      })
-
-      quizCellMap.set(cellKey(studentId, quizId), earned == null
-        ? blankAssessmentCell('quiz', quizId, possible, hasManualOverride, quizCellStatus)
-        : {
-            assessment_id: quizId,
-            assessment_type: 'quiz',
-            earned: round2(earned),
-            possible: round2(possible),
-            percent: round2((earned / possible) * 100),
-            is_graded: true,
-            is_manual_override: hasManualOverride,
-            ...(quizCellStatus ? { status: quizCellStatus } : {}),
-          }
-      )
-
-      if (quiz.include_in_final === false) continue
-      if (quiz.status === 'draft') continue
-      if (earned == null) continue
-
-      const rows = quizRowsByStudent.get(studentId) || []
-      rows.push({ earned, possible, weight: quiz.gradebook_weight })
-      quizRowsByStudent.set(studentId, rows)
-
-      const quizScores = quizScoresByQuiz.get(quiz.id) || []
-      quizScores.push({ earned, possible })
-      quizScoresByQuiz.set(quiz.id, quizScores)
-
-      const details = quizDetailsByStudent.get(studentId) || []
-      details.push({
-        quiz_id: quiz.id,
-        title: quiz.title,
-        earned: round2(earned),
-        possible: round2(possible),
-        percent: round2((earned / possible) * 100),
-        status: quiz.status,
-        is_manual_override: hasManualOverride,
-      })
-      quizDetailsByStudent.set(studentId, details)
-    }
   }
 
   let tests: Array<{
@@ -1097,16 +832,6 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
       is_draft: assignment.is_draft,
       include_in_final: assignment.include_in_final,
     })),
-    ...quizzes.map((quiz, index) => ({
-      assessment_id: quiz.id,
-      assessment_type: 'quiz' as const,
-      code: assessmentCode('Q', index),
-      title: quiz.title,
-      possible: round2(quiz.points_possible),
-      weight: quiz.gradebook_weight,
-      status: quiz.status,
-      include_in_final: quiz.include_in_final,
-    })),
     ...tests.map((test, index) => {
       const questionsForTest = testQuestionsByTest.get(test.id) || []
       const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
@@ -1127,7 +852,6 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
     const studentId = enrollment.student_id
     const profile = profileMap.get(studentId)
     const assignmentRows = assignmentRowsByStudent.get(studentId) || []
-    const quizRows = quizRowsByStudent.get(studentId) || []
     const testRows = testRowsByStudent.get(studentId) || []
     const calc = calculateFinalPercent({
       useWeights: false,
@@ -1135,17 +859,10 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
       quizzesWeight: DEFAULT_SETTINGS.quizzes_weight,
       testsWeight: DEFAULT_SETTINGS.tests_weight,
       assignments: assignmentRows,
-      quizzes: quizRows,
+      quizzes: [],
       tests: testRows,
     })
     const assignmentTotals = assignmentRows.reduce(
-      (totals, row) => ({
-        earned: totals.earned + row.earned,
-        possible: totals.possible + row.possible,
-      }),
-      { earned: 0, possible: 0 }
-    )
-    const quizTotals = quizRows.reduce(
       (totals, row) => ({
         earned: totals.earned + row.earned,
         possible: totals.possible + row.possible,
@@ -1169,8 +886,8 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
       assignments_earned: assignmentTotals.possible > 0 ? round2(assignmentTotals.earned) : null,
       assignments_possible: assignmentTotals.possible > 0 ? round2(assignmentTotals.possible) : null,
       assignments_percent: calc.assignmentsPercent,
-      quizzes_earned: quizTotals.possible > 0 ? round2(quizTotals.earned) : null,
-      quizzes_possible: quizTotals.possible > 0 ? round2(quizTotals.possible) : null,
+      quizzes_earned: null,
+      quizzes_possible: null,
       quizzes_percent: calc.quizzesPercent,
       tests_earned: testTotals.possible > 0 ? round2(testTotals.earned) : null,
       tests_possible: testTotals.possible > 0 ? round2(testTotals.possible) : null,
@@ -1178,10 +895,6 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
       final_percent: calc.finalPercent,
       assessment_scores: [
         ...assignments.map((assignment) => getAssignmentCell(studentId, assignment)),
-        ...quizzes.map((quiz) =>
-          quizCellMap.get(cellKey(studentId, quiz.id)) ||
-          blankAssessmentCell('quiz', quiz.id, quiz.points_possible, false)
-        ),
         ...tests.map((test) => {
           const questionsForTest = testQuestionsByTest.get(test.id) || []
           const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
@@ -1233,26 +946,6 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
       median_percent: medianPercent,
     }
   })
-
-  const classQuizSummaries = quizzes
-    .filter((quiz) => quiz.status !== 'draft')
-    .map((quiz) => {
-      const scored = quizScoresByQuiz.get(quiz.id) || []
-      const averagePercent = scored.length > 0
-        ? round2(
-            scored.reduce((sum, row) => sum + (row.earned / row.possible) * 100, 0) / scored.length
-          )
-        : null
-
-      return {
-        quiz_id: quiz.id,
-        title: quiz.title,
-        status: quiz.status,
-        possible: round2(quiz.points_possible),
-        scored_count: scored.length,
-        average_percent: averagePercent,
-      }
-    })
 
   const classTestSummaries = tests
     .filter((test) => test.status !== 'draft')
@@ -1321,7 +1014,7 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
                 is_graded: true,
               }
             }),
-          quizzes: quizDetailsByStudent.get(selectedStudent.student_id) || [],
+          quizzes: [],
           tests: testDetailsByStudent.get(selectedStudent.student_id) || [],
         }
       : null,
@@ -1332,12 +1025,12 @@ export const GET = withErrorHandler('GetGradebook', async (request: NextRequest)
         ? round2(finalPercents.reduce((sum, value) => sum + value, 0) / finalPercents.length)
         : null,
       assignments: classAssignmentSummaries,
-      quizzes: classQuizSummaries,
+      quizzes: [],
       tests: classTestSummaries,
     },
     totals: {
       assignments: assignments.length || 0,
-      quizzes: quizzes.filter((quiz) => quiz.status !== 'draft').length || 0,
+      quizzes: 0,
       tests: tests.filter((test) => test.status !== 'draft').length || 0,
     },
   })
@@ -1369,7 +1062,7 @@ export const PATCH = withErrorHandler('PatchGradebook', async (request: NextRequ
 
   if (hasAssessmentWeightUpdate) {
     if (!isGradebookAssessmentType(body.assessment_type)) {
-      return NextResponse.json({ error: 'assessment_type must be assignment, quiz, or test' }, { status: 400 })
+      return NextResponse.json({ error: 'assessment_type must be assignment or test' }, { status: 400 })
     }
 
     const assessmentId = String(body.assessment_id || '').trim()
