@@ -224,6 +224,16 @@ describe('TeacherRosterTab', () => {
     expect(screen.queryByText('Ada')).not.toBeInTheDocument()
   })
 
+  it('renders the roster without a summary inspector pane', async () => {
+    mockRosterFetch()
+
+    renderRoster()
+
+    expect(await screen.findByText('Ada')).toBeInTheDocument()
+    expect(screen.queryByText('Roster Summary')).not.toBeInTheDocument()
+    expect(screen.queryByRole('separator', { name: 'Resize Roster panes' })).not.toBeInTheDocument()
+  })
+
   it('opens single-student removal from the floating roster actions dropdown with confirmation', async () => {
     const user = userEvent.setup()
     const fetchMock = mockRosterFetch()
