@@ -941,6 +941,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check`
+- `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
+- `pnpm test` (301 files / 2655 tests)
 
 ## 2026-06-09 — Roster summary pane removal
 
@@ -957,8 +959,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/6d20a5cb-c497-4dc1-ac74-0637068c8a7f?tab=roster'`
 - Live Playwright DOM check: no `Roster Summary`, no `Resize Roster panes` separator, roster scroll pane visible.
 - `pnpm build`
-- `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
-- `pnpm test` (301 files / 2655 tests)
 
 ## 2026-06-09 — Legacy quiz internal test naming pass
 
