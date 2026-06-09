@@ -8,19 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-01 — Snapshot gallery hardening phase-1 second pass
-
-**Completed:**
-- Added `requireSnapshotGalleryAccess()` in `src/lib/auth.ts` to gate snapshot endpoints to non-production teachers by default and allow production access only for `SNAPSHOT_GALLERY_ADMIN_EMAILS` allowlist entries.
-- Replaced `requireAuth()` with snapshot-specific access check in `src/app/api/snapshots/list/route.ts` and `src/app/api/snapshots/[filename]/route.ts`.
-- Updated snapshot API tests to mock and verify the new auth path.
-- Added unit coverage for snapshot-gallery access gating in `tests/unit/auth.test.ts`.
-- Added production admin allowlist env variable and clarified gallery security docs in `.env.example` and `docs/snapshot-gallery.md`.
-
-**Validation:**
-- `pnpm test tests/unit/auth.test.ts tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts`
-- `pnpm lint`
-
 ## 2026-06-01 — Snapshot gallery production restriction finalized
 
 **Completed:**
@@ -965,3 +952,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `pnpm vitest run tests/components/TeacherCalendarPage.test.tsx`
 - GitHub PR #760 checks: `Test & Build`, `Check UI Import Policy`, `Check No dark: Classes in App Code`, Vercel status all passed.
+
+## 2026-06-09 — Legacy quiz contract transition
+
+**Completed:**
+- Created `codex/legacy-quiz-contract-cleanup` from `origin/main`.
+- Audited remaining internal `quiz` / `quizzes` references across migrations, API payloads, shared types, server/lib code, UI wrappers, tests, and docs.
+- Added dual `test`/`tests` plus legacy `quiz`/`quizzes` response keys to active `/api/*/tests` endpoints.
+- Updated active test clients to prefer `test`/`tests` response keys with legacy fallback.
+- Added test-named type aliases and `@/lib/tests` helper exports, then migrated active test routes/components to those names.
+- Removed unused one-line legacy UI wrappers (`Quiz*`, `StudentQuiz*`, `StudentQuizzesTab`) and updated architecture/UI guidance.
+- Left production schema, migrations, legacy DB tables, gradebook legacy fields, and blueprint schema compatibility unchanged.
+
+**Validation:**
+- `pnpm exec tsc --noEmit`
+- `pnpm vitest run tests/api/teacher/tests-route.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-results.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/api/student/tests-session-status.test.ts tests/components/TeacherTestsTab.test.tsx tests/components/StudentTestsTab.test.tsx tests/components/TestDetailPanel.test.tsx tests/components/StudentTestForm.test.tsx tests/components/StudentTestResults.test.tsx tests/components/TestIndividualResponses.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check`
+- `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
+- `pnpm test` (301 files / 2655 tests)

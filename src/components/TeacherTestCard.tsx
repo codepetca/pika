@@ -6,14 +6,14 @@ import { ExternalLink, GripVertical, Lock, Trash2, Unlock } from 'lucide-react'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
 import {
   getAssessmentStatusLabel,
-  getQuizStatusBadgeClass,
+  getTestStatusBadgeClass,
   getTeacherTestListDisplayStatus,
-} from '@/lib/quizzes'
+} from '@/lib/tests'
 import { Button, Tooltip } from '@/ui'
-import type { QuizWithStats } from '@/types'
+import type { TestAssessmentWithStats } from '@/types'
 
 interface TeacherTestCardProps {
-  test: QuizWithStats
+  test: TestAssessmentWithStats
   isReadOnly: boolean
   isDragDisabled?: boolean
   editMode: boolean
@@ -52,7 +52,7 @@ export function TeacherTestCard({
   const isDraft = test.status === 'draft'
   const displayStatus = getTeacherTestListDisplayStatus(test)
   const statusLabel = getAssessmentStatusLabel(displayStatus, 'test')
-  const statusBadgeClass = getQuizStatusBadgeClass(displayStatus)
+  const statusBadgeClass = getTestStatusBadgeClass(displayStatus)
   const totalStudents = test.stats.total_students || 0
   const submittedCount = test.stats.submitted ?? test.stats.responded ?? 0
   const openAccessCount = test.stats.open_access ?? (test.status === 'active' ? totalStudents : 0)

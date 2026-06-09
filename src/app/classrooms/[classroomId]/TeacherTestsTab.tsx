@@ -45,7 +45,7 @@ import {
 } from '@/lib/events'
 import { getDisplayAssessmentTitle } from '@/lib/assessment-titles'
 import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
-import { getQuizExitCount } from '@/lib/quizzes'
+import { getTestExitCount } from '@/lib/tests'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { compareByNameFields } from '@/lib/table-sort'
@@ -56,9 +56,9 @@ import type {
   AssessmentEditorSummaryUpdate,
   AssessmentWorkspaceSummaryPatch,
   Classroom,
-  Quiz,
-  QuizFocusSummary,
-  QuizWithStats,
+  TestAssessment,
+  TestFocusSummary,
+  TestAssessmentWithStats,
   TestAiGradingRunSummary,
 } from '@/types'
 
@@ -69,7 +69,7 @@ interface Props {
   selectedTestMode?: WorkspaceTab | null
   selectedTestStudentId?: string | null
   updateSearchParams?: UpdateSearchParamsFn
-  onSelectTest?: (test: QuizWithStats | null) => void
+  onSelectTest?: (test: TestAssessmentWithStats | null) => void
   onTestGradingDataRefresh?: () => void
   onTestGradingContextChange?: (context: {
     mode: 'authoring' | 'grading'
@@ -108,7 +108,7 @@ interface TestGradingStudentRow {
   access_state?: 'open' | 'closed' | null
   effective_access?: 'open' | 'closed'
   access_source?: 'test' | 'student'
-  focus_summary: QuizFocusSummary | null
+  focus_summary: TestFocusSummary | null
 }
 
 interface TestGradingQuestionSummary {
@@ -126,7 +126,7 @@ type TestGradingSortColumn = 'first_name' | 'last_name'
 const GRADING_POLL_INTERVAL_MS = 15_000
 
 function getTestGradingExitCount(student: TestGradingStudentRow): number {
-  return getQuizExitCount(student.focus_summary)
+  return getTestExitCount(student.focus_summary)
 }
 
 function TestWorkspacePaneFrame({ children }: { children: ReactNode }) {
@@ -167,7 +167,7 @@ function getSortableNameParts(student: TestGradingStudentRow): { firstName: stri
 
 function getEffectiveTestAccess(
   student: Pick<TestGradingStudentRow, 'effective_access'>,
-  testStatus: Quiz['status'] | null | undefined,
+  testStatus: TestAssessment['status'] | null | undefined,
 ): 'open' | 'closed' {
   return student.effective_access || (testStatus === 'active' ? 'open' : 'closed')
 }
@@ -253,7 +253,7 @@ function formatTestAiGradingRunMessage(run: TestAiGradingRunSummary): {
   }
 }
 
-function withDefaultTestStats(test: Quiz): QuizWithStats {
+function withDefaultTestStats(test: TestAssessment): TestAssessmentWithStats {
   return {
     ...test,
     assessment_type: 'test',
@@ -265,15 +265,15 @@ function withDefaultTestStats(test: Quiz): QuizWithStats {
       open_access: 0,
       closed_access: 0,
       questions_count: 0,
-      ...((test as Partial<QuizWithStats>).stats ?? {}),
+      ...((test as Partial<TestAssessmentWithStats>).stats ?? {}),
     },
   }
 }
 
 function applyTestSummaryPatchToTest(
-  test: QuizWithStats,
+  test: TestAssessmentWithStats,
   update: AssessmentWorkspaceSummaryPatch
-): QuizWithStats {
+): TestAssessmentWithStats {
   return {
     ...test,
     title: typeof update.title === 'string' ? update.title : test.title,
@@ -322,7 +322,7 @@ export function TeacherTestsTab({
   const selectedTestIdRef = useRef<string | null>(null)
   const selectedTestDraftSummaryRef = useRef<AssessmentEditorSummaryUpdate | null>(null)
 
-  const [tests, setTests] = useState<QuizWithStats[]>([])
+  const [tests, setTests] = useState<TestAssessmentWithStats[]>([])
   const { showMessage } = useAppMessage()
   const [loading, setLoading] = useState(true)
   const [internalSelectedWorkspaceTab, setInternalSelectedWorkspaceTab] = useState<WorkspaceTab>('grading')
@@ -336,14 +336,14 @@ export function TeacherTestsTab({
   const [testEditModalView, setTestEditModalView] = useState<TestEditModalView>('edit')
   const [testEditTitlePortalTarget, setTestEditTitlePortalTarget] = useState<HTMLDivElement | null>(null)
   const [, setTestEditSaveStatus] = useState<TestEditSaveStatus>('saved')
-  const [pendingDeleteTest, setPendingDeleteTest] = useState<QuizWithStats | null>(null)
+  const [pendingDeleteTest, setPendingDeleteTest] = useState<TestAssessmentWithStats | null>(null)
   const [isDeletingTest, setIsDeletingTest] = useState(false)
 
   const [gradingStudents, setGradingStudents] = useState<TestGradingStudentRow[]>([])
   const [unreviewedExitCounts, setUnreviewedExitCounts] = useState<Record<string, number>>({})
   const [exitAlertStudentId, setExitAlertStudentId] = useState<string | null>(null)
   const [gradingQuestions, setGradingQuestions] = useState<TestGradingQuestionSummary[]>([])
-  const [gradingServerTestStatus, setGradingServerTestStatus] = useState<Quiz['status'] | null>(null)
+  const [gradingServerTestStatus, setGradingServerTestStatus] = useState<TestAssessment['status'] | null>(null)
   const [gradingServerTestId, setGradingServerTestId] = useState<string | null>(null)
   const [testAiGradingRun, setTestAiGradingRun] = useState<TestAiGradingRunSummary | null>(null)
   const [gradingLoading, setGradingLoading] = useState(false)
@@ -727,7 +727,7 @@ export function TeacherTestsTab({
     setLoading(true)
     try {
       const query = new URLSearchParams({ classroom_id: classroom.id })
-      const data = await fetchJSONWithCache<{ tests?: QuizWithStats[]; quizzes?: QuizWithStats[] }>(
+      const data = await fetchJSONWithCache<{ tests?: TestAssessmentWithStats[]; quizzes?: TestAssessmentWithStats[] }>(
         `teacher-tests:${classroom.id}`,
         async () => {
           const response = await fetch(`${apiBasePath}?${query.toString()}`)
@@ -737,7 +737,7 @@ export function TeacherTestsTab({
         },
         0,
       )
-      const loadedTests = (data.tests || data.quizzes || []) as QuizWithStats[]
+      const loadedTests = (data.tests || data.quizzes || []) as TestAssessmentWithStats[]
       const currentSelectedTestId = selectedTestIdRef.current
       const currentDraftSummary = selectedTestDraftSummaryRef.current
       setTests(
@@ -809,9 +809,10 @@ export function TeacherTestsTab({
       if (isStaleRequest()) return
       if (!ok) throw new Error(data.error || 'Failed to load test results')
 
+      const responseTest = data?.test ?? data?.quiz
       const nextStatus =
-        data?.quiz?.status === 'draft' || data?.quiz?.status === 'active' || data?.quiz?.status === 'closed'
-          ? (data.quiz.status as Quiz['status'])
+        responseTest?.status === 'draft' || responseTest?.status === 'active' || responseTest?.status === 'closed'
+          ? (responseTest.status as TestAssessment['status'])
           : null
 
       setGradingServerTestStatus(nextStatus)
@@ -1263,7 +1264,7 @@ export function TeacherTestsTab({
     }
   }, [activeTestAiRun, classroom.id, clearBatchSelection, hasActiveTestAiRun, loadGradingRows, onTestGradingDataRefresh, showMessage])
 
-  function handleOpenTest(test: QuizWithStats) {
+  function handleOpenTest(test: TestAssessmentWithStats) {
     navigateTestWorkspace({ testId: test.id, mode: 'grading', studentId: null })
     setGradingError('')
     setGradingWarning('')
@@ -1271,7 +1272,7 @@ export function TeacherTestsTab({
     clearBatchSelection()
   }
 
-  function handleEditTest(test: QuizWithStats) {
+  function handleEditTest(test: TestAssessmentWithStats) {
     navigateTestWorkspace({ testId: test.id, mode: 'authoring', studentId: null })
     setGradingError('')
     setGradingWarning('')
@@ -1312,7 +1313,7 @@ export function TeacherTestsTab({
       if (!response.ok) {
         throw new Error(data.error || 'Failed to create test')
       }
-      handleTestCreated(data.quiz as Quiz)
+      handleTestCreated((data.test ?? data.quiz) as TestAssessment)
     } catch (error: any) {
       showMessage({ text: error?.message || 'Failed to create test', tone: 'warning' })
     } finally {
@@ -1320,7 +1321,7 @@ export function TeacherTestsTab({
     }
   }
 
-  function handleTestCreated(test: Quiz) {
+  function handleTestCreated(test: TestAssessment) {
     const createdTest = withDefaultTestStats(test)
 
     setTestEditMode(false)
@@ -1689,19 +1690,20 @@ export function TeacherTestsTab({
         throw new Error(data.error || 'Failed to update test')
       }
 
+      const responseTest = data?.test ?? data?.quiz
       const nextStatus =
-        data?.test?.status === 'draft' || data?.test?.status === 'active' || data?.test?.status === 'closed'
-          ? data.test.status
+        responseTest?.status === 'draft' || responseTest?.status === 'active' || responseTest?.status === 'closed'
+          ? responseTest.status
           : payload.status === 'draft' || payload.status === 'active' || payload.status === 'closed'
             ? payload.status
             : undefined
 
       applyTestSummaryPatch(selectedTestId, {
         status: nextStatus,
-        title: typeof data?.test?.title === 'string' ? data.test.title : undefined,
-        show_results: typeof data?.test?.show_results === 'boolean' ? data.test.show_results : undefined,
+        title: typeof responseTest?.title === 'string' ? responseTest.title : undefined,
+        show_results: typeof responseTest?.show_results === 'boolean' ? responseTest.show_results : undefined,
         questions_count:
-          typeof data?.test?.stats?.questions_count === 'number' ? data.test.stats.questions_count : undefined,
+          typeof responseTest?.stats?.questions_count === 'number' ? responseTest.stats.questions_count : undefined,
       })
 
       if (nextStatus) {

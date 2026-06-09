@@ -11,7 +11,7 @@ import {
   TEACHER_TEST_GRADING_ROW_UPDATED_EVENT,
   type TeacherTestGradingRowUpdatedEventDetail,
 } from '@/lib/events'
-import type { QuizFocusSummary } from '@/types'
+import type { TestFocusSummary } from '@/types'
 
 interface TestQuestionInfo {
   id: string
@@ -48,7 +48,7 @@ interface TestStudentRow {
   graded_open_responses: number
   ungraded_open_responses: number
   answers: TestAnswersByQuestion
-  focus_summary: QuizFocusSummary | null
+  focus_summary: TestFocusSummary | null
 }
 
 interface TestResultsPayload {

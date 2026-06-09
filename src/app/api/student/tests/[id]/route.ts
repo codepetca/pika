@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { getStudentTestStatus, summarizeQuizFocusEvents } from '@/lib/quizzes'
+import { getStudentTestStatus, summarizeTestFocusEvents } from '@/lib/tests'
 import {
   assertStudentCanAccessTest,
   getEffectiveStudentTestAccess,
@@ -172,26 +172,29 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
     .eq('student_id', user.id)
     .order('occurred_at', { ascending: true })
 
+  const responseTest = {
+    id: test.id,
+    classroom_id: test.classroom_id,
+    title: test.title,
+    assessment_type: 'test' as const,
+    status: test.status,
+    show_results: test.show_results,
+    documents: normalizeTestDocuments(test.documents),
+    position: test.position,
+    student_status: studentStatus,
+    returned_at: attempt?.returned_at || null,
+    access_state: accessState.access_state,
+    effective_access: accessState.effective_access,
+    created_at: test.created_at,
+    updated_at: test.updated_at,
+  }
+
   return NextResponse.json({
-    quiz: {
-      id: test.id,
-      classroom_id: test.classroom_id,
-      title: test.title,
-      assessment_type: 'test' as const,
-      status: test.status,
-      show_results: test.show_results,
-      documents: normalizeTestDocuments(test.documents),
-      position: test.position,
-      student_status: studentStatus,
-      returned_at: attempt?.returned_at || null,
-      access_state: accessState.access_state,
-      effective_access: accessState.effective_access,
-      created_at: test.created_at,
-      updated_at: test.updated_at,
-    },
+    test: responseTest,
+    quiz: responseTest,
     questions: questions || [],
     student_status: studentStatus,
     student_responses: studentResponses,
-    focus_summary: summarizeQuizFocusEvents(focusEvents || []),
+    focus_summary: summarizeTestFocusEvents(focusEvents || []),
   })
 })

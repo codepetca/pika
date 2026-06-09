@@ -135,7 +135,7 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
 
   if (testsError) {
     if (testsError.code === 'PGRST205') {
-      return NextResponse.json({ quizzes: [], migration_required: true })
+      return NextResponse.json({ tests: [], quizzes: [], migration_required: true })
     }
     console.error('Error fetching tests:', testsError)
     return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
@@ -315,8 +315,8 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
     }
   })
 
-  // Keep response key as `quizzes` for current UI component compatibility.
-  return NextResponse.json({ quizzes: testsWithStats })
+  // Keep legacy `quizzes` key during the tests API contract transition.
+  return NextResponse.json({ tests: testsWithStats, quizzes: testsWithStats })
 })
 
 // POST /api/teacher/tests - Create a new test
@@ -409,13 +409,16 @@ export const POST = withErrorHandler('CreateTeacherTest', async (request) => {
     return NextResponse.json({ error: 'Failed to create test draft' }, { status: 500 })
   }
 
+  const responseTest = {
+    ...test,
+    documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
+    assessment_type: 'test',
+  }
+
   return NextResponse.json(
     {
-      quiz: {
-        ...test,
-        documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
-        assessment_type: 'test',
-      },
+      test: responseTest,
+      quiz: responseTest,
     },
     { status: 201 }
   )

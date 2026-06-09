@@ -185,7 +185,8 @@ describe('GET /api/teacher/tests', () => {
       { column: 'position', ascending: false },
       { column: 'created_at', ascending: false },
     ])
-    expect((data.quizzes as Array<{ id: string }>).map((quiz) => quiz.id)).toEqual(['test-2', 'test-1'])
+    expect(data.tests).toEqual(data.quizzes)
+    expect((data.tests as Array<{ id: string }>).map((test) => test.id)).toEqual(['test-2', 'test-1'])
   })
 
   it('returns 500 when reading test responses fails', async () => {
@@ -751,8 +752,9 @@ describe('POST /api/teacher/tests', () => {
     const data = await response.json()
 
     expect(response.status).toBe(201)
-    expect(data.quiz.position).toBe(3)
-    expect(data.quiz.title).toBe('New Test')
+    expect(data.test).toEqual(data.quiz)
+    expect(data.test.position).toBe(3)
+    expect(data.test.title).toBe('New Test')
     expect(assessmentDraftInsertSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         assessment_type: 'test',

@@ -8,7 +8,7 @@ import {
   isMissingTestAttemptReturnColumnsError,
   isMissingTestStudentAvailabilityError,
 } from '@/lib/server/tests'
-import { getStudentTestStatus } from '@/lib/quizzes'
+import { getStudentTestStatus } from '@/lib/tests'
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
@@ -47,7 +47,7 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
 
   if (activeError) {
     if (activeError.code === 'PGRST205') {
-      return NextResponse.json({ quizzes: [], migration_required: true })
+      return NextResponse.json({ tests: [], quizzes: [], migration_required: true })
     }
     console.error('Error fetching active tests:', activeError)
     return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
@@ -245,6 +245,6 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
     }
   })
 
-  // Keep response key as `quizzes` for current UI component compatibility.
-  return NextResponse.json({ quizzes: testsWithStatus })
+  // Keep legacy `quizzes` key during the tests API contract transition.
+  return NextResponse.json({ tests: testsWithStatus, quizzes: testsWithStatus })
 })

@@ -11,7 +11,7 @@ import {
 import { getServiceRoleClient } from '@/lib/supabase'
 import { withErrorHandler } from '@/lib/api-handler'
 import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
-import type { QuizStatus } from '@/types'
+import type { TestAssessmentStatus } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -32,7 +32,7 @@ export const GET = withErrorHandler('GetStudentTestHistory', async (request, con
   const supabase = getServiceRoleClient()
 
   let studentId = user.id
-  let studentTestStatus: QuizStatus = 'draft'
+  let studentTestStatus: TestAssessmentStatus = 'draft'
 
   if (user.role === 'teacher') {
     if (!requestedStudentId) {

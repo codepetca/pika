@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { aggregateResults, canStudentViewTestResults } from '@/lib/quizzes'
+import { aggregateTestResults, canStudentViewTestResults } from '@/lib/tests'
 import {
   assertStudentCanAccessTest,
   getEffectiveStudentTestAccess,
@@ -13,7 +13,7 @@ import { getClassroomStudentIds } from '@/lib/server/classrooms'
 import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { chunkValues, loadPagedRows } from '@/lib/server/query-chunks'
 import { withErrorHandler } from '@/lib/api-handler'
-import type { QuizQuestion, QuizResponse } from '@/types'
+import type { TestAssessmentQuestion, TestAssessmentResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -325,11 +325,11 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
       student_id: response.student_id,
       selected_option: response.selected_option,
       submitted_at: response.submitted_at,
-    } satisfies QuizResponse]
+    } satisfies TestAssessmentResponse]
   })
 
-  const aggregated = aggregateResults(
-    multipleChoiceQuestions as QuizQuestion[],
+  const aggregated = aggregateTestResults(
+    multipleChoiceQuestions as TestAssessmentQuestion[],
     multipleChoiceResponses
   )
 
@@ -391,15 +391,18 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
   const earnedPoints = questionResults.reduce((acc, question) => acc + (question.score ?? 0), 0)
   const percent = possiblePoints > 0 ? (earnedPoints / possiblePoints) * 100 : 0
 
+  const responseTest = {
+    id: test.id,
+    title: test.title,
+    status: test.status,
+    returned_at: attempt?.returned_at || null,
+    access_state: accessState.access_state,
+    effective_access: accessState.effective_access,
+  }
+
   return NextResponse.json({
-    quiz: {
-      id: test.id,
-      title: test.title,
-      status: test.status,
-      returned_at: attempt?.returned_at || null,
-      access_state: accessState.access_state,
-      effective_access: accessState.effective_access,
-    },
+    test: responseTest,
+    quiz: responseTest,
     results: aggregated,
     my_responses: myResponses,
     question_results: questionResults,

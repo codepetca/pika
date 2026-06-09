@@ -1,4 +1,4 @@
-import { MAX_QUIZ_OPTIONS } from '@/lib/quizzes'
+import { MAX_TEST_OPTIONS } from '@/lib/tests'
 import { DEFAULT_OPEN_RESPONSE_MAX_CHARS } from '@/lib/test-attempts'
 import type { TestQuestionType } from '@/types'
 
@@ -147,8 +147,8 @@ export function validateTestQuestionCreate(
   if (normalizedOptions.length < 2) {
     return { valid: false, error: 'At least 2 options are required' }
   }
-  if (normalizedOptions.length > MAX_QUIZ_OPTIONS) {
-    return { valid: false, error: `Maximum ${MAX_QUIZ_OPTIONS} options allowed` }
+  if (normalizedOptions.length > MAX_TEST_OPTIONS) {
+    return { valid: false, error: `Maximum ${MAX_TEST_OPTIONS} options allowed` }
   }
 
   const rawCorrectOption = input.correct_option
@@ -249,8 +249,8 @@ export function validateTestQuestionUpdate(
   if (nextOptions.length < 2) {
     return { valid: false, error: 'At least 2 options are required' }
   }
-  if (nextOptions.length > MAX_QUIZ_OPTIONS) {
-    return { valid: false, error: `Maximum ${MAX_QUIZ_OPTIONS} options allowed` }
+  if (nextOptions.length > MAX_TEST_OPTIONS) {
+    return { valid: false, error: `Maximum ${MAX_TEST_OPTIONS} options allowed` }
   }
 
   const currentCorrectOption =

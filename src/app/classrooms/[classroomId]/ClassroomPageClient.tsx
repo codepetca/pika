@@ -55,7 +55,7 @@ import type {
   LessonPlan,
   TiptapContent,
   Assignment,
-  QuizWithStats,
+  TestAssessmentWithStats,
 } from '@/types'
 
 interface UserInfo {
@@ -591,9 +591,9 @@ function ClassroomPageContent({
   const [calendarSidebarState, setCalendarSidebarState] = useState<CalendarSidebarState | null>(null)
 
   // State for selected assessment (teacher tests tab)
-  const [selectedQuiz, setSelectedQuiz] = useState<QuizWithStats | null>(null)
+  const [selectedQuiz, setSelectedQuiz] = useState<TestAssessmentWithStats | null>(null)
   const [pendingAssessmentDelete, setPendingAssessmentDelete] = useState<{
-    quiz: QuizWithStats
+    quiz: TestAssessmentWithStats
     responsesCount: number
   } | null>(null)
   const [isDeletingAssessment, setIsDeletingAssessment] = useState(false)
@@ -603,7 +603,7 @@ function ClassroomPageContent({
   } | null>(null)
   const [testsTabClickToken, setTestsTabClickToken] = useState(0)
 
-  const handleSelectQuiz = useCallback((quiz: QuizWithStats | null) => {
+  const handleSelectQuiz = useCallback((quiz: TestAssessmentWithStats | null) => {
     setSelectedQuiz(quiz)
   }, [])
 

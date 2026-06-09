@@ -24,7 +24,7 @@ import { Spinner } from '@/components/Spinner'
 import { useRefRect } from '@/hooks/use-element-rect'
 import { useWindowSize } from '@/hooks/use-window-size'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
-import { canEditQuizQuestions } from '@/lib/quizzes'
+import { canEditTestQuestions } from '@/lib/tests'
 import { TestMultipleChoiceQuestionEditor } from '@/components/TestMultipleChoiceQuestionEditor'
 import { TestQuestionEditor } from '@/components/TestQuestionEditor'
 import { TestDocumentsEditor } from '@/components/TestDocumentsEditor'
@@ -43,14 +43,14 @@ import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
 import type {
   AssessmentEditorSummaryUpdate,
   JsonPatchOperation,
-  QuizQuestion,
-  QuizWithStats,
-  QuizResultsAggregate,
+  TestAssessmentQuestion,
+  TestAssessmentWithStats,
+  TestResultsAggregate,
   TestDocument,
 } from '@/types'
 
 interface Props {
-  quiz: QuizWithStats
+  quiz: TestAssessmentWithStats
   classroomId: string
   apiBasePath?: string
   onQuizUpdate: (update?: AssessmentEditorSummaryUpdate) => void
@@ -72,7 +72,7 @@ interface Props {
 type AssessmentEditorDraft = {
   title: string
   show_results: boolean
-  questions: QuizQuestion[]
+  questions: TestAssessmentQuestion[]
   source_format?: 'markdown'
   source_markdown?: string
 }
@@ -81,7 +81,7 @@ type AssessmentRequestScope = {
   quizId: string
   classroomId: string
   apiBasePath: string
-  assessmentType: QuizWithStats['assessment_type']
+  assessmentType: TestAssessmentWithStats['assessment_type']
   isTestsView: boolean
 }
 
@@ -168,11 +168,11 @@ export function TestDetailPanel({
   const isTestsView = quiz.assessment_type === 'test' || apiBasePath.includes('/tests')
   const { showMarkdown } = useMarkdownPreference()
   const questionLayout = assessmentQuestionLayout ?? testQuestionLayout
-  const [questions, setQuestions] = useState<QuizQuestion[]>([])
+  const [questions, setQuestions] = useState<TestAssessmentQuestion[]>([])
   const [documents, setDocuments] = useState<TestDocument[]>(
     () => normalizeTestDocuments((quiz as { documents?: unknown }).documents)
   )
-  const [results, setResults] = useState<QuizResultsAggregate[] | null>(null)
+  const [results, setResults] = useState<TestResultsAggregate[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<AssessmentViewMode>(() => 'questions')
   const [isDocumentsCardExpanded, setIsDocumentsCardExpanded] = useState(true)
@@ -196,7 +196,7 @@ export function TestDetailPanel({
   )
   const [conflictDraft, setConflictDraft] = useState<{
     version: number
-    content: { title: string; show_results: boolean; questions: QuizQuestion[] }
+    content: { title: string; show_results: boolean; questions: TestAssessmentQuestion[] }
   } | null>(null)
 
   const [editTitle, setEditTitle] = useState(quiz.title)
@@ -333,11 +333,11 @@ export function TestDetailPanel({
     return previewWindow
   }, [])
 
-  const normalizeQuestionPositions = useCallback((nextQuestions: QuizQuestion[]): QuizQuestion[] => {
+  const normalizeQuestionPositions = useCallback((nextQuestions: TestAssessmentQuestion[]): TestAssessmentQuestion[] => {
     return nextQuestions.map((question, index) => ({ ...question, position: index }))
   }, [])
 
-  const normalizeDraftQuestions = useCallback((rawQuestions: unknown[]): QuizQuestion[] => {
+  const normalizeDraftQuestions = useCallback((rawQuestions: unknown[]): TestAssessmentQuestion[] => {
     return normalizeQuestionPositions(
       (rawQuestions || []).map((rawQuestion, index) => {
         const question = (rawQuestion || {}) as Record<string, unknown>
@@ -517,7 +517,7 @@ export function TestDetailPanel({
     })
   }, [documents, draftShowResults, editTitle, isTestsView, questions])
   const hasResponses = quiz.stats.responded > 0
-  const isEditable = canEditQuizQuestions(quiz, hasResponses)
+  const isEditable = canEditTestQuestions(quiz, hasResponses)
   const usesMarkdownOnlyQuestions = questionLayout === 'markdown-only'
   const isMarkdownSurfaceEnabled = showMarkdown || usesMarkdownOnlyQuestions
   const hasPendingMarkdownImport = isMarkdownSurfaceEnabled && markdownDirty
@@ -770,7 +770,7 @@ export function TestDetailPanel({
           }
 
           const serverDraft = data?.draft as
-            | { version: number; content: { title: string; show_results: boolean; questions: QuizQuestion[] } }
+            | { version: number; content: { title: string; show_results: boolean; questions: TestAssessmentQuestion[] } }
             | undefined
           if (serverDraft) {
             setConflictDraft({
@@ -946,7 +946,8 @@ export function TestDetailPanel({
         if (detailRes?.ok) {
           const detailData = await detailRes.json()
           if (!isCurrentLoadRequest(requestId, scope)) return
-          setDocuments(normalizeTestDocuments(detailData?.quiz?.documents))
+          const responseTest = detailData?.test ?? detailData?.quiz
+          setDocuments(normalizeTestDocuments(responseTest?.documents))
         }
       }
 
@@ -1014,7 +1015,8 @@ export function TestDetailPanel({
           return
         }
 
-        setDocuments(normalizeTestDocuments(data?.quiz?.documents))
+        const responseTest = data?.test ?? data?.quiz
+        setDocuments(normalizeTestDocuments(responseTest?.documents))
       } catch (error) {
         if (!isCancelled) {
           console.error(`Auto-sync failed for ${staleDoc.title}:`, error)
@@ -1165,7 +1167,7 @@ export function TestDetailPanel({
   function handleAddQuestion(questionType: 'multiple_choice' | 'open_response' = 'multiple_choice') {
     if (!isEditable) return
 
-    const nextQuestion: QuizQuestion = isTestsView
+    const nextQuestion: TestAssessmentQuestion = isTestsView
       ? questionType === 'open_response'
         ? {
             id: crypto.randomUUID(),
@@ -1231,7 +1233,7 @@ export function TestDetailPanel({
     handleAddQuestion(questionType)
   }
 
-  function handleQuestionChange(updatedQuestion: QuizQuestion, options?: { force?: boolean }) {
+  function handleQuestionChange(updatedQuestion: TestAssessmentQuestion, options?: { force?: boolean }) {
     const nextQuestions = normalizeQuestionPositions(
       questions.map((question) =>
         question.id === updatedQuestion.id ? { ...updatedQuestion } : question
@@ -1280,7 +1282,7 @@ export function TestDetailPanel({
 
     const sourceQuestion = questions[sourceIndex]
     const now = new Date().toISOString()
-    const duplicatedQuestion: QuizQuestion = {
+    const duplicatedQuestion: TestAssessmentQuestion = {
       ...sourceQuestion,
       id: crypto.randomUUID(),
       options: [...sourceQuestion.options],
@@ -1725,7 +1727,7 @@ export function TestDetailPanel({
       )}
       <textarea
         data-testid={isTestsView ? 'test-markdown-editor' : 'quiz-markdown-editor'}
-        aria-label={isTestsView ? 'Test markdown editor' : 'Quiz markdown editor'}
+        aria-label={isTestsView ? 'Test markdown editor' : 'Assessment markdown editor'}
         value={markdownContent}
         readOnly={!isMarkdownEditable}
         onChange={(event) => handleMarkdownChange(event.target.value)}
@@ -1850,7 +1852,7 @@ export function TestDetailPanel({
     </div>
   )
 
-  const titleLabel = isTestsView ? 'Test' : 'Quiz'
+  const titleLabel = isTestsView ? 'Test' : 'Assessment'
   const titleGeneratedLabel = generatedTitleLabel ?? (isTestsView ? 'Untitled Test' : 'Untitled')
   const renderEditableTitle = ({
     className,
@@ -2278,7 +2280,7 @@ export function TestDetailPanel({
 }
 
 /** Read-only preview of the quiz as students see it */
-function QuizPreview({ questions, isTestsView }: { questions: QuizQuestion[]; isTestsView: boolean }) {
+function QuizPreview({ questions, isTestsView }: { questions: TestAssessmentQuestion[]; isTestsView: boolean }) {
   const [selected, setSelected] = useState<Record<string, number | string>>({})
 
   if (questions.length === 0) {
