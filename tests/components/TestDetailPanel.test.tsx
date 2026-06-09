@@ -116,6 +116,25 @@ describe('TestDetailPanel', () => {
     return fetchMock
   }
 
+  it('accepts legacy quiz and onQuizUpdate as compatibility aliases', async () => {
+    mockFetchForTest(sampleQuestions)
+    const legacyTest = makeTestWithStats({ title: 'Legacy Alias Test' })
+    const legacyOnQuizUpdate = vi.fn()
+
+    render(
+      <TestDetailPanel
+        quiz={legacyTest}
+        classroomId="classroom-1"
+        onQuizUpdate={legacyOnQuizUpdate}
+      />,
+      { wrapper: Wrapper }
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Legacy Alias Test')).toBeInTheDocument()
+    })
+  })
+
   it('ignores stale draft responses after selected assessment changes', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     const staleDraft = createDeferred<Response>()
@@ -142,7 +161,7 @@ describe('TestDetailPanel', () => {
     const staleQuiz = makeTestWithStats({ id: 'quiz-stale', title: 'Stale Quiz' })
     const currentQuiz = makeTestWithStats({ id: 'quiz-current', title: 'Current Quiz' })
     const { rerender } = render(
-      <TestDetailPanel quiz={staleQuiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />,
+      <TestDetailPanel test={staleQuiz} classroomId="classroom-1" onTestUpdate={vi.fn()} />,
       { wrapper: Wrapper }
     )
 
@@ -151,7 +170,7 @@ describe('TestDetailPanel', () => {
     })
 
     rerender(
-      <TestDetailPanel quiz={currentQuiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />
+      <TestDetailPanel test={currentQuiz} classroomId="classroom-1" onTestUpdate={vi.fn()} />
     )
 
     await waitFor(() => {
@@ -240,11 +259,10 @@ describe('TestDetailPanel', () => {
       assessment_type: 'test',
     })
     const { rerender } = render(
-      <TestDetailPanel
-        quiz={staleTest}
+      <TestDetailPanel test={staleTest}
         classroomId="classroom-1"
         apiBasePath="/api/teacher/tests"
-        onQuizUpdate={vi.fn()}
+        onTestUpdate={vi.fn()}
       />,
       { wrapper: Wrapper }
     )
@@ -254,11 +272,10 @@ describe('TestDetailPanel', () => {
     })
 
     rerender(
-      <TestDetailPanel
-        quiz={currentTest}
+      <TestDetailPanel test={currentTest}
         classroomId="classroom-1"
         apiBasePath="/api/teacher/tests"
-        onQuizUpdate={vi.fn()}
+        onTestUpdate={vi.fn()}
       />
     )
 
@@ -333,7 +350,7 @@ describe('TestDetailPanel', () => {
       assessment_type: 'test',
     })
     const { rerender } = render(
-      <TestDetailPanel quiz={sameIdQuiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />,
+      <TestDetailPanel test={sameIdQuiz} classroomId="classroom-1" onTestUpdate={vi.fn()} />,
       { wrapper: Wrapper }
     )
 
@@ -342,7 +359,7 @@ describe('TestDetailPanel', () => {
     })
 
     rerender(
-      <TestDetailPanel quiz={sameIdTest} classroomId="classroom-1" onQuizUpdate={vi.fn()} />
+      <TestDetailPanel test={sameIdTest} classroomId="classroom-1" onTestUpdate={vi.fn()} />
     )
 
     await waitFor(() => {
@@ -413,7 +430,7 @@ describe('TestDetailPanel', () => {
       mockFetchForTest(sampleQuestions)
       const quiz = makeTestWithStats()
 
-      render(<TestDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
+      render(<TestDetailPanel test={quiz} classroomId="classroom-1" onTestUpdate={vi.fn()} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expect(screen.getByText('Questions (2)')).toBeInTheDocument()
@@ -453,11 +470,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -502,11 +518,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -555,11 +570,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           showPreviewButton={false}
           showResultsTab={false}
         />,
@@ -614,11 +628,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -765,11 +778,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="editor-only"
           showPreviewButton={false}
           showResultsTab={false}
@@ -824,11 +836,10 @@ describe('TestDetailPanel', () => {
         return (
           <>
             <div data-testid="test-modal-title-target" ref={setTitleTarget} />
-            <TestDetailPanel
-              quiz={testQuiz}
+            <TestDetailPanel test={testQuiz}
               classroomId="classroom-1"
               apiBasePath="/api/teacher/tests"
-              onQuizUpdate={vi.fn()}
+              onTestUpdate={vi.fn()}
               testQuestionLayout="editor-only"
               showPreviewButton={false}
               showResultsTab={false}
@@ -878,11 +889,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="markdown-only"
           showPreviewButton={false}
           showResultsTab={false}
@@ -933,11 +943,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1061,11 +1070,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1122,11 +1130,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           onDraftSummaryChange={onDraftSummaryChange}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
@@ -1208,13 +1215,12 @@ describe('TestDetailPanel', () => {
         stats: { total_students: 25, responded: 0, questions_count: 0 },
       })
 
-      const onQuizUpdateInitial = vi.fn()
+      const onTestUpdateInitial = vi.fn()
       const { rerender } = render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={onQuizUpdateInitial}
+          onTestUpdate={onTestUpdateInitial}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1229,13 +1235,12 @@ describe('TestDetailPanel', () => {
         expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
       })
 
-      const onQuizUpdateNext = vi.fn()
+      const onTestUpdateNext = vi.fn()
       rerender(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={onQuizUpdateNext}
+          onTestUpdate={onTestUpdateNext}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1311,11 +1316,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           onSaveStatusChange={onSaveStatusChange}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
@@ -1431,11 +1435,10 @@ describe('TestDetailPanel', () => {
       })
 
       const { rerender } = render(
-        <TestDetailPanel
-          quiz={staleTest}
+        <TestDetailPanel test={staleTest}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1456,11 +1459,10 @@ describe('TestDetailPanel', () => {
       vi.useRealTimers()
 
       rerender(
-        <TestDetailPanel
-          quiz={currentTest}
+        <TestDetailPanel test={currentTest}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1558,11 +1560,10 @@ describe('TestDetailPanel', () => {
       })
 
       const { rerender } = render(
-        <TestDetailPanel
-          quiz={staleTest}
+        <TestDetailPanel test={staleTest}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1577,11 +1578,10 @@ describe('TestDetailPanel', () => {
       expect(fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')).toHaveLength(0)
 
       rerender(
-        <TestDetailPanel
-          quiz={currentTest}
+        <TestDetailPanel test={currentTest}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1633,11 +1633,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1696,11 +1695,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1758,11 +1756,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1821,11 +1818,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           onPendingMarkdownImportChange={onPendingMarkdownImportChange}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
@@ -1895,11 +1891,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -2040,11 +2035,10 @@ _None_
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2125,11 +2119,10 @@ _None_
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           onRequestTestPreview={onRequestTestPreview}
         />,
         { wrapper: Wrapper }
@@ -2214,11 +2207,10 @@ Correct Option: 2
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2277,11 +2269,10 @@ Correct Option: 2
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="markdown-only"
         />,
         { wrapper: Wrapper }
@@ -2295,7 +2286,7 @@ Correct Option: 2
 
     it('applies valid markdown and saves through draft endpoint', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-      const onQuizUpdate = vi.fn()
+      const onTestUpdate = vi.fn()
       fetchMock
         .mockResolvedValueOnce({
           ok: true,
@@ -2361,11 +2352,10 @@ Correct Option: 2
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={onQuizUpdate}
+          onTestUpdate={onTestUpdate}
         />,
         { wrapper: Wrapper }
       )
@@ -2427,7 +2417,7 @@ _None_
       expect(body.content.show_results).toBe(true)
       expect(body.content.questions).toHaveLength(2)
       expect(body.documents).toEqual([])
-      expect(onQuizUpdate).toHaveBeenLastCalledWith({
+      expect(onTestUpdate).toHaveBeenLastCalledWith({
         title: 'Markdown Test Updated',
         show_results: true,
         questions_count: 2,
@@ -2465,11 +2455,10 @@ _None_
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2533,11 +2522,10 @@ Prompt:
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2558,7 +2546,7 @@ Prompt:
       mockFetchForTest(sampleQuestions)
       const quiz = makeTestWithStats({ title: 'My Cool Test' })
 
-      render(<TestDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
+      render(<TestDetailPanel test={quiz} classroomId="classroom-1" onTestUpdate={vi.fn()} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expect(screen.getByText('My Cool Test')).toBeInTheDocument()
@@ -2573,7 +2561,7 @@ Prompt:
       mockFetchForTest([])
       const quiz = makeTestWithStats()
 
-      render(<TestDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
+      render(<TestDetailPanel test={quiz} classroomId="classroom-1" onTestUpdate={vi.fn()} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expect(screen.queryByText('Quiz must have at least 1 question')).not.toBeInTheDocument()
@@ -2597,11 +2585,10 @@ Prompt:
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2648,11 +2635,10 @@ Prompt:
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2717,11 +2703,10 @@ Prompt:
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2788,11 +2773,10 @@ Prompt:
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2889,11 +2873,10 @@ Prompt:
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -3010,11 +2993,10 @@ Prompt:
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -3115,11 +3097,10 @@ Prompt:
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -3208,11 +3189,10 @@ Prompt:
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -3280,11 +3260,10 @@ Prompt:
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -3307,7 +3286,7 @@ Prompt:
       const fetchMock = mockFetchForTest(sampleQuestions)
       const quiz = makeTestWithStats({ title: 'Old Title' })
 
-      render(<TestDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
+      render(<TestDetailPanel test={quiz} classroomId="classroom-1" onTestUpdate={vi.fn()} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expect(screen.getByText('Old Title')).toBeInTheDocument()
@@ -3340,7 +3319,7 @@ Prompt:
       mockFetchForTest(sampleQuestions)
       const quiz = makeTestWithStats({ title: 'Original' })
 
-      render(<TestDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
+      render(<TestDetailPanel test={quiz} classroomId="classroom-1" onTestUpdate={vi.fn()} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expect(screen.getByText('Original')).toBeInTheDocument()
