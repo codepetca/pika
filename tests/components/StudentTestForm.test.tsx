@@ -15,12 +15,37 @@ describe('StudentTestForm preview mode', () => {
     localStorage.clear()
   })
 
+  it('accepts legacy quizId as a compatibility alias', () => {
+    render(
+      <StudentTestForm
+        quizId="legacy-test-id"
+        questions={[
+          createMockQuizQuestion({
+            id: 'q1',
+            question_text: 'Which option is correct?',
+            options: ['A', 'B'],
+            question_type: 'multiple_choice',
+            position: 0,
+          }),
+        ]}
+        assessmentType="test"
+        previewMode
+        onSubmitted={vi.fn()}
+      />
+    )
+
+    const titleArea = screen.getByText('Q1').closest('[data-question-title-id="q1"]')!
+    fireEvent.click(titleArea)
+
+    expect(JSON.parse(localStorage.getItem('pika:flagged-questions:legacy-test-id') || '[]')).toContain('q1')
+  })
+
   it('simulates submit without saving data', async () => {
     const onSubmitted = vi.fn()
 
     render(
       <StudentTestForm
-        quizId="test-preview-id"
+        testId="test-preview-id"
         questions={[
           createMockQuizQuestion({
             id: 'q1',
@@ -51,7 +76,7 @@ describe('StudentTestForm preview mode', () => {
   it('labels open-response textboxes for assistive technology', () => {
     render(
       <StudentTestForm
-        quizId="test-open-response-label-id"
+        testId="test-open-response-label-id"
         questions={[
           createMockQuizQuestion({
             id: 'q1',
@@ -74,7 +99,7 @@ describe('StudentTestForm preview mode', () => {
 
     render(
       <StudentTestForm
-        quizId="test-flag-id"
+        testId="test-flag-id"
         questions={[
           createMockQuizQuestion({
             id: 'q1',
@@ -117,7 +142,7 @@ describe('StudentTestForm preview mode', () => {
 
     render(
       <StudentTestForm
-        quizId="test-warning-id"
+        testId="test-warning-id"
         questions={[
           createMockQuizQuestion({
             id: 'q1',
@@ -154,7 +179,7 @@ describe('StudentTestForm preview mode', () => {
 
     render(
       <StudentTestForm
-        quizId="test-footer-id"
+        testId="test-footer-id"
         questions={[
           createMockQuizQuestion({
             id: 'q1',
@@ -199,7 +224,7 @@ describe('StudentTestForm preview mode', () => {
 
     render(
       <StudentTestForm
-        quizId="test-radio-position-id"
+        testId="test-radio-position-id"
         questions={[
           createMockQuizQuestion({
             id: 'q1',
@@ -229,7 +254,7 @@ describe('StudentTestForm preview mode', () => {
 
     render(
       <StudentTestForm
-        quizId="test-markdown-options-id"
+        testId="test-markdown-options-id"
         questions={[
           createMockQuizQuestion({
             id: 'q1',
@@ -264,7 +289,7 @@ describe('StudentTestForm preview mode', () => {
 
     render(
       <StudentTestForm
-        quizId="test-closed-id"
+        testId="test-closed-id"
         questions={[
           createMockQuizQuestion({
             id: 'q1',

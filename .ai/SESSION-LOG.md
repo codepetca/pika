@@ -8,23 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-01 — Joining row copy refinement
-
-**Completed:**
-- Restored brief row-level copy for joining controls while keeping the tooltip concise.
-- Added an X marker inside the off-side toggle thumb.
-- Linked the roster-mode row copy to the classroom roster tab.
-- Added focused coverage for the visible joining copy and roster link.
-
-**Validation:**
-- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
-- `pnpm test tests/components/TeacherSettingsTab.test.tsx tests/unit/ai-startup-docs.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- `git diff --check`
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`; checked the Disallow/X off state and restored the classroom to allowed.
-
 ## 2026-06-01 — Roster join row wording
 
 **Completed:**
@@ -980,3 +963,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm vitest run tests/components/StudentTestsTab.test.tsx tests/components/StudentTestForm.test.tsx tests/components/StudentTestResults.test.tsx tests/components/TestIndividualResponses.test.tsx tests/components/TestDetailPanel.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
 - `pnpm lint`
+
+## 2026-06-09 — Legacy quiz component test prop migration pass
+
+**Completed:**
+- Created `codex/legacy-quiz-test-prop-tests` from merged `origin/main`.
+- Migrated direct component tests for `StudentTestForm`, `StudentTestResults`, `TestIndividualResponses`, and `TestDetailPanel` to active `testId`, `test`, and `onTestUpdate` props.
+- Added narrow compatibility assertions for legacy `quizId`, `quiz`, and `onQuizUpdate` aliases so fallback support remains intentional.
+- Updated the `TeacherTestsTab` mock of `TestDetailPanel` to model the active test-named prop contract instead of accepting legacy aliases.
+- Did not touch production runtime code, database schema, migrations, RPCs, storage paths, API payload keys, or DB-shaped `quiz_id` fields.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2655 tests before edits)
+- `pnpm vitest run tests/components/StudentTestForm.test.tsx tests/components/StudentTestResults.test.tsx tests/components/TestIndividualResponses.test.tsx tests/components/TestDetailPanel.test.tsx tests/components/TeacherTestsTab.test.tsx`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check`
+- `pnpm test` (301 files / 2659 tests)
