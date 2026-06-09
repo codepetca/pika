@@ -430,7 +430,7 @@ async function callAssignmentGradingApi(opts: {
   }
 }
 
-function parseAssignmentGradingResponse(outputText: string, previousFeedback?: string | null) {
+function parseAssignmentGradingResponse(outputText: string) {
   let jsonText = outputText
   const codeBlockMatch = outputText.match(/```(?:json)?\s*([\s\S]*?)```/)
   if (codeBlockMatch) {
@@ -469,10 +469,6 @@ function parseAssignmentGradingResponse(outputText: string, previousFeedback?: s
     })
   }
 
-  if (previousFeedback) {
-    feedback = `${previousFeedback}\n\n--- Resubmission ---\n\n${feedback}`
-  }
-
   return {
     score_completion: sc,
     score_thinking: st,
@@ -486,7 +482,6 @@ export async function gradeStudentWork(opts: {
   instructions: string
   studentWork: TiptapContent
   submissionArtifacts?: AssignmentArtifact[]
-  previousFeedback?: string | null
   requestTimeoutMs?: number
   telemetry?: AssignmentGradingTelemetryContext
   sanitizationContext?: AiSanitizationContext | null
@@ -515,7 +510,7 @@ export async function gradeStudentWork(opts: {
       requestTimeoutMs: opts.requestTimeoutMs,
     })
     const usage = extractOpenAIResponseUsage(payload)
-    const parsed = parseAssignmentGradingResponse(outputText, opts.previousFeedback)
+    const parsed = parseAssignmentGradingResponse(outputText)
 
     logAiPromptTelemetry({
       feature: opts.telemetry?.feature ?? 'assignment_auto_grade',

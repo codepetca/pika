@@ -8,19 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-01 — Gradex egress sanitization alignment
-
-**Completed:**
-- Refactored the Gradex assignment payload builder to require Pika's standard AI sanitization context.
-- Routed Gradex assignment title, instructions, and submission text through `sanitizeAiText` before Gradex payload construction.
-- Kept Gradex-specific pseudonymous refs and local mappings while preserving extra raw-token hardening for Pika DB identifiers and bare `www.` URLs.
-- Strengthened Gradex adapter tests for roster-name initials, required sanitization context, raw identifier exclusion, and Gradex-owned provider/model settings.
-
-**Validation:**
-- `pnpm test tests/lib/gradex-assignment-payload.test.ts tests/unit/ai-sanitization.test.ts tests/unit/ai-grading.test.ts tests/lib/assignment-ai-grading-runs.test.ts`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-
 ## 2026-06-01 — Snapshot gallery hardening phase-1 second pass
 
 **Completed:**
@@ -885,6 +872,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test` (one unrelated `StudentHistoryPage` concurrency failure; isolated rerun passed)
 - `pnpm vitest run tests/components/StudentHistoryPage.test.tsx`
 - `pnpm vitest run --sequence.concurrent=false`
+
+## 2026-06-09 — Assignment returned-comment duplication fix
+
+**Completed:**
+- Stopped assignment AI grading from copying previously returned `feedback` into each new AI feedback result.
+- Made the full assignment return route clear `teacher_feedback_draft` and AI suggestion fields after comments are sent as returned feedback.
+- Added return-route coverage for clearing the comment draft and AI suggestion state.
+- Fixed the stale teacher calendar component test by pinning `getTodayInToronto`; the test was clicking a past disabled date after June 8.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (failed on reproducible baseline `tests/components/TeacherCalendarPage.test.tsx` class-day toggle assertion before this branch's edits)
+- `pnpm vitest run tests/components/TeacherCalendarPage.test.tsx tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts tests/unit/ai-grading.test.ts tests/api/teacher/assignments-auto-grade.test.ts`
+- `pnpm vitest run tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts tests/unit/ai-grading.test.ts tests/api/teacher/assignments-auto-grade.test.ts`
+- `pnpm test`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit`
 
 ## 2026-06-08 — Assignment AI grading pane refresh
 

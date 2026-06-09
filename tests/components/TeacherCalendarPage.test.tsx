@@ -36,6 +36,10 @@ vi.mock('@/lib/request-cache', () => ({
   prefetchJSON: vi.fn(),
 }))
 
+vi.mock('@/lib/timezone', () => ({
+  getTodayInToronto: () => '2026-06-01',
+}))
+
 function renderCalendarPage() {
   return render(
     <TooltipProvider>
