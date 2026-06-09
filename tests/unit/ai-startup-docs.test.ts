@@ -88,13 +88,14 @@ describe('AI startup docs', () => {
     const entryCount = sessionLog.match(/^## /gm)?.length ?? 0
 
     expect(sessionLog).toContain('Rolling recent session log')
-    expect(sessionLog).toContain('latest 60 entries')
+    expect(sessionLog).toContain('CI allows at most 60 entries')
+    expect(sessionLog).toContain('compacts to the latest 40 entries')
     expect(sessionLog).toContain('immediately run `node scripts/trim-session-log.mjs`')
     expect(sessionLog).toContain('node scripts/trim-session-log.mjs --check')
     expect(entryCount).toBeGreaterThan(0)
     if (entryCount > 60) {
       throw new Error(
-        `.ai/SESSION-LOG.md has ${entryCount} entries; run node scripts/trim-session-log.mjs after appending session-log entries.`,
+        `.ai/SESSION-LOG.md has ${entryCount} entries; run node scripts/trim-session-log.mjs after appending session-log entries to compact it below the cap.`,
       )
     }
     expect(readRepoFile('.ai/JOURNAL-ARCHIVE.md')).toContain('# Pika Project Journal')
