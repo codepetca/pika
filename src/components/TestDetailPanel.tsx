@@ -80,7 +80,7 @@ type AssessmentEditorDraft = {
 }
 
 type AssessmentRequestScope = {
-  quizId: string
+  testId: string
   classroomId: string
   apiBasePath: string
   assessmentType: TestAssessmentWithStats['assessment_type']
@@ -175,17 +175,17 @@ export function TestDetailPanel({
   if (!resolvedOnTestUpdate) {
     throw new Error('TestDetailPanel requires onTestUpdate')
   }
-  const quiz: TestAssessmentWithStats = resolvedTest
-  const onQuizUpdate: (update?: AssessmentEditorSummaryUpdate) => void = resolvedOnTestUpdate
+  const testAssessment: TestAssessmentWithStats = resolvedTest
+  const notifyTestUpdate: (update?: AssessmentEditorSummaryUpdate) => void = resolvedOnTestUpdate
 
   const AUTOSAVE_DEBOUNCE_MS = 3000
   const AUTOSAVE_MIN_INTERVAL_MS = 10_000
-  const isTestsView = quiz.assessment_type === 'test' || apiBasePath.includes('/tests')
+  const isTestsView = testAssessment.assessment_type === 'test' || apiBasePath.includes('/tests')
   const { showMarkdown } = useMarkdownPreference()
   const questionLayout = assessmentQuestionLayout ?? testQuestionLayout
   const [questions, setQuestions] = useState<TestAssessmentQuestion[]>([])
   const [documents, setDocuments] = useState<TestDocument[]>(
-    () => normalizeTestDocuments((quiz as { documents?: unknown }).documents)
+    () => normalizeTestDocuments((testAssessment as { documents?: unknown }).documents)
   )
   const [results, setResults] = useState<TestResultsAggregate[] | null>(null)
   const [loading, setLoading] = useState(true)
@@ -198,7 +198,7 @@ export function TestDetailPanel({
   const [expandedQuestionIds, setExpandedQuestionIds] = useState<string[]>([])
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
-  const [draftShowResults, setDraftShowResults] = useState(quiz.show_results)
+  const [draftShowResults, setDraftShowResults] = useState(testAssessment.show_results)
   const [markdownContent, setMarkdownContent] = useState('')
   const [markdownError, setMarkdownError] = useState('')
   const [markdownInfo, setMarkdownInfo] = useState('')
@@ -214,7 +214,7 @@ export function TestDetailPanel({
     content: { title: string; show_results: boolean; questions: TestAssessmentQuestion[] }
   } | null>(null)
 
-  const [editTitle, setEditTitle] = useState(quiz.title)
+  const [editTitle, setEditTitle] = useState(testAssessment.title)
   const draftVersionRef = useRef(1)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -238,25 +238,25 @@ export function TestDetailPanel({
   const previousQuestionIdsRef = useRef<string[]>([])
   const summaryDetailWorkspaceRef = useRef<HTMLDivElement>(null)
   const summaryDetailResizeCleanupRef = useRef<(() => void) | null>(null)
-  const quizDefaultsRef = useRef({ title: quiz.title, show_results: quiz.show_results })
+  const testDefaultsRef = useRef({ title: testAssessment.title, show_results: testAssessment.show_results })
   const loadRequestIdRef = useRef(0)
   const currentLoadScopeRef = useRef({
-    quizId: quiz.id,
+    testId: testAssessment.id,
     classroomId,
     apiBasePath,
-    assessmentType: quiz.assessment_type,
+    assessmentType: testAssessment.assessment_type,
     isTestsView,
   })
   const [summaryDetailMarkdownWidthPercent, setSummaryDetailMarkdownWidthPercent] = useState<number>(
     TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth
   )
-  const loadedDraftQuizIdRef = useRef<string | null>(null)
-  quizDefaultsRef.current = { title: quiz.title, show_results: quiz.show_results }
+  const loadedDraftTestIdRef = useRef<string | null>(null)
+  testDefaultsRef.current = { title: testAssessment.title, show_results: testAssessment.show_results }
   currentLoadScopeRef.current = {
-    quizId: quiz.id,
+    testId: testAssessment.id,
     classroomId,
     apiBasePath,
-    assessmentType: quiz.assessment_type,
+    assessmentType: testAssessment.assessment_type,
     isTestsView,
   }
 
@@ -274,7 +274,7 @@ export function TestDetailPanel({
   const isCurrentAssessmentScope = useCallback((scope: AssessmentRequestScope) => {
     const currentScope = currentLoadScopeRef.current
     return (
-      currentScope.quizId === scope.quizId &&
+      currentScope.testId === scope.testId &&
       currentScope.classroomId === scope.classroomId &&
       currentScope.apiBasePath === scope.apiBasePath &&
       currentScope.assessmentType === scope.assessmentType &&
@@ -359,7 +359,7 @@ export function TestDetailPanel({
         const questionType = question.question_type === 'open_response' ? 'open_response' : 'multiple_choice'
         return {
           id: String(question.id || crypto.randomUUID()),
-          quiz_id: quiz.id,
+          quiz_id: testAssessment.id,
           question_text: String(question.question_text || ''),
           options: Array.isArray(question.options)
             ? question.options.map((option) => String(option))
@@ -396,7 +396,7 @@ export function TestDetailPanel({
         }
       })
     )
-  }, [normalizeQuestionPositions, quiz.id])
+  }, [normalizeQuestionPositions, testAssessment.id])
 
   const applyServerDraft = useCallback(
     (draft?: {
@@ -411,10 +411,10 @@ export function TestDetailPanel({
     } | null) => {
       if (!draft?.content) return
 
-      const quizDefaults = quizDefaultsRef.current
-      const nextTitle = typeof draft.content.title === 'string' ? draft.content.title : quizDefaults.title
+      const testDefaults = testDefaultsRef.current
+      const nextTitle = typeof draft.content.title === 'string' ? draft.content.title : testDefaults.title
       const nextShowResults =
-        typeof draft.content.show_results === 'boolean' ? draft.content.show_results : quizDefaults.show_results
+        typeof draft.content.show_results === 'boolean' ? draft.content.show_results : testDefaults.show_results
       const nextQuestions = normalizeDraftQuestions(draft.content.questions || [])
       const nextSourceMarkdown =
         typeof draft.content.source_markdown === 'string'
@@ -453,18 +453,18 @@ export function TestDetailPanel({
       draftVersionRef.current = draft.version
       lastSavedDraftRef.current = JSON.stringify(nextSnapshot)
       pendingDraftRef.current = nextSnapshot
-      loadedDraftQuizIdRef.current = quiz.id
+      loadedDraftTestIdRef.current = testAssessment.id
       draftMutationRevisionRef.current += 1
       updateSaveStatus('saved')
       setError('')
       setConflictDraft(null)
     },
-    [isTestsView, normalizeDraftQuestions, quiz.id, updateSaveStatus]
+    [isTestsView, normalizeDraftQuestions, testAssessment.id, updateSaveStatus]
   )
 
-  // Reset local draft state only when the selected quiz/test changes.
+  // Reset local draft state only when the selected test/assessment changes.
   useEffect(() => {
-    const quizDefaults = quizDefaultsRef.current
+    const testDefaults = testDefaultsRef.current
     loadRequestIdRef.current += 1
     draftMutationRevisionRef.current += 1
     saveTimeoutRef.current = null
@@ -472,9 +472,9 @@ export function TestDetailPanel({
     pendingDraftRef.current = null
     lastSavedDraftRef.current = ''
     draftVersionRef.current = 1
-    loadedDraftQuizIdRef.current = null
-    setEditTitle(quizDefaults.title)
-    setDraftShowResults(quizDefaults.show_results)
+    loadedDraftTestIdRef.current = null
+    setEditTitle(testDefaults.title)
+    setDraftShowResults(testDefaults.show_results)
     setResults(null)
     setConflictDraft(null)
     setIsMarkdownEditing(false)
@@ -482,15 +482,15 @@ export function TestDetailPanel({
     markdownDirtyRef.current = false
     setMarkdownError('')
     setMarkdownInfo('')
-  }, [apiBasePath, classroomId, isTestsView, quiz.assessment_type, quiz.id])
+  }, [apiBasePath, classroomId, isTestsView, testAssessment.assessment_type, testAssessment.id])
 
   useEffect(() => {
-    setDocuments(normalizeTestDocuments((quiz as { documents?: unknown }).documents))
-  }, [quiz])
+    setDocuments(normalizeTestDocuments((testAssessment as { documents?: unknown }).documents))
+  }, [testAssessment])
 
   useEffect(() => {
     autoSyncAttemptedRef.current.clear()
-  }, [quiz.id])
+  }, [testAssessment.id])
 
   const emitDraftSummaryChange = useCallback(
     (content: Pick<AssessmentEditorDraft, 'title' | 'show_results' | 'questions'>) => {
@@ -502,14 +502,14 @@ export function TestDetailPanel({
 
   useEffect(() => {
     if (!onDraftSummaryChange) return
-    if (loadedDraftQuizIdRef.current !== quiz.id) return
+    if (loadedDraftTestIdRef.current !== testAssessment.id) return
 
     emitDraftSummaryChange({
       title: editTitle,
       show_results: draftShowResults,
       questions,
     })
-  }, [draftShowResults, editTitle, emitDraftSummaryChange, onDraftSummaryChange, questions, quiz.id])
+  }, [draftShowResults, editTitle, emitDraftSummaryChange, onDraftSummaryChange, questions, testAssessment.id])
 
   useEffect(() => {
     documentsRef.current = documents
@@ -531,8 +531,8 @@ export function TestDetailPanel({
       questions,
     })
   }, [documents, draftShowResults, editTitle, isTestsView, questions])
-  const hasResponses = quiz.stats.responded > 0
-  const isEditable = canEditTestQuestions(quiz, hasResponses)
+  const hasResponses = testAssessment.stats.responded > 0
+  const isEditable = canEditTestQuestions(testAssessment, hasResponses)
   const usesMarkdownOnlyQuestions = questionLayout === 'markdown-only'
   const isMarkdownSurfaceEnabled = showMarkdown || usesMarkdownOnlyQuestions
   const hasPendingMarkdownImport = isMarkdownSurfaceEnabled && markdownDirty
@@ -611,18 +611,18 @@ export function TestDetailPanel({
     }
 
     if (resolvedShowResultsTab) {
-      modes.push({ id: 'results', label: `Results (${quiz.stats.responded})` })
+      modes.push({ id: 'results', label: `Results (${testAssessment.stats.responded})` })
     }
 
     return modes
-  }, [documents.length, isTestsView, questions.length, quiz.stats.responded, resolvedShowResultsTab, showMarkdown])
+  }, [documents.length, isTestsView, questions.length, testAssessment.stats.responded, resolvedShowResultsTab, showMarkdown])
   const assessmentModeTabId = useCallback(
-    (mode: AssessmentViewMode) => `assessment-${quiz.id}-${mode}-tab`,
-    [quiz.id],
+    (mode: AssessmentViewMode) => `assessment-${testAssessment.id}-${mode}-tab`,
+    [testAssessment.id],
   )
   const assessmentModePanelId = useCallback(
-    (mode: AssessmentViewMode) => `assessment-${quiz.id}-${mode}-panel`,
-    [quiz.id],
+    (mode: AssessmentViewMode) => `assessment-${testAssessment.id}-${mode}-panel`,
+    [testAssessment.id],
   )
 
   useEffect(() => {
@@ -639,7 +639,7 @@ export function TestDetailPanel({
     setIsMarkdownEditing(true)
     setMarkdownError('')
     setMarkdownInfo('')
-  }, [isEditable, quiz.id, usesMarkdownOnlyQuestions])
+  }, [isEditable, testAssessment.id, usesMarkdownOnlyQuestions])
 
   useEffect(() => {
     if (isMarkdownSurfaceEnabled) return
@@ -677,10 +677,10 @@ export function TestDetailPanel({
     ) => {
       const saveContext = options?.saveContext
       const saveScope = saveContext?.scope ?? {
-        quizId: quiz.id,
+        testId: testAssessment.id,
         classroomId,
         apiBasePath,
-        assessmentType: quiz.assessment_type,
+        assessmentType: testAssessment.assessment_type,
         isTestsView,
       }
       const saveRevision = draftMutationRevisionRef.current
@@ -768,7 +768,7 @@ export function TestDetailPanel({
       }
 
       try {
-        const response = await fetch(`${apiBasePath}/${quiz.id}/draft`, {
+        const response = await fetch(`${apiBasePath}/${testAssessment.id}/draft`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -817,7 +817,7 @@ export function TestDetailPanel({
           lastSavedDraftRef.current = nextSerialized
           if (shouldApplySaveLocally()) {
             applyServerDraft(serverDraft)
-            onQuizUpdate({
+            notifyTestUpdate({
               title:
                 typeof serverDraft.content.title === 'string'
                   ? serverDraft.content.title
@@ -839,7 +839,7 @@ export function TestDetailPanel({
             updateSaveStatus('saved')
             setError('')
             setConflictDraft(null)
-            onQuizUpdate(summarizeDraftContent(contentDraft))
+            notifyTestUpdate(summarizeDraftContent(contentDraft))
           }
         }
         return true
@@ -861,9 +861,9 @@ export function TestDetailPanel({
       isMarkdownSurfaceEnabled,
       isTestsView,
       normalizeDraftQuestions,
-      onQuizUpdate,
-      quiz.assessment_type,
-      quiz.id,
+      notifyTestUpdate,
+      testAssessment.assessment_type,
+      testAssessment.id,
       updateSaveStatus,
     ]
   )
@@ -922,12 +922,12 @@ export function TestDetailPanel({
     [AUTOSAVE_DEBOUNCE_MS, conflictDraft, createDraftSaveContext, markDraftUnsaved, scheduleSave]
   )
 
-  const loadQuizDetails = useCallback(async () => {
+  const loadTestDetails = useCallback(async () => {
     const scope = {
-      quizId: quiz.id,
+      testId: testAssessment.id,
       classroomId,
       apiBasePath,
-      assessmentType: quiz.assessment_type,
+      assessmentType: testAssessment.assessment_type,
       isTestsView,
     }
     const requestId = loadRequestIdRef.current + 1
@@ -935,7 +935,7 @@ export function TestDetailPanel({
     setLoading(true)
     try {
       // Bypass fetchJSONWithCache for selected assessment freshness; request ids guard stale responses.
-      const draftRes = await fetch(`${apiBasePath}/${quiz.id}/draft`)
+      const draftRes = await fetch(`${apiBasePath}/${testAssessment.id}/draft`)
       const draftData = await draftRes.json()
       if (!isCurrentLoadRequest(requestId, scope)) return
       if (!draftRes.ok) {
@@ -947,8 +947,8 @@ export function TestDetailPanel({
         : {
             version: 1,
             content: {
-              title: quizDefaultsRef.current.title,
-              show_results: quizDefaultsRef.current.show_results,
+              title: testDefaultsRef.current.title,
+              show_results: testDefaultsRef.current.show_results,
               questions: Array.isArray(draftData?.questions) ? draftData.questions : [],
             },
           }
@@ -957,7 +957,7 @@ export function TestDetailPanel({
 
       if (isTestsView) {
         // Bypass fetchJSONWithCache so test documents always follow the selected assessment.
-        const detailRes = await fetch(`${apiBasePath}/${quiz.id}`)
+        const detailRes = await fetch(`${apiBasePath}/${testAssessment.id}`)
         if (detailRes?.ok) {
           const detailData = await detailRes.json()
           if (!isCurrentLoadRequest(requestId, scope)) return
@@ -968,7 +968,7 @@ export function TestDetailPanel({
 
       if (hasResponses) {
         // Bypass fetchJSONWithCache so results always follow the selected assessment.
-        const resultsRes = await fetch(`${apiBasePath}/${quiz.id}/results`)
+        const resultsRes = await fetch(`${apiBasePath}/${testAssessment.id}/results`)
         const resultsData = await resultsRes.json()
         if (!isCurrentLoadRequest(requestId, scope)) return
         setResults(resultsData.results || [])
@@ -978,7 +978,7 @@ export function TestDetailPanel({
       }
     } catch (err: any) {
       if (isCurrentLoadRequest(requestId, scope)) {
-        console.error('Error loading quiz details:', err)
+        console.error('Error loading test details:', err)
         setError(err?.message || 'Failed to load assessment details')
       }
     } finally {
@@ -993,13 +993,13 @@ export function TestDetailPanel({
     hasResponses,
     isCurrentLoadRequest,
     isTestsView,
-    quiz.assessment_type,
-    quiz.id,
+    testAssessment.assessment_type,
+    testAssessment.id,
   ])
 
   useEffect(() => {
-    loadQuizDetails()
-  }, [loadQuizDetails])
+    loadTestDetails()
+  }, [loadTestDetails])
 
   useEffect(() => {
     if (!isTestsView) return
@@ -1019,7 +1019,7 @@ export function TestDetailPanel({
 
     void (async () => {
       try {
-        const response = await fetch(`${apiBasePath}/${quiz.id}/documents/${staleDoc.id}/sync`, {
+        const response = await fetch(`${apiBasePath}/${testAssessment.id}/documents/${staleDoc.id}/sync`, {
           method: 'POST',
         })
         const data = await response.json()
@@ -1042,7 +1042,7 @@ export function TestDetailPanel({
     return () => {
       isCancelled = true
     }
-  }, [apiBasePath, documents, isTestsView, quiz.id])
+  }, [apiBasePath, documents, isTestsView, testAssessment.id])
 
   useEffect(() => {
     if (!isTestsView) return
@@ -1119,10 +1119,10 @@ export function TestDetailPanel({
           const parsed = JSON.parse(lastSavedDraftRef.current) as { title?: string }
           return parsed?.title
         } catch {
-          return quizDefaultsRef.current.title
+          return testDefaultsRef.current.title
         }
       })() ||
-      quizDefaultsRef.current.title
+      testDefaultsRef.current.title
     )
   }
 
@@ -1170,7 +1170,7 @@ export function TestDetailPanel({
 
   function handleTitleCancel() {
     const fallbackTitle =
-      pendingDraftRef.current?.title || quizDefaultsRef.current.title
+      pendingDraftRef.current?.title || testDefaultsRef.current.title
     setEditTitle(fallbackTitle)
     emitDraftSummaryChange({
       title: fallbackTitle,
@@ -1186,7 +1186,7 @@ export function TestDetailPanel({
       ? questionType === 'open_response'
         ? {
             id: crypto.randomUUID(),
-            quiz_id: quiz.id,
+            quiz_id: testAssessment.id,
             question_type: 'open_response',
             question_text: '',
             options: [],
@@ -1202,7 +1202,7 @@ export function TestDetailPanel({
           }
         : {
             id: crypto.randomUUID(),
-            quiz_id: quiz.id,
+            quiz_id: testAssessment.id,
             question_type: 'multiple_choice',
             question_text: '',
             options: ['Option 1', 'Option 2'],
@@ -1218,7 +1218,7 @@ export function TestDetailPanel({
           }
       : {
           id: crypto.randomUUID(),
-          quiz_id: quiz.id,
+          quiz_id: testAssessment.id,
           question_text: 'New question',
           options: ['Option 1', 'Option 2'],
           position: questions.length,
@@ -1488,7 +1488,7 @@ export function TestDetailPanel({
           const existing = existingById.get(question.id)
           return {
             id: question.id,
-            quiz_id: quiz.id,
+            quiz_id: testAssessment.id,
             question_type: question.question_type,
             question_text: question.question_text,
             options: question.options,
@@ -1563,7 +1563,7 @@ export function TestDetailPanel({
         const existing = existingById.get(question.id)
         return {
           id: question.id,
-          quiz_id: quiz.id,
+          quiz_id: testAssessment.id,
           question_text: question.question_text,
           options: question.options,
           position: index,
@@ -1614,7 +1614,7 @@ export function TestDetailPanel({
   const handleOpenTestPreview = useCallback(async () => {
     if (!isTestsView) return
 
-    const previewUrl = `/classrooms/${classroomId}/tests/${quiz.id}/preview`
+    const previewUrl = `/classrooms/${classroomId}/tests/${testAssessment.id}/preview`
     let previewWindow: Window | null = null
 
     if (onRequestTestPreview) {
@@ -1638,7 +1638,7 @@ export function TestDetailPanel({
     if (saved) {
       if (onRequestTestPreview) {
         onRequestTestPreview({
-          testId: quiz.id,
+          testId: testAssessment.id,
           title: nextDraft.title,
         })
       } else if (previewWindow && !previewWindow.closed) {
@@ -1665,7 +1665,7 @@ export function TestDetailPanel({
     openMaximizedTestPreviewWindow,
     onRequestTestPreview,
     questions,
-    quiz.id,
+    testAssessment.id,
     requestCurrentWindowFullscreen,
     saveDraft,
   ])
@@ -1798,7 +1798,7 @@ export function TestDetailPanel({
         {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'unsaved' ? 'Unsaved changes' : 'Saved'}
       </div>
       <TestDocumentsEditor
-        testId={quiz.id}
+        testId={testAssessment.id}
         documents={documents}
         apiBasePath={apiBasePath}
         isEditable={isEditable}
@@ -1853,7 +1853,7 @@ export function TestDetailPanel({
       {isDocumentsCardExpanded ? (
         <div className="border-t border-border p-3">
           <TestDocumentsEditor
-            testId={quiz.id}
+            testId={testAssessment.id}
             documents={documents}
             apiBasePath={apiBasePath}
             isEditable={isEditable && !hasPendingMarkdownImport}
@@ -2250,7 +2250,7 @@ export function TestDetailPanel({
         ) : viewMode === 'documents' && isTestsView ? (
           <div className="space-y-3">
             <TestDocumentsEditor
-              testId={quiz.id}
+              testId={testAssessment.id}
               documents={documents}
               apiBasePath={apiBasePath}
               isEditable={isEditable}
@@ -2262,7 +2262,7 @@ export function TestDetailPanel({
         ) : viewMode === 'markdown' && isMarkdownSurfaceEnabled ? (
           testsMarkdownPanel
         ) : viewMode === 'preview' ? (
-          <QuizPreview questions={questions} isTestsView={isTestsView} />
+          <AssessmentPreview questions={questions} isTestsView={isTestsView} />
         ) : (
           <div className="space-y-6">
             {!isTestsView && <TestResultsView results={results} />}
@@ -2275,10 +2275,10 @@ export function TestDetailPanel({
             {hasResponses && !isTestsView && (
               <div className="pt-4 border-t border-border">
                 <TestIndividualResponses
-                  testId={quiz.id}
+                  testId={testAssessment.id}
                   apiBasePath={apiBasePath}
                   assessmentType={isTestsView ? 'test' : 'quiz'}
-                  onUpdated={loadQuizDetails}
+                  onUpdated={loadTestDetails}
                 />
               </div>
             )}
@@ -2294,8 +2294,8 @@ export function TestDetailPanel({
   )
 }
 
-/** Read-only preview of the quiz as students see it */
-function QuizPreview({ questions, isTestsView }: { questions: TestAssessmentQuestion[]; isTestsView: boolean }) {
+/** Read-only preview of the assessment as students see it */
+function AssessmentPreview({ questions, isTestsView }: { questions: TestAssessmentQuestion[]; isTestsView: boolean }) {
   const [selected, setSelected] = useState<Record<string, number | string>>({})
 
   if (questions.length === 0) {
