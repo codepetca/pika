@@ -300,7 +300,7 @@ describe('GET /api/student/tests/[id]', () => {
 
     expect(response.status).toBe(200)
     expect(data.student_status).toBe('responded')
-    expect(data.quiz.student_status).toBe('responded')
+    expect(data.test.student_status).toBe('responded')
   })
 
   it('returns student_status=can_view_results when closed test has been returned', async () => {
@@ -372,7 +372,7 @@ describe('GET /api/student/tests/[id]', () => {
 
     expect(response.status).toBe(200)
     expect(data.student_status).toBe('can_view_results')
-    expect(data.quiz.student_status).toBe('can_view_results')
+    expect(data.test.student_status).toBe('can_view_results')
   })
 
   it('does not expose closed test when only placeholder graded rows exist', async () => {

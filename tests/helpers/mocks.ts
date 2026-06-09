@@ -14,6 +14,9 @@ import type {
   Quiz,
   QuizQuestion,
   QuizResponse,
+  TestAssessment,
+  TestAssessmentQuestion,
+  TestAssessmentResponse,
 } from '@/types'
 
 // ============================================================================
@@ -259,3 +262,37 @@ export const createMockQuizResponse = (overrides: Partial<QuizResponse> = {}): Q
   submitted_at: '2024-10-15T14:30:00Z',
   ...overrides,
 })
+
+/**
+ * Create a mock test with default or custom values.
+ * The shape aliases the legacy quiz table contract while using the active surface name.
+ */
+export const createMockTest = (overrides: Partial<TestAssessment> = {}): TestAssessment =>
+  createMockQuiz({
+    id: 'test-1',
+    title: 'Test Assessment',
+    assessment_type: 'test',
+    ...overrides,
+  })
+
+/**
+ * Create a mock test question with default or custom values.
+ */
+export const createMockTestQuestion = (
+  overrides: Partial<TestAssessmentQuestion> = {}
+): TestAssessmentQuestion =>
+  createMockQuizQuestion({
+    quiz_id: 'test-1',
+    ...overrides,
+  })
+
+/**
+ * Create a mock test response with default or custom values.
+ */
+export const createMockTestResponse = (
+  overrides: Partial<TestAssessmentResponse> = {}
+): TestAssessmentResponse =>
+  createMockQuizResponse({
+    quiz_id: 'test-1',
+    ...overrides,
+  })

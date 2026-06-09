@@ -12,7 +12,7 @@ import { getStudentTestStatus } from '@/lib/tests'
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
-import type { Quiz } from '@/types'
+import type { TestAssessment } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -218,7 +218,7 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
 
   const allTests = [...visibleActiveTests, ...visibleClosedTests]
 
-  const testsWithStatus = allTests.map((test: Quiz) => {
+  const testsWithStatus = allTests.map((test: TestAssessment) => {
     const hasResponded = respondedTestIds.has(test.id)
     const isReturned = returnedTestIds.has(test.id)
     const access = getEffectiveStudentTestAccess({

@@ -249,7 +249,7 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.quiz.status).toBe('active')
+    expect(data.test.status).toBe('active')
   })
 
   it('updates test documents when payload is valid', async () => {
@@ -312,7 +312,7 @@ describe('PATCH /api/teacher/tests/[id]', () => {
         documents,
       })
     )
-    expect(data.quiz.documents).toEqual(documents)
+    expect(data.test.documents).toEqual(documents)
   })
 
   it('returns 400 for invalid test documents payload', async () => {
@@ -408,7 +408,7 @@ describe('PATCH /api/teacher/tests/[id]', () => {
         documents,
       })
     )
-    expect(data.quiz.documents).toEqual(documents)
+    expect(data.test.documents).toEqual(documents)
   })
 
   it('finalizes draft attempts when closing an active test', async () => {
@@ -449,7 +449,7 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.quiz.status).toBe('closed')
+    expect(data.test.status).toBe('closed')
     expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('close_test_for_grading_atomic', {
       p_test_id: 'test-1',
       p_closed_by: 'teacher-1',
