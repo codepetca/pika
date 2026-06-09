@@ -64,7 +64,7 @@ describe('TeacherClassroomsIndex', () => {
 
     renderTeacherClassroomsIndex([])
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
 
     expect(await screen.findByRole('button', { name: /^Archived/ })).toBeInTheDocument()
@@ -76,7 +76,7 @@ describe('TeacherClassroomsIndex', () => {
     const classrooms = [createMockClassroom({ id: 'c1', title: 'Math 101' })]
     renderTeacherClassroomsIndex(classrooms)
 
-    const editButton = screen.getByRole('button', { name: 'Edit' })
+    const editButton = screen.getByRole('button', { name: 'Organize classrooms' })
     const bottomControls = screen.getByTestId('classroom-bottom-controls')
     const card = screen.getByTestId('classroom-card')
 
@@ -86,7 +86,7 @@ describe('TeacherClassroomsIndex', () => {
     expect(bottomControls.className).toContain('max-w-[40.5rem]')
     expect(bottomControls).not.toHaveClass('rounded-card')
     expect(
-      within(bottomControls).getByRole('button', { name: 'Edit' })
+      within(bottomControls).getByRole('button', { name: 'Organize classrooms' })
     ).toBe(editButton)
     expect(card.compareDocumentPosition(editButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
@@ -106,7 +106,7 @@ describe('TeacherClassroomsIndex', () => {
     expect(screen.queryByRole('button', { name: 'Drag to reorder Math 101' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Archive Math 101' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
 
     const activeButton = screen.getByRole('button', { name: 'Active' })
     const archivedButton = screen.getByRole('button', { name: 'Archived' })
@@ -118,7 +118,7 @@ describe('TeacherClassroomsIndex', () => {
     expect(screen.getByRole('button', { name: 'Drag to reorder Math 101' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Archive Math 101' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
 
     expect(screen.queryByRole('button', { name: 'Active' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Archived' })).not.toBeInTheDocument()
@@ -131,17 +131,17 @@ describe('TeacherClassroomsIndex', () => {
 
     renderTeacherClassroomsIndex([])
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
     expect(await screen.findByRole('button', { name: /^Archived/ })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
 
     expect(screen.queryByRole('group', { name: 'Classroom view' })).not.toBeInTheDocument()
     expect(screen.getByText('Create your first classroom')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'New' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
 
     expect(
       within(screen.getByRole('group', { name: 'Classroom view' })).getByRole('button', { name: 'Active' })
@@ -152,26 +152,26 @@ describe('TeacherClassroomsIndex', () => {
     const classrooms = [createMockClassroom({ id: 'c1', title: 'Math 101' })]
     renderTeacherClassroomsIndex(classrooms)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
     expect(screen.getByRole('button', { name: 'Archive Math 101' })).toBeInTheDocument()
 
     fireEvent.keyDown(window, { key: 'Escape' })
 
     expect(screen.queryByRole('button', { name: 'Archive Math 101' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Organize classrooms' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('turns classroom edit mode off when the page is restored', async () => {
     const classrooms = [createMockClassroom({ id: 'c1', title: 'Math 101' })]
     renderTeacherClassroomsIndex(classrooms)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
     expect(screen.getByRole('button', { name: 'Archive Math 101' })).toBeInTheDocument()
 
     fireEvent(window, new Event('pageshow'))
 
     expect(screen.queryByRole('button', { name: 'Archive Math 101' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Edit' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Organize classrooms' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('does not show a Blueprints button in the classroom action bar', async () => {

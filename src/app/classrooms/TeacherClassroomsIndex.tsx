@@ -508,6 +508,9 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
               }
             }}
             disabled={openingClassroomId !== null}
+            editLabel="Organize classrooms"
+            activeTooltip="Hide organize actions"
+            inactiveTooltip="Organize classrooms"
             className="absolute right-0 top-1/2 -translate-y-1/2"
           />
         </div>

@@ -556,26 +556,26 @@ function clearAssignmentWorkspaceStudentCookie(assignmentId = 'assignment-1') {
 }
 
 function expectAssignmentSplitPaneIndicator({
-  index,
-  icon,
-  iconClass,
+  panes,
+  iconClasses,
 }: {
-  index: string
-  icon: string
-  iconClass: string
+  panes: string
+  iconClasses: string[]
 }) {
   const indicator = screen.getByTestId('assignment-split-pane-indicator')
-  const iconNode = screen.getByTestId('assignment-split-pane-icon')
-  const svg = iconNode.querySelector('svg')
+  const iconNode = screen.getByTestId('assignment-split-pane-icons')
+  const svgs = Array.from(iconNode.querySelectorAll('svg'))
 
-  if (!svg) {
-    throw new Error('Expected assignment split-pane toggle icon to render an SVG')
-  }
+  expect(indicator).toHaveAttribute('data-view-panes', panes)
+  expect(screen.queryByTestId('assignment-split-pane-index')).not.toBeInTheDocument()
+  expect(svgs).toHaveLength(iconClasses.length)
+  iconClasses.forEach((iconClass, index) => {
+    expect(svgs[index]).toHaveClass(iconClass)
+  })
+}
 
-  expect(indicator).toHaveAttribute('data-view-index', index)
-  expect(indicator).toHaveAttribute('data-view-icon', icon)
-  expect(screen.getByTestId('assignment-split-pane-index')).toHaveTextContent(index)
-  expect(svg).toHaveClass(iconClass)
+function clickAssignmentLayoutToggle() {
+  fireEvent.click(screen.getByRole('button', { name: /Change assignment layout:/ }))
 }
 
 function applySearchParamsUpdate(
@@ -586,6 +586,14 @@ function applySearchParamsUpdate(
   const params = new URLSearchParams(initial)
   updater(params)
   return { params, options }
+}
+
+function openAddClassworkMenu() {
+  fireEvent.click(screen.getByRole('button', { name: 'New Classwork' }))
+}
+
+function toggleClassworkOrganize() {
+  fireEvent.click(screen.getByRole('button', { name: 'Organize classwork' }))
 }
 
 describe('TeacherClassroomView', () => {
@@ -911,7 +919,7 @@ describe('TeacherClassroomView', () => {
     expect(detailFetchCount).toBe(1)
   })
 
-  it('keeps New visible with an Edit Markdown dropdown action while edit mode is active', async () => {
+  it('uses a direct organize toggle and shows Markdown only while organize mode is active', async () => {
     const onEditModeChange = vi.fn()
     const onOpenMarkdownEditor = vi.fn()
 
@@ -929,28 +937,56 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
     })
 
-    expect(screen.getByRole('button', { name: 'New assignment' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Edit Markdown' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New Classwork' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByTestId('assignment-summary-actionbar-center')).toHaveClass('grid')
-    expect(screen.getByRole('button', { name: 'New assignment' }).closest('.fixed')).toHaveClass('fixed')
+    expect(screen.getByRole('button', { name: 'New Classwork' }).closest('.fixed')).toHaveClass('fixed')
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit Markdown' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Markdown' }))
-    expect(onOpenMarkdownEditor).toHaveBeenCalledTimes(1)
+    toggleClassworkOrganize()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit list controls' }))
-
-    expect(screen.getByRole('button', { name: 'Edit list controls' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'New Classwork' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Edit Markdown' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
     expect(onEditModeChange).toHaveBeenLastCalledWith(true)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit list controls' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Markdown' }))
+    expect(onOpenMarkdownEditor).toHaveBeenCalledTimes(1)
+
+    toggleClassworkOrganize()
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
+    expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'New Classwork' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit Markdown' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
   })
 
-  it('exits assignment edit mode on Escape', async () => {
+  it('disables classwork create and options actions for archived classrooms', async () => {
+    render(
+      <TeacherClassroomView
+        classroom={{ ...classroom, archived_at: '2026-06-01T12:00:00Z' }}
+        selectedAssignmentId={null}
+        showMarkdownEditorOption
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    })
+
+    const addClasswork = screen.getByRole('button', { name: 'New Classwork' })
+    const organizeClasswork = screen.getByRole('button', { name: 'Organize classwork' })
+
+    expect(addClasswork).toBeDisabled()
+    expect(organizeClasswork).toBeDisabled()
+
+    fireEvent.click(organizeClasswork)
+    expect(screen.queryByRole('button', { name: 'Edit Markdown' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the Markdown action hidden in organize mode when markdown editing is not enabled', async () => {
     render(
       <TeacherClassroomView
         classroom={classroom}
@@ -962,18 +998,36 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit list controls' }))
-    expect(screen.getByRole('button', { name: 'Edit list controls' })).toHaveAttribute('aria-pressed', 'true')
+    toggleClassworkOrganize()
+
+    expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: 'Edit Markdown' })).not.toBeInTheDocument()
+  })
+
+  it('exits classwork organize mode on Escape', async () => {
+    render(
+      <TeacherClassroomView
+        classroom={classroom}
+        selectedAssignmentId={null}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    })
+
+    toggleClassworkOrganize()
+    expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
 
     fireEvent.keyDown(document, { key: 'Escape' })
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Edit list controls' })).toHaveAttribute('aria-pressed', 'false')
+      expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'false')
     })
   })
 
-  it('opens the assignment editor from summary cards while edit mode is active', async () => {
+  it('opens the assignment editor from summary cards while organize mode is active', async () => {
     const updateSearchParams = vi.fn()
 
     render(
@@ -988,7 +1042,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit list controls' }))
+    toggleClassworkOrganize()
     fireEvent.click(screen.getByRole('button', { name: 'Assignment One' }))
 
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment One')
@@ -996,7 +1050,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
   })
 
-  it('renders materials and assignments in shared order and gives materials a drag handle in edit mode', async () => {
+  it('renders materials and assignments in shared order and gives materials a drag handle in organize mode', async () => {
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {
         return Promise.resolve({
@@ -1026,7 +1080,7 @@ describe('TeacherClassroomView', () => {
       materialButton.compareDocumentPosition(assignmentButton) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit list controls' }))
+    toggleClassworkOrganize()
     expect(screen.getByRole('button', { name: 'Drag to reorder material' })).toBeInTheDocument()
     expect(materialButton.querySelector('.border-l-2')).not.toBeInTheDocument()
     expect(materialButton.closest('.bg-info-bg')).not.toHaveClass('border-primary/40')
@@ -1190,7 +1244,7 @@ describe('TeacherClassroomView', () => {
     })
   })
 
-  it('creates a draft survey from the New menu and opens visual editing', async () => {
+  it('creates a draft survey from the New Classwork menu and opens visual editing', async () => {
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {
         return Promise.resolve({
@@ -1226,7 +1280,8 @@ describe('TeacherClassroomView', () => {
     )
 
     await screen.findByRole('button', { name: 'Assignment One' })
-    fireEvent.click(screen.getByRole('button', { name: 'Survey' }))
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: /Survey/ }))
     const createDialog = await screen.findByRole('dialog')
     fireEvent.change(within(createDialog).getByPlaceholderText('Enter survey title'), {
       target: { value: 'Class feedback' },
@@ -1254,7 +1309,7 @@ describe('TeacherClassroomView', () => {
     expect(params.get('assignmentId')).toBeNull()
   })
 
-  it('exits assignment edit mode when the create assignment modal closes', async () => {
+  it('exits classwork organize mode from the organize toggle', async () => {
     const onEditModeChange = vi.fn()
 
     render(
@@ -1269,21 +1324,16 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit list controls' }))
-    expect(screen.getByRole('button', { name: 'Edit list controls' })).toHaveAttribute('aria-pressed', 'true')
+    toggleClassworkOrganize()
 
-    fireEvent.click(screen.getByRole('button', { name: 'New assignment' }))
-    expect(screen.getByRole('dialog')).toHaveTextContent('New Assignment')
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classwork' }))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Edit list controls' })).toHaveAttribute('aria-pressed', 'false')
-    })
+    expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'false')
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
+    expect(screen.getByRole('button', { name: 'New Classwork' })).toBeInTheDocument()
   })
 
-  it('resets edit mode when the selected assignment workspace changes', async () => {
+  it('resets organize mode when the selected assignment workspace changes', async () => {
     const onEditModeChange = vi.fn()
 
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
@@ -1321,8 +1371,8 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit list controls' }))
-    expect(screen.getByRole('button', { name: 'Edit list controls' })).toHaveAttribute('aria-pressed', 'true')
+    toggleClassworkOrganize()
+    expect(screen.getByRole('button', { name: 'Organize classwork' })).toHaveAttribute('aria-pressed', 'true')
 
     rerender(
       <TeacherClassroomView
@@ -1333,7 +1383,7 @@ describe('TeacherClassroomView', () => {
     )
 
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Edit list controls' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Organize classwork' })).not.toBeInTheDocument()
     })
     expect(onEditModeChange).toHaveBeenLastCalledWith(false)
   })
@@ -1721,12 +1771,11 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    expect(screen.getByRole('button', { name: 'Students + grading' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Content + grading' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Change assignment layout: Students + grading' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Content + grading' })).not.toBeInTheDocument()
     expectAssignmentSplitPaneIndicator({
-      index: '1',
-      icon: 'grading',
-      iconClass: 'lucide-file-check',
+      panes: 'students-grading',
+      iconClasses: ['lucide-menu', 'lucide-percent'],
     })
     expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-grading')
     expect(screen.queryByRole('group', { name: 'Left pane view' })).not.toBeInTheDocument()
@@ -1736,10 +1785,10 @@ describe('TeacherClassroomView', () => {
     expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
     expect(screen.getAllByRole('button', { name: /Return/i })).toHaveLength(1)
     expect(screen.getByTestId('assignment-workspace-actionbar-center').parentElement).toHaveClass('fixed')
-    expect(screen.queryByRole('button', { name: 'Edit list controls' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Organize classwork' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit assignment' })).not.toBeInTheDocument()
 
-    expect(screen.getByRole('button', { name: 'Edit Assignment' })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Edit Assignment' })).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Delete Assignment' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit Assignment' }))
@@ -2141,7 +2190,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Content + grading' }))
+    clickAssignmentLayoutToggle()
 
     await waitFor(() => {
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('content-grading')
@@ -2159,12 +2208,10 @@ describe('TeacherClassroomView', () => {
       inspectorCollapsed: false,
       inspectorWidth: 61,
     })
-    expect(screen.getByRole('button', { name: 'Content + grading' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Students + content' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Change assignment layout: Content + grading' })).toBeInTheDocument()
     expectAssignmentSplitPaneIndicator({
-      index: '2',
-      icon: 'content',
-      iconClass: 'lucide-file-text',
+      panes: 'content-grading',
+      iconClasses: ['lucide-square-menu', 'lucide-percent'],
     })
     expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
     expect(screen.queryByRole('button', { name: /Send/i })).not.toBeInTheDocument()
@@ -2208,41 +2255,38 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Content + grading' }))
+    clickAssignmentLayoutToggle()
 
     await waitFor(() => {
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('content-grading')
       expectAssignmentSplitPaneIndicator({
-        index: '2',
-        icon: 'content',
-        iconClass: 'lucide-file-text',
+        panes: 'content-grading',
+        iconClasses: ['lucide-square-menu', 'lucide-percent'],
       })
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('work:assignment-1:student-1')
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Students + content' }))
+    clickAssignmentLayoutToggle()
 
     await waitFor(() => {
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-content')
       expectAssignmentSplitPaneIndicator({
-        index: '3',
-        icon: 'students',
-        iconClass: 'lucide-table',
+        panes: 'students-content',
+        iconClasses: ['lucide-menu', 'lucide-square-menu'],
       })
       expect(screen.getByTestId('assignment-left-pane')).toHaveTextContent('student-1')
       expect(screen.getByTestId('assignment-right-pane')).toHaveTextContent('work:assignment-1:student-1')
       expect(screen.getByTestId('assignment-right-pane')).not.toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Students + grading' }))
+    clickAssignmentLayoutToggle()
 
     await waitFor(() => {
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-grading')
       expectAssignmentSplitPaneIndicator({
-        index: '1',
-        icon: 'grading',
-        iconClass: 'lucide-file-check',
+        panes: 'students-grading',
+        iconClasses: ['lucide-menu', 'lucide-percent'],
       })
       expect(screen.getByTestId('assignment-left-pane')).toHaveTextContent('student-1')
       expect(screen.getByTestId('assignment-right-pane')).toHaveTextContent('grading:assignment-1:student-1')
@@ -2285,15 +2329,14 @@ describe('TeacherClassroomView', () => {
     await waitFor(() => {
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-content')
       expectAssignmentSplitPaneIndicator({
-        index: '3',
-        icon: 'students',
-        iconClass: 'lucide-table',
+        panes: 'students-content',
+        iconClasses: ['lucide-menu', 'lucide-square-menu'],
       })
       expect(screen.getByTestId('assignment-left-pane')).toHaveTextContent('student-1')
       expect(screen.getByTestId('assignment-right-pane')).toHaveTextContent('work:assignment-1:student-1')
       expect(screen.getByTestId('assignment-right-pane')).not.toHaveTextContent('grading:assignment-1:student-1')
     })
-    expect(screen.getByRole('button', { name: 'Students + content' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Change assignment layout: Students + content' })).toBeInTheDocument()
   })
 
   it('keeps the students and grading view active when clicking a student row', async () => {
@@ -2359,7 +2402,7 @@ describe('TeacherClassroomView', () => {
     })
 
     expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-grading')
-    expect(screen.getByRole('button', { name: 'Students + grading' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Change assignment layout: Students + grading' })).toBeInTheDocument()
   })
 
   it('restores the class-pane scroll position after selecting a lower student row', async () => {

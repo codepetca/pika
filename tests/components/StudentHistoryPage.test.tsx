@@ -74,8 +74,10 @@ describe('HistoryPage', () => {
     })
     expect(screen.getByText('My Classes')).toBeInTheDocument()
     expect(fetchStudentClassrooms).toHaveBeenCalledOnce()
-    expect(fetchClassDaysForClassroom).toHaveBeenCalledWith(classroom.id)
-    expect(fetchStudentEntriesForClassroom).toHaveBeenCalledWith(classroom.id)
+    await waitFor(() => {
+      expect(fetchClassDaysForClassroom).toHaveBeenCalledWith(classroom.id)
+      expect(fetchStudentEntriesForClassroom).toHaveBeenCalledWith(classroom.id)
+    })
   })
 
   it('invalidates cached student classrooms after joining a class from the empty state', async () => {
@@ -104,6 +106,8 @@ describe('HistoryPage', () => {
     await waitFor(() => {
       expect(screen.getAllByText('Joined Class')).toHaveLength(2)
     })
-    expect(fetchClassDaysForClassroom).toHaveBeenCalledWith(joinedClassroom.id)
+    await waitFor(() => {
+      expect(fetchClassDaysForClassroom).toHaveBeenCalledWith(joinedClassroom.id)
+    })
   })
 })

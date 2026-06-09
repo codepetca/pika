@@ -16,7 +16,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Check, ClockAlert, Code, ExternalLink, Lock, LogOut, Pencil, Plus, RotateCcw, Send, Settings, Trash2, Unlock, X } from 'lucide-react'
+import { Check, ClockAlert, Code, ExternalLink, Lock, LogOut, Pencil, RotateCcw, Send, Trash2, Unlock, X } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
@@ -35,6 +35,10 @@ import {
 } from '@/components/DataTable'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import {
+  TeacherWorkSurfaceActionCluster,
+  TeacherWorkSurfaceIconButton,
+} from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
@@ -51,7 +55,7 @@ import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { compareByNameFields } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
-import { Button, ConfirmDialog, DialogPanel, EmptyState, RefreshingIndicator, Select, Tooltip, useAppMessage, useOverlayMessage, type SplitButtonProps } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, EmptyState, RefreshingIndicator, Select, SplitButton, Tooltip, useAppMessage, useOverlayMessage, type SplitButtonProps } from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
   AssessmentWorkspaceSummaryPatch,
@@ -2271,6 +2275,14 @@ export function TeacherTestsTab({
     </div>
   )
 
+  const openSelectedTestEditor = () => {
+    if (!selectedTestWorkspace) return
+    navigateTestWorkspace({ testId: selectedTestWorkspace.id, mode: 'authoring', studentId: null })
+    setTestEditModalView('edit')
+    setHasPendingMarkdownImport(false)
+    setShowEditModal(true)
+  }
+
   const selectedTestAction: SplitButtonProps | null = selectedTestWorkspace ? {
       label: (
         <span className="inline-flex items-center gap-2">
@@ -2290,22 +2302,6 @@ export function TeacherTestsTab({
           ),
           onSelect: () => handleAccessAction(accessAlternateState),
           disabled: accessAlternateDisabled,
-        },
-        {
-          id: 'edit-test',
-          label: (
-            <span className="inline-flex items-center gap-2 whitespace-nowrap">
-              <Pencil className="h-4 w-4" aria-hidden="true" />
-              <span>Edit Test</span>
-            </span>
-          ),
-          onSelect: () => {
-            navigateTestWorkspace({ testId: selectedTestWorkspace.id, mode: 'authoring', studentId: null })
-            setTestEditModalView('edit')
-            setHasPendingMarkdownImport(false)
-            setShowEditModal(true)
-          },
-          disabled: isReadOnly,
         },
         {
           id: 'ai-grade',
@@ -2434,6 +2430,25 @@ export function TeacherTestsTab({
       </span>
     ) : null
 
+  const selectedTestControls = selectedTestAction ? (
+    <div
+      data-testid="test-workspace-actionbar-center"
+      className="flex min-w-0 items-center justify-center gap-2"
+    >
+      <TeacherWorkSurfaceActionCluster>
+        <SplitButton {...selectedTestAction} />
+        <TeacherWorkSurfaceIconButton
+          ariaLabel="Edit Test"
+          icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
+          onClick={openSelectedTestEditor}
+          disabled={isReadOnly}
+          tooltip="Edit Test"
+        />
+      </TeacherWorkSurfaceActionCluster>
+      {workspaceModeStatus}
+    </div>
+  ) : null
+
   const activeTestGradingMessage =
     workspaceState === 'selected' && selectedWorkspaceTab === 'grading'
       ? hasActiveTestAiRun && activeTestAiRun
@@ -2487,48 +2502,33 @@ export function TeacherTestsTab({
 
   const primaryContent = workspaceState === 'selected' ? (
     <TeacherWorkSurfaceActionBar
-      floatingAction={selectedTestAction ?? undefined}
-      floatingActionStatus={workspaceModeStatus}
+      center={selectedTestControls}
       centerPlacement="floating"
     />
   ) : (
     <TeacherWorkSurfaceActionBar
-      floatingAction={{
-        label: (
-          <span className="inline-flex items-center gap-1.5">
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            <span>{isCreatingTest ? 'Creating...' : 'New'}</span>
-          </span>
-        ),
-        onPrimaryClick: handleNewTest,
-        options: [
-          {
-            id: 'new-test',
-            label: 'Test',
-            onSelect: handleNewTest,
-            disabled: isReadOnly || isCreatingTest || loading,
-          },
-          {
-            id: 'test-list-controls',
-            label: (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                <Settings className="h-4 w-4" aria-hidden="true" />
-                <span>List controls</span>
-              </span>
-            ),
-            checked: testEditMode,
-            onSelect: () => setTestEditMode((prev) => !prev),
-            disabled: isReadOnly,
-            dividerBefore: true,
-          },
-        ],
-        disabled: isReadOnly || isCreatingTest || loading,
-        variant: 'primary',
-        size: 'sm',
-        toggleAriaLabel: 'More test actions',
-        menuPlacement: 'down',
-        primaryButtonProps: { 'aria-label': 'New test' },
-      }}
+      center={
+        <TeacherWorkSurfaceActionCluster>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            aria-label="New test"
+            onClick={handleNewTest}
+            disabled={isReadOnly || isCreatingTest || loading}
+          >
+            {isCreatingTest ? 'Creating...' : 'New Test'}
+          </Button>
+          <TeacherWorkSurfaceIconButton
+            ariaLabel="Organize tests"
+            icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
+            onClick={() => setTestEditMode((prev) => !prev)}
+            disabled={isReadOnly}
+            pressed={testEditMode}
+            tooltip={testEditMode ? 'Done organizing tests' : 'Organize tests'}
+          />
+        </TeacherWorkSurfaceActionCluster>
+      }
       centerPlacement="floating"
     />
   )

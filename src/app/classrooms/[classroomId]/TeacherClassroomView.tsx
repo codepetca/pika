@@ -22,21 +22,23 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
+  Code,
   Copy,
-  FileCheck,
-  FileText,
   GripVertical,
   LoaderCircle,
   Lock,
+  Menu,
   MessageSquare,
+  Paperclip,
+  Percent,
   Pencil,
-  Plus,
   Send,
-  Table,
+  SquareMenu,
   Trash2,
   Unlock,
 } from 'lucide-react'
-import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, SplitButton, Tooltip, useAppMessage, useOverlayMessage, type SplitButtonOption } from '@/ui'
+import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
@@ -55,6 +57,12 @@ import {
   type TeacherAssignmentGradeTemplate,
 } from '@/components/TeacherStudentWorkPanel'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import {
+  TeacherWorkSurfaceActionCluster,
+  TeacherWorkSurfaceIconButton,
+  TeacherWorkSurfaceMenuButton,
+  type TeacherWorkSurfaceActionItem,
+} from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
@@ -137,13 +145,19 @@ const ASSIGNMENT_SPLIT_PANE_VIEW_LABELS: Record<AssignmentSplitPaneView, string>
   'students-content': 'Students + content',
 }
 
+const ASSIGNMENT_SPLIT_PANE_VIEW_ORDER: AssignmentSplitPaneView[] = [
+  'students-grading',
+  'content-grading',
+  'students-content',
+]
+
 const ASSIGNMENT_SPLIT_PANE_VIEW_INDICATORS: Record<
   AssignmentSplitPaneView,
-  { index: 1 | 2 | 3; icon: 'students' | 'grading' | 'content' }
+  { panes: ['students' | 'grading' | 'content', 'students' | 'grading' | 'content'] }
 > = {
-  'students-grading': { index: 1, icon: 'grading' },
-  'content-grading': { index: 2, icon: 'content' },
-  'students-content': { index: 3, icon: 'students' },
+  'students-grading': { panes: ['students', 'grading'] },
+  'content-grading': { panes: ['content', 'grading'] },
+  'students-content': { panes: ['students', 'content'] },
 }
 
 interface Props {
@@ -183,14 +197,14 @@ function AssignmentSplitPaneIcon({
   pane: 'students' | 'grading' | 'content'
 }) {
   if (pane === 'students') {
-    return <Table className="h-4 w-4" aria-hidden="true" />
+    return <Menu className="h-4 w-4" aria-hidden="true" />
   }
 
   if (pane === 'grading') {
-    return <FileCheck className="h-4 w-4" aria-hidden="true" />
+    return <Percent className="h-4 w-4" aria-hidden="true" />
   }
 
-  return <FileText className="h-4 w-4" aria-hidden="true" />
+  return <SquareMenu className="h-4 w-4" aria-hidden="true" />
 }
 
 function TeacherMaterialCard({
@@ -2193,13 +2207,50 @@ export function TeacherClassroomView({
 
   const splitPaneViewIndicator = ASSIGNMENT_SPLIT_PANE_VIEW_INDICATORS[splitPaneView]
 
-  const assignmentPaneOptions: SplitButtonOption[] = (Object.keys(ASSIGNMENT_SPLIT_PANE_VIEW_LABELS) as AssignmentSplitPaneView[]).map((view) => ({
-    id: `pane-${view}`,
-    label: ASSIGNMENT_SPLIT_PANE_VIEW_LABELS[view],
-    checked: splitPaneView === view,
-    onSelect: () => handleSelectSplitPaneView(view),
-    disabled: !canCycleSplitPaneView,
-  }))
+  const openSelectedAssignmentEditor = () => {
+    if (activeSelectedAssignmentData) {
+      setEditAssignment(activeSelectedAssignmentData.assignment)
+    }
+  }
+
+  const nextSplitPaneView =
+    ASSIGNMENT_SPLIT_PANE_VIEW_ORDER[
+      (ASSIGNMENT_SPLIT_PANE_VIEW_ORDER.indexOf(splitPaneView) + 1) % ASSIGNMENT_SPLIT_PANE_VIEW_ORDER.length
+    ]
+
+  const layoutToggleLabel = ASSIGNMENT_SPLIT_PANE_VIEW_LABELS[splitPaneView]
+  const nextLayoutToggleLabel = ASSIGNMENT_SPLIT_PANE_VIEW_LABELS[nextSplitPaneView]
+
+  const assignmentLayoutToggle = (
+    <Tooltip content={`Layout: ${layoutToggleLabel}. Next: ${nextLayoutToggleLabel}`}>
+      <span className="inline-flex">
+        <Button
+          type="button"
+          variant="surface"
+          size="sm"
+          aria-label={`Change assignment layout: ${layoutToggleLabel}`}
+          onClick={() => handleSelectSplitPaneView(nextSplitPaneView)}
+          disabled={!canCycleSplitPaneView}
+          className="h-9 px-2.5"
+        >
+          <span
+            className="inline-flex items-center gap-1.5"
+            data-testid="assignment-split-pane-indicator"
+            data-view-panes={splitPaneViewIndicator.panes.join('-')}
+            aria-hidden="true"
+          >
+            <span className="inline-flex items-center gap-1" data-testid="assignment-split-pane-icons">
+              {splitPaneViewIndicator.panes.map((pane) => (
+                <span key={pane} className="inline-flex" data-pane={pane}>
+                  <AssignmentSplitPaneIcon pane={pane} />
+                </span>
+              ))}
+            </span>
+          </span>
+        </Button>
+      </span>
+    </Tooltip>
+  )
 
   const classPaneActions = (
     <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
@@ -2207,26 +2258,6 @@ export function TeacherClassroomView({
         <SplitButton
           label={
             <span className="inline-flex items-center gap-2 whitespace-nowrap">
-              <span
-                className="inline-flex items-center gap-1.5"
-                data-testid="assignment-split-pane-indicator"
-                data-view-index={splitPaneViewIndicator.index}
-                data-view-icon={splitPaneViewIndicator.icon}
-                aria-hidden="true"
-              >
-                <span
-                  className="min-w-3 text-center text-xs font-semibold tabular-nums"
-                  data-testid="assignment-split-pane-index"
-                >
-                  {splitPaneViewIndicator.index}
-                </span>
-                <span
-                  className="inline-flex"
-                  data-testid="assignment-split-pane-icon"
-                >
-                  <AssignmentSplitPaneIcon pane={splitPaneViewIndicator.icon} />
-                </span>
-              </span>
               <Check className="h-4 w-4" aria-hidden="true" />
               <span>AI Grade</span>
             </span>
@@ -2235,23 +2266,6 @@ export function TeacherClassroomView({
             void handleBatchAutoGrade()
           }}
           options={[
-            ...assignmentPaneOptions,
-            {
-              id: 'edit-assignment',
-              label: (
-                <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                  <Pencil className="h-4 w-4" aria-hidden="true" />
-                  <span>Edit Assignment</span>
-                </span>
-              ),
-              onSelect: () => {
-                if (activeSelectedAssignmentData) {
-                  setEditAssignment(activeSelectedAssignmentData.assignment)
-                }
-              },
-              disabled: !canEditAssignment,
-              dividerBefore: true,
-            },
             {
               id: 'delete-assignment',
               label: (
@@ -2378,7 +2392,17 @@ export function TeacherClassroomView({
       data-testid="assignment-workspace-actionbar-center"
       className="relative flex min-w-0 items-center justify-center gap-2"
     >
-      {classPaneActions}
+      <TeacherWorkSurfaceActionCluster>
+        {assignmentLayoutToggle}
+        {classPaneActions}
+        <TeacherWorkSurfaceIconButton
+          ariaLabel="Edit Assignment"
+          icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
+          onClick={openSelectedAssignmentEditor}
+          disabled={!canEditAssignment}
+          tooltip="Edit Assignment"
+        />
+      </TeacherWorkSurfaceActionCluster>
       {workspaceStatus}
     </div>
   ) : null
@@ -2501,71 +2525,67 @@ export function TeacherClassroomView({
     </div>
   ) : null
 
+  const classworkCreateActions: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'assignment',
+      label: 'Assignment',
+      icon: <ClipboardList className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => setIsCreateModalOpen(true),
+      disabled: isReadOnly,
+    },
+    {
+      id: 'material',
+      label: 'Material',
+      icon: <Paperclip className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => {
+        setEditMaterial(null)
+        setIsMaterialModalOpen(true)
+      },
+      disabled: isReadOnly,
+    },
+    {
+      id: 'survey',
+      label: 'Survey',
+      icon: <MessageSquare className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => setIsSurveyCreateModalOpen(true),
+      disabled: isReadOnly,
+    },
+  ]
+
   const primaryButtons =
     selection.mode === 'summary' ? (
       <TeacherWorkSurfaceActionBar
         testId="assignment-summary-actionbar-center"
-        floatingAction={{
-          label: (
-            <span className="inline-flex items-center gap-1.5">
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              <span>New</span>
-            </span>
-          ),
-          onPrimaryClick: () => setIsCreateModalOpen(true),
-          options: [
-            {
-              id: 'assignment',
-              label: 'Assignment',
-              onSelect: () => setIsCreateModalOpen(true),
-            },
-            {
-              id: 'material',
-              label: 'Material',
-              onSelect: () => {
-                setEditMaterial(null)
-                setIsMaterialModalOpen(true)
-              },
-            },
-            {
-              id: 'survey',
-              label: 'Survey',
-              onSelect: () => setIsSurveyCreateModalOpen(true),
-            },
-            {
-              id: 'edit-classwork-list',
-              label: (
-                <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                  <Pencil className="h-4 w-4" aria-hidden="true" />
-                  <span>Edit list controls</span>
-                </span>
-              ),
-              checked: assignmentEditMode,
-              onSelect: () => setAssignmentEditMode(!assignmentEditMode),
-              disabled: isReadOnly,
-              dividerBefore: true,
-            },
-            ...(showMarkdownEditorOption
-              ? [
-                  {
-                    id: 'edit-markdown',
-                    label: (
-                      <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                        <FileText className="h-4 w-4" aria-hidden="true" />
-                        <span>Edit Markdown</span>
-                      </span>
-                    ),
-                    onSelect: () => onOpenMarkdownEditor?.(),
-                    disabled: !onOpenMarkdownEditor || isReadOnly,
-                  },
-                ]
-              : []),
-          ],
-          disabled: isReadOnly,
-          toggleAriaLabel: 'Choose classwork action',
-          menuPlacement: 'down',
-          primaryButtonProps: { 'aria-label': 'New assignment' },
-        }}
+        center={
+          <TeacherWorkSurfaceActionCluster>
+            <TeacherWorkSurfaceMenuButton
+              label={<span>New Classwork</span>}
+              items={classworkCreateActions}
+              disabled={isReadOnly}
+              menuAriaLabel="New classwork"
+              menuPlacement="down"
+              menuAlign="center"
+              menuClassName="w-64"
+            />
+            <TeacherWorkSurfaceIconButton
+              ariaLabel="Organize classwork"
+              icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
+              onClick={() => setAssignmentEditMode(!assignmentEditMode)}
+              disabled={isReadOnly}
+              pressed={assignmentEditMode}
+              tooltip={assignmentEditMode ? 'Done organizing classwork' : 'Organize classwork'}
+            />
+            {assignmentEditMode && showMarkdownEditorOption ? (
+              <TeacherWorkSurfaceIconButton
+                ariaLabel="Edit Markdown"
+                icon={<Code className="h-4 w-4" aria-hidden="true" />}
+                onClick={() => onOpenMarkdownEditor?.()}
+                disabled={!onOpenMarkdownEditor || isReadOnly}
+                tooltip="Edit Markdown"
+              />
+            ) : null}
+          </TeacherWorkSurfaceActionCluster>
+        }
         centerPlacement="floating"
       />
     ) : (
