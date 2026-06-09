@@ -123,7 +123,8 @@ describe('trim-session-log script', () => {
     expect(script).toContain('const DEFAULT_MAX_ENTRIES = 60')
     expect(script).toContain('const DEFAULT_KEEP = Math.floor(DEFAULT_MAX_ENTRIES * 2 / 3)')
     expect(script).toContain('[--keep 40]')
-    expect(script).toContain('[--max 60]')
+    expect(script).toContain('--check [--keep 60]')
+    expect(script).not.toContain('--max')
     expect(script).toContain('--check')
   })
 
@@ -166,5 +167,16 @@ describe('trim-session-log script', () => {
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
     }
+  })
+
+  it('rejects removed --max arguments', () => {
+    const result = spawnSync('node', [scriptPath, '--check', '--max', '20'], {
+      encoding: 'utf8',
+    })
+
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('Unknown or incomplete argument: --max')
+    expect(result.stderr).toContain('--check [--keep 60]')
+    expect(result.stderr).not.toContain('--max 60')
   })
 })

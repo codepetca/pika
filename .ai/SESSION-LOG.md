@@ -9,55 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-03 — Gradebook summary red color fix
-
-**Completed:**
-- Moved grade color classes onto inner value spans in the gradebook final column, assessment Avg/Med summary cells, and final Avg/Med summary cells so they reliably override `DataTableCell`'s default text color.
-- Added a regression proving below-50 student final marks and Avg/Med summary values render with `text-danger`, while 50-69.9 remains warning and exact 70 remains default.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm lint`
-- Visual verification: targeted Playwright screenshots with intercepted below-50 final and Avg/Med summary values on teacher desktop/mobile, plus student mobile unaffected view.
-
-## 2026-06-03 — PR 719 CI recovery
-
-**Completed:**
-- Diagnosed PR #719's failing GitHub Actions run as the `.ai/SESSION-LOG.md` bound test finding 64 entries instead of 60.
-- Ran `node scripts/trim-session-log.mjs`, synced the PR branch with `origin/main`, and kept the merged session log at 60 entries.
-- Pushed the updated `codex/clear-assignment-comment-input` branch; GitHub now reports the PR merge state as clean.
-
-**Validation:**
-- `pnpm test tests/unit/ai-startup-docs.test.ts`
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
-- `git diff --check`
-
-## 2026-06-03 — PR 719 review fix
-
-**Completed:**
-- Fixed review finding where sending an assignment comment cleared the textarea locally but left `teacher_feedback_draft` persisted on the server.
-- Updated the feedback-return route to store the sent comment in `feedback` while clearing draft and AI suggestion state.
-- Updated API and component mocks/tests so the cleared persisted draft state is covered.
-- Re-reviewed the updated PR diff with no remaining findings.
-
-**Validation:**
-- `pnpm test tests/api/teacher/assignments-id-feedback-return.test.ts tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `pnpm test tests/unit/ai-startup-docs.test.ts`
-- `pnpm lint`
-- `git diff --check`
-
-## 2026-06-04 — PR 724 merge
-
-**Completed:**
-- Confirmed PR #724 was open, not draft, merge-clean, and all GitHub checks were passing after the CI recovery sync.
-- Squash-merged PR #724 into `main`, adding snapshot gallery API auth contract tests.
-- Fast-forwarded the hub checkout to `origin/main` and removed the finished `codex/snapshot-gallery-phase3` worktree and local branch.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `gh pr checks 724 --repo codepetca/pika`
-
 ## 2026-06-04 — Student test history visibility audit
 
 **Completed:**
@@ -711,9 +662,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Completed:**
 - Split the session-log trim policy into a 60-entry CI cap and a 40-entry default retention target.
-- Added `--max` for explicit check caps while preserving `--check --keep` compatibility.
+- Preserved `--check --keep` compatibility without adding another public flag.
 - Updated startup guidance and trim tests so agents compact below the CI boundary after appending.
 
 **Validation:**
 - `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check` (kept 40 of 61 entries; cap 60)
 - `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts`
+
+## 2026-06-09 — Remove trim --max flag
+
+**Completed:**
+- Removed the public `--max` option from `scripts/trim-session-log.mjs`.
+- Kept the default trim target at 40 entries and the default check cap at 60 entries.
+- Preserved legacy `--check --keep N` compatibility for explicit check caps.
+- Added coverage that `--max` is rejected and no longer appears in usage text.
+
+**Validation:**
+- `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts`
+- `node scripts/trim-session-log.mjs --check`

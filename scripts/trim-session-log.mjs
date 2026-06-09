@@ -13,9 +13,7 @@ function parseArgs(argv) {
   const args = {
     check: false,
     keep: DEFAULT_KEEP,
-    maxEntries: DEFAULT_MAX_ENTRIES,
     keepWasSet: false,
-    maxWasSet: false,
     source: DEFAULT_SOURCE,
     output: DEFAULT_OUTPUT,
   }
@@ -27,10 +25,6 @@ function parseArgs(argv) {
     if (arg === '--keep' && next) {
       args.keep = Number.parseInt(next, 10)
       args.keepWasSet = true
-      index += 1
-    } else if (arg === '--max' && next) {
-      args.maxEntries = Number.parseInt(next, 10)
-      args.maxWasSet = true
       index += 1
     } else if (arg === '--check') {
       args.check = true
@@ -50,12 +44,7 @@ function parseArgs(argv) {
   if (!Number.isInteger(args.keep) || args.keep < 1) {
     throw new Error('--keep must be a positive integer')
   }
-  if (!Number.isInteger(args.maxEntries) || args.maxEntries < 1) {
-    throw new Error('--max must be a positive integer')
-  }
-  if (args.check && args.keepWasSet && !args.maxWasSet) {
-    args.maxEntries = args.keep
-  }
+  args.maxEntries = args.check && args.keepWasSet ? args.keep : DEFAULT_MAX_ENTRIES
 
   return args
 }
@@ -63,10 +52,10 @@ function parseArgs(argv) {
 function usage() {
   return [
     'Usage: node scripts/trim-session-log.mjs [--keep 40] [--source .ai/SESSION-LOG.md] [--output .ai/SESSION-LOG.md]',
-    '       node scripts/trim-session-log.mjs --check [--max 60] [--source .ai/SESSION-LOG.md]',
+    '       node scripts/trim-session-log.mjs --check [--keep 60] [--source .ai/SESSION-LOG.md]',
     '',
     'Keeps the latest session entries, where each entry starts with a markdown "## " heading.',
-    'Use --check to fail when the source has more entries than the max window.',
+    'Use --check to fail when the source has more entries than the check cap.',
   ].join('\n')
 }
 
