@@ -170,8 +170,9 @@ describe('GET /api/student/tests', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.quizzes).toHaveLength(1)
-    expect(data.quizzes[0].id).toBe('test-1')
+    expect(data.tests).toEqual(data.quizzes)
+    expect(data.tests).toHaveLength(1)
+    expect(data.tests[0].id).toBe('test-1')
   })
 
   it('computes test student_status from returned state for closed responded tests', async () => {

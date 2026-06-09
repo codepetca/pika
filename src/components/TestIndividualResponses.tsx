@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { getQuizExitCount } from '@/lib/quizzes'
+import { getTestExitCount } from '@/lib/tests'
 import { Button, Input } from '@/ui'
-import type { QuizFocusSummary } from '@/types'
+import type { TestFocusSummary } from '@/types'
 
 interface QuestionInfo {
   id: string
@@ -30,7 +30,7 @@ interface Responder {
   name: string | null
   email: string
   answers: Record<string, number | TestAnswerDetail>
-  focus_summary: QuizFocusSummary | null
+  focus_summary: TestFocusSummary | null
 }
 
 interface Props {
@@ -355,7 +355,7 @@ export function TestIndividualResponses({
             </button>
             {student.focus_summary && (
               <p className="ml-4 mt-0.5 text-xs text-text-muted">
-                Exits: {getQuizExitCount(student.focus_summary)} · Away time:{' '}
+                Exits: {getTestExitCount(student.focus_summary)} · Away time:{' '}
                 {formatDuration(student.focus_summary.away_total_seconds)}
               </p>
             )}

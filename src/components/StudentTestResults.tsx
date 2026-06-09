@@ -8,8 +8,8 @@ import {
   normalizeMultipleChoiceOptionIndex,
 } from '@/components/MultipleChoiceOptionReview'
 import type {
-  QuizAssessmentType,
-  QuizResultsAggregate,
+  TestAssessmentType,
+  TestResultsAggregate,
   TestResponseDraftValue,
 } from '@/types'
 
@@ -38,7 +38,7 @@ interface TestResultSummary {
 }
 
 interface ResultsPayload {
-  results?: QuizResultsAggregate[]
+  results?: TestResultsAggregate[]
   question_results?: TestQuestionResult[]
   summary?: TestResultSummary
 }
@@ -54,7 +54,7 @@ function selectedOptionFromResponse(
 interface Props {
   quizId: string
   myResponses: Record<string, number | TestResponseDraftValue>
-  assessmentType?: QuizAssessmentType
+  assessmentType?: TestAssessmentType
   apiBasePath?: string
   showSubmissionBanner?: boolean
 }

@@ -1,10 +1,10 @@
 'use client'
 
-import type { QuizResultsAggregate } from '@/types'
+import type { TestResultsAggregate } from '@/types'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 
 interface Props {
-  results: QuizResultsAggregate[] | null
+  results: TestResultsAggregate[] | null
 }
 
 export function TestResultsView({ results }: Props) {

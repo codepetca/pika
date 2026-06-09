@@ -1044,6 +1044,21 @@ export interface QuizResultsAggregate {
   total_responses: number
 }
 
+// Test-facing aliases for the active assessment surface. Legacy Quiz* names
+// remain exported during the API/type contract transition.
+export type TestAssessmentStatus = QuizStatus
+export type TestAssessmentType = QuizAssessmentType
+export type TestAssessment = Quiz
+export type TestAssessmentQuestion = QuizQuestion
+export type TestAssessmentResponse = QuizResponse
+export type TestAssessmentWithQuestions = QuizWithQuestions
+export type TestAssessmentWithStats = QuizWithStats
+export type StudentTestStatus = StudentQuizStatus
+export type StudentTestView = StudentQuizView
+export type TestResultsAggregate = QuizResultsAggregate
+export type TestFocusEventType = QuizFocusEventType
+export type TestFocusSummary = QuizFocusSummary
+
 // Log summary types
 export interface LogSummaryActionItem {
   text: string

@@ -8,7 +8,7 @@ import { StudentTestForm } from '@/components/StudentTestForm'
 import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
-import type { QuizQuestion, TestDocument } from '@/types'
+import type { TestAssessmentQuestion, TestDocument } from '@/types'
 
 interface Props {
   classroomId: string
@@ -42,7 +42,7 @@ function isWindowNearMaximized(): boolean {
   return widthRatio >= 0.96 && heightRatio >= 0.9
 }
 
-function extractAllowedDocLinks(questions: QuizQuestion[]): AllowedDocItem[] {
+function extractAllowedDocLinks(questions: TestAssessmentQuestion[]): AllowedDocItem[] {
   const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g
   const plainUrlPattern = /\bhttps?:\/\/[^\s)]+/g
   const linksByUrl = new Map<string, AllowedDocItem>()
@@ -75,7 +75,7 @@ export function TeacherTestPreviewPage({
   onClose,
 }: Props) {
   const [title, setTitle] = useState('Test Preview')
-  const [questions, setQuestions] = useState<QuizQuestion[]>([])
+  const [questions, setQuestions] = useState<TestAssessmentQuestion[]>([])
   const [documents, setDocuments] = useState<TestDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -217,9 +217,10 @@ export function TeacherTestPreviewPage({
         throw new Error(data?.error || 'Failed to load preview')
       }
 
-      setTitle(data?.quiz?.title || 'Test Preview')
-      setQuestions((data?.questions || []) as QuizQuestion[])
-      setDocuments(normalizeTestDocuments(data?.quiz?.documents))
+      const responseTest = data?.test ?? data?.quiz
+      setTitle(responseTest?.title || 'Test Preview')
+      setQuestions((data?.questions || []) as TestAssessmentQuestion[])
+      setDocuments(normalizeTestDocuments(responseTest?.documents))
     } catch (err: any) {
       setError(err?.message || 'Failed to load preview')
     } finally {
@@ -277,7 +278,8 @@ export function TeacherTestPreviewPage({
           return
         }
 
-        setDocuments(normalizeTestDocuments(data?.quiz?.documents))
+        const responseTest = data?.test ?? data?.quiz
+        setDocuments(normalizeTestDocuments(responseTest?.documents))
       } catch (error) {
         if (!isCancelled) {
           console.error(`Auto-sync failed for ${staleDoc.title}:`, error)

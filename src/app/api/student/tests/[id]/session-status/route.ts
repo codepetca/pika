@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { getStudentTestStatus } from '@/lib/quizzes'
+import { getStudentTestStatus } from '@/lib/tests'
 import {
   assertStudentCanAccessTest,
   getEffectiveStudentTestAccess,
@@ -134,16 +134,19 @@ export const GET = withErrorHandler('GetStudentTestSessionStatus', async (_reque
         : getStudentTestStatus(test, hasSubmitted, attempt?.returned_at)
   const canContinue = accessState.can_start_or_continue
 
+  const responseTest = {
+    id: test.id,
+    status: test.status,
+    assessment_type: 'test' as const,
+    student_status: studentStatus,
+    returned_at: attempt?.returned_at || null,
+    access_state: accessState.access_state,
+    effective_access: accessState.effective_access,
+  }
+
   return NextResponse.json({
-    quiz: {
-      id: test.id,
-      status: test.status,
-      assessment_type: 'test' as const,
-      student_status: studentStatus,
-      returned_at: attempt?.returned_at || null,
-      access_state: accessState.access_state,
-      effective_access: accessState.effective_access,
-    },
+    test: responseTest,
+    quiz: responseTest,
     student_status: studentStatus,
     returned_at: attempt?.returned_at || null,
     can_continue: canContinue,

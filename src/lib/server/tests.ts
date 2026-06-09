@@ -1,6 +1,6 @@
 import { getServiceRoleClient } from '@/lib/supabase'
 import { validateClassroomStudentIds } from '@/lib/server/classroom-enrollment-validation'
-import type { QuizStatus, TestStudentAvailabilityState } from '@/types'
+import type { TestAssessmentStatus, TestStudentAvailabilityState } from '@/types'
 
 type PostgrestErrorLike = {
   code?: string
@@ -19,7 +19,7 @@ function getPostgrestErrorText(error: PostgrestErrorLike): string {
 export type TestAccessRecord = {
   id: string
   classroom_id: string
-  status: QuizStatus
+  status: TestAssessmentStatus
   title: string
   show_results: boolean
   documents?: unknown
@@ -60,7 +60,7 @@ export type EffectiveStudentTestAccess = {
 }
 
 export function getEffectiveStudentTestAccess(params: {
-  testStatus: QuizStatus
+  testStatus: TestAssessmentStatus
   accessState?: TestStudentAvailabilityState | null
   hasSubmitted?: boolean
   returnedAt?: string | null

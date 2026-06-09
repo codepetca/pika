@@ -7,10 +7,10 @@ import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout, PageStack } from '@/components/PageLayout'
 import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import {
-  getQuizExitCount,
-  getQuizStatusBadgeClass,
-  QUIZ_EXIT_BURST_WINDOW_MS,
-} from '@/lib/quizzes'
+  getTestExitCount,
+  getTestStatusBadgeClass,
+  TEST_EXIT_BURST_WINDOW_MS,
+} from '@/lib/tests'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { StudentTestForm } from '@/components/StudentTestForm'
 import { StudentTestResults } from '@/components/StudentTestResults'
@@ -22,17 +22,17 @@ import {
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import type {
   Classroom,
-  QuizAssessmentType,
-  QuizFocusSummary,
-  QuizQuestion,
-  StudentQuizStatus,
-  StudentQuizView,
+  TestAssessmentType,
+  TestFocusSummary,
+  TestAssessmentQuestion,
+  StudentTestStatus,
+  StudentTestView,
   TestResponseDraftValue,
 } from '@/types'
 
 interface Props {
   classroom: Classroom
-  assessmentType: QuizAssessmentType
+  assessmentType: TestAssessmentType
   isActive?: boolean
 }
 
@@ -57,29 +57,38 @@ interface RemoteClosureNotice {
 }
 
 interface StudentTestSessionStatusResponse {
-  quiz: {
+  test?: {
     id: string
     status: 'draft' | 'active' | 'closed'
     assessment_type: 'test'
-    student_status: StudentQuizStatus
+    student_status: StudentTestStatus
     returned_at: string | null
   }
-  student_status: StudentQuizStatus
+  quiz?: {
+    id: string
+    status: 'draft' | 'active' | 'closed'
+    assessment_type: 'test'
+    student_status: StudentTestStatus
+    returned_at: string | null
+  }
+  student_status: StudentTestStatus
   returned_at: string | null
   can_continue: boolean
   message: string | null
 }
 
 interface StudentAssessmentListResponse {
-  quizzes?: StudentQuizView[]
+  tests?: StudentTestView[]
+  quizzes?: StudentTestView[]
 }
 
 interface StudentAssessmentDetailResponse {
-  quiz: StudentQuizView
-  questions?: QuizQuestion[]
+  test?: StudentTestView
+  quiz?: StudentTestView
+  questions?: TestAssessmentQuestion[]
   student_responses?: Record<string, number | TestResponseDraftValue>
-  student_status?: StudentQuizStatus
-  focus_summary?: QuizFocusSummary | null
+  student_status?: StudentTestStatus
+  focus_summary?: TestFocusSummary | null
 }
 
 type FullscreenCapableElement = HTMLElement & {
@@ -106,7 +115,7 @@ function formatPointsTotal(points: number): string {
   return `${formatted} ${unit} total`
 }
 
-function formatTestOverviewLabel(questions: QuizQuestion[]): string {
+function formatTestOverviewLabel(questions: TestAssessmentQuestion[]): string {
   const questionCount = questions.length
   const totalPoints = questions.reduce((sum, question) => {
     const points = Number(question.points ?? 0)
@@ -200,7 +209,7 @@ function getExamWindowComplianceSnapshot(): ExamWindowComplianceSnapshot {
   }
 }
 
-function extractAllowedDocLinks(questions: QuizQuestion[]): AllowedDocItem[] {
+function extractAllowedDocLinks(questions: TestAssessmentQuestion[]): AllowedDocItem[] {
   const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g
   const plainUrlPattern = /\bhttps?:\/\/[^\s)]+/g
   const linksByUrl = new Map<string, AllowedDocItem>()
@@ -226,7 +235,7 @@ function extractAllowedDocLinks(questions: QuizQuestion[]): AllowedDocItem[] {
 }
 
 function getRemoteClosureDescription(
-  studentStatus: StudentQuizStatus | 'unavailable',
+  studentStatus: StudentTestStatus | 'unavailable',
   message?: string | null
 ): string {
   if (message?.trim()) return message
@@ -241,13 +250,13 @@ function getRemoteClosureDescription(
 
 export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const notifications = useStudentNotifications()
-  const [quizzes, setQuizzes] = useState<StudentQuizView[]>([])
+  const [quizzes, setQuizzes] = useState<StudentTestView[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null)
-  const [focusSummary, setFocusSummary] = useState<QuizFocusSummary | null>(null)
+  const [focusSummary, setFocusSummary] = useState<TestFocusSummary | null>(null)
   const [selectedQuiz, setSelectedQuiz] = useState<{
-    quiz: StudentQuizView
-    questions: QuizQuestion[]
+    quiz: StudentTestView
+    questions: TestAssessmentQuestion[]
     studentResponses: Record<string, number | TestResponseDraftValue>
   } | null>(null)
   const [startedTestId, setStartedTestId] = useState<string | null>(null)
@@ -276,7 +285,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const sessionStatusInFlightRef = useRef(false)
   const listRequestIdRef = useRef(0)
   const detailRequestIdRef = useRef(0)
-  const assessmentType: QuizAssessmentType = 'test'
+  const assessmentType: TestAssessmentType = 'test'
   const currentScopeRef = useRef({ classroomId: classroom.id, assessmentType })
   const isTestsView = true
   const apiBasePath = '/api/student/tests'
@@ -384,7 +393,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       ) {
         return
       }
-      setQuizzes(data.quizzes || [])
+      setQuizzes(data.tests || data.quizzes || [])
     } catch (err) {
       if (
         listRequestIdRef.current === requestId &&
@@ -422,7 +431,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   }, [assessmentType, classroom.id])
 
   const handleRemoteTestClosure = useCallback((options?: {
-    studentStatus?: StudentQuizStatus
+    studentStatus?: StudentTestStatus
     message?: string | null
   }) => {
     clearPendingNonCompliantTimeout()
@@ -483,14 +492,17 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       ) {
         return
       }
+      const responseTest = data.test ?? data.quiz
       const listQuiz = quizzes.find((quiz) => quiz.id === quizId)
-      const studentStatus = data.student_status ?? data.quiz?.student_status ?? listQuiz?.student_status ?? 'not_started'
+      const nextQuiz = responseTest ?? listQuiz
+      if (!nextQuiz) throw new Error('Test not found')
+      const studentStatus = data.student_status ?? responseTest?.student_status ?? listQuiz?.student_status ?? 'not_started'
       setSelectedQuiz({
-        quiz: { ...data.quiz, student_status: studentStatus },
+        quiz: { ...nextQuiz, student_status: studentStatus },
         questions: data.questions || [],
         studentResponses: data.student_responses || {},
       })
-      setFocusSummary((data.focus_summary as QuizFocusSummary | null) || null)
+      setFocusSummary((data.focus_summary as TestFocusSummary | null) || null)
     } catch (err) {
       if (
         detailRequestIdRef.current === requestId &&
@@ -583,7 +595,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
 
       const data = await res.json().catch(() => ({}))
       if (res.ok && data?.focus_summary) {
-        setFocusSummary(data.focus_summary as QuizFocusSummary)
+        setFocusSummary(data.focus_summary as TestFocusSummary)
       }
     } catch (err) {
       console.error('Error posting quiz focus event:', err)
@@ -937,7 +949,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
 
   useEffect(() => {
     if (!isTestsView) return
-    const exitsCount = getQuizExitCount(focusSummary)
+    const exitsCount = getTestExitCount(focusSummary)
     const awayTotalSeconds = Math.max(0, focusSummary?.away_total_seconds ?? 0)
 
     window.dispatchEvent(
@@ -1084,7 +1096,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f') {
-        findIntentUntilRef.current = Date.now() + QUIZ_EXIT_BURST_WINDOW_MS
+        findIntentUntilRef.current = Date.now() + TEST_EXIT_BURST_WINDOW_MS
         findSuppressionUntilRef.current = 0
       }
     }
@@ -1204,7 +1216,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                         Returned
                       </span>
                     ) : quiz.status === 'closed' ? (
-                      <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getQuizStatusBadgeClass('closed')}`}>
+                      <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getTestStatusBadgeClass('closed')}`}>
                         Closed
                       </span>
                     ) : quiz.student_status === 'responded' ? (
@@ -1212,7 +1224,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                         Submitted
                       </span>
                     ) : (
-                      <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getQuizStatusBadgeClass('active')}`}>
+                      <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getTestStatusBadgeClass('active')}`}>
                         New
                       </span>
                     )}
@@ -1220,7 +1232,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                 ) : (
                   <>
                     {quiz.student_status === 'not_started' && (
-                      <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getQuizStatusBadgeClass('active')}`}>
+                      <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getTestStatusBadgeClass('active')}`}>
                         New
                       </span>
                     )}
@@ -1257,7 +1269,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const showCurrentTestInfoPanel = hasSelectedQuiz && focusEnabled
   const showDocPanel = showCurrentTestInfoPanel && activeDoc !== null
   const awayDurationLabel = formatDuration(focusSummary?.away_total_seconds ?? 0)
-  const exitsCount = getQuizExitCount(focusSummary)
+  const exitsCount = getTestExitCount(focusSummary)
   const awayCount = focusSummary?.away_count ?? 0
   const routeExitAttempts = focusSummary?.route_exit_attempts ?? 0
   const windowUnmaximizeAttempts = focusSummary?.window_unmaximize_attempts ?? 0
@@ -1649,8 +1661,8 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                           : selectedQuiz?.quiz.student_status === 'responded'
                             ? 'bg-surface-2 text-text-muted'
                             : selectedQuiz?.quiz.status === 'closed'
-                              ? getQuizStatusBadgeClass('closed')
-                              : getQuizStatusBadgeClass('active'),
+                              ? getTestStatusBadgeClass('closed')
+                              : getTestStatusBadgeClass('active'),
                       ].join(' ')}
                     >
                       {selectedQuiz?.quiz.student_status === 'can_view_results'

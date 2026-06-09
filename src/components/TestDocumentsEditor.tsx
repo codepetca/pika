@@ -156,7 +156,8 @@ export function TestDocumentsEditor({
         throw new Error(data.error || 'Failed to save documents')
       }
 
-      const normalized = normalizeTestDocuments(data.quiz?.documents || nextDocs)
+      const responseTest = data.test ?? data.quiz
+      const normalized = normalizeTestDocuments(responseTest?.documents || nextDocs)
       setLocalDocs(normalized)
       onDocumentsChange?.(normalized)
       return normalized
@@ -188,7 +189,8 @@ export function TestDocumentsEditor({
         throw new Error(data.error || 'Failed to sync document')
       }
 
-      const normalized = normalizeTestDocuments(data.quiz?.documents || localDocs)
+      const responseTest = data.test ?? data.quiz
+      const normalized = normalizeTestDocuments(responseTest?.documents || localDocs)
       setLocalDocs(normalized)
       onDocumentsChange?.(normalized)
       return normalized

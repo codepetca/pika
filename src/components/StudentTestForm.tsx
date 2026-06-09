@@ -15,16 +15,16 @@ import {
   isQuestionFlagged,
   toggleFlaggedQuestion,
 } from '@/lib/flag-questions'
-import type { QuizAssessmentType, QuizQuestion, TestResponseDraftValue } from '@/types'
+import type { TestAssessmentType, TestAssessmentQuestion, TestResponseDraftValue } from '@/types'
 
 interface Props {
   quizId: string
-  questions: QuizQuestion[]
+  questions: TestAssessmentQuestion[]
   initialResponses?: Record<string, number | TestResponseDraftValue> | TestResponses
   enableDraftAutosave?: boolean
   previewMode?: boolean
   isInteractionLocked?: boolean
-  assessmentType?: QuizAssessmentType
+  assessmentType?: TestAssessmentType
   apiBasePath?: string
   onAvailabilityLoss?: () => void
   onSubmitted: () => void

@@ -53,12 +53,15 @@ export const POST = withErrorHandler('SyncTeacherTestDocument', async (_request,
     (currentDoc) => currentDoc.id === docId
   )
 
+  const responseTest = {
+    ...test,
+    documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
+    assessment_type: 'test',
+  }
+
   return NextResponse.json({
     doc: syncedDoc,
-    quiz: {
-      ...test,
-      documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
-      assessment_type: 'test',
-    },
+    test: responseTest,
+    quiz: responseTest,
   })
 })

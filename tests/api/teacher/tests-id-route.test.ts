@@ -133,8 +133,9 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.quiz.title).toBe('Closed Test')
-    expect(data.quiz.show_results).toBe(false)
+    expect(data.test).toEqual(data.quiz)
+    expect(data.test.title).toBe('Closed Test')
+    expect(data.test.show_results).toBe(false)
     expect(data.questions[0].question_text).toBe('Canonical question text')
     expect(data.questions[0].sample_solution).toBe('canonical sample solution')
   })
