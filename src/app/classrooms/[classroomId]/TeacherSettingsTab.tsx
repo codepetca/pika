@@ -29,6 +29,7 @@ import {
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG, slugifyCourseSiteValue } from '@/lib/course-site-publishing'
+import { CLASSROOM_THEME_PALETTE, getClassroomThemeStyle, type ClassroomThemeColor } from '@/lib/classroom-theme'
 import { invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
 import type { ActualCourseSiteConfig, Classroom, ClassroomJoinPolicy, LessonPlanVisibility } from '@/types'
@@ -71,6 +72,7 @@ interface Props {
   classroom: Classroom
   sectionParam?: string | null
   onSectionChange?: (section: SettingsSection) => void
+  onClassroomUpdated?: (classroom: Classroom) => void
 }
 
 function SettingsPanel({ children, className }: { children: ReactNode; className?: string }) {
@@ -185,6 +187,7 @@ export function TeacherSettingsTab({
   classroom,
   sectionParam,
   onSectionChange = () => {},
+  onClassroomUpdated,
 }: Props) {
   const router = useRouter()
   const section: SettingsSection = sectionParam === 'class-days' ? 'class-days' : 'general'
@@ -216,6 +219,9 @@ export function TeacherSettingsTab({
   const [visibilityError, setVisibilityError] = useState<string>('')
   const [visibilitySaving, setVisibilitySaving] = useState(false)
   const visibilityId = useId()
+  const [themeColor, setThemeColor] = useState<ClassroomThemeColor>(classroom.theme_color)
+  const [themeSaving, setThemeSaving] = useState(false)
+  const [themeError, setThemeError] = useState('')
   const [actualSiteSlug, setActualSiteSlug] = useState(classroom.actual_site_slug || '')
   const [actualSitePublished, setActualSitePublished] = useState(!!classroom.actual_site_published)
   const [actualSiteConfig, setActualSiteConfig] = useState<ActualCourseSiteConfig>(
@@ -252,6 +258,9 @@ export function TeacherSettingsTab({
     : classroom.lesson_plan_visibility || 'current_week'
   const displayedVisibilitySaving = formStateReady && visibilitySaving
   const displayedVisibilityError = formStateReady ? visibilityError : ''
+  const displayedThemeColor = formStateReady ? themeColor : classroom.theme_color
+  const displayedThemeSaving = formStateReady && themeSaving
+  const displayedThemeError = formStateReady ? themeError : ''
   const displayedActualSiteSlug = formStateReady ? actualSiteSlug : classroom.actual_site_slug || ''
   const displayedActualSitePublished = formStateReady
     ? actualSitePublished
@@ -290,6 +299,9 @@ export function TeacherSettingsTab({
     setLessonPlanVisibility(classroom.lesson_plan_visibility || 'current_week')
     setVisibilityError('')
     setVisibilitySaving(false)
+    setThemeColor(classroom.theme_color)
+    setThemeSaving(false)
+    setThemeError('')
     setActualSiteSlug(classroom.actual_site_slug || '')
     setActualSitePublished(!!classroom.actual_site_published)
     setActualSiteConfig(visibleActualSiteConfig(classroom.actual_site_config))
@@ -357,6 +369,9 @@ export function TeacherSettingsTab({
       }
       invalidateTeacherClassrooms()
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return
+      if (data.classroom) {
+        onClassroomUpdated?.(data.classroom)
+      }
       setTitle(data.classroom?.title || trimmed)
       showMessage({ text: 'Classroom name updated', tone: 'success' })
     } catch (err: any) {
@@ -388,6 +403,9 @@ export function TeacherSettingsTab({
       }
       invalidateTeacherClassrooms()
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return
+      if (data.classroom) {
+        onClassroomUpdated?.(data.classroom)
+      }
       setAllowEnrollment(!!data.classroom?.allow_enrollment)
       showMessage({ text: 'Settings saved', tone: 'success' })
     } catch (err: any) {
@@ -419,6 +437,9 @@ export function TeacherSettingsTab({
       }
       invalidateTeacherClassrooms()
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return
+      if (data.classroom) {
+        onClassroomUpdated?.(data.classroom)
+      }
       setJoinPolicy(data.classroom?.join_policy || nextValue)
       showMessage({ text: 'Settings saved', tone: 'success' })
     } catch (err: any) {
@@ -451,6 +472,9 @@ export function TeacherSettingsTab({
       }
       invalidateTeacherClassrooms()
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return
+      if (data.classroom) {
+        onClassroomUpdated?.(data.classroom)
+      }
       setJoinCode(data.classroom?.class_code || newCode)
       showMessage({ text: 'Join code regenerated', tone: 'success' })
     } catch (err: any) {
@@ -483,6 +507,9 @@ export function TeacherSettingsTab({
       }
       invalidateTeacherClassrooms()
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return
+      if (data.classroom) {
+        onClassroomUpdated?.(data.classroom)
+      }
       setLessonPlanVisibility(data.classroom?.lesson_plan_visibility || value)
       showMessage({ text: 'Visibility updated', tone: 'success' })
     } catch (err: any) {
@@ -491,6 +518,40 @@ export function TeacherSettingsTab({
     } finally {
       if (isCurrentFormGeneration(classroomId, formGeneration)) {
         setVisibilitySaving(false)
+      }
+    }
+  }
+
+  async function saveThemeColor(value: ClassroomThemeColor) {
+    if (isReadOnly || value === themeColor) return
+    const classroomId = classroom.id
+    if (!hasCurrentFormState(classroomId)) return
+    const formGeneration = formGenerationRef.current
+    setThemeSaving(true)
+    setThemeError('')
+    try {
+      const res = await fetch(`/api/teacher/classrooms/${classroomId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ themeColor: value }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update classroom color')
+      }
+      invalidateTeacherClassrooms()
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
+      if (data.classroom) {
+        onClassroomUpdated?.(data.classroom)
+      }
+      setThemeColor(data.classroom?.theme_color || value)
+      showMessage({ text: 'Classroom color updated', tone: 'success' })
+    } catch (err: any) {
+      if (!isCurrentFormGeneration(classroomId, formGeneration)) return
+      setThemeError(err.message || 'Failed to update classroom color')
+    } finally {
+      if (isCurrentFormGeneration(classroomId, formGeneration)) {
+        setThemeSaving(false)
       }
     }
   }
@@ -520,6 +581,9 @@ export function TeacherSettingsTab({
       }
       invalidateTeacherClassrooms()
       if (!isCurrentFormGeneration(classroomId, formGeneration)) return
+      if (data.classroom) {
+        onClassroomUpdated?.(data.classroom)
+      }
       setActualSiteSlug(data.classroom?.actual_site_slug || '')
       setActualSitePublished(!!data.classroom?.actual_site_published)
       setActualSiteConfig(visibleActualSiteConfig(data.classroom?.actual_site_config || actualSiteConfig))
@@ -723,6 +787,40 @@ export function TeacherSettingsTab({
           <SettingsPanel>
             <div className="text-sm font-semibold text-text-default">Display</div>
 
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-text-default">Classroom color</div>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" role="group" aria-label="Classroom color">
+                {CLASSROOM_THEME_PALETTE.map((option) => {
+                  const selected = displayedThemeColor === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => saveThemeColor(option.value)}
+                      disabled={displayedThemeSaving || isReadOnly || !formStateReady}
+                      aria-pressed={selected}
+                      style={getClassroomThemeStyle(option.value)}
+                      className={cn(
+                        'classroom-theme classroom-theme-option flex min-h-11 items-center justify-between gap-3 rounded-control border px-3 py-2 text-left text-sm text-text-default transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-page',
+                        selected
+                          ? 'classroom-theme-option-selected border-l-4'
+                          : 'border-border hover:border-border-strong',
+                        (displayedThemeSaving || isReadOnly || !formStateReady) && 'cursor-not-allowed opacity-60',
+                      )}
+                    >
+                      <span className="min-w-0 truncate">{option.label}</span>
+                      {selected ? (
+                        <span className="shrink-0 text-xs font-semibold text-primary">Selected</span>
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
+              {displayedThemeSaving && <span className="text-sm text-text-muted">Saving...</span>}
+              {displayedThemeError && <div className="text-sm text-danger">{displayedThemeError}</div>}
+            </div>
+
+            <div className="border-t border-border pt-3">
             <SettingsSwitchRow
               checked={markdownMounted ? showMarkdown : true}
               onChange={setShowMarkdown}
@@ -730,6 +828,7 @@ export function TeacherSettingsTab({
             >
               <span className="font-medium">Show markdown</span>
             </SettingsSwitchRow>
+            </div>
           </SettingsPanel>
 
           <SettingsPanel className="space-y-4">

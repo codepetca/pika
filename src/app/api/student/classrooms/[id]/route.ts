@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import { assertStudentCanAccessClassroom, hydrateClassroomRecord } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
 
 export const dynamic = 'force-dynamic'
@@ -36,5 +36,5 @@ export const GET = withErrorHandler('GetStudentClassroom', async (request, conte
     )
   }
 
-  return NextResponse.json({ classroom })
+  return NextResponse.json({ classroom: hydrateClassroomRecord(classroom as Record<string, any>) })
 })

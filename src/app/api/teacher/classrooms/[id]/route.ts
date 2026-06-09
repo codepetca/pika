@@ -53,6 +53,7 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     allowEnrollment,
     joinPolicy,
     archived,
+    themeColor,
     lessonPlanVisibility,
     actualSiteSlug,
     actualSitePublished,
@@ -68,6 +69,7 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     allowEnrollment === undefined &&
     joinPolicy === undefined &&
     archived === undefined &&
+    themeColor === undefined &&
     lessonPlanVisibility === undefined &&
     actualSiteSlug === undefined &&
     actualSitePublished === undefined &&
@@ -99,6 +101,7 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     termLabel !== undefined ||
     allowEnrollment !== undefined ||
     joinPolicy !== undefined ||
+    themeColor !== undefined ||
     lessonPlanVisibility !== undefined ||
     actualSiteSlug !== undefined ||
     actualSitePublished !== undefined ||
@@ -138,6 +141,7 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
   if (termLabel !== undefined) updates.term_label = termLabel
   if (allowEnrollment !== undefined) updates.allow_enrollment = !!allowEnrollment
   if (joinPolicy !== undefined) updates.join_policy = joinPolicy
+  if (themeColor !== undefined) updates.theme_color = themeColor
   if (lessonPlanVisibility !== undefined) updates.lesson_plan_visibility = lessonPlanVisibility
   if (actualSiteSlug !== undefined) updates.actual_site_slug = actualSiteSlug
   if (actualSitePublished !== undefined) updates.actual_site_published = actualSitePublished

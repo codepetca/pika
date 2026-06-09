@@ -42,17 +42,18 @@ describe('GET /api/student/classrooms', () => {
 
   describe('fetching classrooms', () => {
     it('should return empty array when no enrollments exist', async () => {
-      const mockFrom = vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            is: vi.fn(() => ({
-              order: vi.fn().mockResolvedValue({
-                data: [],
-                error: null,
-              }),
-            })),
+      const mockSelect = vi.fn(() => ({
+        eq: vi.fn(() => ({
+          is: vi.fn(() => ({
+            order: vi.fn().mockResolvedValue({
+              data: [],
+              error: null,
+            }),
           })),
         })),
+      }))
+      const mockFrom = vi.fn(() => ({
+        select: mockSelect,
       }))
       ;(mockSupabaseClient.from as any) = mockFrom
 
@@ -61,6 +62,8 @@ describe('GET /api/student/classrooms', () => {
 
       expect(response.status).toBe(200)
       expect(data.classrooms).toEqual([])
+      expect(mockSelect.mock.calls[0][0]).toContain('theme_color')
+      expect(mockSelect.mock.calls[0][0]).not.toContain('*')
     })
 
     it('should return list of enrolled classrooms', async () => {
@@ -75,8 +78,10 @@ describe('GET /api/student/classrooms', () => {
                     created_at: '2024-09-01T10:00:00Z',
                     classrooms: {
                       id: 'classroom-1',
+                      teacher_id: 'teacher-1',
                       title: 'Math 101',
                       class_code: 'MATH101',
+                      theme_color: 'teal',
                       term_label: 'Fall 2024',
                       updated_at: '2024-09-01T10:00:00Z',
                     },
@@ -88,6 +93,7 @@ describe('GET /api/student/classrooms', () => {
                       id: 'classroom-2',
                       title: 'Science 101',
                       class_code: 'SCI101',
+                      theme_color: 'rose',
                       term_label: 'Fall 2024',
                       updated_at: '2024-09-02T10:00:00Z',
                     },
@@ -109,9 +115,11 @@ describe('GET /api/student/classrooms', () => {
       expect(data.classrooms[0]).toMatchObject({
         id: 'classroom-1',
         title: 'Math 101',
+        theme_color: 'teal',
         enrollmentId: 'enrollment-1',
         enrolledAt: '2024-09-01T10:00:00Z',
       })
+      expect(data.classrooms[0]).not.toHaveProperty('teacher_id')
     })
 
     it('should order classrooms by enrollment date descending', async () => {
@@ -170,6 +178,60 @@ describe('GET /api/student/classrooms', () => {
 
       expect(response.status).toBe(500)
       expect(data.error).toBe('Failed to fetch classrooms')
+    })
+
+    it('should fall back to a narrow legacy select when theme_color is unavailable', async () => {
+      const firstOrder = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'column classrooms.theme_color does not exist' },
+      })
+      const legacyOrder = vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'enrollment-1',
+            created_at: '2024-09-01T10:00:00Z',
+            classrooms: {
+              id: 'classroom-1',
+              title: 'Math 101',
+              class_code: 'MATH101',
+              term_label: 'Fall 2024',
+              updated_at: '2024-09-01T10:00:00Z',
+            },
+          },
+        ],
+        error: null,
+      })
+      const firstSelect = vi.fn(() => ({
+        eq: vi.fn(() => ({
+          is: vi.fn(() => ({
+            order: firstOrder,
+          })),
+        })),
+      }))
+      const legacySelect = vi.fn(() => ({
+        eq: vi.fn(() => ({
+          is: vi.fn(() => ({
+            order: legacyOrder,
+          })),
+        })),
+      }))
+      const mockFrom = vi.fn()
+        .mockReturnValueOnce({ select: firstSelect })
+        .mockReturnValueOnce({ select: legacySelect })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const response = await GET()
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.classrooms[0]).toMatchObject({
+        id: 'classroom-1',
+        theme_color: 'blue',
+      })
+      expect(mockFrom).toHaveBeenCalledTimes(2)
+      expect(firstSelect.mock.calls[0][0]).toContain('theme_color')
+      expect(legacySelect.mock.calls[0][0]).not.toContain('theme_color')
+      expect(legacySelect.mock.calls[0][0]).not.toContain('*')
     })
 
     it('should include enrollment metadata in response', async () => {

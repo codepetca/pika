@@ -4,12 +4,14 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { LoaderCircle } from 'lucide-react'
 import { useDropdownNav } from '@/hooks/use-dropdown-nav'
+import type { ClassroomThemeColor } from '@/lib/classroom-theme'
 
 interface ClassroomDropdownProps {
   classrooms: Array<{
     id: string
     title: string
     code: string
+    themeColor: ClassroomThemeColor
   }>
   currentClassroomId?: string
   currentTab?: string

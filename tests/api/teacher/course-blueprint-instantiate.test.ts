@@ -27,6 +27,7 @@ describe('POST /api/teacher/course-blueprints/[id]/instantiate', () => {
       method: 'POST',
       body: JSON.stringify({
         title: 'Semester Classroom',
+        themeColor: 'cyan',
         semester: 'semester1',
         year: 2026,
       }),
@@ -39,6 +40,7 @@ describe('POST /api/teacher/course-blueprints/[id]/instantiate', () => {
       expect.objectContaining({
         title: 'Semester Classroom',
         blueprintId: 'b-1',
+        themeColor: 'cyan',
       })
     )
 

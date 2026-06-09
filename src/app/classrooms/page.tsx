@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getUserDisplayInfo } from '@/lib/user-profile'
 import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
+import { hydrateClassroomRecords } from '@/lib/server/classrooms'
 import { AppShell } from '@/components/AppShell'
 import { TeacherClassroomsIndex } from './TeacherClassroomsIndex'
 import { StudentClassroomsIndex } from './StudentClassroomsIndex'
@@ -27,7 +28,9 @@ export default async function ClassroomsIndexPage() {
 
     return (
       <AppShell user={{ email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
-        <TeacherClassroomsIndex initialClassrooms={classrooms || []} />
+        <TeacherClassroomsIndex
+          initialClassrooms={hydrateClassroomRecords((classrooms || []) as Record<string, any>[])}
+        />
       </AppShell>
     )
   }
@@ -59,7 +62,9 @@ export default async function ClassroomsIndexPage() {
 
   return (
     <AppShell user={{ email: user.email, role: user.role, ...displayInfo }}>
-      <StudentClassroomsIndex initialClassrooms={classrooms || []} />
+      <StudentClassroomsIndex
+        initialClassrooms={hydrateClassroomRecords((classrooms || []) as Record<string, any>[])}
+      />
     </AppShell>
   )
 }

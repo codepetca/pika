@@ -22,6 +22,7 @@ const mockClassroom: Classroom = {
   teacher_id: 't1',
   title: 'Test Course',
   class_code: 'ABC123',
+  theme_color: 'blue',
   term_label: null,
   allow_enrollment: true,
   join_policy: 'roster',
@@ -55,6 +56,7 @@ const secondClassroom: Classroom = {
   id: 'cls-456',
   title: 'Chemistry 12',
   class_code: 'CHEM12',
+  theme_color: 'rose',
   allow_enrollment: false,
   join_policy: 'open_join',
   lesson_plan_visibility: 'all',
@@ -104,6 +106,8 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
     const input = screen.getByLabelText('Classroom name')
     expect(input).toHaveValue('Test Course')
     expect(screen.queryByLabelText('Quizzes')).toBeNull()
+    expect(screen.getByRole('group', { name: 'Classroom color' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Sky Selected/ })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('resets classroom-derived form state when switching classrooms', async () => {
@@ -130,6 +134,7 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
       expect(screen.getByLabelText('Classroom name')).toHaveValue('Chemistry 12')
     })
     expect(screen.getByRole('button', { name: 'Copy join code' })).toHaveTextContent('CHEM12')
+    expect(screen.getByRole('button', { name: /Coral Selected/ })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('switch', { name: 'Allow new students to join' })).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByLabelText('Calendar visibility')).toHaveValue('all')
     expect(screen.getByLabelText('Syllabus slug')).toHaveValue('chemistry-12')
@@ -423,6 +428,43 @@ describe('TeacherSettingsTab - Classroom name Editing', () => {
     })
 
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ title: 'Trimmed' })
+  })
+
+  it('saves classroom theme color changes', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const onClassroomUpdated = vi.fn()
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ classroom: { ...mockClassroom, theme_color: 'teal' } }),
+    })
+
+    render(<TeacherSettingsTab classroom={mockClassroom} onClassroomUpdated={onClassroomUpdated} />, { wrapper: Wrapper })
+
+    const blueButton = screen.getByRole('button', { name: /Sky Selected/ })
+    const tealButton = screen.getByRole('button', { name: /^Mint/ })
+
+    expect(blueButton).toHaveClass('classroom-theme-option')
+    expect(blueButton).toHaveClass('classroom-theme-option-selected')
+    expect(blueButton).toHaveClass('border-l-4')
+    expect(tealButton).toHaveClass('classroom-theme-option')
+    expect(tealButton).not.toHaveClass('classroom-theme-option-selected')
+    expect(tealButton).not.toHaveClass('border-l-4')
+
+    fireEvent.click(tealButton)
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/classrooms/cls-123', expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ themeColor: 'teal' }),
+      }))
+    })
+    expect(await screen.findByText('Classroom color updated')).toBeInTheDocument()
+    expect(onClassroomUpdated).toHaveBeenCalledWith(expect.objectContaining({ id: 'cls-123', theme_color: 'teal' }))
+    expect(screen.getByRole('button', { name: /Mint Selected/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /Mint Selected/ })).toHaveClass('classroom-theme-option-selected')
+    expect(screen.getByRole('button', { name: /Mint Selected/ })).toHaveClass('border-l-4')
+    expect(screen.getByRole('button', { name: /^Sky$/ })).not.toHaveClass('classroom-theme-option-selected')
+    expect(screen.getByRole('button', { name: /^Sky$/ })).not.toHaveClass('border-l-4')
   })
 })
 

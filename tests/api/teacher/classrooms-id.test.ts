@@ -224,6 +224,43 @@ describe('PATCH /api/teacher/classrooms/[id]', () => {
     expect(data.classroom.join_policy).toBe('open_join')
     expect(mockUpdate).toHaveBeenCalledWith({ join_policy: 'open_join' })
   })
+
+  it('should update classroom theme color', async () => {
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null, theme_color: 'rose' },
+            error: null,
+          }),
+        }),
+      }),
+    })
+    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ update: mockUpdate }))
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ themeColor: 'rose' }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'c-1' } })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.classroom.theme_color).toBe('rose')
+    expect(mockUpdate).toHaveBeenCalledWith({ theme_color: 'rose' })
+  })
+
+  it('should reject invalid classroom theme colors', async () => {
+    const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ themeColor: 'magenta' }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'c-1' } })
+
+    expect(response.status).toBe(400)
+  })
 })
 
 describe('DELETE /api/teacher/classrooms/[id]', () => {

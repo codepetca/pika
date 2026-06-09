@@ -90,6 +90,7 @@ const classroom: Classroom = {
   teacher_id: 't1',
   title: 'Test Class',
   class_code: 'ABC123',
+  theme_color: 'blue',
   term_label: null,
   allow_enrollment: true,
   start_date: null,

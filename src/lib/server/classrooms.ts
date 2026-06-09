@@ -3,6 +3,11 @@ import {
   DEFAULT_ACTUAL_COURSE_SITE_CONFIG,
   normalizeActualCourseSiteConfig,
 } from '@/lib/course-site-publishing'
+import {
+  getLeastUsedClassroomThemeColor,
+  isClassroomThemeColor,
+  normalizeClassroomThemeColor,
+} from '@/lib/classroom-theme'
 import type { Classroom } from '@/types'
 
 export type ClassroomAccessRecord = {
@@ -16,6 +21,7 @@ export type ClassroomAccessRecord = {
 export function hydrateClassroomRecord(row: Record<string, any>): Classroom {
   return {
     ...(row as Classroom),
+    theme_color: normalizeClassroomThemeColor(row.theme_color),
     source_blueprint_id: row.source_blueprint_id ?? null,
     source_blueprint_origin: row.source_blueprint_origin ?? null,
     actual_site_slug: row.actual_site_slug ?? null,
@@ -27,6 +33,18 @@ export function hydrateClassroomRecord(row: Record<string, any>): Classroom {
     course_overview_markdown: row.course_overview_markdown ?? '',
     course_outline_markdown: row.course_outline_markdown ?? '',
   }
+}
+
+export function hydrateClassroomRecords(rows: Record<string, any>[]): Classroom[] {
+  const assignedThemeColors: string[] = []
+
+  return rows.map((row) => {
+    const themeColor = isClassroomThemeColor(row.theme_color)
+      ? row.theme_color
+      : getLeastUsedClassroomThemeColor(assignedThemeColors)
+    assignedThemeColors.push(themeColor)
+    return hydrateClassroomRecord({ ...row, theme_color: themeColor })
+  })
 }
 
 type AccessResult<T> =

@@ -3,7 +3,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getUserDisplayInfo } from '@/lib/user-profile'
 import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
-import { hydrateClassroomRecord } from '@/lib/server/classrooms'
+import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
 import { ClassroomPageClient } from './ClassroomPageClient'
 import type { Classroom } from '@/types'
 
@@ -54,9 +54,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
     }
 
     const classroom = hydrateClassroomRecord(classroomResult.data as Record<string, any>)
-    const allClassrooms = (classroomsResult.data || []).map((item) =>
-      hydrateClassroomRecord(item as Record<string, any>)
-    ) as Classroom[]
+    const allClassrooms = hydrateClassroomRecords((classroomsResult.data || []) as Record<string, any>[]) as Classroom[]
 
     // If viewing archived classroom, only show that one in sidebar
     const teacherClassrooms = classroom.archived_at

@@ -22,6 +22,7 @@ import {
   normalizeActualCourseSiteConfig,
   normalizePlannedCourseSiteConfig,
 } from '@/lib/course-site-publishing'
+import { getLeastUsedClassroomThemeColor, normalizeClassroomThemeColor } from '@/lib/classroom-theme'
 import type {
   CourseBlueprint,
   CourseBlueprintAssignment,
@@ -76,6 +77,7 @@ function hydrateLinkedBlueprintClassroom(row: Record<string, any>): LinkedBluepr
     id: row.id,
     title: row.title,
     class_code: row.class_code,
+    theme_color: normalizeClassroomThemeColor(row.theme_color),
     term_label: row.term_label ?? null,
     actual_site_slug: row.actual_site_slug ?? null,
     actual_site_published: !!row.actual_site_published,
@@ -210,7 +212,7 @@ export async function getCourseBlueprintDetail(
       .order('position', { ascending: true }),
     supabase
       .from('classrooms')
-      .select('id,title,class_code,term_label,actual_site_slug,actual_site_published,archived_at,created_at,updated_at')
+      .select('id,title,class_code,theme_color,term_label,actual_site_slug,actual_site_published,archived_at,created_at,updated_at')
       .eq('teacher_id', teacherId)
       .eq('source_blueprint_id', blueprintId)
       .order('created_at', { ascending: false }),
@@ -964,6 +966,16 @@ export async function createClassroomFromBlueprint(
     if (error) return 0
     return typeof data?.position === 'number' ? data.position - 1 : 0
   })()
+  const activeClassroomThemeColors = await (async () => {
+    if (input.themeColor) return []
+    const { data, error } = await supabase
+      .from('classrooms')
+      .select('theme_color')
+      .eq('teacher_id', teacherId)
+      .is('archived_at', null)
+    if (error) return []
+    return Array.isArray(data) ? data.map((classroom: any) => classroom.theme_color) : []
+  })()
 
   const classCode = input.classCode?.trim()
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -976,6 +988,7 @@ export async function createClassroomFromBlueprint(
       title: input.title,
       class_code: classCode || generatedClassCode,
       term_label: input.termLabel || null,
+      theme_color: input.themeColor || getLeastUsedClassroomThemeColor(activeClassroomThemeColors, `${teacherId}:${input.title}`),
       position: classroomPosition,
       source_blueprint_id: input.blueprintId,
       source_blueprint_origin: {
