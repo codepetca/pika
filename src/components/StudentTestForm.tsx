@@ -18,7 +18,8 @@ import {
 import type { TestAssessmentType, TestAssessmentQuestion, TestResponseDraftValue } from '@/types'
 
 interface Props {
-  quizId: string
+  testId?: string
+  quizId?: string
   questions: TestAssessmentQuestion[]
   initialResponses?: Record<string, number | TestResponseDraftValue> | TestResponses
   enableDraftAutosave?: boolean
@@ -43,6 +44,7 @@ function isAssessmentAvailabilityError(message: string): boolean {
 }
 
 export function StudentTestForm({
+  testId: testIdProp,
   quizId,
   questions,
   initialResponses,
@@ -54,6 +56,12 @@ export function StudentTestForm({
   onAvailabilityLoss,
   onSubmitted,
 }: Props) {
+  const resolvedTestId = testIdProp ?? quizId
+  if (!resolvedTestId) {
+    throw new Error('StudentTestForm requires testId')
+  }
+  const testId: string = resolvedTestId
+
   const OPEN_RESPONSE_TAB_INDENT = '\t'
   const OPEN_RESPONSE_TAB_SIZE = 4
   const AUTOSAVE_DEBOUNCE_MS = 5000
@@ -137,25 +145,25 @@ export function StudentTestForm({
     pendingResponsesRef.current = normalized
     lastSavedResponsesRef.current = JSON.stringify(normalized)
     setSaveStatus('saved')
-  }, [initialResponses, quizId])
+  }, [initialResponses, testId])
 
   // Load and monitor flagged questions from localStorage
   useEffect(() => {
     const loadFlaggedQuestions = () => {
-      const flagged = getFlaggedQuestions(quizId)
+      const flagged = getFlaggedQuestions(testId)
       setFlaggedQuestions(flagged)
     }
     loadFlaggedQuestions()
 
     // Set up storage event listener for changes in other tabs
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === `pika:flagged-questions:${quizId}`) {
+      if (e.key === `pika:flagged-questions:${testId}`) {
         loadFlaggedQuestions()
       }
     }
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
-  }, [quizId])
+  }, [testId])
 
   const saveDraft = useCallback(async (
     draftResponses: TestResponses,
@@ -174,7 +182,7 @@ export function StudentTestForm({
     lastSaveAttemptAtRef.current = Date.now()
 
     try {
-      const res = await fetch(`${apiBasePath}/${quizId}/attempt`, {
+      const res = await fetch(`${apiBasePath}/${testId}/attempt`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -196,7 +204,7 @@ export function StudentTestForm({
       }
       setSaveStatus('unsaved')
     }
-  }, [apiBasePath, onAvailabilityLoss, quizId, shouldAutosave])
+  }, [apiBasePath, onAvailabilityLoss, testId, shouldAutosave])
 
   useEffect(() => {
     return () => {
@@ -409,7 +417,7 @@ export function StudentTestForm({
         await saveDraft(responses, { trigger: 'blur', force: true })
       }
 
-      const res = await fetch(`${apiBasePath}/${quizId}/respond`, {
+      const res = await fetch(`${apiBasePath}/${testId}/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -421,7 +429,7 @@ export function StudentTestForm({
         throw new Error(data.error || 'Failed to submit response')
       }
       // Clear flagged questions on successful submission
-      clearFlaggedQuestions(quizId)
+      clearFlaggedQuestions(testId)
       setFlaggedQuestions([])
       onSubmitted()
     } catch (err: any) {
@@ -438,8 +446,8 @@ export function StudentTestForm({
   }
 
   function handleToggleFlagged(questionId: string) {
-    const newState = toggleFlaggedQuestion(quizId, questionId)
-    const updated = getFlaggedQuestions(quizId)
+    const newState = toggleFlaggedQuestion(testId, questionId)
+    const updated = getFlaggedQuestions(testId)
     setFlaggedQuestions(updated)
   }
 
@@ -455,7 +463,7 @@ export function StudentTestForm({
                   response?.question_type === 'open_response' ? response.response_text : ''
                 const selectedOption =
                   response?.question_type === 'multiple_choice' ? response.selected_option : null
-                const isFlagged = isQuestionFlagged(quizId, question.id)
+                const isFlagged = isQuestionFlagged(testId, question.id)
 
                 return (
                   <>

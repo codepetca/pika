@@ -50,10 +50,12 @@ import type {
 } from '@/types'
 
 interface Props {
-  quiz: TestAssessmentWithStats
+  test?: TestAssessmentWithStats
+  quiz?: TestAssessmentWithStats
   classroomId: string
   apiBasePath?: string
-  onQuizUpdate: (update?: AssessmentEditorSummaryUpdate) => void
+  onTestUpdate?: (update?: AssessmentEditorSummaryUpdate) => void
+  onQuizUpdate?: (update?: AssessmentEditorSummaryUpdate) => void
   onDraftSummaryChange?: (update: AssessmentEditorSummaryUpdate) => void
   onRequestDelete?: () => void
   onRequestTestPreview?: (preview: { testId: string; title: string }) => void
@@ -145,10 +147,12 @@ function summarizeDraftContent(
 }
 
 export function TestDetailPanel({
-  quiz,
+  test,
+  quiz: legacyQuiz,
   classroomId,
   apiBasePath = '/api/teacher/tests',
-  onQuizUpdate,
+  onTestUpdate,
+  onQuizUpdate: legacyOnQuizUpdate,
   onDraftSummaryChange,
   onRequestDelete,
   onRequestTestPreview,
@@ -163,6 +167,17 @@ export function TestDetailPanel({
   titlePortalTarget = null,
   generatedTitleLabel,
 }: Props) {
+  const resolvedTest = test ?? legacyQuiz
+  const resolvedOnTestUpdate = onTestUpdate ?? legacyOnQuizUpdate
+  if (!resolvedTest) {
+    throw new Error('TestDetailPanel requires test')
+  }
+  if (!resolvedOnTestUpdate) {
+    throw new Error('TestDetailPanel requires onTestUpdate')
+  }
+  const quiz: TestAssessmentWithStats = resolvedTest
+  const onQuizUpdate: (update?: AssessmentEditorSummaryUpdate) => void = resolvedOnTestUpdate
+
   const AUTOSAVE_DEBOUNCE_MS = 3000
   const AUTOSAVE_MIN_INTERVAL_MS = 10_000
   const isTestsView = quiz.assessment_type === 'test' || apiBasePath.includes('/tests')
@@ -2260,7 +2275,7 @@ export function TestDetailPanel({
             {hasResponses && !isTestsView && (
               <div className="pt-4 border-t border-border">
                 <TestIndividualResponses
-                  quizId={quiz.id}
+                  testId={quiz.id}
                   apiBasePath={apiBasePath}
                   assessmentType={isTestsView ? 'test' : 'quiz'}
                   onUpdated={loadQuizDetails}

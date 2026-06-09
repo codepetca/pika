@@ -52,7 +52,8 @@ function selectedOptionFromResponse(
 }
 
 interface Props {
-  quizId: string
+  testId?: string
+  quizId?: string
   myResponses: Record<string, number | TestResponseDraftValue>
   assessmentType?: TestAssessmentType
   apiBasePath?: string
@@ -60,12 +61,19 @@ interface Props {
 }
 
 export function StudentTestResults({
+  testId: testIdProp,
   quizId,
   myResponses,
   assessmentType,
   apiBasePath = '/api/student/tests',
   showSubmissionBanner = true,
 }: Props) {
+  const resolvedTestId = testIdProp ?? quizId
+  if (!resolvedTestId) {
+    throw new Error('StudentTestResults requires testId')
+  }
+  const testId: string = resolvedTestId
+
   const [payload, setPayload] = useState<ResultsPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -82,8 +90,8 @@ export function StudentTestResults({
 
     async function loadResults() {
       try {
-        // Bypass fetchJSONWithCache so returned results always follow the selected quizId.
-        const res = await fetch(`${apiBasePath}/${quizId}/results`)
+        // Bypass fetchJSONWithCache so returned results always follow the selected testId.
+        const res = await fetch(`${apiBasePath}/${testId}/results`)
         const data = await res.json()
         if (requestIdRef.current !== requestId) return
         if (!res.ok) {
@@ -101,7 +109,7 @@ export function StudentTestResults({
       }
     }
     loadResults()
-  }, [apiBasePath, quizId])
+  }, [apiBasePath, testId])
 
   if (loading) {
     return (
