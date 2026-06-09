@@ -6,7 +6,7 @@ This is a **rubric-and-screenshot** evaluation flow, not a pixel diff.
 
 ## Goal
 
-A fresh AI should be able to restyle tests or quizzes so they feel like assignment-family screens without extra coaching.
+A fresh AI should be able to restyle tests so they feel like assignment-family screens without extra coaching.
 
 Passing means:
 
@@ -35,10 +35,8 @@ Expected artifacts:
 
 - `teacher-assignments-reference.png`
 - `teacher-tests-target.png`
-- `teacher-quizzes-target.png`
 - `student-assignments-reference.png`
 - `student-tests-target.png`
-- `student-quizzes-target.png`
 
 Use the assignment images as the reference set. Use the assessment images as the targets to score.
 
@@ -87,9 +85,7 @@ Run at least these three tasks:
 
 1. teacher tests authoring/list parity
 2. student tests list/detail parity
-3. student quizzes list/detail parity
-
-Teacher quizzes are optional for v1, but should be included when time allows.
+3. student tests list/detail parity on mobile
 
 ### Test loop
 

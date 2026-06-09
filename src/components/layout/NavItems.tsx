@@ -158,7 +158,7 @@ export function NavItems({
         params.delete('assignmentId')
       }
       params.delete('assignmentStudentId')
-    })
+    }, { replace: true })
     window.dispatchEvent(
       new CustomEvent(TEACHER_ASSIGNMENTS_SELECTION_EVENT, {
         detail: { classroomId, value },
@@ -175,7 +175,7 @@ export function NavItems({
         params.delete('assignmentId')
       }
       params.delete('assignmentStudentId')
-    })
+    }, { replace: true })
   }
 
   function onNavigate() {

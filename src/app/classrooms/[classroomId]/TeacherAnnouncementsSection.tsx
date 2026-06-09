@@ -414,18 +414,27 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
       {!isReadOnly && (
         <TeacherWorkSurfaceActionBar
           testId="announcements-actionbar-center"
-          center={
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => setIsCreating(true)}
-              disabled={isCreating || saving}
-              aria-label="New announcement"
-            >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              <span>New</span>
-            </Button>
-          }
+          floatingAction={{
+            label: (
+              <span className="inline-flex items-center gap-1.5">
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                <span>New</span>
+              </span>
+            ),
+            onPrimaryClick: () => setIsCreating(true),
+            options: [
+              {
+                id: 'announcement',
+                label: 'Announcement',
+                onSelect: () => setIsCreating(true),
+              },
+            ],
+            disabled: isCreating || saving,
+            variant: 'primary',
+            toggleAriaLabel: 'Announcement actions',
+            menuPlacement: 'down',
+            primaryButtonProps: { 'aria-label': 'New announcement' },
+          }}
           centerPlacement="floating"
         />
       )}

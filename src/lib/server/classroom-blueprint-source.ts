@@ -3,7 +3,7 @@ import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { tiptapToMarkdown } from '@/lib/limited-markdown'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsClassroom, hydrateClassroomRecord } from '@/lib/server/classrooms'
-import type { QuizDraftContent, TestDraftContent } from '@/lib/server/assessment-drafts'
+import type { TestDraftContent } from '@/lib/server/assessment-drafts'
 import type {
   Announcement,
   Classroom,
@@ -28,16 +28,7 @@ export type ClassroomBlueprintSource = {
     is_draft: boolean
     position: number
   }>
-  quizzes: Array<{
-    assessment_type: 'quiz'
-    title: string
-    content: QuizDraftContent
-    documents: TestDocument[]
-    points_possible: number | null
-    gradebook_weight: number | null
-    include_in_final: boolean
-    position: number
-  }>
+  quizzes: []
   tests: Array<{
     assessment_type: 'test'
     title: string
@@ -66,7 +57,7 @@ function getSupabase() {
 
 async function loadAssessmentDraftContent(
   supabase: SupabaseClient,
-  assessmentType: 'quiz' | 'test',
+  assessmentType: 'test',
   classroomId: string,
   assessmentId: string
 ) {
@@ -106,7 +97,6 @@ export async function loadClassroomBlueprintSource(
     classroomResult,
     resourcesResult,
     assignmentsResult,
-    quizzesResult,
     testsResult,
     lessonPlansResult,
     announcementsResult,
@@ -114,7 +104,6 @@ export async function loadClassroomBlueprintSource(
     supabase.from('classrooms').select('*').eq('id', classroomId).single(),
     supabase.from('classroom_resources').select('*').eq('classroom_id', classroomId).maybeSingle(),
     supabase.from('assignments').select('*').eq('classroom_id', classroomId).order('position', { ascending: true }),
-    supabase.from('quizzes').select('*').eq('classroom_id', classroomId).order('position', { ascending: true }),
     supabase.from('tests').select('*').eq('classroom_id', classroomId).order('position', { ascending: true }),
     supabase.from('lesson_plans').select('*').eq('classroom_id', classroomId).order('date', { ascending: true }),
     supabase.from('announcements').select('*').eq('classroom_id', classroomId).order('created_at', { ascending: false }),
@@ -123,7 +112,6 @@ export async function loadClassroomBlueprintSource(
   if (
     classroomResult.error ||
     assignmentsResult.error ||
-    quizzesResult.error ||
     testsResult.error ||
     lessonPlansResult.error ||
     announcementsResult.error ||
@@ -133,7 +121,6 @@ export async function loadClassroomBlueprintSource(
       'Error loading classroom blueprint source:',
       classroomResult.error ||
         assignmentsResult.error ||
-        quizzesResult.error ||
         testsResult.error ||
         lessonPlansResult.error ||
         announcementsResult.error ||
@@ -146,34 +133,9 @@ export async function loadClassroomBlueprintSource(
   const resources = (resourcesResult.data || null) as ClassroomResources | null
   const resourcesMarkdown = resources?.content ? tiptapToMarkdown(resources.content).markdown : ''
 
-  let quizQuestions: Array<Record<string, any>>
   let testQuestions: Array<Record<string, any>>
 
   try {
-    quizQuestions = await Promise.all(
-      ((quizzesResult.data || []) as Array<Record<string, any>>).map(async (quiz) => {
-        const { data: questions, error } = await supabase
-          .from('quiz_questions')
-          .select('*')
-          .eq('quiz_id', quiz.id)
-          .order('position', { ascending: true })
-
-        if (error) {
-          throw new Error('Failed to load quiz questions')
-        }
-
-        const draftContent = await loadAssessmentDraftContent(supabase, 'quiz', classroomId, quiz.id)
-        return {
-          ...quiz,
-          content: draftContent ?? {
-            title: quiz.title,
-            show_results: !!quiz.show_results,
-            questions: questions || [],
-          },
-        }
-      })
-    )
-
     testQuestions = await Promise.all(
       ((testsResult.data || []) as Array<Record<string, any>>).map(async (test) => {
         const { data: questions, error } = await supabase
@@ -219,18 +181,7 @@ export async function loadClassroomBlueprintSource(
         is_draft: !!assignment.is_draft,
         position: assignment.position ?? 0,
       })),
-      quizzes: quizQuestions
-        .filter((quiz) => quiz.status !== 'draft')
-        .map((quiz) => ({
-          assessment_type: 'quiz' as const,
-          title: quiz.title,
-          content: quiz.content,
-          documents: [],
-          points_possible: quiz.points_possible ?? null,
-          gradebook_weight: quiz.gradebook_weight ?? null,
-          include_in_final: quiz.include_in_final !== false,
-          position: quiz.position ?? 0,
-        })),
+      quizzes: [],
       tests: testQuestions
         .filter((test) => test.status !== 'draft')
         .map((test) => ({

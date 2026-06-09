@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { StudentQuizzesTab } from '@/app/classrooms/[classroomId]/StudentQuizzesTab'
+import { StudentTestsTab } from '@/app/classrooms/[classroomId]/StudentTestsTab'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
@@ -9,7 +9,7 @@ import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 import type { QuizFocusSummary } from '@/types'
 import { createMockClassroom } from '../helpers/mocks'
 
-describe('StudentQuizzesTab exam mode', () => {
+describe('StudentTestsTab exam mode', () => {
   const classroom = createMockClassroom()
   let fetchMock: ReturnType<typeof vi.fn>
 
@@ -115,31 +115,31 @@ describe('StudentQuizzesTab exam mode', () => {
     const secondList = createDeferred<Response>()
 
     fetchMock.mockImplementation((url: string) => {
-      if (url.includes('/api/student/quizzes?classroom_id=classroom-a')) return firstList.promise
-      if (url.includes('/api/student/quizzes?classroom_id=classroom-b')) return secondList.promise
+      if (url.includes('/api/student/tests?classroom_id=classroom-a')) return firstList.promise
+      if (url.includes('/api/student/tests?classroom_id=classroom-b')) return secondList.promise
       throw new Error(`Unexpected fetch: ${url}`)
     })
 
     const { rerender } = render(
-      <StudentQuizzesTab classroom={firstClassroom} assessmentType="quiz" />
+      <StudentTestsTab classroom={firstClassroom} assessmentType="test" />
     )
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/student/quizzes?classroom_id=classroom-a')
+      expect(fetchMock).toHaveBeenCalledWith('/api/student/tests?classroom_id=classroom-a')
     })
 
-    rerender(<StudentQuizzesTab classroom={secondClassroom} assessmentType="quiz" />)
+    rerender(<StudentTestsTab classroom={secondClassroom} assessmentType="test" />)
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/student/quizzes?classroom_id=classroom-b')
+      expect(fetchMock).toHaveBeenCalledWith('/api/student/tests?classroom_id=classroom-b')
     })
 
     await act(async () => {
       secondList.resolve(jsonResponse({
         quizzes: [{
-          id: 'quiz-current',
-          title: 'Current Classroom Quiz',
-          assessment_type: 'quiz',
+          id: 'test-current',
+          title: 'Current Classroom Test',
+          assessment_type: 'test',
           status: 'active',
           show_results: false,
           position: 0,
@@ -150,15 +150,15 @@ describe('StudentQuizzesTab exam mode', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('Current Classroom Quiz')).toBeInTheDocument()
+      expect(screen.getByText('Current Classroom Test')).toBeInTheDocument()
     })
 
     await act(async () => {
       firstList.resolve(jsonResponse({
         quizzes: [{
-          id: 'quiz-stale',
-          title: 'Stale Classroom Quiz',
-          assessment_type: 'quiz',
+          id: 'test-stale',
+          title: 'Stale Classroom Test',
+          assessment_type: 'test',
           status: 'active',
           show_results: false,
           position: 0,
@@ -168,8 +168,8 @@ describe('StudentQuizzesTab exam mode', () => {
       await firstList.promise
     })
 
-    expect(screen.getByText('Current Classroom Quiz')).toBeInTheDocument()
-    expect(screen.queryByText('Stale Classroom Quiz')).not.toBeInTheDocument()
+    expect(screen.getByText('Current Classroom Test')).toBeInTheDocument()
+    expect(screen.queryByText('Stale Classroom Test')).not.toBeInTheDocument()
   })
 
   it('ignores stale assessment detail responses after classroom changes', async () => {
@@ -178,12 +178,12 @@ describe('StudentQuizzesTab exam mode', () => {
     const firstDetail = createDeferred<Response>()
 
     fetchMock.mockImplementation((url: string) => {
-      if (url.includes('/api/student/quizzes?classroom_id=classroom-a')) {
+      if (url.includes('/api/student/tests?classroom_id=classroom-a')) {
         return Promise.resolve(jsonResponse({
           quizzes: [{
-            id: 'quiz-old',
-            title: 'Older Quiz',
-            assessment_type: 'quiz',
+            id: 'test-old',
+            title: 'Older Test',
+            assessment_type: 'test',
             status: 'active',
             show_results: false,
             position: 0,
@@ -191,12 +191,12 @@ describe('StudentQuizzesTab exam mode', () => {
           }],
         }))
       }
-      if (url.includes('/api/student/quizzes?classroom_id=classroom-b')) {
+      if (url.includes('/api/student/tests?classroom_id=classroom-b')) {
         return Promise.resolve(jsonResponse({
           quizzes: [{
-            id: 'quiz-current',
-            title: 'Current Classroom Quiz',
-            assessment_type: 'quiz',
+            id: 'test-current',
+            title: 'Current Classroom Test',
+            assessment_type: 'test',
             status: 'active',
             show_results: false,
             position: 0,
@@ -204,36 +204,36 @@ describe('StudentQuizzesTab exam mode', () => {
           }],
         }))
       }
-      if (url.endsWith('/api/student/quizzes/quiz-old')) return firstDetail.promise
+      if (url.endsWith('/api/student/tests/test-old')) return firstDetail.promise
       throw new Error(`Unexpected fetch: ${url}`)
     })
 
     const { rerender } = render(
-      <StudentQuizzesTab classroom={firstClassroom} assessmentType="quiz" />
+      <StudentTestsTab classroom={firstClassroom} assessmentType="test" />
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Older Quiz')).toBeInTheDocument()
+      expect(screen.getByText('Older Test')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByText('Older Quiz'))
+    fireEvent.click(screen.getByText('Older Test'))
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/student/quizzes/quiz-old')
+      expect(fetchMock).toHaveBeenCalledWith('/api/student/tests/test-old')
     })
 
-    rerender(<StudentQuizzesTab classroom={secondClassroom} assessmentType="quiz" />)
+    rerender(<StudentTestsTab classroom={secondClassroom} assessmentType="test" />)
 
     await waitFor(() => {
-      expect(screen.getByText('Current Classroom Quiz')).toBeInTheDocument()
+      expect(screen.getByText('Current Classroom Test')).toBeInTheDocument()
     })
 
     await act(async () => {
       firstDetail.resolve(jsonResponse({
         quiz: {
-          id: 'quiz-old',
-          title: 'Older Quiz',
-          assessment_type: 'quiz',
+          id: 'test-old',
+          title: 'Older Test',
+          assessment_type: 'test',
           status: 'active',
           show_results: false,
           position: 0,
@@ -243,7 +243,7 @@ describe('StudentQuizzesTab exam mode', () => {
         questions: [
           {
             id: 'q-stale',
-            quiz_id: 'quiz-old',
+            quiz_id: 'test-old',
             question_text: 'Stale detail question',
             options: ['A', 'B'],
             question_type: 'multiple_choice',
@@ -258,7 +258,7 @@ describe('StudentQuizzesTab exam mode', () => {
       await firstDetail.promise
     })
 
-    expect(screen.getByText('Current Classroom Quiz')).toBeInTheDocument()
+    expect(screen.getByText('Current Classroom Test')).toBeInTheDocument()
     expect(screen.queryByText('Stale detail question')).not.toBeInTheDocument()
   })
 
@@ -318,7 +318,7 @@ describe('StudentQuizzesTab exam mode', () => {
     queueTestList()
     queueTestDetail()
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -354,7 +354,7 @@ describe('StudentQuizzesTab exam mode', () => {
     queueTestList()
     queueTestDetail()
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -392,7 +392,7 @@ describe('StudentQuizzesTab exam mode', () => {
     window.addEventListener(STUDENT_TEST_EXAM_MODE_CHANGE_EVENT, handler)
 
     const { unmount } = render(
-      <StudentQuizzesTab classroom={classroom} assessmentType="test" />
+      <StudentTestsTab classroom={classroom} assessmentType="test" />
     )
 
     await waitFor(() => {
@@ -435,7 +435,7 @@ describe('StudentQuizzesTab exam mode', () => {
     const { requestFullscreen } = mockFullscreenSuccess()
 
     render(
-      <StudentQuizzesTab classroom={classroom} assessmentType="test" />
+      <StudentTestsTab classroom={classroom} assessmentType="test" />
     )
 
     await waitFor(() => {
@@ -535,7 +535,7 @@ describe('StudentQuizzesTab exam mode', () => {
 
     mockFullscreenSuccess()
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -652,7 +652,7 @@ describe('StudentQuizzesTab exam mode', () => {
 
     mockFullscreenSuccess()
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -772,7 +772,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -892,7 +892,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    const { container } = render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    const { container } = render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1024,7 +1024,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    const { container } = render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    const { container } = render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1155,7 +1155,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1266,7 +1266,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1400,7 +1400,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    const { container } = render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    const { container } = render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1527,7 +1527,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1647,7 +1647,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1752,7 +1752,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1877,7 +1877,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    const { container } = render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    const { container } = render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1933,7 +1933,7 @@ describe('StudentQuizzesTab exam mode', () => {
       }),
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Closed Test')).toBeInTheDocument()
@@ -1987,7 +1987,7 @@ describe('StudentQuizzesTab exam mode', () => {
       }),
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Newest Active Test')).toBeInTheDocument()
@@ -2079,7 +2079,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -2199,7 +2199,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" isActive={false} />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" isActive={false} />)
 
     await waitFor(() => {
       expect(screen.getByText('Final Test')).toBeInTheDocument()
@@ -2327,7 +2327,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -2455,7 +2455,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -2565,7 +2565,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -2671,7 +2671,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -2788,7 +2788,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -2912,7 +2912,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -3031,7 +3031,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -3170,7 +3170,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -3336,7 +3336,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -3484,7 +3484,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -3708,7 +3708,7 @@ describe('StudentQuizzesTab exam mode', () => {
         throw new Error(`Unexpected fetch call: ${url}`)
       })
 
-      render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+      render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
       await waitFor(() => {
         expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -3902,7 +3902,7 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()

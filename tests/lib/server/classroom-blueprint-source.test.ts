@@ -32,7 +32,7 @@ vi.mock('@/lib/limited-markdown', () => ({
 }))
 
 function seedSourceSupabase(overrides?: {
-  quizQuestionsError?: any
+  testQuestionsError?: any
   assessmentDraftError?: any
 }) {
   mockSupabase = makeSupabaseFromQueues({
@@ -48,11 +48,8 @@ function seedSourceSupabase(overrides?: {
     assignments: [
       makeQueryBuilder({ data: [], error: null }),
     ],
-    quizzes: [
-      makeQueryBuilder({ data: [{ id: 'q-1', title: 'Quiz 1', status: 'published', show_results: true, position: 0 }], error: null }),
-    ],
     tests: [
-      makeQueryBuilder({ data: [], error: null }),
+      makeQueryBuilder({ data: [{ id: 't-1', title: 'Test 1', status: 'active', show_results: true, position: 0 }], error: null }),
     ],
     lesson_plans: [
       makeQueryBuilder({ data: [], error: null }),
@@ -60,15 +57,15 @@ function seedSourceSupabase(overrides?: {
     announcements: [
       makeQueryBuilder({ data: [], error: null }),
     ],
-    quiz_questions: [
+    test_questions: [
       makeQueryBuilder({
-        data: overrides?.quizQuestionsError ? null : [{ id: 'qq-1', prompt: 'Q1' }],
-        error: overrides?.quizQuestionsError ?? null,
+        data: overrides?.testQuestionsError ? null : [{ id: 'tq-1', prompt: 'Q1' }],
+        error: overrides?.testQuestionsError ?? null,
       }),
     ],
     assessment_drafts: [
       makeQueryBuilder({
-        data: overrides?.assessmentDraftError ? null : { content: { title: 'Quiz 1', questions: [] } },
+        data: overrides?.assessmentDraftError ? null : { content: { title: 'Test 1', questions: [] } },
         error: overrides?.assessmentDraftError ?? null,
       }),
     ],
@@ -84,9 +81,9 @@ describe('classroom blueprint source loader', () => {
     })
   })
 
-  it('returns a 500 when nested quiz question loading fails', async () => {
+  it('returns a 500 when nested test question loading fails', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    seedSourceSupabase({ quizQuestionsError: { message: 'quiz questions failed' } })
+    seedSourceSupabase({ testQuestionsError: { message: 'test questions failed' } })
 
     await expect(loadClassroomBlueprintSource('teacher-1', 'c-1')).resolves.toEqual({
       ok: false,

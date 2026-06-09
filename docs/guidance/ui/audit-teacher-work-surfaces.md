@@ -3,7 +3,6 @@
 This audit classifies the current teacher-side work-surface family:
 
 - teacher assignments
-- teacher quizzes
 - teacher tests
 
 Use it to decide what should become a primitive, what should remain a composed pattern, and what should stay feature-local.
@@ -13,7 +12,7 @@ Use it to decide what should become a primitive, what should remain a composed p
 Included:
 
 - [`src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`](/src/app/classrooms/[classroomId]/TeacherClassroomView.tsx)
-- [`src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`](/src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx)
+- [`src/app/classrooms/[classroomId]/TeacherTestsTab.tsx`](/src/app/classrooms/[classroomId]/TeacherTestsTab.tsx)
 - supporting layout primitives in [`src/components/PageLayout.tsx`](/src/components/PageLayout.tsx), [`src/components/layout/ThreePanelShell.tsx`](/src/components/layout/ThreePanelShell.tsx), and [`src/components/layout/RightSidebar.tsx`](/src/components/layout/RightSidebar.tsx)
 - card and workspace components used by those surfaces
 
@@ -31,8 +30,8 @@ These are already foundational and should stay shared:
 | Pattern | Current owners | Stability | Disposition | Priority |
 | --- | --- | --- | --- | --- |
 | Semantic tokens for surfaces, borders, and text | `src/ui`, app-wide classroom surfaces | stable | keep as foundation | now |
-| Base controls from `@/ui` | `src/ui`, assignments, quizzes/tests | stable | keep as foundation | now |
-| Shared page shell primitives: `PageLayout`, `PageActionBar`, `PageContent`, `PageStack` | assignments, quizzes/tests | stable | keep as primitives | now |
+| Base controls from `@/ui` | `src/ui`, assignments/tests | stable | keep as foundation | now |
+| Shared page shell primitives: `PageLayout`, `PageActionBar`, `PageContent`, `PageStack` | assignments/tests | stable | keep as primitives | now |
 | Shared classroom shell: `ThreePanelShell`, `LeftSidebar`, `RightSidebar`, `MainContent` | classroom route layer | stable cross-cutting | keep as shell primitives | now |
 
 ## Stable Family Contract
@@ -41,7 +40,7 @@ These interaction rules are now considered stable for the teacher work-surface f
 
 | Pattern | Current owners | Stability | Disposition | Priority |
 | --- | --- | --- | --- | --- |
-| Formal interaction ladder: `entry` -> `summary` -> `workspace` -> `workspace_mode` -> `inspector_active` | assignments as baseline, tests/quizzes as adopters | stable | reuse as the family state model | now |
+| Formal interaction ladder: `entry` -> `summary` -> `workspace` -> `workspace_mode` -> `inspector_active` | assignments as baseline, tests as adopter | stable | reuse as the family state model | now |
 | Summary state is full-width and content-first | assignments | stable | treat as family default | now |
 | Workspace-mode tabs are post-selection only | assignments structure, tests emerging | stable | treat as family default | now |
 | Inspector activation is selection- and mode-driven, not passive | assignments as baseline, tests grading as adopter | stable | treat as family default | now |
@@ -54,10 +53,10 @@ These are the current or proposed structural primitives for the teacher work-sur
 
 | Pattern | Current owners | Where else it appears | Stability | Disposition | Priority |
 | --- | --- | --- | --- | --- | --- |
-| Page-shell primitives (`PageLayout`, `PageActionBar`, `PageContent`, `PageStack`) | assignments, quizzes/tests | shared already | stable | keep as primitives | now |
-| Calm empty-state container via `EmptyState` | quizzes/tests today, assignments via similar composition | intended family-wide | stable | keep as primitive | now |
+| Page-shell primitives (`PageLayout`, `PageActionBar`, `PageContent`, `PageStack`) | assignments/tests | shared already | stable | keep as primitives | now |
+| Calm empty-state container via `EmptyState` | tests today, assignments via similar composition | intended family-wide | stable | keep as primitive | now |
 | Teacher workspace split container derived from assignments | integrated assignment viewing/grading panes | adopted by tests when grading needs side-by-side work | stable structural primitive | keep as primitive | now |
-| Shared teacher work-item card variant | `SortableAssignmentCard`, `QuizCard`, emerging test card variants | partial convergence only | experimental | revisit after convergence | later |
+| Shared teacher work-item card variant | `SortableAssignmentCard`, emerging test card variants | partial convergence only | experimental | revisit after convergence | later |
 | Generic teacher list/detail container | no single owner yet | conceptually repeated | unstable | do not extract yet | never for now |
 
 ## Composed Work-Surface Patterns
@@ -68,9 +67,8 @@ These should remain composed feature patterns even if they use shared primitives
 | --- | --- | --- | --- | --- |
 | Teacher assignment summary list and selection flow | `TeacherClassroomView` | stable | keep composed | now |
 | Teacher assignment focused workspace and student inspection | `TeacherClassroomView`, `TeacherStudentWorkPanel` | stable | keep composed, feed split extraction | now |
-| Teacher quiz authoring composition | `TeacherQuizzesTab`, `QuizDetailPanel`, `QuizModal` | experimental | keep composed | now |
-| Teacher test authoring composition | `TeacherQuizzesTab`, `QuizDetailPanel`, `QuizModal` | experimental | keep composed | now |
-| Teacher grading workspace composition | `TeacherQuizzesTab`, `TestStudentGradingPanel` | experimental | keep composed | now |
+| Teacher test authoring composition | `TeacherTestsTab`, `QuizDetailPanel` | experimental | keep composed | now |
+| Teacher grading workspace composition | `TeacherTestsTab`, `TestStudentGradingPanel` | experimental | keep composed | now |
 
 ## Feature-Local Behavior
 
@@ -79,9 +77,9 @@ These should not be extracted into primitives.
 | Pattern | Current owners | Stability | Disposition | Priority |
 | --- | --- | --- | --- | --- |
 | Assignment grading logic and student work fetching | `TeacherClassroomView`, assignment workspace hooks | stable | keep feature-local | now |
-| Quiz/test authoring rules, question editing, and validation | `TeacherQuizzesTab`, `QuizModal`, question editors | stable per feature | keep feature-local | now |
-| Test grading batch actions, AI grading strategy, and return flows | `TeacherQuizzesTab` | feature-local | keep feature-local | now |
-| Assessment-specific workspace mode state machines | assignments/tests/quizzes owners | feature-local | keep feature-local | now |
+| Test authoring rules, question editing, and validation | `TeacherTestsTab`, question editors | stable per feature | keep feature-local | now |
+| Test grading batch actions, AI grading strategy, and return flows | `TeacherTestsTab` | feature-local | keep feature-local | now |
+| Assessment-specific workspace mode state machines | assignments/tests owners | feature-local | keep feature-local | now |
 | Route-level right-sidebar open/close decisions | `ClassroomPageClient`, layout hooks | shell-level, not teacher-family default | keep route-local and disabled for teacher work surfaces unless a route-level inspector is explicitly justified | now |
 
 ## Current Assignment Audit
@@ -95,7 +93,7 @@ Observed status:
 - inspector behavior is justified by active review work
 - page-shell primitives are already the structural baseline
 
-No major contradiction currently requires an assignment redesign before tests or quizzes adopt the canon. Future assignment changes should be targeted only when the canon exposes a clear inconsistency.
+No major contradiction currently requires an assignment redesign before tests adopt the canon. Future assignment changes should be targeted only when the canon exposes a clear inconsistency.
 
 ## Legacy Drift To Avoid Copying Forward
 

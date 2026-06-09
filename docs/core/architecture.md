@@ -41,9 +41,9 @@ src/
 ├── app/
 │   ├── api/                       # API routes (~130 route files)
 │   │   ├── auth/                  # signup, verify-signup, create-password, login, reset, me, logout
-│   │   ├── student/               # classrooms, join, entries, assignments, quizzes, tests
+│   │   ├── student/               # classrooms, join, entries, assignments, tests
 │   │   ├── teacher/               # classrooms, roster, class-days, attendance, assignments,
-│   │   │                          #   quizzes, tests, gradebook, announcements, resources
+│   │   │                          #   tests, gradebook, announcements, resources
 │   │   └── assignment-docs/       # fetch/update/submit/unsubmit/history assignment docs
 │   ├── login/, signup/, forgot-password/, reset-password/…
 │   ├── student/                   # student today/history dashboards
@@ -51,7 +51,7 @@ src/
 │   └── classrooms/[classroomId]/  # classroom detail page with ~19 tabs
 │       └── ClassroomPageClient.tsx # ~1500 LOC god component (gradual decomposition ongoing)
 ├── components/                    # Feature components and modals
-│   ├── QuizDetailPanel.tsx        # Quiz editor/viewer (~900 LOC, draft mode)
+│   ├── QuizDetailPanel.tsx        # Legacy-named test editor/viewer (draft mode)
 │   ├── AssignmentModal.tsx        # Assignment editor (~900 LOC, scheduling)
 │   ├── TestStudentGradingPanel.tsx # Per-student test grading
 │   └── ...
@@ -63,7 +63,7 @@ src/
 │   ├── ai-grading.ts              # AI grading for assignments (OpenAI)
 │   ├── ai-test-grading.ts         # AI grading for tests (OpenAI, gpt-5-nano)
 │   ├── server/
-│   │   ├── assessment-drafts.ts   # Unified quiz/test draft system (JSON Patch)
+│   │   ├── assessment-drafts.ts   # Legacy quiz + current test draft system (JSON Patch)
 │   │   └── tests.ts               # Test query helpers
 │   ├── assignments.ts, quizzes.ts, test-responses.ts, scheduling.ts …
 │   └── auth.ts, crypto.ts, timezone.ts, attendance.ts …
@@ -166,19 +166,16 @@ const data = await fetch(`/api/teacher/gradebook?...`).then(r => r.json())
 Use raw `fetch()` only for one-off mutations (POST/PATCH/DELETE) or when freshness is critical.
 
 ### Assessments Pattern
-Pika has two assessment types: **quizzes** (graded by `show_results` flag) and **tests**
-(graded manually, returned via `returned_at`). They are stored in separate tables but share
-logic in the app layer:
+Pika exposes **tests** as the active assessment surface. Quiz product routes and tabs have been removed,
+but some test internals still use legacy quiz-named helpers and compatibility response keys.
 
-- **Discrimination**: `assessment_type: 'quiz' | 'test'` on both `quizzes` and `tests` tables
-- **Quiz status**: `getStudentQuizStatus()` from `@/lib/quizzes` — uses `show_results` field
 - **Test status**: `getStudentTestStatus()` from `@/lib/quizzes` — uses `returned_at` field
 - **Draft editing**: unified `assessment_drafts` table + JSON Patch via `@/lib/server/assessment-drafts`
 - **Scheduling**: `combineScheduleDateTimeToIso()` / `isScheduleIsoInFuture()` from `@/lib/scheduling`
 - **AI grading** (tests only): `src/lib/ai-test-grading.ts` — reference answer SHA-256 cached per question
 
 ### Content Fields
-Assignment docs, quiz/test questions, and lesson plans store content as Tiptap JSON.
+Assignment docs, test questions, and lesson plans store content as Tiptap JSON.
 Always parse content using the shared utility:
 
 ```ts
@@ -357,16 +354,12 @@ Existing indexes (migration 038):
 - `assignment_docs` — one per (assignment, student); `content` (Tiptap JSON), `is_submitted`, `submitted_at`, `score`, `feedback`, `returned_at`
 - `assignment_doc_history` — change history for assignment docs
 
-### Assessments (Quizzes & Tests)
-> Both stored in separate tables but share `assessment_type: 'quiz' | 'test'` discrimination in app logic.
-- `quizzes` — `classroom_id`, `title`, `assessment_type`, `show_results`, `released_at`, `scheduled_release_at`
-- `quiz_questions` — `quiz_id`, `question_text`, `options` (JSONB array), `correct_option`, `points`, `order`
-- `quiz_responses` — `student_id`, `quiz_id`, `question_id`, `selected_option`, `is_correct`, `points_earned`
+### Assessments (Tests)
 - `tests` — `classroom_id`, `title`, `assessment_type`, `released_at`, `returned_at`, `scheduled_release_at`
 - `test_questions` — `test_id`, `question_text`, `question_type` (`multiple_choice` | `open_response`), `options`, `correct_option`, `points`, `order`, `reference_answer`, `reference_answer_cache_key`
 - `test_responses` — `student_id`, `test_id`, `question_id`, `selected_option`, `response_text`, `score`, `feedback`, `graded_at`, `ai_grading_model`, `returned`
 - `test_attempts` — `student_id`, `test_id`; tracks submission/return lifecycle
-- `assessment_drafts` — `assessment_id`, `assessment_type`, `content` (JSONB), `version`, `created_by`; used for collaborative editing with JSON Patch
+- `assessment_drafts` — `assessment_id`, `assessment_type`, `content` (JSONB), `version`, `created_by`; used for collaborative editing with JSON Patch. Legacy quiz drafts may exist for imported/historical data, but product UI no longer creates quizzes.
 
 ### Content
 - `announcements` — `classroom_id`, `content` (markdown text), `created_by`, timestamps

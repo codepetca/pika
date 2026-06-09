@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { ConfirmDialog, SplitButton, type SplitButtonOption, useAppMessage } from '@/ui'
+import { ConfirmDialog, type SplitButtonOption, useAppMessage } from '@/ui'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
@@ -505,41 +505,30 @@ export function TeacherRosterTab({ classroom }: Props) {
       },
     )
   }
+  const combinedRosterActionOptions: SplitButtonOption[] = [
+    ...rosterActionOptions,
+    ...(someSelected
+      ? selectedEmailOptions.map((option, index) => ({
+          ...option,
+          dividerBefore: index === 0 ? true : option.dividerBefore,
+        }))
+      : []),
+  ]
 
   const actionBar = (
     <TeacherWorkSurfaceActionBar
-      center={
-        <div className="flex max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-1.5">
-          <SplitButton
-            label="+ Students"
-            onPrimaryClick={() => {
-              if (isReadOnly || isRosterLoading) return
-              setAddModalOpen(true)
-            }}
-            options={rosterActionOptions}
-            disabled={isReadOnly || isRosterLoading}
-            size="sm"
-            toggleAriaLabel="Roster actions"
-            menuPlacement="down"
-          />
-          {someSelected ? (
-            <SplitButton
-              label={
-                <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                  <Mail className="h-4 w-4" aria-hidden="true" />
-                  <span>Email ({selectedStudentEmails.length})</span>
-                </span>
-              }
-              onPrimaryClick={() => openDefaultEmail(selectedStudentEmails)}
-              options={selectedEmailOptions}
-              disabled={selectedStudentEmails.length === 0}
-              size="sm"
-              toggleAriaLabel="Roster email actions"
-              menuPlacement="down"
-            />
-          ) : null}
-        </div>
-      }
+      floatingAction={{
+        label: '+ Students',
+        onPrimaryClick: () => {
+          if (isReadOnly || isRosterLoading) return
+          setAddModalOpen(true)
+        },
+        options: combinedRosterActionOptions,
+        disabled: isReadOnly || isRosterLoading,
+        size: 'sm',
+        toggleAriaLabel: 'Roster actions',
+        menuPlacement: 'down',
+      }}
       centerPlacement="floating"
     />
   )

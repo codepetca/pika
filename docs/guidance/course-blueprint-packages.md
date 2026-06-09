@@ -17,7 +17,6 @@ A course package is a tar archive with these root files:
 - `course-outline.md`
 - `resources.md`
 - `assignments.md`
-- `quizzes.md`
 - `tests.md`
 - `lesson-plans.md`
 
@@ -29,7 +28,7 @@ A course package is a tar archive with these root files:
 - Planned course site slug, published flag, and section visibility
 - Course overview, outline, and resources
 - Assignment plans, default due offsets, default due times, points, final-grade inclusion, and draft state
-- Quiz and test definitions represented in Markdown
+- Test definitions represented in Markdown
 - Test document metadata/content when represented by the test Markdown format
 - Lesson plan templates
 

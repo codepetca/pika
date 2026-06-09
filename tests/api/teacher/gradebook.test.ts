@@ -330,7 +330,7 @@ describe('GET /api/teacher/gradebook', () => {
     vi.clearAllMocks()
   })
 
-  it('excludes draft quizzes from grade calculations', async () => {
+  it('ignores legacy quiz rows in grade calculations', async () => {
     ;(mockSupabaseClient.from as any) = buildMockFrom({
       quizzes: [
         { id: 'quiz-active', title: 'Active Quiz', status: 'active', points_possible: 10, include_in_final: true },
@@ -350,9 +350,8 @@ describe('GET /api/teacher/gradebook', () => {
     expect(response.status).toBe(200)
     expect(body.students).toHaveLength(1)
 
-    // Draft quiz should be ignored; only active quiz contributes.
-    expect(body.students[0].quizzes_percent).toBe(100)
-    expect(body.students[0].final_percent).toBe(100)
+    expect(body.students[0].quizzes_percent).toBeNull()
+    expect(body.students[0].final_percent).toBeNull()
   })
 
   it('does not count unattempted active quizzes as zero before they are closed', async () => {
@@ -374,13 +373,10 @@ describe('GET /api/teacher/gradebook', () => {
     expect(body.students[0].final_percent).toBeNull()
   })
 
-  it('returns selected student assignment and quiz breakdown when student_id is provided', async () => {
+  it('returns selected student assignment breakdown when student_id is provided', async () => {
     ;(mockSupabaseClient.from as any) = buildMockFrom({
       assignments: [{ id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 2, is_draft: false, points_possible: 30, include_in_final: true }],
       docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 9, score_thinking: 8, score_workflow: 7 }],
-      quizzes: [{ id: 'q1', title: 'Quiz 1', status: 'closed', points_possible: 10, include_in_final: true }],
-      quizQuestions: [{ id: 'qq1', quiz_id: 'q1', correct_option: 2 }],
-      quizResponses: [{ quiz_id: 'q1', question_id: 'qq1', student_id: 'student-1', selected_option: 2 }],
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1')
@@ -400,16 +396,6 @@ describe('GET /api/teacher/gradebook', () => {
         is_draft: false,
         include_in_final: true,
       },
-      {
-        assessment_id: 'q1',
-        assessment_type: 'quiz',
-        code: 'Q1',
-        title: 'Quiz 1',
-        possible: 10,
-        weight: 10,
-        status: 'closed',
-        include_in_final: true,
-      },
     ])
     expect(body.students[0].student_number).toBe('1001')
     expect(body.students[0].assessment_scores).toEqual([
@@ -420,15 +406,6 @@ describe('GET /api/teacher/gradebook', () => {
         possible: 30,
         percent: 80,
         is_graded: true,
-      },
-      {
-        assessment_id: 'q1',
-        assessment_type: 'quiz',
-        earned: 10,
-        possible: 10,
-        percent: 100,
-        is_graded: true,
-        is_manual_override: false,
       },
     ])
     expect(body.selected_student).toBeTruthy()
@@ -444,17 +421,7 @@ describe('GET /api/teacher/gradebook', () => {
         is_graded: true,
       },
     ])
-    expect(body.selected_student.quizzes).toEqual([
-      {
-        quiz_id: 'q1',
-        title: 'Quiz 1',
-        earned: 10,
-        possible: 10,
-        percent: 100,
-        status: 'closed',
-        is_manual_override: false,
-      },
-    ])
+    expect(body.selected_student.quizzes).toEqual([])
     expect(body.selected_student.tests).toEqual([])
   })
 
@@ -519,9 +486,6 @@ describe('GET /api/teacher/gradebook', () => {
           submitted_at: '2026-01-01T12:00:00.000Z',
         },
       ],
-      quizzes: [{ id: 'q-closed', title: 'Closed Quiz', status: 'closed', points_possible: 10, include_in_final: true }],
-      quizQuestions: [{ id: 'qq1', quiz_id: 'q-closed', correct_option: 1 }],
-      quizResponses: [],
       tests: [{ id: 't-submitted', title: 'Submitted Test', status: 'active', include_in_final: true }],
       testQuestions: [{ id: 'tq1', test_id: 't-submitted', points: 5 }],
       testResponses: [],
@@ -536,7 +500,6 @@ describe('GET /api/teacher/gradebook', () => {
     expect(body.students[0].assessment_scores).toEqual([
       expect.objectContaining({ assessment_id: 'a-missing', status: 'missing' }),
       expect.objectContaining({ assessment_id: 'a-submitted', status: 'submitted' }),
-      expect.objectContaining({ assessment_id: 'q-closed', status: 'not_submitted' }),
       expect.objectContaining({ assessment_id: 't-submitted', status: 'submitted' }),
     ])
   })
@@ -635,8 +598,8 @@ describe('GET /api/teacher/gradebook', () => {
 
     expect(response.status).toBe(200)
     expect(body.students[0].assignments_percent).toBe(100)
-    expect(body.students[0].quizzes_percent).toBe(0)
-    expect(body.students[0].final_percent).toBe(50)
+    expect(body.students[0].quizzes_percent).toBeNull()
+    expect(body.students[0].final_percent).toBe(100)
   })
 
   it('does not load legacy category settings for gradebook calculations', async () => {
@@ -1049,68 +1012,6 @@ describe('GET /api/teacher/gradebook', () => {
     expect(response.status).toBe(200)
     expect(body.students[0].assignments_percent).toBe(80)
     expect(body.students[0].final_percent).toBe(80)
-  })
-
-  it('falls back when quiz question correct_option is not migrated yet', async () => {
-    ;(mockSupabaseClient.from as any) = buildMockFrom({
-      quizzes: [{ id: 'q1', title: 'Quiz 1', status: 'closed', points_possible: 10, include_in_final: true }],
-      quizQuestions: [{ id: 'qq1', quiz_id: 'q1' }],
-      quizQuestionsCorrectOptionError: {
-        code: '42703',
-        message: 'column quiz_questions.correct_option does not exist',
-      },
-      quizResponses: [{ quiz_id: 'q1', question_id: 'qq1', student_id: 'student-1', selected_option: 0 }],
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
-    const response = await GET(request)
-    const body = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(body.students[0].quizzes_percent).toBeNull()
-    expect(body.students[0].assessment_scores[0]).toEqual({
-      assessment_id: 'q1',
-      assessment_type: 'quiz',
-      earned: null,
-      possible: 10,
-      percent: null,
-      is_graded: false,
-      is_manual_override: false,
-      status: 'started',
-    })
-    expect(body.class_summary.quizzes[0]).toMatchObject({
-      quiz_id: 'q1',
-      scored_count: 0,
-      average_percent: null,
-    })
-  })
-
-  it('falls back when quiz override storage is not migrated yet', async () => {
-    ;(mockSupabaseClient.from as any) = buildMockFrom({
-      quizzes: [{ id: 'q1', title: 'Quiz 1', status: 'closed', points_possible: 10, include_in_final: true }],
-      quizQuestions: [{ id: 'qq1', quiz_id: 'q1', correct_option: 0 }],
-      quizResponses: [{ quiz_id: 'q1', question_id: 'qq1', student_id: 'student-1', selected_option: 0 }],
-      quizOverridesError: {
-        code: 'PGRST205',
-        message: 'Could not find the table public.quiz_student_scores',
-      },
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
-    const response = await GET(request)
-    const body = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(body.students[0].assessment_scores[0]).toEqual({
-      assessment_id: 'q1',
-      assessment_type: 'quiz',
-      earned: 10,
-      possible: 10,
-      percent: 100,
-      is_graded: true,
-      is_manual_override: false,
-    })
-    expect(body.students[0].final_percent).toBe(100)
   })
 
   it('keeps missing optional test tables as an empty test breakdown', async () => {
