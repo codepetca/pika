@@ -21,8 +21,8 @@ vi.mock('@/lib/gradebook-cache', () => ({
   invalidateGradebookForClassroom: mockInvalidateGradebookForClassroom,
 }))
 
-vi.mock('@/components/QuizDetailPanel', () => ({
-  QuizDetailPanel: ({
+vi.mock('@/components/TestDetailPanel', () => ({
+  TestDetailPanel: ({
     quiz,
     testQuestionLayout,
     showPreviewButton,

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
-import { StudentQuizResults } from '@/components/StudentQuizResults'
+import { StudentTestResults } from '@/components/StudentTestResults'
 
-describe('StudentQuizResults', () => {
+describe('StudentTestResults', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
   })
@@ -30,7 +30,7 @@ describe('StudentQuizResults', () => {
     fetchMock.mockReturnValue(new Promise(() => {})) // never resolves
 
     const { container } = render(
-      <StudentQuizResults quizId="quiz-1" myResponses={{}} />
+      <StudentTestResults quizId="quiz-1" myResponses={{}} />
     )
 
     // Spinner renders an svg or loading element
@@ -44,7 +44,7 @@ describe('StudentQuizResults', () => {
       json: async () => ({ error: 'Quiz not found' }),
     })
 
-    render(<StudentQuizResults quizId="quiz-1" myResponses={{}} />)
+    render(<StudentTestResults quizId="quiz-1" myResponses={{}} />)
 
     await waitFor(() => {
       expect(screen.getByText('Quiz not found')).toBeInTheDocument()
@@ -58,7 +58,7 @@ describe('StudentQuizResults', () => {
       json: async () => ({ results: [] }),
     })
 
-    render(<StudentQuizResults quizId="quiz-1" myResponses={{}} />)
+    render(<StudentTestResults quizId="quiz-1" myResponses={{}} />)
 
     await waitFor(() => {
       expect(screen.getByText('No results available.')).toBeInTheDocument()
@@ -96,7 +96,7 @@ describe('StudentQuizResults', () => {
     })
 
     render(
-      <StudentQuizResults
+      <StudentTestResults
         quizId="quiz-1"
         myResponses={{ q1: 1 }}
         assessmentType="test"
@@ -143,7 +143,7 @@ describe('StudentQuizResults', () => {
     })
 
     const { container } = render(
-      <StudentQuizResults
+      <StudentTestResults
         quizId="quiz-1"
         myResponses={{ q1: 0 }}
         assessmentType="test"
@@ -204,7 +204,7 @@ describe('StudentQuizResults', () => {
     })
 
     render(
-      <StudentQuizResults
+      <StudentTestResults
         quizId="quiz-1"
         myResponses={{}}
         assessmentType="test"
@@ -254,7 +254,7 @@ describe('StudentQuizResults', () => {
     })
 
     render(
-      <StudentQuizResults
+      <StudentTestResults
         quizId="quiz-1"
         myResponses={{}}
         assessmentType="test"

@@ -8,17 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-01 — Codex model recommendation workflow
-
-**Completed:**
-- Added a Codex model recommendation policy to `docs/ai-instructions.md`, including `5.3-spark` guidance and `5.5` reasoning-level guidance.
-- Added a startup checklist reminder to state the recommendation before implementation.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts`
-- `git diff --check`
-
 ## 2026-06-01 — Repo-review AI egress sanitization
 
 **Completed:**
@@ -959,3 +948,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms"`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests"`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook"`
+
+## 2026-06-08 — Legacy quiz UI naming cleanup
+
+**Completed:**
+- Created `codex/legacy-quiz-naming-cleanup` from `origin/main` after PR #758.
+- Renamed remaining legacy quiz-named UI component implementations and component tests to test-named files.
+- Left old `Quiz*`/`StudentQuizzesTab` files as thin compatibility wrappers around the new `Test*` implementations.
+- Updated active app imports and component test mocks to use the new test-named modules.
+- Preserved database/type/API compatibility names such as `quizzes`, `QuizQuestion`, and `quiz` response payload keys for a later contract-level pass.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/StudentTestsTab.test.tsx tests/components/TestDetailPanel.test.tsx tests/components/StudentTestForm.test.tsx tests/components/StudentTestResults.test.tsx tests/components/TestResultsView.test.tsx tests/components/TestIndividualResponses.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm lint`
+- `pnpm test` (301 files / 2655 tests)
+- `pnpm build`

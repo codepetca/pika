@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { QuizResultsView } from '@/components/QuizResultsView'
+import { TestResultsView } from '@/components/TestResultsView'
 import type { QuizResultsAggregate } from '@/types'
 
 const sampleResults: QuizResultsAggregate[] = [
@@ -20,26 +20,26 @@ const sampleResults: QuizResultsAggregate[] = [
   },
 ]
 
-describe('QuizResultsView', () => {
+describe('TestResultsView', () => {
   it('shows empty state when results is null', () => {
-    render(<QuizResultsView results={null} />)
+    render(<TestResultsView results={null} />)
     expect(screen.getByText('No responses yet.')).toBeInTheDocument()
   })
 
   it('shows empty state when results is empty', () => {
-    render(<QuizResultsView results={[]} />)
+    render(<TestResultsView results={[]} />)
     expect(screen.getByText('No responses yet.')).toBeInTheDocument()
   })
 
   it('renders question text', () => {
-    render(<QuizResultsView results={sampleResults} />)
+    render(<TestResultsView results={sampleResults} />)
 
     expect(screen.getByText('What is the capital of France?')).toBeInTheDocument()
     expect(screen.getByText('Which planet is closest to the sun?')).toBeInTheDocument()
   })
 
   it('renders all options for each question', () => {
-    render(<QuizResultsView results={sampleResults} />)
+    render(<TestResultsView results={sampleResults} />)
 
     expect(screen.getByText('London')).toBeInTheDocument()
     expect(screen.getByText('Paris')).toBeInTheDocument()
@@ -50,7 +50,7 @@ describe('QuizResultsView', () => {
   })
 
   it('renders counts and percentages', () => {
-    render(<QuizResultsView results={sampleResults} />)
+    render(<TestResultsView results={sampleResults} />)
 
     // Paris: 15/20 = 75%
     expect(screen.getByText('15 (75%)')).toBeInTheDocument()
@@ -61,14 +61,14 @@ describe('QuizResultsView', () => {
   })
 
   it('renders total response count per question', () => {
-    render(<QuizResultsView results={sampleResults} />)
+    render(<TestResultsView results={sampleResults} />)
 
     const responseTexts = screen.getAllByText('20 responses')
     expect(responseTexts).toHaveLength(2)
   })
 
   it('renders bar widths as percentages', () => {
-    const { container } = render(<QuizResultsView results={[sampleResults[0]]} />)
+    const { container } = render(<TestResultsView results={[sampleResults[0]]} />)
 
     // Paris bar should be 75% width
     const bars = container.querySelectorAll('.bg-primary')
@@ -77,7 +77,7 @@ describe('QuizResultsView', () => {
   })
 
   it('does not render any responder list', () => {
-    render(<QuizResultsView results={sampleResults} />)
+    render(<TestResultsView results={sampleResults} />)
 
     // Should NOT have a "Responded" section — that was removed
     expect(screen.queryByText(/Responded/)).not.toBeInTheDocument()
@@ -93,7 +93,7 @@ describe('QuizResultsView', () => {
         total_responses: 1,
       },
     ]
-    render(<QuizResultsView results={single} />)
+    render(<TestResultsView results={single} />)
 
     expect(screen.getByText('1 response')).toBeInTheDocument() // singular
     expect(screen.getByText('1 (100%)')).toBeInTheDocument()

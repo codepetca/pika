@@ -285,8 +285,8 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherTestsTab', () => ({
     )
   },
 }))
-vi.mock('@/app/classrooms/[classroomId]/StudentQuizzesTab', () => ({
-  StudentQuizzesTab: () => <div />,
+vi.mock('@/app/classrooms/[classroomId]/StudentTestsTab', () => ({
+  StudentTestsTab: () => <div />,
 }))
 vi.mock('@/components/StudentLogHistory', () => ({
   StudentLogHistory: () => <div />,

@@ -3,7 +3,7 @@ import { act, render, screen } from '@testing-library/react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import type { ReactNode } from 'react'
-import { QuizIndividualResponses } from '@/components/QuizIndividualResponses'
+import { TestIndividualResponses } from '@/components/TestIndividualResponses'
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void
@@ -50,7 +50,7 @@ function createMountedRoot() {
   }
 }
 
-describe('QuizIndividualResponses', () => {
+describe('TestIndividualResponses', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
@@ -67,10 +67,10 @@ describe('QuizIndividualResponses', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const { rerender } = render(<QuizIndividualResponses quizId="quiz-stale" />)
+    const { rerender } = render(<TestIndividualResponses quizId="quiz-stale" />)
 
     await act(async () => {
-      rerender(<QuizIndividualResponses quizId="quiz-current" />)
+      rerender(<TestIndividualResponses quizId="quiz-current" />)
     })
 
     await act(async () => {
@@ -104,13 +104,13 @@ describe('QuizIndividualResponses', () => {
     const mounted = createMountedRoot()
     try {
       await act(async () => {
-        mounted.render(<QuizIndividualResponses quizId="quiz-stale" />)
+        mounted.render(<TestIndividualResponses quizId="quiz-stale" />)
       })
 
       expect(await screen.findByText('Already Loaded Student')).toBeInTheDocument()
 
       flushSync(() => {
-        mounted.render(<QuizIndividualResponses quizId="quiz-current" />)
+        mounted.render(<TestIndividualResponses quizId="quiz-current" />)
       })
 
       expect(screen.queryByText('Already Loaded Student')).not.toBeInTheDocument()

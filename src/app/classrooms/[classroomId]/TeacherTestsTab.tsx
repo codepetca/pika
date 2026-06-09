@@ -18,7 +18,7 @@ import {
 } from '@dnd-kit/sortable'
 import { Check, ClockAlert, Code, ExternalLink, Lock, LogOut, Pencil, Plus, RotateCcw, Send, Settings, Trash2, Unlock, X } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
-import { QuizDetailPanel } from '@/components/QuizDetailPanel'
+import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
 import {
   AssessmentStatusIndicator,
@@ -2715,7 +2715,7 @@ export function TeacherTestsTab({
         </div>
         <div className="min-h-0 flex-1 overflow-hidden">
           {selectedTestWorkspace ? (
-            <QuizDetailPanel
+            <TestDetailPanel
               quiz={selectedTestWorkspace}
               classroomId={classroom.id}
               apiBasePath={apiBasePath}
