@@ -8,20 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-01 — Repo-review AI egress sanitization
-
-**Completed:**
-- Routed repo-review AI classification through provider refs, direct identifier redaction, and `store: false`.
-- Routed repo-review feedback generation through classroom sanitization context with pseudonymous repo/student refs and sanitized evidence/warnings.
-- Sanitized repo-review AI feedback before returning it for local persistence.
-- Addressed review feedback by sanitizing heuristic fallback feedback when OpenAI is unavailable or fails.
-- Sanitized daily log summary model output before cron persistence.
-
-**Validation:**
-- `pnpm test tests/unit/repo-review-ai.test.ts tests/unit/repo-review-analysis.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts`
-- `pnpm test tests/unit/repo-review-ai.test.ts tests/unit/repo-review-analysis.test.ts tests/api/teacher/assignments-artifact-repo-run.test.ts tests/unit/log-summary.test.ts tests/api/cron/nightly-log-summaries.test.ts`
-- `pnpm test tests/unit/repo-review-ai.test.ts`
-
 ## 2026-06-01 — Gradex egress sanitization alignment
 
 **Completed:**
@@ -964,3 +950,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm test` (301 files / 2655 tests)
 - `pnpm build`
+
+## 2026-06-09 — Main to production release sync
+
+**Completed:**
+- Ran the repository `pika-main-to-production-merge` workflow to merge latest `main` into `production`.
+- Created and merged PR #760: https://github.com/codepetca/pika/pull/760.
+- Stabilized the calendar class-day toggle test by mocking Toronto today so it no longer depends on the real current date.
+- Fast-forwarded the local production worktree to `origin/production` at `feb050be1281f8ba1d8c1fc8249f912353a4fe0a`.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherCalendarPage.test.tsx`
+- GitHub PR #760 checks: `Test & Build`, `Check UI Import Policy`, `Check No dark: Classes in App Code`, Vercel status all passed.
