@@ -8,6 +8,49 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-06-01 — Open join settings toggle polish
+
+**Completed:**
+- Replaced the Settings join checkbox and right-aligned segmented control with matching left-aligned two-choice toggles.
+- Updated the toggle states so `Allow`/`Roster` sit on the left and `Disallow`/`Open` sit on the right.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Joining tooltip copy consolidation
+
+**Completed:**
+- Moved the allow-new-students and join-mode explanatory copy into the `Joining` info tooltip.
+- Left the Settings rows as compact `Allow / Disallow` and `Roster / Open` toggles.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
+
+## 2026-06-01 — Joining row copy refinement
+
+**Completed:**
+- Restored brief row-level copy for joining controls while keeping the tooltip concise.
+- Added an X marker inside the off-side toggle thumb.
+- Linked the roster-mode row copy to the classroom roster tab.
+- Added focused coverage for the visible joining copy and roster link.
+
+**Validation:**
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`; checked the Disallow/X off state and restored the classroom to allowed.
+
 ## 2026-06-01 — Roster join row wording
 
 **Completed:**
@@ -898,6 +941,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check`
+
+## 2026-06-09 — Roster summary pane removal
+
+**Completed:**
+- Created `codex/remove-roster-summary` from `origin/main`.
+- Removed the teacher roster tab's right-side inspector pane and fallback `Roster Summary` panel.
+- Kept roster row selection behavior for existing single-student and bulk roster actions.
+- Added a component regression test asserting the roster summary inspector and resize separator are absent.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2655 tests)
+- `pnpm test tests/components/TeacherRosterTab.test.tsx`
+- `pnpm lint`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/6d20a5cb-c497-4dc1-ac74-0637068c8a7f?tab=roster'`
+- Live Playwright DOM check: no `Roster Summary`, no `Resize Roster panes` separator, roster scroll pane visible.
+- `pnpm build`
 - `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
 - `pnpm test` (301 files / 2655 tests)
 
