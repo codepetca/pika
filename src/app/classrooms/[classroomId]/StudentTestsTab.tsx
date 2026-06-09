@@ -1550,7 +1550,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                           </Button>
                         ) : hasResponded && selectedTest.test.student_status === 'can_view_results' ? (
                           <StudentTestResults
-                            quizId={selectedTestId!}
+                            testId={selectedTestId!}
                             myResponses={selectedTest.studentResponses}
                             assessmentType={assessmentType}
                             apiBasePath={apiBasePath}
@@ -1571,7 +1571,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                           </div>
                         ) : (
                           <StudentTestForm
-                            quizId={selectedTestId!}
+                            testId={selectedTestId!}
                             questions={selectedTest.questions}
                             initialResponses={selectedTest.studentResponses}
                             enableDraftAutosave
@@ -1710,7 +1710,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                     </div>
                   ) : hasResponded && selectedTest.test.student_status === 'can_view_results' ? (
                     <StudentTestResults
-                      quizId={selectedTestId!}
+                      testId={selectedTestId!}
                       myResponses={selectedTest.studentResponses}
                       assessmentType={assessmentType}
                       apiBasePath={apiBasePath}
@@ -1731,7 +1731,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                     </div>
                   ) : (
                     <StudentTestForm
-                      quizId={selectedTestId!}
+                      testId={selectedTestId!}
                       questions={selectedTest.questions}
                       initialResponses={selectedTest.studentResponses}
                       enableDraftAutosave

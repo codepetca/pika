@@ -2718,11 +2718,11 @@ export function TeacherTestsTab({
         <div className="min-h-0 flex-1 overflow-hidden">
           {selectedTestWorkspace ? (
             <TestDetailPanel
-              quiz={selectedTestWorkspace}
+              test={selectedTestWorkspace}
               classroomId={classroom.id}
               apiBasePath={apiBasePath}
               onDraftSummaryChange={handleSelectedTestDraftSummaryChange}
-              onQuizUpdate={(update) => {
+              onTestUpdate={(update) => {
                 if (update) {
                   applySelectedTestDraftSummary(update)
                   return

@@ -23,6 +23,7 @@ vi.mock('@/lib/gradebook-cache', () => ({
 
 vi.mock('@/components/TestDetailPanel', () => ({
   TestDetailPanel: ({
+    test,
     quiz,
     testQuestionLayout,
     showPreviewButton,
@@ -31,11 +32,13 @@ vi.mock('@/components/TestDetailPanel', () => ({
     onSaveStatusChange,
     onRequestTestPreview,
     onDraftSummaryChange,
+    onTestUpdate,
     onQuizUpdate,
     titlePortalTarget,
     generatedTitleLabel,
   }: {
-    quiz: QuizWithStats
+    test?: QuizWithStats
+    quiz?: QuizWithStats
     testQuestionLayout?: string
     showPreviewButton?: boolean
     showResultsTab?: boolean
@@ -43,6 +46,11 @@ vi.mock('@/components/TestDetailPanel', () => ({
     onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
     onRequestTestPreview?: (preview: { testId: string; title: string }) => void
     onDraftSummaryChange?: (update: {
+      title: string
+      show_results: boolean
+      questions_count: number
+    }) => void
+    onTestUpdate?: (update?: {
       title: string
       show_results: boolean
       questions_count: number
@@ -55,10 +63,12 @@ vi.mock('@/components/TestDetailPanel', () => ({
     titlePortalTarget?: HTMLElement | null
     generatedTitleLabel?: string
   }) => {
+    const selectedTest = test ?? quiz
+    if (!selectedTest) throw new Error('Mock TestDetailPanel requires test')
     const [pendingMarkdown, setPendingMarkdown] = useState(false)
-    const displayedTitle = /^Untitled(?:\s+\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}:\d{2})?)?$/.test(quiz.title)
+    const displayedTitle = /^Untitled(?:\s+\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}:\d{2})?)?$/.test(selectedTest.title)
       ? generatedTitleLabel || 'Untitled'
-      : quiz.title
+      : selectedTest.title
 
     return (
       <>
@@ -76,12 +86,12 @@ vi.mock('@/components/TestDetailPanel', () => ({
           data-show-preview={String(showPreviewButton)}
           data-show-results={String(showResultsTab)}
         >
-          Detail for {quiz.title}
+          Detail for {selectedTest.title}
           {showPreviewButton ? (
             <button
               type="button"
               disabled={pendingMarkdown}
-              onClick={() => onRequestTestPreview?.({ testId: quiz.id, title: quiz.title })}
+              onClick={() => onRequestTestPreview?.({ testId: selectedTest.id, title: selectedTest.title })}
             >
               Preview
             </button>
@@ -114,7 +124,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
             type="button"
             onClick={() =>
               onDraftSummaryChange?.({
-                title: `${quiz.title} Draft`,
+                title: `${selectedTest.title} Draft`,
                 show_results: false,
                 questions_count: 0,
               })
@@ -125,8 +135,8 @@ vi.mock('@/components/TestDetailPanel', () => ({
           <button
             type="button"
             onClick={() =>
-              onQuizUpdate?.({
-                title: `${quiz.title} Updated`,
+              (onTestUpdate ?? onQuizUpdate)?.({
+                title: `${selectedTest.title} Updated`,
                 show_results: false,
                 questions_count: 0,
               })

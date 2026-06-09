@@ -522,7 +522,7 @@ export function TeacherTestPreviewPage({
               <h2 className="text-xl font-bold text-text-default">{title}</h2>
               {questions.length > 0 ? (
                 <StudentTestForm
-                  quizId={testId}
+                  testId={testId}
                   questions={questions}
                   assessmentType="test"
                   previewMode
