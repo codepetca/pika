@@ -8,19 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-01 — Open join settings toggle polish
-
-**Completed:**
-- Replaced the Settings join checkbox and right-aligned segmented control with matching left-aligned two-choice toggles.
-- Updated the toggle states so `Allow`/`Roster` sit on the left and `Disallow`/`Open` sit on the right.
-
-**Validation:**
-- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
-- `pnpm test tests/unit/ai-startup-docs.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
-
 ## 2026-06-01 — Joining tooltip copy consolidation
 
 **Completed:**
@@ -974,4 +961,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm vitest run tests/components/StudentTestsTab.test.tsx`
 - `pnpm vitest run tests/components/StudentTestForm.test.tsx tests/components/StudentTestResults.test.tsx`
+- `pnpm lint`
+
+## 2026-06-09 — Legacy quiz teacher Tests state naming pass
+
+**Completed:**
+- Created `codex/legacy-quiz-teacher-state-names` from merged `origin/main`.
+- Renamed `ClassroomPageClient` teacher Tests parent state from `selectedQuiz`/`handleSelectQuiz` to `selectedTest`/`handleSelectTest`.
+- Renamed the local pending-delete object key from `quiz` to `test` for active Tests deletion state.
+- Preserved legacy `quizId` query cleanup and existing child component/API compatibility contracts.
+- Did not touch database schema, migrations, RPCs, storage paths, or production API route contracts.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2655 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm vitest run tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherTestsTab.test.tsx`
 - `pnpm lint`
