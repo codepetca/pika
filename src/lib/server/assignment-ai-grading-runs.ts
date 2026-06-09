@@ -361,7 +361,6 @@ export async function gradeAssignmentDocWithAi({
     instructions: getAssignmentInstructionsText(assignment),
     studentWork,
     submissionArtifacts,
-    previousFeedback: assignmentDoc.feedback,
     requestTimeoutMs,
     sanitizationContext: resolvedSanitizationContext,
     telemetry: {

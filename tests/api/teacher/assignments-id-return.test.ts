@@ -383,6 +383,11 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
         is_submitted: false,
         returned_at: expect.any(String),
         feedback_returned_at: expect.any(String),
+        teacher_feedback_draft: null,
+        teacher_feedback_draft_updated_at: null,
+        ai_feedback_suggestion: null,
+        ai_feedback_suggested_at: null,
+        ai_feedback_model: null,
       }),
     ]))
     expect(
@@ -527,6 +532,11 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
         returned_at: expect.any(String),
         feedback_returned_at: expect.any(String),
         teacher_cleared_at: expect.any(String),
+        teacher_feedback_draft: null,
+        teacher_feedback_draft_updated_at: null,
+        ai_feedback_suggestion: null,
+        ai_feedback_suggested_at: null,
+        ai_feedback_model: null,
       }),
     )
     expect(appendAssignmentFeedbackEntry).toHaveBeenCalledWith(
