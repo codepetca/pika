@@ -8,23 +8,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-01 — Open join classroom access mode
-
-**Completed:**
-- Added `classrooms.join_policy` and `classroom_roster.join_source` migration defaults/checks.
-- Added teacher Settings controls for `Roster` vs `Open join`, keeping `allow_enrollment` as the master join switch.
-- Updated student join-by-code flow so roster mode remains strict, while open join asks for first/last name and self-creates the roster/profile/enrollment rows.
-- Stamped manual roster adds as `manual`, CSV uploads as `csv`, and self-joins as `open_join`.
-- Added an `Open join` roster badge and source detail field for teacher review.
-
-**Validation:**
-- `pnpm test tests/api/student/classrooms-join.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/teacher/roster.test.ts tests/api/teacher/roster-add.test.ts tests/api/teacher/roster-upload-csv.test.ts tests/components/TeacherSettingsTab.test.tsx`
-- `pnpm test`
-- `pnpm test tests/components/TeacherRosterTab.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/api/student/classrooms-join.test.ts tests/api/teacher/roster.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`, plus mocked open-join roster desktop/mobile and student join form screenshots.
-
 ## 2026-06-01 — Open join settings toggle polish
 
 **Completed:**
@@ -977,3 +960,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm vitest run tests/api/teacher/tests-route.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/api/student/tests-session-status.test.ts tests/api/integration/test-return-visibility-flow.test.ts tests/components/TestResultsView.test.tsx tests/components/TestDetailPanel.test.tsx tests/hooks/useDraftMode.test.ts tests/components/StudentTestsTab.test.tsx`
 - `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check`
+
+## 2026-06-09 — Legacy quiz student Tests state naming pass
+
+**Completed:**
+- Created `codex/legacy-quiz-ui-state-names` from the merged `origin/main`.
+- Renamed active `StudentTestsTab` local state, refs, handlers, and selected-detail object keys from quiz-oriented names to test-oriented names.
+- Preserved legacy API compatibility response keys (`quiz`, `quizzes`) and existing child component `quizId` prop contracts.
+- Did not touch database schema, migrations, RPCs, storage paths, or production API route contracts.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2655 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm vitest run tests/components/StudentTestsTab.test.tsx`
+- `pnpm vitest run tests/components/StudentTestForm.test.tsx tests/components/StudentTestResults.test.tsx`
+- `pnpm lint`
