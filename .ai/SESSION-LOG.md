@@ -9,38 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-04 — Student test history visibility audit
-
-**Completed:**
-- Tightened `/api/student/tests/[id]/history` so student requests use the same draft, per-student availability, submitted, returned, and closed-for-grading visibility gate as the main student test route before returning history or migration hints.
-- Preserved teacher-owned history access with the existing `student_id` enrollment boundary.
-- Expanded `tests/api/student/tests-history.test.ts` for draft-hidden, student-closed-hidden, submitted-closed-allowed, and teacher-owned access cases.
-
-**Validation:**
-- `pnpm vitest run tests/api/student/tests-history.test.ts`
-- `pnpm vitest run tests/api/student/tests-history.test.ts tests/api/student/tests-id.test.ts tests/unit/test-student-access.test.ts tests/api/student/tests-documents-snapshot.test.ts tests/api/student/tests-focus-events.test.ts`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-- Baseline note: pre-edit session-start `pnpm test` failed on current `origin/main` in `tests/components/AssignmentModal.test.tsx`, `tests/components/TeacherGradebookTab.test.tsx`, and `tests/components/TeacherStudentWorkPanel.test.tsx`.
-
-## 2026-06-04 — Assignment doc boundary audit
-
-**Completed:**
-- Added a teacher read path to `GET /api/assignment-docs/[id]` that requires classroom ownership, an enrolled `student_id`, and does not create docs or mark student docs viewed.
-- Kept `PATCH /api/assignment-docs/[id]` student-only for student content saves.
-- Expanded assignment-doc GET/PATCH and history tests for teacher-owned reads, missing `student_id`, non-owner teachers, unenrolled students, draft assignment history reads, and student-only writes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/api/assignment-docs/assignment-docs-id.test.ts tests/api/assignment-docs/history.test.ts`
-- `pnpm vitest run tests/api/assignment-docs/assignment-docs-id.test.ts tests/api/assignment-docs/history.test.ts tests/api/assignment-docs/submit.test.ts tests/api/assignment-docs/unsubmit.test.ts tests/api/assignment-docs/restore.test.ts tests/api/assignment-docs/artifacts.test.ts tests/lib/assignment-doc-history.test.ts`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-
 ## 2026-06-04 — Teacher lesson calendar cache audit
 
 **Completed:**
@@ -657,7 +625,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check`
-- `pnpm test` (301 files / 2659 tests)
+- `pnpm test` (301 files / 2662 tests)
+
 ## 2026-06-09 — Session log trim buffer
 
 **Completed:**
@@ -680,3 +649,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts`
 - `node scripts/trim-session-log.mjs --check`
+
+## 2026-06-09 — Legacy quiz TestDetailPanel internal rename pass
+
+**Completed:**
+- Created `codex/legacy-quiz-test-detail-internals` from merged `origin/main`.
+- Renamed `TestDetailPanel` component-local runtime internals from legacy quiz names to test/assessment names:
+  resolved assessment object, update notifier, request scope `testId`, defaults ref, loaded-draft guard, and detail load callback.
+- Preserved public compatibility props (`quiz`, `onQuizUpdate`), API response fallback (`data.quiz`), legacy markdown helpers, inactive legacy quiz-mode UI fallbacks, and DB-shaped `quiz_id` fields.
+- Did not touch database schema, migrations, RPCs, storage paths, API payload contracts, or production compatibility response keys.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2659 tests before edits)
+- `pnpm vitest run tests/components/TestDetailPanel.test.tsx tests/components/TeacherTestsTab.test.tsx`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check`
+- `pnpm test` (301 files / 2659 tests)
