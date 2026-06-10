@@ -215,17 +215,17 @@ export const DST_SPRING_FORWARD_2024 = '2024-03-10T02:00:00-05:00' // 2 AM → 3
 export const DST_FALL_BACK_2024 = '2024-11-03T02:00:00-04:00' // 2 AM → 1 AM
 
 // ============================================================================
-// Quiz Mock Factories
+// Assessment Mock Factories
 // ============================================================================
 
 /**
- * Create a mock quiz with default or custom values
+ * Create a mock assessment with default or custom values.
  */
-export const createMockQuiz = (overrides: Partial<Quiz> = {}): Quiz => ({
-  id: 'quiz-1',
+export const createMockAssessment = (overrides: Partial<TestAssessment> = {}): TestAssessment => ({
+  id: 'test-1',
   classroom_id: 'classroom-1',
-  title: 'Test Quiz',
-  assessment_type: 'quiz',
+  title: 'Test Assessment',
+  assessment_type: 'test',
   status: 'draft',
   opens_at: null,
   show_results: false,
@@ -237,11 +237,13 @@ export const createMockQuiz = (overrides: Partial<Quiz> = {}): Quiz => ({
 })
 
 /**
- * Create a mock quiz question with default or custom values
+ * Create a mock assessment question with default or custom values.
  */
-export const createMockQuizQuestion = (overrides: Partial<QuizQuestion> = {}): QuizQuestion => ({
+export const createMockAssessmentQuestion = (
+  overrides: Partial<TestAssessmentQuestion> = {}
+): TestAssessmentQuestion => ({
   id: 'question-1',
-  quiz_id: 'quiz-1',
+  quiz_id: 'test-1',
   question_text: 'What is your favorite color?',
   options: ['Red', 'Blue', 'Green', 'Yellow'],
   position: 0,
@@ -251,11 +253,13 @@ export const createMockQuizQuestion = (overrides: Partial<QuizQuestion> = {}): Q
 })
 
 /**
- * Create a mock quiz response with default or custom values
+ * Create a mock assessment response with default or custom values.
  */
-export const createMockQuizResponse = (overrides: Partial<QuizResponse> = {}): QuizResponse => ({
+export const createMockAssessmentResponse = (
+  overrides: Partial<TestAssessmentResponse> = {}
+): TestAssessmentResponse => ({
   id: 'response-1',
-  quiz_id: 'quiz-1',
+  quiz_id: 'test-1',
   question_id: 'question-1',
   student_id: 'student-1',
   selected_option: 0,
@@ -264,11 +268,43 @@ export const createMockQuizResponse = (overrides: Partial<QuizResponse> = {}): Q
 })
 
 /**
+ * Create a mock quiz with default or custom values.
+ * Kept for tests that cover legacy quiz-shaped compatibility behavior.
+ */
+export const createMockQuiz = (overrides: Partial<Quiz> = {}): Quiz =>
+  createMockAssessment({
+    id: 'quiz-1',
+    title: 'Test Quiz',
+    assessment_type: 'quiz',
+    ...overrides,
+  }) as Quiz
+
+/**
+ * Create a mock quiz question with default or custom values.
+ * Kept for tests that cover legacy quiz-shaped compatibility behavior.
+ */
+export const createMockQuizQuestion = (overrides: Partial<QuizQuestion> = {}): QuizQuestion =>
+  createMockAssessmentQuestion({
+    quiz_id: 'quiz-1',
+    ...overrides,
+  }) as QuizQuestion
+
+/**
+ * Create a mock quiz response with default or custom values.
+ * Kept for tests that cover legacy quiz-shaped compatibility behavior.
+ */
+export const createMockQuizResponse = (overrides: Partial<QuizResponse> = {}): QuizResponse =>
+  createMockAssessmentResponse({
+    quiz_id: 'quiz-1',
+    ...overrides,
+  }) as QuizResponse
+
+/**
  * Create a mock test with default or custom values.
  * The shape aliases the legacy quiz table contract while using the active surface name.
  */
 export const createMockTest = (overrides: Partial<TestAssessment> = {}): TestAssessment =>
-  createMockQuiz({
+  createMockAssessment({
     id: 'test-1',
     title: 'Test Assessment',
     assessment_type: 'test',
@@ -281,7 +317,7 @@ export const createMockTest = (overrides: Partial<TestAssessment> = {}): TestAss
 export const createMockTestQuestion = (
   overrides: Partial<TestAssessmentQuestion> = {}
 ): TestAssessmentQuestion =>
-  createMockQuizQuestion({
+  createMockAssessmentQuestion({
     quiz_id: 'test-1',
     ...overrides,
   })
@@ -292,7 +328,7 @@ export const createMockTestQuestion = (
 export const createMockTestResponse = (
   overrides: Partial<TestAssessmentResponse> = {}
 ): TestAssessmentResponse =>
-  createMockQuizResponse({
+  createMockAssessmentResponse({
     quiz_id: 'test-1',
     ...overrides,
   })

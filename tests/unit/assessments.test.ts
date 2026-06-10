@@ -1,6 +1,6 @@
 /**
- * Unit tests for quiz utilities (src/lib/quizzes.ts)
- * Tests quiz status calculation, validation, and aggregation functions
+ * Unit tests for assessment utilities (src/lib/assessments.ts).
+ * Tests status calculation, validation, and aggregation functions.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -21,10 +21,10 @@ import {
   emptyQuizFocusSummary,
   getQuizExitCount,
   summarizeQuizFocusEvents,
-} from '@/lib/quizzes'
-import { createMockQuiz, createMockQuizQuestion, createMockQuizResponse } from '../helpers/mocks'
+} from '@/lib/assessments'
+import { createMockQuiz, createMockQuizQuestion, createMockQuizResponse, createMockTest } from '../helpers/mocks'
 
-describe('quiz utilities', () => {
+describe('assessment utilities', () => {
   // ==========================================================================
   // getQuizStatusLabel()
   // ==========================================================================
@@ -187,22 +187,22 @@ describe('quiz utilities', () => {
 
   describe('canStudentViewTestResults', () => {
     it('should return true when test is closed, responded, and returned', () => {
-      const test = createMockQuiz({ status: 'closed' })
+      const test = createMockTest({ status: 'closed' })
       expect(canStudentViewTestResults(test, true, '2026-03-05T10:00:00.000Z')).toBe(true)
     })
 
     it('should return false when test is not closed', () => {
-      const test = createMockQuiz({ status: 'active' })
+      const test = createMockTest({ status: 'active' })
       expect(canStudentViewTestResults(test, true, '2026-03-05T10:00:00.000Z')).toBe(false)
     })
 
     it('should return false when student has not responded', () => {
-      const test = createMockQuiz({ status: 'closed' })
+      const test = createMockTest({ status: 'closed' })
       expect(canStudentViewTestResults(test, false, '2026-03-05T10:00:00.000Z')).toBe(false)
     })
 
     it('should return false when test is not returned', () => {
-      const test = createMockQuiz({ status: 'closed' })
+      const test = createMockTest({ status: 'closed' })
       expect(canStudentViewTestResults(test, true, null)).toBe(false)
     })
   })
@@ -239,17 +239,17 @@ describe('quiz utilities', () => {
 
   describe('getStudentTestStatus', () => {
     it('should return "not_started" when student has not responded', () => {
-      const test = createMockQuiz({ status: 'active' })
+      const test = createMockTest({ status: 'active' })
       expect(getStudentTestStatus(test, false, null)).toBe('not_started')
     })
 
     it('should return "responded" when test is responded but not returned', () => {
-      const test = createMockQuiz({ status: 'closed' })
+      const test = createMockTest({ status: 'closed' })
       expect(getStudentTestStatus(test, true, null)).toBe('responded')
     })
 
     it('should return "can_view_results" when test is closed and returned', () => {
-      const test = createMockQuiz({ status: 'closed' })
+      const test = createMockTest({ status: 'closed' })
       expect(getStudentTestStatus(test, true, '2026-03-05T10:00:00.000Z')).toBe('can_view_results')
     })
   })

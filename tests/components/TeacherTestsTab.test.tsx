@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { TEACHER_TESTS_UPDATED_EVENT, TEACHER_TEST_GRADING_ROW_UPDATED_EVENT } from '@/lib/events'
-import { createMockClassroom, createMockQuiz } from '../helpers/mocks'
+import { createMockClassroom, createMockTest } from '../helpers/mocks'
 import type { QuizWithStats } from '@/types'
 
 const { setOpenMock } = vi.hoisted(() => ({
@@ -176,7 +176,7 @@ function Wrapper({ children }: { children: ReactNode }) {
 }
 
 function makeTest(overrides: Partial<QuizWithStats> = {}): QuizWithStats {
-  const base = createMockQuiz({
+  const base = createMockTest({
     assessment_type: 'test',
     status: 'draft',
     ...overrides,

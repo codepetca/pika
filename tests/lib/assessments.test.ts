@@ -4,7 +4,7 @@ import {
   getStudentQuizStatus,
   getStudentTestStatus,
   getQuizAssessmentType,
-} from '@/lib/quizzes'
+} from '@/lib/assessments'
 
 describe('getStudentAssessmentStatus', () => {
   it('returns not_started when hasResponded is false', () => {
