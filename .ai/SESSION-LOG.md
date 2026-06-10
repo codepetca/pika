@@ -9,24 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-04 — Teacher lesson calendar cache audit
-
-**Completed:**
-- Added a shared teacher lesson-plan range cache helper with classroom-prefix invalidation.
-- Routed teacher calendar and markdown-panel lesson-plan reads through the helper.
-- Invalidated teacher lesson-plan caches after single autosaves and markdown bulk/no-op saves to avoid stale remount or refresh reads.
-- Added focused teacher calendar tests for cached remount reuse and post-autosave invalidation.
-- Addressed PR review findings by marking markdown content stale after inline autosaves, surfacing malformed successful JSON as a load error, and covering markdown sidebar reload/error behavior.
-
-**Validation:**
-- `pnpm vitest run tests/components/TeacherLessonCalendarTab.test.tsx`
-- `pnpm vitest run tests/components/TeacherLessonCalendarTab.test.tsx tests/components/StudentLessonCalendarTab.test.tsx tests/components/calendar-view-persistence.test.tsx`
-- `pnpm test`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-
 ## 2026-06-04 — Announcement freshness audit
 
 **Completed:**
@@ -666,3 +648,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check`
 - `pnpm test` (301 files / 2659 tests)
+
+## 2026-06-10 — Legacy quiz TestDetailPanel fixture cleanup pass
+
+**Completed:**
+- Created `codex/legacy-quiz-test-fixtures` from merged `origin/main`.
+- Renamed pure `TestDetailPanel` component-test fixtures from legacy quiz-shaped local names to test/assessment names.
+- Updated fake test ids and route expectations in stale-load/autosave cases from `quiz-*` to `test-*` where they are not DB fields or API compatibility payload keys.
+- Preserved intentional compatibility coverage for legacy `quiz`/`onQuizUpdate` props, API `quiz` response fallbacks, DB-shaped `quiz_id` fields, and the same-id legacy `assessment_type: 'quiz'` race case.
+- Did not touch production runtime code, database schema, migrations, RPCs, storage paths, or API payload contracts.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2662 tests before edits)
+- `pnpm vitest run tests/components/TestDetailPanel.test.tsx`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm test` (301 files / 2662 tests)
