@@ -9,24 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-04 — Announcement freshness audit
-
-**Completed:**
-- Made teacher and student announcement reloads enter loading state on classroom changes and ignore stale responses from older classroom reads.
-- Reset the student announcement read-marker guard when the classroom changes so each classroom can mark its announcements read once.
-- Added component regressions for hiding stale teacher announcements during a classroom switch and marking student announcements read once per classroom.
-- Addressed PR review findings by keying displayed announcement state to the loaded classroom id, preventing one-frame stale paints and premature student read-marker POSTs during classroom switches.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/AnnouncementsMarkdown.test.tsx`
-- `pnpm vitest run tests/components/AnnouncementsMarkdown.test.tsx tests/api/teacher/announcements.test.ts tests/api/teacher/announcements-id.test.ts tests/api/student/announcements.test.ts tests/components/StudentNotificationsProvider.test.tsx`
-- `pnpm test`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-
 ## 2026-06-04 — Resource sidebar freshness audit
 
 **Completed:**
@@ -664,3 +646,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm test` (301 files / 2662 tests)
+
+## 2026-06-10 — Tests selected-student grading pane scrollbar fix
+
+**Completed:**
+- Created `codex/tests-selected-student-scrollbar` from `origin/main`.
+- Fixed the selected Tests grading inspector scroll container so it fills the right pane as a flex child and clips horizontal overflow.
+- Confirmed the issue was not in `TeacherWorkspaceSplit`; the gapped split pane width was correct, but the inspector's inner scroll node could size to content inside `TestWorkspacePaneFrame`.
+- Added a focused `TeacherTestsTab` assertion for the inspector scroll container sizing and overflow classes.
+- Kept the change scoped to the selected Tests grading pane layout; no FAB/action-cluster work was touched.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2662 tests before edits)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/TeacherWorkspaceSplit.test.tsx tests/components/TestStudentGradingPanel.test.tsx`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests&testId=91d01b50-807d-43ac-a5db-018c9645ac94&testMode=grading&testStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
+- Playwright desktop forced-scroll check: right pane scroll node `rightDeltaPx: 0` while vertically overflowing (`scrollHeight 956`, `clientHeight 504`).

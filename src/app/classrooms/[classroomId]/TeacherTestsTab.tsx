@@ -2627,7 +2627,7 @@ export function TeacherTestsTab({
       inspector={gradingInspector ? (
         <TestWorkspacePaneFrame>
           <div
-            className="h-full min-h-0 overflow-y-auto"
+            className="h-full min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto"
             data-testid="test-grading-inspector-scroll-pane"
           >
             {gradingInspector}
