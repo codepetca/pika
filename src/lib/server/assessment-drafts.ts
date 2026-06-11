@@ -1,5 +1,5 @@
 import { tryApplyJsonPatch } from '@/lib/json-patch'
-import { validateQuizOptions } from '@/lib/quizzes'
+import { validateQuizOptions } from '@/lib/assessments'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import type { JsonPatchOperation, TestQuestionType } from '@/types'
 

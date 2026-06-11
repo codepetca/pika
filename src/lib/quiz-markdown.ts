@@ -1,4 +1,4 @@
-import { validateQuizOptions } from '@/lib/quizzes'
+import { validateQuizOptions } from '@/lib/assessments'
 import type { QuizDraftContent, QuizDraftQuestion } from '@/lib/server/assessment-drafts'
 
 const UUID_RE =

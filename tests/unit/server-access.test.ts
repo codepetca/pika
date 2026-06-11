@@ -8,7 +8,7 @@ import {
 import {
   assertStudentCanAccessQuiz,
   assertTeacherOwnsQuiz,
-} from '@/lib/server/quizzes'
+} from '@/lib/server/assessments'
 import {
   assertStudentCanAccessTest,
   assertTeacherOwnsTest,

@@ -13,4 +13,4 @@ export {
   getQuizExitCount as getTestExitCount,
   emptyQuizFocusSummary as emptyTestFocusSummary,
   summarizeQuizFocusEvents as summarizeTestFocusEvents,
-} from '@/lib/quizzes'
+} from '@/lib/assessments'
