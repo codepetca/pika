@@ -4,6 +4,7 @@ import { withErrorHandler } from '@/lib/api-handler'
 import { assertStudentCanAccessSurvey } from '@/lib/server/surveys'
 import {
   canStudentRespondToSurvey,
+  isSurveyHardDueElapsed,
   isSurveyVisibleToStudents,
   validateSurveyResponses,
 } from '@/lib/surveys'
@@ -42,6 +43,9 @@ export const POST = withErrorHandler('PostStudentSurveyRespond', async (request,
     .limit(1)
 
   const hasResponded = (existingResponses?.length || 0) > 0
+  if (isSurveyHardDueElapsed(survey)) {
+    return NextResponse.json({ error: 'Survey responses closed at the due date' }, { status: 400 })
+  }
   if (!canStudentRespondToSurvey(survey, hasResponded)) {
     return NextResponse.json({ error: 'You have already responded to this survey' }, { status: 400 })
   }

@@ -10,8 +10,10 @@ import {
   type TextareaHTMLAttributes,
 } from 'react'
 import { Code, ExternalLink, Eye, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { addDaysToDateString } from '@/lib/date-string'
 import { Button, Card, ConfirmDialog, FormField, Input, Select } from '@/ui'
 import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetupForm'
+import { DateTimeFields, SurveyDuePolicySelect } from '@/components/classwork/ClassworkContentModal'
 import { EditableAssessmentTitle } from '@/components/assessment/EditableAssessmentTitle'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { Spinner } from '@/components/Spinner'
@@ -24,7 +26,13 @@ import {
   getSurveyStatusLabel,
 } from '@/lib/surveys'
 import { markdownToSurvey, surveyToMarkdown } from '@/lib/survey-markdown'
-import type { Survey, SurveyQuestion, SurveyQuestionResult, SurveyQuestionType } from '@/types'
+import {
+  DEFAULT_SCHEDULE_TIME,
+  combineScheduleDateTimeToIso,
+  getTodayInSchedulingTimezone,
+  parseScheduleIsoToParts,
+} from '@/lib/scheduling'
+import type { Survey, SurveyDuePolicy, SurveyQuestion, SurveyQuestionResult, SurveyQuestionType } from '@/types'
 
 interface TeacherSurveyWorkspaceProps {
   classroomId: string
@@ -471,6 +479,10 @@ export function TeacherSurveyWorkspace({
   const [statusChanging, setStatusChanging] = useState(false)
   const [titleSaving, setTitleSaving] = useState(false)
   const [responseSettingSaving, setResponseSettingSaving] = useState(false)
+  const [dueSettingSaving, setDueSettingSaving] = useState(false)
+  const [dueDate, setDueDate] = useState('')
+  const [dueTime, setDueTime] = useState(DEFAULT_SCHEDULE_TIME)
+  const [duePolicy, setDuePolicy] = useState<SurveyDuePolicy>('soft')
   const [titleError, setTitleError] = useState('')
   const [surveyEditMode, setSurveyEditMode] = useState<'edit' | 'markdown' | 'preview'>('edit')
   const [surveyMarkdown, setSurveyMarkdown] = useState('')
@@ -534,6 +546,19 @@ export function TeacherSurveyWorkspace({
       setSurveyMarkdown(currentSurveyMarkdown)
     }
   }, [currentSurveyMarkdown, survey, surveyMarkdown, surveyMarkdownDirty])
+
+  useEffect(() => {
+    if (!survey) return
+    if (survey.due_at) {
+      const due = parseScheduleIsoToParts(survey.due_at)
+      setDueDate(due.date)
+      setDueTime(due.time)
+    } else {
+      setDueDate(addDaysToDateString(getTodayInSchedulingTimezone(), 1))
+      setDueTime(DEFAULT_SCHEDULE_TIME)
+    }
+    setDuePolicy(survey.due_policy ?? 'soft')
+  }, [survey])
 
   useEffect(() => {
     if (!survey || !initialEditMode) return
@@ -603,6 +628,31 @@ export function TeacherSurveyWorkspace({
       setError(err instanceof Error ? err.message : 'Failed to update survey')
     } finally {
       setResponseSettingSaving(false)
+    }
+  }
+
+  async function saveDueSettings() {
+    if (!survey || !dueDate || !dueTime) return
+
+    setDueSettingSaving(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/teacher/surveys/${surveyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          due_at: combineScheduleDateTimeToIso(dueDate, dueTime),
+          due_policy: duePolicy,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to update survey due date')
+      setDetail((current) => current ? { ...current, survey: data.survey } : current)
+      onSurveyUpdated(data.survey)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update survey due date')
+    } finally {
+      setDueSettingSaving(false)
     }
   }
 
@@ -856,6 +906,34 @@ export function TeacherSurveyWorkspace({
                 Delete
               </Button>
             </div>
+          </div>
+
+          <div className="grid gap-3 border-t border-border pt-4 lg:grid-cols-[minmax(0,1fr)_11rem_auto] lg:items-end">
+            <DateTimeFields
+              label="Due"
+              date={dueDate}
+              time={dueTime}
+              disabled={isReadOnly || dueSettingSaving}
+              required
+              onDateChange={setDueDate}
+              onTimeChange={setDueTime}
+            />
+            <SurveyDuePolicySelect
+              value={duePolicy}
+              disabled={isReadOnly || dueSettingSaving}
+              onChange={setDuePolicy}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              className="lg:mb-0.5"
+              onClick={() => {
+                void saveDueSettings()
+              }}
+              disabled={isReadOnly || dueSettingSaving || !dueDate || !dueTime}
+            >
+              {dueSettingSaving ? 'Saving...' : 'Save due'}
+            </Button>
           </div>
 
           {error && (

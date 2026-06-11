@@ -42,13 +42,14 @@ export const PATCH = withErrorHandler('PatchTeacherClassworkMaterial', async (re
   const user = await requireRole('teacher')
   const { id: classroomId, materialId } = await context.params
   const body = await request.json()
-  const { title, content, is_draft: isDraft } = body as {
+  const { title, content, is_draft: isDraft, released_at } = body as {
     title?: string
     content?: unknown
     is_draft?: boolean
+    released_at?: string | null
   }
 
-  if (title === undefined && content === undefined && isDraft === undefined) {
+  if (title === undefined && content === undefined && isDraft === undefined && released_at === undefined) {
     return NextResponse.json({ error: 'No changes provided' }, { status: 400 })
   }
 
@@ -59,6 +60,19 @@ export const PATCH = withErrorHandler('PatchTeacherClassworkMaterial', async (re
 
   if (content !== undefined && !isValidDoc(content)) {
     return NextResponse.json({ error: 'Invalid content format' }, { status: 400 })
+  }
+
+  let parsedReleasedAt: string | null | undefined
+  if (released_at !== undefined) {
+    if (released_at === null) {
+      parsedReleasedAt = null
+    } else {
+      const parsed = new Date(released_at)
+      if (Number.isNaN(parsed.getTime())) {
+        return NextResponse.json({ error: 'Invalid release date' }, { status: 400 })
+      }
+      parsedReleasedAt = parsed.toISOString()
+    }
   }
 
   const ownership = await verifyMaterialOwnership(user.id, classroomId, materialId)
@@ -83,7 +97,9 @@ export const PATCH = withErrorHandler('PatchTeacherClassworkMaterial', async (re
     updateData.is_draft = !!isDraft
     updateData.released_at = isDraft
       ? null
-      : ownership.material.released_at || new Date().toISOString()
+      : parsedReleasedAt ?? (ownership.material.released_at || new Date().toISOString())
+  } else if (parsedReleasedAt !== undefined) {
+    updateData.released_at = parsedReleasedAt
   }
 
   const supabase = getServiceRoleClient()
