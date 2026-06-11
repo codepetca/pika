@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { AssignmentSubmissionRequirementsEditor } from '@/components/AssignmentSubmissionRequirementsEditor'
-import { CreationModalShell } from '@/components/creation/CreationModalShell'
+import { ClassworkContentModalShell } from '@/components/classwork/ClassworkContentModal'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import type { AssignmentSubmissionRequirementDraft } from '@/lib/assignment-submission-requirements'
@@ -754,7 +754,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   return (
     <>
-      <CreationModalShell
+      <ClassworkContentModalShell
         isOpen={isOpen}
         onClose={() => {
           if (showInstructionsPreview) {
@@ -829,7 +829,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
             ) : null
           }
         />
-      </CreationModalShell>
+      </ClassworkContentModalShell>
 
       <ContentDialog
         isOpen={isOpen && showInstructionsPreview}

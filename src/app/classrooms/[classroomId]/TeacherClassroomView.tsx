@@ -43,6 +43,8 @@ import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
+import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
+import { ClassworkContentModalShell } from '@/components/classwork/ClassworkContentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { SortableSurveyCard } from '@/components/surveys/SortableSurveyCard'
 import { SurveyCreationModal } from '@/components/surveys/SurveyCreationModal'
@@ -66,7 +68,7 @@ import {
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
-import { RichTextEditor } from '@/components/editor'
+import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import {
   ACTIONBAR_ICON_BUTTON_CLASSNAME,
 } from '@/components/PageLayout'
@@ -114,6 +116,13 @@ import { fetchClassDaysForClassroom } from '@/lib/class-days-client'
 import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { safeSessionGetJson, safeSessionSetJson } from '@/lib/client-storage'
+import {
+  DEFAULT_SCHEDULE_TIME,
+  combineScheduleDateTimeToIso,
+  getTodayInSchedulingTimezone,
+  isScheduleIsoInFuture,
+  parseScheduleIsoToParts,
+} from '@/lib/scheduling'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
@@ -235,6 +244,7 @@ function TeacherMaterialCard({
   onDelete: () => void
 }) {
   const showEditActions = editMode && !isReadOnly
+  const isScheduledMaterial = !!material.released_at && isScheduleIsoInFuture(material.released_at)
   const {
     attributes,
     listeners,
@@ -322,6 +332,10 @@ function TeacherMaterialCard({
               <span className="inline-flex items-center rounded-badge bg-surface-3 px-2.5 py-1 text-xs font-semibold text-text-muted">
                 Draft
               </span>
+            ) : isScheduledMaterial ? (
+              <span className="inline-flex items-center rounded-badge bg-warning-bg px-2.5 py-1 text-xs font-semibold text-warning">
+                Scheduled
+              </span>
             ) : (
               <span className="inline-flex items-center rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-primary">
                 Posted
@@ -371,6 +385,10 @@ function TeacherMaterialDialog({
   const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showPreview, setShowPreview] = useState(false)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const [scheduleDate, setScheduleDate] = useState('')
+  const [scheduleTime, setScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
   const { showMessage } = useAppMessage()
   const isReadOnly = !!classroom.archived_at
   const isDraft = material?.is_draft ?? true
@@ -380,9 +398,19 @@ function TeacherMaterialDialog({
     setTitle(material?.title || '')
     setContent(material?.content || EMPTY_DOC)
     setError(null)
+    setShowPreview(false)
+    setShowScheduleModal(false)
+    if (material?.released_at && isScheduleIsoInFuture(material.released_at)) {
+      const scheduled = parseScheduleIsoToParts(material.released_at)
+      setScheduleDate(scheduled.date)
+      setScheduleTime(scheduled.time)
+    } else {
+      setScheduleDate(getTodayInSchedulingTimezone())
+      setScheduleTime(DEFAULT_SCHEDULE_TIME)
+    }
   }, [isOpen, material])
 
-  async function saveMaterial(nextDraft: boolean) {
+  async function saveMaterial(nextDraft: boolean, releaseAt?: string | null) {
     const cleanTitle = title.trim()
     if (!cleanTitle) {
       setError('Title is required')
@@ -399,7 +427,12 @@ function TeacherMaterialDialog({
         {
           method: material ? 'PATCH' : 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: cleanTitle, content, is_draft: nextDraft }),
+          body: JSON.stringify({
+            title: cleanTitle,
+            content,
+            is_draft: nextDraft,
+            released_at: nextDraft ? null : releaseAt ?? undefined,
+          }),
         },
       )
       const data = await response.json().catch(() => ({}))
@@ -415,13 +448,15 @@ function TeacherMaterialDialog({
   }
 
   return (
-    <ContentDialog
+    <>
+    <ClassworkContentModalShell
       isOpen={isOpen}
       onClose={saving ? () => {} : onClose}
       title={material ? 'Material' : 'New Material'}
-      subtitle="Ungraded classwork"
-      maxWidth="max-w-4xl"
-      showFooterClose={false}
+      titleId="material-modal-title"
+      closeLabel="Close material modal"
+      closeDisabled={saving}
+      maxWidth="!max-w-4xl"
     >
       <div className="space-y-4">
         <FormField label="Title">
@@ -462,6 +497,9 @@ function TeacherMaterialDialog({
             ) : null}
           </div>
           <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setShowPreview(true)} disabled={saving}>
+              Preview
+            </Button>
             <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
               Cancel
             </Button>
@@ -475,6 +513,14 @@ function TeacherMaterialDialog({
             </Button>
             <Button
               type="button"
+              variant="secondary"
+              onClick={() => setShowScheduleModal(true)}
+              disabled={saving || isReadOnly}
+            >
+              Schedule
+            </Button>
+            <Button
+              type="button"
               onClick={() => saveMaterial(false)}
               disabled={saving || isReadOnly}
             >
@@ -483,7 +529,54 @@ function TeacherMaterialDialog({
           </div>
         </div>
       </div>
+    </ClassworkContentModalShell>
+
+    <ContentDialog
+      isOpen={isOpen && showPreview}
+      onClose={() => setShowPreview(false)}
+      title={title.trim() || 'Material preview'}
+      maxWidth="!max-w-2xl"
+      showFooterClose={false}
+    >
+      <RichTextViewer content={content} />
     </ContentDialog>
+
+    <DialogPanel
+      isOpen={showScheduleModal}
+      onClose={() => {
+        if (saving) return
+        setShowScheduleModal(false)
+      }}
+      maxWidth="max-w-sm"
+      className="p-4"
+      ariaLabelledBy="material-schedule-title"
+    >
+      <h3 id="material-schedule-title" className="mb-2 text-sm font-semibold text-text-default">
+        Schedule Material
+      </h3>
+      <ScheduleDateTimePicker
+        date={scheduleDate}
+        time={scheduleTime}
+        minDate={getTodayInSchedulingTimezone()}
+        isFutureValid={
+          !!scheduleDate &&
+          isScheduleIsoInFuture(combineScheduleDateTimeToIso(scheduleDate, scheduleTime))
+        }
+        onDateChange={setScheduleDate}
+        onTimeChange={setScheduleTime}
+        onCancel={() => setShowScheduleModal(false)}
+        onConfirm={() => {
+          void saveMaterial(false, combineScheduleDateTimeToIso(scheduleDate, scheduleTime))
+        }}
+        confirmLabel={saving ? 'Scheduling...' : 'Schedule'}
+        dateLabel="Release date"
+        timeLabel="Release time"
+        showHeader={false}
+        showTimezoneLabel={false}
+        className="border-0 bg-transparent p-0 shadow-none"
+      />
+    </DialogPanel>
+    </>
   )
 }
 
@@ -624,6 +717,9 @@ export function TeacherClassroomView({
   const [pendingSurveyDelete, setPendingSurveyDelete] = useState<SurveyWithStats | null>(null)
   const [isDeletingSurvey, setIsDeletingSurvey] = useState(false)
   const [surveyActionBusy, setSurveyActionBusy] = useState(false)
+  const [surveyScheduleDate, setSurveyScheduleDate] = useState('')
+  const [surveyScheduleTime, setSurveyScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
+  const [isSurveyScheduleOpen, setIsSurveyScheduleOpen] = useState(false)
   const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
   const [surveyModalId, setSurveyModalId] = useState<string | null>(null)
   const [createdSurveyEditorIntent, setCreatedSurveyEditorIntent] = useState<{
@@ -1849,7 +1945,7 @@ export function TeacherClassroomView({
   }, [currentSurveys, selectedSurveyId])
 
   const patchSelectedSurvey = useCallback(async (update: Record<string, unknown>) => {
-    if (!selectedSurveyId) return
+    if (!selectedSurveyId) return false
     setSurveyActionBusy(true)
     setError('')
     try {
@@ -1867,12 +1963,26 @@ export function TeacherClassroomView({
       )
       invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
       invalidateCachedJSON(`student-surveys:${classroom.id}`)
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update survey')
+      return false
     } finally {
       setSurveyActionBusy(false)
     }
   }, [classroom.id, selectedSurveyId])
+
+  const openSurveyScheduleDialog = useCallback((survey: SurveyWithStats) => {
+    if (survey.opens_at && isScheduleIsoInFuture(survey.opens_at)) {
+      const scheduled = parseScheduleIsoToParts(survey.opens_at)
+      setSurveyScheduleDate(scheduled.date)
+      setSurveyScheduleTime(scheduled.time)
+    } else {
+      setSurveyScheduleDate(getTodayInSchedulingTimezone())
+      setSurveyScheduleTime(DEFAULT_SCHEDULE_TIME)
+    }
+    setIsSurveyScheduleOpen(true)
+  }, [])
 
   const {
     scrollRef: classPaneScrollRef,
@@ -2453,6 +2563,19 @@ export function TeacherClassroomView({
                   selectedSurvey.stats.questions_count === 0,
               },
               {
+                id: 'schedule-open',
+                label: 'Schedule open...',
+                checked: selectedSurvey.status === 'active' && !!selectedSurvey.opens_at && isScheduleIsoInFuture(selectedSurvey.opens_at),
+                onSelect: () => {
+                  openSurveyScheduleDialog(selectedSurvey)
+                },
+                disabled:
+                  isReadOnly ||
+                  surveyActionBusy ||
+                  isDeletingSurvey ||
+                  selectedSurvey.stats.questions_count === 0,
+              },
+              {
                 id: 'close-poll',
                 label: 'Close poll',
                 checked: selectedSurvey.status !== 'active',
@@ -2773,6 +2896,47 @@ export function TeacherClassroomView({
           void deleteSurvey()
         }}
       />
+
+      <DialogPanel
+        isOpen={isSurveyScheduleOpen}
+        onClose={() => {
+          if (surveyActionBusy) return
+          setIsSurveyScheduleOpen(false)
+        }}
+        maxWidth="max-w-sm"
+        className="p-4"
+        ariaLabelledBy="survey-schedule-open-title"
+      >
+        <h3 id="survey-schedule-open-title" className="mb-2 text-sm font-semibold text-text-default">
+          Schedule Survey
+        </h3>
+        <ScheduleDateTimePicker
+          date={surveyScheduleDate}
+          time={surveyScheduleTime}
+          minDate={getTodayInSchedulingTimezone()}
+          isFutureValid={
+            !!surveyScheduleDate &&
+            isScheduleIsoInFuture(combineScheduleDateTimeToIso(surveyScheduleDate, surveyScheduleTime))
+          }
+          onDateChange={setSurveyScheduleDate}
+          onTimeChange={setSurveyScheduleTime}
+          onCancel={() => setIsSurveyScheduleOpen(false)}
+          onConfirm={() => {
+            void patchSelectedSurvey({
+              status: 'active',
+              opens_at: combineScheduleDateTimeToIso(surveyScheduleDate, surveyScheduleTime),
+            }).then((updated) => {
+              if (updated) setIsSurveyScheduleOpen(false)
+            })
+          }}
+          confirmLabel={surveyActionBusy ? 'Scheduling...' : 'Schedule'}
+          dateLabel="Open date"
+          timeLabel="Open time"
+          showHeader={false}
+          showTimezoneLabel={false}
+          className="border-0 bg-transparent p-0 shadow-none"
+        />
+      </DialogPanel>
 
 
       <ConfirmDialog

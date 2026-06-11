@@ -10,6 +10,8 @@ function makeSurvey(overrides: Partial<Survey> = {}): Survey {
     title: 'Resource Links',
     status: 'draft',
     opens_at: null,
+    due_at: '2026-01-02T20:30:00.000Z',
+    due_policy: 'hard',
     show_results: true,
     dynamic_responses: false,
     position: 0,
@@ -33,6 +35,8 @@ describe('SurveyModal', () => {
 
     expect(screen.getByRole('heading', { name: 'Edit Survey' })).toBeInTheDocument()
     expect(screen.getByDisplayValue('Game Jam Links')).toHaveAttribute('placeholder', 'Enter survey title')
+    expect(screen.getByText('Due')).toBeInTheDocument()
+    expect(screen.getByLabelText('Due mode')).toHaveDisplayValue('Hard due')
     expect(screen.getByLabelText('Show class results to students')).toBeInTheDocument()
     expect(screen.getByLabelText('Allow students to update answers while open')).toBeInTheDocument()
     expect(screen.getByRole('dialog')).toHaveClass('max-w-md')

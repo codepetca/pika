@@ -379,9 +379,13 @@ vi.mock('@/hooks/use-assignment-grading-layout', () => ({
   }),
 }))
 
-vi.mock('@/lib/scheduling', () => ({
-  isVisibleAtNow: (...args: any[]) => mockIsVisibleAtNow(...args),
-}))
+vi.mock('@/lib/scheduling', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/scheduling')>()
+  return {
+    ...actual,
+    isVisibleAtNow: (...args: any[]) => mockIsVisibleAtNow(...args),
+  }
+})
 
 vi.mock('@/components/DataTable', () => ({
   DataTable: ({ children }: any) => <table><tbody>{children}</tbody></table>,
@@ -1219,6 +1223,54 @@ describe('TeacherClassroomView', () => {
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
   })
 
+  it('keeps the survey schedule dialog open when scheduling fails', async () => {
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return Promise.resolve({ assignments: [] })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({
+          surveys: [
+            makeSurveySummary('survey-1', 'Game Jam Links', {
+              status: 'active',
+              stats: { total_students: 2, responded: 0, questions_count: 1 },
+            }),
+          ],
+        })
+      }
+      if (key === `class-days:${classroom.id}`) {
+        return Promise.resolve({ class_days: [] })
+      }
+      return fetcher()
+    })
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Schedule failed' }),
+    })
+
+    render(<TeacherClassroomView classroom={classroom} selectedSurveyId="survey-1" />)
+
+    expect(await screen.findByTestId('mock-survey-results-pane')).toHaveTextContent('Survey results survey-1')
+    fireEvent.click(screen.getByRole('button', { name: 'Schedule open...' }))
+
+    const scheduleDialog = await screen.findByRole('dialog')
+    fireEvent.change(within(scheduleDialog).getByLabelText('Open date'), {
+      target: { value: '2099-01-01' },
+    })
+    fireEvent.change(within(scheduleDialog).getByLabelText('Open time'), {
+      target: { value: '09:00' },
+    })
+    fireEvent.click(within(scheduleDialog).getByRole('button', { name: 'Schedule' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Schedule failed')).toBeInTheDocument()
+    })
+    expect(screen.getByRole('dialog')).toHaveTextContent('Schedule Survey')
+  })
+
   it('enables opening a draft survey after adding its first question in the edit modal', async () => {
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {
@@ -1305,16 +1357,20 @@ describe('TeacherClassroomView', () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         '/api/teacher/surveys',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({
-            classroom_id: classroom.id,
-            title: 'Class feedback',
-            show_results: true,
-            dynamic_responses: false,
-          }),
-        }),
+        expect.objectContaining({ method: 'POST' }),
       )
+    })
+    const createSurveyRequest = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
+      ([url]) => url === '/api/teacher/surveys',
+    )
+    expect(createSurveyRequest).toBeTruthy()
+    expect(JSON.parse(String(createSurveyRequest?.[1]?.body))).toEqual({
+      classroom_id: classroom.id,
+      title: 'Class feedback',
+      show_results: true,
+      dynamic_responses: false,
+      due_at: expect.any(String),
+      due_policy: 'soft',
     })
     expect(await screen.findByRole('dialog')).toHaveTextContent('Survey workspace survey-new mode edit')
 

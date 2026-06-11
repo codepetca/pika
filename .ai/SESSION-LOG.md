@@ -871,3 +871,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm build`
+- Rebased `codex/action-cluster-classwork` onto `origin/main` and resolved the `TeacherTestsTab.test.tsx` helper import conflict by keeping `createMockTest` plus the branch's `Classroom` typing.
+- Verified the rebased branch with `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx tests/components/TeacherTestsTab.test.tsx` and `pnpm exec tsc --noEmit --pretty false`.
+## 2026-06-10 — Classwork content modal consistency
+
+**Completed:**
+- Created `codex/classwork-content-modals` worktree and implemented a shared classwork modal shell for assignments, materials, surveys, and announcements.
+- Added scheduled release support for materials and hid future-scheduled materials from students.
+- Added survey due dates with reusable `soft` / `hard` due policy handling; hard due blocks student submissions/amendments after the due date, soft due leaves the survey open.
+- Added survey due/policy controls to create, edit, and teacher workspace flows; student survey UI now shows due state.
+- Moved announcement create/edit into the shared modal shell while keeping announcements in their existing tab.
+- Added migration `079_add_survey_due_policy.sql` for `surveys.due_at` and `surveys.due_policy`.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test` (301 files / 2666 tests)
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
+- Manual Playwright modal screenshots: `/tmp/pika-material-modal.png`, `/tmp/pika-survey-modal.png`, `/tmp/pika-announcement-modal.png`

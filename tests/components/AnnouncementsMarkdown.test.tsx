@@ -129,13 +129,12 @@ describe('announcement markdown rendering', () => {
 
     const titleInput = screen.getByPlaceholderText('Title (optional)')
     const titleLabel = container.querySelector(`label[for="${titleInput.id}"]`)
-    expect(titleLabel).toHaveClass('sr-only')
+    expect(titleLabel).toHaveTextContent('Title')
     expect(screen.queryByPlaceholderText('Optional title')).not.toBeInTheDocument()
-    expect(titleInput.compareDocumentPosition(screen.getByText('Unit update')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 
     const textarea = screen.getByRole('textbox', { name: 'Announcement body' })
-    expect(textarea).toHaveAttribute('rows', '6')
-    expect(textarea).toHaveClass('min-h-[10rem]')
+    expect(textarea).toHaveAttribute('rows', '8')
+    expect(textarea).toHaveClass('min-h-[12rem]')
     expect(textarea).toHaveClass('resize-y')
 
     fireEvent.change(textarea, { target: { value: 'Announcement draft' } })

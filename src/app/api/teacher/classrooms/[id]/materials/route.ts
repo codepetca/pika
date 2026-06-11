@@ -67,10 +67,11 @@ export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (requ
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
   const body = await request.json()
-  const { title, content, is_draft: isDraft = true } = body as {
+  const { title, content, is_draft: isDraft = true, released_at } = body as {
     title?: string
     content?: unknown
     is_draft?: boolean
+    released_at?: string | null
   }
 
   const cleanTitle = title?.trim()
@@ -80,6 +81,15 @@ export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (requ
 
   if (!isValidDoc(content)) {
     return NextResponse.json({ error: 'Invalid content format' }, { status: 400 })
+  }
+
+  let parsedReleasedAt: string | null = null
+  if (!isDraft && released_at) {
+    const parsed = new Date(released_at)
+    if (Number.isNaN(parsed.getTime())) {
+      return NextResponse.json({ error: 'Invalid release date' }, { status: 400 })
+    }
+    parsedReleasedAt = parsed.toISOString()
   }
 
   const ownership = await assertTeacherCanMutateClassroom(user.id, classroomId)
@@ -142,7 +152,7 @@ export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (requ
     title: cleanTitle,
     content,
     is_draft: !!isDraft,
-    released_at: isDraft ? null : new Date().toISOString(),
+    released_at: isDraft ? null : parsedReleasedAt ?? new Date().toISOString(),
     created_by: user.id,
   }
 
