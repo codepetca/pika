@@ -6,6 +6,7 @@ import { isMissingSurveysTableError } from '@/lib/server/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
 import { loadChunkedRows } from '@/lib/server/query-chunks'
+import type { SurveyDuePolicy } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -184,11 +185,13 @@ export const GET = withErrorHandler('GetTeacherSurveys', async (request) => {
 export const POST = withErrorHandler('PostTeacherSurvey', async (request) => {
   const user = await requireRole('teacher')
   const body = await request.json()
-  const { classroom_id, title, show_results = true, dynamic_responses = false } = body as {
+  const { classroom_id, title, show_results = true, dynamic_responses = false, due_at, due_policy = 'soft' } = body as {
     classroom_id?: string
     title?: string
     show_results?: boolean
     dynamic_responses?: boolean
+    due_at?: string | null
+    due_policy?: SurveyDuePolicy
   }
 
   if (!classroom_id) {
@@ -196,6 +199,19 @@ export const POST = withErrorHandler('PostTeacherSurvey', async (request) => {
   }
 
   const cleanTitle = title?.trim() || getFallbackAssessmentTitle()
+  const validDuePolicies: SurveyDuePolicy[] = ['soft', 'hard']
+  if (!validDuePolicies.includes(due_policy)) {
+    return NextResponse.json({ error: 'Invalid due policy' }, { status: 400 })
+  }
+
+  let parsedDueAt: string | null = null
+  if (due_at) {
+    const parsed = new Date(due_at)
+    if (Number.isNaN(parsed.getTime())) {
+      return NextResponse.json({ error: 'Invalid due date' }, { status: 400 })
+    }
+    parsedDueAt = parsed.toISOString()
+  }
 
   const ownership = await assertTeacherCanMutateClassroom(user.id, classroom_id)
   if (!ownership.ok) {
@@ -218,6 +234,8 @@ export const POST = withErrorHandler('PostTeacherSurvey', async (request) => {
       title: cleanTitle,
       show_results: show_results === true,
       dynamic_responses: dynamic_responses === true,
+      due_at: parsedDueAt,
+      due_policy,
       created_by: user.id,
       position,
     })

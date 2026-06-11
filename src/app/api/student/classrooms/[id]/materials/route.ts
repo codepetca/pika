@@ -56,5 +56,12 @@ export const GET = withErrorHandler('GetStudentClassworkMaterials', async (_requ
     return NextResponse.json({ error: 'Failed to fetch materials' }, { status: 500 })
   }
 
-  return NextResponse.json({ materials: materials || [] })
+  const nowMs = Date.now()
+  const visibleMaterials = (materials || []).filter((material) => {
+    if (!material.released_at) return true
+    const releaseMs = new Date(material.released_at).getTime()
+    return Number.isFinite(releaseMs) && releaseMs <= nowMs
+  })
+
+  return NextResponse.json({ materials: visibleMaterials })
 })

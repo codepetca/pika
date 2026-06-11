@@ -17,6 +17,8 @@ describe('SurveyCreationModal', () => {
     expect(screen.getByPlaceholderText('Enter survey title')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
+    expect(screen.getByText('Due')).toBeInTheDocument()
+    expect(screen.getByLabelText('Due mode')).toHaveDisplayValue('Soft due')
     expect(screen.getByLabelText('Show class results to students')).toBeInTheDocument()
     expect(screen.getByLabelText('Allow students to update answers while open')).toBeInTheDocument()
     expect(screen.getByRole('dialog')).toHaveClass('!max-w-2xl')

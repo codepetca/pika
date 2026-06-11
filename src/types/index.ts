@@ -847,6 +847,7 @@ export interface CreateClassroomFromBlueprintInput {
 export type TestAssessmentStatus = 'draft' | 'active' | 'closed'
 export type TestAssessmentType = 'test'
 export type SurveyStatus = 'draft' | 'active' | 'closed'
+export type SurveyDuePolicy = 'soft' | 'hard'
 export type SurveyQuestionType = 'multiple_choice' | 'short_text' | 'link'
 export type TestStudentAvailabilityState = 'open' | 'closed'
 export type TestFocusEventType =
@@ -913,6 +914,8 @@ export interface Survey {
   title: string
   status: SurveyStatus
   opens_at: string | null
+  due_at?: string | null
+  due_policy?: SurveyDuePolicy
   show_results: boolean
   dynamic_responses: boolean
   position: number

@@ -83,6 +83,8 @@ export const GET = withErrorHandler('GetStudentSurvey', async (_request, context
       title: survey.title,
       status: survey.status,
       opens_at: survey.opens_at,
+      due_at: survey.due_at ?? null,
+      due_policy: survey.due_policy ?? 'soft',
       show_results: survey.show_results,
       dynamic_responses: survey.dynamic_responses,
       position: survey.position,

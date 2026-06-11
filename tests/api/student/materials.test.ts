@@ -38,6 +38,30 @@ describe('GET /api/student/classrooms/[id]/materials', () => {
     await expect(response.json()).resolves.toEqual({ materials })
   })
 
+  it('hides scheduled materials until their release time', async () => {
+    const materials = [
+      { id: 'visible', title: 'Reference', is_draft: false, released_at: '2025-05-01T00:00:00.000Z', position: 1 },
+      { id: 'scheduled', title: 'Tomorrow', is_draft: false, released_at: '2999-05-01T00:00:00.000Z', position: 2 },
+      { id: 'legacy', title: 'Legacy', is_draft: false, released_at: null, position: 3 },
+    ]
+    const order = vi
+      .fn()
+      .mockImplementationOnce(() => ({ order }))
+      .mockResolvedValue({ data: materials, error: null })
+    const eqDraft = vi.fn(() => ({ order }))
+    const eqClassroom = vi.fn(() => ({ eq: eqDraft }))
+    const select = vi.fn(() => ({ eq: eqClassroom }))
+    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ select }))
+
+    const request = new NextRequest('http://localhost:3000/api/student/classrooms/c-1/materials')
+    const response = await GET(request, { params: Promise.resolve({ id: 'c-1' }) })
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      materials: [materials[0], materials[2]],
+    })
+  })
+
   it('returns an empty list before the materials migration is applied', async () => {
     const order = vi
       .fn()

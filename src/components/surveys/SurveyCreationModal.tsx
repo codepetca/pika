@@ -1,10 +1,17 @@
 'use client'
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { addDaysToDateString } from '@/lib/date-string'
 import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetupForm'
 import { CreationModalShell, CreationModalTopRow } from '@/components/creation/CreationModalShell'
+import { DateTimeFields, SurveyDuePolicySelect } from '@/components/classwork/ClassworkContentModal'
+import {
+  DEFAULT_SCHEDULE_TIME,
+  combineScheduleDateTimeToIso,
+  getTodayInSchedulingTimezone,
+} from '@/lib/scheduling'
 import { Button } from '@/ui'
-import type { Survey } from '@/types'
+import type { Survey, SurveyDuePolicy } from '@/types'
 
 interface SurveyCreationModalProps {
   isOpen: boolean
@@ -23,6 +30,9 @@ export function SurveyCreationModal({
   const [title, setTitle] = useState('')
   const [showResults, setShowResults] = useState(true)
   const [dynamicResponses, setDynamicResponses] = useState(false)
+  const [dueDate, setDueDate] = useState('')
+  const [dueTime, setDueTime] = useState(DEFAULT_SCHEDULE_TIME)
+  const [duePolicy, setDuePolicy] = useState<SurveyDuePolicy>('soft')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -31,6 +41,9 @@ export function SurveyCreationModal({
     setTitle('')
     setShowResults(true)
     setDynamicResponses(false)
+    setDueDate(addDaysToDateString(getTodayInSchedulingTimezone(), 1))
+    setDueTime(DEFAULT_SCHEDULE_TIME)
+    setDuePolicy('soft')
     setError('')
 
     setTimeout(() => {
@@ -46,6 +59,11 @@ export function SurveyCreationModal({
       return
     }
 
+    if (!dueDate || !dueTime) {
+      setError('Due date is required')
+      return
+    }
+
     setSaving(true)
     setError('')
 
@@ -58,6 +76,8 @@ export function SurveyCreationModal({
           title: title.trim(),
           show_results: showResults,
           dynamic_responses: dynamicResponses,
+          due_at: combineScheduleDateTimeToIso(dueDate, dueTime),
+          due_policy: duePolicy,
         }),
       })
       const data = await response.json().catch(() => ({}))
@@ -101,7 +121,24 @@ export function SurveyCreationModal({
           )}
         />
 
-        <div className="max-w-xl space-y-3">
+        <div className="max-w-xl space-y-4">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-end">
+            <DateTimeFields
+              label="Due"
+              date={dueDate}
+              time={dueTime}
+              disabled={saving}
+              required
+              onDateChange={setDueDate}
+              onTimeChange={setDueTime}
+            />
+            <SurveyDuePolicySelect
+              value={duePolicy}
+              disabled={saving}
+              onChange={setDuePolicy}
+            />
+          </div>
+
           <AssessmentSetupCheckbox
             checked={showResults}
             disabled={saving}

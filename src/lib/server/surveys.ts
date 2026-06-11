@@ -1,5 +1,5 @@
 import { getServiceRoleClient } from '@/lib/supabase'
-import type { SurveyStatus } from '@/types'
+import type { SurveyDuePolicy, SurveyStatus } from '@/types'
 
 export type SurveyAccessRecord = {
   id: string
@@ -7,6 +7,8 @@ export type SurveyAccessRecord = {
   title: string
   status: SurveyStatus
   opens_at: string | null
+  due_at: string | null
+  due_policy: SurveyDuePolicy
   show_results: boolean
   dynamic_responses: boolean
   position: number
