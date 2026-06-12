@@ -6,7 +6,7 @@ import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { TEACHER_TESTS_UPDATED_EVENT, TEACHER_TEST_GRADING_ROW_UPDATED_EVENT } from '@/lib/events'
 import { createMockClassroom, createMockTest } from '../helpers/mocks'
-import type { QuizWithStats } from '@/types'
+import type { Classroom, QuizWithStats } from '@/types'
 
 const { setOpenMock } = vi.hoisted(() => ({
   setOpenMock: vi.fn(),
@@ -285,6 +285,7 @@ describe('TeacherTestsTab', () => {
   }
 
   function renderTab(options?: {
+    classroom?: Classroom
     testsTabClickToken?: number
     selectedTestId?: string | null
     selectedTestMode?: 'authoring' | 'grading' | null
@@ -305,7 +306,7 @@ describe('TeacherTestsTab', () => {
   }) {
     return render(
       <TeacherTestsTab
-        classroom={classroom}
+        classroom={options?.classroom ?? classroom}
         testsTabClickToken={options?.testsTabClickToken}
         selectedTestId={options?.selectedTestId}
         selectedTestMode={options?.selectedTestMode}
@@ -323,14 +324,12 @@ describe('TeacherTestsTab', () => {
   async function openEditModalFromSelectedTest(title = 'Unit Test') {
     fireEvent.click(await screen.findByText(title))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Test' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Test' }))
     return screen.findByTestId('mock-test-detail')
   }
 
   function toggleTestListControls() {
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'List controls' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Organize tests' }))
   }
 
   it('renders the tests list by default with no selected workspace', async () => {
@@ -339,12 +338,32 @@ describe('TeacherTestsTab', () => {
 
     expect(await screen.findByText('Unit Test')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'New test' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    expect(screen.getByRole('menuitemradio', { name: 'List controls' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('button', { name: 'Organize tests' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(screen.queryByText('Choose a test to review settings, questions, and grading details.')).not.toBeInTheDocument()
     expect(listFetchCalls(fetchMock)[0][0]).toContain('/api/teacher/tests?classroom_id=')
+  })
+
+  it('disables test create and options actions for archived classrooms', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    renderTab({
+      classroom: {
+        ...classroom,
+        archived_at: '2026-06-01T12:00:00Z',
+      },
+    })
+
+    expect(await screen.findByText('Unit Test')).toBeInTheDocument()
+
+    const newTest = screen.getByRole('button', { name: 'New test' })
+    const organizeTests = screen.getByRole('button', { name: 'Organize tests' })
+
+    expect(newTest).toBeDisabled()
+    expect(organizeTests).toBeDisabled()
+
+    fireEvent.click(organizeTests)
+    expect(screen.queryByRole('button', { name: 'Drag to reorder Unit Test' })).not.toBeInTheDocument()
   })
 
   it('opens a selected test in grading mode and edits in a modal', async () => {
@@ -377,7 +396,7 @@ describe('TeacherTestsTab', () => {
     )
   })
 
-  it('opens the edit modal from the selected test actions menu', async () => {
+  it('opens the edit modal from the selected test edit button', async () => {
     const updateSearchParams = vi.fn((updater: (params: URLSearchParams) => void) => {
       const params = new URLSearchParams('tab=tests')
       updater(params)
@@ -390,12 +409,16 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit Test' })).toBeEnabled()
 
     fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
     expect(screen.queryByRole('menuitem', { name: 'Manage Attempts' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Edit Test' })).not.toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Delete Test' })).toBeEnabled()
     expect(screen.getByRole('menuitem', { name: /Delete Selected/ })).toBeDisabled()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Test' }))
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Test' }))
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
     expect(updateSearchParams).toHaveBeenCalledTimes(2)
@@ -426,8 +449,7 @@ describe('TeacherTestsTab', () => {
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Test' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Test' }))
     expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
 
     view.rerender(
@@ -940,9 +962,8 @@ describe('TeacherTestsTab', () => {
 
     expect(screen.getByRole('button', { name: 'Drag to reorder Unit Test' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete Unit Test' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'More test actions' }))
-    expect(screen.getByRole('menuitemradio', { name: 'List controls' })).toHaveAttribute('aria-checked', 'true')
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'List controls' }))
+    expect(screen.getByRole('button', { name: 'Organize tests' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Organize tests' }))
     expect(screen.queryByRole('button', { name: 'Drag to reorder Unit Test' })).not.toBeInTheDocument()
 
     toggleTestListControls()

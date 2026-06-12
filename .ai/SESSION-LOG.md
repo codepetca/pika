@@ -9,66 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-04 — Classroom shell freshness audit
-
-**Completed:**
-- Reset the classroom page shell's local query state from the new server-provided search params when the classroom route changes so old assignment/test/student detail params cannot leak into the next classroom.
-- Made the teacher roster tab cache repeated roster reads, hide old roster rows while the next classroom loads, and ignore stale roster responses after classroom switches.
-- Scoped roster mutation completions to the classroom that started them and invalidated roster cache entries after counselor, add, upload, and removal changes.
-- Added regressions for stale test detail query params on classroom rerender plus stale/pending roster loads during classroom switches.
-- Addressed PR review feedback by deriving new-classroom query params synchronously before child props are computed and by invalidating originating-classroom roster caches before guarding UI updates after mutation completions.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/TeacherRosterTab.test.tsx`
-- `pnpm vitest run tests/components/TeacherRosterTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
-- `pnpm vitest run tests/components/TeacherRosterTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/api/teacher/roster.test.ts tests/api/teacher/roster-add.test.ts tests/api/teacher/roster-bulk-delete.test.ts tests/api/teacher/roster-rosterId.test.ts tests/api/teacher/roster-upload-csv.test.ts`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-
-## 2026-06-04 — Teacher settings freshness audit
-
-**Completed:**
-- Reset teacher settings local form state when the active classroom changes so stale names, join controls, syllabus settings, and blueprint dialog state do not carry into the next classroom.
-- Guarded settings mutation completions with the originating classroom and form generation so late responses cannot overwrite a newly selected classroom, including switch-away-and-back cases.
-- Added component regressions for classroom A to B settings rerenders, unchanged-title blur after a switch, and in-flight title saves resolving after switching away and back.
-
-**Validation:**
-- `pnpm vitest run tests/components/TeacherSettingsTab.test.tsx`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-
-## 2026-06-05 — Session-log trim guardrail
-
-**Completed:**
-- Added `node scripts/trim-session-log.mjs --check` so CI and agents can detect untrimmed session logs without modifying files.
-- Updated session-log workflow guidance to require append-then-trim in the same change while keeping the 60-entry retention cap.
-- Strengthened startup and trim-script tests so missed trims point directly to `node scripts/trim-session-log.mjs`.
-
-**Validation:**
-- `pnpm install --frozen-lockfile`
-- `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts`
-- `node scripts/trim-session-log.mjs --check`
-- `git diff --check`
-
-## 2026-06-05 — Skill progression map refresh
-
-**Completed:**
-- Reviewed startup context, current repo invariants, and recent merged PR history before making recommendations.
-- Collected evidence from merged PRs `#719`, `#724`, `#725`, `#726`, `#728`, `#729`, `#730`, `#731`, `#732`, `#733`, `#734`, `#735`, `#736`, plus self-review notes on `#709` and `#711`.
-- Identified recurring themes around classroom freshness/cache invalidation, contract-boundary hardening, component regression testing, and Gradex integration follow-through.
-
-**Validation:**
-- `bash scripts/verify-env.sh` (fails: `node_modules` missing in this worktree)
-- `gh pr list --state merged --limit 12 --json number,title,mergedAt,author,labels,url`
-- `gh pr view <pr> --json number,title,mergedAt,files,reviews,url`
-- `gh api graphql` against recent merged PR review metadata
-
 ## 2026-06-05 — Teacher attendance freshness guards
 
 **Completed:**
@@ -665,6 +605,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash scripts/verify-env.sh`
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `git diff --check`
+
 ## 2026-06-12 — Skill progression workflow hardening
 
 **Completed:**
@@ -677,3 +618,78 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Reviewed diffs for `docs/ai-instructions.md`, `.codex/prompts/session-start.md`, `docs/guides/ai-ui-testing.md`, `.codex/prompts/ui-verify.md`, `.codex/skills/pika-ui-verify/SKILL.md`, `docs/core/agents.md`, `docs/issue-worker.md`, and the new guidance docs.
 - `node scripts/trim-session-log.mjs`
 - `node scripts/trim-session-log.mjs --check`
+
+## 2026-06-09 — Classwork action chooser pilot
+
+**Completed:**
+- Added a reusable teacher work-surface action cluster with menu and icon-menu buttons for contextual FAB-style action areas.
+- Replaced the Classwork summary split button with `New Classwork` as a chooser for Assignment, Material, and Survey.
+- Moved `Edit list controls` and `Edit Markdown` behind a separate icon-only `Classwork options` pencil menu.
+- Renamed list management to `Organize classwork` and added `Done Organizing`.
+- Aligned Tests with the same action-cluster pattern: direct `New Test`, icon-only `Test options` pencil menu, `Organize tests`, and `Done Organizing`.
+- Updated the classroom list pencil control accessibility/tooltip language to `Organize classrooms`.
+- Removed subtitles from the Classwork/Test dropdown menus and switched the Assignment menu icon to the Classwork `ClipboardList` icon.
+- Switched the Material menu icon to Lucide `Paperclip`.
+- Deferred the organize-mode jiggle animation after visual review; no jiggle code ships in this PR.
+- Updated Classwork tests to exercise the new chooser/options menu semantics.
+- Fixed the PR CI failure in `StudentHistoryPage.test.tsx` by waiting for the async history-loading effect before asserting class-day and entry fetch calls.
+- Addressed review feedback by disabling the Classwork/Test options icon buttons in archived/read-only classrooms instead of opening dead disabled menus.
+- Replaced Classwork/Test options dropdowns with direct pencil organize toggles and moved Classwork markdown editing to a separate `Code` icon button shown only while organize mode is active and markdown editing is enabled.
+- Moved selected Assignment/Test edit actions out of their subshell dropdowns into direct pencil icon buttons beside the primary selected-item FABs.
+- Split the selected Assignment layout control out of the AI Grade split button into a standalone cycle button showing paired pane icons (`Menu`, `Percent`, `SquareMenu`).
+- Removed the visible number from the selected Assignment layout cycle button so it is icon-only.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/components/TeacherWorkSurfaceActionCluster.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx tests/components/SortableAssignmentCard.test.tsx tests/components/TeacherWorkItemPrimitives.test.tsx`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx tests/components/SortableAssignmentCard.test.tsx tests/components/TeacherWorkItemPrimitives.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test tests/components/StudentHistoryPage.test.tsx`
+- `pnpm run test:coverage`
+- `npx tsc --noEmit`
+- `pnpm lint`
+- `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=placeholder-publishable-key SUPABASE_SECRET_KEY=placeholder-secret-key SESSION_SECRET=placeholder-session-secret-at-least-32-chars-long pnpm build`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx`
+- `npx tsc --noEmit`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
+- `npx tsc --noEmit`
+- `pnpm lint`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
+- Playwright screenshot: active Classwork organize mode with pencil toggle selected and Markdown code button visible.
+- Playwright screenshots: teacher/student/mobile Classwork verify flow, Classwork pencil menu/organize mode, Tests pencil menu/organize mode, classroom list organize mode, and mobile Tests/classroom organize states.
+- Playwright screenshots confirmed compact no-subtitle Classwork and Tests dropdown menus.
+- Playwright screenshot confirmed the Classwork menu renders the Material paperclip icon.
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
+- `npx tsc --noEmit`
+- `pnpm lint`
+- `E2E_BASE_URL=http://localhost:3100 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=71f8b37f-831b-4e90-89f9-f04981a97d6a&assignmentStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
+- `E2E_BASE_URL=http://localhost:3100 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests&testId=91d01b50-807d-43ac-a5db-018c9645ac94&testMode=grading'`
+- Playwright screenshots confirmed selected Assignment/Test subshell action areas show a separate pencil edit button beside the primary split FAB on desktop and mobile.
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
+- `npx tsc --noEmit`
+- `pnpm lint`
+- `E2E_BASE_URL=http://localhost:3100 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=71f8b37f-831b-4e90-89f9-f04981a97d6a&assignmentStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
+- Playwright screenshots confirmed the selected Assignment layout cycle button renders the students+grading and content+grading icon pairs cleanly on desktop/mobile.
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
+- `npx tsc --noEmit`
+- `pnpm lint`
+- Playwright screenshot confirmed the selected Assignment layout cycle button has no visible number/index label.
+
+## 2026-06-12 — Assignment Layout Tooltip Copy
+
+- Changed the selected Assignment layout cycle tooltip to the concise copy `Toggle Layout`.
+- Left the accessible button label unchanged so screen reader users still hear the current layout context.
+- Verified with `bash scripts/verify-env.sh`, `pnpm exec tsc --noEmit --pretty false`, and `pnpm test tests/components/TeacherClassroomView.test.tsx`.
+- Playwright hover screenshot confirmed the tooltip renders exactly `Toggle Layout` and the previous dynamic `Layout: … Next: …` copy is gone.
+
+## 2026-06-12 — Action Cluster PR Rebase
+
+- Rebased `codex/action-cluster-classwork` onto `origin/main` and resolved the `TeacherTestsTab.test.tsx` helper import conflict by keeping `createMockTest` plus the branch's `Classroom` typing.
+- Verified the rebased branch with `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx tests/components/TeacherTestsTab.test.tsx` and `pnpm exec tsc --noEmit --pretty false`.
