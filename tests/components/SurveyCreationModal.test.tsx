@@ -21,6 +21,6 @@ describe('SurveyCreationModal', () => {
     expect(screen.getByLabelText('Due mode')).toHaveDisplayValue('Soft due')
     expect(screen.getByLabelText('Show class results to students')).toBeInTheDocument()
     expect(screen.getByLabelText('Allow students to update answers while open')).toBeInTheDocument()
-    expect(screen.getByRole('dialog')).toHaveClass('!max-w-2xl')
+    expect(screen.getByRole('dialog')).toHaveClass('!max-w-4xl')
   })
 })

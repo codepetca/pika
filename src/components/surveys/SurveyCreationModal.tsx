@@ -3,8 +3,12 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { addDaysToDateString } from '@/lib/date-string'
 import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetupForm'
-import { CreationModalShell, CreationModalTopRow } from '@/components/creation/CreationModalShell'
-import { DateTimeFields, SurveyDuePolicySelect } from '@/components/classwork/ClassworkContentModal'
+import {
+  ClassworkContentModalShell,
+  ClassworkModalTopLine,
+  DateTimeFields,
+  SurveyDuePolicySelect,
+} from '@/components/classwork/ClassworkContentModal'
 import {
   DEFAULT_SCHEDULE_TIME,
   combineScheduleDateTimeToIso,
@@ -92,24 +96,42 @@ export function SurveyCreationModal({
   }
 
   return (
-    <CreationModalShell
+    <ClassworkContentModalShell
       isOpen={isOpen}
       onClose={onClose}
       title="New Survey"
       titleId="survey-create-modal-title"
       closeLabel="Close survey modal"
       closeDisabled={saving}
-      maxWidth="!max-w-2xl"
+      maxWidth="!max-w-4xl"
     >
       <form onSubmit={handleSubmit} className="w-full space-y-4">
-        <CreationModalTopRow
+        <ClassworkModalTopLine
           title={title}
           titlePlaceholder="Enter survey title"
           titleError={error}
           titleDisabled={saving}
           titleInputRef={titleInputRef}
           onTitleChange={setTitle}
-          actions={(
+          meta={(
+            <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(12rem,1fr)_11rem] lg:w-[30rem] lg:items-end">
+              <DateTimeFields
+                label="Due"
+                date={dueDate}
+                time={dueTime}
+                disabled={saving}
+                required
+                onDateChange={setDueDate}
+                onTimeChange={setDueTime}
+              />
+              <SurveyDuePolicySelect
+                value={duePolicy}
+                disabled={saving}
+                onChange={setDuePolicy}
+              />
+            </div>
+          )}
+          primaryActions={(
             <Button
               type="submit"
               variant="primary"
@@ -122,23 +144,6 @@ export function SurveyCreationModal({
         />
 
         <div className="max-w-xl space-y-4">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-end">
-            <DateTimeFields
-              label="Due"
-              date={dueDate}
-              time={dueTime}
-              disabled={saving}
-              required
-              onDateChange={setDueDate}
-              onTimeChange={setDueTime}
-            />
-            <SurveyDuePolicySelect
-              value={duePolicy}
-              disabled={saving}
-              onChange={setDuePolicy}
-            />
-          </div>
-
           <AssessmentSetupCheckbox
             checked={showResults}
             disabled={saving}
@@ -156,6 +161,6 @@ export function SurveyCreationModal({
           </AssessmentSetupCheckbox>
         </div>
       </form>
-    </CreationModalShell>
+    </ClassworkContentModalShell>
   )
 }

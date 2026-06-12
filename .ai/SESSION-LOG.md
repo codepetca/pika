@@ -11,6 +11,214 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-08-21 — Adopt the minimal Pal level-up celebration
+
+**Risk profile:** none — student-only presentation and reward-modal dismissal;
+no schema, grading, assessment, workspace persistence, or hosted state changed.
+
+**Implemented:**
+- Pinned the reviewed public `@codepet/pal-widget@0.1.0-alpha.4` release.
+- Enabled Pal's opt-in fireworks/brightness effect in Pika's existing
+  host-managed reward modal and removed the normal Continue action.
+- Preserved Pika ownership of dialog semantics, focus containment, Escape,
+  backdrop dismissal, scroll lock, and reward acknowledgement. A failed
+  acknowledgement keeps the modal visible and restores Pal's Retry action.
+- Updated the Pal pilot integration contract and minimal title-presentation
+  expectations.
+
+**Verification:**
+- Focused student Pal experience and widget theme-contract suites pass 17 tests;
+  TypeScript, lint, architecture, design policy, UI policy, and diff checks pass.
+- Playwright verification passed for the student modal on desktop/mobile in
+  light/dark themes, including launch/linger visuals, Escape and backdrop
+  acknowledgement, failure/retry, and reduced-motion suppression. Teacher view
+  is not applicable because Pal reward layers mount only for students.
+- Composite-widget accessibility checklist reviewed: keyboard behavior covered
+  yes; semantic state covered by tests yes; remaining manual follow-up none.
+
+## 2026-08-21 — Make teacher CLI hints invocation-aware
+
+**Risk profile:** none — teacher CLI help and recovery text only; no application
+runtime, schema, hosted environment, deployment, or database state changed.
+## 2026-06-14 — Legacy quiz server access names
+## 2026-06-05 — Session-log trim guardrail
+
+**Completed:**
+- Added `node scripts/trim-session-log.mjs --check` so CI and agents can detect untrimmed session logs without modifying files.
+- Updated session-log workflow guidance to require append-then-trim in the same change while keeping the 60-entry retention cap.
+- Strengthened startup and trim-script tests so missed trims point directly to `node scripts/trim-session-log.mjs`.
+
+**Validation:**
+- `pnpm install --frozen-lockfile`
+- `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts`
+- `node scripts/trim-session-log.mjs --check`
+- `git diff --check`
+
+## 2026-06-05 — Skill progression map refresh
+
+**Completed:**
+- Reviewed startup context, current repo invariants, and recent merged PR history before making recommendations.
+- Collected evidence from merged PRs `#719`, `#724`, `#725`, `#726`, `#728`, `#729`, `#730`, `#731`, `#732`, `#733`, `#734`, `#735`, `#736`, plus self-review notes on `#709` and `#711`.
+- Identified recurring themes around classroom freshness/cache invalidation, contract-boundary hardening, component regression testing, and Gradex integration follow-through.
+
+**Validation:**
+- `bash scripts/verify-env.sh` (fails: `node_modules` missing in this worktree)
+- `gh pr list --state merged --limit 12 --json number,title,mergedAt,author,labels,url`
+- `gh pr view <pr> --json number,title,mergedAt,files,reviews,url`
+- `gh api graphql` against recent merged PR review metadata
+
+## 2026-06-05 — Teacher attendance freshness guards
+
+**Completed:**
+- Exported the assessment access result type from `src/lib/server/assessments.ts` as `AssessmentAccessResult`.
+- Updated assessment access not-found errors from quiz wording to assessment wording.
+- Updated server access unit tests to exercise assessment-named helpers as the primary path.
+- Kept legacy `assertTeacherOwnsQuiz`, `assertStudentCanAccessQuiz`, and `quiz` result fields covered as compatibility aliases.
+- Did not change API response shapes, database tables, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/unit/server-access.test.ts`
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-13 — Student exam-mode transient focus e2e
+
+**Completed:**
+- Added a focused Playwright e2e case covering transient blur/focus restoration during an active student exam.
+- Verified the open-response draft stays visible, exam lock overlays do not appear, and focus telemetry records a zero-second away restoration.
+- Reused the existing exam-mode API setup and cleanup helpers; no schema, app logic, or seeded data changes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec playwright test e2e/student-exam-mode.spec.ts -g "keeps a transient away restoration" --project=chromium-desktop`
+- `pnpm lint`
+
+## 2026-06-14 — Teacher Tests payload type names
+
+**Completed:**
+- Added current-key local response types in `TeacherTestsTab` for teacher test list and results payloads.
+- Kept legacy `quiz` and `quizzes` fields documented as compatibility fallbacks in those local types.
+- Updated `TeacherTestsTab` component fixtures so current `test` results and create payloads are the default.
+- Added explicit legacy `quiz` results-payload fallback coverage.
+- Did not change API response shapes, route contracts, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-14 — Assessment utility fixture naming
+
+**Completed:**
+- Updated generic assessment utility comments and local parameter names from quiz wording to assessment wording.
+- Switched generic `tests/unit/assessments.test.ts` cases to use test-shaped fixtures for response eligibility, result visibility, editing, activation, and aggregation.
+- Left explicit legacy quiz alias/status coverage on `createMockQuiz` where the test is intentionally about quiz compatibility.
+- Did not change API response shapes, route contracts, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/unit/assessments.test.ts`
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-14 — Production release sync
+
+**Completed:**
+- Merged latest `origin/main` into `production` through protected PR #795.
+- Verified required GitHub checks passed before merging.
+- Synced the local production worktree to `origin/production` at `f483bbcbdc055fef379b655d6162b03c5fee073e`.
+- Risk profile: runtime-platform.
+- Model recommendation: GPT-5 Codex - protected-branch release orchestration with CI and worktree synchronization.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `bash .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh`
+- `gh run watch 27520948663 --repo codepetca/pika --interval 15 --exit-status`
+- `gh pr merge 795 --repo codepetca/pika --merge --delete-branch`
+- `git -C /Users/stew/Repos/.worktrees/pika/production merge --ff-only origin/production`
+
+## 2026-06-14 — Draft hook assessment option names
+
+**Completed:**
+- Renamed the primary `useDraftMode` options from `quizId`/`quizTitle` to `assessmentId`/`assessmentTitle`.
+- Kept legacy `quizId`/`quizTitle` option aliases for compatibility and added focused test coverage for them.
+- Updated hook comments, examples, and tests to use assessment/test wording by default.
+- Left DB-shaped `quiz_id` question fields and draft route contracts unchanged.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/hooks/useDraftMode.test.ts`
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-14 — Assessment draft sync error wording
+
+**Completed:**
+- Renamed `syncAssessmentQuestionsFromDraft` failure messages from quiz-question wording to assessment-question wording.
+- Updated nearby generic assessment draft helper comments to avoid quiz/test route wording.
+- Updated the focused unit assertion for the renamed insert failure message.
+- Left compatibility exports, `AssessmentDraftType = 'quiz' | 'test'`, `quiz_questions`, `quiz_id`, route contracts, and persisted payload shapes unchanged.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/unit/assessment-drafts.test.ts`
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-14 — Current test fixture wording cleanup
+
+**Completed:**
+- Renamed server assessment visibility unit-test descriptions and locals from quiz wording to assessment wording.
+- Updated `StudentTestResults` current-surface test fixtures to use `test-1` and `Test not found` while preserving the explicit legacy `quizId` alias test.
+- Updated the flagged-question helper file comment from test/quiz taking to test taking.
+- Did not change runtime behavior, schema, API payloads, compatibility aliases, or persisted `quiz_id` fields.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/unit/server-assessments.test.ts tests/components/StudentTestResults.test.tsx tests/lib/flag-questions.test.ts`
+- `pnpm lint`
+- `pnpm test` (first run hit an unrelated `StudentLessonCalendarTab.test.tsx` timeout; isolated rerun passed)
+- `pnpm test`
+
+## 2026-06-14 — Teacher work-surface docs test wording
+
+**Completed:**
+- Updated stable teacher work-surface guidance from assignments/quizzes/tests to assignments/tests.
+- Removed active teacher quiz authoring/state-machine references from the canon.
+- Updated the work-surface audit and stable guidance index to match the active Tests product surface.
+- Left the explicit legacy drift row for tests/quizzes shell paths because it documents drift to avoid copying.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/ui-guidance-docs.test.ts tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-14 — Individual test response fixture wording
+
+**Completed:**
+- Derived the copy-pasteable command prefix from the global launcher's existing
+  `PIKA_ORIGIN_PWD` handoff, so global runs print `pika ...` while package-script
+  runs print `pnpm pika ...`.
+- Applied the detected invocation consistently to help, usage errors, login and
+  expired-session recovery, Blueprint follow-up, and Classroom undo hints.
+- Replaced the stale `course pull/push/instantiate` error text with the current
+  Blueprint commands while retaining newer proposal, apply, and delete commands.
+- Added behavior-level regression coverage through both real entry points with
+  a local mock API for help/errors, recovery, Next, and Undo output.
+
+**Verification:**
+- Focused CLI suite passes 8 tests; full suite passes 4,909 tests across 561 files.
+- Lint, production build, architecture boundaries, and Pika pre-commit audit pass.
+
 ## 2026-08-21 — Center the first-login Pal reward
 
 **Risk profile:** none — student-only reward-modal layout and regression coverage;
@@ -1841,3 +2049,51 @@ cross-role visual verification.
 - `pnpm test` (301 files / 2666 tests)
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
 - Manual Playwright modal screenshots: `/tmp/pika-material-modal.png`, `/tmp/pika-survey-modal.png`, `/tmp/pika-announcement-modal.png`
+
+## 2026-06-11 — Classwork modal top-row alignment follow-up
+
+**Completed:**
+- Added a reusable `ClassworkContentModalTopRow` to the shared classwork modal shell so title, metadata, preview/tools, and primary actions live in the same top modal area.
+- Moved assignment, material, survey create/edit, and announcement modal title/action rows onto the shared top row.
+- Widened survey modals to the classwork modal width and kept due date/time plus soft/hard policy controls aligned in the top row on desktop, with stacked mobile behavior.
+- Removed duplicate bottom action clusters where the top row now owns modal actions.
+
+**Validation:**
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-modal-assignment.png`, `/tmp/pika-modal-material.png`, `/tmp/pika-modal-survey.png`, `/tmp/pika-modal-announcement.png`, `/tmp/pika-modal-survey-mobile.png`, `/tmp/pika-modal-assignment-mobile.png`
+- `pnpm test tests/components/AssignmentModal.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/AnnouncementsMarkdown.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+
+## 2026-06-12 — Classwork modal top-line template
+
+**Completed:**
+- Added assignment-style top-line template helpers: `ClassworkModalTopLine`, `ClassworkModalTopLineField`, `ClassworkModalPreviewButton`, and `ClassworkModalSplitAction`.
+- Migrated assignment, material, survey create/edit, and announcement modals onto the new template API.
+- Converted material posting to use the same post/schedule split action pattern as assignment and announcement.
+- Kept modal-specific scheduling and save behavior outside the template so the shared layer owns layout/anatomy rather than business logic.
+
+**Validation:**
+- `bash scripts/verify-env.sh` before edits: completed with baseline failures in `tests/components/AssignmentModal.test.tsx` call count and `tests/unit/ai-startup-docs.test.ts` timeout.
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/AssignmentModal.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/AnnouncementsMarkdown.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-template-assignment-modal.png`, `/tmp/pika-template-material-modal.png`, `/tmp/pika-template-survey-modal.png`, `/tmp/pika-template-announcement-modal.png`, `/tmp/pika-template-material-mobile-modal.png`
+
+## 2026-06-12 — Classwork modal action color policy
+
+**Completed:**
+- Added an `intent` policy to `ClassworkModalSplitAction` so publish actions resolve to green `success` and non-publish primary actions remain blue.
+- Migrated assignment, material, and announcement publish split buttons to the shared publish intent.
+- Kept survey create/save actions blue because they create or save survey setup rather than immediately publishing content.
+- Made scheduled announcement creation use the same publish color treatment.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/AssignmentModal.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/AnnouncementsMarkdown.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-policy-assignment-modal.png`, `/tmp/pika-policy-material-modal.png`, `/tmp/pika-policy-survey-modal.png`, `/tmp/pika-policy-announcement-modal.png`, `/tmp/pika-policy-material-mobile-modal.png`

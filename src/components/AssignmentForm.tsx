@@ -1,10 +1,13 @@
 'use client'
 
 import type { ReactNode, RefObject } from 'react'
-import { Eye } from 'lucide-react'
 import { Button } from '@/ui'
 import { ContentField, MarkdownContentEditor } from '@/components/editor'
-import { CreationModalTopRow } from '@/components/creation/CreationModalShell'
+import {
+  ClassworkModalPreviewButton,
+  ClassworkModalTopLine,
+  ClassworkModalTopLineField,
+} from '@/components/classwork/ClassworkContentModal'
 import { DateActionBar } from '@/components/DateActionBar'
 import { getRelativeDueDate } from '@/lib/assignment-relative-date'
 import type { ClassDay } from '@/types'
@@ -52,7 +55,7 @@ export function AssignmentForm({
 }: AssignmentFormProps) {
   return (
     <div className={fillHeight ? 'flex h-full min-h-0 w-full flex-col gap-3' : 'space-y-3 w-full'}>
-      <CreationModalTopRow
+      <ClassworkModalTopLine
         title={title}
         titlePlaceholder="Add a title"
         titleDisabled={disabled}
@@ -63,48 +66,38 @@ export function AssignmentForm({
         titleStatus={statusContent}
         onTitleChange={onTitleChange}
         onTitleBlur={onBlur}
-        afterTitle={(
-          <div className="flex items-end gap-2">
-            {onPreviewInstructions && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={onPreviewInstructions}
-                disabled={disabled}
-                className="h-9 w-9 px-0 sm:w-auto sm:px-3 sm:gap-1.5"
-                aria-label="Preview"
+        meta={(
+          (() => {
+            const relative = getRelativeDueDate(dueAt, classDays)
+            const labelText = relative ? `Due ${relative.text}` : 'Due Date'
+            const tone = relative
+              ? relative.isPast
+                ? 'warning'
+                : 'primary'
+              : 'muted'
+
+            return (
+              <ClassworkModalTopLineField
+                label={labelText}
+                tone={tone}
+                className="lg:w-[8.25rem]"
               >
-                <Eye className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Preview</span>
-              </Button>
-            )}
-            <div className="w-[6.25rem] space-y-1 sm:w-[8.25rem]">
-              {(() => {
-                const relative = getRelativeDueDate(dueAt, classDays)
-                const labelText = relative ? `Due ${relative.text}` : 'Due Date'
-                const colorClass = relative
-                  ? relative.isPast
-                    ? 'text-warning'
-                    : 'text-primary'
-                  : 'text-text-muted'
-                return (
-                  <div className={`truncate text-sm font-medium ${colorClass}`}>
-                    {labelText}
-                  </div>
-                )
-              })()}
-              <div className="flex">
-                <DateActionBar
-                  value={dueAt}
-                  onChange={onDueAtChange}
-                  layout="compact"
-                />
-              </div>
-            </div>
-          </div>
+              <DateActionBar
+                value={dueAt}
+                onChange={onDueAtChange}
+                layout="compact"
+              />
+              </ClassworkModalTopLineField>
+            )
+          })()
         )}
-        actions={topRowActions}
+        secondaryActions={onPreviewInstructions ? (
+          <ClassworkModalPreviewButton
+            onClick={onPreviewInstructions}
+            disabled={disabled}
+          />
+        ) : null}
+        primaryActions={topRowActions}
       />
 
       {extraFields}
