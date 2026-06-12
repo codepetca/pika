@@ -9,19 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-01 — Open join settings toggle polish
-
-**Completed:**
-- Replaced the Settings join checkbox and right-aligned segmented control with matching left-aligned two-choice toggles.
-- Updated the toggle states so `Allow`/`Roster` sit on the left and `Disallow`/`Open` sit on the right.
-
-**Validation:**
-- `pnpm test tests/components/TeacherSettingsTab.test.tsx`
-- `pnpm test tests/unit/ai-startup-docs.test.ts`
-- `pnpm lint`
-- `pnpm build`
-- Visual verification: Settings desktop/mobile/student screenshots via `pika-ui-verify`.
-
 ## 2026-06-01 — Joining tooltip copy consolidation
 
 **Completed:**
@@ -1225,3 +1212,10 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `npx tsc --noEmit`
 - `pnpm lint`
 - Playwright screenshot confirmed the selected Assignment layout cycle button has no visible number/index label.
+
+## 2026-06-12 — Assignment Layout Tooltip Copy
+
+- Changed the selected Assignment layout cycle tooltip to the concise copy `Toggle Layout`.
+- Left the accessible button label unchanged so screen reader users still hear the current layout context.
+- Verified with `bash scripts/verify-env.sh`, `pnpm exec tsc --noEmit --pretty false`, and `pnpm test tests/components/TeacherClassroomView.test.tsx`.
+- Playwright hover screenshot confirmed the tooltip renders exactly `Toggle Layout` and the previous dynamic `Layout: … Next: …` copy is gone.

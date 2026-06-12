@@ -2219,10 +2219,9 @@ export function TeacherClassroomView({
     ]
 
   const layoutToggleLabel = ASSIGNMENT_SPLIT_PANE_VIEW_LABELS[splitPaneView]
-  const nextLayoutToggleLabel = ASSIGNMENT_SPLIT_PANE_VIEW_LABELS[nextSplitPaneView]
 
   const assignmentLayoutToggle = (
-    <Tooltip content={`Layout: ${layoutToggleLabel}. Next: ${nextLayoutToggleLabel}`}>
+    <Tooltip content="Toggle Layout">
       <span className="inline-flex">
         <Button
           type="button"
