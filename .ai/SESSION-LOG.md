@@ -81,6 +81,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test`
 
 ## 2026-06-14 — Assessment utility fixture naming
+## 2026-06-06 — Teacher classroom index cache audit
 
 **Completed:**
 - Updated generic assessment utility comments and local parameter names from quiz wording to assessment wording.
@@ -944,6 +945,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - Rebased `codex/action-cluster-classwork` onto `origin/main` and resolved the `TeacherTestsTab.test.tsx` helper import conflict by keeping `createMockTest` plus the branch's `Classroom` typing.
 - Verified the rebased branch with `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx tests/components/TeacherTestsTab.test.tsx` and `pnpm exec tsc --noEmit --pretty false`.
+
 ## 2026-06-10 — Classwork content modal consistency
 
 **Completed:**
@@ -1025,3 +1027,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Manual Playwright screenshots: `/tmp/pika-autosave-assignment-modal.png`, `/tmp/pika-autosave-material-modal.png`, `/tmp/pika-autosave-survey-modal.png`, `/tmp/pika-autosave-material-mobile.png`, `/tmp/pika-autosave-survey-mobile.png`
+
+## 2026-06-12 — Rebase classwork modal branch
+
+**Completed:**
+- Rebasing `codex/classwork-content-modals` onto `origin/main` completed.
+- Resolved conflicts in `TeacherClassroomView.tsx` and `TeacherClassroomView.test.tsx` by preserving main's `New Classwork` action-cluster UI and wiring Material creation to the autosave draft-open flow.
+- Confirmed migration numbering: `origin/main` ends at `078`, branch keeps `079_add_survey_due_policy.sql`, and no duplicate migration prefixes exist.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/AssignmentModal.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
