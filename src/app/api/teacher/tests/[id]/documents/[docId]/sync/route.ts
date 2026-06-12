@@ -5,6 +5,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { clearTestDocumentSnapshot, normalizeTestDocuments } from '@/lib/test-documents'
 import { findTestDocument, syncExternalLinkTestDocument } from '@/lib/server/test-document-snapshots'
+import { withLegacyQuizKey } from '@/lib/test-api-contract'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,7 +62,6 @@ export const POST = withErrorHandler('SyncTeacherTestDocument', async (_request,
 
   return NextResponse.json({
     doc: syncedDoc,
-    test: responseTest,
-    quiz: responseTest,
+    ...withLegacyQuizKey(responseTest),
   })
 })
