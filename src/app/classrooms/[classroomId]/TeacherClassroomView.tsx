@@ -47,6 +47,7 @@ import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import {
   ClassworkContentModalShell,
   ClassworkModalPreviewButton,
+  ClassworkModalSaveStatus,
   ClassworkModalSplitAction,
   ClassworkModalTopLine,
 } from '@/components/classwork/ClassworkContentModal'
@@ -84,6 +85,7 @@ import {
   isAssignmentAlreadyReturnedWithoutResubmission,
 } from '@/lib/assignments'
 import { useAssignmentGradingLayout } from '@/hooks/use-assignment-grading-layout'
+import { useClassworkAutosave } from '@/hooks/useClassworkAutosave'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 import {
   ASSIGNMENT_GRADING_LAYOUT,
@@ -371,6 +373,26 @@ function TeacherMaterialCard({
   )
 }
 
+type MaterialEditorValues = {
+  title: string
+  content: TiptapContent
+}
+
+const GENERATED_MATERIAL_TITLE = 'Untitled Material'
+
+function isGeneratedMaterialTitle(title: string): boolean {
+  return title.trim() === GENERATED_MATERIAL_TITLE
+}
+
+function getDisplayedMaterialTitle(material: ClassworkMaterial | null): string {
+  if (!material) return ''
+  return isGeneratedMaterialTitle(material.title) ? '' : material.title
+}
+
+function areMaterialEditorValuesEqual(left: MaterialEditorValues, right: MaterialEditorValues): boolean {
+  return left.title === right.title && JSON.stringify(left.content) === JSON.stringify(right.content)
+}
+
 function TeacherMaterialDialog({
   classroom,
   material,
@@ -386,9 +408,11 @@ function TeacherMaterialDialog({
   onSaved: (material: ClassworkMaterial) => void
   onRequestDelete: (material: ClassworkMaterial) => void
 }) {
+  const [currentMaterial, setCurrentMaterial] = useState<ClassworkMaterial | null>(material)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
   const [saving, setSaving] = useState(false)
+  const [creatingDraft, setCreatingDraft] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
@@ -396,15 +420,75 @@ function TeacherMaterialDialog({
   const [scheduleTime, setScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
   const { showMessage } = useAppMessage()
   const isReadOnly = !!classroom.archived_at
-  const isDraft = material?.is_draft ?? true
+  const isDraft = currentMaterial?.is_draft ?? true
+
+  const buildMaterialValues = useCallback((overrides?: Partial<MaterialEditorValues>): MaterialEditorValues => ({
+    title,
+    content,
+    ...overrides,
+  }), [content, title])
+
+  const saveMaterialDraft = useCallback(async (values: MaterialEditorValues) => {
+    if (!currentMaterial) return values
+
+    const cleanTitle = values.title.trim()
+    if (!cleanTitle && !isGeneratedMaterialTitle(currentMaterial.title)) {
+      throw new Error('Title is required')
+    }
+
+    const update: Record<string, unknown> = {}
+    if (cleanTitle && cleanTitle !== currentMaterial.title) {
+      update.title = cleanTitle
+    }
+    if (JSON.stringify(values.content) !== JSON.stringify(currentMaterial.content)) {
+      update.content = values.content
+    }
+
+    if (Object.keys(update).length === 0) return values
+
+    const response = await fetch(`/api/teacher/classrooms/${classroom.id}/materials/${currentMaterial.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(update),
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(data.error || 'Failed to save material')
+
+    const updatedMaterial = data.material as ClassworkMaterial
+    setCurrentMaterial(updatedMaterial)
+    onSaved(updatedMaterial)
+    return {
+      title: getDisplayedMaterialTitle(updatedMaterial),
+      content: updatedMaterial.content,
+    }
+  }, [classroom.id, currentMaterial, onSaved])
+
+  const autosave = useClassworkAutosave<MaterialEditorValues>({
+    disabled: saving || creatingDraft || isReadOnly || !currentMaterial,
+    isEqual: areMaterialEditorValuesEqual,
+    onSave: saveMaterialDraft,
+    onError: setError,
+  })
+  const {
+    status: autosaveStatus,
+    reset: resetAutosave,
+    schedule: scheduleAutosave,
+    flush: flushAutosave,
+  } = autosave
 
   useEffect(() => {
     if (!isOpen) return
-    setTitle(material?.title || '')
+    setCurrentMaterial(material)
+    setTitle(getDisplayedMaterialTitle(material))
     setContent(material?.content || EMPTY_DOC)
     setError(null)
     setShowPreview(false)
     setShowScheduleModal(false)
+    setCreatingDraft(!material && !isReadOnly)
+    resetAutosave(material ? {
+      title: getDisplayedMaterialTitle(material),
+      content: material.content,
+    } : null)
     if (material?.released_at && isScheduleIsoInFuture(material.released_at)) {
       const scheduled = parseScheduleIsoToParts(material.released_at)
       setScheduleDate(scheduled.date)
@@ -413,37 +497,93 @@ function TeacherMaterialDialog({
       setScheduleDate(getTodayInSchedulingTimezone())
       setScheduleTime(DEFAULT_SCHEDULE_TIME)
     }
-  }, [isOpen, material])
+  }, [isOpen, isReadOnly, material, resetAutosave])
 
-  async function saveMaterial(nextDraft: boolean, releaseAt?: string | null) {
+  useEffect(() => {
+    if (!creatingDraft || currentMaterial || isReadOnly || !isOpen) return
+
+    async function createMaterialDraft() {
+      setError(null)
+      try {
+        const response = await fetch(`/api/teacher/classrooms/${classroom.id}/materials`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: GENERATED_MATERIAL_TITLE,
+            content: EMPTY_DOC,
+            is_draft: true,
+            released_at: null,
+          }),
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data.error || 'Failed to create material')
+
+        const draft = data.material as ClassworkMaterial
+        setCurrentMaterial(draft)
+        setTitle(getDisplayedMaterialTitle(draft))
+        setContent(draft.content)
+        resetAutosave({
+          title: getDisplayedMaterialTitle(draft),
+          content: draft.content,
+        })
+        onSaved(draft)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to create material')
+        onClose()
+      } finally {
+        setCreatingDraft(false)
+      }
+    }
+
+    void createMaterialDraft()
+  }, [classroom.id, creatingDraft, currentMaterial, isOpen, isReadOnly, onClose, onSaved, resetAutosave])
+
+  function handleMaterialTitleChange(nextTitle: string) {
+    setTitle(nextTitle)
+    if (nextTitle.trim() && error === 'Title is required') {
+      setError(null)
+    }
+    scheduleAutosave(buildMaterialValues({ title: nextTitle }))
+  }
+
+  function handleMaterialContentChange(nextContent: TiptapContent) {
+    setContent(nextContent)
+    scheduleAutosave(buildMaterialValues({ content: nextContent }))
+  }
+
+  async function publishMaterial(releaseAt?: string | null) {
     const cleanTitle = title.trim()
     if (!cleanTitle) {
       setError('Title is required')
       return
     }
+    if (!currentMaterial) return
 
+    const flushed = await flushAutosave()
+    if (!flushed) return
     setSaving(true)
     setError(null)
     try {
-      const response = await fetch(
-        material
-          ? `/api/teacher/classrooms/${classroom.id}/materials/${material.id}`
-          : `/api/teacher/classrooms/${classroom.id}/materials`,
-        {
-          method: material ? 'PATCH' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: cleanTitle,
-            content,
-            is_draft: nextDraft,
-            released_at: nextDraft ? null : releaseAt ?? undefined,
-          }),
-        },
-      )
+      const response = await fetch(`/api/teacher/classrooms/${classroom.id}/materials/${currentMaterial.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: cleanTitle,
+          content,
+          is_draft: false,
+          released_at: releaseAt ?? undefined,
+        }),
+      })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || 'Failed to save material')
-      onSaved(data.material as ClassworkMaterial)
-      showMessage({ text: nextDraft ? 'Material saved as draft.' : 'Material posted.', tone: 'success' })
+      const updatedMaterial = data.material as ClassworkMaterial
+      setCurrentMaterial(updatedMaterial)
+      onSaved(updatedMaterial)
+      resetAutosave({
+        title: getDisplayedMaterialTitle(updatedMaterial),
+        content: updatedMaterial.content,
+      })
+      showMessage({ text: releaseAt ? 'Material scheduled.' : 'Material posted.', tone: 'success' })
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save material')
@@ -452,82 +592,89 @@ function TeacherMaterialDialog({
     }
   }
 
+  async function handleMaterialClose() {
+    if (saving || creatingDraft) return
+    const flushed = await flushAutosave()
+    if (flushed) {
+      onClose()
+    }
+  }
+
+  const busy = saving || creatingDraft || autosaveStatus === 'saving'
+  const modalTitle = creatingDraft
+    ? 'Creating Draft...'
+    : currentMaterial?.is_draft
+      ? 'Edit Draft'
+      : 'Material'
+
   return (
     <>
       <ClassworkContentModalShell
         isOpen={isOpen}
-        onClose={saving ? () => {} : onClose}
-        title={material ? 'Material' : 'New Material'}
+        onClose={() => {
+          void handleMaterialClose()
+        }}
+        title={modalTitle}
         titleId="material-modal-title"
         closeLabel="Close material modal"
-        closeDisabled={saving}
+        closeDisabled={saving || creatingDraft}
         maxWidth="!max-w-4xl"
       >
         <div className="space-y-4">
           <ClassworkModalTopLine
             title={title}
             titlePlaceholder="Reading, link, handout..."
-            titleDisabled={saving || isReadOnly}
-            onTitleChange={setTitle}
+            titleDisabled={saving || creatingDraft || isReadOnly}
+            titleStatus={<ClassworkModalSaveStatus status={autosaveStatus} />}
+            onTitleChange={handleMaterialTitleChange}
             secondaryActions={(
               <>
-                {material && !isReadOnly ? (
+                {currentMaterial && !isReadOnly ? (
                   <Button
                     type="button"
                     variant="danger"
                     size="sm"
-                    onClick={() => onRequestDelete(material)}
-                    disabled={saving}
+                    onClick={() => onRequestDelete(currentMaterial)}
+                    disabled={saving || creatingDraft}
                   >
                     Delete
                   </Button>
                 ) : null}
                 <ClassworkModalPreviewButton
                   onClick={() => setShowPreview(true)}
-                  disabled={saving}
+                  disabled={saving || creatingDraft}
                 />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    void saveMaterial(true)
-                  }}
-                  disabled={saving || isReadOnly}
-                >
-                  {saving ? 'Saving...' : 'Save Draft'}
-                </Button>
               </>
             )}
-            primaryActions={(
+            primaryActions={isDraft ? (
               <ClassworkModalSplitAction
-                label={saving ? 'Saving...' : isDraft ? 'Post Material' : 'Save'}
-                intent={isDraft ? 'publish' : 'primary'}
+                label={saving ? 'Posting...' : 'Post Material'}
+                intent="publish"
                 onPrimaryClick={() => {
-                  void saveMaterial(false)
+                  void publishMaterial()
                 }}
-                disabled={saving || isReadOnly}
+                disabled={busy || isReadOnly || !currentMaterial}
                 toggleAriaLabel="Choose material action"
                 options={[
                   {
                     id: 'schedule',
                     label: 'Schedule...',
                     onSelect: () => setShowScheduleModal(true),
-                    disabled: saving || isReadOnly,
+                    disabled: busy || isReadOnly || !currentMaterial,
                   },
                 ]}
                 primaryButtonProps={{
                   className: 'min-w-[7.5rem]',
                 }}
               />
-            )}
+            ) : null}
           />
 
           <FormField label="Content">
             <RichTextEditor
               content={content}
-              onChange={setContent}
-              editable={!saving && !isReadOnly}
+              onChange={handleMaterialContentChange}
+              editable={!saving && !creatingDraft && !isReadOnly}
               placeholder="Add links, notes, readings, or instructions..."
             />
           </FormField>
@@ -576,7 +723,7 @@ function TeacherMaterialDialog({
         onTimeChange={setScheduleTime}
         onCancel={() => setShowScheduleModal(false)}
         onConfirm={() => {
-          void saveMaterial(false, combineScheduleDateTimeToIso(scheduleDate, scheduleTime))
+          void publishMaterial(combineScheduleDateTimeToIso(scheduleDate, scheduleTime))
         }}
         confirmLabel={saving ? 'Scheduling...' : 'Schedule'}
         dateLabel="Release date"
@@ -720,6 +867,7 @@ export function TeacherClassroomView({
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false)
+  const [isCreatingMaterialFromAction, setIsCreatingMaterialFromAction] = useState(false)
   const [isSurveyCreateModalOpen, setIsSurveyCreateModalOpen] = useState(false)
   const [editMaterial, setEditMaterial] = useState<ClassworkMaterial | null>(null)
   const [pendingMaterialDelete, setPendingMaterialDelete] = useState<ClassworkMaterial | null>(null)
@@ -922,9 +1070,37 @@ export function TeacherClassroomView({
         ? current.map((item) => (item.id === material.id ? material : item))
         : [material, ...current]
     })
-    setEditMaterial(null)
-    setIsMaterialModalOpen(false)
   }, [classroom.id])
+
+  const openNewMaterialDialog = useCallback(async () => {
+    if (isReadOnly || isCreatingMaterialFromAction) return
+
+    setIsCreatingMaterialFromAction(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/teacher/classrooms/${classroom.id}/materials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: GENERATED_MATERIAL_TITLE,
+          content: EMPTY_DOC,
+          is_draft: true,
+          released_at: null,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to create material')
+
+      const draft = data.material as ClassworkMaterial
+      handleMaterialSaved(draft)
+      setEditMaterial(draft)
+      setIsMaterialModalOpen(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create material')
+    } finally {
+      setIsCreatingMaterialFromAction(false)
+    }
+  }, [classroom.id, handleMaterialSaved, isCreatingMaterialFromAction, isReadOnly])
 
   const handleSurveySaved = useCallback((
     survey: Survey,
@@ -961,6 +1137,24 @@ export function TeacherClassroomView({
     }, { replace: true })
     void loadAssignments({ preserveContent: true })
   }, [classroom.id, loadAssignments, updateSearchParams])
+
+  const handleSurveyDraftSaved = useCallback((survey: Survey) => {
+    invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+    invalidateCachedJSON(`student-surveys:${classroom.id}`)
+    setSurveys((current) => {
+      const withStats = survey as SurveyWithStats
+      const exists = current.some((item) => item.id === survey.id)
+      return exists
+        ? current.map((item) => (item.id === survey.id ? { ...item, ...withStats } : item))
+        : [
+            ...current,
+            {
+              ...withStats,
+              stats: withStats.stats ?? { total_students: 0, responded: 0, questions_count: 0 },
+            },
+          ]
+    })
+  }, [classroom.id])
 
   const handleSurveyQuestionCountChanged = useCallback((surveyId: string, questionsCount: number) => {
     invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
@@ -2670,10 +2864,9 @@ export function TeacherClassroomView({
       label: 'Material',
       icon: <Paperclip className="h-4 w-4" aria-hidden="true" />,
       onSelect: () => {
-        setEditMaterial(null)
-        setIsMaterialModalOpen(true)
+        void openNewMaterialDialog()
       },
-      disabled: isReadOnly,
+      disabled: isCreatingMaterialFromAction || isReadOnly,
     },
     {
       id: 'survey',
@@ -3023,6 +3216,7 @@ export function TeacherClassroomView({
         isOpen={isSurveyCreateModalOpen}
         classroomId={classroom.id}
         onClose={() => setIsSurveyCreateModalOpen(false)}
+        onDraftSaved={handleSurveyDraftSaved}
         onSuccess={(survey) => {
           setIsSurveyCreateModalOpen(false)
           handleSurveySaved(survey, { initialEditMode: 'edit' })

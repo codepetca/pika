@@ -4,7 +4,11 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { AssignmentSubmissionRequirementsEditor } from '@/components/AssignmentSubmissionRequirementsEditor'
-import { ClassworkContentModalShell, ClassworkModalSplitAction } from '@/components/classwork/ClassworkContentModal'
+import {
+  ClassworkContentModalShell,
+  ClassworkModalSaveStatus,
+  ClassworkModalSplitAction,
+} from '@/components/classwork/ClassworkContentModal'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import type { AssignmentSubmissionRequirementDraft } from '@/lib/assignment-submission-requirements'
@@ -738,19 +742,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     : 'muted'
   const scheduleDueDateValidationMessage = getScheduleDueDateValidationMessage(scheduleIso, dueAt, isScheduleValid)
   const previewSubtitle = isLive ? title.trim() || undefined : undefined
-  const saveStatusContent = (
-    <span
-      className={`text-xs ${
-        saveStatus === 'saved'
-          ? 'text-success'
-          : saveStatus === 'saving'
-            ? 'text-text-muted'
-            : 'text-warning'
-      }`}
-    >
-      {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
-    </span>
-  )
+  const saveStatusContent = <ClassworkModalSaveStatus status={saveStatus} />
 
   return (
     <>
