@@ -7,6 +7,11 @@ Preferred path:
 bash .codex/skills/pika-session-start/scripts/session_start.sh
 ```
 
+For report-only, docs-only, or review work:
+```bash
+bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only
+```
+
 Manual fallback:
 1. Resolve the repo root with `git rev-parse --show-toplevel` and verify it is not `$HOME/Repos/pika` for branch work.
 2. Ensure `.env.local` symlinks to `$HOME/Repos/.env/pika/.env.local`.

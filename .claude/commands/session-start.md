@@ -15,6 +15,7 @@ Steps:
    - Ensure `.env.local` symlinks to `$HOME/Repos/.env/pika/.env.local`.
    - Run: `bash scripts/verify-env.sh`
    - If verify-env.sh fails: STOP — report the failure.
+   - For report-only, docs-only, or review work, use `bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only` instead so startup stays read-only.
 
 2) Recover recent context
    - Run: `git log --oneline -10`
