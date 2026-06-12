@@ -37,7 +37,7 @@ Use `docs/guides/ai-ui-testing.md` and `.codex/prompts/ui-verify.md` for the act
 - Testing: Vitest + React Testing Library
 
 ## Core Commands
-- Verify: `bash scripts/verify-env.sh` (optional: `--full`)
+- Verify: `bash scripts/verify-env.sh` (optional: `--tests` or `--full`)
 - Tests: `pnpm test` (watch: `pnpm test:watch`)
 - Lint: `pnpm lint`
 - Build: `pnpm build`

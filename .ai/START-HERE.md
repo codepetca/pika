@@ -21,7 +21,8 @@
 [ ] Plan before coding: task, model, approach, approval
 ```
 
-Do not code if verification fails. Read `.ai/SESSION-LOG.md` only for recent handoff context; `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+Do not code if verification fails. Use `.ai/SESSION-LOG.md` only for recent handoff; use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+For docs-only or review work, use `bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only`.
 
 ---
 

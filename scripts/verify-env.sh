@@ -4,10 +4,11 @@ set -euo pipefail
 MODE="${1:-}"
 
 if [[ "$MODE" == "-h" || "$MODE" == "--help" ]]; then
-  echo "Usage: bash scripts/verify-env.sh [--full]"
+  echo "Usage: bash scripts/verify-env.sh [--tests|--full]"
   echo ""
-  echo "Default: fast checks (node, .ai layer, tests)."
-  echo "  --full: also run lint + build (slower)."
+  echo "Default: fast checks (node, package manager, AI continuity layer, features.json, dependencies)."
+  echo "  --tests: also run pnpm/npm test."
+  echo "  --full: run tests + lint + build."
   exit 0
 fi
 
@@ -79,9 +80,11 @@ if [[ ! -d "node_modules" ]]; then
 fi
 echo "✅ Dependencies installed"
 
-echo "Running tests..."
-"${PM_CMD[@]}" test
-echo "✅ Tests passing"
+if [[ "$MODE" == "--tests" || "$MODE" == "--full" ]]; then
+  echo "Running tests..."
+  "${PM_CMD[@]}" test
+  echo "✅ Tests passing"
+fi
 
 if [[ "$MODE" == "--full" ]]; then
   echo "Running lint..."

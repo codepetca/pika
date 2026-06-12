@@ -9,42 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-04 — Resource sidebar freshness audit
-
-**Completed:**
-- Added a shared client helper for teacher and student classroom resource reads, cache keys, and cross-role invalidation after teacher saves.
-- Made teacher and student resource sidebars ignore stale responses from older classroom reads and only render content for the classroom that actually finished loading.
-- Added sidebar regressions for hiding stale teacher/student resources during classroom switches and invalidating student resource cache after a teacher save.
-- Addressed PR review feedback by scoping pending teacher resource autosave drafts and save completions to their classroom id so blur/unload saves and stale in-flight saves cannot corrupt the newly selected classroom state.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/ClassResourcesSidebar.test.tsx`
-- `pnpm vitest run tests/components/ClassResourcesSidebar.test.tsx tests/components/ResourcesTab.test.tsx tests/api/teacher/resources.test.ts tests/api/student/resources.test.ts`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-
-## 2026-06-04 — Classwork materials freshness audit
-
-**Completed:**
-- Made the student assignments/materials/surveys tab reset loaded state on classroom changes, hide previous classroom classwork while the next classroom loads, and ignore stale classwork responses.
-- Guarded teacher classwork summary loads and rendered teacher classwork only from data loaded for the current classroom so older assignment/material/survey/class-day reads cannot overwrite or remain interactive under a new classroom shell.
-- Added component regressions for active student classroom switches, stale teacher classwork load completion after switching classrooms, and hiding already-loaded teacher classwork while the next classroom loads.
-- Addressed PR review feedback by requiring the selected teacher assignment workspace to belong to the currently loaded classroom before loading details, exposing workspace props, or accepting stale detail completions.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `pnpm vitest run tests/api/teacher/materials.test.ts tests/api/student/materials.test.ts tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-
 ## 2026-06-04 — Classroom shell freshness audit
 
 **Completed:**
@@ -664,6 +628,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
 - `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests&testId=91d01b50-807d-43ac-a5db-018c9645ac94&testMode=grading&testStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
 - Playwright desktop forced-scroll check: right pane scroll node `rightDeltaPx: 0` while vertically overflowing (`scrollHeight 956`, `clientHeight 504`).
+
 ## 2026-06-10 — Legacy quiz utility alias pass
 
 **Completed:**
@@ -682,3 +647,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm vitest run tests/components/AssignmentModal.test.tsx` (reran after one unrelated full-suite timing failure)
 - `pnpm test` (301 files / 2662 tests)
+
+## 2026-06-12 — Startup orient-only mode and fast verify-env
+
+**Completed:**
+- Added `--orient-only` / `--read-only` support to `.codex/skills/pika-session-start/scripts/session_start.sh` so report-only and docs-only runs can load startup context without mutating `.env.local` or running `verify-env.sh`.
+- Changed `scripts/verify-env.sh` so the default path stops after environment and dependency checks; test execution now requires `--tests` or `--full`.
+- Updated startup guidance in `.ai/START-HERE.md`, `.codex/prompts/session-start.md`, `.claude/commands/session-start.md`, `AGENTS.md`, and the `pika-session-start` skill to document the read-only startup path and the new verify-env modes.
+- Extended `tests/unit/ai-startup-docs.test.ts` to lock the non-mutating orient-only behavior, the fast default `verify-env.sh` path, and the startup-doc references.
+
+**Validation:**
+- `pnpm install --frozen-lockfile`
+- `bash scripts/verify-env.sh --help`
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh --help`
+- `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only`
+- `bash scripts/verify-env.sh`
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `git diff --check`
