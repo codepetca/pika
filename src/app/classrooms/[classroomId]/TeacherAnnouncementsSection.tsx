@@ -2,11 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Trash2, Plus, Clock, Calendar, Settings } from 'lucide-react'
-import { Button, ConfirmDialog, SplitButton } from '@/ui'
+import { Button, ConfirmDialog } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
-import { ClassworkContentModalShell } from '@/components/classwork/ClassworkContentModal'
-import { CreationModalTopRow } from '@/components/creation/CreationModalShell'
+import {
+  ClassworkContentModalShell,
+  ClassworkModalPreviewButton,
+  ClassworkModalSplitAction,
+  ClassworkModalTopLine,
+  ClassworkModalTopLineField,
+} from '@/components/classwork/ClassworkContentModal'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import {
@@ -583,24 +588,135 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
         maxWidth="!max-w-3xl"
       >
         <div className="space-y-4">
-          <CreationModalTopRow
+          <ClassworkModalTopLine
             title={modalTitleValue}
             titlePlaceholder="Title (optional)"
             titleRequired={false}
             titleDisabled={saving}
             titleMaxLength={ANNOUNCEMENT_TITLE_MAX_LENGTH}
-            titleInputClassName="max-w-full"
-            titleFieldClassName="max-w-full"
             onTitleChange={editingAnnouncement ? setEditTitle : setNewTitle}
-            actions={(
-              <Button
-                type="button"
-                variant="secondary"
+            meta={modalScheduledFor ? (
+              <ClassworkModalTopLineField label="Release" tone="warning" className="lg:w-[12rem]">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const { date, time } = parseDateTime(modalScheduledFor)
+                      if (editingAnnouncement) {
+                        setPendingEditScheduleDate(date)
+                        setPendingEditScheduleTime(time)
+                        setShowEditScheduleDropdown(true)
+                      } else {
+                        setPendingScheduleDate(date)
+                        setPendingScheduleTime(time)
+                        setShowScheduleDropdown(true)
+                      }
+                    }}
+                    className="flex min-h-9 min-w-0 items-center gap-2 rounded-control border border-warning bg-warning-bg px-3 text-sm font-medium text-warning hover:bg-surface-hover"
+                  >
+                    <Calendar className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">{formatDate(modalScheduledFor)}</span>
+                  </button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (editingAnnouncement) {
+                        setEditScheduleDateTime('')
+                      } else {
+                        setScheduleDateTime('')
+                      }
+                    }}
+                    disabled={saving}
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </ClassworkModalTopLineField>
+            ) : null}
+            secondaryActions={(
+              <ClassworkModalPreviewButton
                 onClick={() => setShowAnnouncementPreview((current) => !current)}
                 disabled={saving || !modalBody.trim()}
-              >
-                {showAnnouncementPreview ? 'Edit' : 'Preview'}
-              </Button>
+                active={showAnnouncementPreview}
+                label={showAnnouncementPreview ? 'Edit' : 'Preview'}
+              />
+            )}
+            primaryActions={(
+              <div className="relative flex items-center" ref={editingAnnouncement ? editDropdownRef : dropdownRef}>
+                {modalScheduledFor ? (
+                  <Button
+                    variant={editingAnnouncement ? 'primary' : 'success'}
+                    size="sm"
+                    onClick={() => {
+                      if (editingAnnouncement) {
+                        void saveEdit()
+                      } else {
+                        void createAnnouncement(scheduleDateTime)
+                      }
+                    }}
+                    disabled={saving || !modalBody.trim()}
+                  >
+                    {saving ? 'Saving...' : editingAnnouncement ? 'Save' : 'Schedule'}
+                  </Button>
+                ) : (
+                  <ClassworkModalSplitAction
+                    label={saving ? 'Saving...' : editingAnnouncement ? 'Save' : 'Post'}
+                    intent={editingAnnouncement ? 'primary' : 'publish'}
+                    onPrimaryClick={() => {
+                      if (editingAnnouncement) {
+                        void saveEdit()
+                      } else {
+                        void createAnnouncement()
+                      }
+                    }}
+                    disabled={saving || !modalBody.trim()}
+                    options={[
+                      {
+                        id: 'schedule',
+                        label: 'Schedule...',
+                        onSelect: editingAnnouncement ? openEditSchedulePicker : openCreateSchedulePicker,
+                      },
+                    ]}
+                    toggleAriaLabel="Choose announcement action"
+                  />
+                )}
+
+                {(editingAnnouncement ? showEditScheduleDropdown : showScheduleDropdown) && (
+                  <ScheduleDateTimePicker
+                    className="absolute right-0 top-full z-10 mt-1 min-w-[220px]"
+                    date={editingAnnouncement ? pendingEditScheduleDate : pendingScheduleDate}
+                    time={editingAnnouncement ? pendingEditScheduleTime : pendingScheduleTime}
+                    minDate={getTodayDate()}
+                    isFutureValid={
+                      editingAnnouncement
+                        ? !!pendingEditScheduleDate && isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)
+                        : !!pendingScheduleDate && isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)
+                    }
+                    onDateChange={editingAnnouncement ? setPendingEditScheduleDate : setPendingScheduleDate}
+                    onTimeChange={editingAnnouncement ? setPendingEditScheduleTime : setPendingScheduleTime}
+                    onCancel={() => {
+                      if (editingAnnouncement) {
+                        setShowEditScheduleDropdown(false)
+                      } else {
+                        setShowScheduleDropdown(false)
+                      }
+                    }}
+                    onConfirm={() => {
+                      if (editingAnnouncement) {
+                        if (pendingEditScheduleDate && isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)) {
+                          setEditScheduleDateTime(combineDateTime(pendingEditScheduleDate, pendingEditScheduleTime))
+                          setShowEditScheduleDropdown(false)
+                        }
+                      } else if (pendingScheduleDate && isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)) {
+                        setScheduleDateTime(combineDateTime(pendingScheduleDate, pendingScheduleTime))
+                        setShowScheduleDropdown(false)
+                      }
+                    }}
+                  />
+                )}
+              </div>
             )}
           />
 
@@ -628,136 +744,6 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
             />
           )}
 
-          {modalScheduledFor && (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const { date, time } = parseDateTime(modalScheduledFor)
-                  if (editingAnnouncement) {
-                    setPendingEditScheduleDate(date)
-                    setPendingEditScheduleTime(time)
-                    setShowEditScheduleDropdown(true)
-                  } else {
-                    setPendingScheduleDate(date)
-                    setPendingScheduleTime(time)
-                    setShowScheduleDropdown(true)
-                  }
-                }}
-                className="flex items-center gap-2 text-sm text-warning hover:text-warning"
-              >
-                <Calendar className="h-4 w-4 flex-shrink-0" />
-                <span>{formatDate(modalScheduledFor)}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (editingAnnouncement) {
-                    setEditScheduleDateTime('')
-                  } else {
-                    setScheduleDateTime('')
-                  }
-                }}
-                disabled={saving}
-                className="text-xs text-text-muted hover:text-text-default"
-              >
-                Clear
-              </button>
-            </div>
-          )}
-
-          <div className="flex items-start justify-between gap-3">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                if (editingAnnouncement) {
-                  cancelEditing()
-                } else {
-                  setIsCreating(false)
-                  setNewTitle('')
-                  setNewContent('')
-                  setScheduleDateTime('')
-                  setShowScheduleDropdown(false)
-                  setShowAnnouncementPreview(false)
-                }
-              }}
-              disabled={saving}
-            >
-              Cancel
-            </Button>
-            <div className="relative flex items-center" ref={editingAnnouncement ? editDropdownRef : dropdownRef}>
-              {modalScheduledFor ? (
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    if (editingAnnouncement) {
-                      void saveEdit()
-                    } else {
-                      void createAnnouncement(scheduleDateTime)
-                    }
-                  }}
-                  disabled={saving || !modalBody.trim()}
-                >
-                  {saving ? 'Saving...' : editingAnnouncement ? 'Save' : 'Schedule'}
-                </Button>
-              ) : (
-                <SplitButton
-                  label={saving ? 'Saving...' : editingAnnouncement ? 'Save' : 'Post'}
-                  onPrimaryClick={() => {
-                    if (editingAnnouncement) {
-                      void saveEdit()
-                    } else {
-                      void createAnnouncement()
-                    }
-                  }}
-                  disabled={saving || !modalBody.trim()}
-                  options={[
-                    {
-                      id: 'schedule',
-                      label: 'Schedule...',
-                      onSelect: editingAnnouncement ? openEditSchedulePicker : openCreateSchedulePicker,
-                    },
-                  ]}
-                  toggleAriaLabel="Choose announcement action"
-                />
-              )}
-
-              {(editingAnnouncement ? showEditScheduleDropdown : showScheduleDropdown) && (
-                <ScheduleDateTimePicker
-                  className="absolute right-0 top-full z-10 mt-1 min-w-[220px]"
-                  date={editingAnnouncement ? pendingEditScheduleDate : pendingScheduleDate}
-                  time={editingAnnouncement ? pendingEditScheduleTime : pendingScheduleTime}
-                  minDate={getTodayDate()}
-                  isFutureValid={
-                    editingAnnouncement
-                      ? !!pendingEditScheduleDate && isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)
-                      : !!pendingScheduleDate && isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)
-                  }
-                  onDateChange={editingAnnouncement ? setPendingEditScheduleDate : setPendingScheduleDate}
-                  onTimeChange={editingAnnouncement ? setPendingEditScheduleTime : setPendingScheduleTime}
-                  onCancel={() => {
-                    if (editingAnnouncement) {
-                      setShowEditScheduleDropdown(false)
-                    } else {
-                      setShowScheduleDropdown(false)
-                    }
-                  }}
-                  onConfirm={() => {
-                    if (editingAnnouncement) {
-                      if (pendingEditScheduleDate && isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)) {
-                        setEditScheduleDateTime(combineDateTime(pendingEditScheduleDate, pendingEditScheduleTime))
-                        setShowEditScheduleDropdown(false)
-                      }
-                    } else if (pendingScheduleDate && isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)) {
-                      setScheduleDateTime(combineDateTime(pendingScheduleDate, pendingScheduleTime))
-                      setShowScheduleDropdown(false)
-                    }
-                  }}
-                />
-              )}
-            </div>
-          </div>
         </div>
       </ClassworkContentModalShell>
 

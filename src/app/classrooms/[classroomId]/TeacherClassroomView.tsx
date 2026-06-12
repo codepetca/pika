@@ -38,13 +38,18 @@ import {
   Trash2,
   Unlock,
 } from 'lucide-react'
-import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, SplitButton, Tooltip, useAppMessage, useOverlayMessage, type SplitButtonOption } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
-import { ClassworkContentModalShell } from '@/components/classwork/ClassworkContentModal'
+import {
+  ClassworkContentModalShell,
+  ClassworkModalPreviewButton,
+  ClassworkModalSplitAction,
+  ClassworkModalTopLine,
+} from '@/components/classwork/ClassworkContentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { SortableSurveyCard } from '@/components/surveys/SortableSurveyCard'
 import { SurveyCreationModal } from '@/components/surveys/SurveyCreationModal'
@@ -449,108 +454,113 @@ function TeacherMaterialDialog({
 
   return (
     <>
-    <ClassworkContentModalShell
-      isOpen={isOpen}
-      onClose={saving ? () => {} : onClose}
-      title={material ? 'Material' : 'New Material'}
-      titleId="material-modal-title"
-      closeLabel="Close material modal"
-      closeDisabled={saving}
-      maxWidth="!max-w-4xl"
-    >
-      <div className="space-y-4">
-        <FormField label="Title">
-          <Input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            disabled={saving || isReadOnly}
-            placeholder="Reading, link, handout..."
+      <ClassworkContentModalShell
+        isOpen={isOpen}
+        onClose={saving ? () => {} : onClose}
+        title={material ? 'Material' : 'New Material'}
+        titleId="material-modal-title"
+        closeLabel="Close material modal"
+        closeDisabled={saving}
+        maxWidth="!max-w-4xl"
+      >
+        <div className="space-y-4">
+          <ClassworkModalTopLine
+            title={title}
+            titlePlaceholder="Reading, link, handout..."
+            titleDisabled={saving || isReadOnly}
+            onTitleChange={setTitle}
+            secondaryActions={(
+              <>
+                {material && !isReadOnly ? (
+                  <Button
+                    type="button"
+                    variant="danger"
+                    size="sm"
+                    onClick={() => onRequestDelete(material)}
+                    disabled={saving}
+                  >
+                    Delete
+                  </Button>
+                ) : null}
+                <ClassworkModalPreviewButton
+                  onClick={() => setShowPreview(true)}
+                  disabled={saving}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    void saveMaterial(true)
+                  }}
+                  disabled={saving || isReadOnly}
+                >
+                  {saving ? 'Saving...' : 'Save Draft'}
+                </Button>
+              </>
+            )}
+            primaryActions={(
+              <ClassworkModalSplitAction
+                label={saving ? 'Saving...' : isDraft ? 'Post Material' : 'Save'}
+                intent={isDraft ? 'publish' : 'primary'}
+                onPrimaryClick={() => {
+                  void saveMaterial(false)
+                }}
+                disabled={saving || isReadOnly}
+                toggleAriaLabel="Choose material action"
+                options={[
+                  {
+                    id: 'schedule',
+                    label: 'Schedule...',
+                    onSelect: () => setShowScheduleModal(true),
+                    disabled: saving || isReadOnly,
+                  },
+                ]}
+                primaryButtonProps={{
+                  className: 'min-w-[7.5rem]',
+                }}
+              />
+            )}
           />
-        </FormField>
 
-        <FormField label="Content">
-          <RichTextEditor
-            content={content}
-            onChange={setContent}
-            editable={!saving && !isReadOnly}
-            placeholder="Add links, notes, readings, or instructions..."
-          />
-        </FormField>
+          <FormField label="Content">
+            <RichTextEditor
+              content={content}
+              onChange={setContent}
+              editable={!saving && !isReadOnly}
+              placeholder="Add links, notes, readings, or instructions..."
+            />
+          </FormField>
 
-        {error && (
-          <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+              {error}
+            </div>
+          )}
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            {material && !isReadOnly ? (
-              <Button
-                type="button"
-                variant="danger"
-                onClick={() => onRequestDelete(material)}
-                disabled={saving}
-              >
-                Delete
-              </Button>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={() => setShowPreview(true)} disabled={saving}>
-              Preview
-            </Button>
-            <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => saveMaterial(true)}
-              disabled={saving || isReadOnly}
-            >
-              {saving ? 'Saving...' : 'Save Draft'}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setShowScheduleModal(true)}
-              disabled={saving || isReadOnly}
-            >
-              Schedule
-            </Button>
-            <Button
-              type="button"
-              onClick={() => saveMaterial(false)}
-              disabled={saving || isReadOnly}
-            >
-              {saving ? 'Saving...' : isDraft ? 'Post Material' : 'Save'}
-            </Button>
-          </div>
         </div>
-      </div>
-    </ClassworkContentModalShell>
+      </ClassworkContentModalShell>
 
-    <ContentDialog
-      isOpen={isOpen && showPreview}
-      onClose={() => setShowPreview(false)}
-      title={title.trim() || 'Material preview'}
-      maxWidth="!max-w-2xl"
-      showFooterClose={false}
-    >
-      <RichTextViewer content={content} />
-    </ContentDialog>
+      <ContentDialog
+        isOpen={isOpen && showPreview}
+        onClose={() => setShowPreview(false)}
+        title={title.trim() || 'Material preview'}
+        maxWidth="!max-w-2xl"
+        showFooterClose={false}
+      >
+        <RichTextViewer content={content} />
+      </ContentDialog>
 
-    <DialogPanel
-      isOpen={showScheduleModal}
-      onClose={() => {
-        if (saving) return
-        setShowScheduleModal(false)
-      }}
-      maxWidth="max-w-sm"
-      className="p-4"
-      ariaLabelledBy="material-schedule-title"
-    >
+      <DialogPanel
+        isOpen={showScheduleModal}
+        onClose={() => {
+          if (saving) return
+          setShowScheduleModal(false)
+        }}
+        maxWidth="max-w-sm"
+        className="p-4"
+        ariaLabelledBy="material-schedule-title"
+      >
       <h3 id="material-schedule-title" className="mb-2 text-sm font-semibold text-text-default">
         Schedule Material
       </h3>

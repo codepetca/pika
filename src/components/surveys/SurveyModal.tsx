@@ -2,15 +2,20 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { addDaysToDateString } from '@/lib/date-string'
-import { AssessmentSetupDialog } from '@/components/assessment/AssessmentSetupDialog'
-import { AssessmentSetupCheckbox, AssessmentSetupForm } from '@/components/assessment/AssessmentSetupForm'
-import { DateTimeFields, SurveyDuePolicySelect } from '@/components/classwork/ClassworkContentModal'
+import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetupForm'
+import {
+  ClassworkContentModalShell,
+  ClassworkModalTopLine,
+  DateTimeFields,
+  SurveyDuePolicySelect,
+} from '@/components/classwork/ClassworkContentModal'
 import {
   DEFAULT_SCHEDULE_TIME,
   combineScheduleDateTimeToIso,
   getTodayInSchedulingTimezone,
   parseScheduleIsoToParts,
 } from '@/lib/scheduling'
+import { Button } from '@/ui'
 import type { Survey, SurveyDuePolicy } from '@/types'
 
 interface SurveyModalProps {
@@ -98,46 +103,54 @@ export function SurveyModal({
   }
 
   return (
-    <AssessmentSetupDialog
+    <ClassworkContentModalShell
       isOpen={isOpen}
       onClose={onClose}
-      isCompact
-      compactMaxWidth="max-w-md"
       title="Edit Survey"
       titleId="survey-modal-title"
       closeLabel="Close survey modal"
       closeDisabled={saving}
+      maxWidth="!max-w-4xl"
     >
-      <AssessmentSetupForm
-        isCompact
-        title={title}
-        titlePlaceholder="Enter survey title"
-        titleError={error}
-        titleInputRef={titleInputRef}
-        saving={saving}
-        submitLabel="Save"
-        onTitleChange={setTitle}
-        onCancel={onClose}
-        onSubmit={handleSubmit}
-      >
-        <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-end">
-            <DateTimeFields
-              label="Due"
-              date={dueDate}
-              time={dueTime}
+      <form onSubmit={handleSubmit} className="w-full space-y-4">
+        <ClassworkModalTopLine
+          title={title}
+          titlePlaceholder="Enter survey title"
+          titleError={error}
+          titleDisabled={saving}
+          titleInputRef={titleInputRef}
+          onTitleChange={setTitle}
+          meta={(
+            <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(12rem,1fr)_11rem] lg:w-[30rem] lg:items-end">
+              <DateTimeFields
+                label="Due"
+                date={dueDate}
+                time={dueTime}
+                disabled={saving}
+                required
+                onDateChange={setDueDate}
+                onTimeChange={setDueTime}
+              />
+              <SurveyDuePolicySelect
+                value={duePolicy}
+                disabled={saving}
+                onChange={setDuePolicy}
+              />
+            </div>
+          )}
+          primaryActions={(
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-[5.75rem] justify-center font-semibold"
               disabled={saving}
-              required
-              onDateChange={setDueDate}
-              onTimeChange={setDueTime}
-            />
-            <SurveyDuePolicySelect
-              value={duePolicy}
-              disabled={saving}
-              onChange={setDuePolicy}
-            />
-          </div>
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
+          )}
+        />
 
+        <div className="space-y-4">
           <AssessmentSetupCheckbox
             checked={showResults}
             disabled={saving}
@@ -154,7 +167,7 @@ export function SurveyModal({
             Allow students to update answers while open
           </AssessmentSetupCheckbox>
         </div>
-      </AssessmentSetupForm>
-    </AssessmentSetupDialog>
+      </form>
+    </ClassworkContentModalShell>
   )
 }
