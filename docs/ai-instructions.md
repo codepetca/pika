@@ -53,30 +53,9 @@ Inspect or modify source only after the startup set and task-routed docs are loa
 - Workflow: use a worktree for non-trivial work; include `Model recommendation: <model> - <reason>`, append `.ai/SESSION-LOG.md`, and run `node scripts/trim-session-log.mjs`
 - Risk profile: for non-trivial work, declare `none`, `workspace-state`, `async-grading`, `exam-mode`, or `runtime-platform` in the plan
 
-## Prompt And Command Map
+## Prompt And Skill Map
 
-| Task | Claude Code | Codex |
-|---|---|---|
-| Start a session | `/session-start` | `.codex/prompts/session-start.md` |
-| Work on a GitHub issue | `/work-on-issue <N>` | `.codex/prompts/work-on-issue.md` |
-| Review developer feedback triage | `/dev-feedback` | `$pika-dev-feedback` |
-| TDD implementation | `/tdd <feature>` | `.codex/prompts/tdd.md` |
-| Verify UI changes | `/ui-verify <page>` | `.codex/prompts/ui-verify.md` |
-| Pre-commit audit | `/audit` | `.codex/prompts/audit.md` |
-| Migrate error handler | `/migrate-error-handler <file>` | `.codex/prompts/migrate-error-handler.md` |
-| Scaffold API route | `/add-api-route` | `.codex/prompts/add-api-route.md` |
-| Merge `main` into `production` | `/merge-main-into-production` | `.codex/prompts/merge-main-into-production.md` |
-
-UI changes require Playwright final verification before commit. Chrome plugin checks are supplemental. See [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md).
-
-## Specialist Skill Triggers
-
-When the tooling is available in the current agent session, prefer these skills at the trigger points below:
-
-- `product-design:get-context` before non-trivial UI or UX work so the acceptance brief is explicit before coding
-- `pika-ui-verify` before closing any UI change so the role, viewport, theme, and state matrix is actually checked
-- `supabase:supabase-postgres-best-practices` before migration or Supabase query-shape PRs
-- `vercel:react-best-practices` before opening large TSX refactors or shared shell/component extraction PRs
+Use `.codex/prompts/` for session start, issue work, TDD, UI verify, audit, API-route, error-handler, and production-merge flows. UI changes require Playwright final verification; see [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md). When available, use specialist skills for product-design briefs, Pika UI verification, Supabase/Postgres work, and large React refactors.
 
 ## Source Of Truth Order
 

@@ -9,19 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-05 — Skill progression map refresh
-
-**Completed:**
-- Reviewed startup context, current repo invariants, and recent merged PR history before making recommendations.
-- Collected evidence from merged PRs `#719`, `#724`, `#725`, `#726`, `#728`, `#729`, `#730`, `#731`, `#732`, `#733`, `#734`, `#735`, `#736`, plus self-review notes on `#709` and `#711`.
-- Identified recurring themes around classroom freshness/cache invalidation, contract-boundary hardening, component regression testing, and Gradex integration follow-through.
-
-**Validation:**
-- `bash scripts/verify-env.sh` (fails: `node_modules` missing in this worktree)
-- `gh pr list --state merged --limit 12 --json number,title,mergedAt,author,labels,url`
-- `gh pr view <pr> --json number,title,mergedAt,files,reviews,url`
-- `gh api graphql` against recent merged PR review metadata
-
 ## 2026-06-05 — Teacher attendance freshness guards
 
 **Completed:**
@@ -618,6 +605,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash scripts/verify-env.sh`
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `git diff --check`
+
 ## 2026-06-12 — Skill progression workflow hardening
 
 **Completed:**
