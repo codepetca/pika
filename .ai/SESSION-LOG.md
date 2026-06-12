@@ -1133,3 +1133,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Manual Playwright screenshots: `/tmp/pika-policy-assignment-modal.png`, `/tmp/pika-policy-material-modal.png`, `/tmp/pika-policy-survey-modal.png`, `/tmp/pika-policy-announcement-modal.png`, `/tmp/pika-policy-material-mobile-modal.png`
+
+## 2026-06-12 — Classwork modal autosave consistency
+
+**Completed:**
+- Added shared classwork modal save status UI and a reusable `useClassworkAutosave` hook.
+- Moved material drafts to autosave, removed the manual `Save Draft` action, and kept material post/schedule controls in the shared top-line shell.
+- Moved survey create/edit settings to autosave, removed manual save/create setup actions, and kept survey due date/time plus soft/hard due mode in the shared top-line shell.
+- Fixed the Material action-menu create path so a newly created material draft opens in the modal after the draft is created.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/AssignmentModal.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-autosave-assignment-modal.png`, `/tmp/pika-autosave-material-modal.png`, `/tmp/pika-autosave-survey-modal.png`, `/tmp/pika-autosave-material-mobile.png`, `/tmp/pika-autosave-survey-mobile.png`
