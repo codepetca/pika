@@ -22,8 +22,10 @@ After the startup set above, load task-specific docs:
 | Task | Read next |
 |---|---|
 | Any non-trivial code change | [`docs/core/architecture.md`](./core/architecture.md) |
-| UI or UX work | [`docs/core/design.md`](./core/design.md), [`docs/guidance/ui/README.md`](./guidance/ui/README.md), [`docs/guidance/ui/stable.md`](./guidance/ui/stable.md), [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md) |
+| UI or UX work | [`docs/core/design.md`](./core/design.md), [`docs/guidance/ui/README.md`](./guidance/ui/README.md), [`docs/guidance/ui/stable.md`](./guidance/ui/stable.md), [`docs/guidance/ui/change-brief.md`](./guidance/ui/change-brief.md), [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md) |
 | Teacher assignments or tests work-surface shell/layout work | [`docs/guidance/ui/teacher-work-surfaces.md`](./guidance/ui/teacher-work-surfaces.md), [`docs/guidance/assignment-ux-language.md`](./guidance/assignment-ux-language.md), [`docs/guidance/ui/audit-teacher-work-surfaces.md`](./guidance/ui/audit-teacher-work-surfaces.md) |
+| Migrations, Supabase query-shape changes, or rollout compatibility work | [`docs/guidance/schema-rollout-checklist.md`](./guidance/schema-rollout-checklist.md) |
+| Large TSX refactors or shared shell/component extractions | [`docs/guidance/component-refactor-checklist.md`](./guidance/component-refactor-checklist.md) |
 | TDD, coverage, or test design | [`docs/core/tests.md`](./core/tests.md) |
 | Setup, runtime, or deployment questions | [`docs/core/project-context.md`](./core/project-context.md) |
 | Workspace state, grading runs, exam mode, or runtime platform risk | [`docs/guidance/dev-flow-risk-checklists.md`](./guidance/dev-flow-risk-checklists.md) |
@@ -66,6 +68,15 @@ Inspect or modify source only after the startup set and task-routed docs are loa
 | Merge `main` into `production` | `/merge-main-into-production` | `.codex/prompts/merge-main-into-production.md` |
 
 UI changes require Playwright final verification before commit. Chrome plugin checks are supplemental. See [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md).
+
+## Specialist Skill Triggers
+
+When the tooling is available in the current agent session, prefer these skills at the trigger points below:
+
+- `product-design:get-context` before non-trivial UI or UX work so the acceptance brief is explicit before coding
+- `pika-ui-verify` before closing any UI change so the role, viewport, theme, and state matrix is actually checked
+- `supabase:supabase-postgres-best-practices` before migration or Supabase query-shape PRs
+- `vercel:react-best-practices` before opening large TSX refactors or shared shell/component extraction PRs
 
 ## Source Of Truth Order
 

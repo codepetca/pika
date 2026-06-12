@@ -24,9 +24,10 @@ When a task affects UI, styling, layout, or interaction flow, read in this order
 1. [`docs/core/design.md`](/docs/core/design.md)
 2. [`src/ui/README.md`](/src/ui/README.md)
 3. [`docs/guidance/ui/stable.md`](/docs/guidance/ui/stable.md)
-4. Family-specific canon docs in this folder when the task targets a governed slice
-5. Relevant experimental, legacy, and open-question docs in this folder only if they materially affect the task
-6. [`docs/guidance/ui/composite-widget-accessibility.md`](/docs/guidance/ui/composite-widget-accessibility.md) when the task changes composite interactions or ARIA semantics
+4. [`docs/guidance/ui/change-brief.md`](/docs/guidance/ui/change-brief.md)
+5. Family-specific canon docs in this folder when the task targets a governed slice
+6. Relevant experimental, legacy, and open-question docs in this folder only if they materially affect the task
+7. [`docs/guidance/ui/composite-widget-accessibility.md`](/docs/guidance/ui/composite-widget-accessibility.md) when the task changes composite interactions or ARIA semantics
 
 The stable file is the default. Experimental and legacy docs are context, not overrides.
 
@@ -54,6 +55,7 @@ This is intentionally smaller than the full app.
 When a task touches UI/UX, the implementation plan or issue note should declare:
 
 - guidance read
+- acceptance target captured
 - stable guidance followed
 - experimental guidance introduced: yes/no
 - experimental draft file updated or created, if any

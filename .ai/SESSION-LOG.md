@@ -665,3 +665,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash scripts/verify-env.sh`
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `git diff --check`
+## 2026-06-12 — Skill progression workflow hardening
+
+**Completed:**
+- Added a new UI acceptance brief guide so non-trivial UI work records the target surface, reference, roles, viewports, themes, states, primary signal, and out-of-scope treatments before coding.
+- Added schema rollout and component refactor checklists to make migration/query-shape PRs and large TSX extraction PRs declare rollout risk, fallback expectations, and shared-component boundaries up front.
+- Updated AI routing, session-start, issue-worker, agent-role, UI canon, and UI verification guidance so the acceptance brief plus role/viewport/theme/state verification matrix are part of the default workflow.
+- Added explicit specialist-skill trigger guidance for `product-design:get-context`, `pika-ui-verify`, `supabase:supabase-postgres-best-practices`, and `vercel:react-best-practices`.
+
+**Validation:**
+- Reviewed diffs for `docs/ai-instructions.md`, `.codex/prompts/session-start.md`, `docs/guides/ai-ui-testing.md`, `.codex/prompts/ui-verify.md`, `.codex/skills/pika-ui-verify/SKILL.md`, `docs/core/agents.md`, `docs/issue-worker.md`, and the new guidance docs.
+- `node scripts/trim-session-log.mjs`
+- `node scripts/trim-session-log.mjs --check`
