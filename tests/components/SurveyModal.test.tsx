@@ -23,7 +23,7 @@ function makeSurvey(overrides: Partial<Survey> = {}): Survey {
 }
 
 describe('SurveyModal', () => {
-  it('keeps settings edits compact while using the shared setup shell', () => {
+  it('uses the shared classwork top row for survey settings', () => {
     render(
       <SurveyModal
         isOpen={true}
@@ -39,6 +39,6 @@ describe('SurveyModal', () => {
     expect(screen.getByLabelText('Due mode')).toHaveDisplayValue('Hard due')
     expect(screen.getByLabelText('Show class results to students')).toBeInTheDocument()
     expect(screen.getByLabelText('Allow students to update answers while open')).toBeInTheDocument()
-    expect(screen.getByRole('dialog')).toHaveClass('max-w-md')
+    expect(screen.getByRole('dialog')).toHaveClass('!max-w-4xl')
   })
 })
