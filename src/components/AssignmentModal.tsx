@@ -4,12 +4,16 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { AssignmentSubmissionRequirementsEditor } from '@/components/AssignmentSubmissionRequirementsEditor'
-import { ClassworkContentModalShell, ClassworkModalSplitAction } from '@/components/classwork/ClassworkContentModal'
+import {
+  ClassworkContentModalShell,
+  ClassworkModalSaveStatus,
+  ClassworkModalSplitAction,
+} from '@/components/classwork/ClassworkContentModal'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import type { AssignmentSubmissionRequirementDraft } from '@/lib/assignment-submission-requirements'
 import { getRelativeDueDate } from '@/lib/assignment-relative-date'
-import { ConfirmDialog, ContentDialog, DialogPanel, SaveStatus } from '@/ui'
+import { ConfirmDialog, ContentDialog, DialogPanel } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
 import { format, isValid, parse } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
@@ -682,7 +686,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     : 'muted'
   const scheduleDueDateValidationMessage = getScheduleDueDateValidationMessage(scheduleIso, dueAt, isScheduleValid)
   const previewSubtitle = isLive ? title.trim() || undefined : undefined
-  const saveStatusContent = <SaveStatus status={saveStatus} />
+  const saveStatusContent = <ClassworkModalSaveStatus status={saveStatus} />
 
   return (
     <>

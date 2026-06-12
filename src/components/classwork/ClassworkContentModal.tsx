@@ -74,10 +74,17 @@ type ClassworkModalPreviewButtonProps = {
 }
 
 type ClassworkModalActionIntent = 'publish' | 'primary'
+export type ClassworkModalSaveStatusValue = 'saved' | 'saving' | 'unsaved'
 
 type ClassworkModalSplitActionProps = Omit<SplitButtonProps, 'variant'> & {
   intent?: ClassworkModalActionIntent
   variant?: SplitButtonProps['variant']
+}
+
+type ClassworkModalSaveStatusProps = {
+  status: ClassworkModalSaveStatusValue
+  labels?: Partial<Record<ClassworkModalSaveStatusValue, string>>
+  className?: string
 }
 
 type SurveyDuePolicySelectProps = {
@@ -101,6 +108,18 @@ const TOP_LINE_FIELD_TONE_CLASS = {
 const ACTION_INTENT_VARIANT = {
   publish: 'success',
   primary: 'primary',
+} as const
+
+const SAVE_STATUS_TONE_CLASS = {
+  saved: 'text-success',
+  saving: 'text-text-muted',
+  unsaved: 'text-warning',
+} as const
+
+const SAVE_STATUS_LABEL = {
+  saved: 'Saved',
+  saving: 'Saving...',
+  unsaved: 'Unsaved',
 } as const
 
 export function ClassworkContentModalShell({
@@ -294,6 +313,18 @@ export function ClassworkModalSplitAction({
       }}
       {...props}
     />
+  )
+}
+
+export function ClassworkModalSaveStatus({
+  status,
+  labels,
+  className,
+}: ClassworkModalSaveStatusProps) {
+  return (
+    <span className={cn('text-xs', SAVE_STATUS_TONE_CLASS[status], className)}>
+      {labels?.[status] ?? SAVE_STATUS_LABEL[status]}
+    </span>
   )
 }
 

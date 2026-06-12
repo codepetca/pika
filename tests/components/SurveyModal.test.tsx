@@ -35,10 +35,12 @@ describe('SurveyModal', () => {
 
     expect(screen.getByRole('heading', { name: 'Edit Survey' })).toBeInTheDocument()
     expect(screen.getByDisplayValue('Game Jam Links')).toHaveAttribute('placeholder', 'Enter survey title')
+    expect(screen.getByText('Saved')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
     expect(screen.getByText('Due')).toBeInTheDocument()
     expect(screen.getByLabelText('Due mode')).toHaveDisplayValue('Hard due')
     expect(screen.getByLabelText('Show class results to students')).toBeInTheDocument()
     expect(screen.getByLabelText('Allow students to update answers while open')).toBeInTheDocument()
-    expect(screen.getByRole('dialog')).toHaveClass('!max-w-4xl')
+    expect(screen.getByRole('dialog')).toHaveClass('!max-w-5xl')
   })
 })
