@@ -12,8 +12,10 @@ gh issue view <number> --json number,title,body,labels,comments
 2. Read `.ai/CURRENT.md`
 3. Read `docs/ai-instructions.md` and load only the task-specific docs it routes you to.
 3. Check `.ai/features.json` for any referenced feature IDs.
-4. If the issue affects UI/UX, read `docs/guidance/ui/README.md` and `docs/guidance/ui/stable.md`.
+4. If the issue affects UI/UX, read `docs/guidance/ui/README.md`, `docs/guidance/ui/stable.md`, and `docs/guidance/ui/change-brief.md`.
 5. If the issue affects teacher assignments or teacher tests, also read `docs/guidance/ui/teacher-work-surfaces.md` and `docs/guidance/ui/audit-teacher-work-surfaces.md`.
+6. If the issue affects migrations or Supabase query shape, read `docs/guidance/schema-rollout-checklist.md`.
+7. If the issue is a large TSX refactor or shared shell extraction, read `docs/guidance/component-refactor-checklist.md`.
 
 ## 3) Branch & PR Setup
 - Create or open a dedicated worktree using `docs/dev-workflow.md`.
@@ -27,11 +29,22 @@ Produce a short plan:
 
 If the issue affects UI/UX, add a **UI guidance declaration**:
 - guidance read
+- acceptance target captured from `docs/guidance/ui/change-brief.md`
 - stable guidance followed
 - teacher work-surface canon followed: yes/no/not-applicable
 - experimental guidance introduced: yes/no
 - experimental draft file created or updated, if any
 - human promotion needed: yes/no
+
+If the issue affects migrations or Supabase query shape, add a **rollout declaration**:
+- rollout risk named
+- fallback needed before migration applied: yes/no
+- explicit payload shape regression planned: yes/no
+
+If the issue is a large TSX refactor or shared shell extraction, add a **component refactor declaration**:
+- shell extraction, behavior extraction, or both
+- business logic kept out of shared component: yes/no
+- focused shared-component regression planned: yes/no
 
 Do not proceed until the user approves the plan.
 
@@ -48,7 +61,7 @@ Do not proceed until the user approves the plan.
 
 ## 6) AI UI Verification (MANDATORY for UI Changes)
 - Use `docs/guides/ai-ui-testing.md` or `.codex/prompts/ui-verify.md`.
-- Check the affected teacher and student views when both roles are impacted.
+- Check the role, viewport, theme, and state matrix explicitly.
 - Iterate on the UI until the verified screenshots are acceptable.
 
 ## 7) Update AI Continuity Layer

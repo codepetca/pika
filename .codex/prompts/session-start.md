@@ -21,10 +21,14 @@ Manual fallback:
 6. Read `.ai/SESSION-LOG.md` only if recent handoff context is needed; use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 7. Load only the task-specific docs routed by `docs/ai-instructions.md`.
    - For UI work, include a UI guidance declaration.
+   - For UI work, record a brief acceptance target using `docs/guidance/ui/change-brief.md`.
    - Record: stable guidance followed
    - Record: experimental guidance introduced: yes/no
    - Record: human promotion needed: yes/no
+   - For migration/query-shape work, read `docs/guidance/schema-rollout-checklist.md`.
+   - For large TSX refactors or shared shell extraction, read `docs/guidance/component-refactor-checklist.md`.
    - For non-trivial work, declare risk profile: `none`, `workspace-state`, `async-grading`, `exam-mode`, or `runtime-platform`.
    - If any risk profile applies, read `docs/guidance/dev-flow-risk-checklists.md`.
+   - When available in the current session, prefer `product-design:get-context`, `pika-ui-verify`, `supabase:supabase-postgres-best-practices`, and `vercel:react-best-practices` at their matching trigger points.
 8. If `$ARGUMENTS` is an issue number, run `gh issue view $ARGUMENTS --json number,title,body,labels`.
 9. State the task, propose the approach, and wait for approval before coding.
