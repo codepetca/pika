@@ -9,6 +9,25 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-06-06 — Gradebook action consistency audit
+
+**Completed:**
+- Split the Gradebook floating action controls so score-display mode has its own secondary SplitButton and selected-student email actions only appear after a student selection.
+- Removed the actionable `Email (0)` empty state from the Gradebook tab to match roster-tab behavior.
+- Renamed the Gradebook settings toggle to `Gradebook column controls` in ARIA/title/tooltip text so the action describes the column editor.
+- Updated Gradebook component tests for the split score/email menus, selected-email visibility, and column-controls semantics.
+- Addressed PR review feedback by covering the score-display SplitButton primary action, not only the dropdown radio path.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/6d20a5cb-c497-4dc1-ac74-0637068c8a7f?tab=gradebook'`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook'`
+- Manual Playwright screenshots for selected-email desktop, selected-email mobile, and selected-email dark mode.
+- `git diff --check`
+- `pnpm vitest run tests/components/TeacherGradebookTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+
 ## 2026-06-06 — Teacher calendar cache audit
 
 **Completed:**
@@ -664,6 +683,12 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Rebased `codex/action-cluster-classwork` onto `origin/main` and resolved the `TeacherTestsTab.test.tsx` helper import conflict by keeping `createMockTest` plus the branch's `Classroom` typing.
 - Verified the rebased branch with `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx tests/components/TeacherTestsTab.test.tsx` and `pnpm exec tsc --noEmit --pretty false`.
 
+## 2026-06-13 — Weekly Simplification: Test Response Normalization
+
+- Selected the student test-taking response normalization path in `src/lib/test-attempts.ts` as the hotspot because it handled several legacy payload shapes with duplicated coercion branches used by both form and API routes.
+- Refactored the parser into explicit typed and legacy coercion helpers without changing behavior, and added unit coverage for fallback object shapes, CRLF normalization, and required non-blank open responses.
+- Verified with `bash scripts/verify-env.sh` and `pnpm test` (full Vitest suite: 302 files, 2671 tests).
+- PR: https://github.com/codepetca/pika/pull/779
 ## 2026-06-12 — Legacy quiz API compatibility contract helper
 
 **Completed:**
