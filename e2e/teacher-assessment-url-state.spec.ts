@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { readTestsFromPayload } from '../src/lib/test-api-contract'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 
@@ -58,7 +59,7 @@ async function loadTeacherTestWithStudent(page: Page, classroomId: string): Prom
     page,
     `/api/teacher/tests?classroom_id=${encodeURIComponent(classroomId)}`,
   )
-  const tests = data.tests || data.quizzes || []
+  const tests = readTestsFromPayload<AssessmentRecord>(data)
   const preferredTests = [
     ...tests.filter((candidate) => Number(candidate.stats?.responded || 0) > 0),
     ...tests.filter((candidate) => Number(candidate.stats?.responded || 0) <= 0),

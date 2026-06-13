@@ -6,6 +6,7 @@ import {
   getClassroomStudentIds,
 } from '@/lib/server/classrooms'
 import {
+  assertStudentCanAccessAssessment,
   assertStudentCanAccessQuiz,
   assertTeacherOwnsQuiz,
 } from '@/lib/server/assessments'
@@ -169,7 +170,7 @@ describe('server access helpers', () => {
     })
   })
 
-  describe('quiz access', () => {
+  describe('assessment access', () => {
     it('returns 403 when the teacher requests archived quiz access with archived checks enabled', async () => {
       mockSupabaseClient.from.mockImplementation((table: string) => {
         expect(table).toBe('quizzes')
@@ -248,8 +249,48 @@ describe('server access helpers', () => {
 
       expect(result.ok).toBe(true)
       if (result.ok) {
+        expect(result.assessment).toBe(result.quiz)
+        expect(result.assessment.id).toBe('quiz-1')
         expect(result.quiz.id).toBe('quiz-1')
         expect(result.quiz.classrooms.archived_at).toBeNull()
+      }
+    })
+
+    it('supports the canonical assessment access helper with the legacy quiz table contract', async () => {
+      mockSupabaseClient.from.mockImplementation((table: string) => {
+        if (table === 'quizzes') {
+          return createSingleSelectResult({
+            data: {
+              id: 'quiz-1',
+              classroom_id: 'classroom-1',
+              status: 'active',
+              opens_at: null,
+              title: 'Quiz 1',
+              show_results: false,
+              position: 0,
+              created_by: 'teacher-1',
+              created_at: '2026-03-01T00:00:00.000Z',
+              updated_at: '2026-03-01T00:00:00.000Z',
+              classrooms: {
+                id: 'classroom-1',
+                teacher_id: 'teacher-1',
+                archived_at: null,
+              },
+            },
+            error: null,
+          })
+        }
+
+        expect(table).toBe('classroom_enrollments')
+        return createSingleSelectResult({ data: { id: 'enrollment-1' }, error: null })
+      })
+
+      const result = await assertStudentCanAccessAssessment('student-1', 'quiz-1')
+
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.assessment).toBe(result.quiz)
+        expect(result.assessment.id).toBe('quiz-1')
       }
     })
   })
