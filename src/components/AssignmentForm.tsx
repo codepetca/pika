@@ -182,6 +182,7 @@ export function AssignmentForm({
                 value={dueAt}
                 onChange={onDueAtChange}
                 layout="compact"
+                disabled={disabled}
               />
               </ClassworkModalTopLineField>
             )

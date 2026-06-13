@@ -325,6 +325,7 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
 }))
 
 vi.mock('@/components/PageLayout', () => ({
+  ACTIONBAR_BUTTON_CLASSNAME: 'actionbar-button',
   ACTIONBAR_ICON_BUTTON_CLASSNAME: 'icon-button',
   ACTIONBAR_BUTTON_PRIMARY_CLASSNAME: 'primary-button',
   ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME: 'wide-button',
