@@ -1,4 +1,4 @@
-import { validateQuizOptions } from '@/lib/assessments'
+import { validateAssessmentOptions } from '@/lib/assessments'
 import type { AssessmentDraftContent, AssessmentDraftQuestion } from '@/lib/server/assessment-drafts'
 
 const UUID_RE =
@@ -192,7 +192,7 @@ function parseQuestionBlock(
   }
 
   if (!prompt.trim()) errors.push(`${label}: Prompt is required`)
-  const optionsValidation = validateQuizOptions(choices)
+  const optionsValidation = validateAssessmentOptions(choices)
   if (!optionsValidation.valid) {
     errors.push(`${label}: ${optionsValidation.error || 'Invalid options'}`)
   }

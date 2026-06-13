@@ -1,5 +1,5 @@
 import { tryApplyJsonPatch } from '@/lib/json-patch'
-import { validateQuizOptions } from '@/lib/assessments'
+import { validateAssessmentOptions } from '@/lib/assessments'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import type { JsonPatchOperation, TestQuestionType } from '@/types'
 
@@ -176,7 +176,7 @@ export function validateAssessmentDraftContent(
       return { valid: false, error: `Q${index + 1}: Options must be non-empty strings` }
     }
 
-    const optionsValidation = validateQuizOptions(options)
+    const optionsValidation = validateAssessmentOptions(options)
     if (!optionsValidation.valid) {
       return { valid: false, error: `Q${index + 1}: ${optionsValidation.error}` }
     }

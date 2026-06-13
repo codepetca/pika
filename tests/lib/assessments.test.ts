@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
+  getAssessmentType,
   getStudentAssessmentStatus,
+  getQuizAssessmentType,
   getStudentQuizStatus,
   getStudentTestStatus,
-  getQuizAssessmentType,
 } from '@/lib/assessments'
 
 describe('getStudentAssessmentStatus', () => {
@@ -102,20 +103,24 @@ describe('getStudentQuizStatus (thin wrapper)', () => {
 })
 
 describe('getQuizAssessmentType', () => {
+  it('is a legacy alias for getAssessmentType', () => {
+    expect(getQuizAssessmentType).toBe(getAssessmentType)
+  })
+
   it('returns "test" when assessment_type is "test"', () => {
-    expect(getQuizAssessmentType({ assessment_type: 'test' })).toBe('test')
+    expect(getAssessmentType({ assessment_type: 'test' })).toBe('test')
   })
 
   it('returns "quiz" when assessment_type is "quiz"', () => {
-    expect(getQuizAssessmentType({ assessment_type: 'quiz' })).toBe('quiz')
+    expect(getAssessmentType({ assessment_type: 'quiz' })).toBe('quiz')
   })
 
   it('returns "quiz" when assessment_type is null', () => {
-    expect(getQuizAssessmentType({ assessment_type: null })).toBe('quiz')
+    expect(getAssessmentType({ assessment_type: null })).toBe('quiz')
   })
 
   it('returns "quiz" when assessment_type is undefined', () => {
-    expect(getQuizAssessmentType({})).toBe('quiz')
+    expect(getAssessmentType({})).toBe('quiz')
   })
 })
 

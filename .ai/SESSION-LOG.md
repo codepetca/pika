@@ -9,25 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-06 — Teacher quiz list freshness audit
-
-**Completed:**
-- Routed `TeacherQuizzesTab` list reads through `fetchJSONWithCache` with a zero TTL for in-flight GET dedupe.
-- Added request-id and classroom guards so stale quiz list responses cannot repaint after classroom changes or newer reloads.
-- Addressed PR review feedback by forcing mutation/update-triggered reloads to use one-off cache keys so they cannot attach to older pending passive reads.
-- Addressed follow-up review feedback by letting quiz cards rely on the global quiz-update event instead of also calling a parent forced reload.
-- Added component coverage for stale classroom-switch list responses and creation-while-initial-load-is-pending races while preserving existing mount, update-event, creation, selection, and delete behavior.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx tests/unit/request-cache.test.ts`
-- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx tests/components/QuizCard.test.tsx tests/components/QuizModal.test.tsx tests/components/QuizDetailPanel.test.tsx tests/components/TeacherTestsTab.test.tsx tests/api/teacher/quizzes-route.test.ts tests/api/teacher/quizzes-id.test.ts tests/api/teacher/quizzes-results.test.ts tests/unit/request-cache.test.ts`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-
 ## 2026-06-06 — Student assessment freshness audit
 
 **Completed:**
@@ -698,4 +679,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm test tests/lib/quiz-markdown.test.ts tests/components/TestDetailPanel.test.tsx tests/unit/assessment-drafts.test.ts`
+- `git diff --check`
+
+## 2026-06-13 — Legacy quiz assessment helper names
+
+**Completed:**
+- Added assessment-named primary helper exports in `src/lib/assessments.ts` for status labels/badges, assessment type resolution, option validation, activation checks, edit policy, and focus-summary aggregation.
+- Updated `src/lib/tests.ts` to re-export test helpers from the assessment-named helpers instead of quiz-named aliases.
+- Updated active internal callers in markdown parsing and assessment draft validation to import `validateAssessmentOptions`.
+- Kept all legacy quiz-named helper exports as compatibility aliases and added alias coverage.
+- Updated test activation validation copy from quiz wording to test wording.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/unit/assessments.test.ts tests/lib/assessments.test.ts tests/lib/quiz-markdown.test.ts tests/unit/assessment-drafts.test.ts tests/components/TestDetailPanel.test.tsx`
+- `pnpm lint`
+- `pnpm test`
 - `git diff --check`

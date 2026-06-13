@@ -2564,7 +2564,7 @@ Prompt:
       render(<TestDetailPanel test={testAssessment} classroomId="classroom-1" onTestUpdate={vi.fn()} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        expect(screen.queryByText('Quiz must have at least 1 question')).not.toBeInTheDocument()
+        expect(screen.queryByText('Test must have at least 1 question')).not.toBeInTheDocument()
       })
     })
 
