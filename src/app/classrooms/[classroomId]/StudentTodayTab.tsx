@@ -62,7 +62,7 @@ function resolveEntryContent(entry: Entry | null): TiptapContent {
 interface StudentTodayTabProps {
   classroom: Classroom
   layout?: 'page' | 'pane'
-  onLessonPlanLoad?: (plan: LessonPlan | null) => void
+  onLessonPlanLoad?: (plan: LessonPlan | null, classroomId: string) => void
 }
 
 export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }: StudentTodayTabProps) {
@@ -97,9 +97,20 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
   const entryVersionRef = useRef(1)
   const todayRef = useRef('')
   const hasLocalEditSinceLoadRef = useRef(false)
+  const loadRequestIdRef = useRef(0)
+  const currentClassroomIdRef = useRef(classroom.id)
+  currentClassroomIdRef.current = classroom.id
 
   useEffect(() => {
     async function load() {
+      const requestId = loadRequestIdRef.current + 1
+      loadRequestIdRef.current = requestId
+      const requestedClassroomId = classroom.id
+      const isCurrentLoad = () => (
+        loadRequestIdRef.current === requestId &&
+        currentClassroomIdRef.current === requestedClassroomId
+      )
+
       setLoading(true)
       try {
         const todayDate = getTodayInToronto()
@@ -130,19 +141,23 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
           20_000,
         )
           .then(data => {
+            if (!isCurrentLoad()) return
             const plans = data.lesson_plans || data.lessonPlans || []
             const todayPlan = plans.find((p: LessonPlan) => p.date === todayDate) || null
-            onLessonPlanLoad?.(todayPlan)
+            onLessonPlanLoad?.(todayPlan, requestedClassroomId)
           })
           .catch(err => {
+            if (!isCurrentLoad()) return
             console.error('Error loading lesson plan:', err)
-            onLessonPlanLoad?.(null)
+            onLessonPlanLoad?.(null, requestedClassroomId)
           })
 
         const applyEntryState = (todayEntry: Entry | null) => {
+          if (!isCurrentLoad()) return
+
           const loadedContent = resolveEntryContent(todayEntry)
           const draftContent = safeSessionGetJson<TiptapContent>(
-            getDailyLogDraftKey(classroom.id, todayDate)
+            getDailyLogDraftKey(requestedClassroomId, todayDate)
           )
           if (
             draftContent &&
@@ -173,16 +188,19 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
         }
 
         if (Array.isArray(cached)) {
+          if (!isCurrentLoad()) return
           setHistoryEntries(cached)
           const todayEntry = cached.find((e: Entry) => e.date === todayDate) || null
           applyEntryState(todayEntry)
           setLoading(false)
         }
 
-        const entriesPromise = fetchStudentEntriesForClassroom(classroom.id, { limit: historyLimit })
+        const entriesPromise = fetchStudentEntriesForClassroom(requestedClassroomId, { limit: historyLimit })
           .then(entries => {
+            if (!isCurrentLoad()) return
             if (hasLocalEditSinceLoadRef.current) {
               setHistoryEntries(prev => {
+                if (!isCurrentLoad()) return prev
                 const currentTodayEntry = prev.find((e: Entry) => e.date === todayDate) || null
                 const next = currentTodayEntry
                   ? upsertEntryIntoHistory(entries, currentTodayEntry, historyLimit)
@@ -202,13 +220,16 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
       } catch (err) {
         console.error('Error loading today tab:', err)
       } finally {
-        setLoading(false)
+        if (loadRequestIdRef.current === requestId && currentClassroomIdRef.current === requestedClassroomId) {
+          setLoading(false)
+        }
       }
     }
 
     load()
 
     return () => {
+      loadRequestIdRef.current += 1
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
       }

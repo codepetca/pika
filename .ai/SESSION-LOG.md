@@ -9,25 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-06 — Gradebook action consistency audit
-
-**Completed:**
-- Split the Gradebook floating action controls so score-display mode has its own secondary SplitButton and selected-student email actions only appear after a student selection.
-- Removed the actionable `Email (0)` empty state from the Gradebook tab to match roster-tab behavior.
-- Renamed the Gradebook settings toggle to `Gradebook column controls` in ARIA/title/tooltip text so the action describes the column editor.
-- Updated Gradebook component tests for the split score/email menus, selected-email visibility, and column-controls semantics.
-- Addressed PR review feedback by covering the score-display SplitButton primary action, not only the dropdown radio path.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/6d20a5cb-c497-4dc1-ac74-0637068c8a7f?tab=gradebook'`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook'`
-- Manual Playwright screenshots for selected-email desktop, selected-email mobile, and selected-email dark mode.
-- `git diff --check`
-- `pnpm vitest run tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-
 ## 2026-06-06 — Teacher calendar cache audit
 
 **Completed:**
@@ -725,3 +706,31 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm test` (303 files / 2676 tests)
 - `git diff --check`
+## 2026-06-13 — Student Today stale classroom load guard
+
+**Completed:**
+- Reestablished the systems/UI audit goal and continued the active client freshness slice.
+- Guarded `StudentTodayTab` entry and lesson-plan async responses by request id and classroom id so late responses from a previous classroom cannot overwrite the current classroom view.
+- Passed the loaded classroom id through `onLessonPlanLoad` and made `ClassroomPageClient` ignore stale lesson-plan updates.
+- Added regression coverage for switching from classroom A to classroom B before classroom A's entries and lesson plan resolve.
+- Updated the adjacent `ClassroomPageClientAssignmentsEditMode` mock to use the new lesson-plan callback contract.
+- Addressed subagent PR review feedback by storing the Today sidebar lesson plan with its classroom id so classroom route changes synchronously hide stale previous-classroom plan content.
+- Added parent-level regression coverage for clearing the Student Today sidebar plan when the classroom route changes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/components/StudentTodayTabHistory.test.tsx`
+- `pnpm vitest run tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm vitest run tests/components/StudentTodayTabHistory.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `git diff --check`
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm build`
+- `pnpm vitest run --sequence.concurrent=false` (303 files / 2673 tests)
+- Subagent PR review found one P2 stale sidebar display gap.
+- `pnpm vitest run tests/components/StudentTodayTabHistory.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx` (after review fix; 32 tests)
+- `git diff --check`
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm build`
+- `pnpm vitest run --sequence.concurrent=false` (303 files / 2674 tests)

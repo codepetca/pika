@@ -205,11 +205,12 @@ vi.mock('@/app/classrooms/[classroomId]/StudentTodayTab', async () => {
   const React = await import('react')
 
   return {
-    StudentTodayTab: ({ onLessonPlanLoad }: any) => {
+    StudentTodayTab: ({ classroom, onLessonPlanLoad }: any) => {
       React.useEffect(() => {
+        if (classroom?.id !== 'classroom-1') return
         onLessonPlanLoad?.({
           id: 'today-plan',
-          classroom_id: 'classroom-1',
+          classroom_id: classroom.id,
           date: '2026-05-12',
           content: {
             type: 'doc',
@@ -223,8 +224,8 @@ vi.mock('@/app/classrooms/[classroomId]/StudentTodayTab', async () => {
           content_markdown: null,
           created_at: '2026-05-12T00:00:00Z',
           updated_at: '2026-05-12T00:00:00Z',
-        })
-      }, [onLessonPlanLoad])
+        }, classroom.id)
+      }, [classroom?.id, onLessonPlanLoad])
 
       return <div />
     },
@@ -335,14 +336,19 @@ function renderClient(options?: {
   )
 }
 
-function renderStudentClient(options?: { initialTab?: string; initialSearchParams?: Record<string, string | undefined> }) {
+function renderStudentClient(options?: {
+  classroom?: Classroom
+  initialTab?: string
+  initialSearchParams?: Record<string, string | undefined>
+}) {
+  const targetClassroom = options?.classroom ?? classroom
   const initialTab = options?.initialTab ?? 'today'
   const initialSearchParams = options?.initialSearchParams ?? { tab: initialTab }
 
   return render(
     <MarkdownPreferenceProvider>
       <ClassroomPageClient
-        classroom={classroom}
+        classroom={targetClassroom}
         user={{ id: 'student-1', email: 'student1@example.com', role: 'student' }}
         teacherClassrooms={[]}
         initialTab={initialTab}
@@ -487,6 +493,31 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(screen.getByRole('heading', { name: 'Yesterday' })).toBeInTheDocument()
     expect(screen.getByText('Mon May 11')).toBeInTheDocument()
     expect(await screen.findByText('Last class calendar entry')).toBeInTheDocument()
+  })
+
+  it('clears the student today sidebar plan when the classroom route changes', async () => {
+    const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Chemistry' }
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+
+    const view = renderStudentClient({ classroom, initialTab: 'today', initialSearchParams: { tab: 'today' } })
+
+    expect(await screen.findByText('Today calendar entry')).toBeInTheDocument()
+
+    window.history.replaceState({}, '', '/classrooms/classroom-2?tab=today')
+    view.rerender(
+      <MarkdownPreferenceProvider>
+        <ClassroomPageClient
+          classroom={secondClassroom}
+          user={{ id: 'student-1', email: 'student1@example.com', role: 'student' }}
+          teacherClassrooms={[]}
+          initialTab="today"
+          initialSearchParams={{ tab: 'today' }}
+        />
+      </MarkdownPreferenceProvider>,
+    )
+
+    expect(screen.queryByText('Today calendar entry')).not.toBeInTheDocument()
+    expect(screen.getByText('No lesson plan for today.')).toBeInTheDocument()
   })
 
   it('falls back from the legacy quizzes tab to the default teacher tab', async () => {
