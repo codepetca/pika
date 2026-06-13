@@ -1,8 +1,10 @@
 'use client'
 
-import { useId, type ReactNode, type Ref } from 'react'
+import { useId, useRef, type ReactNode, type Ref } from 'react'
 import { Eye, Info } from 'lucide-react'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
+import { DateActionBar } from '@/components/DateActionBar'
+import { ACTIONBAR_BUTTON_CLASSNAME } from '@/components/PageLayout'
 import { Button, FormField, Input, Select, SplitButton, type SplitButtonProps } from '@/ui'
 import { cn } from '@/ui/utils'
 import type { SurveyDuePolicy } from '@/types'
@@ -139,6 +141,17 @@ const SAVE_STATUS_LABEL = {
   saving: 'Saving...',
   unsaved: 'Unsaved',
 } as const
+
+function formatTimeLabel(value: string): string {
+  const [hourPart, minutePart] = value.split(':')
+  const hour = Number(hourPart)
+  const minute = Number(minutePart)
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return 'Select time'
+
+  const period = hour >= 12 ? 'PM' : 'AM'
+  const displayHour = hour % 12 || 12
+  return `${displayHour}:${String(minute).padStart(2, '0')} ${period}`
+}
 
 export function ClassworkContentModalShell({
   isOpen,
@@ -370,6 +383,45 @@ export function ClassworkContentModalTopRow(props: ClassworkModalTopLineProps) {
   return <ClassworkModalTopLine {...props} />
 }
 
+function ClassworkModalTimeAction({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string
+  disabled?: boolean
+  onChange: (next: string) => void
+}) {
+  const timeInputRef = useRef<HTMLInputElement>(null)
+  const timeInputId = useId()
+
+  return (
+    <div>
+      <label className="sr-only" htmlFor={timeInputId}>
+        Time
+      </label>
+      <input
+        ref={timeInputRef}
+        id={timeInputId}
+        type="time"
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        className="sr-only"
+        tabIndex={-1}
+      />
+      <button
+        type="button"
+        className={cn(ACTIONBAR_BUTTON_CLASSNAME, 'w-[6.75rem] text-center sm:w-[8.25rem]')}
+        disabled={disabled}
+        onClick={() => timeInputRef.current?.showPicker()}
+      >
+        {formatTimeLabel(value)}
+      </button>
+    </div>
+  )
+}
+
 export function ClassworkModalSurveyDueFields({
   dueDate,
   dueTime,
@@ -380,16 +432,26 @@ export function ClassworkModalSurveyDueFields({
   onDuePolicyChange,
 }: ClassworkModalSurveyDueFieldsProps) {
   return (
-    <div className="grid min-w-0 gap-3 sm:grid-cols-[20rem_11rem] lg:w-[32rem] lg:items-end">
-      <DateTimeFields
+    <div className="grid min-w-0 gap-3 sm:grid-cols-[18rem_11rem] lg:w-[30rem] lg:items-end">
+      <ClassworkModalTopLineField
         label="Due"
-        date={dueDate}
-        time={dueTime}
-        disabled={disabled}
         required
-        onDateChange={onDueDateChange}
-        onTimeChange={onDueTimeChange}
-      />
+        className="min-w-0"
+      >
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <DateActionBar
+            value={dueDate}
+            onChange={onDueDateChange}
+            layout="compact"
+            disabled={disabled}
+          />
+          <ClassworkModalTimeAction
+            value={dueTime}
+            disabled={disabled}
+            onChange={onDueTimeChange}
+          />
+        </div>
+      </ClassworkModalTopLineField>
       <SurveyDuePolicySelect
         value={duePolicy}
         disabled={disabled}

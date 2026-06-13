@@ -10,6 +10,7 @@ interface DateActionBarProps {
   rightActions?: React.ReactNode
   className?: string
   layout?: 'default' | 'compact'
+  disabled?: boolean
 }
 
 export function DateActionBar({
@@ -18,6 +19,7 @@ export function DateActionBar({
   rightActions,
   className = '',
   layout = 'default',
+  disabled = false,
 }: DateActionBarProps) {
   const dateInputRef = useRef<HTMLInputElement>(null)
   const formattedDate = value ? format(parseISO(value), 'EEE MMM d') : ''
@@ -37,6 +39,7 @@ export function DateActionBar({
           type="date"
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
           className="sr-only"
           tabIndex={-1}
         />
@@ -44,6 +47,7 @@ export function DateActionBar({
         <button
           type="button"
           className={buttonClassName}
+          disabled={disabled}
           onClick={() => dateInputRef.current?.showPicker()}
         >
           {formattedDate || 'Select date'}
