@@ -52,6 +52,7 @@ import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { getTestExitCount } from '@/lib/tests'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
+import { readTestFromPayload, readTestsFromPayload } from '@/lib/test-api-contract'
 import { compareByNameFields } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
@@ -741,7 +742,7 @@ export function TeacherTestsTab({
         },
         0,
       )
-      const loadedTests = (data.tests || data.quizzes || []) as TestAssessmentWithStats[]
+      const loadedTests = readTestsFromPayload<TestAssessmentWithStats>(data)
       const currentSelectedTestId = selectedTestIdRef.current
       const currentDraftSummary = selectedTestDraftSummaryRef.current
       setTests(
@@ -813,7 +814,7 @@ export function TeacherTestsTab({
       if (isStaleRequest()) return
       if (!ok) throw new Error(data.error || 'Failed to load test results')
 
-      const responseTest = data?.test ?? data?.quiz
+      const responseTest = readTestFromPayload<TestAssessment>(data)
       const nextStatus =
         responseTest?.status === 'draft' || responseTest?.status === 'active' || responseTest?.status === 'closed'
           ? (responseTest.status as TestAssessment['status'])
@@ -1317,7 +1318,11 @@ export function TeacherTestsTab({
       if (!response.ok) {
         throw new Error(data.error || 'Failed to create test')
       }
-      handleTestCreated((data.test ?? data.quiz) as TestAssessment)
+      const createdTest = readTestFromPayload<TestAssessment>(data)
+      if (!createdTest) {
+        throw new Error('Failed to create test')
+      }
+      handleTestCreated(createdTest)
     } catch (error: any) {
       showMessage({ text: error?.message || 'Failed to create test', tone: 'warning' })
     } finally {
@@ -1694,7 +1699,7 @@ export function TeacherTestsTab({
         throw new Error(data.error || 'Failed to update test')
       }
 
-      const responseTest = data?.test ?? data?.quiz
+      const responseTest = readTestFromPayload<TestAssessmentWithStats>(data)
       const nextStatus =
         responseTest?.status === 'draft' || responseTest?.status === 'active' || responseTest?.status === 'closed'
           ? responseTest.status

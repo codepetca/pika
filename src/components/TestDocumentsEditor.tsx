@@ -11,6 +11,7 @@ import {
   normalizeTestDocuments,
   isValidHttpUrl,
 } from '@/lib/test-documents'
+import { readTestFromPayload } from '@/lib/test-api-contract'
 import type { TestDocument } from '@/types'
 
 interface Props {
@@ -156,7 +157,7 @@ export function TestDocumentsEditor({
         throw new Error(data.error || 'Failed to save documents')
       }
 
-      const responseTest = data.test ?? data.quiz
+      const responseTest = readTestFromPayload<{ documents?: unknown }>(data)
       const normalized = normalizeTestDocuments(responseTest?.documents || nextDocs)
       setLocalDocs(normalized)
       onDocumentsChange?.(normalized)
@@ -189,7 +190,7 @@ export function TestDocumentsEditor({
         throw new Error(data.error || 'Failed to sync document')
       }
 
-      const responseTest = data.test ?? data.quiz
+      const responseTest = readTestFromPayload<{ documents?: unknown }>(data)
       const normalized = normalizeTestDocuments(responseTest?.documents || localDocs)
       setLocalDocs(normalized)
       onDocumentsChange?.(normalized)

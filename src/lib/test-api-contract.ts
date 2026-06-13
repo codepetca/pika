@@ -15,3 +15,21 @@ export function withLegacyQuizKey<T>(test: T): { test: T; quiz: T } {
     quiz: test,
   }
 }
+
+type TestApiListPayload<T> = {
+  tests?: T[] | null
+  quizzes?: T[] | null
+}
+
+type TestApiDetailPayload<T> = {
+  test?: T | null
+  quiz?: T | null
+}
+
+export function readTestsFromPayload<T>(payload: TestApiListPayload<T> | null | undefined): T[] {
+  return payload?.tests ?? payload?.quizzes ?? []
+}
+
+export function readTestFromPayload<T>(payload: TestApiDetailPayload<T> | null | undefined): T | undefined {
+  return payload?.test ?? payload?.quiz ?? undefined
+}

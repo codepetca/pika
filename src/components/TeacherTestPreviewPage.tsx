@@ -8,6 +8,7 @@ import { StudentTestForm } from '@/components/StudentTestForm'
 import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
+import { readTestFromPayload } from '@/lib/test-api-contract'
 import type { TestAssessmentQuestion, TestDocument } from '@/types'
 
 interface Props {
@@ -217,7 +218,7 @@ export function TeacherTestPreviewPage({
         throw new Error(data?.error || 'Failed to load preview')
       }
 
-      const responseTest = data?.test ?? data?.quiz
+      const responseTest = readTestFromPayload<{ title?: string; documents?: unknown }>(data)
       setTitle(responseTest?.title || 'Test Preview')
       setQuestions((data?.questions || []) as TestAssessmentQuestion[])
       setDocuments(normalizeTestDocuments(responseTest?.documents))
@@ -278,7 +279,7 @@ export function TeacherTestPreviewPage({
           return
         }
 
-        const responseTest = data?.test ?? data?.quiz
+        const responseTest = readTestFromPayload<{ documents?: unknown }>(data)
         setDocuments(normalizeTestDocuments(responseTest?.documents))
       } catch (error) {
         if (!isCancelled) {
