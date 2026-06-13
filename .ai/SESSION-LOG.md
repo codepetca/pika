@@ -1649,3 +1649,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
 - `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Manual Playwright screenshots: `/tmp/pika-consistency-assignment-modal.png`, `/tmp/pika-consistency-material-modal.png`, `/tmp/pika-consistency-survey-modal.png`, `/tmp/pika-consistency-material-mobile.png`, `/tmp/pika-consistency-survey-mobile.png`
+
+## 2026-06-13 — Standardize survey due picker UI
+
+**Completed:**
+- Reused the assignment `DateActionBar` due-date button for survey creation due dates.
+- Added a matching action-bar time picker button for survey due time in the shared classwork modal shell.
+- Propagated disabled state through the shared date picker and assignment form.
+- Updated the `TeacherClassroomView` test mock for the shared action-bar button class export.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/AssignmentModal.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-modal-assignment-desktop.png`, `/tmp/pika-modal-material-desktop.png`, `/tmp/pika-modal-survey-desktop.png`, `/tmp/pika-modal-announcement-desktop.png`, `/tmp/pika-modal-survey-mobile.png`, `/tmp/pika-modal-material-mobile.png`
