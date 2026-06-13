@@ -81,10 +81,28 @@ type ClassworkModalSplitActionProps = Omit<SplitButtonProps, 'variant'> & {
   variant?: SplitButtonProps['variant']
 }
 
+type ClassworkModalPrimaryButtonProps = {
+  children: ReactNode
+  intent?: ClassworkModalActionIntent
+  disabled?: boolean
+  className?: string
+  onClick: () => void
+}
+
 type ClassworkModalSaveStatusProps = {
   status: ClassworkModalSaveStatusValue
   labels?: Partial<Record<ClassworkModalSaveStatusValue, string>>
   className?: string
+}
+
+type ClassworkModalSurveyDueFieldsProps = {
+  dueDate: string
+  dueTime: string
+  duePolicy: SurveyDuePolicy
+  disabled?: boolean
+  onDueDateChange: (next: string) => void
+  onDueTimeChange: (next: string) => void
+  onDuePolicyChange: (next: SurveyDuePolicy) => void
 }
 
 type SurveyDuePolicySelectProps = {
@@ -316,6 +334,26 @@ export function ClassworkModalSplitAction({
   )
 }
 
+export function ClassworkModalPrimaryButton({
+  children,
+  intent = 'primary',
+  disabled,
+  className,
+  onClick,
+}: ClassworkModalPrimaryButtonProps) {
+  return (
+    <Button
+      type="button"
+      variant={ACTION_INTENT_VARIANT[intent]}
+      className={cn('min-w-[7.75rem] justify-center whitespace-nowrap font-semibold', className)}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {children}
+    </Button>
+  )
+}
+
 export function ClassworkModalSaveStatus({
   status,
   labels,
@@ -330,6 +368,35 @@ export function ClassworkModalSaveStatus({
 
 export function ClassworkContentModalTopRow(props: ClassworkModalTopLineProps) {
   return <ClassworkModalTopLine {...props} />
+}
+
+export function ClassworkModalSurveyDueFields({
+  dueDate,
+  dueTime,
+  duePolicy,
+  disabled,
+  onDueDateChange,
+  onDueTimeChange,
+  onDuePolicyChange,
+}: ClassworkModalSurveyDueFieldsProps) {
+  return (
+    <div className="grid min-w-0 gap-3 sm:grid-cols-[20rem_11rem] lg:w-[32rem] lg:items-end">
+      <DateTimeFields
+        label="Due"
+        date={dueDate}
+        time={dueTime}
+        disabled={disabled}
+        required
+        onDateChange={onDueDateChange}
+        onTimeChange={onDueTimeChange}
+      />
+      <SurveyDuePolicySelect
+        value={duePolicy}
+        disabled={disabled}
+        onChange={onDuePolicyChange}
+      />
+    </div>
+  )
 }
 
 export function DateTimeFields({

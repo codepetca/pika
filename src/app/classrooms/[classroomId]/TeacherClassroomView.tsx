@@ -399,14 +399,12 @@ function TeacherMaterialDialog({
   isOpen,
   onClose,
   onSaved,
-  onRequestDelete,
 }: {
   classroom: Classroom
   material: ClassworkMaterial | null
   isOpen: boolean
   onClose: () => void
   onSaved: (material: ClassworkMaterial) => void
-  onRequestDelete: (material: ClassworkMaterial) => void
 }) {
   const [currentMaterial, setCurrentMaterial] = useState<ClassworkMaterial | null>(material)
   const [title, setTitle] = useState('')
@@ -628,23 +626,10 @@ function TeacherMaterialDialog({
             titleStatus={<ClassworkModalSaveStatus status={autosaveStatus} />}
             onTitleChange={handleMaterialTitleChange}
             secondaryActions={(
-              <>
-                {currentMaterial && !isReadOnly ? (
-                  <Button
-                    type="button"
-                    variant="danger"
-                    size="sm"
-                    onClick={() => onRequestDelete(currentMaterial)}
-                    disabled={saving || creatingDraft}
-                  >
-                    Delete
-                  </Button>
-                ) : null}
-                <ClassworkModalPreviewButton
-                  onClick={() => setShowPreview(true)}
-                  disabled={saving || creatingDraft}
-                />
-              </>
+              <ClassworkModalPreviewButton
+                onClick={() => setShowPreview(true)}
+                disabled={saving || creatingDraft}
+              />
             )}
             primaryActions={isDraft ? (
               <ClassworkModalSplitAction
@@ -3209,7 +3194,6 @@ export function TeacherClassroomView({
           setEditMaterial(null)
         }}
         onSaved={handleMaterialSaved}
-        onRequestDelete={setPendingMaterialDelete}
       />
 
       <SurveyCreationModal
