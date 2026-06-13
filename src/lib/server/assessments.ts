@@ -1,12 +1,12 @@
 import { getServiceRoleClient } from '@/lib/supabase'
 import { isVisibleAtNow } from '@/lib/scheduling'
-import type { QuizAssessmentType, QuizStatus } from '@/types'
+import type { TestAssessmentStatus, TestAssessmentType } from '@/types'
 
-export type QuizAccessRecord = {
+export type AssessmentAccessRecord = {
   id: string
   classroom_id: string
-  assessment_type?: QuizAssessmentType | null
-  status: QuizStatus
+  assessment_type?: TestAssessmentType | null
+  status: TestAssessmentStatus
   opens_at: string | null
   title: string
   show_results: boolean
@@ -21,18 +21,18 @@ export type QuizAccessRecord = {
   }
 }
 
-export type AssessmentAccessRecord = QuizAccessRecord
+export type QuizAccessRecord = AssessmentAccessRecord
 
 type AccessResult<T> =
   | { ok: true; assessment: T; quiz: T }
   | { ok: false; status: number; error: string }
 
-type QuizVisibilityRecord = {
-  status: QuizStatus
+type AssessmentVisibilityRecord = {
+  status: TestAssessmentStatus
   opens_at: string | null
 }
 
-type AssessmentVisibilityRecord = QuizVisibilityRecord
+type QuizVisibilityRecord = AssessmentVisibilityRecord
 
 function assessmentAccessSuccess<T>(assessment: T): AccessResult<T> {
   return {
@@ -65,7 +65,7 @@ export async function assertTeacherOwnsAssessment(
   teacherId: string,
   assessmentId: string,
   opts?: { checkArchived?: boolean }
-): Promise<AccessResult<QuizAccessRecord>> {
+): Promise<AccessResult<AssessmentAccessRecord>> {
   const supabase = getServiceRoleClient()
   const { data: assessment, error } = await supabase
     .from('quizzes')
@@ -92,7 +92,7 @@ export async function assertTeacherOwnsAssessment(
     return { ok: false, status: 403, error: 'Classroom is archived' }
   }
 
-  return assessmentAccessSuccess(assessment as QuizAccessRecord)
+  return assessmentAccessSuccess(assessment as AssessmentAccessRecord)
 }
 
 export const assertTeacherOwnsQuiz = assertTeacherOwnsAssessment
@@ -100,7 +100,7 @@ export const assertTeacherOwnsQuiz = assertTeacherOwnsAssessment
 export async function assertStudentCanAccessAssessment(
   studentId: string,
   assessmentId: string
-): Promise<AccessResult<QuizAccessRecord>> {
+): Promise<AccessResult<AssessmentAccessRecord>> {
   const supabase = getServiceRoleClient()
   const { data: assessment, error } = await supabase
     .from('quizzes')
@@ -134,7 +134,7 @@ export async function assertStudentCanAccessAssessment(
     return { ok: false, status: 403, error: 'Not enrolled in this classroom' }
   }
 
-  return assessmentAccessSuccess(assessment as QuizAccessRecord)
+  return assessmentAccessSuccess(assessment as AssessmentAccessRecord)
 }
 
 export const assertStudentCanAccessQuiz = assertStudentCanAccessAssessment

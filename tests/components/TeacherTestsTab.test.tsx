@@ -6,7 +6,7 @@ import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { TEACHER_TESTS_UPDATED_EVENT, TEACHER_TEST_GRADING_ROW_UPDATED_EVENT } from '@/lib/events'
 import { createMockClassroom, createMockTest } from '../helpers/mocks'
-import type { Classroom, QuizWithStats } from '@/types'
+import type { Classroom, TestAssessmentWithStats } from '@/types'
 
 const { setOpenMock } = vi.hoisted(() => ({
   setOpenMock: vi.fn(),
@@ -35,7 +35,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
     titlePortalTarget,
     generatedTitleLabel,
   }: {
-    test?: QuizWithStats
+    test?: TestAssessmentWithStats
     testQuestionLayout?: string
     showPreviewButton?: boolean
     showResultsTab?: boolean
@@ -175,7 +175,7 @@ function Wrapper({ children }: { children: ReactNode }) {
   )
 }
 
-function makeTest(overrides: Partial<QuizWithStats> = {}): QuizWithStats {
+function makeTest(overrides: Partial<TestAssessmentWithStats> = {}): TestAssessmentWithStats {
   const base = createMockTest({
     assessment_type: 'test',
     status: 'draft',
@@ -186,7 +186,7 @@ function makeTest(overrides: Partial<QuizWithStats> = {}): QuizWithStats {
     assessment_type: 'test',
     stats: { total_students: 10, responded: 5, questions_count: 3 },
     ...overrides,
-  } as QuizWithStats
+  } as TestAssessmentWithStats
 }
 
 function listFetchCalls(fetchMock: ReturnType<typeof vi.fn>) {
@@ -232,7 +232,7 @@ function makeResultsResponse(overrides?: {
   quizTitle?: string
   students?: Array<Record<string, unknown>>
   questions?: Array<Record<string, unknown>>
-  quizStatus?: QuizWithStats['status']
+  quizStatus?: TestAssessmentWithStats['status']
   activeRun?: Record<string, unknown> | null
 }) {
   return {
@@ -277,7 +277,7 @@ describe('TeacherTestsTab', () => {
     vi.restoreAllMocks()
   })
 
-  function mockTestsResponse(tests: QuizWithStats[] = []) {
+  function mockTestsResponse(tests: TestAssessmentWithStats[] = []) {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ tests }),
@@ -294,7 +294,7 @@ describe('TeacherTestsTab', () => {
       updater: (params: URLSearchParams) => void,
       options?: { replace?: boolean },
     ) => void
-    onSelectTest?: (test: QuizWithStats | null) => void
+    onSelectTest?: (test: TestAssessmentWithStats | null) => void
     onRequestTestPreview?: (preview: { testId: string; title: string }) => void
     onRequestDelete?: () => void
     onTestGradingContextChange?: (context: {
