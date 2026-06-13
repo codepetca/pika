@@ -19,7 +19,7 @@ vi.mock('@/ui', () => ({
 
 function makeResultsPayload(score: number | null, feedback: string | null) {
   return {
-    quiz: { id: 'test-1', title: 'Unit Test' },
+    test: { id: 'test-1', title: 'Unit Test' },
     questions: [
       {
         id: 'q-open-1',
@@ -71,7 +71,7 @@ function makeMixedResultsPayload(
   const selectedOption = options.selectedOption ?? 1
   const correctOption = options.correctOption ?? 1
   return {
-    quiz: { id: 'test-1', title: 'Unit Test' },
+    test: { id: 'test-1', title: 'Unit Test' },
     questions: [
       {
         id: 'q-mc-1',
@@ -247,6 +247,30 @@ describe('TestStudentGradingPanel save-all grading', () => {
       String(input).endsWith('/api/teacher/tests/test-1/results')
     )
     expect(resultsCalls).toHaveLength(1)
+  })
+
+  it('accepts legacy quiz result payloads as a compatibility fallback', async () => {
+    const legacyPayload = makeResultsPayload(3, 'Legacy feedback') as ReturnType<typeof makeResultsPayload> & {
+      quiz?: { id: string; title: string }
+      test?: { id: string; title: string }
+    }
+    legacyPayload.quiz = legacyPayload.test
+    delete legacyPayload.test
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => legacyPayload,
+    })
+
+    render(
+      <TestStudentGradingPanel
+        testId="test-1"
+        selectedStudentId="student-1"
+      />
+    )
+
+    await screen.findByDisplayValue('3')
+    expect(screen.getByDisplayValue('Legacy feedback')).toBeInTheDocument()
   })
 
   it('renders score inputs for MC and open questions and saves MC overrides', async () => {
