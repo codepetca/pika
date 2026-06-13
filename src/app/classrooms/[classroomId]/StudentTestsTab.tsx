@@ -15,6 +15,7 @@ import { fetchJSONWithCache } from '@/lib/request-cache'
 import { StudentTestForm } from '@/components/StudentTestForm'
 import { StudentTestResults } from '@/components/StudentTestResults'
 import { Button, ConfirmDialog, EmptyState } from '@/ui'
+import { readTestFromPayload, readTestsFromPayload } from '@/lib/test-api-contract'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
@@ -393,7 +394,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       ) {
         return
       }
-      setTests(data.tests || data.quizzes || [])
+      setTests(readTestsFromPayload(data))
     } catch (err) {
       if (
         listRequestIdRef.current === requestId &&
@@ -492,7 +493,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       ) {
         return
       }
-      const responseTest = data.test ?? data.quiz
+      const responseTest = readTestFromPayload<StudentTestView>(data)
       const listTest = tests.find((test) => test.id === testId)
       const nextTest = responseTest ?? listTest
       if (!nextTest) throw new Error('Test not found')

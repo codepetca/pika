@@ -38,6 +38,7 @@ import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
 import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
+import { readTestFromPayload } from '@/lib/test-api-contract'
 import { markdownToQuiz, quizToMarkdown } from '@/lib/quiz-markdown'
 import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
 import type {
@@ -961,7 +962,7 @@ export function TestDetailPanel({
         if (detailRes?.ok) {
           const detailData = await detailRes.json()
           if (!isCurrentLoadRequest(requestId, scope)) return
-          const responseTest = detailData?.test ?? detailData?.quiz
+          const responseTest = readTestFromPayload<{ documents?: unknown }>(detailData)
           setDocuments(normalizeTestDocuments(responseTest?.documents))
         }
       }
@@ -1030,7 +1031,7 @@ export function TestDetailPanel({
           return
         }
 
-        const responseTest = data?.test ?? data?.quiz
+        const responseTest = readTestFromPayload<{ documents?: unknown }>(data)
         setDocuments(normalizeTestDocuments(responseTest?.documents))
       } catch (error) {
         if (!isCancelled) {
