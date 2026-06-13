@@ -6,9 +6,8 @@ import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetup
 import {
   ClassworkContentModalShell,
   ClassworkModalSaveStatus,
+  ClassworkModalSurveyDueFields,
   ClassworkModalTopLine,
-  DateTimeFields,
-  SurveyDuePolicySelect,
 } from '@/components/classwork/ClassworkContentModal'
 import { useClassworkAutosave } from '@/hooks/useClassworkAutosave'
 import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
@@ -199,29 +198,23 @@ export function SurveyModal({
             updateValues({ title: nextTitle })
           }}
           meta={(
-            <div className="grid min-w-0 gap-3 sm:grid-cols-[20rem_11rem] lg:w-[32rem] lg:items-end">
-              <DateTimeFields
-                label="Due"
-                date={dueDate}
-                time={dueTime}
-                required
-                onDateChange={(nextDate) => {
-                  setDueDate(nextDate)
-                  updateValues({ dueDate: nextDate })
-                }}
-                onTimeChange={(nextTime) => {
-                  setDueTime(nextTime)
-                  updateValues({ dueTime: nextTime })
-                }}
-              />
-              <SurveyDuePolicySelect
-                value={duePolicy}
-                onChange={(nextPolicy) => {
-                  setDuePolicy(nextPolicy)
-                  updateValues({ duePolicy: nextPolicy })
-                }}
-              />
-            </div>
+            <ClassworkModalSurveyDueFields
+              dueDate={dueDate}
+              dueTime={dueTime}
+              duePolicy={duePolicy}
+              onDueDateChange={(nextDate) => {
+                setDueDate(nextDate)
+                updateValues({ dueDate: nextDate })
+              }}
+              onDueTimeChange={(nextTime) => {
+                setDueTime(nextTime)
+                updateValues({ dueTime: nextTime })
+              }}
+              onDuePolicyChange={(nextPolicy) => {
+                setDuePolicy(nextPolicy)
+                updateValues({ duePolicy: nextPolicy })
+              }}
+            />
           )}
         />
 
