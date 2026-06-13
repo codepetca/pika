@@ -32,7 +32,7 @@ import type {
   LinkedBlueprintClassroom,
   TestDocument,
 } from '@/types'
-import type { QuizDraftContent, TestDraftContent } from '@/lib/server/assessment-drafts'
+import type { AssessmentDraftContent, TestDraftContent } from '@/lib/server/assessment-drafts'
 import { isMissingAssessmentDraftsError } from '@/lib/server/assessment-drafts'
 import { normalizeAssignmentSubmissionRequirementDrafts } from '@/lib/assignment-submission-requirements'
 
@@ -107,7 +107,7 @@ async function maybeInsertAssessmentDraft(
   classroomId: string,
   assessmentId: string,
   teacherId: string,
-  content: QuizDraftContent | TestDraftContent
+  content: AssessmentDraftContent | TestDraftContent
 ) {
   const { error } = await supabase
     .from('assessment_drafts')
@@ -433,7 +433,7 @@ export async function syncCourseBlueprintAssessments(
     id?: string
     assessment_type: 'test'
     title: string
-    content: QuizDraftContent | TestDraftContent
+    content: AssessmentDraftContent | TestDraftContent
     documents: TestDocument[]
     position: number
   }>,

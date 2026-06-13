@@ -720,3 +720,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm build`
 - `pnpm vitest run --sequence.concurrent=false` (303 files / 2684 tests)
+
+## 2026-06-13 — Legacy quiz server draft helper names
+
+**Completed:**
+- Added assessment-named primary draft helpers in `src/lib/server/assessment-drafts.ts`: `AssessmentDraftContent`, `AssessmentDraftQuestion`, `validateAssessmentDraftContent`, `buildAssessmentDraftContentFromRows`, and `syncAssessmentQuestionsFromDraft`.
+- Kept legacy `QuizDraft*`, `validateQuizDraftContent`, `buildQuizDraftContentFromRows`, and `syncQuizQuestionsFromDraft` exports as compatibility aliases.
+- Updated internal markdown/course-blueprint typing and assessment draft unit tests to prefer assessment-named helpers.
+- Did not change database tables, persisted `quiz_id` fields, route payload shapes, migrations, RPCs, or storage paths.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/unit/assessment-drafts.test.ts tests/lib/quiz-markdown.test.ts tests/lib/server/course-blueprints.test.ts tests/lib/server/course-sites.test.ts`
+- `pnpm lint`
+- `git diff --check`
