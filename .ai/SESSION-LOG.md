@@ -688,4 +688,4 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Selected the student test-taking response normalization path in `src/lib/test-attempts.ts` as the hotspot because it handled several legacy payload shapes with duplicated coercion branches used by both form and API routes.
 - Refactored the parser into explicit typed and legacy coercion helpers without changing behavior, and added unit coverage for fallback object shapes, CRLF normalization, and required non-blank open responses.
 - Verified with `bash scripts/verify-env.sh` and `pnpm test` (full Vitest suite: 302 files, 2671 tests).
-- PR: pending
+- PR: https://github.com/codepetca/pika/pull/779
