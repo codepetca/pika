@@ -100,6 +100,12 @@ const classroom: Classroom = {
   updated_at: '2025-01-01T00:00:00Z',
 }
 
+const secondClassroom: Classroom = {
+  ...classroom,
+  id: 'c2',
+  title: 'Second Class',
+}
+
 const entries: Entry[] = [
   {
     id: 'e1',
@@ -229,6 +235,99 @@ describe('StudentTodayTab history section', () => {
 
     expect(await screen.findByText('No past logs yet')).toBeInTheDocument()
     expect(screen.queryByText('Tue Dec 16')).not.toBeInTheDocument()
+  })
+
+  it('ignores stale entry and lesson-plan responses after classroom changes', async () => {
+    const firstEntriesRequest = deferred<any>()
+    const firstLessonPlanRequest = deferred<any>()
+    const secondEntriesRequest = deferred<any>()
+    const secondLessonPlanRequest = deferred<any>()
+    const lessonPlanLoads: Array<{ classroomId: string; title: string | null }> = []
+    const firstEntries: Entry[] = [
+      {
+        ...entries[0],
+        id: 'first-today-entry',
+        classroom_id: classroom.id,
+        text: 'Classroom A today log.',
+      },
+    ]
+    const secondEntries: Entry[] = [
+      {
+        ...entries[0],
+        id: 'second-today-entry',
+        classroom_id: secondClassroom.id,
+        text: 'Classroom B today log.',
+      },
+    ]
+    const firstLessonPlan = {
+      id: 'first-plan',
+      classroom_id: classroom.id,
+      date: '2025-12-16',
+      title: 'Classroom A plan',
+      content: null,
+      created_at: '2025-12-16T01:00:00Z',
+      updated_at: '2025-12-16T01:00:00Z',
+    }
+    const secondLessonPlan = {
+      ...firstLessonPlan,
+      id: 'second-plan',
+      classroom_id: secondClassroom.id,
+      title: 'Classroom B plan',
+    }
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+        return firstEntriesRequest.promise
+      }
+      if (url.startsWith(`/api/student/entries?classroom_id=${secondClassroom.id}&limit=12`)) {
+        return secondEntriesRequest.promise
+      }
+      if (url.includes(`/api/student/classrooms/${classroom.id}/lesson-plans`)) {
+        return firstLessonPlanRequest.promise
+      }
+      if (url.includes(`/api/student/classrooms/${secondClassroom.id}/lesson-plans`)) {
+        return secondLessonPlanRequest.promise
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const view = render(
+      <StudentTodayTab
+        classroom={classroom}
+        onLessonPlanLoad={(plan, classroomId) => {
+          lessonPlanLoads.push({ classroomId, title: plan?.title ?? null })
+        }}
+      />,
+    )
+
+    view.rerender(
+      <StudentTodayTab
+        classroom={secondClassroom}
+        onLessonPlanLoad={(plan, classroomId) => {
+          lessonPlanLoads.push({ classroomId, title: plan?.title ?? null })
+        }}
+      />,
+    )
+
+    secondLessonPlanRequest.resolve(await mockJson({ lesson_plans: [secondLessonPlan] }))
+    secondEntriesRequest.resolve(await mockJson({ entries: secondEntries }))
+
+    expect(await screen.findByDisplayValue('Classroom B today log.')).toBeInTheDocument()
+    expect(lessonPlanLoads).toEqual([
+      { classroomId: secondClassroom.id, title: 'Classroom B plan' },
+    ])
+
+    firstLessonPlanRequest.resolve(await mockJson({ lesson_plans: [firstLessonPlan] }))
+    firstEntriesRequest.resolve(await mockJson({ entries: firstEntries }))
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Classroom B today log.')).toBeInTheDocument()
+    })
+    expect(screen.queryByDisplayValue('Classroom A today log.')).not.toBeInTheDocument()
+    expect(lessonPlanLoads).toEqual([
+      { classroomId: secondClassroom.id, title: 'Classroom B plan' },
+    ])
   })
 
   it('keeps an empty new entry marked saved', async () => {

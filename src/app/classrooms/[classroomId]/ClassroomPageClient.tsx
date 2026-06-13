@@ -327,7 +327,7 @@ function StudentTodayWorkspace({
   lastClassLessonPlan: LessonPlan | null
   lastClassDate: string | null
   lastClassLoading: boolean
-  onLessonPlanLoad: (plan: LessonPlan | null) => void
+  onLessonPlanLoad: (plan: LessonPlan | null, classroomId: string) => void
 }) {
   const [planPaneWidth, setPlanPaneWidth] = useState(34)
 
@@ -582,7 +582,13 @@ function ClassroomPageContent({
   const [selectedAssignment, setSelectedAssignment] = useState<SelectedAssignmentInstructions | null>(null)
 
   // State for today's lesson plan (student today tab)
-  const [todayLessonPlan, setTodayLessonPlan] = useState<LessonPlan | null>(null)
+  const [todayLessonPlanState, setTodayLessonPlanState] = useState<{
+    classroomId: string
+    plan: LessonPlan | null
+  }>({ classroomId: classroom.id, plan: null })
+  const todayLessonPlan = todayLessonPlanState.classroomId === classroom.id
+    ? todayLessonPlanState.plan
+    : null
   const [lastClassLessonPlan, setLastClassLessonPlan] = useState<LessonPlan | null>(null)
   const [lastClassLessonPlanDate, setLastClassLessonPlanDate] = useState<string | null>(null)
   const [lastClassLessonPlanLoading, setLastClassLessonPlanLoading] = useState(false)
@@ -647,9 +653,10 @@ function ClassroomPageContent({
     setSelectedAssignment(assignment)
   }, [])
 
-  const handleSetLessonPlan = useCallback((plan: LessonPlan | null) => {
-    setTodayLessonPlan(plan)
-  }, [])
+  const handleSetLessonPlan = useCallback((plan: LessonPlan | null, loadedClassroomId: string) => {
+    if (loadedClassroomId !== classroom.id) return
+    setTodayLessonPlanState({ classroomId: loadedClassroomId, plan })
+  }, [classroom.id])
 
   useEffect(() => {
     if (isTeacher || activeTab !== 'today') return
