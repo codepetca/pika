@@ -52,4 +52,42 @@ describe('GET /api/teacher/class-days', () => {
     const response = await GET(request)
     expect(response.status).toBe(200)
   })
+
+  it('blocks teachers from reading class days for classrooms they do not own', async () => {
+    const { assertTeacherOwnsClassroom } = await import('@/lib/server/classrooms')
+    ;(assertTeacherOwnsClassroom as any).mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      error: 'Forbidden',
+    })
+    ;(mockSupabaseClient.from as any) = vi.fn()
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/class-days?classroom_id=c2')
+    const response = await GET(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(data.error).toBe('Forbidden')
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it('blocks students from reading class days for classrooms they cannot access', async () => {
+    const { requireAuth } = await import('@/lib/auth')
+    const { assertStudentCanAccessClassroom } = await import('@/lib/server/classrooms')
+    ;(requireAuth as any).mockResolvedValueOnce({ id: 'student-1', role: 'student' })
+    ;(assertStudentCanAccessClassroom as any).mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      error: 'Not enrolled in this classroom',
+    })
+    ;(mockSupabaseClient.from as any) = vi.fn()
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/class-days?classroom_id=c2')
+    const response = await GET(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(data.error).toBe('Not enrolled in this classroom')
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
 })
