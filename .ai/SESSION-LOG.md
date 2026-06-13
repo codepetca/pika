@@ -9,24 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-06 — Quiz detail freshness audit
-
-**Completed:**
-- Added request-scope guards to `QuizDetailPanel` draft, test-document detail, and results loads so stale responses cannot repaint after selected assessment, classroom, route base, or assessment-type changes.
-- Reset result payload and invalidated in-flight load/save revisions when the selected assessment scope changes.
-- Added save contexts so pending debounced saves can still persist their original assessment without applying stale draft state to the currently selected panel.
-- Added component coverage for stale draft, test-detail document, results, same-id assessment-type switch, selected-assessment save-response races, and pending debounced save persistence across assessment switches.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/QuizDetailPanel.test.tsx tests/components/QuizResultsView.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherTestsTab.test.tsx tests/api/teacher/quizzes-results.test.ts tests/api/teacher/tests-results.test.ts tests/unit/request-cache.test.ts`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-- `pnpm vitest run tests/components/QuizDetailPanel.test.tsx`
-
 ## 2026-06-06 — Survey detail freshness audit
 
 **Completed:**
@@ -691,6 +673,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm exec tsc --noEmit`
 - `pnpm test tests/components/TestStudentGradingPanel.test.tsx tests/lib/test-api-contract.test.ts`
+- `pnpm lint`
+- `pnpm test`
+- `git diff --check`
+
+## 2026-06-13 — Student Tests payload type names
+
+**Completed:**
+- Renamed local `StudentTestsTab` response type aliases so current `test` and `tests` payload fields are primary.
+- Collapsed duplicated session-status test/quiz summary shapes into one current `StudentTestSessionStatusSummary`.
+- Kept legacy `quiz` and `quizzes` fields in the local types as documented compatibility fallbacks.
+- Did not change runtime behavior, API response shapes, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/components/StudentTestsTab.test.tsx tests/lib/test-api-contract.test.ts`
 - `pnpm lint`
 - `pnpm test`
 - `git diff --check`

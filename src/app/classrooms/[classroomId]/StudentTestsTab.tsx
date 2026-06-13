@@ -57,34 +57,32 @@ interface RemoteClosureNotice {
   description: string
 }
 
+interface StudentTestSessionStatusSummary {
+  id: string
+  status: 'draft' | 'active' | 'closed'
+  assessment_type: 'test'
+  student_status: StudentTestStatus
+  returned_at: string | null
+}
+
 interface StudentTestSessionStatusResponse {
-  test?: {
-    id: string
-    status: 'draft' | 'active' | 'closed'
-    assessment_type: 'test'
-    student_status: StudentTestStatus
-    returned_at: string | null
-  }
-  quiz?: {
-    id: string
-    status: 'draft' | 'active' | 'closed'
-    assessment_type: 'test'
-    student_status: StudentTestStatus
-    returned_at: string | null
-  }
+  test?: StudentTestSessionStatusSummary
+  quiz?: StudentTestSessionStatusSummary
   student_status: StudentTestStatus
   returned_at: string | null
   can_continue: boolean
   message: string | null
 }
 
-interface StudentAssessmentListResponse {
+interface StudentTestListResponse {
   tests?: StudentTestView[]
+  /** Legacy compatibility key emitted during the Tests contract transition. */
   quizzes?: StudentTestView[]
 }
 
-interface StudentAssessmentDetailResponse {
+interface StudentTestDetailResponse {
   test?: StudentTestView
+  /** Legacy compatibility key emitted during the Tests contract transition. */
   quiz?: StudentTestView
   questions?: TestAssessmentQuestion[]
   student_responses?: Record<string, number | TestResponseDraftValue>
@@ -376,7 +374,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     setLoading(true)
     try {
       const query = new URLSearchParams({ classroom_id: classroomId })
-      const data = await fetchJSONWithCache<StudentAssessmentListResponse>(
+      const data = await fetchJSONWithCache<StudentTestListResponse>(
         options.forceRefresh
           ? `student-assessments:${viewAssessmentType}:${classroomId}:refresh:${requestId}`
           : `student-assessments:${viewAssessmentType}:${classroomId}`,
@@ -484,7 +482,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     try {
       // Bypass fetchJSONWithCache for selected detail freshness; request ids guard stale responses.
       const res = await fetch(`${basePath}/${testId}`)
-      const data = await res.json() as StudentAssessmentDetailResponse
+      const data = await res.json() as StudentTestDetailResponse
       if (
         detailRequestIdRef.current !== requestId ||
         selectedTestIdRef.current !== testId ||
