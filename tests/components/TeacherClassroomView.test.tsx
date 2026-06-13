@@ -1431,6 +1431,7 @@ describe('TeacherClassroomView', () => {
     await within(materialDialog).findByRole('button', { name: 'Post Material' })
 
     expect(within(materialDialog).getByText('Saved')).toBeInTheDocument()
+    expect(within(materialDialog).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
     expect(within(materialDialog).queryByRole('button', { name: 'Save Draft' })).not.toBeInTheDocument()
     expect(global.fetch).toHaveBeenCalledWith(
       `/api/teacher/classrooms/${classroom.id}/materials`,

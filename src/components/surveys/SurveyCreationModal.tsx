@@ -5,10 +5,10 @@ import { addDaysToDateString } from '@/lib/date-string'
 import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetupForm'
 import {
   ClassworkContentModalShell,
+  ClassworkModalPrimaryButton,
   ClassworkModalSaveStatus,
+  ClassworkModalSurveyDueFields,
   ClassworkModalTopLine,
-  DateTimeFields,
-  SurveyDuePolicySelect,
 } from '@/components/classwork/ClassworkContentModal'
 import { useClassworkAutosave } from '@/hooks/useClassworkAutosave'
 import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
@@ -17,7 +17,6 @@ import {
   combineScheduleDateTimeToIso,
   getTodayInSchedulingTimezone,
 } from '@/lib/scheduling'
-import { Button } from '@/ui'
 import type { Survey, SurveyDuePolicy } from '@/types'
 
 type SurveySettingsValues = {
@@ -251,44 +250,34 @@ export function SurveyCreationModal({
             updateValues({ title: nextTitle })
           }}
           meta={(
-            <div className="grid min-w-0 gap-3 sm:grid-cols-[20rem_11rem] lg:w-[32rem] lg:items-end">
-              <DateTimeFields
-                label="Due"
-                date={dueDate}
-                time={dueTime}
-                disabled={creatingDraft}
-                required
-                onDateChange={(nextDate) => {
-                  setDueDate(nextDate)
-                  updateValues({ dueDate: nextDate })
-                }}
-                onTimeChange={(nextTime) => {
-                  setDueTime(nextTime)
-                  updateValues({ dueTime: nextTime })
-                }}
-              />
-              <SurveyDuePolicySelect
-                value={duePolicy}
-                disabled={creatingDraft}
-                onChange={(nextPolicy) => {
-                  setDuePolicy(nextPolicy)
-                  updateValues({ duePolicy: nextPolicy })
-                }}
-              />
-            </div>
+            <ClassworkModalSurveyDueFields
+              dueDate={dueDate}
+              dueTime={dueTime}
+              duePolicy={duePolicy}
+              disabled={creatingDraft}
+              onDueDateChange={(nextDate) => {
+                setDueDate(nextDate)
+                updateValues({ dueDate: nextDate })
+              }}
+              onDueTimeChange={(nextTime) => {
+                setDueTime(nextTime)
+                updateValues({ dueTime: nextTime })
+              }}
+              onDuePolicyChange={(nextPolicy) => {
+                setDuePolicy(nextPolicy)
+                updateValues({ duePolicy: nextPolicy })
+              }}
+            />
           )}
           primaryActions={(
-            <Button
-              type="button"
-              variant="primary"
-              className="min-w-[7.75rem] justify-center whitespace-nowrap font-semibold"
+            <ClassworkModalPrimaryButton
               disabled={busy || !currentSurvey}
               onClick={() => {
                 void continueToEditor()
               }}
             >
               Edit Survey
-            </Button>
+            </ClassworkModalPrimaryButton>
           )}
         />
 
