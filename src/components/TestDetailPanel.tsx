@@ -39,7 +39,7 @@ import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-
 import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import { readTestFromPayload } from '@/lib/test-api-contract'
-import { markdownToQuiz, quizToMarkdown } from '@/lib/quiz-markdown'
+import { assessmentToMarkdown, markdownToAssessment } from '@/lib/quiz-markdown'
 import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
 import type {
   AssessmentEditorSummaryUpdate,
@@ -427,7 +427,7 @@ export function TestDetailPanel({
                 questions: nextQuestions,
                 documents: documentsRef.current,
               })
-            : quizToMarkdown({
+            : assessmentToMarkdown({
                 title: nextTitle,
                 show_results: nextShowResults,
                 questions: nextQuestions,
@@ -526,7 +526,7 @@ export function TestDetailPanel({
       })
     }
 
-    return quizToMarkdown({
+    return assessmentToMarkdown({
       title: editTitle,
       show_results: draftShowResults,
       questions,
@@ -712,7 +712,7 @@ export function TestDetailPanel({
                       questions: nextDraft.questions,
                       documents: options?.documents ?? documents,
                     })
-                  : quizToMarkdown({
+                  : assessmentToMarkdown({
                       title: nextDraft.title,
                       show_results: nextDraft.show_results,
                       questions: nextDraft.questions,
@@ -1548,7 +1548,7 @@ export function TestDetailPanel({
       return
     }
 
-    const parsed = markdownToQuiz(markdownContent, {
+    const parsed = markdownToAssessment(markdownContent, {
       defaultShowResults: draftShowResults,
       existingQuestions: questions.map((question) => ({ id: question.id })),
     })
@@ -1580,7 +1580,7 @@ export function TestDetailPanel({
       questions: nextQuestions,
     }
 
-    const nextDerivedMarkdown = quizToMarkdown({
+    const nextDerivedMarkdown = assessmentToMarkdown({
       title: parsed.draftContent.title,
       show_results: parsed.draftContent.show_results,
       questions: nextQuestions,

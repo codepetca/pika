@@ -6,7 +6,7 @@ const UUID_RE =
 
 const FIELD_KEYS = new Set(['id', 'prompt', 'options', 'show results', 'title'])
 
-export interface QuizMarkdownSerializeInput {
+export interface AssessmentMarkdownSerializeInput {
   title: string
   show_results: boolean
   questions: Array<{
@@ -16,15 +16,21 @@ export interface QuizMarkdownSerializeInput {
   }>
 }
 
-export interface QuizMarkdownParseOptions {
+export type QuizMarkdownSerializeInput = AssessmentMarkdownSerializeInput
+
+export interface AssessmentMarkdownParseOptions {
   defaultShowResults?: boolean
   existingQuestions?: Array<{ id: string }>
 }
 
-export interface QuizMarkdownParseResult {
+export type QuizMarkdownParseOptions = AssessmentMarkdownParseOptions
+
+export interface AssessmentMarkdownParseResult {
   draftContent: AssessmentDraftContent | null
   errors: string[]
 }
+
+export type QuizMarkdownParseResult = AssessmentMarkdownParseResult
 
 function normalizeLineEndings(markdown: string): string[] {
   return markdown.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
@@ -139,7 +145,7 @@ function splitQuestionBlocks(lines: string[]): Array<{ heading: string; lines: s
 function parseQuestionBlock(
   blockLines: string[],
   index: number,
-  options: QuizMarkdownParseOptions,
+  options: AssessmentMarkdownParseOptions,
   errors: string[]
 ): AssessmentDraftQuestion | null {
   let id: string | undefined
@@ -199,7 +205,7 @@ function parseQuestionBlock(
   }
 }
 
-export function quizToMarkdown(input: QuizMarkdownSerializeInput): string {
+export function assessmentToMarkdown(input: AssessmentMarkdownSerializeInput): string {
   const lines: string[] = [
     '# Quiz',
     `Title: ${input.title}`,
@@ -218,10 +224,12 @@ export function quizToMarkdown(input: QuizMarkdownSerializeInput): string {
   return `${lines.join('\n').trimEnd()}\n`
 }
 
-export function markdownToQuiz(
+export const quizToMarkdown = assessmentToMarkdown
+
+export function markdownToAssessment(
   markdown: string,
-  options: QuizMarkdownParseOptions = {}
-): QuizMarkdownParseResult {
+  options: AssessmentMarkdownParseOptions = {}
+): AssessmentMarkdownParseResult {
   const lines = normalizeLineEndings(markdown)
   const errors: string[] = []
   let title = ''
@@ -272,3 +280,5 @@ export function markdownToQuiz(
     errors: [],
   }
 }
+
+export const markdownToQuiz = markdownToAssessment

@@ -9,59 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-06 — Student classrooms cache audit
-
-**Completed:**
-- Added a verified-user-scoped `student-classrooms` client for `/api/student/classrooms` repeated reads.
-- Routed `/student/history` classroom list reads through the shared cache helper.
-- Invalidated student classroom caches after joining from `/student/history` and `/join/[code]`.
-- Added coverage for scoped list caching, auth-scope cache bypass, history-page cache usage, and join invalidation.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/unit/student-classrooms-client.test.ts tests/components/StudentHistoryPage.test.tsx tests/components/JoinClassroomPage.test.tsx tests/unit/request-cache.test.ts`
-- `pnpm vitest run tests/unit/student-classrooms-client.test.ts tests/components/StudentHistoryPage.test.tsx tests/components/JoinClassroomPage.test.tsx tests/components/StudentHistoryTab.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/api/student/classrooms.test.ts tests/api/student/classrooms-join.test.ts tests/api/student/classrooms-id.test.ts tests/unit/request-cache.test.ts`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-
-## 2026-06-06 — Teacher classroom index cache audit
-
-**Completed:**
-- Extended the shared teacher-classrooms client to cache active and archived classroom lists separately.
-- Routed `TeacherClassroomsIndex` active refresh and archived-list loads through the shared helper instead of raw list fetches.
-- Preserved prefix invalidation after archive, restore, delete, reorder, and create flows.
-- Added coverage for separate active/archived cache keys and archived-view helper usage.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/unit/teacher-classrooms-client.test.ts tests/components/TeacherClassroomsIndex.test.tsx tests/unit/request-cache.test.ts`
-- `pnpm vitest run tests/unit/teacher-classrooms-client.test.ts tests/components/TeacherClassroomsIndex.test.tsx tests/components/TeacherCalendarPage.test.tsx tests/components/TeacherDashboardPage.test.tsx tests/components/CreateClassroomModal.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/unit/request-cache.test.ts`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-
-## 2026-06-06 — Classroom blueprint modal cache audit
-
-**Completed:**
-- Routed `CreateClassroomModal` blueprint list loads through the shared `fetchTeacherBlueprints` cache helper instead of a raw `/api/teacher/course-blueprints` fetch.
-- Kept import and instantiate mutation paths raw and preserved blueprint/classroom cache invalidation after successful mutations.
-- Added a stale-load guard so a closed/reopened modal cannot have a prior blueprint list response wipe the current options.
-- Addressed PR review feedback by bumping the list-load generation after blueprint imports so pending open-time list loads cannot erase imported options.
-- Updated modal coverage for cached list loading, empty blueprint lists, mutation fetches, stale close/reopen responses, and import-while-list-load-is-pending races.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/CreateClassroomModal.test.tsx tests/unit/teacher-blueprints-client.test.ts tests/unit/request-cache.test.ts`
-- `pnpm vitest run tests/components/CreateClassroomModal.test.tsx tests/components/TeacherBlueprintsPage.test.tsx tests/unit/teacher-blueprints-client.test.ts tests/components/TeacherClassroomsIndex.test.tsx tests/components/TeacherCalendarPage.test.tsx tests/components/TeacherDashboardPage.test.tsx tests/unit/teacher-classrooms-client.test.ts tests/unit/request-cache.test.ts`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm test`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-
 ## 2026-06-06 — Teacher quiz list freshness audit
 
 **Completed:**
@@ -695,6 +642,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/assessments.test.ts tests/lib/assessments.test.ts tests/lib/test-api-contract.test.ts tests/components/TeacherTestsTab.test.tsx`
 - `pnpm test` (303 files / 2678 tests)
 - `git diff --check`
+
 ## 2026-06-13 — Teacher lesson calendar stale classroom load guard
 
 **Completed:**
@@ -734,4 +682,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm test tests/unit/assessment-drafts.test.ts tests/lib/quiz-markdown.test.ts tests/lib/server/course-blueprints.test.ts tests/lib/server/course-sites.test.ts`
 - `pnpm lint`
+- `git diff --check`
+
+## 2026-06-13 — Legacy quiz markdown helper aliases
+
+**Completed:**
+- Added assessment-named markdown helper exports in `src/lib/quiz-markdown.ts`: `assessmentToMarkdown`, `markdownToAssessment`, and `AssessmentMarkdown*` types.
+- Kept `quizToMarkdown`, `markdownToQuiz`, and `QuizMarkdown*` exports as compatibility aliases.
+- Updated active `TestDetailPanel` markdown editing code to import and call the assessment-named helpers.
+- Expanded markdown unit coverage for the new helper names and alias compatibility.
+- Did not change markdown format text, route payloads, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm test tests/lib/quiz-markdown.test.ts tests/components/TestDetailPanel.test.tsx tests/unit/assessment-drafts.test.ts`
 - `git diff --check`
