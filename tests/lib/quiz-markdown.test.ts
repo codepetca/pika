@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { markdownToQuiz, quizToMarkdown } from '@/lib/quiz-markdown'
+import {
+  assessmentToMarkdown,
+  markdownToAssessment,
+  markdownToQuiz,
+  quizToMarkdown,
+} from '@/lib/quiz-markdown'
 
-describe('quizToMarkdown', () => {
-  it('serializes a quiz draft into markdown', () => {
-    const markdown = quizToMarkdown({
+describe('assessmentToMarkdown', () => {
+  it('serializes assessment draft content into markdown', () => {
+    const markdown = assessmentToMarkdown({
       title: 'Intro Quiz',
       show_results: false,
       questions: [
@@ -22,8 +27,8 @@ describe('quizToMarkdown', () => {
   })
 })
 
-describe('markdownToQuiz', () => {
-  it('parses quiz markdown into draft content', () => {
+describe('markdownToAssessment', () => {
+  it('parses assessment markdown into draft content', () => {
     const markdown = `# Quiz
 Title: Intro Quiz
 Show Results: true
@@ -37,7 +42,7 @@ Options:
 - Practice
 - Submit`
 
-    const result = markdownToQuiz(markdown)
+    const result = markdownToAssessment(markdown)
 
     expect(result.errors).toEqual([])
     expect(result.draftContent).toMatchObject({
@@ -65,11 +70,16 @@ Prompt:
 Options:
 - Only one`
 
-    const result = markdownToQuiz(markdown)
+    const result = markdownToAssessment(markdown)
 
     expect(result.draftContent).toBeNull()
     expect(result.errors).toContain('Question 1: Prompt is required')
     expect(result.errors).toContain('Question 1: At least 2 options required')
     expect(result.errors).toContain('Title is required')
+  })
+
+  it('keeps legacy quiz markdown exports as compatibility aliases', () => {
+    expect(quizToMarkdown).toBe(assessmentToMarkdown)
+    expect(markdownToQuiz).toBe(markdownToAssessment)
   })
 })
