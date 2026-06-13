@@ -24,7 +24,7 @@ export type QuizAccessRecord = {
 export type AssessmentAccessRecord = QuizAccessRecord
 
 type AccessResult<T> =
-  | { ok: true; quiz: T }
+  | { ok: true; assessment: T; quiz: T }
   | { ok: false; status: number; error: string }
 
 type QuizVisibilityRecord = {
@@ -33,6 +33,14 @@ type QuizVisibilityRecord = {
 }
 
 type AssessmentVisibilityRecord = QuizVisibilityRecord
+
+function assessmentAccessSuccess<T>(assessment: T): AccessResult<T> {
+  return {
+    ok: true,
+    assessment,
+    quiz: assessment,
+  }
+}
 
 export function isAssessmentVisibleToStudents(
   assessment: AssessmentVisibilityRecord,
@@ -84,7 +92,7 @@ export async function assertTeacherOwnsAssessment(
     return { ok: false, status: 403, error: 'Classroom is archived' }
   }
 
-  return { ok: true, quiz: assessment as QuizAccessRecord }
+  return assessmentAccessSuccess(assessment as QuizAccessRecord)
 }
 
 export const assertTeacherOwnsQuiz = assertTeacherOwnsAssessment
@@ -126,7 +134,7 @@ export async function assertStudentCanAccessAssessment(
     return { ok: false, status: 403, error: 'Not enrolled in this classroom' }
   }
 
-  return { ok: true, quiz: assessment as QuizAccessRecord }
+  return assessmentAccessSuccess(assessment as QuizAccessRecord)
 }
 
 export const assertStudentCanAccessQuiz = assertStudentCanAccessAssessment

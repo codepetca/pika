@@ -14,6 +14,7 @@ import {
   type TestDraftContent,
 } from '@/lib/server/assessment-drafts'
 import { withErrorHandler } from '@/lib/api-handler'
+import { withLegacyQuizKey } from '@/lib/test-api-contract'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -115,8 +116,7 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
   }
 
   return NextResponse.json({
-    test: responseTest,
-    quiz: responseTest,
+    ...withLegacyQuizKey(responseTest),
     questions: responseQuestions,
     classroom: test.classrooms,
   })
@@ -340,8 +340,7 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
   }
 
   return NextResponse.json({
-    test: responseTest,
-    quiz: responseTest,
+    ...withLegacyQuizKey(responseTest),
   })
 })
 

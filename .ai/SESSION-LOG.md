@@ -9,17 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-05 — Teacher attendance freshness guards
-
-**Completed:**
-- Added request-generation guards to `TeacherAttendanceTab` so stale classroom/date log responses cannot repaint the active teacher daily view after a classroom switch or date change.
-- Reset teacher attendance local state on classroom changes so date/selection/loading state reinitializes against the next classroom instead of carrying the prior classroom forward.
-- Added matching request-generation guards to `LogSummary` and created regression tests covering stale classroom summary responses plus stale teacher-log responses after a classroom switch.
-
-**Validation:**
-- `git diff --check`
-- `pnpm vitest run tests/components/TeacherAttendanceTab.test.tsx tests/components/LogSummary.test.tsx` (fails in this worktree: `vitest` command unavailable because dependencies are not installed)
-
 ## 2026-06-06 — Gradebook action consistency audit
 
 **Completed:**
@@ -693,3 +682,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 - Rebased `codex/action-cluster-classwork` onto `origin/main` and resolved the `TeacherTestsTab.test.tsx` helper import conflict by keeping `createMockTest` plus the branch's `Classroom` typing.
 - Verified the rebased branch with `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx tests/components/TeacherTestsTab.test.tsx` and `pnpm exec tsc --noEmit --pretty false`.
+
+## 2026-06-12 — Legacy quiz API compatibility contract helper
+
+**Completed:**
+- Created `codex/legacy-quiz-contract-compat` from current `origin/main`.
+- Inventoried remaining `quiz` / `quizzes` references and separated persisted/database contracts from active Tests API compatibility aliases.
+- Added `src/lib/test-api-contract.ts` to centralize the active Tests API `{ test, quiz }` and `{ tests, quizzes }` compatibility payloads.
+- Updated student and teacher Tests API routes to use the shared compatibility helper without changing response shape.
+- Added canonical `assessment` success data to `src/lib/server/assessments.ts` while preserving the legacy `quiz` alias.
+- Trimmed redundant `docs/ai-instructions.md` wording after the rebased `origin/main` startup-doc changes exceeded the enforced default startup context budget.
+- Did not touch production schema, migrations, RPCs, storage paths, gradebook contracts, course blueprint contracts, or DB-shaped `quiz_id` fields.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/lib/test-api-contract.test.ts tests/unit/server-access.test.ts tests/api/teacher/tests-route.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-results.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/api/student/tests-session-status.test.ts`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm vitest run tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts`
+- `pnpm test` (303 files / 2672 tests)
+- `git diff --check`

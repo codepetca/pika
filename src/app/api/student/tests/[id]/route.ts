@@ -13,6 +13,7 @@ import { normalizeTestResponses, type TestResponses } from '@/lib/test-attempts'
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
+import { withLegacyQuizKey } from '@/lib/test-api-contract'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -190,8 +191,7 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
   }
 
   return NextResponse.json({
-    test: responseTest,
-    quiz: responseTest,
+    ...withLegacyQuizKey(responseTest),
     questions: questions || [],
     student_status: studentStatus,
     student_responses: studentResponses,
