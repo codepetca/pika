@@ -6,23 +6,23 @@
  */
 
 import type {
-  Quiz,
-  QuizAssessmentType,
-  QuizFocusEventType,
-  QuizFocusSummary,
-  QuizQuestion,
-  QuizResponse,
-  QuizWithStats,
-  QuizStatus,
-  StudentQuizStatus,
-  QuizResultsAggregate,
+  TestAssessment,
+  TestAssessmentQuestion,
+  TestAssessmentResponse,
+  TestAssessmentStatus,
+  TestAssessmentType,
+  TestAssessmentWithStats,
+  TestFocusEventType,
+  TestFocusSummary,
+  TestResultsAggregate,
+  StudentTestStatus,
 } from '@/types'
 
 /**
  * Get human-readable label for quiz status
  */
-export function getQuizStatusLabel(status: QuizStatus): string {
-  const labels: Record<QuizStatus, string> = {
+export function getQuizStatusLabel(status: TestAssessmentStatus): string {
+  const labels: Record<TestAssessmentStatus, string> = {
     draft: 'Draft',
     active: 'Active',
     closed: 'Closed',
@@ -31,18 +31,18 @@ export function getQuizStatusLabel(status: QuizStatus): string {
 }
 
 export function getAssessmentStatusLabel(
-  status: QuizStatus,
-  assessmentType: QuizAssessmentType
+  status: TestAssessmentStatus,
+  assessmentType: TestAssessmentType
 ): string {
   if (assessmentType === 'test' && status === 'active') return 'Open'
   return getQuizStatusLabel(status)
 }
 
 export function getTeacherTestListDisplayStatus(
-  test: Pick<Quiz, 'status'> & {
-    stats?: Partial<QuizWithStats['stats']> | null
+  test: Pick<TestAssessment, 'status'> & {
+    stats?: Partial<TestAssessmentWithStats['stats']> | null
   }
-): QuizStatus {
+): TestAssessmentStatus {
   if (test.status !== 'active') return test.status
 
   const totalStudents = toNonNegativeCount(test.stats?.total_students)
@@ -71,8 +71,8 @@ function toNonNegativeCount(value: unknown): number | null {
 /**
  * Get badge CSS classes for quiz status
  */
-export function getQuizStatusBadgeClass(status: QuizStatus): string {
-  const classes: Record<QuizStatus, string> = {
+export function getQuizStatusBadgeClass(status: TestAssessmentStatus): string {
+  const classes: Record<TestAssessmentStatus, string> = {
     draft: 'bg-surface-2 text-text-muted',
     active: 'bg-success-bg text-success',
     closed: 'bg-danger-bg text-danger',
@@ -80,14 +80,19 @@ export function getQuizStatusBadgeClass(status: QuizStatus): string {
   return classes[status]
 }
 
-export function getQuizAssessmentType(quiz: { assessment_type?: QuizAssessmentType | null }): QuizAssessmentType {
+export function getQuizAssessmentType(
+  quiz: { assessment_type?: TestAssessmentType | null }
+): TestAssessmentType {
   return quiz.assessment_type === 'test' ? 'test' : 'quiz'
 }
 
 /**
  * Check if a student can respond to a quiz
  */
-export function canStudentRespond(quiz: Pick<Quiz, 'status'>, hasResponded: boolean): boolean {
+export function canStudentRespond(
+  quiz: Pick<TestAssessment, 'status'>,
+  hasResponded: boolean
+): boolean {
   return quiz.status === 'active' && !hasResponded
 }
 
@@ -95,7 +100,7 @@ export function canStudentRespond(quiz: Pick<Quiz, 'status'>, hasResponded: bool
  * Check if a student can view quiz results
  */
 export function canStudentViewResults(
-  quiz: Pick<Quiz, 'show_results' | 'status'>,
+  quiz: Pick<TestAssessment, 'show_results' | 'status'>,
   hasResponded: boolean
 ): boolean {
   return quiz.show_results && quiz.status === 'closed' && hasResponded
@@ -106,7 +111,7 @@ export function canStudentViewResults(
  * Tests are released when work has been explicitly returned by the teacher.
  */
 export function canStudentViewTestResults(
-  test: Pick<Quiz, 'status'>,
+  test: Pick<TestAssessment, 'status'>,
   hasResponded: boolean,
   returnedAt: string | null | undefined | boolean
 ): boolean {
@@ -122,10 +127,10 @@ export function canStudentViewTestResults(
  * Both wrappers below delegate here; call this directly when you have a mixed-type assessment.
  */
 export function getStudentAssessmentStatus(
-  assessment: Pick<Quiz, 'status'> & { show_results?: boolean | null },
+  assessment: Pick<TestAssessment, 'status'> & { show_results?: boolean | null },
   hasResponded: boolean,
   opts?: { returnedAt?: string | null | boolean }
-): StudentQuizStatus {
+): StudentTestStatus {
   if (!hasResponded) return 'not_started'
   if (assessment.status === 'closed') {
     if (opts?.returnedAt) return 'can_view_results'
@@ -139,9 +144,9 @@ export function getStudentAssessmentStatus(
  * Results become visible when the quiz is closed and show_results is enabled.
  */
 export function getStudentQuizStatus(
-  quiz: Pick<Quiz, 'show_results' | 'status'>,
+  quiz: Pick<TestAssessment, 'show_results' | 'status'>,
   hasResponded: boolean
-): StudentQuizStatus {
+): StudentTestStatus {
   return getStudentAssessmentStatus(quiz, hasResponded)
 }
 
@@ -150,10 +155,10 @@ export function getStudentQuizStatus(
  * Tests become viewable once the teacher returns the submitted work.
  */
 export function getStudentTestStatus(
-  test: Pick<Quiz, 'status'>,
+  test: Pick<TestAssessment, 'status'>,
   hasResponded: boolean,
   returnedAt: string | null | undefined | boolean
-): StudentQuizStatus {
+): StudentTestStatus {
   return getStudentAssessmentStatus(test, hasResponded, { returnedAt })
 }
 
@@ -162,7 +167,7 @@ export function getStudentTestStatus(
  * Policy: teachers can edit question sets at any stage.
  */
 export function canEditQuizQuestions(
-  _quiz: Pick<Quiz, 'status'>,
+  _quiz: Pick<TestAssessment, 'status'>,
   _hasResponses: boolean
 ): boolean {
   return true
@@ -172,9 +177,9 @@ export function canEditQuizQuestions(
  * Aggregate quiz responses into per-question results
  */
 export function aggregateResults(
-  questions: QuizQuestion[],
-  responses: QuizResponse[]
-): QuizResultsAggregate[] {
+  questions: TestAssessmentQuestion[],
+  responses: TestAssessmentResponse[]
+): TestResultsAggregate[] {
   return questions.map((q) => {
     const questionResponses = responses.filter((r) => r.question_id === q.id)
     const counts = q.options.map((_, idx) =>
@@ -207,7 +212,7 @@ export function validateQuizOptions(options: string[]): { valid: boolean; error?
  * Check if a quiz can be activated (draft → active)
  */
 export function canActivateQuiz(
-  quiz: Pick<Quiz, 'status'>,
+  quiz: Pick<TestAssessment, 'status'>,
   questionsCount: number
 ): { valid: boolean; error?: string } {
   if (quiz.status !== 'draft') {
@@ -220,7 +225,7 @@ export function canActivateQuiz(
 }
 
 type FocusEventLike = {
-  event_type: QuizFocusEventType
+  event_type: TestFocusEventType
   occurred_at: string
 }
 
@@ -229,7 +234,7 @@ export const QUIZ_EXIT_BURST_WINDOW_MS = 2000
 type QuizExitSummaryLike = ({
   exit_count?: number | null
 } & Pick<
-  QuizFocusSummary,
+  TestFocusSummary,
   'away_count' | 'route_exit_attempts' | 'window_unmaximize_attempts'
 >) | null | undefined
 
@@ -251,7 +256,7 @@ export function getQuizExitCount(summary: QuizExitSummaryLike): number {
   return awayCount + routeExitAttempts + windowUnmaximizeAttempts
 }
 
-export function emptyQuizFocusSummary(): QuizFocusSummary {
+export function emptyQuizFocusSummary(): TestFocusSummary {
   return {
     exit_count: 0,
     away_count: 0,
@@ -263,7 +268,7 @@ export function emptyQuizFocusSummary(): QuizFocusSummary {
   }
 }
 
-export function summarizeQuizFocusEvents(events: FocusEventLike[]): QuizFocusSummary {
+export function summarizeQuizFocusEvents(events: FocusEventLike[]): TestFocusSummary {
   if (!events.length) return emptyQuizFocusSummary()
 
   const sorted = [...events].sort(

@@ -670,6 +670,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Refactored the parser into explicit typed and legacy coercion helpers without changing behavior, and added unit coverage for fallback object shapes, CRLF normalization, and required non-blank open responses.
 - Verified with `bash scripts/verify-env.sh` and `pnpm test` (full Vitest suite: 302 files, 2671 tests).
 - PR: https://github.com/codepetca/pika/pull/779
+
 ## 2026-06-12 — Legacy quiz API compatibility contract helper
 
 **Completed:**
@@ -734,3 +735,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm build`
 - `pnpm vitest run --sequence.concurrent=false` (303 files / 2674 tests)
+
+## 2026-06-13 — Legacy quiz type contract cleanup
+
+**Completed:**
+- Inverted the shared assessment type definitions so active `TestAssessment*`, `StudentTest*`, and `TestFocus*` names are canonical in `src/types/index.ts`.
+- Kept legacy `Quiz*` type exports as compatibility aliases/interfaces for DB-shaped and older contract code.
+- Updated assessment utilities and server access helpers to consume canonical Test/Assessment type names while preserving legacy exports and response shapes.
+- Moved the active TeacherTestsTab component test from `QuizWithStats` to `TestAssessmentWithStats`.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm test tests/unit/assessments.test.ts tests/lib/assessments.test.ts tests/lib/test-api-contract.test.ts tests/components/TeacherTestsTab.test.tsx`
+- `pnpm test` (303 files / 2678 tests)
+- `git diff --check`
