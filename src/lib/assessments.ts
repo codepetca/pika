@@ -19,9 +19,9 @@ import type {
 } from '@/types'
 
 /**
- * Get human-readable label for quiz status
+ * Get human-readable label for assessment status.
  */
-export function getQuizStatusLabel(status: TestAssessmentStatus): string {
+export function getAssessmentStatusBaseLabel(status: TestAssessmentStatus): string {
   const labels: Record<TestAssessmentStatus, string> = {
     draft: 'Draft',
     active: 'Active',
@@ -35,7 +35,7 @@ export function getAssessmentStatusLabel(
   assessmentType: TestAssessmentType
 ): string {
   if (assessmentType === 'test' && status === 'active') return 'Open'
-  return getQuizStatusLabel(status)
+  return getAssessmentStatusBaseLabel(status)
 }
 
 export function getTeacherTestListDisplayStatus(
@@ -69,9 +69,9 @@ function toNonNegativeCount(value: unknown): number | null {
 }
 
 /**
- * Get badge CSS classes for quiz status
+ * Get badge CSS classes for assessment status.
  */
-export function getQuizStatusBadgeClass(status: TestAssessmentStatus): string {
+export function getAssessmentStatusBadgeClass(status: TestAssessmentStatus): string {
   const classes: Record<TestAssessmentStatus, string> = {
     draft: 'bg-surface-2 text-text-muted',
     active: 'bg-success-bg text-success',
@@ -80,10 +80,10 @@ export function getQuizStatusBadgeClass(status: TestAssessmentStatus): string {
   return classes[status]
 }
 
-export function getQuizAssessmentType(
-  quiz: { assessment_type?: TestAssessmentType | null }
+export function getAssessmentType(
+  assessment: { assessment_type?: TestAssessmentType | null }
 ): TestAssessmentType {
-  return quiz.assessment_type === 'test' ? 'test' : 'quiz'
+  return assessment.assessment_type === 'test' ? 'test' : 'quiz'
 }
 
 /**
@@ -163,11 +163,11 @@ export function getStudentTestStatus(
 }
 
 /**
- * Check if quiz/test questions can be edited.
+ * Check if assessment questions can be edited.
  * Policy: teachers can edit question sets at any stage.
  */
-export function canEditQuizQuestions(
-  _quiz: Pick<TestAssessment, 'status'>,
+export function canEditAssessmentQuestions(
+  _assessment: Pick<TestAssessment, 'status'>,
   _hasResponses: boolean
 ): boolean {
   return true
@@ -195,31 +195,31 @@ export function aggregateResults(
   })
 }
 
-/** Maximum number of options per quiz question */
-export const MAX_QUIZ_OPTIONS = 6
+/** Maximum number of options per assessment question. */
+export const MAX_ASSESSMENT_OPTIONS = 6
 
 /**
- * Validate quiz question options
+ * Validate assessment question options.
  */
-export function validateQuizOptions(options: string[]): { valid: boolean; error?: string } {
+export function validateAssessmentOptions(options: string[]): { valid: boolean; error?: string } {
   if (options.length < 2) return { valid: false, error: 'At least 2 options required' }
-  if (options.length > MAX_QUIZ_OPTIONS) return { valid: false, error: `Maximum ${MAX_QUIZ_OPTIONS} options allowed` }
+  if (options.length > MAX_ASSESSMENT_OPTIONS) return { valid: false, error: `Maximum ${MAX_ASSESSMENT_OPTIONS} options allowed` }
   if (options.some((o) => !o.trim())) return { valid: false, error: 'Options cannot be empty' }
   return { valid: true }
 }
 
 /**
- * Check if a quiz can be activated (draft → active)
+ * Check if an assessment can be activated (draft -> active).
  */
-export function canActivateQuiz(
-  quiz: Pick<TestAssessment, 'status'>,
+export function canActivateAssessment(
+  assessment: Pick<TestAssessment, 'status'>,
   questionsCount: number
 ): { valid: boolean; error?: string } {
-  if (quiz.status !== 'draft') {
-    return { valid: false, error: 'Only draft quizzes can be activated' }
+  if (assessment.status !== 'draft') {
+    return { valid: false, error: 'Only draft tests can be activated' }
   }
   if (questionsCount < 1) {
-    return { valid: false, error: 'Quiz must have at least 1 question' }
+    return { valid: false, error: 'Test must have at least 1 question' }
   }
   return { valid: true }
 }
@@ -229,16 +229,16 @@ type FocusEventLike = {
   occurred_at: string
 }
 
-export const QUIZ_EXIT_BURST_WINDOW_MS = 2000
+export const ASSESSMENT_EXIT_BURST_WINDOW_MS = 2000
 
-type QuizExitSummaryLike = ({
+type AssessmentExitSummaryLike = ({
   exit_count?: number | null
 } & Pick<
   TestFocusSummary,
   'away_count' | 'route_exit_attempts' | 'window_unmaximize_attempts'
 >) | null | undefined
 
-export function getQuizExitCount(summary: QuizExitSummaryLike): number {
+export function getAssessmentExitCount(summary: AssessmentExitSummaryLike): number {
   if (!summary) return 0
 
   const exitCount = Number(summary.exit_count)
@@ -256,7 +256,7 @@ export function getQuizExitCount(summary: QuizExitSummaryLike): number {
   return awayCount + routeExitAttempts + windowUnmaximizeAttempts
 }
 
-export function emptyQuizFocusSummary(): TestFocusSummary {
+export function emptyAssessmentFocusSummary(): TestFocusSummary {
   return {
     exit_count: 0,
     away_count: 0,
@@ -268,14 +268,14 @@ export function emptyQuizFocusSummary(): TestFocusSummary {
   }
 }
 
-export function summarizeQuizFocusEvents(events: FocusEventLike[]): TestFocusSummary {
-  if (!events.length) return emptyQuizFocusSummary()
+export function summarizeAssessmentFocusEvents(events: FocusEventLike[]): TestFocusSummary {
+  if (!events.length) return emptyAssessmentFocusSummary()
 
   const sorted = [...events].sort(
     (a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime()
   )
 
-  const summary = emptyQuizFocusSummary()
+  const summary = emptyAssessmentFocusSummary()
   let activeAwayStartedAtMs: number | null = null
   let lastExitAtMs: number | null = null
 
@@ -284,7 +284,7 @@ export function summarizeQuizFocusEvents(events: FocusEventLike[]): TestFocusSum
     if (Number.isNaN(eventAtMs)) continue
 
     const shouldCountExit =
-      lastExitAtMs === null || eventAtMs - lastExitAtMs > QUIZ_EXIT_BURST_WINDOW_MS
+      lastExitAtMs === null || eventAtMs - lastExitAtMs > ASSESSMENT_EXIT_BURST_WINDOW_MS
 
     if (event.event_type === 'route_exit_attempt') {
       summary.route_exit_attempts += 1
@@ -332,3 +332,15 @@ export function summarizeQuizFocusEvents(events: FocusEventLike[]): TestFocusSum
 
   return summary
 }
+
+export const getQuizStatusLabel = getAssessmentStatusBaseLabel
+export const getQuizStatusBadgeClass = getAssessmentStatusBadgeClass
+export const getQuizAssessmentType = getAssessmentType
+export const canEditQuizQuestions = canEditAssessmentQuestions
+export const MAX_QUIZ_OPTIONS = MAX_ASSESSMENT_OPTIONS
+export const validateQuizOptions = validateAssessmentOptions
+export const canActivateQuiz = canActivateAssessment
+export const QUIZ_EXIT_BURST_WINDOW_MS = ASSESSMENT_EXIT_BURST_WINDOW_MS
+export const getQuizExitCount = getAssessmentExitCount
+export const emptyQuizFocusSummary = emptyAssessmentFocusSummary
+export const summarizeQuizFocusEvents = summarizeAssessmentFocusEvents
