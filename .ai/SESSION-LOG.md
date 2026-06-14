@@ -9,24 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-06 — Survey detail freshness audit
-
-**Completed:**
-- Added request-id and selected-survey guards to teacher survey authoring detail loads, teacher survey results loads, and student survey detail/results loads.
-- Scoped already-loaded teacher/student survey detail and result payloads to the active selected survey so old survey content is hidden immediately on selection changes.
-- Reset student survey result payloads while a new selected survey or result request is loading.
-- Kept selected survey detail/results reads raw for freshness and guarded stale responses explicitly.
-- Added component coverage for stale teacher survey detail/results responses, stale student survey detail/results responses, and already-loaded old detail/results after survey switches.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/TeacherSurveyWorkspace.test.tsx tests/components/TeacherSurveyResultsPane.test.tsx tests/components/StudentSurveyPanel.test.tsx`
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm build`
-- `pnpm test`
-
 ## 2026-06-07 — Student exam reload-resume e2e coverage
 
 **Completed:**
@@ -692,3 +674,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm test`
 - `git diff --check`
+
+## 2026-06-14 — Teacher exam access lifecycle e2e
+
+**Completed:**
+- Added a focused Playwright teacher exam-mode flow covering draft test activation, opening all student access, closing all student access, and summary card open/closed access counts.
+- The spec creates a single open-response draft test through existing teacher API routes, selects a seeded classroom with enrolled students, drives lifecycle transitions through the teacher grading workspace UI, and deletes its test record in cleanup.
+- Risk profile: exam-mode.
+- Model recommendation: GPT-5 Codex - e2e coverage task with repo-specific Playwright and API setup.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm exec playwright test e2e/teacher-exam-mode.spec.ts --project=chromium-desktop`
+- `pnpm lint`
