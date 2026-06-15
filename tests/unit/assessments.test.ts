@@ -34,7 +34,12 @@ import {
   QUIZ_EXIT_BURST_WINDOW_MS,
   MAX_QUIZ_OPTIONS,
 } from '@/lib/assessments'
-import { createMockQuiz, createMockQuizQuestion, createMockQuizResponse, createMockTest } from '../helpers/mocks'
+import {
+  createMockQuiz,
+  createMockTest,
+  createMockTestQuestion,
+  createMockTestResponse,
+} from '../helpers/mocks'
 
 describe('assessment utilities', () => {
   // ==========================================================================
@@ -156,24 +161,24 @@ describe('assessment utilities', () => {
   // ==========================================================================
 
   describe('canStudentRespond', () => {
-    it('should return true when quiz is active and student has not responded', () => {
-      const quiz = createMockQuiz({ status: 'active' })
-      expect(canStudentRespond(quiz, false)).toBe(true)
+    it('should return true when assessment is active and student has not responded', () => {
+      const assessment = createMockTest({ status: 'active' })
+      expect(canStudentRespond(assessment, false)).toBe(true)
     })
 
-    it('should return false when quiz is active but student has already responded', () => {
-      const quiz = createMockQuiz({ status: 'active' })
-      expect(canStudentRespond(quiz, true)).toBe(false)
+    it('should return false when assessment is active but student has already responded', () => {
+      const assessment = createMockTest({ status: 'active' })
+      expect(canStudentRespond(assessment, true)).toBe(false)
     })
 
-    it('should return false when quiz is draft', () => {
-      const quiz = createMockQuiz({ status: 'draft' })
-      expect(canStudentRespond(quiz, false)).toBe(false)
+    it('should return false when assessment is draft', () => {
+      const assessment = createMockTest({ status: 'draft' })
+      expect(canStudentRespond(assessment, false)).toBe(false)
     })
 
-    it('should return false when quiz is closed', () => {
-      const quiz = createMockQuiz({ status: 'closed' })
-      expect(canStudentRespond(quiz, false)).toBe(false)
+    it('should return false when assessment is closed', () => {
+      const assessment = createMockTest({ status: 'closed' })
+      expect(canStudentRespond(assessment, false)).toBe(false)
     })
   })
 
@@ -182,29 +187,29 @@ describe('assessment utilities', () => {
   // ==========================================================================
 
   describe('canStudentViewResults', () => {
-    it('should return true when show_results is true, quiz is closed, and student has responded', () => {
-      const quiz = createMockQuiz({ show_results: true, status: 'closed' })
-      expect(canStudentViewResults(quiz, true)).toBe(true)
+    it('should return true when show_results is true, assessment is closed, and student has responded', () => {
+      const assessment = createMockTest({ show_results: true, status: 'closed' })
+      expect(canStudentViewResults(assessment, true)).toBe(true)
     })
 
-    it('should return false when quiz is active even with show_results and responded', () => {
-      const quiz = createMockQuiz({ show_results: true, status: 'active' })
-      expect(canStudentViewResults(quiz, true)).toBe(false)
+    it('should return false when assessment is active even with show_results and responded', () => {
+      const assessment = createMockTest({ show_results: true, status: 'active' })
+      expect(canStudentViewResults(assessment, true)).toBe(false)
     })
 
     it('should return false when show_results is true but student has not responded', () => {
-      const quiz = createMockQuiz({ show_results: true, status: 'closed' })
-      expect(canStudentViewResults(quiz, false)).toBe(false)
+      const assessment = createMockTest({ show_results: true, status: 'closed' })
+      expect(canStudentViewResults(assessment, false)).toBe(false)
     })
 
-    it('should return false when show_results is false even if student has responded and quiz is closed', () => {
-      const quiz = createMockQuiz({ show_results: false, status: 'closed' })
-      expect(canStudentViewResults(quiz, true)).toBe(false)
+    it('should return false when show_results is false even if student has responded and assessment is closed', () => {
+      const assessment = createMockTest({ show_results: false, status: 'closed' })
+      expect(canStudentViewResults(assessment, true)).toBe(false)
     })
 
     it('should return false when both show_results is false and student has not responded', () => {
-      const quiz = createMockQuiz({ show_results: false })
-      expect(canStudentViewResults(quiz, false)).toBe(false)
+      const assessment = createMockTest({ show_results: false })
+      expect(canStudentViewResults(assessment, false)).toBe(false)
     })
   })
 
@@ -286,24 +291,24 @@ describe('assessment utilities', () => {
   // ==========================================================================
 
   describe('canEditAssessmentQuestions', () => {
-    it('should return true for draft quizzes', () => {
-      const quiz = createMockQuiz({ status: 'draft' })
-      expect(canEditAssessmentQuestions(quiz, false)).toBe(true)
+    it('should return true for draft assessments', () => {
+      const assessment = createMockTest({ status: 'draft' })
+      expect(canEditAssessmentQuestions(assessment, false)).toBe(true)
     })
 
-    it('should return true when quiz has responses', () => {
-      const quiz = createMockQuiz({ status: 'draft' })
-      expect(canEditAssessmentQuestions(quiz, true)).toBe(true)
+    it('should return true when assessment has responses', () => {
+      const assessment = createMockTest({ status: 'draft' })
+      expect(canEditAssessmentQuestions(assessment, true)).toBe(true)
     })
 
-    it('should return true for active quizzes', () => {
-      const quiz = createMockQuiz({ status: 'active' })
-      expect(canEditAssessmentQuestions(quiz, false)).toBe(true)
+    it('should return true for active assessments', () => {
+      const assessment = createMockTest({ status: 'active' })
+      expect(canEditAssessmentQuestions(assessment, false)).toBe(true)
     })
 
-    it('should return true for closed quizzes', () => {
-      const quiz = createMockQuiz({ status: 'closed' })
-      expect(canEditAssessmentQuestions(quiz, false)).toBe(true)
+    it('should return true for closed assessments', () => {
+      const assessment = createMockTest({ status: 'closed' })
+      expect(canEditAssessmentQuestions(assessment, false)).toBe(true)
     })
   })
 
@@ -314,16 +319,16 @@ describe('assessment utilities', () => {
   describe('aggregateResults', () => {
     it('should aggregate responses correctly for a single question', () => {
       const questions = [
-        createMockQuizQuestion({
+        createMockTestQuestion({
           id: 'q1',
           question_text: 'Favorite color?',
           options: ['Red', 'Blue', 'Green'],
         }),
       ]
       const responses = [
-        createMockQuizResponse({ question_id: 'q1', selected_option: 0 }),
-        createMockQuizResponse({ question_id: 'q1', selected_option: 1, student_id: 's2' }),
-        createMockQuizResponse({ question_id: 'q1', selected_option: 1, student_id: 's3' }),
+        createMockTestResponse({ question_id: 'q1', selected_option: 0 }),
+        createMockTestResponse({ question_id: 'q1', selected_option: 1, student_id: 's2' }),
+        createMockTestResponse({ question_id: 'q1', selected_option: 1, student_id: 's3' }),
       ]
 
       const result = aggregateResults(questions, responses)
@@ -338,14 +343,14 @@ describe('assessment utilities', () => {
 
     it('should aggregate responses for multiple questions', () => {
       const questions = [
-        createMockQuizQuestion({ id: 'q1', options: ['A', 'B'] }),
-        createMockQuizQuestion({ id: 'q2', options: ['X', 'Y', 'Z'] }),
+        createMockTestQuestion({ id: 'q1', options: ['A', 'B'] }),
+        createMockTestQuestion({ id: 'q2', options: ['X', 'Y', 'Z'] }),
       ]
       const responses = [
-        createMockQuizResponse({ question_id: 'q1', selected_option: 0, student_id: 's1' }),
-        createMockQuizResponse({ question_id: 'q1', selected_option: 1, student_id: 's2' }),
-        createMockQuizResponse({ question_id: 'q2', selected_option: 2, student_id: 's1' }),
-        createMockQuizResponse({ question_id: 'q2', selected_option: 2, student_id: 's2' }),
+        createMockTestResponse({ question_id: 'q1', selected_option: 0, student_id: 's1' }),
+        createMockTestResponse({ question_id: 'q1', selected_option: 1, student_id: 's2' }),
+        createMockTestResponse({ question_id: 'q2', selected_option: 2, student_id: 's1' }),
+        createMockTestResponse({ question_id: 'q2', selected_option: 2, student_id: 's2' }),
       ]
 
       const result = aggregateResults(questions, responses)
@@ -359,7 +364,7 @@ describe('assessment utilities', () => {
 
     it('should handle questions with no responses', () => {
       const questions = [
-        createMockQuizQuestion({ id: 'q1', options: ['A', 'B', 'C'] }),
+        createMockTestQuestion({ id: 'q1', options: ['A', 'B', 'C'] }),
       ]
       const responses: any[] = []
 
@@ -418,27 +423,27 @@ describe('assessment utilities', () => {
   // ==========================================================================
 
   describe('canActivateAssessment', () => {
-    it('should return valid when quiz is draft with at least 1 question', () => {
-      const quiz = createMockQuiz({ status: 'draft' })
-      expect(canActivateAssessment(quiz, 1)).toEqual({ valid: true })
-      expect(canActivateAssessment(quiz, 5)).toEqual({ valid: true })
+    it('should return valid when assessment is draft with at least 1 question', () => {
+      const assessment = createMockTest({ status: 'draft' })
+      expect(canActivateAssessment(assessment, 1)).toEqual({ valid: true })
+      expect(canActivateAssessment(assessment, 5)).toEqual({ valid: true })
     })
 
-    it('should return invalid when quiz is not draft', () => {
-      const activeQuiz = createMockQuiz({ status: 'active' })
-      const result1 = canActivateAssessment(activeQuiz, 5)
+    it('should return invalid when assessment is not draft', () => {
+      const activeAssessment = createMockTest({ status: 'active' })
+      const result1 = canActivateAssessment(activeAssessment, 5)
       expect(result1.valid).toBe(false)
       expect(result1.error).toBe('Only draft tests can be activated')
 
-      const closedQuiz = createMockQuiz({ status: 'closed' })
-      const result2 = canActivateAssessment(closedQuiz, 5)
+      const closedAssessment = createMockTest({ status: 'closed' })
+      const result2 = canActivateAssessment(closedAssessment, 5)
       expect(result2.valid).toBe(false)
       expect(result2.error).toBe('Only draft tests can be activated')
     })
 
-    it('should return invalid when quiz has no questions', () => {
-      const quiz = createMockQuiz({ status: 'draft' })
-      const result = canActivateAssessment(quiz, 0)
+    it('should return invalid when assessment has no questions', () => {
+      const assessment = createMockTest({ status: 'draft' })
+      const result = canActivateAssessment(assessment, 0)
       expect(result.valid).toBe(false)
       expect(result.error).toBe('Test must have at least 1 question')
     })
