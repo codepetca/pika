@@ -43,7 +43,7 @@ const markdownAnnouncement: Announcement = {
   content: 'Read the [course outline](https://example.com/outline) before class.',
 }
 
-const titledAnnouncementTitle = 'Quiz reminder with a very long title that should truncate in the calendar'
+const titledAnnouncementTitle = 'Test reminder with a very long title that should truncate in the calendar'
 
 const titledAnnouncement: Announcement = {
   ...longAnnouncement,

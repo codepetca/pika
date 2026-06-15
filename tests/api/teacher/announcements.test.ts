@@ -122,7 +122,7 @@ describe('POST /api/teacher/classrooms/[id]/announcements', () => {
     const mockAnnouncement = {
       id: 'a-1',
       classroom_id: 'c-1',
-      title: 'Quiz reminder',
+      title: 'Test reminder',
       content: 'Test Content',
       created_by: 'teacher-1',
       created_at: '2025-01-15T12:00:00Z',
@@ -143,7 +143,7 @@ describe('POST /api/teacher/classrooms/[id]/announcements', () => {
       'http://localhost:3000/api/teacher/classrooms/c-1/announcements',
       {
         method: 'POST',
-        body: JSON.stringify({ title: '  Quiz reminder  ', content: 'Test Content' }),
+        body: JSON.stringify({ title: '  Test reminder  ', content: 'Test Content' }),
       }
     )
     const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })
@@ -151,11 +151,11 @@ describe('POST /api/teacher/classrooms/[id]/announcements', () => {
 
     const data = await response.json()
     expect(data.announcement.id).toBe('a-1')
-    expect(data.announcement.title).toBe('Quiz reminder')
+    expect(data.announcement.title).toBe('Test reminder')
     expect(data.announcement.content).toBe('Test Content')
     expect(insert).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: 'Quiz reminder',
+        title: 'Test reminder',
         content: 'Test Content',
       }),
     )

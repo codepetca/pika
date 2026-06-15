@@ -9,7 +9,7 @@ import {
 
 describe('announcement helpers', () => {
   it('normalizes blank announcement titles to null', () => {
-    expect(normalizeAnnouncementTitle('  Quiz reminder  ')).toBe('Quiz reminder')
+    expect(normalizeAnnouncementTitle('  Test reminder  ')).toBe('Test reminder')
     expect(normalizeAnnouncementTitle('   ')).toBeNull()
     expect(normalizeAnnouncementTitle(null)).toBeNull()
   })
