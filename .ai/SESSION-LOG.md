@@ -703,3 +703,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/server-access.test.ts`
 - `pnpm lint`
 - `pnpm test`
+
+## 2026-06-13 — Student exam-mode transient focus e2e
+
+**Completed:**
+- Added a focused Playwright e2e case covering transient blur/focus restoration during an active student exam.
+- Verified the open-response draft stays visible, exam lock overlays do not appear, and focus telemetry records a zero-second away restoration.
+- Reused the existing exam-mode API setup and cleanup helpers; no schema, app logic, or seeded data changes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec playwright test e2e/student-exam-mode.spec.ts -g "keeps a transient away restoration" --project=chromium-desktop`
+- `pnpm lint`
