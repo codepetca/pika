@@ -9,22 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-08 — Legacy quiz UI naming cleanup
-
-**Completed:**
-- Created `codex/legacy-quiz-naming-cleanup` from `origin/main` after PR #758.
-- Renamed remaining legacy quiz-named UI component implementations and component tests to test-named files.
-- Left old `Quiz*`/`StudentQuizzesTab` files as thin compatibility wrappers around the new `Test*` implementations.
-- Updated active app imports and component test mocks to use the new test-named modules.
-- Preserved database/type/API compatibility names such as `quizzes`, `QuizQuestion`, and `quiz` response payload keys for a later contract-level pass.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/StudentTestsTab.test.tsx tests/components/TestDetailPanel.test.tsx tests/components/StudentTestForm.test.tsx tests/components/StudentTestResults.test.tsx tests/components/TestResultsView.test.tsx tests/components/TestIndividualResponses.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
-- `pnpm lint`
-- `pnpm test` (301 files / 2655 tests)
-- `pnpm build`
-
 ## 2026-06-09 — Main to production release sync
 
 **Completed:**
@@ -679,4 +663,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/server-assessments.test.ts tests/components/StudentTestResults.test.tsx tests/lib/flag-questions.test.ts`
 - `pnpm lint`
 - `pnpm test` (first run hit an unrelated `StudentLessonCalendarTab.test.tsx` timeout; isolated rerun passed)
+- `pnpm test`
+
+## 2026-06-14 — Teacher work-surface docs test wording
+
+**Completed:**
+- Updated stable teacher work-surface guidance from assignments/quizzes/tests to assignments/tests.
+- Removed active teacher quiz authoring/state-machine references from the canon.
+- Updated the work-surface audit and stable guidance index to match the active Tests product surface.
+- Left the explicit legacy drift row for tests/quizzes shell paths because it documents drift to avoid copying.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/ui-guidance-docs.test.ts tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
 - `pnpm test`
