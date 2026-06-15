@@ -19,19 +19,19 @@ function jsonResponse(body: unknown): Response {
   return { ok: true, json: async () => body } as Response
 }
 
-function quizResultsPayload(quizId: string, studentName: string) {
+function testResultsPayload(testId: string, studentName: string) {
   return {
     questions: [{
-      id: `${quizId}-question`,
-      question_text: `${quizId} question`,
+      id: `${testId}-question`,
+      question_text: `${testId} question`,
       question_type: 'multiple_choice',
       options: ['A', 'B'],
     }],
     responders: [{
-      student_id: `${quizId}-student`,
+      student_id: `${testId}-student`,
       name: studentName,
-      email: `${quizId}@example.com`,
-      answers: { [`${quizId}-question`]: 1 },
+      email: `${testId}@example.com`,
+      answers: { [`${testId}-question`]: 1 },
       focus_summary: null,
     }],
   }
@@ -70,32 +70,32 @@ describe('TestIndividualResponses', () => {
     })
   })
 
-  it('ignores stale result responses after selected quiz changes', async () => {
+  it('ignores stale result responses after selected test changes', async () => {
     const staleResults = createDeferred<Response>()
     const currentResults = createDeferred<Response>()
     const fetchMock = vi.fn((url: string | URL) => {
       const href = String(url)
-      if (href.endsWith('/api/teacher/tests/quiz-stale/results')) return staleResults.promise
-      if (href.endsWith('/api/teacher/tests/quiz-current/results')) return currentResults.promise
+      if (href.endsWith('/api/teacher/tests/test-stale/results')) return staleResults.promise
+      if (href.endsWith('/api/teacher/tests/test-current/results')) return currentResults.promise
       throw new Error(`Unexpected fetch: ${href}`)
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const { rerender } = render(<TestIndividualResponses testId="quiz-stale" />)
+    const { rerender } = render(<TestIndividualResponses testId="test-stale" />)
 
     await act(async () => {
-      rerender(<TestIndividualResponses testId="quiz-current" />)
+      rerender(<TestIndividualResponses testId="test-current" />)
     })
 
     await act(async () => {
-      currentResults.resolve(jsonResponse(quizResultsPayload('quiz-current', 'Current Student')))
+      currentResults.resolve(jsonResponse(testResultsPayload('test-current', 'Current Student')))
       await currentResults.promise
     })
 
     expect(await screen.findByText('Current Student')).toBeInTheDocument()
 
     await act(async () => {
-      staleResults.resolve(jsonResponse(quizResultsPayload('quiz-stale', 'Stale Student')))
+      staleResults.resolve(jsonResponse(testResultsPayload('test-stale', 'Stale Student')))
       await staleResults.promise
     })
 
@@ -103,14 +103,14 @@ describe('TestIndividualResponses', () => {
     expect(screen.queryByText('Stale Student')).not.toBeInTheDocument()
   })
 
-  it('hides loaded responses immediately when selected quiz changes', async () => {
+  it('hides loaded responses immediately when selected test changes', async () => {
     const currentResults = createDeferred<Response>()
     const fetchMock = vi.fn((url: string | URL) => {
       const href = String(url)
-      if (href.endsWith('/api/teacher/tests/quiz-stale/results')) {
-        return Promise.resolve(jsonResponse(quizResultsPayload('quiz-stale', 'Already Loaded Student')))
+      if (href.endsWith('/api/teacher/tests/test-stale/results')) {
+        return Promise.resolve(jsonResponse(testResultsPayload('test-stale', 'Already Loaded Student')))
       }
-      if (href.endsWith('/api/teacher/tests/quiz-current/results')) return currentResults.promise
+      if (href.endsWith('/api/teacher/tests/test-current/results')) return currentResults.promise
       throw new Error(`Unexpected fetch: ${href}`)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -118,19 +118,19 @@ describe('TestIndividualResponses', () => {
     const mounted = createMountedRoot()
     try {
       await act(async () => {
-        mounted.render(<TestIndividualResponses testId="quiz-stale" />)
+        mounted.render(<TestIndividualResponses testId="test-stale" />)
       })
 
       expect(await screen.findByText('Already Loaded Student')).toBeInTheDocument()
 
       flushSync(() => {
-        mounted.render(<TestIndividualResponses testId="quiz-current" />)
+        mounted.render(<TestIndividualResponses testId="test-current" />)
       })
 
       expect(screen.queryByText('Already Loaded Student')).not.toBeInTheDocument()
 
       await act(async () => {
-        currentResults.resolve(jsonResponse(quizResultsPayload('quiz-current', 'Current Loaded Student')))
+        currentResults.resolve(jsonResponse(testResultsPayload('test-current', 'Current Loaded Student')))
         await currentResults.promise
       })
 
