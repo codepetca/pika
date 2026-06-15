@@ -33,7 +33,7 @@ Do not move business logic, data loading, selection state, grading behavior, rou
 
 The migrated assignment UI should look and behave the same after the refactor. Any visible difference must be explicitly listed and justified before continuing.
 
-Stop and reassess if the new shell API starts needing domain-specific props such as assignment status, quiz status, grading state, AI run state, student selection, rubric state, or return behavior.
+Stop and reassess if the new shell API starts needing domain-specific props such as assignment status, test status, grading state, AI run state, student selection, rubric state, or return behavior.
 ```
 
 ## Async Grading

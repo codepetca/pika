@@ -27,9 +27,9 @@ const mockClassroom: Classroom = {
 const mondayAssignment: Assignment = {
   id: 'assignment-1',
   classroom_id: 'cls-123',
-  title: 'Week 11 quiz',
-  description: 'Quiz instructions',
-  instructions_markdown: 'Quiz instructions',
+  title: 'Week 11 test',
+  description: 'Test instructions',
+  instructions_markdown: 'Test instructions',
   rich_instructions: null,
   due_at: '2026-03-16T16:00:00.000Z',
   position: 0,
@@ -195,7 +195,7 @@ describe('LessonCalendar', () => {
     const dialog = screen.getByRole('dialog', { name: /monday, march 16, 2026/i })
 
     expect(dialog).toBeInTheDocument()
-    expect(within(dialog).getByText('Week 11 quiz')).toBeInTheDocument()
+    expect(within(dialog).getByText('Week 11 test')).toBeInTheDocument()
   })
 
   it('renders announcement markdown in the focused day dialog', () => {

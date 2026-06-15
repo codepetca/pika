@@ -9,26 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-09 — Legacy quiz contract transition
-
-**Completed:**
-- Created `codex/legacy-quiz-contract-cleanup` from `origin/main`.
-- Audited remaining internal `quiz` / `quizzes` references across migrations, API payloads, shared types, server/lib code, UI wrappers, tests, and docs.
-- Added dual `test`/`tests` plus legacy `quiz`/`quizzes` response keys to active `/api/*/tests` endpoints.
-- Updated active test clients to prefer `test`/`tests` response keys with legacy fallback.
-- Added test-named type aliases and `@/lib/tests` helper exports, then migrated active test routes/components to those names.
-- Removed unused one-line legacy UI wrappers (`Quiz*`, `StudentQuiz*`, `StudentQuizzesTab`) and updated architecture/UI guidance.
-- Left production schema, migrations, legacy DB tables, gradebook legacy fields, and blueprint schema compatibility unchanged.
-
-**Validation:**
-- `pnpm exec tsc --noEmit`
-- `pnpm vitest run tests/api/teacher/tests-route.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-results.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/api/student/tests-session-status.test.ts tests/components/TeacherTestsTab.test.tsx tests/components/StudentTestsTab.test.tsx tests/components/TestDetailPanel.test.tsx tests/components/StudentTestForm.test.tsx tests/components/StudentTestResults.test.tsx tests/components/TestIndividualResponses.test.tsx`
-- `pnpm lint`
-- `pnpm build`
-- `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check`
-- `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
-- `pnpm test` (301 files / 2655 tests)
-
 ## 2026-06-09 — Roster summary pane removal
 
 **Completed:**
@@ -680,4 +660,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm test tests/components/TestIndividualResponses.test.tsx`
 - `pnpm lint`
+- `pnpm test`
+
+## 2026-06-14 — Arbitrary quiz fixture wording cleanup
+
+**Completed:**
+- Renamed arbitrary announcement and lesson-calendar fixture copy from Quiz wording to Test wording.
+- Updated the generic dev-flow risk checklist example from quiz status to test status.
+- Left schema, API compatibility keys, gradebook category fields, and legacy alias coverage unchanged.
+- No production schema or runtime contract changes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/api/teacher/announcements.test.ts tests/unit/announcements.test.ts tests/components/LessonCalendar.test.tsx tests/components/LessonDayCell.test.tsx`
+- `pnpm lint`
+- `pnpm test` (first run hit unrelated component timeout failures; failed files passed on isolated rerun)
 - `pnpm test`
