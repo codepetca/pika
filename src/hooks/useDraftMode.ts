@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
-import type { JsonPatchOperation, QuizQuestion } from '@/types'
+import type { JsonPatchOperation, TestAssessmentQuestion } from '@/types'
 
 const AUTOSAVE_DEBOUNCE_MS = 3_000
 const AUTOSAVE_MIN_INTERVAL_MS = 10_000
@@ -11,7 +11,7 @@ const AUTOSAVE_MIN_INTERVAL_MS = 10_000
 export type DraftContent = {
   title: string
   show_results: boolean
-  questions: QuizQuestion[]
+  questions: TestAssessmentQuestion[]
 }
 
 export type DraftSaveStatus = 'saved' | 'saving' | 'unsaved'
@@ -31,7 +31,7 @@ interface UseDraftModeOptions {
   /** Called with a human-readable error message; called with '' to clear. */
   onError: (msg: string) => void
   /** Called whenever the server provides a canonical question list (on load or conflict). */
-  onQuestionsChange: (questions: QuizQuestion[]) => void
+  onQuestionsChange: (questions: TestAssessmentQuestion[]) => void
 }
 
 export interface UseDraftModeReturn {
@@ -54,7 +54,7 @@ export interface UseDraftModeReturn {
   saveDraft: (nextDraft: DraftContent, options?: { forceFull?: boolean }) => Promise<void>
   scheduleSave: (nextDraft: DraftContent, options?: { force?: boolean }) => void
   scheduleAutosave: (nextDraft: DraftContent) => void
-  handleTitleSave: (questions: QuizQuestion[]) => Promise<void>
+  handleTitleSave: (questions: TestAssessmentQuestion[]) => Promise<void>
 }
 
 /**
@@ -111,9 +111,9 @@ export function useDraftMode({
     setConflictDraft(null)
   }, [quizId, quizTitle])
 
-  /** Normalise raw question data from the server into the QuizQuestion shape. */
+  /** Normalise raw question data from the server into the TestAssessmentQuestion shape. */
   const normalizeDraftQuestions = useCallback(
-    (rawQuestions: unknown[]): QuizQuestion[] => {
+    (rawQuestions: unknown[]): TestAssessmentQuestion[] => {
       return (rawQuestions || []).map((rawQuestion, index) => {
         const question = (rawQuestion || {}) as Record<string, unknown>
         const questionType =
@@ -155,7 +155,7 @@ export function useDraftMode({
           position: index,
           created_at: String(question.created_at || new Date().toISOString()),
           updated_at: String(question.updated_at || new Date().toISOString()),
-        } as QuizQuestion
+        } as TestAssessmentQuestion
       })
     },
     [quizId]
@@ -243,7 +243,7 @@ export function useDraftMode({
           const serverDraft = data?.draft as
             | {
                 version: number
-                content: { title: string; show_results: boolean; questions: QuizQuestion[] }
+                content: { title: string; show_results: boolean; questions: TestAssessmentQuestion[] }
               }
             | undefined
           if (serverDraft) {
@@ -335,7 +335,7 @@ export function useDraftMode({
   )
 
   const handleTitleSave = useCallback(
-    async (questions: QuizQuestion[]) => {
+    async (questions: TestAssessmentQuestion[]) => {
       const trimmed = editTitle.trim()
       const fallbackTitle =
         (pendingDraftRef.current?.title ||

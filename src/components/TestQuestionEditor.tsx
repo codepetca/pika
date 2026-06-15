@@ -7,14 +7,14 @@ import { ChevronDown, ChevronRight, Copy, GripVertical, Plus, Trash2 } from 'luc
 import { Button, Input } from '@/ui'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { defaultPointsForQuestionType } from '@/lib/test-questions'
-import { MAX_QUIZ_OPTIONS } from '@/lib/quizzes'
-import type { QuizQuestion, TestQuestionType } from '@/types'
+import { MAX_TEST_OPTIONS } from '@/lib/tests'
+import type { TestAssessmentQuestion, TestQuestionType } from '@/types'
 
 interface Props {
-  question: QuizQuestion
+  question: TestAssessmentQuestion
   questionNumber: number
   isEditable: boolean
-  onChange: (question: QuizQuestion, options?: { force?: boolean }) => void
+  onChange: (question: TestAssessmentQuestion, options?: { force?: boolean }) => void
   onDelete: (questionId: string) => void
   onDuplicate?: (questionId: string) => void
   variant?: 'card' | 'detail' | 'accordion'
@@ -44,7 +44,7 @@ function summarizeHeaderLine(questionText: string | null | undefined): string {
   return flattened || 'Untitled question'
 }
 
-function toLocalState(question: QuizQuestion): LocalQuestionState {
+function toLocalState(question: TestAssessmentQuestion): LocalQuestionState {
   const questionType = question.question_type === 'open_response' ? 'open_response' : 'multiple_choice'
   return {
     question_type: questionType,
@@ -154,8 +154,8 @@ export function TestQuestionEditor({
         setError('At least 2 options are required')
         return
       }
-      if (nextOptions.length > MAX_QUIZ_OPTIONS) {
-        setError(`Maximum ${MAX_QUIZ_OPTIONS} options allowed`)
+      if (nextOptions.length > MAX_TEST_OPTIONS) {
+        setError(`Maximum ${MAX_TEST_OPTIONS} options allowed`)
         return
       }
       if (nextOptions.some((option) => !option)) {
@@ -265,7 +265,7 @@ export function TestQuestionEditor({
           </div>
         )
       })}
-      {isEditable && state.options.length < MAX_QUIZ_OPTIONS ? (
+      {isEditable && state.options.length < MAX_TEST_OPTIONS ? (
         <Button type="button" variant="secondary" size="sm" onClick={addOption} className="gap-1.5">
           <Plus className="h-4 w-4" />
           Option

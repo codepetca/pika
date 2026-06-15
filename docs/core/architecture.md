@@ -51,7 +51,7 @@ src/
 │   └── classrooms/[classroomId]/  # classroom detail page with ~19 tabs
 │       └── ClassroomPageClient.tsx # ~1500 LOC god component (gradual decomposition ongoing)
 ├── components/                    # Feature components and modals
-│   ├── QuizDetailPanel.tsx        # Legacy-named test editor/viewer (draft mode)
+│   ├── TestDetailPanel.tsx        # Test editor/viewer (draft mode)
 │   ├── AssignmentModal.tsx        # Assignment editor (~900 LOC, scheduling)
 │   ├── TestStudentGradingPanel.tsx # Per-student test grading
 │   └── ...
@@ -166,10 +166,10 @@ const data = await fetch(`/api/teacher/gradebook?...`).then(r => r.json())
 Use raw `fetch()` only for one-off mutations (POST/PATCH/DELETE) or when freshness is critical.
 
 ### Assessments Pattern
-Pika exposes **tests** as the active assessment surface. Quiz product routes and tabs have been removed,
-but some test internals still use legacy quiz-named helpers and compatibility response keys.
+Pika exposes **tests** as the active assessment surface. Quiz product routes and tabs have been removed.
+Some database history and compatibility response keys still retain legacy quiz naming during the contract transition.
 
-- **Test status**: `getStudentTestStatus()` from `@/lib/quizzes` — uses `returned_at` field
+- **Test status**: `getStudentTestStatus()` from `@/lib/tests` — uses `returned_at` field
 - **Draft editing**: unified `assessment_drafts` table + JSON Patch via `@/lib/server/assessment-drafts`
 - **Scheduling**: `combineScheduleDateTimeToIso()` / `isScheduleIsoInFuture()` from `@/lib/scheduling`
 - **AI grading** (tests only): `src/lib/ai-test-grading.ts` — reference answer SHA-256 cached per question

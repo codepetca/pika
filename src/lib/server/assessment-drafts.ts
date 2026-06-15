@@ -1,5 +1,5 @@
 import { tryApplyJsonPatch } from '@/lib/json-patch'
-import { validateQuizOptions } from '@/lib/quizzes'
+import { validateAssessmentOptions } from '@/lib/assessments'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import type { JsonPatchOperation, TestQuestionType } from '@/types'
 
@@ -10,11 +10,13 @@ const UUID_RE =
 
 export type AssessmentDraftType = 'quiz' | 'test'
 
-export type QuizDraftQuestion = {
+export type AssessmentDraftQuestion = {
   id: string
   question_text: string
   options: string[]
 }
+
+export type QuizDraftQuestion = AssessmentDraftQuestion
 
 export type TestDraftQuestion = {
   id: string
@@ -29,13 +31,15 @@ export type TestDraftQuestion = {
   response_monospace: boolean
 }
 
-export type QuizDraftContent = {
+export type AssessmentDraftContent = {
   title: string
   show_results: boolean
-  questions: QuizDraftQuestion[]
+  questions: AssessmentDraftQuestion[]
   source_format?: 'markdown'
   source_markdown?: string
 }
+
+export type QuizDraftContent = AssessmentDraftContent
 
 export type TestDraftContent = {
   title: string
@@ -132,7 +136,9 @@ export function isMissingAssessmentDraftsError(error: {
   return error.code === 'PGRST205' || error.code === '42P01' || combined.includes('table')
 }
 
-export function validateQuizDraftContent(input: unknown): ValidationResult<QuizDraftContent> {
+export function validateAssessmentDraftContent(
+  input: unknown
+): ValidationResult<AssessmentDraftContent> {
   if (!isRecord(input)) return { valid: false, error: 'Invalid draft content' }
 
   const title = parseTitle(input.title)
@@ -147,7 +153,7 @@ export function validateQuizDraftContent(input: unknown): ValidationResult<QuizD
     return { valid: false, error: 'questions must be an array' }
   }
 
-  const questions: QuizDraftQuestion[] = []
+  const questions: AssessmentDraftQuestion[] = []
 
   for (let index = 0; index < input.questions.length; index += 1) {
     const rawQuestion = input.questions[index]
@@ -170,7 +176,7 @@ export function validateQuizDraftContent(input: unknown): ValidationResult<QuizD
       return { valid: false, error: `Q${index + 1}: Options must be non-empty strings` }
     }
 
-    const optionsValidation = validateQuizOptions(options)
+    const optionsValidation = validateAssessmentOptions(options)
     if (!optionsValidation.valid) {
       return { valid: false, error: `Q${index + 1}: ${optionsValidation.error}` }
     }
@@ -200,6 +206,8 @@ export function validateQuizDraftContent(input: unknown): ValidationResult<QuizD
     },
   }
 }
+
+export const validateQuizDraftContent = validateAssessmentDraftContent
 
 export function validateTestDraftContent(
   input: unknown,
@@ -290,14 +298,14 @@ export function buildNextDraftContent<TContent extends object>(
   return { ok: true, content: validation.value }
 }
 
-export function buildQuizDraftContentFromRows(
-  quiz: { title: string; show_results: boolean },
+export function buildAssessmentDraftContentFromRows(
+  assessment: { title: string; show_results: boolean },
   rows: unknown[]
-): QuizDraftContent {
+): AssessmentDraftContent {
   const questions = rows as Array<{ id: string; question_text: string; options: unknown }>
   return {
-    title: quiz.title,
-    show_results: quiz.show_results,
+    title: assessment.title,
+    show_results: assessment.show_results,
     questions: (questions || []).map((question) => {
       const options = parseStringArray(question.options) || []
       return {
@@ -308,6 +316,8 @@ export function buildQuizDraftContentFromRows(
     }),
   }
 }
+
+export const buildQuizDraftContentFromRows = buildAssessmentDraftContentFromRows
 
 type TestQuestionRow = {
   id: string
@@ -448,15 +458,15 @@ export async function updateAssessmentDraft<TContent>(
   }
 }
 
-export async function syncQuizQuestionsFromDraft(
+export async function syncAssessmentQuestionsFromDraft(
   supabase: SupabaseLike,
-  quizId: string,
-  content: QuizDraftContent
+  assessmentId: string,
+  content: AssessmentDraftContent
 ): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
   return syncAssessmentQuestionRowsFromDraft(supabase, {
     table: 'quiz_questions',
     foreignKey: 'quiz_id',
-    parentId: quizId,
+    parentId: assessmentId,
     questions: content.questions,
     buildUpdatePayload: (question, position) => ({
       question_text: question.question_text,
@@ -465,7 +475,7 @@ export async function syncQuizQuestionsFromDraft(
     }),
     buildInsertPayload: (question, position) => ({
       id: question.id,
-      quiz_id: quizId,
+      quiz_id: assessmentId,
       question_text: question.question_text,
       options: question.options,
       position,
@@ -478,6 +488,8 @@ export async function syncQuizQuestionsFromDraft(
     },
   })
 }
+
+export const syncQuizQuestionsFromDraft = syncAssessmentQuestionsFromDraft
 
 export async function syncTestQuestionsFromDraft(
   supabase: SupabaseLike,

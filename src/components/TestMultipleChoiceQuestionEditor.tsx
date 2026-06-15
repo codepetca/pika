@@ -6,14 +6,14 @@ import { CSS } from '@dnd-kit/utilities'
 import { Plus, Trash2, GripVertical } from 'lucide-react'
 import { Button, Input } from '@/ui'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
-import { MAX_QUIZ_OPTIONS, validateQuizOptions } from '@/lib/quizzes'
-import type { QuizQuestion } from '@/types'
+import { MAX_TEST_OPTIONS, validateTestOptions } from '@/lib/tests'
+import type { TestAssessmentQuestion } from '@/types'
 
 interface Props {
-  question: QuizQuestion
+  question: TestAssessmentQuestion
   questionNumber: number
   isEditable: boolean
-  onChange: (question: QuizQuestion) => void
+  onChange: (question: TestAssessmentQuestion) => void
   onDelete: (questionId: string) => void
 }
 
@@ -68,7 +68,7 @@ export function TestMultipleChoiceQuestionEditor({
     }
 
     const cleanedOptions = currentOptions.map((option) => option.trim()).filter(Boolean)
-    const optionsValidation = validateQuizOptions(cleanedOptions)
+    const optionsValidation = validateTestOptions(cleanedOptions)
     if (!optionsValidation.valid) {
       setError(optionsValidation.error || 'Invalid options')
       return
@@ -96,7 +96,7 @@ export function TestMultipleChoiceQuestionEditor({
   }
 
   function handleAddOption() {
-    if (!isEditable || options.length >= MAX_QUIZ_OPTIONS) return
+    if (!isEditable || options.length >= MAX_TEST_OPTIONS) return
     const nextOptions = [...options, '']
     setOptions(nextOptions)
     justAddedOption.current = true
@@ -204,7 +204,7 @@ export function TestMultipleChoiceQuestionEditor({
             ))}
           </div>
 
-          {isEditable && options.length < MAX_QUIZ_OPTIONS && (
+          {isEditable && options.length < MAX_TEST_OPTIONS && (
             <button
               type="button"
               onClick={handleAddOption}

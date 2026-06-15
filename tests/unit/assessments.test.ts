@@ -1,13 +1,19 @@
 /**
- * Unit tests for quiz utilities (src/lib/quizzes.ts)
- * Tests quiz status calculation, validation, and aggregation functions
+ * Unit tests for assessment utilities (src/lib/assessments.ts).
+ * Tests status calculation, validation, and aggregation functions.
  */
 
 import { describe, it, expect } from 'vitest'
 import {
+  ASSESSMENT_EXIT_BURST_WINDOW_MS,
+  MAX_ASSESSMENT_OPTIONS,
+  canActivateAssessment,
+  canEditAssessmentQuestions,
   getQuizStatusLabel,
+  getAssessmentStatusBaseLabel,
   getAssessmentStatusLabel,
   getTeacherTestListDisplayStatus,
+  getAssessmentStatusBadgeClass,
   getQuizStatusBadgeClass,
   canStudentRespond,
   canStudentViewResults,
@@ -16,30 +22,51 @@ import {
   getStudentTestStatus,
   canEditQuizQuestions,
   aggregateResults,
+  validateAssessmentOptions,
   validateQuizOptions,
   canActivateQuiz,
+  emptyAssessmentFocusSummary,
   emptyQuizFocusSummary,
+  getAssessmentExitCount,
   getQuizExitCount,
+  summarizeAssessmentFocusEvents,
   summarizeQuizFocusEvents,
-} from '@/lib/quizzes'
-import { createMockQuiz, createMockQuizQuestion, createMockQuizResponse } from '../helpers/mocks'
+  QUIZ_EXIT_BURST_WINDOW_MS,
+  MAX_QUIZ_OPTIONS,
+} from '@/lib/assessments'
+import { createMockQuiz, createMockQuizQuestion, createMockQuizResponse, createMockTest } from '../helpers/mocks'
 
-describe('quiz utilities', () => {
+describe('assessment utilities', () => {
   // ==========================================================================
-  // getQuizStatusLabel()
+  // getAssessmentStatusBaseLabel()
   // ==========================================================================
 
-  describe('getQuizStatusLabel', () => {
+  describe('getAssessmentStatusBaseLabel', () => {
     it('should return "Draft" for draft status', () => {
-      expect(getQuizStatusLabel('draft')).toBe('Draft')
+      expect(getAssessmentStatusBaseLabel('draft')).toBe('Draft')
     })
 
     it('should return "Active" for active status', () => {
-      expect(getQuizStatusLabel('active')).toBe('Active')
+      expect(getAssessmentStatusBaseLabel('active')).toBe('Active')
     })
 
     it('should return "Closed" for closed status', () => {
-      expect(getQuizStatusLabel('closed')).toBe('Closed')
+      expect(getAssessmentStatusBaseLabel('closed')).toBe('Closed')
+    })
+  })
+
+  describe('legacy quiz assessment aliases', () => {
+    it('keeps quiz-named exports wired to assessment-named helpers', () => {
+      expect(getQuizStatusLabel).toBe(getAssessmentStatusBaseLabel)
+      expect(getQuizStatusBadgeClass).toBe(getAssessmentStatusBadgeClass)
+      expect(canEditQuizQuestions).toBe(canEditAssessmentQuestions)
+      expect(validateQuizOptions).toBe(validateAssessmentOptions)
+      expect(canActivateQuiz).toBe(canActivateAssessment)
+      expect(emptyQuizFocusSummary).toBe(emptyAssessmentFocusSummary)
+      expect(getQuizExitCount).toBe(getAssessmentExitCount)
+      expect(summarizeQuizFocusEvents).toBe(summarizeAssessmentFocusEvents)
+      expect(MAX_QUIZ_OPTIONS).toBe(MAX_ASSESSMENT_OPTIONS)
+      expect(QUIZ_EXIT_BURST_WINDOW_MS).toBe(ASSESSMENT_EXIT_BURST_WINDOW_MS)
     })
   })
 
@@ -101,24 +128,24 @@ describe('quiz utilities', () => {
   })
 
   // ==========================================================================
-  // getQuizStatusBadgeClass()
+  // getAssessmentStatusBadgeClass()
   // ==========================================================================
 
-  describe('getQuizStatusBadgeClass', () => {
+  describe('getAssessmentStatusBadgeClass', () => {
     it('should return muted classes for draft status', () => {
-      const classes = getQuizStatusBadgeClass('draft')
+      const classes = getAssessmentStatusBadgeClass('draft')
       expect(classes).toContain('bg-surface-2')
       expect(classes).toContain('text-text-muted')
     })
 
     it('should return success classes for active status', () => {
-      const classes = getQuizStatusBadgeClass('active')
+      const classes = getAssessmentStatusBadgeClass('active')
       expect(classes).toContain('bg-success-bg')
       expect(classes).toContain('text-success')
     })
 
     it('should return danger classes for closed status', () => {
-      const classes = getQuizStatusBadgeClass('closed')
+      const classes = getAssessmentStatusBadgeClass('closed')
       expect(classes).toContain('bg-danger-bg')
       expect(classes).toContain('text-danger')
     })
@@ -187,22 +214,22 @@ describe('quiz utilities', () => {
 
   describe('canStudentViewTestResults', () => {
     it('should return true when test is closed, responded, and returned', () => {
-      const test = createMockQuiz({ status: 'closed' })
+      const test = createMockTest({ status: 'closed' })
       expect(canStudentViewTestResults(test, true, '2026-03-05T10:00:00.000Z')).toBe(true)
     })
 
     it('should return false when test is not closed', () => {
-      const test = createMockQuiz({ status: 'active' })
+      const test = createMockTest({ status: 'active' })
       expect(canStudentViewTestResults(test, true, '2026-03-05T10:00:00.000Z')).toBe(false)
     })
 
     it('should return false when student has not responded', () => {
-      const test = createMockQuiz({ status: 'closed' })
+      const test = createMockTest({ status: 'closed' })
       expect(canStudentViewTestResults(test, false, '2026-03-05T10:00:00.000Z')).toBe(false)
     })
 
     it('should return false when test is not returned', () => {
-      const test = createMockQuiz({ status: 'closed' })
+      const test = createMockTest({ status: 'closed' })
       expect(canStudentViewTestResults(test, true, null)).toBe(false)
     })
   })
@@ -239,44 +266,44 @@ describe('quiz utilities', () => {
 
   describe('getStudentTestStatus', () => {
     it('should return "not_started" when student has not responded', () => {
-      const test = createMockQuiz({ status: 'active' })
+      const test = createMockTest({ status: 'active' })
       expect(getStudentTestStatus(test, false, null)).toBe('not_started')
     })
 
     it('should return "responded" when test is responded but not returned', () => {
-      const test = createMockQuiz({ status: 'closed' })
+      const test = createMockTest({ status: 'closed' })
       expect(getStudentTestStatus(test, true, null)).toBe('responded')
     })
 
     it('should return "can_view_results" when test is closed and returned', () => {
-      const test = createMockQuiz({ status: 'closed' })
+      const test = createMockTest({ status: 'closed' })
       expect(getStudentTestStatus(test, true, '2026-03-05T10:00:00.000Z')).toBe('can_view_results')
     })
   })
 
   // ==========================================================================
-  // canEditQuizQuestions()
+  // canEditAssessmentQuestions()
   // ==========================================================================
 
-  describe('canEditQuizQuestions', () => {
+  describe('canEditAssessmentQuestions', () => {
     it('should return true for draft quizzes', () => {
       const quiz = createMockQuiz({ status: 'draft' })
-      expect(canEditQuizQuestions(quiz, false)).toBe(true)
+      expect(canEditAssessmentQuestions(quiz, false)).toBe(true)
     })
 
     it('should return true when quiz has responses', () => {
       const quiz = createMockQuiz({ status: 'draft' })
-      expect(canEditQuizQuestions(quiz, true)).toBe(true)
+      expect(canEditAssessmentQuestions(quiz, true)).toBe(true)
     })
 
     it('should return true for active quizzes', () => {
       const quiz = createMockQuiz({ status: 'active' })
-      expect(canEditQuizQuestions(quiz, false)).toBe(true)
+      expect(canEditAssessmentQuestions(quiz, false)).toBe(true)
     })
 
     it('should return true for closed quizzes', () => {
       const quiz = createMockQuiz({ status: 'closed' })
-      expect(canEditQuizQuestions(quiz, false)).toBe(true)
+      expect(canEditAssessmentQuestions(quiz, false)).toBe(true)
     })
   })
 
@@ -350,86 +377,86 @@ describe('quiz utilities', () => {
   })
 
   // ==========================================================================
-  // validateQuizOptions()
+  // validateAssessmentOptions()
   // ==========================================================================
 
-  describe('validateQuizOptions', () => {
+  describe('validateAssessmentOptions', () => {
     it('should return valid for 2 or more non-empty options', () => {
-      expect(validateQuizOptions(['A', 'B'])).toEqual({ valid: true })
-      expect(validateQuizOptions(['A', 'B', 'C'])).toEqual({ valid: true })
-      expect(validateQuizOptions(['A', 'B', 'C', 'D'])).toEqual({ valid: true })
+      expect(validateAssessmentOptions(['A', 'B'])).toEqual({ valid: true })
+      expect(validateAssessmentOptions(['A', 'B', 'C'])).toEqual({ valid: true })
+      expect(validateAssessmentOptions(['A', 'B', 'C', 'D'])).toEqual({ valid: true })
     })
 
     it('should return invalid for less than 2 options', () => {
-      const result1 = validateQuizOptions(['A'])
+      const result1 = validateAssessmentOptions(['A'])
       expect(result1.valid).toBe(false)
       expect(result1.error).toBe('At least 2 options required')
 
-      const result2 = validateQuizOptions([])
+      const result2 = validateAssessmentOptions([])
       expect(result2.valid).toBe(false)
       expect(result2.error).toBe('At least 2 options required')
     })
 
     it('should return invalid for empty option strings', () => {
-      const result1 = validateQuizOptions(['A', ''])
+      const result1 = validateAssessmentOptions(['A', ''])
       expect(result1.valid).toBe(false)
       expect(result1.error).toBe('Options cannot be empty')
 
-      const result2 = validateQuizOptions(['A', '   '])
+      const result2 = validateAssessmentOptions(['A', '   '])
       expect(result2.valid).toBe(false)
       expect(result2.error).toBe('Options cannot be empty')
     })
 
     it('should trim whitespace when checking for empty options', () => {
-      const result = validateQuizOptions(['  A  ', '  B  '])
+      const result = validateAssessmentOptions(['  A  ', '  B  '])
       expect(result.valid).toBe(true)
     })
   })
 
   // ==========================================================================
-  // canActivateQuiz()
+  // canActivateAssessment()
   // ==========================================================================
 
-  describe('canActivateQuiz', () => {
+  describe('canActivateAssessment', () => {
     it('should return valid when quiz is draft with at least 1 question', () => {
       const quiz = createMockQuiz({ status: 'draft' })
-      expect(canActivateQuiz(quiz, 1)).toEqual({ valid: true })
-      expect(canActivateQuiz(quiz, 5)).toEqual({ valid: true })
+      expect(canActivateAssessment(quiz, 1)).toEqual({ valid: true })
+      expect(canActivateAssessment(quiz, 5)).toEqual({ valid: true })
     })
 
     it('should return invalid when quiz is not draft', () => {
       const activeQuiz = createMockQuiz({ status: 'active' })
-      const result1 = canActivateQuiz(activeQuiz, 5)
+      const result1 = canActivateAssessment(activeQuiz, 5)
       expect(result1.valid).toBe(false)
-      expect(result1.error).toBe('Only draft quizzes can be activated')
+      expect(result1.error).toBe('Only draft tests can be activated')
 
       const closedQuiz = createMockQuiz({ status: 'closed' })
-      const result2 = canActivateQuiz(closedQuiz, 5)
+      const result2 = canActivateAssessment(closedQuiz, 5)
       expect(result2.valid).toBe(false)
-      expect(result2.error).toBe('Only draft quizzes can be activated')
+      expect(result2.error).toBe('Only draft tests can be activated')
     })
 
     it('should return invalid when quiz has no questions', () => {
       const quiz = createMockQuiz({ status: 'draft' })
-      const result = canActivateQuiz(quiz, 0)
+      const result = canActivateAssessment(quiz, 0)
       expect(result.valid).toBe(false)
-      expect(result.error).toBe('Quiz must have at least 1 question')
+      expect(result.error).toBe('Test must have at least 1 question')
     })
   })
 
   // ==========================================================================
-  // getQuizExitCount()
+  // getAssessmentExitCount()
   // ==========================================================================
 
-  describe('getQuizExitCount', () => {
+  describe('getAssessmentExitCount', () => {
     it('returns 0 when summary is missing', () => {
-      expect(getQuizExitCount(null)).toBe(0)
-      expect(getQuizExitCount(undefined)).toBe(0)
+      expect(getAssessmentExitCount(null)).toBe(0)
+      expect(getAssessmentExitCount(undefined)).toBe(0)
     })
 
     it('returns exit_count when the summary provides a deduped incident count', () => {
       expect(
-        getQuizExitCount({
+        getAssessmentExitCount({
           exit_count: 3,
           away_count: 4,
           route_exit_attempts: 2,
@@ -440,7 +467,7 @@ describe('quiz utilities', () => {
 
     it('falls back to combined exits when exit_count is missing', () => {
       expect(
-        getQuizExitCount({
+        getAssessmentExitCount({
           away_count: 4,
           route_exit_attempts: 2,
           window_unmaximize_attempts: 3,
@@ -450,16 +477,16 @@ describe('quiz utilities', () => {
   })
 
   // ==========================================================================
-  // summarizeQuizFocusEvents()
+  // summarizeAssessmentFocusEvents()
   // ==========================================================================
 
-  describe('summarizeQuizFocusEvents', () => {
+  describe('summarizeAssessmentFocusEvents', () => {
     it('returns empty summary when there are no events', () => {
-      expect(summarizeQuizFocusEvents([])).toEqual(emptyQuizFocusSummary())
+      expect(summarizeAssessmentFocusEvents([])).toEqual(emptyAssessmentFocusSummary())
     })
 
     it('counts away sessions and computes total away time', () => {
-      const result = summarizeQuizFocusEvents([
+      const result = summarizeAssessmentFocusEvents([
         { event_type: 'away_start', occurred_at: '2026-02-01T10:00:00.000Z' },
         { event_type: 'away_end', occurred_at: '2026-02-01T10:00:30.000Z' },
         { event_type: 'away_start', occurred_at: '2026-02-01T10:01:00.000Z' },
@@ -476,7 +503,7 @@ describe('quiz utilities', () => {
     })
 
     it('counts route exit attempts independently', () => {
-      const result = summarizeQuizFocusEvents([
+      const result = summarizeAssessmentFocusEvents([
         { event_type: 'route_exit_attempt', occurred_at: '2026-02-01T10:01:00.000Z' },
         { event_type: 'route_exit_attempt', occurred_at: '2026-02-01T10:02:00.000Z' },
       ])
@@ -489,7 +516,7 @@ describe('quiz utilities', () => {
     })
 
     it('counts window unmaximize attempts independently', () => {
-      const result = summarizeQuizFocusEvents([
+      const result = summarizeAssessmentFocusEvents([
         { event_type: 'window_unmaximize_attempt', occurred_at: '2026-02-01T10:01:00.000Z' },
         { event_type: 'window_unmaximize_attempt', occurred_at: '2026-02-01T10:02:00.000Z' },
       ])
@@ -502,7 +529,7 @@ describe('quiz utilities', () => {
     })
 
     it('dedupes mixed exit-like events inside one interruption burst', () => {
-      const result = summarizeQuizFocusEvents([
+      const result = summarizeAssessmentFocusEvents([
         { event_type: 'away_start', occurred_at: '2026-02-01T10:00:00.000Z' },
         { event_type: 'window_unmaximize_attempt', occurred_at: '2026-02-01T10:00:01.000Z' },
         { event_type: 'route_exit_attempt', occurred_at: '2026-02-01T10:00:01.500Z' },
@@ -517,7 +544,7 @@ describe('quiz utilities', () => {
     })
 
     it('starts a new exit after the burst window elapses', () => {
-      const result = summarizeQuizFocusEvents([
+      const result = summarizeAssessmentFocusEvents([
         { event_type: 'away_start', occurred_at: '2026-02-01T10:00:00.000Z' },
         { event_type: 'away_end', occurred_at: '2026-02-01T10:00:02.000Z' },
         { event_type: 'window_unmaximize_attempt', occurred_at: '2026-02-01T10:00:03.500Z' },
@@ -529,7 +556,7 @@ describe('quiz utilities', () => {
     })
 
     it('counts a rapid second away_start after the student returns', () => {
-      const result = summarizeQuizFocusEvents([
+      const result = summarizeAssessmentFocusEvents([
         { event_type: 'away_start', occurred_at: '2026-02-01T10:00:00.000Z' },
         { event_type: 'away_end', occurred_at: '2026-02-01T10:00:01.000Z' },
         { event_type: 'away_start', occurred_at: '2026-02-01T10:00:01.500Z' },
@@ -542,7 +569,7 @@ describe('quiz utilities', () => {
     })
 
     it('treats events exactly on the burst boundary as one exit', () => {
-      const result = summarizeQuizFocusEvents([
+      const result = summarizeAssessmentFocusEvents([
         { event_type: 'away_start', occurred_at: '2026-02-01T10:00:00.000Z' },
         { event_type: 'window_unmaximize_attempt', occurred_at: '2026-02-01T10:00:02.000Z' },
       ])
@@ -553,7 +580,7 @@ describe('quiz utilities', () => {
     })
 
     it('does not increase exit_count on away_end alone', () => {
-      const result = summarizeQuizFocusEvents([
+      const result = summarizeAssessmentFocusEvents([
         { event_type: 'away_start', occurred_at: '2026-02-01T10:00:00.000Z' },
         { event_type: 'away_end', occurred_at: '2026-02-01T10:00:05.000Z' },
       ])

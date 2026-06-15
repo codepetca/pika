@@ -288,7 +288,7 @@ UI: Checklist-style rubric that auto-calculates total.
 | `ai-instructions.md` | 350 | 300 | Remove workflow duplication |
 | `architecture.md` | 210 | 200 | Already tight |
 | `design.md` | 715 | 400 | Move component examples to storybook/gallery |
-| `SESSION-LOG.md` | <= 60 entries | <= 60 entries | Append, then immediately trim with `scripts/trim-session-log.mjs` |
+| `SESSION-LOG.md` | <= 60 entries | <= 40 entries after trim | Append, then immediately trim with `scripts/trim-session-log.mjs`; CI caps at 60 entries |
 | **Total** | ~7200 | ~4000 | 44% reduction |
 
 ---

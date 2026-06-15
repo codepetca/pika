@@ -15,65 +15,63 @@ function normalizeOpenResponseText(raw: string): string {
   return raw.replace(/\r\n/g, '\n')
 }
 
-function parseResponseValue(raw: unknown): TestResponseDraftValue | null {
-  if (typeof raw === 'number' && Number.isInteger(raw) && raw >= 0) {
-    return {
-      question_type: 'multiple_choice',
-      selected_option: raw,
-    }
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0
+}
+
+function toMultipleChoiceResponse(selectedOption: number): TestResponseDraftValue {
+  return {
+    question_type: 'multiple_choice',
+    selected_option: selectedOption,
   }
+}
 
-  if (typeof raw === 'string') {
-    return {
-      question_type: 'open_response',
-      response_text: normalizeOpenResponseText(raw),
-    }
+function toOpenResponse(responseText: string): TestResponseDraftValue {
+  return {
+    question_type: 'open_response',
+    response_text: normalizeOpenResponseText(responseText),
   }
+}
 
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
-
-  const rawRecord = raw as Record<string, unknown>
+function parseTypedResponseValue(rawRecord: Record<string, unknown>): TestResponseDraftValue | null {
   if (
     rawRecord.question_type === 'multiple_choice' &&
-    typeof rawRecord.selected_option === 'number' &&
-    Number.isInteger(rawRecord.selected_option) &&
-    rawRecord.selected_option >= 0
+    isNonNegativeInteger(rawRecord.selected_option)
   ) {
-    return {
-      question_type: 'multiple_choice',
-      selected_option: rawRecord.selected_option,
-    }
+    return toMultipleChoiceResponse(rawRecord.selected_option)
   }
 
   if (
     rawRecord.question_type === 'open_response' &&
     typeof rawRecord.response_text === 'string'
   ) {
-    return {
-      question_type: 'open_response',
-      response_text: normalizeOpenResponseText(rawRecord.response_text),
-    }
-  }
-
-  if (
-    typeof rawRecord.selected_option === 'number' &&
-    Number.isInteger(rawRecord.selected_option) &&
-    rawRecord.selected_option >= 0
-  ) {
-    return {
-      question_type: 'multiple_choice',
-      selected_option: rawRecord.selected_option,
-    }
-  }
-
-  if (typeof rawRecord.response_text === 'string') {
-    return {
-      question_type: 'open_response',
-      response_text: normalizeOpenResponseText(rawRecord.response_text),
-    }
+    return toOpenResponse(rawRecord.response_text)
   }
 
   return null
+}
+
+function parseLegacyResponseValue(rawRecord: Record<string, unknown>): TestResponseDraftValue | null {
+  if (isNonNegativeInteger(rawRecord.selected_option)) {
+    return toMultipleChoiceResponse(rawRecord.selected_option)
+  }
+
+  if (typeof rawRecord.response_text === 'string') {
+    return toOpenResponse(rawRecord.response_text)
+  }
+
+  return null
+}
+
+function parseResponseValue(raw: unknown): TestResponseDraftValue | null {
+  if (isNonNegativeInteger(raw)) return toMultipleChoiceResponse(raw)
+
+  if (typeof raw === 'string') return toOpenResponse(raw)
+
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+
+  const rawRecord = raw as Record<string, unknown>
+  return parseTypedResponseValue(rawRecord) ?? parseLegacyResponseValue(rawRecord)
 }
 
 function getQuestionType(question: QuestionOptionSet): TestQuestionType {

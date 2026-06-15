@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -53,6 +53,29 @@ function commitAll(repoRoot: string, message: string) {
   execFileSync('git', ['commit', '-m', message], { cwd: repoRoot })
 }
 
+function makeVerifyEnvFixture() {
+  const repoRoot = mkdtempSync(join(tmpdir(), 'pika-verify-env-'))
+
+  mkdirSync(join(repoRoot, '.ai'), { recursive: true })
+  mkdirSync(join(repoRoot, 'node_modules'), { recursive: true })
+
+  writeFileSync(
+    join(repoRoot, 'package.json'),
+    JSON.stringify(
+      {
+        name: 'verify-env-fixture',
+        private: true,
+        packageManager: 'npm@10.0.0',
+      },
+      null,
+      2,
+    ),
+  )
+  writeFileSync(join(repoRoot, '.ai/features.json'), '{\n  "features": []\n}\n')
+
+  return repoRoot
+}
+
 const requiredStartupFiles = [
   '.ai/START-HERE.md',
   '.ai/CURRENT.md',
@@ -88,13 +111,14 @@ describe('AI startup docs', () => {
     const entryCount = sessionLog.match(/^## /gm)?.length ?? 0
 
     expect(sessionLog).toContain('Rolling recent session log')
-    expect(sessionLog).toContain('latest 60 entries')
+    expect(sessionLog).toContain('CI allows at most 60 entries')
+    expect(sessionLog).toContain('compacts to the latest 40 entries')
     expect(sessionLog).toContain('immediately run `node scripts/trim-session-log.mjs`')
     expect(sessionLog).toContain('node scripts/trim-session-log.mjs --check')
     expect(entryCount).toBeGreaterThan(0)
     if (entryCount > 60) {
       throw new Error(
-        `.ai/SESSION-LOG.md has ${entryCount} entries; run node scripts/trim-session-log.mjs after appending session-log entries.`,
+        `.ai/SESSION-LOG.md has ${entryCount} entries; run node scripts/trim-session-log.mjs after appending session-log entries to compact it below the cap.`,
       )
     }
     expect(readRepoFile('.ai/JOURNAL-ARCHIVE.md')).toContain('# Pika Project Journal')
@@ -106,6 +130,7 @@ describe('AI startup docs', () => {
     for (const file of requiredStartupFiles) {
       expect(prompt).toContain(file)
     }
+    expect(prompt).toContain('--orient-only')
   })
 
   it('documents both named and app-managed Codex worktree locations', () => {
@@ -145,6 +170,14 @@ describe('AI startup docs', () => {
 
     for (const file of files) {
       expect(readRepoFile(file)).toContain('detached HEAD')
+    }
+  })
+
+  it('documents orient-only startup for read-only work', () => {
+    const files = ['.ai/START-HERE.md', '.claude/commands/session-start.md', '.codex/prompts/session-start.md']
+
+    for (const file of files) {
+      expect(readRepoFile(file)).toContain('--orient-only')
     }
   })
 
@@ -233,6 +266,38 @@ describe('AI startup docs', () => {
     }
   })
 
+  it('keeps orient-only session-start non-mutating', () => {
+    const repoRoot = makeFixtureWorktree()
+    const canonicalEnv = join(repoRoot, 'Repos/.env/pika/.env.local')
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-session-start/scripts/session_start.sh')
+
+    mkdirSync(dirname(canonicalEnv), { recursive: true })
+    writeFileSync(canonicalEnv, 'SESSION_SECRET=fixture-secret-with-at-least-32-characters\n')
+    writeFileSync(
+      join(repoRoot, 'scripts/verify-env.sh'),
+      '#!/usr/bin/env bash\ntouch verify-env-ran\nexit 1\n',
+      { mode: 0o755 },
+    )
+
+    try {
+      const output = execFileSync('bash', [scriptPath, '--orient-only'], {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          HOME: repoRoot,
+        },
+        encoding: 'utf8',
+      })
+
+      expect(output).toContain('Orient-only mode: skipping .env.local repair and verify-env.sh.')
+      expect(output).toContain('Context loaded for read-only work.')
+      expect(existsSync(join(repoRoot, '.env.local'))).toBe(false)
+      expect(existsSync(join(repoRoot, 'verify-env-ran'))).toBe(false)
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
   it('reports detached HEAD state during automated session-start', () => {
     const repoRoot = makeFixtureWorktree()
     const scriptPath = resolve(testDir, '../../.codex/skills/pika-session-start/scripts/session_start.sh')
@@ -277,6 +342,24 @@ describe('AI startup docs', () => {
       expect(`${result.stdout}\n${result.stderr}`).toContain('Current repo is the hub')
     } finally {
       rmSync(homeRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps verify-env fast by default', () => {
+    const repoRoot = makeVerifyEnvFixture()
+    const scriptPath = resolve(testDir, '../../scripts/verify-env.sh')
+
+    try {
+      const output = execFileSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(output).toContain('✅ Dependencies installed')
+      expect(output).not.toContain('Running tests...')
+      expect(output).toContain('Environment verified. Ready for development.')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
     }
   })
 

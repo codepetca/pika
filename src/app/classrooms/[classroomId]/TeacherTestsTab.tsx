@@ -16,7 +16,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Check, ClockAlert, Code, ExternalLink, Lock, LogOut, Pencil, Plus, RotateCcw, Send, Settings, Trash2, Unlock, X } from 'lucide-react'
+import { Check, ClockAlert, Code, ExternalLink, Lock, LogOut, Pencil, RotateCcw, Send, Trash2, Unlock, X } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
@@ -35,6 +35,10 @@ import {
 } from '@/components/DataTable'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import {
+  TeacherWorkSurfaceActionCluster,
+  TeacherWorkSurfaceIconButton,
+} from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
@@ -45,20 +49,21 @@ import {
 } from '@/lib/events'
 import { getDisplayAssessmentTitle } from '@/lib/assessment-titles'
 import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
-import { getQuizExitCount } from '@/lib/quizzes'
+import { getTestExitCount } from '@/lib/tests'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
+import { readTestFromPayload, readTestsFromPayload } from '@/lib/test-api-contract'
 import { compareByNameFields } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
-import { Button, ConfirmDialog, DialogPanel, EmptyState, RefreshingIndicator, Select, Tooltip, useAppMessage, useOverlayMessage, type SplitButtonProps } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, EmptyState, RefreshingIndicator, Select, SplitButton, Tooltip, useAppMessage, useOverlayMessage, type SplitButtonProps } from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
   AssessmentWorkspaceSummaryPatch,
   Classroom,
-  Quiz,
-  QuizFocusSummary,
-  QuizWithStats,
+  TestAssessment,
+  TestFocusSummary,
+  TestAssessmentWithStats,
   TestAiGradingRunSummary,
 } from '@/types'
 
@@ -69,7 +74,7 @@ interface Props {
   selectedTestMode?: WorkspaceTab | null
   selectedTestStudentId?: string | null
   updateSearchParams?: UpdateSearchParamsFn
-  onSelectTest?: (test: QuizWithStats | null) => void
+  onSelectTest?: (test: TestAssessmentWithStats | null) => void
   onTestGradingDataRefresh?: () => void
   onTestGradingContextChange?: (context: {
     mode: 'authoring' | 'grading'
@@ -108,13 +113,35 @@ interface TestGradingStudentRow {
   access_state?: 'open' | 'closed' | null
   effective_access?: 'open' | 'closed'
   access_source?: 'test' | 'student'
-  focus_summary: QuizFocusSummary | null
+  focus_summary: TestFocusSummary | null
 }
 
 interface TestGradingQuestionSummary {
   id: string
   questionType: 'multiple_choice' | 'open_response'
   responseMonospace: boolean
+}
+
+type TeacherTestListResponse = {
+  tests?: TestAssessmentWithStats[]
+  /** Legacy compatibility key retained by active Tests APIs during contract migration. */
+  quizzes?: TestAssessmentWithStats[]
+}
+
+type TeacherTestResultsQuestionResponse = {
+  id: string
+  question_type?: unknown
+  response_monospace?: unknown
+}
+
+type TeacherTestResultsResponse = {
+  test?: TestAssessment | null
+  /** Legacy compatibility key retained by active Tests APIs during contract migration. */
+  quiz?: TestAssessment | null
+  students?: TestGradingStudentRow[]
+  questions?: TeacherTestResultsQuestionResponse[]
+  active_ai_grading_run?: TestAiGradingRunSummary | null
+  error?: string
 }
 
 type WorkspaceState = 'list' | 'selected'
@@ -126,7 +153,7 @@ type TestGradingSortColumn = 'first_name' | 'last_name'
 const GRADING_POLL_INTERVAL_MS = 15_000
 
 function getTestGradingExitCount(student: TestGradingStudentRow): number {
-  return getQuizExitCount(student.focus_summary)
+  return getTestExitCount(student.focus_summary)
 }
 
 function TestWorkspacePaneFrame({ children }: { children: ReactNode }) {
@@ -167,7 +194,7 @@ function getSortableNameParts(student: TestGradingStudentRow): { firstName: stri
 
 function getEffectiveTestAccess(
   student: Pick<TestGradingStudentRow, 'effective_access'>,
-  testStatus: Quiz['status'] | null | undefined,
+  testStatus: TestAssessment['status'] | null | undefined,
 ): 'open' | 'closed' {
   return student.effective_access || (testStatus === 'active' ? 'open' : 'closed')
 }
@@ -253,7 +280,7 @@ function formatTestAiGradingRunMessage(run: TestAiGradingRunSummary): {
   }
 }
 
-function withDefaultTestStats(test: Quiz): QuizWithStats {
+function withDefaultTestStats(test: TestAssessment): TestAssessmentWithStats {
   return {
     ...test,
     assessment_type: 'test',
@@ -265,15 +292,15 @@ function withDefaultTestStats(test: Quiz): QuizWithStats {
       open_access: 0,
       closed_access: 0,
       questions_count: 0,
-      ...((test as Partial<QuizWithStats>).stats ?? {}),
+      ...((test as Partial<TestAssessmentWithStats>).stats ?? {}),
     },
   }
 }
 
 function applyTestSummaryPatchToTest(
-  test: QuizWithStats,
+  test: TestAssessmentWithStats,
   update: AssessmentWorkspaceSummaryPatch
-): QuizWithStats {
+): TestAssessmentWithStats {
   return {
     ...test,
     title: typeof update.title === 'string' ? update.title : test.title,
@@ -322,7 +349,7 @@ export function TeacherTestsTab({
   const selectedTestIdRef = useRef<string | null>(null)
   const selectedTestDraftSummaryRef = useRef<AssessmentEditorSummaryUpdate | null>(null)
 
-  const [tests, setTests] = useState<QuizWithStats[]>([])
+  const [tests, setTests] = useState<TestAssessmentWithStats[]>([])
   const { showMessage } = useAppMessage()
   const [loading, setLoading] = useState(true)
   const [internalSelectedWorkspaceTab, setInternalSelectedWorkspaceTab] = useState<WorkspaceTab>('grading')
@@ -336,14 +363,14 @@ export function TeacherTestsTab({
   const [testEditModalView, setTestEditModalView] = useState<TestEditModalView>('edit')
   const [testEditTitlePortalTarget, setTestEditTitlePortalTarget] = useState<HTMLDivElement | null>(null)
   const [, setTestEditSaveStatus] = useState<TestEditSaveStatus>('saved')
-  const [pendingDeleteTest, setPendingDeleteTest] = useState<QuizWithStats | null>(null)
+  const [pendingDeleteTest, setPendingDeleteTest] = useState<TestAssessmentWithStats | null>(null)
   const [isDeletingTest, setIsDeletingTest] = useState(false)
 
   const [gradingStudents, setGradingStudents] = useState<TestGradingStudentRow[]>([])
   const [unreviewedExitCounts, setUnreviewedExitCounts] = useState<Record<string, number>>({})
   const [exitAlertStudentId, setExitAlertStudentId] = useState<string | null>(null)
   const [gradingQuestions, setGradingQuestions] = useState<TestGradingQuestionSummary[]>([])
-  const [gradingServerTestStatus, setGradingServerTestStatus] = useState<Quiz['status'] | null>(null)
+  const [gradingServerTestStatus, setGradingServerTestStatus] = useState<TestAssessment['status'] | null>(null)
   const [gradingServerTestId, setGradingServerTestId] = useState<string | null>(null)
   const [testAiGradingRun, setTestAiGradingRun] = useState<TestAiGradingRunSummary | null>(null)
   const [gradingLoading, setGradingLoading] = useState(false)
@@ -727,7 +754,7 @@ export function TeacherTestsTab({
     setLoading(true)
     try {
       const query = new URLSearchParams({ classroom_id: classroom.id })
-      const data = await fetchJSONWithCache<{ tests?: QuizWithStats[]; quizzes?: QuizWithStats[] }>(
+      const data = await fetchJSONWithCache<TeacherTestListResponse>(
         `teacher-tests:${classroom.id}`,
         async () => {
           const response = await fetch(`${apiBasePath}?${query.toString()}`)
@@ -737,7 +764,7 @@ export function TeacherTestsTab({
         },
         0,
       )
-      const loadedTests = (data.tests || data.quizzes || []) as QuizWithStats[]
+      const loadedTests = readTestsFromPayload<TestAssessmentWithStats>(data)
       const currentSelectedTestId = selectedTestIdRef.current
       const currentDraftSummary = selectedTestDraftSummaryRef.current
       setTests(
@@ -798,7 +825,7 @@ export function TeacherTestsTab({
     }
     setGradingError('')
     try {
-      const { ok, data } = await fetchJSONWithCache<{ ok: boolean; data: any }>(
+      const { ok, data } = await fetchJSONWithCache<{ ok: boolean; data: TeacherTestResultsResponse }>(
         `teacher-test-results:${requestedTestId}:${requestId}`,
         async () => {
           const response = await fetch(`${apiBasePath}/${requestedTestId}/results`, { cache: 'no-store' })
@@ -809,9 +836,10 @@ export function TeacherTestsTab({
       if (isStaleRequest()) return
       if (!ok) throw new Error(data.error || 'Failed to load test results')
 
+      const responseTest = readTestFromPayload<TestAssessment>(data)
       const nextStatus =
-        data?.quiz?.status === 'draft' || data?.quiz?.status === 'active' || data?.quiz?.status === 'closed'
-          ? (data.quiz.status as Quiz['status'])
+        responseTest?.status === 'draft' || responseTest?.status === 'active' || responseTest?.status === 'closed'
+          ? (responseTest.status as TestAssessment['status'])
           : null
 
       setGradingServerTestStatus(nextStatus)
@@ -829,7 +857,7 @@ export function TeacherTestsTab({
       setGradingStudents(nextStudents)
       setGradingQuestions(
         Array.isArray(data.questions)
-          ? data.questions.map((question: any) => ({
+          ? data.questions.map((question) => ({
               id: String(question.id),
               questionType:
                 question.question_type === 'open_response' ? 'open_response' : 'multiple_choice',
@@ -1263,7 +1291,7 @@ export function TeacherTestsTab({
     }
   }, [activeTestAiRun, classroom.id, clearBatchSelection, hasActiveTestAiRun, loadGradingRows, onTestGradingDataRefresh, showMessage])
 
-  function handleOpenTest(test: QuizWithStats) {
+  function handleOpenTest(test: TestAssessmentWithStats) {
     navigateTestWorkspace({ testId: test.id, mode: 'grading', studentId: null })
     setGradingError('')
     setGradingWarning('')
@@ -1271,7 +1299,7 @@ export function TeacherTestsTab({
     clearBatchSelection()
   }
 
-  function handleEditTest(test: QuizWithStats) {
+  function handleEditTest(test: TestAssessmentWithStats) {
     navigateTestWorkspace({ testId: test.id, mode: 'authoring', studentId: null })
     setGradingError('')
     setGradingWarning('')
@@ -1312,7 +1340,11 @@ export function TeacherTestsTab({
       if (!response.ok) {
         throw new Error(data.error || 'Failed to create test')
       }
-      handleTestCreated(data.quiz as Quiz)
+      const createdTest = readTestFromPayload<TestAssessment>(data)
+      if (!createdTest) {
+        throw new Error('Failed to create test')
+      }
+      handleTestCreated(createdTest)
     } catch (error: any) {
       showMessage({ text: error?.message || 'Failed to create test', tone: 'warning' })
     } finally {
@@ -1320,7 +1352,7 @@ export function TeacherTestsTab({
     }
   }
 
-  function handleTestCreated(test: Quiz) {
+  function handleTestCreated(test: TestAssessment) {
     const createdTest = withDefaultTestStats(test)
 
     setTestEditMode(false)
@@ -1689,19 +1721,20 @@ export function TeacherTestsTab({
         throw new Error(data.error || 'Failed to update test')
       }
 
+      const responseTest = readTestFromPayload<TestAssessmentWithStats>(data)
       const nextStatus =
-        data?.test?.status === 'draft' || data?.test?.status === 'active' || data?.test?.status === 'closed'
-          ? data.test.status
+        responseTest?.status === 'draft' || responseTest?.status === 'active' || responseTest?.status === 'closed'
+          ? responseTest.status
           : payload.status === 'draft' || payload.status === 'active' || payload.status === 'closed'
             ? payload.status
             : undefined
 
       applyTestSummaryPatch(selectedTestId, {
         status: nextStatus,
-        title: typeof data?.test?.title === 'string' ? data.test.title : undefined,
-        show_results: typeof data?.test?.show_results === 'boolean' ? data.test.show_results : undefined,
+        title: typeof responseTest?.title === 'string' ? responseTest.title : undefined,
+        show_results: typeof responseTest?.show_results === 'boolean' ? responseTest.show_results : undefined,
         questions_count:
-          typeof data?.test?.stats?.questions_count === 'number' ? data.test.stats.questions_count : undefined,
+          typeof responseTest?.stats?.questions_count === 'number' ? responseTest.stats.questions_count : undefined,
       })
 
       if (nextStatus) {
@@ -2269,6 +2302,14 @@ export function TeacherTestsTab({
     </div>
   )
 
+  const openSelectedTestEditor = () => {
+    if (!selectedTestWorkspace) return
+    navigateTestWorkspace({ testId: selectedTestWorkspace.id, mode: 'authoring', studentId: null })
+    setTestEditModalView('edit')
+    setHasPendingMarkdownImport(false)
+    setShowEditModal(true)
+  }
+
   const selectedTestAction: SplitButtonProps | null = selectedTestWorkspace ? {
       label: (
         <span className="inline-flex items-center gap-2">
@@ -2288,22 +2329,6 @@ export function TeacherTestsTab({
           ),
           onSelect: () => handleAccessAction(accessAlternateState),
           disabled: accessAlternateDisabled,
-        },
-        {
-          id: 'edit-test',
-          label: (
-            <span className="inline-flex items-center gap-2 whitespace-nowrap">
-              <Pencil className="h-4 w-4" aria-hidden="true" />
-              <span>Edit Test</span>
-            </span>
-          ),
-          onSelect: () => {
-            navigateTestWorkspace({ testId: selectedTestWorkspace.id, mode: 'authoring', studentId: null })
-            setTestEditModalView('edit')
-            setHasPendingMarkdownImport(false)
-            setShowEditModal(true)
-          },
-          disabled: isReadOnly,
         },
         {
           id: 'ai-grade',
@@ -2432,6 +2457,25 @@ export function TeacherTestsTab({
       </span>
     ) : null
 
+  const selectedTestControls = selectedTestAction ? (
+    <div
+      data-testid="test-workspace-actionbar-center"
+      className="flex min-w-0 items-center justify-center gap-2"
+    >
+      <TeacherWorkSurfaceActionCluster>
+        <SplitButton {...selectedTestAction} />
+        <TeacherWorkSurfaceIconButton
+          ariaLabel="Edit Test"
+          icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
+          onClick={openSelectedTestEditor}
+          disabled={isReadOnly}
+          tooltip="Edit Test"
+        />
+      </TeacherWorkSurfaceActionCluster>
+      {workspaceModeStatus}
+    </div>
+  ) : null
+
   const activeTestGradingMessage =
     workspaceState === 'selected' && selectedWorkspaceTab === 'grading'
       ? hasActiveTestAiRun && activeTestAiRun
@@ -2485,48 +2529,33 @@ export function TeacherTestsTab({
 
   const primaryContent = workspaceState === 'selected' ? (
     <TeacherWorkSurfaceActionBar
-      floatingAction={selectedTestAction ?? undefined}
-      floatingActionStatus={workspaceModeStatus}
+      center={selectedTestControls}
       centerPlacement="floating"
     />
   ) : (
     <TeacherWorkSurfaceActionBar
-      floatingAction={{
-        label: (
-          <span className="inline-flex items-center gap-1.5">
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            <span>{isCreatingTest ? 'Creating...' : 'New'}</span>
-          </span>
-        ),
-        onPrimaryClick: handleNewTest,
-        options: [
-          {
-            id: 'new-test',
-            label: 'Test',
-            onSelect: handleNewTest,
-            disabled: isReadOnly || isCreatingTest || loading,
-          },
-          {
-            id: 'test-list-controls',
-            label: (
-              <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                <Settings className="h-4 w-4" aria-hidden="true" />
-                <span>List controls</span>
-              </span>
-            ),
-            checked: testEditMode,
-            onSelect: () => setTestEditMode((prev) => !prev),
-            disabled: isReadOnly,
-            dividerBefore: true,
-          },
-        ],
-        disabled: isReadOnly || isCreatingTest || loading,
-        variant: 'primary',
-        size: 'sm',
-        toggleAriaLabel: 'More test actions',
-        menuPlacement: 'down',
-        primaryButtonProps: { 'aria-label': 'New test' },
-      }}
+      center={
+        <TeacherWorkSurfaceActionCluster>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            aria-label="New test"
+            onClick={handleNewTest}
+            disabled={isReadOnly || isCreatingTest || loading}
+          >
+            {isCreatingTest ? 'Creating...' : 'New Test'}
+          </Button>
+          <TeacherWorkSurfaceIconButton
+            ariaLabel="Organize tests"
+            icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
+            onClick={() => setTestEditMode((prev) => !prev)}
+            disabled={isReadOnly}
+            pressed={testEditMode}
+            tooltip={testEditMode ? 'Done organizing tests' : 'Organize tests'}
+          />
+        </TeacherWorkSurfaceActionCluster>
+      }
       centerPlacement="floating"
     />
   )
@@ -2625,7 +2654,7 @@ export function TeacherTestsTab({
       inspector={gradingInspector ? (
         <TestWorkspacePaneFrame>
           <div
-            className="h-full min-h-0 overflow-y-auto"
+            className="h-full min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto"
             data-testid="test-grading-inspector-scroll-pane"
           >
             {gradingInspector}
@@ -2716,11 +2745,11 @@ export function TeacherTestsTab({
         <div className="min-h-0 flex-1 overflow-hidden">
           {selectedTestWorkspace ? (
             <TestDetailPanel
-              quiz={selectedTestWorkspace}
+              test={selectedTestWorkspace}
               classroomId={classroom.id}
               apiBasePath={apiBasePath}
               onDraftSummaryChange={handleSelectedTestDraftSummaryChange}
-              onQuizUpdate={(update) => {
+              onTestUpdate={(update) => {
                 if (update) {
                   applySelectedTestDraftSummary(update)
                   return

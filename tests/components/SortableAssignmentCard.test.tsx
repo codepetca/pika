@@ -74,14 +74,14 @@ describe('SortableAssignmentCard', () => {
     expect(screen.queryByRole('button', { name: 'Delete Assignment One' })).not.toBeInTheDocument()
   })
 
-  it('shows drag and delete affordances in edit mode', () => {
+  it('shows drag and delete affordances in organize mode', () => {
     renderCard({ editMode: true })
 
     expect(screen.getByRole('button', { name: 'Drag to reorder' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete Assignment One' })).toBeInTheDocument()
   })
 
-  it('opens the workspace in normal mode and the editor in edit mode', () => {
+  it('opens the workspace in normal mode and the editor in organize mode', () => {
     const normal = renderCard({ editMode: false })
     fireEvent.click(screen.getByRole('button', { name: 'Assignment One' }))
     expect(normal.onOpen).toHaveBeenCalledTimes(1)

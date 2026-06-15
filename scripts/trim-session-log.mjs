@@ -3,7 +3,8 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const DEFAULT_KEEP = 60
+const DEFAULT_MAX_ENTRIES = 60
+const DEFAULT_KEEP = Math.floor(DEFAULT_MAX_ENTRIES * 2 / 3)
 const DEFAULT_SOURCE = '.ai/SESSION-LOG.md'
 const DEFAULT_OUTPUT = '.ai/SESSION-LOG.md'
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -12,6 +13,7 @@ function parseArgs(argv) {
   const args = {
     check: false,
     keep: DEFAULT_KEEP,
+    keepWasSet: false,
     source: DEFAULT_SOURCE,
     output: DEFAULT_OUTPUT,
   }
@@ -22,6 +24,7 @@ function parseArgs(argv) {
 
     if (arg === '--keep' && next) {
       args.keep = Number.parseInt(next, 10)
+      args.keepWasSet = true
       index += 1
     } else if (arg === '--check') {
       args.check = true
@@ -41,17 +44,18 @@ function parseArgs(argv) {
   if (!Number.isInteger(args.keep) || args.keep < 1) {
     throw new Error('--keep must be a positive integer')
   }
+  args.maxEntries = args.check && args.keepWasSet ? args.keep : DEFAULT_MAX_ENTRIES
 
   return args
 }
 
 function usage() {
   return [
-    'Usage: node scripts/trim-session-log.mjs [--keep 60] [--source .ai/SESSION-LOG.md] [--output .ai/SESSION-LOG.md]',
+    'Usage: node scripts/trim-session-log.mjs [--keep 40] [--source .ai/SESSION-LOG.md] [--output .ai/SESSION-LOG.md]',
     '       node scripts/trim-session-log.mjs --check [--keep 60] [--source .ai/SESSION-LOG.md]',
     '',
     'Keeps the latest session entries, where each entry starts with a markdown "## " heading.',
-    'Use --check to fail when the source has more entries than the retention window.',
+    'Use --check to fail when the source has more entries than the check cap.',
   ].join('\n')
 }
 
@@ -74,7 +78,8 @@ function buildSessionLog(entries) {
     '',
     '**Rules:**',
     '- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.',
-    '- The trim step keeps only the latest 60 entries; use `node scripts/trim-session-log.mjs --check` to verify it was not missed.',
+    '- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.',
+    '- Use `node scripts/trim-session-log.mjs --check` to verify the log is within the 60-entry cap.',
     '- Keep enough recent entries for weekly automations to inspect roughly the last week of work.',
     '- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.',
     '',
@@ -105,7 +110,7 @@ function trimSessionLog({ keep, source, output }) {
   }
 }
 
-function checkSessionLog({ keep, source }) {
+function checkSessionLog({ maxEntries, source }) {
   const sourcePath = resolve(repoRoot, source)
   const markdown = readFileSync(sourcePath, 'utf8')
   const entries = extractEntries(markdown)
@@ -114,16 +119,16 @@ function checkSessionLog({ keep, source }) {
     throw new Error(`No session entries found in ${source}`)
   }
 
-  if (entries.length > keep) {
+  if (entries.length > maxEntries) {
     throw new Error(
-      `${source} has ${entries.length} entries; run node scripts/trim-session-log.mjs to keep only the latest ${keep}.`,
+      `${source} has ${entries.length} entries; run node scripts/trim-session-log.mjs to compact to the latest ${DEFAULT_KEEP}.`,
     )
   }
 
   return {
     source,
     total: entries.length,
-    keep,
+    maxEntries,
   }
 }
 
@@ -137,7 +142,7 @@ try {
 
   if (args.check) {
     const result = checkSessionLog(args)
-    console.log(`${result.source} is trimmed: ${result.total}/${result.keep} entries`)
+    console.log(`${result.source} is within cap: ${result.total}/${result.maxEntries} entries`)
   } else {
     const result = trimSessionLog(args)
     console.log(

@@ -3,29 +3,29 @@ import { act, render, screen, fireEvent, waitFor, within } from '@testing-librar
 import { useState, type ReactNode } from 'react'
 import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { TooltipProvider } from '@/ui'
-import { createMockQuiz, createMockQuizQuestion } from '../helpers/mocks'
-import type { QuizWithStats, QuizQuestion, QuizResultsAggregate } from '@/types'
+import { createMockTest, createMockTestQuestion } from '../helpers/mocks'
+import type { TestAssessmentWithStats, TestAssessmentQuestion, TestResultsAggregate } from '@/types'
 
 function Wrapper({ children }: { children: ReactNode }) {
   return <TooltipProvider>{children}</TooltipProvider>
 }
 
-function makeQuizWithStats(overrides: Partial<QuizWithStats> = {}): QuizWithStats {
-  const base = createMockQuiz(overrides)
+function makeTestWithStats(overrides: Partial<TestAssessmentWithStats> = {}): TestAssessmentWithStats {
+  const base = createMockTest(overrides)
   return {
     ...base,
     stats: { total_students: 25, responded: 0, questions_count: 2 },
     ...overrides,
-  } as QuizWithStats
+  } as TestAssessmentWithStats
 }
 
-const sampleQuestions: QuizQuestion[] = [
-  createMockQuizQuestion({ id: 'q1', question_text: 'Favorite color?', options: ['Red', 'Blue', 'Green'], position: 0 }),
-  createMockQuizQuestion({ id: 'q2', question_text: 'Favorite animal?', options: ['Cat', 'Dog'], position: 1 }),
+const sampleQuestions: TestAssessmentQuestion[] = [
+  createMockTestQuestion({ id: 'q1', question_text: 'Favorite color?', options: ['Red', 'Blue', 'Green'], position: 0 }),
+  createMockTestQuestion({ id: 'q2', question_text: 'Favorite animal?', options: ['Cat', 'Dog'], position: 1 }),
 ]
 
-const summaryDetailQuestions: QuizQuestion[] = [
-  createMockQuizQuestion({
+const summaryDetailQuestions: TestAssessmentQuestion[] = [
+  createMockTestQuestion({
     id: 'sq1',
     assessment_type: 'test',
     question_type: 'open_response',
@@ -38,7 +38,7 @@ const summaryDetailQuestions: QuizQuestion[] = [
     response_monospace: true,
     position: 0,
   }),
-  createMockQuizQuestion({
+  createMockTestQuestion({
     id: 'sq2',
     assessment_type: 'test',
     question_type: 'multiple_choice',
@@ -78,9 +78,9 @@ describe('TestDetailPanel', () => {
     return { ok: true, json: async () => body } as Response
   }
 
-  function mockFetchForQuiz(
-    questions: QuizQuestion[],
-    results?: QuizResultsAggregate[],
+  function mockFetchForTest(
+    questions: TestAssessmentQuestion[],
+    results?: TestResultsAggregate[],
     draftOverrides?: {
       title?: string
       show_results?: boolean
@@ -116,46 +116,65 @@ describe('TestDetailPanel', () => {
     return fetchMock
   }
 
+  it('accepts legacy quiz and onQuizUpdate as compatibility aliases', async () => {
+    mockFetchForTest(sampleQuestions)
+    const legacyTest = makeTestWithStats({ title: 'Legacy Alias Test' })
+    const legacyOnQuizUpdate = vi.fn()
+
+    render(
+      <TestDetailPanel
+        quiz={legacyTest}
+        classroomId="classroom-1"
+        onQuizUpdate={legacyOnQuizUpdate}
+      />,
+      { wrapper: Wrapper }
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Legacy Alias Test')).toBeInTheDocument()
+    })
+  })
+
   it('ignores stale draft responses after selected assessment changes', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     const staleDraft = createDeferred<Response>()
     const currentDraft = createDeferred<Response>()
-    const staleQuestion = createMockQuizQuestion({
+    const staleQuestion = createMockTestQuestion({
       id: 'q-stale',
-      quiz_id: 'quiz-stale',
+      quiz_id: 'test-stale',
       question_text: 'Stale draft question',
       position: 0,
     })
-    const currentQuestion = createMockQuizQuestion({
+    const currentQuestion = createMockTestQuestion({
       id: 'q-current',
-      quiz_id: 'quiz-current',
+      quiz_id: 'test-current',
       question_text: 'Current draft question',
       position: 0,
     })
 
     fetchMock.mockImplementation((url: string) => {
-      if (url.endsWith('/api/teacher/tests/quiz-stale/draft')) return staleDraft.promise
-      if (url.endsWith('/api/teacher/tests/quiz-current/draft')) return currentDraft.promise
+      if (url.endsWith('/api/teacher/tests/test-stale/draft')) return staleDraft.promise
+      if (url.endsWith('/api/teacher/tests/test-current/draft')) return currentDraft.promise
       throw new Error(`Unexpected fetch: ${url}`)
     })
 
-    const staleQuiz = makeQuizWithStats({ id: 'quiz-stale', title: 'Stale Quiz' })
-    const currentQuiz = makeQuizWithStats({ id: 'quiz-current', title: 'Current Quiz' })
+    const staleTest = makeTestWithStats({ id: 'test-stale', title: 'Stale Test' })
+    const currentTest = makeTestWithStats({ id: 'test-current', title: 'Current Test' })
     const { rerender } = render(
-      <TestDetailPanel quiz={staleQuiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />,
+      <TestDetailPanel test={staleTest} classroomId="classroom-1" onTestUpdate={vi.fn()} />,
       { wrapper: Wrapper }
     )
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/quiz-stale/draft')
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-stale/draft')
     })
 
     rerender(
-      <TestDetailPanel quiz={currentQuiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />
+      <TestDetailPanel test={currentTest} classroomId="classroom-1" onTestUpdate={vi.fn()} />
     )
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/quiz-current/draft')
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-current/draft')
     })
 
     await act(async () => {
@@ -163,7 +182,7 @@ describe('TestDetailPanel', () => {
         draft: {
           version: 1,
           content: {
-            title: 'Current Quiz',
+            title: 'Current Test',
             show_results: true,
             questions: [currentQuestion],
           },
@@ -181,7 +200,7 @@ describe('TestDetailPanel', () => {
         draft: {
           version: 1,
           content: {
-            title: 'Stale Quiz',
+            title: 'Stale Test',
             show_results: true,
             questions: [staleQuestion],
           },
@@ -229,22 +248,21 @@ describe('TestDetailPanel', () => {
       throw new Error(`Unexpected fetch: ${url}`)
     })
 
-    const staleTest = makeQuizWithStats({
+    const staleTest = makeTestWithStats({
       id: 'test-stale',
       title: 'Stale Test',
       assessment_type: 'test',
     })
-    const currentTest = makeQuizWithStats({
+    const currentTest = makeTestWithStats({
       id: 'test-current',
       title: 'Current Test',
       assessment_type: 'test',
     })
     const { rerender } = render(
-      <TestDetailPanel
-        quiz={staleTest}
+      <TestDetailPanel test={staleTest}
         classroomId="classroom-1"
         apiBasePath="/api/teacher/tests"
-        onQuizUpdate={vi.fn()}
+        onTestUpdate={vi.fn()}
       />,
       { wrapper: Wrapper }
     )
@@ -254,11 +272,10 @@ describe('TestDetailPanel', () => {
     })
 
     rerender(
-      <TestDetailPanel
-        quiz={currentTest}
+      <TestDetailPanel test={currentTest}
         classroomId="classroom-1"
         apiBasePath="/api/teacher/tests"
-        onQuizUpdate={vi.fn()}
+        onTestUpdate={vi.fn()}
       />
     )
 
@@ -322,18 +339,18 @@ describe('TestDetailPanel', () => {
       throw new Error(`Unexpected fetch: ${url}`)
     })
 
-    const sameIdQuiz = makeQuizWithStats({
+    const sameIdQuiz = makeTestWithStats({
       id: 'assessment-1',
       title: 'Same Id Quiz',
       assessment_type: 'quiz',
     })
-    const sameIdTest = makeQuizWithStats({
+    const sameIdTest = makeTestWithStats({
       id: 'assessment-1',
       title: 'Same Id Test',
       assessment_type: 'test',
     })
     const { rerender } = render(
-      <TestDetailPanel quiz={sameIdQuiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />,
+      <TestDetailPanel test={sameIdQuiz} classroomId="classroom-1" onTestUpdate={vi.fn()} />,
       { wrapper: Wrapper }
     )
 
@@ -342,7 +359,7 @@ describe('TestDetailPanel', () => {
     })
 
     rerender(
-      <TestDetailPanel quiz={sameIdTest} classroomId="classroom-1" onQuizUpdate={vi.fn()} />
+      <TestDetailPanel test={sameIdTest} classroomId="classroom-1" onTestUpdate={vi.fn()} />
     )
 
     await waitFor(() => {
@@ -357,7 +374,7 @@ describe('TestDetailPanel', () => {
             title: 'Same Id Test',
             show_results: true,
             questions: [
-              createMockQuizQuestion({
+              createMockTestQuestion({
                 id: 'q-current-test',
                 quiz_id: 'assessment-1',
                 assessment_type: 'test',
@@ -390,7 +407,7 @@ describe('TestDetailPanel', () => {
             title: 'Same Id Quiz',
             show_results: true,
             questions: [
-              createMockQuizQuestion({
+              createMockTestQuestion({
                 id: 'q-stale-quiz',
                 quiz_id: 'assessment-1',
                 question_text: 'Stale same-id quiz question',
@@ -410,10 +427,10 @@ describe('TestDetailPanel', () => {
   })
 
   describe('tabs', () => {    it('shows question count in Questions tab', async () => {
-      mockFetchForQuiz(sampleQuestions)
-      const quiz = makeQuizWithStats()
+      mockFetchForTest(sampleQuestions)
+      const testAssessment = makeTestWithStats()
 
-      render(<TestDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
+      render(<TestDetailPanel test={testAssessment} classroomId="classroom-1" onTestUpdate={vi.fn()} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expect(screen.getByText('Questions (2)')).toBeInTheDocument()
@@ -447,17 +464,16 @@ describe('TestDetailPanel', () => {
         }),
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Docs Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -496,17 +512,16 @@ describe('TestDetailPanel', () => {
         }),
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Docs Tab Order Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -548,18 +563,17 @@ describe('TestDetailPanel', () => {
         }),
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Accessible Test',
         stats: { total_students: 25, responded: 0, questions_count: 2 },
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           showPreviewButton={false}
           showResultsTab={false}
         />,
@@ -607,18 +621,17 @@ describe('TestDetailPanel', () => {
         }),
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Two Pane Test',
         stats: { total_students: 25, responded: 0, questions_count: 2 },
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -758,18 +771,17 @@ describe('TestDetailPanel', () => {
         }),
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Editor Modal Test',
         stats: { total_students: 25, responded: 0, questions_count: 2 },
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="editor-only"
           showPreviewButton={false}
           showResultsTab={false}
@@ -813,7 +825,7 @@ describe('TestDetailPanel', () => {
         }),
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Untitled 2026-05-14 10:45:00',
         stats: { total_students: 25, responded: 0, questions_count: 2 },
@@ -824,11 +836,10 @@ describe('TestDetailPanel', () => {
         return (
           <>
             <div data-testid="test-modal-title-target" ref={setTitleTarget} />
-            <TestDetailPanel
-              quiz={testQuiz}
+            <TestDetailPanel test={testAssessment}
               classroomId="classroom-1"
               apiBasePath="/api/teacher/tests"
-              onQuizUpdate={vi.fn()}
+              onTestUpdate={vi.fn()}
               testQuestionLayout="editor-only"
               showPreviewButton={false}
               showResultsTab={false}
@@ -871,18 +882,17 @@ describe('TestDetailPanel', () => {
         }),
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Markdown Modal Test',
         stats: { total_students: 25, responded: 0, questions_count: 2 },
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="markdown-only"
           showPreviewButton={false}
           showResultsTab={false}
@@ -926,18 +936,17 @@ describe('TestDetailPanel', () => {
         }),
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Resizable Test',
         stats: { total_students: 25, responded: 0, questions_count: 2 },
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1054,18 +1063,17 @@ describe('TestDetailPanel', () => {
         }),
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Empty Markdown Import Test',
         stats: { total_students: 25, responded: 0, questions_count: 0 },
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1115,18 +1123,17 @@ describe('TestDetailPanel', () => {
         }),
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Two Pane Test',
         stats: { total_students: 25, responded: 0, questions_count: 2 },
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           onDraftSummaryChange={onDraftSummaryChange}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
@@ -1157,7 +1164,7 @@ describe('TestDetailPanel', () => {
     it('does not force-save unsaved drafts again when callback props change before autosave fires', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
-        if (url === '/api/teacher/tests/quiz-race-test/draft' && !options) {
+        if (url === '/api/teacher/tests/test-race/draft' && !options) {
           return {
             ok: true,
             json: async () => ({
@@ -1173,7 +1180,7 @@ describe('TestDetailPanel', () => {
           }
         }
 
-        if (url === '/api/teacher/tests/quiz-race-test' && !options) {
+        if (url === '/api/teacher/tests/test-race' && !options) {
           return {
             ok: true,
             json: async () => ({
@@ -1184,7 +1191,7 @@ describe('TestDetailPanel', () => {
           }
         }
 
-        if (url === '/api/teacher/tests/quiz-race-test/draft' && options?.method === 'PATCH') {
+        if (url === '/api/teacher/tests/test-race/draft' && options?.method === 'PATCH') {
           const body = JSON.parse(String(options.body ?? '{}'))
           return {
             ok: true,
@@ -1200,21 +1207,20 @@ describe('TestDetailPanel', () => {
         throw new Error(`Unexpected fetch: ${url} ${options?.method || 'GET'}`)
       })
 
-      const testQuiz = makeQuizWithStats({
-        id: 'quiz-race-test',
+      const testAssessment = makeTestWithStats({
+        id: 'test-race',
         assessment_type: 'test',
         title: 'Race Test',
         show_results: false,
         stats: { total_students: 25, responded: 0, questions_count: 0 },
       })
 
-      const onQuizUpdateInitial = vi.fn()
+      const onTestUpdateInitial = vi.fn()
       const { rerender } = render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={onQuizUpdateInitial}
+          onTestUpdate={onTestUpdateInitial}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1229,13 +1235,12 @@ describe('TestDetailPanel', () => {
         expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
       })
 
-      const onQuizUpdateNext = vi.fn()
+      const onTestUpdateNext = vi.fn()
       rerender(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={onQuizUpdateNext}
+          onTestUpdate={onTestUpdateNext}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1255,7 +1260,7 @@ describe('TestDetailPanel', () => {
       })
 
       const patchBody = JSON.parse(String(patchCalls[0]?.[1]?.body ?? '{}'))
-      expect(String(patchCalls[0]?.[0])).toContain('/api/teacher/tests/quiz-race-test/draft')
+      expect(String(patchCalls[0]?.[0])).toContain('/api/teacher/tests/test-race/draft')
       expect(patchBody.version).toBe(1)
       expect(patchBody.content?.questions).toHaveLength(1)
     }, 10_000)
@@ -1266,7 +1271,7 @@ describe('TestDetailPanel', () => {
       let resolveFirstPatch: ((response: Response) => void) | null = null
 
       fetchMock.mockImplementation((url: string, options?: RequestInit) => {
-        if (url === '/api/teacher/tests/quiz-stale-save-test/draft' && !options) {
+        if (url === '/api/teacher/tests/test-stale-save/draft' && !options) {
           return Promise.resolve({
             ok: true,
             json: async () => ({
@@ -1282,7 +1287,7 @@ describe('TestDetailPanel', () => {
           } as Response)
         }
 
-        if (url === '/api/teacher/tests/quiz-stale-save-test' && !options) {
+        if (url === '/api/teacher/tests/test-stale-save' && !options) {
           return Promise.resolve({
             ok: true,
             json: async () => ({
@@ -1293,7 +1298,7 @@ describe('TestDetailPanel', () => {
           } as Response)
         }
 
-        if (url === '/api/teacher/tests/quiz-stale-save-test/draft' && options?.method === 'PATCH') {
+        if (url === '/api/teacher/tests/test-stale-save/draft' && options?.method === 'PATCH') {
           return new Promise<Response>((resolve) => {
             resolveFirstPatch = resolve
           })
@@ -1302,8 +1307,8 @@ describe('TestDetailPanel', () => {
         throw new Error(`Unexpected fetch: ${url} ${options?.method || 'GET'}`)
       })
 
-      const testQuiz = makeQuizWithStats({
-        id: 'quiz-stale-save-test',
+      const testAssessment = makeTestWithStats({
+        id: 'test-stale-save',
         assessment_type: 'test',
         title: 'Stale Save Test',
         show_results: false,
@@ -1311,11 +1316,10 @@ describe('TestDetailPanel', () => {
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           onSaveStatusChange={onSaveStatusChange}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
@@ -1351,7 +1355,7 @@ describe('TestDetailPanel', () => {
               content: {
                 title: 'Stale Save Test',
                 show_results: false,
-                questions: [createMockQuizQuestion({ id: 'saved-q1' })],
+                questions: [createMockTestQuestion({ id: 'saved-q1' })],
               },
             },
           }),
@@ -1366,7 +1370,7 @@ describe('TestDetailPanel', () => {
     it('ignores stale save responses after selected assessment changes', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       const staleSave = createDeferred<Response>()
-      const currentQuestion = createMockQuizQuestion({
+      const currentQuestion = createMockTestQuestion({
         id: 'q-current-save-scope',
         assessment_type: 'test',
         question_type: 'open_response',
@@ -1415,14 +1419,14 @@ describe('TestDetailPanel', () => {
         throw new Error(`Unexpected fetch: ${url} ${options?.method || 'GET'}`)
       })
 
-      const staleTest = makeQuizWithStats({
+      const staleTest = makeTestWithStats({
         id: 'test-save-stale',
         assessment_type: 'test',
         title: 'Stale Save Test',
         show_results: false,
         stats: { total_students: 25, responded: 0, questions_count: 0 },
       })
-      const currentTest = makeQuizWithStats({
+      const currentTest = makeTestWithStats({
         id: 'test-save-current',
         assessment_type: 'test',
         title: 'Current Save Test',
@@ -1431,11 +1435,10 @@ describe('TestDetailPanel', () => {
       })
 
       const { rerender } = render(
-        <TestDetailPanel
-          quiz={staleTest}
+        <TestDetailPanel test={staleTest}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1456,11 +1459,10 @@ describe('TestDetailPanel', () => {
       vi.useRealTimers()
 
       rerender(
-        <TestDetailPanel
-          quiz={currentTest}
+        <TestDetailPanel test={currentTest}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1477,7 +1479,7 @@ describe('TestDetailPanel', () => {
               title: 'Stale Save Test',
               show_results: false,
               questions: [
-                createMockQuizQuestion({
+                createMockTestQuestion({
                   id: 'q-stale-save-scope',
                   assessment_type: 'test',
                   question_type: 'multiple_choice',
@@ -1542,14 +1544,14 @@ describe('TestDetailPanel', () => {
         throw new Error(`Unexpected fetch: ${url} ${options?.method || 'GET'}`)
       })
 
-      const staleTest = makeQuizWithStats({
+      const staleTest = makeTestWithStats({
         id: 'test-pending-save',
         assessment_type: 'test',
         title: 'Pending Save Test',
         show_results: false,
         stats: { total_students: 25, responded: 0, questions_count: 0 },
       })
-      const currentTest = makeQuizWithStats({
+      const currentTest = makeTestWithStats({
         id: 'test-pending-current',
         assessment_type: 'test',
         title: 'Pending Current Test',
@@ -1558,11 +1560,10 @@ describe('TestDetailPanel', () => {
       })
 
       const { rerender } = render(
-        <TestDetailPanel
-          quiz={staleTest}
+        <TestDetailPanel test={staleTest}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1577,11 +1578,10 @@ describe('TestDetailPanel', () => {
       expect(fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')).toHaveLength(0)
 
       rerender(
-        <TestDetailPanel
-          quiz={currentTest}
+        <TestDetailPanel test={currentTest}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1626,18 +1626,17 @@ describe('TestDetailPanel', () => {
         }),
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Duplicate Test',
         stats: { total_students: 25, responded: 0, questions_count: 2 },
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1689,18 +1688,17 @@ describe('TestDetailPanel', () => {
         }),
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Split Button Test',
         stats: { total_students: 25, responded: 0, questions_count: 2 },
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1751,18 +1749,17 @@ describe('TestDetailPanel', () => {
         }),
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Mirror Test',
         stats: { total_students: 25, responded: 0, questions_count: 2 },
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -1814,18 +1811,17 @@ describe('TestDetailPanel', () => {
         }),
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Pending Markdown Test',
         stats: { total_students: 25, responded: 0, questions_count: 2 },
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           onPendingMarkdownImportChange={onPendingMarkdownImportChange}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
@@ -1888,18 +1884,17 @@ describe('TestDetailPanel', () => {
         })
         .mockImplementationOnce(() => patchPromise as unknown as Promise<Response>)
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Apply Timing Test',
         stats: { total_students: 25, responded: 0, questions_count: 2 },
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -2033,18 +2028,17 @@ _None_
       } as unknown as Window
       const openSpy = vi.spyOn(window, 'open').mockImplementation(() => fakePreviewWindow)
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         id: 'test-preview-action-id',
         assessment_type: 'test',
         title: 'Preview Action Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2118,18 +2112,17 @@ _None_
       const onRequestTestPreview = vi.fn()
       const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         id: 'test-inline-preview-id',
         assessment_type: 'test',
         title: 'Inline Preview Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           onRequestTestPreview={onRequestTestPreview}
         />,
         { wrapper: Wrapper }
@@ -2208,17 +2201,16 @@ Correct Option: 2
           }),
         })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Markdown Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2271,17 +2263,16 @@ Correct Option: 2
           }),
         })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Markdown Creation Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
           testQuestionLayout="markdown-only"
         />,
         { wrapper: Wrapper }
@@ -2295,7 +2286,7 @@ Correct Option: 2
 
     it('applies valid markdown and saves through draft endpoint', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-      const onQuizUpdate = vi.fn()
+      const onTestUpdate = vi.fn()
       fetchMock
         .mockResolvedValueOnce({
           ok: true,
@@ -2355,17 +2346,16 @@ Correct Option: 2
           }),
         })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Markdown Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={onQuizUpdate}
+          onTestUpdate={onTestUpdate}
         />,
         { wrapper: Wrapper }
       )
@@ -2427,7 +2417,7 @@ _None_
       expect(body.content.show_results).toBe(true)
       expect(body.content.questions).toHaveLength(2)
       expect(body.documents).toEqual([])
-      expect(onQuizUpdate).toHaveBeenLastCalledWith({
+      expect(onTestUpdate).toHaveBeenLastCalledWith({
         title: 'Markdown Test Updated',
         show_results: true,
         questions_count: 2,
@@ -2459,17 +2449,16 @@ _None_
           }),
         })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Markdown Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2527,17 +2516,16 @@ Prompt:
           }),
         })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Markdown Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2555,10 +2543,10 @@ Prompt:
 
   describe('Questions tab', () => {
     it('shows test title that is click-to-edit', async () => {
-      mockFetchForQuiz(sampleQuestions)
-      const quiz = makeQuizWithStats({ title: 'My Cool Test' })
+      mockFetchForTest(sampleQuestions)
+      const testAssessment = makeTestWithStats({ title: 'My Cool Test' })
 
-      render(<TestDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
+      render(<TestDetailPanel test={testAssessment} classroomId="classroom-1" onTestUpdate={vi.fn()} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expect(screen.getByText('My Cool Test')).toBeInTheDocument()
@@ -2570,18 +2558,18 @@ Prompt:
     })
 
     it('does not show activation warning label when no questions', async () => {
-      mockFetchForQuiz([])
-      const quiz = makeQuizWithStats()
+      mockFetchForTest([])
+      const testAssessment = makeTestWithStats()
 
-      render(<TestDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
+      render(<TestDetailPanel test={testAssessment} classroomId="classroom-1" onTestUpdate={vi.fn()} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        expect(screen.queryByText('Quiz must have at least 1 question')).not.toBeInTheDocument()
+        expect(screen.queryByText('Test must have at least 1 question')).not.toBeInTheDocument()
       })
     })
 
     it('in tests authoring, question type is fixed and open-response char limit is hidden', async () => {
-      const testQuestion = createMockQuizQuestion({
+      const testQuestion = createMockTestQuestion({
         id: 'test-q1',
         question_type: 'open_response',
         question_text: 'Explain your reasoning',
@@ -2590,18 +2578,17 @@ Prompt:
         response_max_chars: 5000,
         answer_key: null,
       })
-      mockFetchForQuiz([testQuestion])
-      const testQuiz = makeQuizWithStats({
+      mockFetchForTest([testQuestion])
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Mixed Format Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2632,7 +2619,7 @@ Prompt:
     })
 
     it('keeps answer key collapsed by default and expands on click', async () => {
-      const testQuestion = createMockQuizQuestion({
+      const testQuestion = createMockTestQuestion({
         id: 'test-q-open',
         question_type: 'open_response',
         question_text: 'Explain photosynthesis.',
@@ -2641,18 +2628,17 @@ Prompt:
         response_max_chars: 5000,
         answer_key: null,
       })
-      mockFetchForQuiz([testQuestion])
-      const testQuiz = makeQuizWithStats({
+      mockFetchForTest([testQuestion])
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Open Response Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2678,7 +2664,7 @@ Prompt:
           ok: true,
           json: async () => ({
             questions: [
-              createMockQuizQuestion({
+              createMockTestQuestion({
                 id: 'test-q-save',
                 question_type: 'open_response',
                 question_text: 'Explain inertia.',
@@ -2698,7 +2684,7 @@ Prompt:
           ok: true,
           json: async () => ({
             questions: [
-              createMockQuizQuestion({
+              createMockTestQuestion({
                 id: 'test-q-save',
                 question_type: 'open_response',
                 question_text: 'Explain inertia.',
@@ -2711,17 +2697,16 @@ Prompt:
           }),
         })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Save Answer Key Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2782,17 +2767,16 @@ Prompt:
           json: async () => ({}),
         })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Draft Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2838,7 +2822,7 @@ Prompt:
           }
         }
 
-        if (url === '/api/teacher/tests/quiz-1' && (!options?.method || options.method === 'GET')) {
+        if (url === '/api/teacher/tests/test-1' && (!options?.method || options.method === 'GET')) {
           return {
             ok: true,
             json: async () => ({
@@ -2847,7 +2831,7 @@ Prompt:
           }
         }
 
-        if (url === '/api/teacher/tests/quiz-1' && options?.method === 'PATCH') {
+        if (url === '/api/teacher/tests/test-1' && options?.method === 'PATCH') {
           const body = JSON.parse(String(options.body))
           return {
             ok: true,
@@ -2883,17 +2867,16 @@ Prompt:
         throw new Error(`Unexpected fetch call: ${url}`)
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Doc Save Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -2959,7 +2942,7 @@ Prompt:
           }
         }
 
-        if (url === '/api/teacher/tests/quiz-1' && (!options?.method || options.method === 'GET')) {
+        if (url === '/api/teacher/tests/test-1' && (!options?.method || options.method === 'GET')) {
           return {
             ok: true,
             json: async () => ({
@@ -2980,7 +2963,7 @@ Prompt:
           }
         }
 
-        if (url === '/api/teacher/tests/quiz-1/documents/doc-1/sync' && options?.method === 'POST') {
+        if (url === '/api/teacher/tests/test-1/documents/doc-1/sync' && options?.method === 'POST') {
           return {
             ok: true,
             json: async () => ({
@@ -3004,17 +2987,16 @@ Prompt:
         throw new Error(`Unexpected fetch call: ${url}`)
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Doc Refresh Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -3031,7 +3013,7 @@ Prompt:
 
       expect(
         fetchMock.mock.calls.some(
-          (call: any[]) => call[0] === '/api/teacher/tests/quiz-1/documents/doc-1/sync' && call[1]?.method === 'POST'
+          (call: any[]) => call[0] === '/api/teacher/tests/test-1/documents/doc-1/sync' && call[1]?.method === 'POST'
         )
       ).toBe(false)
 
@@ -3039,7 +3021,7 @@ Prompt:
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledWith(
-          '/api/teacher/tests/quiz-1/documents/doc-1/sync',
+          '/api/teacher/tests/test-1/documents/doc-1/sync',
           expect.objectContaining({ method: 'POST' })
         )
       })
@@ -3064,7 +3046,7 @@ Prompt:
           }
         }
 
-        if (url === '/api/teacher/tests/quiz-1' && (!options?.method || options.method === 'GET')) {
+        if (url === '/api/teacher/tests/test-1' && (!options?.method || options.method === 'GET')) {
           return {
             ok: true,
             json: async () => ({
@@ -3085,7 +3067,7 @@ Prompt:
           }
         }
 
-        if (url === '/api/teacher/tests/quiz-1/documents/doc-1/sync' && options?.method === 'POST') {
+        if (url === '/api/teacher/tests/test-1/documents/doc-1/sync' && options?.method === 'POST') {
           return {
             ok: true,
             json: async () => ({
@@ -3109,17 +3091,16 @@ Prompt:
         throw new Error(`Unexpected fetch call: ${url}`)
       })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Doc Auto Sync Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -3130,7 +3111,7 @@ Prompt:
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledWith(
-          '/api/teacher/tests/quiz-1/documents/doc-1/sync',
+          '/api/teacher/tests/test-1/documents/doc-1/sync',
           expect.objectContaining({ method: 'POST' })
         )
       })
@@ -3202,17 +3183,16 @@ Prompt:
           }),
         })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Doc Text Save Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -3274,17 +3254,16 @@ Prompt:
           }),
         })
 
-      const testQuiz = makeQuizWithStats({
+      const testAssessment = makeTestWithStats({
         assessment_type: 'test',
         title: 'Doc Upload Modal Test',
       })
 
       render(
-        <TestDetailPanel
-          quiz={testQuiz}
+        <TestDetailPanel test={testAssessment}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onTestUpdate={vi.fn()}
         />,
         { wrapper: Wrapper }
       )
@@ -3304,10 +3283,10 @@ Prompt:
 
   describe('title editing', () => {
     it('saves title on Enter key', async () => {
-      const fetchMock = mockFetchForQuiz(sampleQuestions)
-      const quiz = makeQuizWithStats({ title: 'Old Title' })
+      const fetchMock = mockFetchForTest(sampleQuestions)
+      const testAssessment = makeTestWithStats({ title: 'Old Title' })
 
-      render(<TestDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
+      render(<TestDetailPanel test={testAssessment} classroomId="classroom-1" onTestUpdate={vi.fn()} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expect(screen.getByText('Old Title')).toBeInTheDocument()
@@ -3337,10 +3316,10 @@ Prompt:
     })
 
     it('cancels edit on Escape key', async () => {
-      mockFetchForQuiz(sampleQuestions)
-      const quiz = makeQuizWithStats({ title: 'Original' })
+      mockFetchForTest(sampleQuestions)
+      const testAssessment = makeTestWithStats({ title: 'Original' })
 
-      render(<TestDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
+      render(<TestDetailPanel test={testAssessment} classroomId="classroom-1" onTestUpdate={vi.fn()} />, { wrapper: Wrapper })
 
       await waitFor(() => {
         expect(screen.getByText('Original')).toBeInTheDocument()

@@ -21,7 +21,8 @@
 [ ] Plan before coding: task, model, approach, approval
 ```
 
-Do not code if verification fails. Read `.ai/SESSION-LOG.md` only for recent handoff context; `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+Do not code if verification fails. Use `.ai/SESSION-LOG.md` only for recent handoff; use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+For docs-only or review work, use `bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only`.
 
 ---
 
@@ -41,7 +42,7 @@ All agents operate from exactly one current repo checkout/worktree.
 ## End of Session (MANDATORY)
 
 1. Append a concise session entry to `.ai/SESSION-LOG.md`.
-2. Immediately run `node scripts/trim-session-log.mjs` in the same change; use `node scripts/trim-session-log.mjs --check` to verify the log is trimmed to the latest 60 entries.
+2. Immediately run `node scripts/trim-session-log.mjs` in the same change. CI caps the log at 60; default trim keeps 40. Use `node scripts/trim-session-log.mjs --check` to verify the cap.
 3. Update `.ai/features.json` if anything changed:
    ```bash
    node scripts/features.mjs pass <feature-id>

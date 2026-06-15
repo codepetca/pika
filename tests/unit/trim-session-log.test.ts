@@ -42,12 +42,39 @@ describe('trim-session-log script', () => {
       const output = readFileSync(outputPath, 'utf8')
 
       expect(output).toContain('# Pika Session Log')
-      expect(output).toContain('latest 60 entries')
+      expect(output).toContain('CI allows at most 60 entries')
+      expect(output).toContain('compacts to the latest 40 entries')
       expect(output).toContain('Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.')
       expect(output).not.toContain('## 2026-05-01 - First')
       expect(output).toContain('## 2026-05-02 - Second')
       expect(output).toContain('## 2026-05-03 - Third')
       expect(output.match(/^## /gm)).toHaveLength(2)
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('defaults to compacting below the CI cap', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'pika-session-log-buffer-'))
+
+    try {
+      const sourcePath = join(repoRoot, 'source.md')
+      const outputPath = join(repoRoot, 'SESSION-LOG.md')
+      const entries = Array.from({ length: 61 }, (_, index) => {
+        const day = String((index % 28) + 1).padStart(2, '0')
+        return [`## 2026-05-${day} - Entry ${index + 1}`, `entry ${index + 1}`].join('\n')
+      })
+
+      writeFileSync(sourcePath, ['# Pika Session Log', '', ...entries].join('\n\n'))
+
+      execFileSync('node', [scriptPath, '--source', sourcePath, '--output', outputPath], { cwd: repoRoot })
+
+      const output = readFileSync(outputPath, 'utf8')
+
+      expect(output.match(/^## /gm)).toHaveLength(40)
+      expect(output).not.toContain('Entry 21')
+      expect(output).toContain('Entry 22')
+      expect(output).toContain('Entry 61')
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
     }
@@ -93,8 +120,11 @@ describe('trim-session-log script', () => {
   it('defaults to a weekly evidence-sized retention window', () => {
     const script = readFileSync(scriptPath, 'utf8')
 
-    expect(script).toContain('const DEFAULT_KEEP = 60')
-    expect(script).toContain('[--keep 60]')
+    expect(script).toContain('const DEFAULT_MAX_ENTRIES = 60')
+    expect(script).toContain('const DEFAULT_KEEP = Math.floor(DEFAULT_MAX_ENTRIES * 2 / 3)')
+    expect(script).toContain('[--keep 40]')
+    expect(script).toContain('--check [--keep 60]')
+    expect(script).not.toContain('--max')
     expect(script).toContain('--check')
   })
 
@@ -133,9 +163,20 @@ describe('trim-session-log script', () => {
         encoding: 'utf8',
       })
 
-      expect(output).toContain('source.md is trimmed: 3/3 entries')
+      expect(output).toContain('source.md is within cap: 3/3 entries')
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
     }
+  })
+
+  it('rejects removed --max arguments', () => {
+    const result = spawnSync('node', [scriptPath, '--check', '--max', '20'], {
+      encoding: 'utf8',
+    })
+
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('Unknown or incomplete argument: --max')
+    expect(result.stderr).toContain('--check [--keep 60]')
+    expect(result.stderr).not.toContain('--max 60')
   })
 })

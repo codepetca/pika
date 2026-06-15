@@ -11,7 +11,8 @@ import {
   TEACHER_TEST_GRADING_ROW_UPDATED_EVENT,
   type TeacherTestGradingRowUpdatedEventDetail,
 } from '@/lib/events'
-import type { QuizFocusSummary } from '@/types'
+import { readTestFromPayload } from '@/lib/test-api-contract'
+import type { TestFocusSummary } from '@/types'
 
 interface TestQuestionInfo {
   id: string
@@ -48,16 +49,23 @@ interface TestStudentRow {
   graded_open_responses: number
   ungraded_open_responses: number
   answers: TestAnswersByQuestion
-  focus_summary: QuizFocusSummary | null
+  focus_summary: TestFocusSummary | null
+}
+
+interface TestResultSummary {
+  id: string
+  title: string
 }
 
 interface TestResultsPayload {
-  quiz: {
-    id: string
-    title: string
-  }
+  test: TestResultSummary
   questions: TestQuestionInfo[]
   students: TestStudentRow[]
+}
+
+type TestResultsResponsePayload = Omit<TestResultsPayload, 'test'> & {
+  test?: TestResultSummary | null
+  quiz?: TestResultSummary | null
 }
 
 interface GradeDraft {
@@ -153,6 +161,17 @@ function computeStudentGradingMetrics(
   }
 }
 
+function normalizeTestResultsPayload(data: TestResultsResponsePayload): TestResultsPayload {
+  const test = readTestFromPayload<TestResultSummary>(data)
+  if (!test) throw new Error('Failed to load test results')
+
+  return {
+    test,
+    questions: data.questions,
+    students: data.students,
+  }
+}
+
 interface Props {
   testId: string
   selectedStudentId: string | null
@@ -229,7 +248,7 @@ export function TestStudentGradingPanel({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load test results')
 
-      const payload = data as TestResultsPayload
+      const payload = normalizeTestResultsPayload(data as TestResultsResponsePayload)
       setResults(payload)
 
       const nextDrafts: Record<string, GradeDraft> = {}

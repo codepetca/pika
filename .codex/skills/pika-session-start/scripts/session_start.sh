@@ -5,6 +5,27 @@ set -euo pipefail
 PASS="\033[0;32m✅\033[0m"
 FAIL="\033[0;31m❌\033[0m"
 INFO="\033[0;34mℹ️ \033[0m"
+ORIENT_ONLY=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --orient-only|--read-only)
+      ORIENT_ONLY=1
+      ;;
+    -h|--help)
+      echo "Usage: bash .codex/skills/pika-session-start/scripts/session_start.sh [--orient-only]"
+      echo ""
+      echo "Default: verify worktree, repair .env.local when missing, run verify-env.sh, and render startup docs."
+      echo "  --orient-only, --read-only: render startup context without mutating .env.local or running verify-env.sh."
+      exit 0
+      ;;
+    *)
+      echo -e "${FAIL} Unknown argument: $arg"
+      echo "   Run with --help for usage."
+      exit 1
+      ;;
+  esac
+done
 
 print_required_doc() {
   local label="$1"
@@ -88,13 +109,18 @@ echo -e "${PASS} Worktree = $WORKTREE"
 # ── 2. Verify environment ───────────────────────────
 echo ""
 echo "── 2. Environment check"
-ensure_env_symlink "$WORKTREE"
-if [[ -f "$WORKTREE/scripts/verify-env.sh" ]]; then
-  bash "$WORKTREE/scripts/verify-env.sh" && \
-    echo -e "${PASS} verify-env.sh passed" || \
-    { echo -e "${FAIL} verify-env.sh failed. Fix before proceeding."; exit 1; }
+if [[ "$ORIENT_ONLY" -eq 1 ]]; then
+  echo -e "${INFO} Orient-only mode: skipping .env.local repair and verify-env.sh."
+  echo "   Use the default session-start path before editing code."
 else
-  echo -e "${INFO} verify-env.sh not found, skipping"
+  ensure_env_symlink "$WORKTREE"
+  if [[ -f "$WORKTREE/scripts/verify-env.sh" ]]; then
+    bash "$WORKTREE/scripts/verify-env.sh" && \
+      echo -e "${PASS} verify-env.sh passed" || \
+      { echo -e "${FAIL} verify-env.sh failed. Fix before proceeding."; exit 1; }
+  else
+    echo -e "${INFO} verify-env.sh not found, skipping"
+  fi
 fi
 
 # ── 3. Git context ──────────────────────────────────
@@ -142,9 +168,17 @@ echo -e "${INFO} The required startup docs were rendered above."
 echo -e "${INFO} Load only the task-specific docs routed by docs/ai-instructions.md before coding."
 echo -e "${INFO} Use .ai/SESSION-LOG.md only for recent handoff context."
 echo -e "${INFO} Use .ai/JOURNAL-ARCHIVE.md only for historical investigation."
+if [[ "$ORIENT_ONLY" -eq 1 ]]; then
+  echo -e "${INFO} Orient-only mode is for report-only, docs-only, or review work."
+fi
 
 echo ""
 echo "╔══════════════════════════════════════════════╗"
-echo "║  Session ready. State your task and wait    ║"
-echo "║  for plan approval before writing code.     ║"
+if [[ "$ORIENT_ONLY" -eq 1 ]]; then
+  echo "║   Context loaded for read-only work. Use    ║"
+  echo "║   full session-start before editing code.   ║"
+else
+  echo "║  Session ready. State your task and wait    ║"
+  echo "║  for plan approval before writing code.     ║"
+fi
 echo "╚══════════════════════════════════════════════╝"

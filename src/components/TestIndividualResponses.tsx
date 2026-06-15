@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { getQuizExitCount } from '@/lib/quizzes'
+import { getTestExitCount } from '@/lib/tests'
 import { Button, Input } from '@/ui'
-import type { QuizFocusSummary } from '@/types'
+import type { TestFocusSummary } from '@/types'
 
 interface QuestionInfo {
   id: string
@@ -30,11 +30,12 @@ interface Responder {
   name: string | null
   email: string
   answers: Record<string, number | TestAnswerDetail>
-  focus_summary: QuizFocusSummary | null
+  focus_summary: TestFocusSummary | null
 }
 
 interface Props {
-  quizId: string
+  testId?: string
+  quizId?: string
   apiBasePath?: string
   assessmentType?: 'quiz' | 'test'
   onUpdated?: () => void
@@ -79,13 +80,20 @@ function toTestAnswerDetail(answer: number | TestAnswerDetail | undefined): Test
 }
 
 export function TestIndividualResponses({
+  testId: testIdProp,
   quizId,
   apiBasePath = '/api/teacher/tests',
   assessmentType = 'test',
   onUpdated,
 }: Props) {
+  const resolvedTestId = testIdProp ?? quizId
+  if (!resolvedTestId) {
+    throw new Error('TestIndividualResponses requires testId')
+  }
+  const testId: string = resolvedTestId
+
   const isTestsView = assessmentType === 'test'
-  const scope = `${assessmentType}:${apiBasePath}:${quizId}`
+  const scope = `${assessmentType}:${apiBasePath}:${testId}`
   const [dataState, setDataState] = useState<ResponsesDataState | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorState, setErrorState] = useState<ScopedMessageState | null>(null)
@@ -116,7 +124,7 @@ export function TestIndividualResponses({
     setErrorState(null)
     try {
       // Bypass fetchJSONWithCache for selected assessment responses freshness; request ids guard stale responses.
-      const res = await fetch(`${apiBasePath}/${quizId}/results`)
+      const res = await fetch(`${apiBasePath}/${testId}/results`)
       const data = await res.json()
       if (loadRequestIdRef.current !== requestId || currentScopeRef.current !== requestedScope) return
       if (!res.ok) throw new Error(data.error || 'Failed to load')
@@ -157,7 +165,7 @@ export function TestIndividualResponses({
         setLoading(false)
       }
     }
-  }, [apiBasePath, isTestsView, quizId, scope])
+  }, [apiBasePath, isTestsView, testId, scope])
 
   useEffect(() => {
     void load()
@@ -187,7 +195,7 @@ export function TestIndividualResponses({
     setGradingMessageState(null)
     setSuggestingResponseId(responseId)
     try {
-      const res = await fetch(`${apiBasePath}/${quizId}/responses/${responseId}/ai-suggest`, {
+      const res = await fetch(`${apiBasePath}/${testId}/responses/${responseId}/ai-suggest`, {
         method: 'POST',
       })
       const data = await res.json()
@@ -235,7 +243,7 @@ export function TestIndividualResponses({
     setGradingMessageState(null)
     setSavingResponseId(responseId)
     try {
-      const res = await fetch(`${apiBasePath}/${quizId}/responses/${responseId}`, {
+      const res = await fetch(`${apiBasePath}/${testId}/responses/${responseId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -272,7 +280,7 @@ export function TestIndividualResponses({
     setGradingMessageState(null)
     setSavingResponseId(responseId)
     try {
-      const res = await fetch(`${apiBasePath}/${quizId}/responses/${responseId}`, {
+      const res = await fetch(`${apiBasePath}/${testId}/responses/${responseId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clear_grade: true }),
@@ -355,7 +363,7 @@ export function TestIndividualResponses({
             </button>
             {student.focus_summary && (
               <p className="ml-4 mt-0.5 text-xs text-text-muted">
-                Exits: {getQuizExitCount(student.focus_summary)} · Away time:{' '}
+                Exits: {getTestExitCount(student.focus_summary)} · Away time:{' '}
                 {formatDuration(student.focus_summary.away_total_seconds)}
               </p>
             )}

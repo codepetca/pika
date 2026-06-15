@@ -7,7 +7,6 @@ import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
-import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import {
   DataTable,
   DataTableBody,
@@ -76,24 +75,6 @@ function normalizeRosterRows(raw: any[]): RosterRow[] {
   })
 }
 
-function getRosterName(row: RosterRow): string {
-  return [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email
-}
-
-function formatRosterDate(iso: string | null): string {
-  if (!iso) return '—'
-  try {
-    return new Intl.DateTimeFormat('en-CA', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      timeZone: 'America/Toronto',
-    }).format(new Date(iso))
-  } catch {
-    return iso
-  }
-}
-
 function JoinSourceBadge({ source }: { source: RosterJoinSource }) {
   if (source !== 'open_join') return null
 
@@ -120,7 +101,6 @@ export function TeacherRosterTab({ classroom }: Props) {
   } | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
   const [selectedRosterId, setSelectedRosterId] = useState<string | null>(null)
-  const [detailPaneWidth, setDetailPaneWidth] = useState(50)
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const loadRequestIdRef = useRef(0)
   const currentClassroomIdRef = useRef(classroom.id)
@@ -533,271 +513,170 @@ export function TeacherRosterTab({ classroom }: Props) {
     />
   )
 
-  const detailPane = selectedRosterRow ? (
-    <div className="space-y-4 p-4">
-      <div className="rounded-md border border-border bg-surface-2 p-3">
-        <div className="text-xs text-text-muted">Student email</div>
-        <div className="mt-1 break-all text-sm font-medium text-text-default">{selectedRosterRow.email}</div>
-      </div>
-      <div className="grid gap-3 text-sm sm:grid-cols-2">
-        <div>
-          <div className="text-xs text-text-muted">First</div>
-          <div className="text-text-default">{selectedRosterRow.first_name || '—'}</div>
-        </div>
-        <div>
-          <div className="text-xs text-text-muted">Last</div>
-          <div className="text-text-default">{selectedRosterRow.last_name || '—'}</div>
-        </div>
-        <div>
-          <div className="text-xs text-text-muted">Student number</div>
-          <div className="text-text-default">{selectedRosterRow.student_number || '—'}</div>
-        </div>
-        <div>
-          <div className="text-xs text-text-muted">Joined</div>
-          <div className="text-text-default">{selectedRosterRow.joined ? 'Yes' : 'No'}</div>
-        </div>
-        <div>
-          <div className="text-xs text-text-muted">Source</div>
-          <div className="text-text-default">
-            {selectedRosterRow.join_source === 'open_join' ? 'Open join' : selectedRosterRow.join_source === 'csv' ? 'CSV' : 'Manual'}
-          </div>
-        </div>
-      </div>
-      <div>
-        <div className="text-xs text-text-muted">Counselor</div>
-        <div className="break-all text-sm text-text-default">{selectedRosterRow.counselor_email || '—'}</div>
-      </div>
-      <div className="grid gap-3 text-sm sm:grid-cols-2">
-        <div>
-          <div className="text-xs text-text-muted">Added</div>
-          <div className="text-text-default">{formatRosterDate(selectedRosterRow.created_at)}</div>
-        </div>
-        <div>
-          <div className="text-xs text-text-muted">Joined at</div>
-          <div className="text-text-default">{formatRosterDate(selectedRosterRow.joined_at)}</div>
-        </div>
-      </div>
-    </div>
-  ) : (
-    <div className="space-y-4 p-4">
-      <div className="rounded-md border border-border bg-surface-2 p-3">
-        <div className="text-xs text-text-muted">Roster size</div>
-        <div className="mt-1 text-lg font-semibold text-text-default">{sortedRoster.length}</div>
-      </div>
-      <div className="grid gap-3 text-sm sm:grid-cols-2">
-        <div>
-          <div className="text-xs text-text-muted">Joined</div>
-          <div className="text-text-default">{joinedCount}</div>
-        </div>
-        <div>
-          <div className="text-xs text-text-muted">Not joined</div>
-          <div className="text-text-default">{Math.max(sortedRoster.length - joinedCount, 0)}</div>
-        </div>
-        <div>
-          <div className="text-xs text-text-muted">Selected</div>
-          <div className="text-text-default">{selectedIds.size}</div>
-        </div>
-        <div>
-          <div className="text-xs text-text-muted">Counselors</div>
-          <div className="text-text-default">{sortedRoster.filter((row) => row.counselor_email).length}</div>
-        </div>
-      </div>
-    </div>
-  )
-
   const workspace = isRosterLoading ? (
     <div className="flex flex-1 justify-center py-12">
       <Spinner size="lg" />
     </div>
   ) : (
-    <TeacherWorkspaceSplit
-      className="flex-1"
-      splitVariant="gapped"
-      primaryClassName="min-h-[200px] rounded-lg bg-surface"
-      inspectorClassName="flex flex-col rounded-lg bg-surface"
-      inspectorCollapsed={false}
-      inspectorWidth={detailPaneWidth}
-      minInspectorPx={280}
-      minPrimaryPx={320}
-      minInspectorPercent={28}
-      maxInspectorPercent={72}
-      defaultInspectorWidth={50}
-      onInspectorWidthChange={setDetailPaneWidth}
-      dividerLabel="Resize Roster panes"
-      primary={
-        <div
-          ref={rosterTableScrollRef}
-          className="h-full min-h-0 overflow-auto"
-          data-testid="roster-student-scroll-pane"
-          onScroll={preserveRosterTableScrollPosition}
-        >
-          <TableCard chrome="flush" overflowX>
-            {error && (
-              <div className="p-3 border-b border-border">
-                <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-                  {error}
-                </div>
-              </div>
-            )}
+    <div
+      ref={rosterTableScrollRef}
+      className="min-h-[200px] flex-1 overflow-auto rounded-lg bg-surface"
+      data-testid="roster-student-scroll-pane"
+      onScroll={preserveRosterTableScrollPosition}
+    >
+      <TableCard chrome="flush" overflowX>
+        {error && (
+          <div className="border-b border-border p-3">
+            <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+              {error}
+            </div>
+          </div>
+        )}
 
-            <KeyboardNavigableTable
-              rowKeys={rosterIds}
-              selectedKey={selectedRosterId}
-              onSelectKey={selectRosterId}
-              onDeselect={() => selectRosterId(null)}
-            >
-              <DataTable density="tight">
-                <DataTableHead>
-                  <DataTableRow>
-                    <DataTableHeaderCell className="w-10">
+        <KeyboardNavigableTable
+          rowKeys={rosterIds}
+          selectedKey={selectedRosterId}
+          onSelectKey={selectRosterId}
+          onDeselect={() => selectRosterId(null)}
+        >
+          <DataTable density="tight">
+            <DataTableHead>
+              <DataTableRow>
+                <DataTableHeaderCell className="w-10">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                    aria-label="Select all students"
+                  />
+                </DataTableHeaderCell>
+                <SortableHeaderCell
+                  label="First"
+                  isActive={sortColumn === 'first_name'}
+                  direction={sortDirection}
+                  onClick={() => onSort('first_name')}
+                  trailing={sortedRoster.length > 0 ? <StudentCountBadge count={sortedRoster.length} variant="neutral" /> : undefined}
+                />
+                <SortableHeaderCell
+                  label="Last"
+                  isActive={sortColumn === 'last_name'}
+                  direction={sortDirection}
+                  onClick={() => onSort('last_name')}
+                />
+                <DataTableHeaderCell className="hidden md:table-cell">Email</DataTableHeaderCell>
+                <DataTableHeaderCell className="hidden lg:table-cell">Counselor</DataTableHeaderCell>
+                <DataTableHeaderCell align="center">
+                  <span className="flex items-center justify-center gap-2">
+                    Joined
+                    <CountBadge count={joinedCount} tooltip={`${joinedCount} ${joinedCount === 1 ? 'student' : 'students'} joined`} variant="success" />
+                  </span>
+                </DataTableHeaderCell>
+              </DataTableRow>
+            </DataTableHead>
+            <DataTableBody>
+              {sortedRoster.map((row) => {
+                const isSelected = row.id === selectedRosterId
+                return (
+                  <DataTableRow
+                    key={row.id}
+                    className={[
+                      'cursor-pointer transition-colors',
+                      isSelected ? 'bg-info-bg hover:bg-info-bg-hover' : 'hover:bg-surface-hover',
+                    ].join(' ')}
+                    onClick={(event) => {
+                      if ((event.target as HTMLElement).closest('button,input,a')) return
+                      selectRosterId(isSelected ? null : row.id)
+                    }}
+                  >
+                    <DataTableCell>
                       <input
                         type="checkbox"
-                        checked={allSelected}
-                        onChange={toggleSelectAll}
+                        checked={selectedIds.has(row.id)}
+                        onChange={() => toggleSelect(row.id)}
                         className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                        aria-label="Select all students"
+                        aria-label={`Select ${row.first_name ?? ''} ${row.last_name ?? ''}`}
                       />
-                    </DataTableHeaderCell>
-                    <SortableHeaderCell
-                      label="First"
-                      isActive={sortColumn === 'first_name'}
-                      direction={sortDirection}
-                      onClick={() => onSort('first_name')}
-                      trailing={sortedRoster.length > 0 ? <StudentCountBadge count={sortedRoster.length} variant="neutral" /> : undefined}
-                    />
-                    <SortableHeaderCell
-                      label="Last"
-                      isActive={sortColumn === 'last_name'}
-                      direction={sortDirection}
-                      onClick={() => onSort('last_name')}
-                    />
-                    <DataTableHeaderCell className="hidden md:table-cell">Email</DataTableHeaderCell>
-                    <DataTableHeaderCell className="hidden lg:table-cell">Counselor</DataTableHeaderCell>
-                    <DataTableHeaderCell align="center">
-                      <span className="flex items-center justify-center gap-2">
-                        Joined
-                        <CountBadge count={joinedCount} tooltip={`${joinedCount} ${joinedCount === 1 ? 'student' : 'students'} joined`} variant="success" />
-                      </span>
-                    </DataTableHeaderCell>
-                  </DataTableRow>
-                </DataTableHead>
-                <DataTableBody>
-                  {sortedRoster.map((row) => {
-                    const isSelected = row.id === selectedRosterId
-                    return (
-                      <DataTableRow
-                        key={row.id}
-                        className={[
-                          'cursor-pointer transition-colors',
-                          isSelected ? 'bg-info-bg hover:bg-info-bg-hover' : 'hover:bg-surface-hover',
-                        ].join(' ')}
-                        onClick={(event) => {
-                          if ((event.target as HTMLElement).closest('button,input,a')) return
-                          selectRosterId(isSelected ? null : row.id)
-                        }}
-                      >
-                        <DataTableCell>
+                    </DataTableCell>
+                    <DataTableCell>{row.first_name ?? '—'}</DataTableCell>
+                    <DataTableCell>{row.last_name ?? '—'}</DataTableCell>
+                    <DataTableCell className="hidden text-text-muted md:table-cell">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="truncate">{row.email}</span>
+                        <JoinSourceBadge source={row.join_source} />
+                      </div>
+                    </DataTableCell>
+                    <DataTableCell className="hidden text-text-muted lg:table-cell">
+                      {editingCounselorId === row.id ? (
+                        <div className="flex items-center gap-1">
                           <input
-                            type="checkbox"
-                            checked={selectedIds.has(row.id)}
-                            onChange={() => toggleSelect(row.id)}
-                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                            aria-label={`Select ${row.first_name ?? ''} ${row.last_name ?? ''}`}
+                            type="email"
+                            value={editingCounselorValue}
+                            onChange={(e) => setEditingCounselorValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveCounselorEmail(row.id)
+                              if (e.key === 'Escape') cancelEditingCounselor()
+                            }}
+                            className="w-32 rounded border border-border bg-surface px-2 py-1 text-sm text-text-default"
+                            placeholder="counselor@..."
+                            autoFocus
+                            disabled={isSavingCounselor}
                           />
-                        </DataTableCell>
-                        <DataTableCell>{row.first_name ?? '—'}</DataTableCell>
-                        <DataTableCell>{row.last_name ?? '—'}</DataTableCell>
-                        <DataTableCell className="hidden text-text-muted md:table-cell">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span className="truncate">{row.email}</span>
-                            <JoinSourceBadge source={row.join_source} />
-                          </div>
-                        </DataTableCell>
-                        <DataTableCell className="hidden text-text-muted lg:table-cell">
-                          {editingCounselorId === row.id ? (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="email"
-                                value={editingCounselorValue}
-                                onChange={(e) => setEditingCounselorValue(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') saveCounselorEmail(row.id)
-                                  if (e.key === 'Escape') cancelEditingCounselor()
-                                }}
-                                className="w-32 rounded border border-border bg-surface px-2 py-1 text-sm text-text-default"
-                                placeholder="counselor@..."
-                                autoFocus
-                                disabled={isSavingCounselor}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => saveCounselorEmail(row.id)}
-                                disabled={isSavingCounselor}
-                                className="text-success hover:text-success-hover"
-                                aria-label="Save"
-                              >
-                                <Check className="h-4 w-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={cancelEditingCounselor}
-                                disabled={isSavingCounselor}
-                                className="text-text-muted hover:text-text-default"
-                                aria-label="Cancel"
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
-                            </div>
+                          <button
+                            type="button"
+                            onClick={() => saveCounselorEmail(row.id)}
+                            disabled={isSavingCounselor}
+                            className="text-success hover:text-success-hover"
+                            aria-label="Save"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEditingCounselor}
+                            disabled={isSavingCounselor}
+                            className="text-text-muted hover:text-text-default"
+                            aria-label="Cancel"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => startEditingCounselor(row)}
+                          disabled={isReadOnly}
+                          className={`flex items-center gap-1 text-left ${
+                            isReadOnly ? 'cursor-not-allowed opacity-50' : 'hover:text-text-default'
+                          }`}
+                        >
+                          {row.counselor_email ? (
+                            <span className="truncate max-w-[120px]" title={row.counselor_email}>
+                              {row.counselor_email}
+                            </span>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => startEditingCounselor(row)}
-                              disabled={isReadOnly}
-                              className={`flex items-center gap-1 text-left ${
-                                isReadOnly ? 'cursor-not-allowed opacity-50' : 'hover:text-text-default'
-                              }`}
-                            >
-                              {row.counselor_email ? (
-                                <span className="truncate max-w-[120px]" title={row.counselor_email}>
-                                  {row.counselor_email}
-                                </span>
-                              ) : (
-                                <span className="text-text-muted italic">Add</span>
-                              )}
-                              {!isReadOnly && <Pencil className="h-3 w-3 flex-shrink-0" />}
-                            </button>
+                            <span className="text-text-muted italic">Add</span>
                           )}
-                        </DataTableCell>
-                        <DataTableCell align="center">
-                          {row.joined && (
-                            <Check className="mx-auto h-5 w-5 text-success" aria-hidden="true" />
-                          )}
-                        </DataTableCell>
-                      </DataTableRow>
-                    )
-                  })}
-                  {sortedRoster.length === 0 && (
-                    <EmptyStateRow colSpan={6} message="No students on the roster" />
-                  )}
-                </DataTableBody>
-              </DataTable>
-            </KeyboardNavigableTable>
-          </TableCard>
-        </div>
-      }
-      inspector={
-        <>
-          <div className="flex min-h-10 items-center border-b border-border px-3 py-2">
-            <span className="truncate text-sm font-semibold text-text-default">
-              {selectedRosterRow ? getRosterName(selectedRosterRow) : 'Roster Summary'}
-            </span>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {detailPane}
-          </div>
-        </>
-      }
-    />
+                          {!isReadOnly && <Pencil className="h-3 w-3 flex-shrink-0" />}
+                        </button>
+                      )}
+                    </DataTableCell>
+                    <DataTableCell align="center">
+                      {row.joined && (
+                        <Check className="mx-auto h-5 w-5 text-success" aria-hidden="true" />
+                      )}
+                    </DataTableCell>
+                  </DataTableRow>
+                )
+              })}
+              {sortedRoster.length === 0 && (
+                <EmptyStateRow colSpan={6} message="No students on the roster" />
+              )}
+            </DataTableBody>
+          </DataTable>
+        </KeyboardNavigableTable>
+      </TableCard>
+    </div>
   )
 
   return (

@@ -8,11 +8,12 @@ import {
   isMissingTestAttemptReturnColumnsError,
   isMissingTestStudentAvailabilityError,
 } from '@/lib/server/tests'
-import { getStudentTestStatus } from '@/lib/quizzes'
+import { getStudentTestStatus } from '@/lib/tests'
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
-import type { Quiz } from '@/types'
+import { withLegacyQuizListKey } from '@/lib/test-api-contract'
+import type { TestAssessment } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -47,7 +48,7 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
 
   if (activeError) {
     if (activeError.code === 'PGRST205') {
-      return NextResponse.json({ quizzes: [], migration_required: true })
+      return NextResponse.json({ ...withLegacyQuizListKey([]), migration_required: true })
     }
     console.error('Error fetching active tests:', activeError)
     return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
@@ -218,7 +219,7 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
 
   const allTests = [...visibleActiveTests, ...visibleClosedTests]
 
-  const testsWithStatus = allTests.map((test: Quiz) => {
+  const testsWithStatus = allTests.map((test: TestAssessment) => {
     const hasResponded = respondedTestIds.has(test.id)
     const isReturned = returnedTestIds.has(test.id)
     const access = getEffectiveStudentTestAccess({
@@ -245,6 +246,5 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
     }
   })
 
-  // Keep response key as `quizzes` for current UI component compatibility.
-  return NextResponse.json({ quizzes: testsWithStatus })
+  return NextResponse.json(withLegacyQuizListKey(testsWithStatus))
 })

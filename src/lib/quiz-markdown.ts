@@ -1,12 +1,12 @@
-import { validateQuizOptions } from '@/lib/quizzes'
-import type { QuizDraftContent, QuizDraftQuestion } from '@/lib/server/assessment-drafts'
+import { validateAssessmentOptions } from '@/lib/assessments'
+import type { AssessmentDraftContent, AssessmentDraftQuestion } from '@/lib/server/assessment-drafts'
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const FIELD_KEYS = new Set(['id', 'prompt', 'options', 'show results', 'title'])
 
-export interface QuizMarkdownSerializeInput {
+export interface AssessmentMarkdownSerializeInput {
   title: string
   show_results: boolean
   questions: Array<{
@@ -16,15 +16,21 @@ export interface QuizMarkdownSerializeInput {
   }>
 }
 
-export interface QuizMarkdownParseOptions {
+export type QuizMarkdownSerializeInput = AssessmentMarkdownSerializeInput
+
+export interface AssessmentMarkdownParseOptions {
   defaultShowResults?: boolean
   existingQuestions?: Array<{ id: string }>
 }
 
-export interface QuizMarkdownParseResult {
-  draftContent: QuizDraftContent | null
+export type QuizMarkdownParseOptions = AssessmentMarkdownParseOptions
+
+export interface AssessmentMarkdownParseResult {
+  draftContent: AssessmentDraftContent | null
   errors: string[]
 }
+
+export type QuizMarkdownParseResult = AssessmentMarkdownParseResult
 
 function normalizeLineEndings(markdown: string): string[] {
   return markdown.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
@@ -139,9 +145,9 @@ function splitQuestionBlocks(lines: string[]): Array<{ heading: string; lines: s
 function parseQuestionBlock(
   blockLines: string[],
   index: number,
-  options: QuizMarkdownParseOptions,
+  options: AssessmentMarkdownParseOptions,
   errors: string[]
-): QuizDraftQuestion | null {
+): AssessmentDraftQuestion | null {
   let id: string | undefined
   let prompt = ''
   let choices: string[] = []
@@ -186,7 +192,7 @@ function parseQuestionBlock(
   }
 
   if (!prompt.trim()) errors.push(`${label}: Prompt is required`)
-  const optionsValidation = validateQuizOptions(choices)
+  const optionsValidation = validateAssessmentOptions(choices)
   if (!optionsValidation.valid) {
     errors.push(`${label}: ${optionsValidation.error || 'Invalid options'}`)
   }
@@ -199,7 +205,7 @@ function parseQuestionBlock(
   }
 }
 
-export function quizToMarkdown(input: QuizMarkdownSerializeInput): string {
+export function assessmentToMarkdown(input: AssessmentMarkdownSerializeInput): string {
   const lines: string[] = [
     '# Quiz',
     `Title: ${input.title}`,
@@ -218,10 +224,12 @@ export function quizToMarkdown(input: QuizMarkdownSerializeInput): string {
   return `${lines.join('\n').trimEnd()}\n`
 }
 
-export function markdownToQuiz(
+export const quizToMarkdown = assessmentToMarkdown
+
+export function markdownToAssessment(
   markdown: string,
-  options: QuizMarkdownParseOptions = {}
-): QuizMarkdownParseResult {
+  options: AssessmentMarkdownParseOptions = {}
+): AssessmentMarkdownParseResult {
   const lines = normalizeLineEndings(markdown)
   const errors: string[] = []
   let title = ''
@@ -253,7 +261,7 @@ export function markdownToQuiz(
   const questionBlocks = splitQuestionBlocks(lines)
   const questions = questionBlocks
     .map((block, questionIndex) => parseQuestionBlock(block.lines, questionIndex, options, errors))
-    .filter((question): question is QuizDraftQuestion => Boolean(question))
+    .filter((question): question is AssessmentDraftQuestion => Boolean(question))
 
   if (questions.length === 0) errors.push('At least one question is required')
 
@@ -272,3 +280,5 @@ export function markdownToQuiz(
     errors: [],
   }
 }
+
+export const markdownToQuiz = markdownToAssessment
