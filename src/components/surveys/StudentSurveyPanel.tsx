@@ -8,7 +8,7 @@ import { FloatingActionCluster } from '@/components/FloatingActionCluster'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { Spinner } from '@/components/Spinner'
 import { SurveyOptionResultBar } from '@/components/surveys/SurveyOptionResultBar'
-import { canStudentRespondToSurvey, canStudentViewSurveyResults, isSurveyHardDueElapsed } from '@/lib/surveys'
+import { canStudentRespondToSurvey, canStudentViewSurveyResults } from '@/lib/surveys'
 import type {
   StudentSurveyStatus,
   Survey,
@@ -261,7 +261,6 @@ export function StudentSurveyPanel({
   const hasSubmitted = activeDetail.has_submitted ?? Object.keys(activeDetail.student_responses || {}).length > 0
   const canViewResults = canStudentViewSurveyResults(survey)
   const dueLabel = formatSurveyDueLabel(survey.due_at)
-  const hardDueElapsed = isSurveyHardDueElapsed(survey)
   const showResponseForm = isEditingResponse || !canViewResults
   const showResults = canViewResults
   const surveyActionFab = canViewResults && canRespond ? (
@@ -288,7 +287,7 @@ export function StudentSurveyPanel({
             <div className="min-w-0">
               <h2 className="text-xl font-semibold text-text-default">{survey.title}</h2>
               <p className="mt-1 text-sm text-text-muted">
-                {dueLabel ? `${hardDueElapsed ? 'Closed at due date' : 'Due'} ${dueLabel}` : 'Survey'}
+                {dueLabel ? `Due ${dueLabel}` : 'Survey'}
               </p>
             </div>
             {hasSubmitted && (
@@ -407,8 +406,6 @@ export function StudentSurveyPanel({
             <p className="border-t border-border pt-4 text-sm text-text-muted">
               {survey.dynamic_responses && survey.status === 'closed'
                 ? 'This survey is closed.'
-                : hardDueElapsed
-                  ? 'Responses closed at the due date.'
                 : 'Your response is locked.'}
             </p>
           ) : canViewResults ? (

@@ -79,16 +79,16 @@ describe('survey utilities', () => {
     expect(canStudentRespondToSurvey(survey, true, new Date('2026-01-02T00:00:00.000Z'))).toBe(true)
   })
 
-  it('blocks responses after a hard due date', () => {
+  it('keeps legacy hard due dates informational while the survey is open', () => {
     const survey = makeSurvey({
       dynamic_responses: true,
       due_at: '2026-01-01T12:00:00.000Z',
       due_policy: 'hard',
     })
 
-    expect(canStudentRespondToSurvey(survey, false, new Date('2026-01-02T00:00:00.000Z'))).toBe(false)
-    expect(canStudentRespondToSurvey(survey, true, new Date('2026-01-02T00:00:00.000Z'))).toBe(false)
-    expect(getStudentSurveyStatus(survey, true, new Date('2026-01-02T00:00:00.000Z'))).toBe('can_view_results')
+    expect(canStudentRespondToSurvey(survey, false, new Date('2026-01-02T00:00:00.000Z'))).toBe(true)
+    expect(canStudentRespondToSurvey(survey, true, new Date('2026-01-02T00:00:00.000Z'))).toBe(true)
+    expect(getStudentSurveyStatus(survey, true, new Date('2026-01-02T00:00:00.000Z'))).toBe('can_update')
   })
 
   it('shows results after a dynamic survey is closed', () => {

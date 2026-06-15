@@ -13,7 +13,7 @@ import { Code, ExternalLink, Eye, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { addDaysToDateString } from '@/lib/date-string'
 import { Button, Card, ConfirmDialog, FormField, Input, Select } from '@/ui'
 import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetupForm'
-import { DateTimeFields, SurveyDuePolicySelect } from '@/components/classwork/ClassworkContentModal'
+import { DateTimeFields } from '@/components/classwork/ClassworkContentModal'
 import { EditableAssessmentTitle } from '@/components/assessment/EditableAssessmentTitle'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { Spinner } from '@/components/Spinner'
@@ -32,13 +32,13 @@ import {
   getTodayInSchedulingTimezone,
   parseScheduleIsoToParts,
 } from '@/lib/scheduling'
-import type { Survey, SurveyDuePolicy, SurveyQuestion, SurveyQuestionResult, SurveyQuestionType } from '@/types'
+import type { Survey, SurveyQuestion, SurveyQuestionResult, SurveyQuestionType } from '@/types'
 
 interface TeacherSurveyWorkspaceProps {
   classroomId: string
   surveyId: string
   isReadOnly?: boolean
-  initialEditMode?: 'edit' | 'markdown'
+  initialEditMode?: 'edit' | 'markdown' | 'preview'
   autoEditTitle?: boolean
   onInitialEditModeConsumed?: () => void
   onBack: () => void
@@ -482,7 +482,6 @@ export function TeacherSurveyWorkspace({
   const [dueSettingSaving, setDueSettingSaving] = useState(false)
   const [dueDate, setDueDate] = useState('')
   const [dueTime, setDueTime] = useState(DEFAULT_SCHEDULE_TIME)
-  const [duePolicy, setDuePolicy] = useState<SurveyDuePolicy>('soft')
   const [titleError, setTitleError] = useState('')
   const [surveyEditMode, setSurveyEditMode] = useState<'edit' | 'markdown' | 'preview'>('edit')
   const [surveyMarkdown, setSurveyMarkdown] = useState('')
@@ -557,7 +556,6 @@ export function TeacherSurveyWorkspace({
       setDueDate(addDaysToDateString(getTodayInSchedulingTimezone(), 1))
       setDueTime(DEFAULT_SCHEDULE_TIME)
     }
-    setDuePolicy(survey.due_policy ?? 'soft')
   }, [survey])
 
   useEffect(() => {
@@ -642,7 +640,7 @@ export function TeacherSurveyWorkspace({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           due_at: combineScheduleDateTimeToIso(dueDate, dueTime),
-          due_policy: duePolicy,
+          due_policy: 'soft',
         }),
       })
       const data = await response.json()
@@ -908,7 +906,7 @@ export function TeacherSurveyWorkspace({
             </div>
           </div>
 
-          <div className="grid gap-3 border-t border-border pt-4 lg:grid-cols-[minmax(0,1fr)_11rem_auto] lg:items-end">
+          <div className="grid gap-3 border-t border-border pt-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <DateTimeFields
               label="Due"
               date={dueDate}
@@ -917,11 +915,6 @@ export function TeacherSurveyWorkspace({
               required
               onDateChange={setDueDate}
               onTimeChange={setDueTime}
-            />
-            <SurveyDuePolicySelect
-              value={duePolicy}
-              disabled={isReadOnly || dueSettingSaving}
-              onChange={setDuePolicy}
             />
             <Button
               type="button"
