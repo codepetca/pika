@@ -205,6 +205,7 @@ vi.mock('@/components/surveys/TeacherSurveyWorkspace', () => ({
   TeacherSurveyWorkspace: ({
     surveyId,
     initialEditMode,
+    previewOnly,
     autoEditTitle,
     onBack,
     onQuestionCountChanged,
@@ -212,6 +213,7 @@ vi.mock('@/components/surveys/TeacherSurveyWorkspace', () => ({
     <div data-testid="mock-survey-workspace">
       Survey workspace {surveyId}
       {initialEditMode ? ` mode ${initialEditMode}` : ''}
+      {previewOnly ? ' preview only' : ''}
       {autoEditTitle ? ' auto title' : ''}
       <button type="button" onClick={() => onQuestionCountChanged?.(surveyId, 1)}>
         Mock add survey question
@@ -1390,6 +1392,53 @@ describe('TeacherClassroomView', () => {
     const { params } = applySearchParamsUpdate(updateSearchParams.mock.calls[0])
     expect(params.get('surveyId')).toBeNull()
     expect(params.get('assignmentId')).toBeNull()
+  })
+
+  it('opens a draft survey preview as a student-only workspace', async () => {
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return Promise.resolve({
+          assignments: [
+            makeAssignmentSummary('assignment-1', 'Assignment One'),
+          ],
+        })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
+      if (key === `class-days:${classroom.id}`) {
+        return Promise.resolve({ class_days: [] })
+      }
+      return fetcher()
+    })
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        survey: makeSurveySummary('survey-preview', 'Exit ticket'),
+      }),
+    })
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await screen.findByRole('button', { name: 'Assignment One' })
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: /Survey/ }))
+
+    const createDialog = await screen.findByRole('dialog')
+    await within(createDialog).findByRole('button', { name: 'Preview' })
+    fireEvent.change(within(createDialog).getByPlaceholderText('Enter survey title'), {
+      target: { value: 'Exit ticket' },
+    })
+    fireEvent.click(within(createDialog).getByRole('button', { name: 'Preview' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-survey-workspace')).toHaveTextContent(
+        'Survey workspace survey-preview mode preview preview only',
+      )
+    })
   })
 
   it('auto-creates a draft material and removes the manual Save Draft action', async () => {
