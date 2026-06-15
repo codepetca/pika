@@ -532,6 +532,61 @@ describe('TeacherSurveyWorkspace', () => {
     )
   })
 
+  it('renders setup previews as student-only preview content', async () => {
+    fetchMock.mockImplementation(async (url: string | URL) => {
+      const href = String(url)
+      if (href.endsWith('/results')) {
+        return {
+          ok: true,
+          json: async () => ({
+            results: [],
+            stats: { total_students: 0, responded: 0 },
+          }),
+        }
+      }
+
+      return {
+        ok: true,
+        json: async () => ({
+          survey: makeSurvey({ title: 'Exit Ticket' }),
+          questions: [
+            {
+              id: 'question-1',
+              survey_id: 'survey-1',
+              question_type: 'short_text',
+              question_text: 'What should we revisit?',
+              options: [],
+              response_max_chars: 500,
+              position: 0,
+              created_at: '2026-01-01T00:00:00.000Z',
+              updated_at: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        }),
+      }
+    })
+
+    render(
+      <TeacherSurveyWorkspace
+        classroomId="classroom-1"
+        surveyId="survey-1"
+        initialEditMode="preview"
+        previewOnly
+        onBack={vi.fn()}
+        onSurveyUpdated={vi.fn()}
+        onSurveyDeleted={vi.fn()}
+      />
+    )
+
+    expect(await screen.findByText('Student preview')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Exit Ticket' })).toBeInTheDocument()
+    expect(screen.getByText('What should we revisit?')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Allow live changes')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Code' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save due' })).not.toBeInTheDocument()
+  })
+
   it('saves editable response changes from the authoring workspace', async () => {
     let surveyState = makeSurvey({ dynamic_responses: true })
     const onSurveyUpdated = vi.fn()
