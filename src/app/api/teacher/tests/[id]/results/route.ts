@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { aggregateResults, summarizeQuizFocusEvents } from '@/lib/quizzes'
+import { aggregateTestResults, summarizeTestFocusEvents } from '@/lib/tests'
 import {
   assertTeacherOwnsTest,
   getEffectiveStudentTestAccess,
@@ -13,8 +13,14 @@ import { getClassroomStudentIds } from '@/lib/server/classrooms'
 import { loadChunkedRows } from '@/lib/server/query-chunks'
 import { getActiveTestAiGradingRunSummary } from '@/lib/server/test-ai-grading-runs'
 import { normalizeTestResponses } from '@/lib/test-attempts'
-import type { QuizFocusSummary, QuizQuestion, QuizResponse, TestStudentAvailabilityState } from '@/types'
+import type {
+  TestAssessmentQuestion,
+  TestAssessmentResponse,
+  TestFocusSummary,
+  TestStudentAvailabilityState,
+} from '@/types'
 import { withErrorHandler } from '@/lib/api-handler'
+import { withLegacyQuizKey } from '@/lib/test-api-contract'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -454,7 +460,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     }
   }
 
-  const focusSummaryByStudent = new Map<string, QuizFocusSummary>()
+  const focusSummaryByStudent = new Map<string, TestFocusSummary>()
   if (classroomStudentIds.length > 0) {
     const { rows: focusEvents, error: focusEventsError } = await loadFocusEvents(supabase, testId, classroomStudentIds)
     if (focusEventsError) {
@@ -470,7 +476,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     }
 
     for (const [studentId, events] of grouped) {
-      focusSummaryByStudent.set(studentId, summarizeQuizFocusEvents(events))
+      focusSummaryByStudent.set(studentId, summarizeTestFocusEvents(events))
     }
   }
 
@@ -607,11 +613,11 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
       student_id: response.student_id,
       selected_option: response.selected_option,
       submitted_at: response.submitted_at,
-    } satisfies QuizResponse]
+    } satisfies TestAssessmentResponse]
   })
 
-  const aggregated = aggregateResults(
-    multipleChoiceQuestions as QuizQuestion[],
+  const aggregated = aggregateTestResults(
+    multipleChoiceQuestions as TestAssessmentQuestion[],
     multipleChoiceResponses
   )
 
@@ -633,14 +639,16 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     }
   }
 
+  const responseTest = {
+    id: test.id,
+    title: test.title,
+    assessment_type: 'test' as const,
+    status: test.status,
+    show_results: test.show_results,
+  }
+
   return NextResponse.json({
-    quiz: {
-      id: test.id,
-      title: test.title,
-      assessment_type: 'test' as const,
-      status: test.status,
-      show_results: test.show_results,
-    },
+    ...withLegacyQuizKey(responseTest),
     questions: (questions || []).map((q) => ({
       id: q.id,
       question_type: q.question_type === 'open_response' ? 'open_response' : 'multiple_choice',

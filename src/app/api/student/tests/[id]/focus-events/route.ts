@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
-import { summarizeQuizFocusEvents } from '@/lib/quizzes'
+import { summarizeTestFocusEvents } from '@/lib/tests'
 import {
   assertStudentCanAccessTest,
   getEffectiveStudentTestAccess,
@@ -9,12 +9,12 @@ import {
 import { getServiceRoleClient } from '@/lib/supabase'
 import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
-import type { QuizFocusEventType } from '@/types'
+import type { TestFocusEventType } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const ALLOWED_EVENT_TYPES: QuizFocusEventType[] = [
+const ALLOWED_EVENT_TYPES: TestFocusEventType[] = [
   'away_start',
   'away_end',
   'route_exit_attempt',
@@ -27,7 +27,7 @@ export const POST = withErrorHandler('PostStudentTestFocusEvent', async (request
   const { id: testId } = await context.params
   const body = await request.json()
 
-  const eventType = body?.event_type as QuizFocusEventType | undefined
+  const eventType = body?.event_type as TestFocusEventType | undefined
   const sessionId = String(body?.session_id || '').trim()
 
   if (!eventType || !ALLOWED_EVENT_TYPES.includes(eventType)) {
@@ -146,6 +146,6 @@ export const POST = withErrorHandler('PostStudentTestFocusEvent', async (request
 
   return NextResponse.json({
     success: true,
-    focus_summary: summarizeQuizFocusEvents(events || []),
+    focus_summary: summarizeTestFocusEvents(events || []),
   })
 })

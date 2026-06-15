@@ -140,6 +140,11 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
         teacher_cleared_at: now,
         returned_at: now,
         feedback_returned_at: now,
+        teacher_feedback_draft: null,
+        teacher_feedback_draft_updated_at: null,
+        ai_feedback_suggestion: null,
+        ai_feedback_suggested_at: null,
+        ai_feedback_model: null,
       },
     })
 
@@ -153,6 +158,11 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
           is_submitted: false,
           returned_at: now,
           feedback_returned_at: now,
+          teacher_feedback_draft: null,
+          teacher_feedback_draft_updated_at: null,
+          ai_feedback_suggestion: null,
+          ai_feedback_suggested_at: null,
+          ai_feedback_model: null,
         },
       })
     }

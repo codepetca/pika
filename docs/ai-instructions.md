@@ -1,29 +1,28 @@
 # AI Instructions for Pika
 
-This file is the AI routing layer for the repo. Use it after `.ai/START-HERE.md`.
-
-For worktree creation, cleanup, and shared `.env.local` setup, use [`docs/dev-workflow.md`](./dev-workflow.md). Do not duplicate those setup steps elsewhere.
+Routing layer for repo agents. Use it after `.ai/START-HERE.md`.
+Worktree creation, cleanup, and shared `.env.local` setup live in [`docs/dev-workflow.md`](./dev-workflow.md).
 
 ## Default Startup Context
-
-Read these files at the start of every session:
 
 1. [`.ai/START-HERE.md`](../.ai/START-HERE.md)
 2. [`.ai/CURRENT.md`](../.ai/CURRENT.md)
 3. [`.ai/features.json`](../.ai/features.json)
 4. [`docs/ai-instructions.md`](./ai-instructions.md)
 
-Do not tail `.ai/JOURNAL-ARCHIVE.md` by default. Use `.ai/SESSION-LOG.md` only for recent handoff context; after each append, immediately run `node scripts/trim-session-log.mjs`.
+Do not tail `.ai/JOURNAL-ARCHIVE.md` by default. Use `.ai/SESSION-LOG.md` only for recent handoff; after each append, run `node scripts/trim-session-log.mjs`.
 
 ## Load Only The Docs You Need
 
-After the startup set above, load task-specific docs:
+After startup, load only task-specific docs:
 
 | Task | Read next |
 |---|---|
 | Any non-trivial code change | [`docs/core/architecture.md`](./core/architecture.md) |
-| UI or UX work | [`docs/core/design.md`](./core/design.md), [`docs/guidance/ui/README.md`](./guidance/ui/README.md), [`docs/guidance/ui/stable.md`](./guidance/ui/stable.md), [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md) |
-| Teacher assignments or tests work-surface shell/layout work | [`docs/guidance/ui/teacher-work-surfaces.md`](./guidance/ui/teacher-work-surfaces.md), [`docs/guidance/assignment-ux-language.md`](./guidance/assignment-ux-language.md), [`docs/guidance/ui/audit-teacher-work-surfaces.md`](./guidance/ui/audit-teacher-work-surfaces.md) |
+| UI/UX | [`docs/core/design.md`](./core/design.md), [`docs/guidance/ui/README.md`](./guidance/ui/README.md), [`docs/guidance/ui/stable.md`](./guidance/ui/stable.md), [`docs/guidance/ui/change-brief.md`](./guidance/ui/change-brief.md), [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md) |
+| Teacher assignments/tests shell/layout | [`docs/guidance/ui/teacher-work-surfaces.md`](./guidance/ui/teacher-work-surfaces.md), [`docs/guidance/assignment-ux-language.md`](./guidance/assignment-ux-language.md), [`docs/guidance/ui/audit-teacher-work-surfaces.md`](./guidance/ui/audit-teacher-work-surfaces.md) |
+| Migrations, Supabase query-shape, rollout compatibility | [`docs/guidance/schema-rollout-checklist.md`](./guidance/schema-rollout-checklist.md) |
+| Large TSX/shared shell refactors | [`docs/guidance/component-refactor-checklist.md`](./guidance/component-refactor-checklist.md) |
 | TDD, coverage, or test design | [`docs/core/tests.md`](./core/tests.md) |
 | Setup, runtime, or deployment questions | [`docs/core/project-context.md`](./core/project-context.md) |
 | Workspace state, grading runs, exam mode, or runtime platform risk | [`docs/guidance/dev-flow-risk-checklists.md`](./guidance/dev-flow-risk-checklists.md) |
@@ -33,39 +32,27 @@ After the startup set above, load task-specific docs:
 | Course blueprint package import/export | [`docs/guidance/course-blueprint-packages.md`](./guidance/course-blueprint-packages.md) |
 | Feature-specific behavior | `docs/guidance/*.md` or the closest focused spec |
 
-Inspect or modify source only after the startup set and the docs required by your task are loaded.
+Inspect or edit source only after startup and routed docs.
 
 ## Repo Invariants
 
 - Platform: Next.js App Router, Supabase, Tailwind CSS, Vitest, Vercel
-- Vercel cron guardrail: on the Hobby plan, cron schedules must run at most once per day; do not add sub-daily repo-managed Vercel cron jobs
+- Vercel cron: Hobby plan schedules must run at most once per day
 - Timezone: all deadline and attendance logic uses `America/Toronto`
-- Auth: current runtime uses email verification codes plus password login; upcoming WorkOS AuthKit work must map WorkOS users to `public.users.workos_user_id` while preserving local `public.users.id` UUIDs
-- Supabase access: app authorization belongs in server routes via `requireAuth()` / `requireRole()` and the service-role client; do not add new browser-side Supabase table/RPC access without explicit review
+- Auth: email verification codes plus password login; WorkOS must map to `public.users.workos_user_id` while preserving local UUIDs
+- Supabase access: authorize in server routes via `requireAuth()` / `requireRole()` and service-role client; no new browser-side table/RPC access without review
 - Architecture: keep business logic out of UI components; prefer `src/lib/*` and server-side modules
 - API routes: use `withErrorHandler` from `@/lib/api-handler`
 - Repeated client-side reads: use `fetchJSONWithCache` from `@/lib/request-cache`
 - Tiptap content parsing: import `parseContentField` from `@/lib/tiptap-content`
 - UI primitives: import from `@/ui`; use semantic tokens in app code instead of raw `dark:` classes
 - Migrations: AI may create or edit migration files, but humans apply them manually
-- Workflow: use worktree for non-trivial work; plan/discuss with `Model recommendation: <model> - <reason>` (`5.3-spark` low-risk; else `5.5 medium|high|extra high`), append `.ai/SESSION-LOG.md`, and immediately run `node scripts/trim-session-log.mjs`
-- Risk profile: for non-trivial work, declare `none`, `workspace-state`, `async-grading`, `exam-mode`, or `runtime-platform` in the plan
+- Workflow: use a worktree; include `Model recommendation: <model> - <reason>`; append `.ai/SESSION-LOG.md`; run `node scripts/trim-session-log.mjs`
+- Risk profile: declare `none`, `workspace-state`, `async-grading`, `exam-mode`, or `runtime-platform`
 
-## Prompt And Command Map
+## Prompt And Skill Map
 
-| Task | Claude Code | Codex |
-|---|---|---|
-| Start a session | `/session-start` | `.codex/prompts/session-start.md` |
-| Work on a GitHub issue | `/work-on-issue <N>` | `.codex/prompts/work-on-issue.md` |
-| Review developer feedback triage | `/dev-feedback` | `$pika-dev-feedback` |
-| TDD implementation | `/tdd <feature>` | `.codex/prompts/tdd.md` |
-| Verify UI changes | `/ui-verify <page>` | `.codex/prompts/ui-verify.md` |
-| Pre-commit audit | `/audit` | `.codex/prompts/audit.md` |
-| Migrate error handler | `/migrate-error-handler <file>` | `.codex/prompts/migrate-error-handler.md` |
-| Scaffold API route | `/add-api-route` | `.codex/prompts/add-api-route.md` |
-| Merge `main` into `production` | `/merge-main-into-production` | `.codex/prompts/merge-main-into-production.md` |
-
-UI changes require Playwright final verification before commit. Chrome plugin checks are supplemental. See [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md).
+Use `.codex/prompts/` for session start, issue work, TDD, UI verify, audit, API-route, error-handler, and production-merge flows. UI changes require Playwright final verification; see [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md). When available, use specialist skills for product-design briefs, Pika UI verification, Supabase/Postgres work, and large React refactors.
 
 ## Source Of Truth Order
 

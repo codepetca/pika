@@ -67,7 +67,7 @@ These should remain composed feature patterns even if they use shared primitives
 | --- | --- | --- | --- | --- |
 | Teacher assignment summary list and selection flow | `TeacherClassroomView` | stable | keep composed | now |
 | Teacher assignment focused workspace and student inspection | `TeacherClassroomView`, `TeacherStudentWorkPanel` | stable | keep composed, feed split extraction | now |
-| Teacher test authoring composition | `TeacherTestsTab`, `QuizDetailPanel` | experimental | keep composed | now |
+| Teacher test authoring composition | `TeacherTestsTab`, `TestDetailPanel` | experimental | keep composed | now |
 | Teacher grading workspace composition | `TeacherTestsTab`, `TestStudentGradingPanel` | experimental | keep composed | now |
 
 ## Feature-Local Behavior

@@ -25,12 +25,26 @@ describe('StudentTestResults', () => {
     return { ok: true, json: async () => body } as Response
   }
 
+  it('accepts legacy quizId as a compatibility alias', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ results: [] }),
+    })
+
+    render(<StudentTestResults quizId="legacy-test-id" myResponses={{}} />)
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/student/tests/legacy-test-id/results')
+    })
+  })
+
   it('shows loading spinner initially', () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockReturnValue(new Promise(() => {})) // never resolves
 
     const { container } = render(
-      <StudentTestResults quizId="quiz-1" myResponses={{}} />
+      <StudentTestResults testId="quiz-1" myResponses={{}} />
     )
 
     // Spinner renders an svg or loading element
@@ -44,7 +58,7 @@ describe('StudentTestResults', () => {
       json: async () => ({ error: 'Quiz not found' }),
     })
 
-    render(<StudentTestResults quizId="quiz-1" myResponses={{}} />)
+    render(<StudentTestResults testId="quiz-1" myResponses={{}} />)
 
     await waitFor(() => {
       expect(screen.getByText('Quiz not found')).toBeInTheDocument()
@@ -58,7 +72,7 @@ describe('StudentTestResults', () => {
       json: async () => ({ results: [] }),
     })
 
-    render(<StudentTestResults quizId="quiz-1" myResponses={{}} />)
+    render(<StudentTestResults testId="quiz-1" myResponses={{}} />)
 
     await waitFor(() => {
       expect(screen.getByText('No results available.')).toBeInTheDocument()
@@ -97,7 +111,7 @@ describe('StudentTestResults', () => {
 
     render(
       <StudentTestResults
-        quizId="quiz-1"
+        testId="quiz-1"
         myResponses={{ q1: 1 }}
         assessmentType="test"
         apiBasePath="/api/student/tests"
@@ -144,7 +158,7 @@ describe('StudentTestResults', () => {
 
     const { container } = render(
       <StudentTestResults
-        quizId="quiz-1"
+        testId="quiz-1"
         myResponses={{ q1: 0 }}
         assessmentType="test"
         apiBasePath="/api/student/tests"
@@ -205,7 +219,7 @@ describe('StudentTestResults', () => {
 
     render(
       <StudentTestResults
-        quizId="quiz-1"
+        testId="quiz-1"
         myResponses={{}}
         assessmentType="test"
         apiBasePath="/api/student/tests"
@@ -255,7 +269,7 @@ describe('StudentTestResults', () => {
 
     render(
       <StudentTestResults
-        quizId="quiz-1"
+        testId="quiz-1"
         myResponses={{}}
         assessmentType="test"
         apiBasePath="/api/student/tests"

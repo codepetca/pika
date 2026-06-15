@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { canActivateQuiz } from '@/lib/quizzes'
+import { canActivateTest } from '@/lib/tests'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { normalizeTestDocuments, validateTestDocumentsPayload } from '@/lib/test-documents'
@@ -14,6 +14,7 @@ import {
   type TestDraftContent,
 } from '@/lib/server/assessment-drafts'
 import { withErrorHandler } from '@/lib/api-handler'
+import { withLegacyQuizKey } from '@/lib/test-api-contract'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -98,22 +99,24 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
     }
   }
 
+  const responseTest = {
+    id: test.id,
+    classroom_id: test.classroom_id,
+    title,
+    assessment_type: 'test' as const,
+    status: test.status,
+    show_results: showResults,
+    documents: normalizeTestDocuments(test.documents),
+    position: test.position,
+    points_possible: test.points_possible,
+    include_in_final: test.include_in_final,
+    created_by: test.created_by,
+    created_at: test.created_at,
+    updated_at: test.updated_at,
+  }
+
   return NextResponse.json({
-    quiz: {
-      id: test.id,
-      classroom_id: test.classroom_id,
-      title,
-      assessment_type: 'test' as const,
-      status: test.status,
-      show_results: showResults,
-      documents: normalizeTestDocuments(test.documents),
-      position: test.position,
-      points_possible: test.points_possible,
-      include_in_final: test.include_in_final,
-      created_by: test.created_by,
-      created_at: test.created_at,
-      updated_at: test.updated_at,
-    },
+    ...withLegacyQuizKey(responseTest),
     questions: responseQuestions,
     classroom: test.classrooms,
   })
@@ -199,7 +202,7 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     }
 
     const questionList = questions || []
-    const activation = canActivateQuiz(existing, questionList.length)
+    const activation = canActivateTest(existing, questionList.length)
     if (!activation.valid) {
       return NextResponse.json({ error: activation.error }, { status: 400 })
     }
@@ -330,12 +333,14 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     }
   }
 
+  const responseTest = {
+    ...test,
+    documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
+    assessment_type: 'test',
+  }
+
   return NextResponse.json({
-    quiz: {
-      ...test,
-      documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
-      assessment_type: 'test',
-    },
+    ...withLegacyQuizKey(responseTest),
   })
 })
 

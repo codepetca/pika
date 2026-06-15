@@ -10,6 +10,8 @@ This guide explains how to use Playwright for AI-assisted UI verification in Pik
 2. Check **BOTH** teacher and student views (if applicable)
 3. Iterate on aesthetics/styling until it looks good
 
+Before coding non-trivial UI work, record the acceptance target from [`docs/guidance/ui/change-brief.md`](/docs/guidance/ui/change-brief.md). The strongest recent failure mode has been visual churn after the first implementation, not missing screenshots.
+
 ## Tooling Policy
 
 Playwright is the required path for final UI/UX verification. Use Playwright for E2E tests, `pnpm e2e:verify` scenarios, reproducible screenshots, teacher/student auth-state checks, and artifacts that another agent or CI can rerun.
@@ -162,31 +164,44 @@ If you want a looser “same family, not exact clone” direction for future wor
 
 When implementing UI changes:
 
-### Step 1: Make the change
+### Step 1: Lock the acceptance target
+Record the affected roles, viewports, themes, key visual states, primary signal, and any explicitly out-of-scope treatments.
+
+### Step 2: Make the change
 Edit the component/page code.
 
-### Step 2: Take screenshot
+### Step 3: Take screenshot
 ```bash
 npx playwright screenshot http://localhost:3000/<page> /tmp/check.png \
   --load-storage .auth/teacher.json --viewport-size 1440,900
 ```
 
-### Step 3: View and assess
+### Step 4: View and assess
 Use Read tool to view `/tmp/check.png`. Check:
 - Spacing and alignment
 - Colors and typography
 - Overall aesthetics
+- Whether the intended primary signal is actually doing the work
+- Whether any out-of-scope treatment leaked in
 
-### Step 4: Iterate
+### Step 5: Iterate
 If something looks off:
 1. Edit the code
 2. Take another screenshot
 3. Repeat until satisfied
 
-### Step 5: Check both roles
-Verify both teacher and student views look correct.
+### Step 6: Check the verification matrix
+Verify the relevant combinations explicitly:
 
-### Step 6: Commit
+- teacher and student roles, or record why one is `n/a`
+- desktop and mobile
+- light and dark when the surface supports both
+- affected visual states such as default, hover, focus, open, selected, loading, empty, drag, or edit
+
+### Step 7: Check both roles
+Verify both teacher and student views look correct when both roles are affected.
+
+### Step 8: Commit
 Only commit once the UI looks correct in both views.
 
 ## Best Practices
@@ -196,12 +211,15 @@ Only commit once the UI looks correct in both views.
 - Any styling/CSS changes
 - New UI features
 - Layout changes
+- Shared shell or modal refactors that can change visuals without changing intent
 
 ### Tips
 - Use `--full-page` for long scrollable content
 - Use `--wait-for-selector` if content loads dynamically
 - Check both light and dark mode if applicable
 - Standard viewport is 1440x900
+- For mobile, use a narrow viewport such as `390x844`
+- If hover/open/selected states matter, capture them intentionally rather than inferring from the default screen
 
 ## Troubleshooting
 

@@ -55,7 +55,7 @@ import type {
   LessonPlan,
   TiptapContent,
   Assignment,
-  QuizWithStats,
+  TestAssessmentWithStats,
 } from '@/types'
 
 interface UserInfo {
@@ -327,7 +327,7 @@ function StudentTodayWorkspace({
   lastClassLessonPlan: LessonPlan | null
   lastClassDate: string | null
   lastClassLoading: boolean
-  onLessonPlanLoad: (plan: LessonPlan | null) => void
+  onLessonPlanLoad: (plan: LessonPlan | null, classroomId: string) => void
 }) {
   const [planPaneWidth, setPlanPaneWidth] = useState(34)
 
@@ -582,7 +582,13 @@ function ClassroomPageContent({
   const [selectedAssignment, setSelectedAssignment] = useState<SelectedAssignmentInstructions | null>(null)
 
   // State for today's lesson plan (student today tab)
-  const [todayLessonPlan, setTodayLessonPlan] = useState<LessonPlan | null>(null)
+  const [todayLessonPlanState, setTodayLessonPlanState] = useState<{
+    classroomId: string
+    plan: LessonPlan | null
+  }>({ classroomId: classroom.id, plan: null })
+  const todayLessonPlan = todayLessonPlanState.classroomId === classroom.id
+    ? todayLessonPlanState.plan
+    : null
   const [lastClassLessonPlan, setLastClassLessonPlan] = useState<LessonPlan | null>(null)
   const [lastClassLessonPlanDate, setLastClassLessonPlanDate] = useState<string | null>(null)
   const [lastClassLessonPlanLoading, setLastClassLessonPlanLoading] = useState(false)
@@ -590,10 +596,10 @@ function ClassroomPageContent({
   // State for calendar sidebar (teacher calendar tab)
   const [calendarSidebarState, setCalendarSidebarState] = useState<CalendarSidebarState | null>(null)
 
-  // State for selected assessment (teacher tests tab)
-  const [selectedQuiz, setSelectedQuiz] = useState<QuizWithStats | null>(null)
+  // State for selected test (teacher tests tab)
+  const [selectedTest, setSelectedTest] = useState<TestAssessmentWithStats | null>(null)
   const [pendingAssessmentDelete, setPendingAssessmentDelete] = useState<{
-    quiz: QuizWithStats
+    test: TestAssessmentWithStats
     responsesCount: number
   } | null>(null)
   const [isDeletingAssessment, setIsDeletingAssessment] = useState(false)
@@ -603,13 +609,13 @@ function ClassroomPageContent({
   } | null>(null)
   const [testsTabClickToken, setTestsTabClickToken] = useState(0)
 
-  const handleSelectQuiz = useCallback((quiz: QuizWithStats | null) => {
-    setSelectedQuiz(quiz)
+  const handleSelectTest = useCallback((test: TestAssessmentWithStats | null) => {
+    setSelectedTest(test)
   }, [])
 
   useEffect(() => {
     if (activeTab === 'tests') {
-      setSelectedQuiz(null)
+      setSelectedTest(null)
     }
   }, [activeTab])
 
@@ -621,10 +627,10 @@ function ClassroomPageContent({
 
   useEffect(() => {
     if (!teacherTestPreview) return
-    if (!selectedQuiz) return
-    if (selectedQuiz.id === teacherTestPreview.testId) return
+    if (!selectedTest) return
+    if (selectedTest.id === teacherTestPreview.testId) return
     setTeacherTestPreview(null)
-  }, [selectedQuiz, teacherTestPreview])
+  }, [selectedTest, teacherTestPreview])
 
   // State for markdown editing (teacher assignments tab - summary view only)
   const [assignmentViewMode, setAssignmentViewMode] = useState<AssignmentViewMode>('summary')
@@ -647,9 +653,10 @@ function ClassroomPageContent({
     setSelectedAssignment(assignment)
   }, [])
 
-  const handleSetLessonPlan = useCallback((plan: LessonPlan | null) => {
-    setTodayLessonPlan(plan)
-  }, [])
+  const handleSetLessonPlan = useCallback((plan: LessonPlan | null, loadedClassroomId: string) => {
+    if (loadedClassroomId !== classroom.id) return
+    setTodayLessonPlanState({ classroomId: loadedClassroomId, plan })
+  }, [classroom.id])
 
   useEffect(() => {
     if (isTeacher || activeTab !== 'today') return
@@ -1097,26 +1104,26 @@ function ClassroomPageContent({
     hasActiveTeacherSplitPanes || hasTeacherViewportGrid || (!isTeacher && activeTab === 'today')
 
   async function handleRequestAssessmentDelete() {
-    if (!selectedQuiz) return
+    if (!selectedTest) return
 
     try {
       const data = await fetchJSONWithCache<{ stats?: { responded?: number } }>(
-        `teacher-assessment-results:${assessmentLabel}:${selectedQuiz.id}`,
+        `teacher-assessment-results:${assessmentLabel}:${selectedTest.id}`,
         async () => {
-          const res = await fetch(`${assessmentApiBasePath}/${selectedQuiz.id}/results`)
+          const res = await fetch(`${assessmentApiBasePath}/${selectedTest.id}/results`)
           if (!res.ok) throw new Error('Failed to load assessment results')
           return res.json()
         },
         0,
       )
       setPendingAssessmentDelete({
-        quiz: selectedQuiz,
+        test: selectedTest,
         responsesCount: Number(data?.stats?.responded || 0),
       })
     } catch {
       setPendingAssessmentDelete({
-        quiz: selectedQuiz,
-        responsesCount: Number(selectedQuiz.stats.responded || 0),
+        test: selectedTest,
+        responsesCount: Number(selectedTest.stats.responded || 0),
       })
     }
   }
@@ -1129,13 +1136,13 @@ function ClassroomPageContent({
 
     setIsDeletingAssessment(true)
     try {
-      const res = await fetch(`${deleteApiBasePath}/${pendingAssessmentDelete.quiz.id}`, { method: 'DELETE' })
+      const res = await fetch(`${deleteApiBasePath}/${pendingAssessmentDelete.test.id}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || `Failed to delete ${deleteLabel}`)
       }
 
-      setSelectedQuiz(null)
+      setSelectedTest(null)
       navigateInClassroom((params) => {
         params.delete('testId')
         params.delete('testMode')
@@ -1258,7 +1265,7 @@ function ClassroomPageContent({
                         selectedTestMode={testModeParam}
                         selectedTestStudentId={testStudentIdParam}
                         updateSearchParams={navigateInClassroom}
-                        onSelectTest={handleSelectQuiz}
+                        onSelectTest={handleSelectTest}
                         onRequestTestPreview={setTeacherTestPreview}
                         onRequestDelete={() => {
                           void handleRequestAssessmentDelete()

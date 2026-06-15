@@ -185,7 +185,8 @@ describe('GET /api/teacher/tests', () => {
       { column: 'position', ascending: false },
       { column: 'created_at', ascending: false },
     ])
-    expect((data.quizzes as Array<{ id: string }>).map((quiz) => quiz.id)).toEqual(['test-2', 'test-1'])
+    expect(data.tests).toEqual(data.quizzes)
+    expect((data.tests as Array<{ id: string }>).map((test) => test.id)).toEqual(['test-2', 'test-1'])
   })
 
   it('returns 500 when reading test responses fails', async () => {
@@ -358,8 +359,8 @@ describe('GET /api/teacher/tests', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.quizzes).toHaveLength(1)
-    expect(data.quizzes[0].stats.responded).toBe(0)
+    expect(data.tests).toHaveLength(1)
+    expect(data.tests[0].stats.responded).toBe(0)
   })
 
   it('counts only currently enrolled students as respondents', async () => {
@@ -461,12 +462,12 @@ describe('GET /api/teacher/tests', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.quizzes).toHaveLength(1)
-    expect(data.quizzes[0].stats.total_students).toBe(2)
-    expect(data.quizzes[0].stats.responded).toBe(2)
-    expect(data.quizzes[0].stats.submitted).toBe(1)
-    expect(data.quizzes[0].stats.open_access).toBe(1)
-    expect(data.quizzes[0].stats.closed_access).toBe(1)
+    expect(data.tests).toHaveLength(1)
+    expect(data.tests[0].stats.total_students).toBe(2)
+    expect(data.tests[0].stats.responded).toBe(2)
+    expect(data.tests[0].stats.submitted).toBe(1)
+    expect(data.tests[0].stats.open_access).toBe(1)
+    expect(data.tests[0].stats.closed_access).toBe(1)
     expect(scopedInCalls).toContainEqual({
       table: 'test_attempts',
       column: 'student_id',
@@ -563,8 +564,8 @@ describe('GET /api/teacher/tests', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.quizzes).toHaveLength(51)
-    expect(data.quizzes[0].stats).toEqual({
+    expect(data.tests).toHaveLength(51)
+    expect(data.tests[0].stats).toEqual({
       total_students: 51,
       responded: 2,
       submitted: 1,
@@ -673,12 +674,12 @@ describe('GET /api/teacher/tests', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.quizzes[0].title).toBe('Draft Overlay Title')
-    expect(data.quizzes[0].show_results).toBe(true)
-    expect(data.quizzes[0].stats.questions_count).toBe(0)
-    expect(data.quizzes[1].title).toBe('Closed Test')
-    expect(data.quizzes[1].show_results).toBe(false)
-    expect(data.quizzes[1].stats.questions_count).toBe(2)
+    expect(data.tests[0].title).toBe('Draft Overlay Title')
+    expect(data.tests[0].show_results).toBe(true)
+    expect(data.tests[0].stats.questions_count).toBe(0)
+    expect(data.tests[1].title).toBe('Closed Test')
+    expect(data.tests[1].show_results).toBe(false)
+    expect(data.tests[1].stats.questions_count).toBe(2)
   })
 })
 
@@ -751,8 +752,9 @@ describe('POST /api/teacher/tests', () => {
     const data = await response.json()
 
     expect(response.status).toBe(201)
-    expect(data.quiz.position).toBe(3)
-    expect(data.quiz.title).toBe('New Test')
+    expect(data.test).toEqual(data.quiz)
+    expect(data.test.position).toBe(3)
+    expect(data.test.title).toBe('New Test')
     expect(assessmentDraftInsertSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         assessment_type: 'test',
@@ -832,11 +834,11 @@ describe('POST /api/teacher/tests', () => {
     const data = await response.json()
 
     expect(response.status).toBe(201)
-    expect(data.quiz.title).toMatch(/^Untitled \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)
+    expect(data.test.title).toMatch(/^Untitled \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)
     expect(assessmentDraftInsertSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         content: expect.objectContaining({
-          title: data.quiz.title,
+          title: data.test.title,
         }),
       })
     )

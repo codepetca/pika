@@ -63,12 +63,18 @@ export function TeacherLessonCalendarTab({
   onNavigateToAnnouncements = () => {},
 }: Props) {
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
-  const lessonPlansRef = useRef(lessonPlans)
-  lessonPlansRef.current = lessonPlans
+  const [lessonPlansClassroomId, setLessonPlansClassroomId] = useState(classroom.id)
+  const visibleLessonPlans = lessonPlansClassroomId === classroom.id ? lessonPlans : []
+  const lessonPlansRef = useRef(visibleLessonPlans)
+  lessonPlansRef.current = visibleLessonPlans
   // Track last-seen markdown per date to suppress duplicate autosave emissions.
   const lastSeenContentRef = useRef<Map<string, string>>(new Map())
   const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [assignmentsClassroomId, setAssignmentsClassroomId] = useState(classroom.id)
+  const visibleAssignments = assignmentsClassroomId === classroom.id ? assignments : []
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [announcementsClassroomId, setAnnouncementsClassroomId] = useState(classroom.id)
+  const visibleAnnouncements = announcementsClassroomId === classroom.id ? announcements : []
   const classDays = useClassDays(classroom.id)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -82,9 +88,13 @@ export function TeacherLessonCalendarTab({
   }, [classroom.id])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [markdownContent, setMarkdownContent] = useState('')
+  const [markdownContentClassroomId, setMarkdownContentClassroomId] = useState('')
+  const visibleMarkdownContent = markdownContentClassroomId === classroom.id ? markdownContent : ''
   const [markdownError, setMarkdownError] = useState<string | null>(null)
   const [bulkSaving, setBulkSaving] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const currentClassroomIdRef = useRef(classroom.id)
+  currentClassroomIdRef.current = classroom.id
 
   const { toggle: toggleSidebar, isOpen: isSidebarOpen, setOpen: setSidebarOpen } = useRightSidebar()
   const { showMarkdown } = useMarkdownPreference()
@@ -102,6 +112,7 @@ export function TeacherLessonCalendarTab({
     const normalized = normalizeLessonPlanMarkdown(contentMarkdown)
     const now = new Date().toISOString()
 
+    setLessonPlansClassroomId(classroom.id)
     setLessonPlans((prev) => {
       const existing = prev.find((plan) => plan.date === date)
 
@@ -145,40 +156,60 @@ export function TeacherLessonCalendarTab({
 
   // Fetch all lesson plans for the term once
   useEffect(() => {
+    let cancelled = false
+    const requestedClassroomId = classroom.id
+    const isCurrentLoad = () => !cancelled && currentClassroomIdRef.current === requestedClassroomId
+
     async function loadLessonPlans() {
       setLoading(true)
       try {
-        const plans = await fetchTeacherLessonPlansForRange(classroom.id, fetchRange.start, fetchRange.end)
+        const plans = await fetchTeacherLessonPlansForRange(requestedClassroomId, fetchRange.start, fetchRange.end)
+        if (!isCurrentLoad()) return
         // Seed last-seen content so Tiptap normalization doesn't trigger saves
         lastSeenContentRef.current.clear()
         for (const plan of plans) {
           lastSeenContentRef.current.set(plan.date, plan.content_markdown ?? '')
         }
+        setLessonPlansClassroomId(requestedClassroomId)
         setLessonPlans(plans)
       } catch (err) {
+        if (!isCurrentLoad()) return
         console.error('Error loading lesson plans:', err)
       } finally {
-        setLoading(false)
+        if (isCurrentLoad()) {
+          setLoading(false)
+        }
       }
     }
     loadLessonPlans()
+
+    return () => {
+      cancelled = true
+    }
   }, [classroom.id, fetchRange.start, fetchRange.end, refreshKey])
 
   // Fetch assignments for the classroom
   useEffect(() => {
+    let cancelled = false
+    const requestedClassroomId = classroom.id
+    const isCurrentLoad = () => !cancelled && currentClassroomIdRef.current === requestedClassroomId
+
     async function loadAssignments() {
       try {
         const data = await fetchJSONWithCache<{ assignments?: Assignment[] }>(
-          `teacher-assignments:${classroom.id}`,
+          `teacher-assignments:${requestedClassroomId}`,
           async () => {
-            const res = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
+            const res = await fetch(`/api/teacher/assignments?classroom_id=${requestedClassroomId}`)
             if (!res.ok) throw new Error('Failed to load assignments')
             return res.json()
           },
           20_000,
         )
+        if (!isCurrentLoad()) return
+        setAssignmentsClassroomId(requestedClassroomId)
         setAssignments(data.assignments || [])
       } catch (err) {
+        if (!isCurrentLoad()) return
         console.error('Error loading assignments:', err)
       }
     }
@@ -194,44 +225,59 @@ export function TeacherLessonCalendarTab({
     }
     window.addEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, handleAssignmentsUpdated)
     return () => {
+      cancelled = true
       window.removeEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, handleAssignmentsUpdated)
     }
   }, [classroom.id])
 
   // Fetch announcements for the classroom
   useEffect(() => {
+    let cancelled = false
+    const requestedClassroomId = classroom.id
+    const isCurrentLoad = () => !cancelled && currentClassroomIdRef.current === requestedClassroomId
+
     async function loadAnnouncements() {
       try {
         const data = await fetchJSONWithCache<{ announcements?: Announcement[] }>(
-          `teacher-announcements:${classroom.id}`,
+          `teacher-announcements:${requestedClassroomId}`,
           async () => {
-            const res = await fetch(`/api/teacher/classrooms/${classroom.id}/announcements`)
+            const res = await fetch(`/api/teacher/classrooms/${requestedClassroomId}/announcements`)
             if (!res.ok) throw new Error('Failed to load announcements')
             return res.json()
           },
           20_000,
         )
+        if (!isCurrentLoad()) return
+        setAnnouncementsClassroomId(requestedClassroomId)
         setAnnouncements(data.announcements || [])
       } catch (err) {
+        if (!isCurrentLoad()) return
         console.error('Error loading announcements:', err)
       }
     }
     loadAnnouncements()
+
+    return () => {
+      cancelled = true
+    }
   }, [classroom.id])
 
   // Save a single lesson plan
   const saveLessonPlan = useCallback(
     async (date: string, contentMarkdown: string) => {
+      const requestedClassroomId = classroom.id
       try {
-        const res = await fetch(`/api/teacher/classrooms/${classroom.id}/lesson-plans/${date}`, {
+        const res = await fetch(`/api/teacher/classrooms/${requestedClassroomId}/lesson-plans/${date}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content_markdown: contentMarkdown }),
         })
         if (res.ok) {
           const data = await res.json()
-          invalidateTeacherLessonPlansForClassroom(classroom.id)
+          invalidateTeacherLessonPlansForClassroom(requestedClassroomId)
           needsRefreshRef.current = true
+          if (currentClassroomIdRef.current !== requestedClassroomId) return
+          setLessonPlansClassroomId(requestedClassroomId)
           setLessonPlans((prev) => {
             if (!data.lesson_plan) {
               return prev.filter((plan) => plan.date !== date)
@@ -337,24 +383,46 @@ export function TeacherLessonCalendarTab({
 
   // Fetch and generate markdown content
   const loadMarkdownContent = useCallback(async () => {
+    const requestedClassroomId = classroom.id
+    const isCurrentLoad = () => currentClassroomIdRef.current === requestedClassroomId
+
     setLoading(true)
     setMarkdownError(null)
     try {
       const start = classroom.start_date || fetchRange.start
       const end = classroom.end_date || fetchRange.end
-      const cachedPlans = await fetchTeacherLessonPlansForRange(classroom.id, start, end)
-      const plans = applyPendingLessonPlanChanges(cachedPlans, pendingChangesRef.current, classroom.id)
+      const cachedPlans = await fetchTeacherLessonPlansForRange(requestedClassroomId, start, end)
+      if (!isCurrentLoad()) return
+      const plans = applyPendingLessonPlanChanges(cachedPlans, pendingChangesRef.current, requestedClassroomId)
       const markdown = lessonPlansToMarkdown(classroom, plans, start, end)
+      setMarkdownContentClassroomId(requestedClassroomId)
       setMarkdownContent(markdown)
       markdownContentRef.current = markdown
       needsRefreshRef.current = false
     } catch (err) {
+      if (!isCurrentLoad()) return
       console.error('Error loading lesson plans:', err)
       setMarkdownError(err instanceof Error ? err.message : 'Failed to load lesson plans')
     } finally {
-      setLoading(false)
+      if (isCurrentLoad()) {
+        setLoading(false)
+      }
     }
   }, [classroom, fetchRange])
+
+  const previousMarkdownClassroomIdRef = useRef(classroom.id)
+  useEffect(() => {
+    if (previousMarkdownClassroomIdRef.current === classroom.id) return
+    previousMarkdownClassroomIdRef.current = classroom.id
+    markdownContentRef.current = ''
+    setMarkdownContent('')
+    setMarkdownContentClassroomId('')
+    setMarkdownError(null)
+    needsRefreshRef.current = true
+    if (showMarkdown && isSidebarOpen) {
+      loadMarkdownContent()
+    }
+  }, [classroom.id, isSidebarOpen, loadMarkdownContent, showMarkdown])
 
   // Handle markdown panel toggle - just toggle, effect handles loading
   const handleMarkdownToggle = useCallback(() => {
@@ -366,6 +434,7 @@ export function TeacherLessonCalendarTab({
   const handleMarkdownChange = useCallback((content: string) => {
     // Always update ref immediately so save has latest content
     markdownContentRef.current = content
+    setMarkdownContentClassroomId(classroom.id)
 
     // Debounce state update to reduce parent re-renders
     if (markdownSyncTimeoutRef.current) {
@@ -374,7 +443,7 @@ export function TeacherLessonCalendarTab({
     markdownSyncTimeoutRef.current = setTimeout(() => {
       setMarkdownContent(content)
     }, MARKDOWN_SYNC_DEBOUNCE_MS)
-  }, [])
+  }, [classroom.id])
 
   // Load markdown content when sidebar opens (handles both button click and keyboard shortcut)
   useEffect(() => {
@@ -395,6 +464,10 @@ export function TeacherLessonCalendarTab({
   // Handle markdown save
   const handleMarkdownSave = useCallback(async () => {
     setMarkdownError(null)
+    if (markdownContentClassroomId !== classroom.id) {
+      setMarkdownError('Lesson plans are still loading')
+      return
+    }
     setBulkSaving(true)
 
     try {
@@ -439,7 +512,7 @@ export function TeacherLessonCalendarTab({
     } finally {
       setBulkSaving(false)
     }
-  }, [classroom, setSidebarOpen])
+  }, [classroom, markdownContentClassroomId, setSidebarOpen])
 
   // Handle assignment click - navigate to assignments tab with assignment selected
   const handleAssignmentClick = useCallback(
@@ -489,7 +562,7 @@ export function TeacherLessonCalendarTab({
   useEffect(() => {
     if (showMarkdown && isSidebarOpen) {
       onSidebarStateChange?.({
-        markdownContent,
+        markdownContent: visibleMarkdownContent,
         markdownError,
         bulkSaving,
         onMarkdownChange: handleMarkdownChange,
@@ -498,9 +571,9 @@ export function TeacherLessonCalendarTab({
     } else {
       onSidebarStateChange?.(null)
     }
-  }, [showMarkdown, isSidebarOpen, markdownContent, markdownError, bulkSaving, onSidebarStateChange, handleMarkdownSave, handleMarkdownChange])
+  }, [showMarkdown, isSidebarOpen, visibleMarkdownContent, markdownError, bulkSaving, onSidebarStateChange, handleMarkdownSave, handleMarkdownChange])
 
-  if (loading && lessonPlans.length === 0) {
+  if (loading && visibleLessonPlans.length === 0) {
     return (
       <PageLayout bleedX={false}>
         <PageContent>
@@ -542,9 +615,9 @@ export function TeacherLessonCalendarTab({
         <div className="overflow-hidden rounded-lg border border-border bg-surface">
           <LessonCalendar
             classroom={classroom}
-            lessonPlans={lessonPlans}
-            assignments={assignments}
-            announcements={announcements}
+            lessonPlans={visibleLessonPlans}
+            assignments={visibleAssignments}
+            announcements={visibleAnnouncements}
             classDays={classDays}
             viewMode={viewMode}
             currentDate={currentDate}

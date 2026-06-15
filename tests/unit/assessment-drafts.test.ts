@@ -1,14 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  buildAssessmentDraftContentFromRows,
   buildNextDraftContent,
   buildQuizDraftContentFromRows,
   buildTestDraftContentFromRows,
   createAssessmentDraft,
   getAssessmentDraftByType,
   isMissingAssessmentDraftsError,
+  syncAssessmentQuestionsFromDraft,
   syncQuizQuestionsFromDraft,
   syncTestQuestionsFromDraft,
   updateAssessmentDraft,
+  validateAssessmentDraftContent,
   validateQuizDraftContent,
   validateTestDraftContent,
 } from '@/lib/server/assessment-drafts'
@@ -19,9 +22,9 @@ const TEST_ID_1 = '33333333-3333-4333-8333-333333333333'
 const TEST_ID_2 = '44444444-4444-4444-8444-444444444444'
 
 describe('assessment drafts', () => {
-  it('validates and normalizes quiz draft content', () => {
+  it('validates and normalizes assessment draft content', () => {
     expect(
-      validateQuizDraftContent({
+      validateAssessmentDraftContent({
         title: '  Quiz Draft  ',
         show_results: true,
         questions: [
@@ -48,9 +51,9 @@ describe('assessment drafts', () => {
     })
   })
 
-  it('rejects duplicate quiz question ids', () => {
+  it('rejects duplicate assessment question ids', () => {
     expect(
-      validateQuizDraftContent({
+      validateAssessmentDraftContent({
         title: 'Quiz Draft',
         show_results: false,
         questions: [
@@ -173,7 +176,7 @@ describe('assessment drafts', () => {
       {
         patch: [{ op: 'replace', path: '/title', value: 'Updated title' }],
       },
-      validateQuizDraftContent
+      validateAssessmentDraftContent
     )
 
     expect(result).toEqual({
@@ -196,7 +199,7 @@ describe('assessment drafts', () => {
       {
         patch: [{ op: 'replace', path: '/missing', value: 'Updated title' }],
       },
-      validateQuizDraftContent
+      validateAssessmentDraftContent
     )
 
     expect(result).toEqual({
@@ -208,7 +211,7 @@ describe('assessment drafts', () => {
 
   it('builds draft content from persisted quiz and test rows', () => {
     expect(
-      buildQuizDraftContentFromRows(
+      buildAssessmentDraftContentFromRows(
         { title: 'Quiz', show_results: true },
         [{ id: QUIZ_ID_1, question_text: 'Prompt', options: ['One', '', 'Two'] }]
       )
@@ -273,6 +276,12 @@ describe('assessment drafts', () => {
     ).toBe(true)
 
     expect(isMissingAssessmentDraftsError({ code: '42703', message: 'column missing' })).toBe(false)
+  })
+
+  it('keeps legacy quiz helper exports as compatibility aliases', () => {
+    expect(validateQuizDraftContent).toBe(validateAssessmentDraftContent)
+    expect(buildQuizDraftContentFromRows).toBe(buildAssessmentDraftContentFromRows)
+    expect(syncQuizQuestionsFromDraft).toBe(syncAssessmentQuestionsFromDraft)
   })
 
   it('wraps draft fetch/create/update operations and normalizes thrown errors', async () => {
@@ -382,7 +391,7 @@ describe('assessment drafts', () => {
     })
   })
 
-  it('syncs quiz questions by updating existing rows, inserting new rows, and deleting removed rows', async () => {
+  it('syncs assessment questions by updating existing rows, inserting new rows, and deleting removed rows', async () => {
     const updates: Array<Record<string, unknown>> = []
     const inserts: Array<Record<string, unknown>> = []
     const deletes: Array<string> = []
@@ -419,7 +428,7 @@ describe('assessment drafts', () => {
     }
 
     await expect(
-      syncQuizQuestionsFromDraft(supabase, 'quiz-1', {
+      syncAssessmentQuestionsFromDraft(supabase, 'quiz-1', {
         title: 'Quiz',
         show_results: false,
         questions: [
@@ -442,7 +451,7 @@ describe('assessment drafts', () => {
     expect(deletes).toEqual([QUIZ_ID_2])
   })
 
-  it('returns a 500 error when syncing quiz questions fails during insert', async () => {
+  it('returns a 500 error when syncing assessment questions fails during insert', async () => {
     const supabase = {
       from: vi.fn((_table: string) => ({
         select: vi.fn(() => ({
@@ -458,7 +467,7 @@ describe('assessment drafts', () => {
     }
 
     await expect(
-      syncQuizQuestionsFromDraft(supabase, 'quiz-1', {
+      syncAssessmentQuestionsFromDraft(supabase, 'quiz-1', {
         title: 'Quiz',
         show_results: false,
         questions: [

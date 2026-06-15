@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { StudentTestForm } from '@/components/StudentTestForm'
-import { createMockQuizQuestion } from '../helpers/mocks'
+import { createMockTestQuestion } from '../helpers/mocks'
 
 describe('StudentTestForm preview mode', () => {
   beforeEach(() => {
@@ -15,14 +15,39 @@ describe('StudentTestForm preview mode', () => {
     localStorage.clear()
   })
 
+  it('accepts legacy quizId as a compatibility alias', () => {
+    render(
+      <StudentTestForm
+        quizId="legacy-test-id"
+        questions={[
+          createMockTestQuestion({
+            id: 'q1',
+            question_text: 'Which option is correct?',
+            options: ['A', 'B'],
+            question_type: 'multiple_choice',
+            position: 0,
+          }),
+        ]}
+        assessmentType="test"
+        previewMode
+        onSubmitted={vi.fn()}
+      />
+    )
+
+    const titleArea = screen.getByText('Q1').closest('[data-question-title-id="q1"]')!
+    fireEvent.click(titleArea)
+
+    expect(JSON.parse(localStorage.getItem('pika:flagged-questions:legacy-test-id') || '[]')).toContain('q1')
+  })
+
   it('simulates submit without saving data', async () => {
     const onSubmitted = vi.fn()
 
     render(
       <StudentTestForm
-        quizId="test-preview-id"
+        testId="test-preview-id"
         questions={[
-          createMockQuizQuestion({
+          createMockTestQuestion({
             id: 'q1',
             question_text: 'Which option is correct?',
             options: ['A', 'B'],
@@ -51,9 +76,9 @@ describe('StudentTestForm preview mode', () => {
   it('labels open-response textboxes for assistive technology', () => {
     render(
       <StudentTestForm
-        quizId="test-open-response-label-id"
+        testId="test-open-response-label-id"
         questions={[
-          createMockQuizQuestion({
+          createMockTestQuestion({
             id: 'q1',
             question_text: 'Explain your reasoning.',
             options: [],
@@ -74,9 +99,9 @@ describe('StudentTestForm preview mode', () => {
 
     render(
       <StudentTestForm
-        quizId="test-flag-id"
+        testId="test-flag-id"
         questions={[
-          createMockQuizQuestion({
+          createMockTestQuestion({
             id: 'q1',
             question_text: 'Which option is correct?',
             options: ['A', 'B'],
@@ -117,9 +142,9 @@ describe('StudentTestForm preview mode', () => {
 
     render(
       <StudentTestForm
-        quizId="test-warning-id"
+        testId="test-warning-id"
         questions={[
-          createMockQuizQuestion({
+          createMockTestQuestion({
             id: 'q1',
             question_text: 'Which option is correct?',
             options: ['A', 'B'],
@@ -154,16 +179,16 @@ describe('StudentTestForm preview mode', () => {
 
     render(
       <StudentTestForm
-        quizId="test-footer-id"
+        testId="test-footer-id"
         questions={[
-          createMockQuizQuestion({
+          createMockTestQuestion({
             id: 'q1',
             question_text: 'Question 1?',
             options: ['A', 'B'],
             question_type: 'multiple_choice',
             position: 0,
           }),
-          createMockQuizQuestion({
+          createMockTestQuestion({
             id: 'q2',
             question_text: 'Question 2?',
             options: ['C', 'D'],
@@ -199,9 +224,9 @@ describe('StudentTestForm preview mode', () => {
 
     render(
       <StudentTestForm
-        quizId="test-radio-position-id"
+        testId="test-radio-position-id"
         questions={[
-          createMockQuizQuestion({
+          createMockTestQuestion({
             id: 'q1',
             question_text: 'Which option is correct?',
             options: ['A', 'B'],
@@ -229,9 +254,9 @@ describe('StudentTestForm preview mode', () => {
 
     render(
       <StudentTestForm
-        quizId="test-markdown-options-id"
+        testId="test-markdown-options-id"
         questions={[
-          createMockQuizQuestion({
+          createMockTestQuestion({
             id: 'q1',
             question_text: 'Which code compiles?',
             options: [
@@ -264,9 +289,9 @@ describe('StudentTestForm preview mode', () => {
 
     render(
       <StudentTestForm
-        quizId="test-closed-id"
+        testId="test-closed-id"
         questions={[
-          createMockQuizQuestion({
+          createMockTestQuestion({
             id: 'q1',
             question_text: 'Which option is correct?',
             options: ['A', 'B'],

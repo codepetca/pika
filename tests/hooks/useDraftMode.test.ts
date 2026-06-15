@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useDraftMode } from '@/hooks/useDraftMode'
-import type { QuizQuestion } from '@/types'
+import type { TestAssessmentQuestion } from '@/types'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -18,7 +18,7 @@ function makeOptions(overrides: Partial<Parameters<typeof useDraftMode>[0]> = {}
   }
 }
 
-function makeQuestion(overrides: Partial<QuizQuestion> = {}): QuizQuestion {
+function makeQuestion(overrides: Partial<TestAssessmentQuestion> = {}): TestAssessmentQuestion {
   return {
     id: 'q-1',
     quiz_id: 'quiz-1',

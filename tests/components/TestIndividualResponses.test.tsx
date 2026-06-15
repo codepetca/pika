@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import type { ReactNode } from 'react'
@@ -56,6 +56,20 @@ describe('TestIndividualResponses', () => {
     vi.restoreAllMocks()
   })
 
+  it('accepts legacy quizId as a compatibility alias', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(jsonResponse({
+      questions: [],
+      responders: [],
+    })))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<TestIndividualResponses quizId="legacy-test-id" />)
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/legacy-test-id/results')
+    })
+  })
+
   it('ignores stale result responses after selected quiz changes', async () => {
     const staleResults = createDeferred<Response>()
     const currentResults = createDeferred<Response>()
@@ -67,10 +81,10 @@ describe('TestIndividualResponses', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const { rerender } = render(<TestIndividualResponses quizId="quiz-stale" />)
+    const { rerender } = render(<TestIndividualResponses testId="quiz-stale" />)
 
     await act(async () => {
-      rerender(<TestIndividualResponses quizId="quiz-current" />)
+      rerender(<TestIndividualResponses testId="quiz-current" />)
     })
 
     await act(async () => {
@@ -104,13 +118,13 @@ describe('TestIndividualResponses', () => {
     const mounted = createMountedRoot()
     try {
       await act(async () => {
-        mounted.render(<TestIndividualResponses quizId="quiz-stale" />)
+        mounted.render(<TestIndividualResponses testId="quiz-stale" />)
       })
 
       expect(await screen.findByText('Already Loaded Student')).toBeInTheDocument()
 
       flushSync(() => {
-        mounted.render(<TestIndividualResponses quizId="quiz-current" />)
+        mounted.render(<TestIndividualResponses testId="quiz-current" />)
       })
 
       expect(screen.queryByText('Already Loaded Student')).not.toBeInTheDocument()

@@ -61,7 +61,7 @@ Adopt a specialized agent role based on your task type. All agents must first re
 
 **Focus**: Database schema, migrations, RLS policies
 
-**Also read**: `architecture.md`, `project-context.md`, existing migrations in `/supabase/migrations/`
+**Also read**: `architecture.md`, `project-context.md`, `docs/guidance/schema-rollout-checklist.md`, existing migrations in `/supabase/migrations/`
 
 **Responsibilities**: Design tables and relationships. Write Supabase migrations (SQL). Implement RLS policies. Ensure proper indexing. Document schema changes.
 
@@ -73,7 +73,7 @@ Adopt a specialized agent role based on your task type. All agents must first re
 
 **Focus**: Code quality without behavior changes
 
-**Also read**: `architecture.md`, `design.md`, `tests.md`
+**Also read**: `architecture.md`, `design.md`, `tests.md`, `docs/guidance/component-refactor-checklist.md`
 
 **Responsibilities**: Improve clarity. Extract duplicated code. Improve naming. Ensure all tests pass after changes. Remove dead code.
 
@@ -85,9 +85,9 @@ Adopt a specialized agent role based on your task type. All agents must first re
 
 **Focus**: User interface and experience
 
-**Also read**: `design.md`, `architecture.md`, `guides/ai-ui-testing.md`
+**Also read**: `design.md`, `architecture.md`, `docs/guidance/ui/change-brief.md`, `guides/ai-ui-testing.md`
 
-**Responsibilities**: Implement UI following design.md. Mobile-first responsive design. Keep components thin. Tailwind CSS only. WCAG 2.1 accessibility. **Visually verify all changes** using `/ui-verify` (Claude) or `.codex/prompts/ui-verify.md` (Codex).
+**Responsibilities**: Implement UI following design.md. Lock the acceptance target before coding. Mobile-first responsive design. Keep components thin. Tailwind CSS only. WCAG 2.1 accessibility. **Visually verify all changes** using `/ui-verify` (Claude) or `.codex/prompts/ui-verify.md` (Codex).
 
 **Must NOT**: Add business logic to components. Use component libraries. Skip mobile responsiveness. Ignore accessibility. Commit UI changes without visual verification.
 

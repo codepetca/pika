@@ -716,7 +716,7 @@ export interface CourseBlueprintAssignment {
 export interface CourseBlueprintAssessment {
   id: string
   course_blueprint_id: string
-  assessment_type: QuizAssessmentType
+  assessment_type: TestAssessmentType
   title: string
   content: Record<string, unknown>
   documents: TestDocument[]
@@ -766,13 +766,13 @@ export interface CreateClassroomFromBlueprintInput {
   end_date?: string
 }
 
-// Quiz types
-export type QuizStatus = 'draft' | 'active' | 'closed'
-export type QuizAssessmentType = 'quiz' | 'test'
+// Assessment/Test types
+export type TestAssessmentStatus = 'draft' | 'active' | 'closed'
+export type TestAssessmentType = 'quiz' | 'test'
 export type SurveyStatus = 'draft' | 'active' | 'closed'
 export type SurveyQuestionType = 'multiple_choice' | 'short_text' | 'link'
 export type TestStudentAvailabilityState = 'open' | 'closed'
-export type QuizFocusEventType =
+export type TestFocusEventType =
   | 'away_start'
   | 'away_end'
   | 'route_exit_attempt'
@@ -792,7 +792,7 @@ export interface TestDocument {
 }
 export type TestAiGradingBasis = 'teacher_key' | 'generated_reference'
 
-export interface QuizFocusSummary {
+export interface TestFocusSummary {
   exit_count: number
   away_count: number
   away_total_seconds: number
@@ -884,12 +884,12 @@ export interface SurveyQuestionResult {
   total_responses: number
 }
 
-export interface Quiz {
+export interface TestAssessment {
   id: string
   classroom_id: string
   title: string
-  assessment_type: QuizAssessmentType
-  status: QuizStatus
+  assessment_type: TestAssessmentType
+  status: TestAssessmentStatus
   opens_at: string | null
   show_results: boolean
   documents?: TestDocument[]
@@ -902,7 +902,7 @@ export interface Quiz {
   updated_at: string
 }
 
-export interface QuizQuestion {
+export interface TestAssessmentQuestion {
   id: string
   quiz_id: string
   question_text: string
@@ -919,7 +919,7 @@ export interface QuizQuestion {
   updated_at: string
 }
 
-export interface QuizResponse {
+export interface TestAssessmentResponse {
   id: string
   quiz_id: string
   question_id: string
@@ -1002,12 +1002,12 @@ export interface TestAttemptHistoryEntry {
   created_at: string
 }
 
-// Extended quiz types for UI
-export interface QuizWithQuestions extends Quiz {
-  questions: QuizQuestion[]
+// Extended assessment types for UI
+export interface TestAssessmentWithQuestions extends TestAssessment {
+  questions: TestAssessmentQuestion[]
 }
 
-export interface QuizWithStats extends Quiz {
+export interface TestAssessmentWithStats extends TestAssessment {
   stats: {
     total_students: number
     responded: number
@@ -1025,24 +1025,39 @@ export interface AssessmentEditorSummaryUpdate {
 }
 
 export interface AssessmentWorkspaceSummaryPatch extends Partial<AssessmentEditorSummaryUpdate> {
-  status?: QuizStatus
+  status?: TestAssessmentStatus
 }
 
-export type StudentQuizStatus = 'not_started' | 'responded' | 'can_view_results'
+export type StudentTestStatus = 'not_started' | 'responded' | 'can_view_results'
 
-export interface StudentQuizView extends Quiz {
-  student_status: StudentQuizStatus
-  questions?: QuizQuestion[]
-  focus_summary?: QuizFocusSummary | null
+export interface StudentTestView extends TestAssessment {
+  student_status: StudentTestStatus
+  questions?: TestAssessmentQuestion[]
+  focus_summary?: TestFocusSummary | null
 }
 
-export interface QuizResultsAggregate {
+export interface TestResultsAggregate {
   question_id: string
   question_text: string
   options: string[]
   counts: number[] // count per option, same index
   total_responses: number
 }
+
+// Legacy quiz-facing aliases remain exported while database/API compatibility
+// fields still use quiz-shaped names during the Tests transition.
+export type QuizStatus = TestAssessmentStatus
+export type QuizAssessmentType = TestAssessmentType
+export type QuizFocusEventType = TestFocusEventType
+export interface QuizFocusSummary extends TestFocusSummary {}
+export interface Quiz extends TestAssessment {}
+export interface QuizQuestion extends TestAssessmentQuestion {}
+export interface QuizResponse extends TestAssessmentResponse {}
+export interface QuizWithQuestions extends TestAssessmentWithQuestions {}
+export interface QuizWithStats extends TestAssessmentWithStats {}
+export type StudentQuizStatus = StudentTestStatus
+export interface StudentQuizView extends StudentTestView {}
+export type QuizResultsAggregate = TestResultsAggregate
 
 // Log summary types
 export interface LogSummaryActionItem {

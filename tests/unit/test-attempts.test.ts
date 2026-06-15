@@ -32,6 +32,45 @@ describe('test-attempts utilities', () => {
     })
   })
 
+  it('preserves legacy object response shapes and normalizes open-response newlines', () => {
+    const result = normalizeTestResponses({
+      'q-3': {
+        response_text: 'Line 1\r\nLine 2',
+      },
+      'q-1': {
+        question_type: 'multiple_choice',
+        selected_option: 2,
+      },
+      'q-2': {
+        question_type: 'unknown',
+        selected_option: 1,
+      },
+      'q-4': {
+        question_type: 'multiple_choice',
+        response_text: 'fallback text',
+      },
+    })
+
+    expect(result).toEqual({
+      'q-1': {
+        question_type: 'multiple_choice',
+        selected_option: 2,
+      },
+      'q-2': {
+        question_type: 'multiple_choice',
+        selected_option: 1,
+      },
+      'q-3': {
+        question_type: 'open_response',
+        response_text: 'Line 1\nLine 2',
+      },
+      'q-4': {
+        question_type: 'open_response',
+        response_text: 'fallback text',
+      },
+    })
+  })
+
   it('validates response option ranges and question ids', () => {
     const questions = [
       { id: 'q-1', question_type: 'multiple_choice' as const, options: ['A', 'B'] },
@@ -66,6 +105,25 @@ describe('test-attempts utilities', () => {
     expect(
       validateTestResponsesAgainstQuestions(
         { 'q-1': { question_type: 'multiple_choice', selected_option: 0 } },
+        questions,
+        { requireAllQuestions: true }
+      )
+    ).toEqual({ valid: false, error: 'All questions must be answered' })
+  })
+
+  it('requires non-blank open responses when all questions must be answered', () => {
+    const questions = [
+      { id: 'q-1', question_type: 'open_response' as const, options: [], response_max_chars: 50 },
+    ]
+
+    expect(
+      validateTestResponsesAgainstQuestions(
+        {
+          'q-1': {
+            question_type: 'open_response',
+            response_text: '   ',
+          },
+        },
         questions,
         { requireAllQuestions: true }
       )
