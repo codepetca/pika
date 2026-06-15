@@ -683,3 +683,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `gh run watch 27520948663 --repo codepetca/pika --interval 15 --exit-status`
 - `gh pr merge 795 --repo codepetca/pika --merge --delete-branch`
 - `git -C /Users/stew/Repos/.worktrees/pika/production merge --ff-only origin/production`
+## 2026-06-14 — Draft hook assessment option names
+
+**Completed:**
+- Renamed the primary `useDraftMode` options from `quizId`/`quizTitle` to `assessmentId`/`assessmentTitle`.
+- Kept legacy `quizId`/`quizTitle` option aliases for compatibility and added focused test coverage for them.
+- Updated hook comments, examples, and tests to use assessment/test wording by default.
+- Left DB-shaped `quiz_id` question fields and draft route contracts unchanged.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/hooks/useDraftMode.test.ts`
+- `pnpm lint`
+- `pnpm test`

@@ -7,8 +7,8 @@ import type { TestAssessmentQuestion } from '@/types'
 
 function makeOptions(overrides: Partial<Parameters<typeof useDraftMode>[0]> = {}) {
   return {
-    quizId: 'quiz-1',
-    quizTitle: 'Test Quiz',
+    assessmentId: 'test-1',
+    assessmentTitle: 'Test Assessment',
     showResults: false,
     apiBasePath: '/api/teacher/tests',
     onUpdate: vi.fn(),
@@ -21,7 +21,7 @@ function makeOptions(overrides: Partial<Parameters<typeof useDraftMode>[0]> = {}
 function makeQuestion(overrides: Partial<TestAssessmentQuestion> = {}): TestAssessmentQuestion {
   return {
     id: 'q-1',
-    quiz_id: 'quiz-1',
+    quiz_id: 'test-1',
     question_text: 'What is 2+2?',
     question_type: 'multiple_choice',
     options: ['1', '2', '4', '5'],
@@ -42,9 +42,51 @@ describe('useDraftMode', () => {
   })
 
   describe('initial state', () => {
-    it('initialises editTitle from quizTitle', () => {
-      const { result } = renderHook(() => useDraftMode(makeOptions({ quizTitle: 'My Quiz' })))
-      expect(result.current.editTitle).toBe('My Quiz')
+    it('initialises editTitle from assessmentTitle', () => {
+      const { result } = renderHook(() =>
+        useDraftMode(makeOptions({ assessmentTitle: 'My Test' }))
+      )
+      expect(result.current.editTitle).toBe('My Test')
+    })
+
+    it('accepts legacy quizId and quizTitle option aliases', async () => {
+      const fetchSpy = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ version: 2 }),
+      })
+      vi.stubGlobal('fetch', fetchSpy)
+
+      const { result } = renderHook(() =>
+        useDraftMode({
+          quizId: 'legacy-test-1',
+          quizTitle: 'Legacy Test',
+          showResults: false,
+          apiBasePath: '/api/teacher/tests',
+          onUpdate: vi.fn(),
+          onError: vi.fn(),
+          onQuestionsChange: vi.fn(),
+        })
+      )
+
+      expect(result.current.editTitle).toBe('Legacy Test')
+
+      await act(async () => {
+        await result.current.saveDraft({
+          title: 'Updated Title',
+          show_results: false,
+          questions: [],
+        })
+      })
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          expect.stringContaining('/api/teacher/tests/legacy-test-1/draft'),
+          expect.objectContaining({ method: 'PATCH' })
+        )
+      })
+
+      vi.unstubAllGlobals()
     })
 
     it('initialises saveStatus as "saved"', () => {
@@ -72,7 +114,7 @@ describe('useDraftMode', () => {
     it('resets title and clears conflict when given a canonical draft', () => {
       const onQuestionsChange = vi.fn()
       const { result } = renderHook(() =>
-        useDraftMode(makeOptions({ quizTitle: 'Old Title', onQuestionsChange }))
+        useDraftMode(makeOptions({ assessmentTitle: 'Old Title', onQuestionsChange }))
       )
 
       act(() => {
@@ -90,7 +132,7 @@ describe('useDraftMode', () => {
     it('does nothing when draft is null', () => {
       const onQuestionsChange = vi.fn()
       const { result } = renderHook(() =>
-        useDraftMode(makeOptions({ quizTitle: 'Original', onQuestionsChange }))
+        useDraftMode(makeOptions({ assessmentTitle: 'Original', onQuestionsChange }))
       )
 
       act(() => {
@@ -123,7 +165,7 @@ describe('useDraftMode', () => {
 
       await waitFor(() => {
         expect(fetchSpy).toHaveBeenCalledWith(
-          expect.stringContaining('/api/teacher/tests/quiz-1/draft'),
+          expect.stringContaining('/api/teacher/tests/test-1/draft'),
           expect.objectContaining({ method: 'PATCH' })
         )
       })
@@ -182,11 +224,12 @@ describe('useDraftMode', () => {
     })
   })
 
-  describe('title changes on quizId change', () => {
-    it('resets editTitle when quizId changes', () => {
+  describe('title changes on assessmentId change', () => {
+    it('resets editTitle when assessmentId changes', () => {
       const { result, rerender } = renderHook(
-        ({ quizId, quizTitle }) => useDraftMode(makeOptions({ quizId, quizTitle })),
-        { initialProps: { quizId: 'quiz-1', quizTitle: 'Quiz One' } }
+        ({ assessmentId, assessmentTitle }) =>
+          useDraftMode(makeOptions({ assessmentId, assessmentTitle })),
+        { initialProps: { assessmentId: 'test-1', assessmentTitle: 'Test One' } }
       )
 
       act(() => {
@@ -194,9 +237,9 @@ describe('useDraftMode', () => {
       })
       expect(result.current.editTitle).toBe('Modified Title')
 
-      rerender({ quizId: 'quiz-2', quizTitle: 'Quiz Two' })
+      rerender({ assessmentId: 'test-2', assessmentTitle: 'Test Two' })
 
-      expect(result.current.editTitle).toBe('Quiz Two')
+      expect(result.current.editTitle).toBe('Test Two')
     })
   })
 
@@ -211,7 +254,7 @@ describe('useDraftMode', () => {
 
       const onUpdate = vi.fn()
       const { result } = renderHook(() =>
-        useDraftMode(makeOptions({ quizTitle: 'Old', onUpdate }))
+        useDraftMode(makeOptions({ assessmentTitle: 'Old', onUpdate }))
       )
 
       act(() => {
