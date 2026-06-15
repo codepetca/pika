@@ -9,22 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-09 — Roster summary pane removal
-
-**Completed:**
-- Created `codex/remove-roster-summary` from `origin/main`.
-- Removed the teacher roster tab's right-side inspector pane and fallback `Roster Summary` panel.
-- Kept roster row selection behavior for existing single-student and bulk roster actions.
-- Added a component regression test asserting the roster summary inspector and resize separator are absent.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2655 tests)
-- `pnpm test tests/components/TeacherRosterTab.test.tsx`
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/6d20a5cb-c497-4dc1-ac74-0637068c8a7f?tab=roster'`
-- Live Playwright DOM check: no `Roster Summary`, no `Resize Roster panes` separator, roster scroll pane visible.
-- `pnpm build`
-
 ## 2026-06-09 — Legacy quiz internal test naming pass
 
 **Completed:**
@@ -676,4 +660,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/api/teacher/announcements.test.ts tests/unit/announcements.test.ts tests/components/LessonCalendar.test.tsx tests/components/LessonDayCell.test.tsx`
 - `pnpm lint`
 - `pnpm test` (first run hit unrelated component timeout failures; failed files passed on isolated rerun)
+- `pnpm test`
+
+## 2026-06-14 — Student tests response fixture keys
+
+**Completed:**
+- Updated `StudentTestsTab` test fixtures to use current `tests`/`test` response keys by default.
+- Added explicit legacy `quiz`/`quizzes` response-key fallback coverage for the student tests component.
+- Left DB-shaped `quiz_id` question fields and legacy `student-quiz-action-footer` test id unchanged.
+- No production code, schema, or API contract changes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/components/StudentTestsTab.test.tsx` (first run hit an unrelated exam-mode timeout after the new fallback test passed; rerun passed)
+- `pnpm lint`
 - `pnpm test`
