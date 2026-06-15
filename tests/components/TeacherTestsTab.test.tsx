@@ -228,22 +228,25 @@ function makeGradingStudent(overrides: Record<string, unknown> = {}) {
 }
 
 function makeResultsResponse(overrides?: {
-  quizId?: string
-  quizTitle?: string
+  testId?: string
+  testTitle?: string
   students?: Array<Record<string, unknown>>
   questions?: Array<Record<string, unknown>>
-  quizStatus?: TestAssessmentWithStats['status']
+  testStatus?: TestAssessmentWithStats['status']
   activeRun?: Record<string, unknown> | null
+  legacyQuizKey?: boolean
 }) {
+  const testSummary = {
+    id: overrides?.testId ?? 'test-1',
+    title: overrides?.testTitle ?? 'Unit Test',
+    status: overrides?.testStatus ?? 'active',
+    grading_finalized_at: null,
+  }
+
   return {
     ok: true,
     json: async () => ({
-      quiz: {
-        id: overrides?.quizId ?? 'test-1',
-        title: overrides?.quizTitle ?? 'Unit Test',
-        status: overrides?.quizStatus ?? 'active',
-        grading_finalized_at: null,
-      },
+      [overrides?.legacyQuizKey ? 'quiz' : 'test']: testSummary,
       questions:
         overrides?.questions ?? [
           {
@@ -396,6 +399,17 @@ describe('TeacherTestsTab', () => {
     )
   })
 
+  it('reads legacy quiz-keyed test results payloads as a compatibility fallback', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ legacyQuizKey: true }))
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close All' })).toBeInTheDocument()
+  })
+
   it('opens the edit modal from the selected test edit button', async () => {
     const updateSearchParams = vi.fn((updater: (params: URLSearchParams) => void) => {
       const params = new URLSearchParams('tab=tests')
@@ -496,7 +510,7 @@ describe('TeacherTestsTab', () => {
 
   it('disables status actions while markdown edits are pending in the edit modal', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
-    fetchMock.mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'draft' }))
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: 'draft' }))
     renderTab()
 
     await openEditModalFromSelectedTest()
@@ -540,7 +554,7 @@ describe('TeacherTestsTab', () => {
   it('delegates preview from the test edit modal', async () => {
     const onRequestTestPreview = vi.fn()
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
-    fetchMock.mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'draft' }))
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: 'draft' }))
     renderTab({ onRequestTestPreview })
 
     await openEditModalFromSelectedTest()
@@ -560,7 +574,7 @@ describe('TeacherTestsTab', () => {
 
   it('updates the selected test header and activation state immediately from modal draft changes', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
-    fetchMock.mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'draft' }))
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: 'draft' }))
     const onSelectTest = vi.fn()
     renderTab({ onSelectTest })
 
@@ -583,7 +597,7 @@ describe('TeacherTestsTab', () => {
 
   it('keeps the selected workspace mounted and updates saved test metadata after autosave', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
-    fetchMock.mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'draft' }))
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: 'draft' }))
     const onSelectTest = vi.fn()
     renderTab({ onSelectTest })
 
@@ -616,7 +630,7 @@ describe('TeacherTestsTab', () => {
       if (url === '/api/teacher/tests' && init?.method === 'POST') {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ quiz: createdTest }),
+          json: async () => ({ test: createdTest }),
         })
       }
       if (typeof url === 'string' && url.includes('/api/teacher/tests?classroom_id=')) {
@@ -627,9 +641,9 @@ describe('TeacherTestsTab', () => {
       }
       if (url === '/api/teacher/tests/created-test-id/results') {
         return Promise.resolve(makeResultsResponse({
-          quizId: 'created-test-id',
-          quizTitle: 'Untitled 2026-05-14 10:45:00',
-          quizStatus: 'draft',
+          testId: 'created-test-id',
+          testTitle: 'Untitled 2026-05-14 10:45:00',
+          testStatus: 'draft',
           students: [],
         }))
       }
@@ -654,7 +668,7 @@ describe('TeacherTestsTab', () => {
 
   it('updates the tests list from edit modal draft title changes', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
-    fetchMock.mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'draft' }))
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ testStatus: 'draft' }))
     const view = renderTab({ testsTabClickToken: 0 })
 
     expect(await openEditModalFromSelectedTest()).toHaveTextContent('Detail for Unit Test')
@@ -681,7 +695,7 @@ describe('TeacherTestsTab', () => {
         ok: true,
         json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })] }),
       })
-      .mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'draft' }))
+      .mockResolvedValueOnce(makeResultsResponse({ testStatus: 'draft' }))
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -736,7 +750,7 @@ describe('TeacherTestsTab', () => {
         json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
       })
       .mockResolvedValueOnce(makeResultsResponse({
-        quizStatus: 'active',
+        testStatus: 'active',
         students: [
           {
             student_id: 'student-1',
@@ -763,7 +777,7 @@ describe('TeacherTestsTab', () => {
         ok: true,
         json: async () => ({ updated_count: 1, skipped_count: 0, state: 'open' }),
       })
-      .mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'active' }))
+      .mockResolvedValueOnce(makeResultsResponse({ testStatus: 'active' }))
 
     renderTab()
 
@@ -808,13 +822,13 @@ describe('TeacherTestsTab', () => {
         ok: true,
         json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
       })
-      .mockResolvedValueOnce(makeResultsResponse({ quizStatus: 'active' }))
+      .mockResolvedValueOnce(makeResultsResponse({ testStatus: 'active' }))
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ updated_count: 1, skipped_count: 0, state: 'closed' }),
       })
       .mockResolvedValueOnce(makeResultsResponse({
-        quizStatus: 'active',
+        testStatus: 'active',
         students: [
           {
             student_id: 'student-1',
@@ -1687,7 +1701,7 @@ describe('TeacherTestsTab', () => {
         ok: true,
         json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
       })
-      .mockResolvedValue(makeResultsResponse({ quizStatus: 'closed' }))
+      .mockResolvedValue(makeResultsResponse({ testStatus: 'closed' }))
 
     renderTab()
 
@@ -1786,7 +1800,7 @@ describe('TeacherTestsTab', () => {
         ok: true,
         json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'closed' })] }),
       })
-      .mockResolvedValue(makeResultsResponse({ quizStatus: 'active' }))
+      .mockResolvedValue(makeResultsResponse({ testStatus: 'active' }))
 
     renderTab()
 
@@ -1845,8 +1859,8 @@ describe('TeacherTestsTab', () => {
     await act(async () => {
       resolveSecondResults?.(
         makeResultsResponse({
-          quizId: 'test-2',
-          quizTitle: 'Unit Test B',
+          testId: 'test-2',
+          testTitle: 'Unit Test B',
           students: [
             {
               student_id: 'student-2',
@@ -1875,8 +1889,8 @@ describe('TeacherTestsTab', () => {
     await act(async () => {
       resolveFirstResults?.(
         makeResultsResponse({
-          quizId: 'test-1',
-          quizTitle: 'Unit Test A',
+          testId: 'test-1',
+          testTitle: 'Unit Test A',
           students: [
             {
               student_id: 'student-1',
@@ -2103,7 +2117,7 @@ describe('TeacherTestsTab', () => {
         json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'closed' })] }),
       })
       .mockResolvedValueOnce(makeResultsResponse({
-        quizStatus: 'closed',
+        testStatus: 'closed',
         students: [
           {
             student_id: 'student-1',
@@ -2150,7 +2164,7 @@ describe('TeacherTestsTab', () => {
         json: async () => ({ unsubmitted_count: 1, skipped_count: 0 }),
       })
       .mockResolvedValueOnce(makeResultsResponse({
-        quizStatus: 'closed',
+        testStatus: 'closed',
         students: [
           {
             student_id: 'student-1',
@@ -2252,7 +2266,7 @@ describe('TeacherTestsTab', () => {
         json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'closed' })] }),
       })
       .mockResolvedValueOnce(makeResultsResponse({
-        quizStatus: 'closed',
+        testStatus: 'closed',
         students: [
           {
             student_id: 'student-1',
@@ -2280,7 +2294,7 @@ describe('TeacherTestsTab', () => {
         json: async () => ({ unsubmitted_count: 1, skipped_count: 0 }),
       })
       .mockResolvedValueOnce(makeResultsResponse({
-        quizStatus: 'closed',
+        testStatus: 'closed',
         students: [
           {
             student_id: 'student-1',
