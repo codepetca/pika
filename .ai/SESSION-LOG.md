@@ -9,22 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-09 — Assignment returned-comment duplication fix
-
-**Completed:**
-- Stopped assignment AI grading from copying previously returned `feedback` into each new AI feedback result.
-- Made the full assignment return route clear `teacher_feedback_draft` and AI suggestion fields after comments are sent as returned feedback.
-- Added return-route coverage for clearing the comment draft and AI suggestion state.
-- Fixed the stale teacher calendar component test by pinning `getTodayInToronto`; the test was clicking a past disabled date after June 8.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (failed on reproducible baseline `tests/components/TeacherCalendarPage.test.tsx` class-day toggle assertion before this branch's edits)
-- `pnpm vitest run tests/components/TeacherCalendarPage.test.tsx tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts tests/unit/ai-grading.test.ts tests/api/teacher/assignments-auto-grade.test.ts`
-- `pnpm vitest run tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts tests/unit/ai-grading.test.ts tests/api/teacher/assignments-auto-grade.test.ts`
-- `pnpm test`
-- `pnpm lint`
-- `pnpm exec tsc --noEmit`
-
 ## 2026-06-08 — Assignment AI grading pane refresh
 
 **Completed:**
@@ -683,3 +667,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/assessments.test.ts`
 - `pnpm lint`
 - `pnpm test`
+
+## 2026-06-14 — Production release sync
+
+**Completed:**
+- Merged latest `origin/main` into `production` through protected PR #795.
+- Verified required GitHub checks passed before merging.
+- Synced the local production worktree to `origin/production` at `f483bbcbdc055fef379b655d6162b03c5fee073e`.
+- Risk profile: runtime-platform.
+- Model recommendation: GPT-5 Codex - protected-branch release orchestration with CI and worktree synchronization.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `bash .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh`
+- `gh run watch 27520948663 --repo codepetca/pika --interval 15 --exit-status`
+- `gh pr merge 795 --repo codepetca/pika --merge --delete-branch`
+- `git -C /Users/stew/Repos/.worktrees/pika/production merge --ff-only origin/production`
