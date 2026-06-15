@@ -9,23 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-09 — Legacy quiz internal test naming pass
-
-**Completed:**
-- Merged PR #762 (`Clean up legacy quiz test contracts`) into `main`.
-- Created `codex/legacy-quiz-internal-test-names` from the merged `origin/main`.
-- Continued the safe internal naming transition by moving active `/tests` route/test type imports to `Test*` aliases.
-- Updated active `/api/*/tests` assertions and the return-visibility integration test to read `test`/`tests` first while preserving explicit legacy `quiz`/`quizzes` equality checks.
-- Added test-named mock factories (`createMockTest`, `createMockTestQuestion`, `createMockTestResponse`) over the legacy DB-shaped contracts.
-- Migrated `TestDetailPanel` component test fixtures to test-named aliases/helpers without changing the component prop contract or schema-shaped `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2655 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm vitest run tests/api/teacher/tests-route.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/api/student/tests-session-status.test.ts tests/api/integration/test-return-visibility-flow.test.ts tests/components/TestResultsView.test.tsx tests/components/TestDetailPanel.test.tsx tests/hooks/useDraftMode.test.ts tests/components/StudentTestsTab.test.tsx`
-- `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check`
-
 ## 2026-06-09 — Legacy quiz student Tests state naming pass
 
 **Completed:**
@@ -674,5 +657,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm exec tsc --noEmit`
 - `pnpm test tests/components/StudentTestsTab.test.tsx` (first run hit an unrelated exam-mode timeout after the new fallback test passed; rerun passed)
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-14 — Test detail response fixture keys
+
+**Completed:**
+- Updated `TestDetailPanel` test fixtures to use current `test` response keys by default.
+- Added explicit legacy `quiz` response-key fallback coverage for teacher test detail payloads.
+- Preserved legacy `quiz`/`onQuizUpdate` prop alias coverage and the stale same-id quiz assessment scenario.
+- No production code, schema, or API contract changes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/components/TestDetailPanel.test.tsx`
 - `pnpm lint`
 - `pnpm test`
