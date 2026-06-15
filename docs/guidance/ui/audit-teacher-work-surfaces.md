@@ -103,7 +103,7 @@ These are present or recently present patterns that should not be treated as reu
 | --- | --- | --- | --- | --- |
 | Passive split shells that reserve empty detail space before selection | tests/quizzes shell paths | legacy drift | mark legacy, avoid copying | now |
 | Mode controls that visually outrank content lists | tests authoring/grading toggle states | legacy drift | reduce or localize | now |
-| Divergent card systems with incompatible metadata density | assignments vs quizzes/tests cards | experimental drift | converge before extracting | later |
+| Divergent card systems with incompatible metadata density | assignments vs tests cards | experimental drift | converge before extracting | later |
 
 ## Extraction Roadmap
 
@@ -131,7 +131,7 @@ Required API shape:
 
 Non-goals:
 
-- no assignment, quiz, or test business logic
+- no assignment or test business logic
 - no grading logic
 - no routing/query management beyond what a layout primitive strictly needs
 
@@ -140,11 +140,11 @@ Adoption rule:
 - teacher assignments and teacher tests may use it where the current workspace state truly matches
   active primary-plus-inspector work
 - do not enable the classroom route's external `RightSidebar` as a substitute for the workspace split
-  in teacher assignment, quiz, or test summary/workspace states
+  in teacher assignment or test summary/workspace states
 
 ### Later: teacher work-item card convergence
 
-Assignments and quizzes/tests both need compact work-item cards, but they have not converged far enough yet to justify one primitive.
+Assignments and tests both need compact work-item cards, but they have not converged far enough yet to justify one primitive.
 
 Promotion criteria before extraction:
 
@@ -155,7 +155,7 @@ Promotion criteria before extraction:
 
 ### Never for now: full assessment mega-shell
 
-Do not introduce a generic assessment framework that tries to own assignments, quizzes, and tests in one abstraction. The family is aligned at the structural level, not at the business-logic level.
+Do not introduce a generic assessment framework that tries to own assignments and tests in one abstraction. The family is aligned at the structural level, not at the business-logic level.
 
 ## Review Checklist
 

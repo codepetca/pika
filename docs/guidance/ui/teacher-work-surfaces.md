@@ -184,8 +184,8 @@ shared shell and split primitives instead of building feature-local layout and
 resize code.
 
 Use this composition as the default selected-workspace template for assignments,
-quizzes, tests, and nearby teacher work tabs when the workflow has an active
-primary pane plus an active inspector/detail pane:
+tests, and nearby teacher work tabs when the workflow has an active primary pane
+plus an active inspector/detail pane:
 
 ```tsx
 <TeacherWorkSurfaceShell
@@ -431,16 +431,15 @@ For this teacher work-surface family:
   - shared page-shell pieces already in use
   - stable empty/list/detail containers where structure truly matches
   - the teacher resizable split workspace container derived from assignments
-  - shared teacher work-item card variants only if assignments/quizzes/tests converge
+  - shared teacher work-item card variants only if assignments/tests converge
 - should remain composed patterns:
   - teacher assignment summary
   - teacher assignment workspace
-  - teacher quiz authoring composition
   - teacher test authoring composition
   - grading workspace composition
 - should remain feature-local:
   - grading behavior
-  - quiz/test state machines
+  - test state machines
   - assessment-specific domain controls
   - authoring rules and validation logic
 
@@ -471,7 +470,7 @@ Every teacher work-surface pattern should be classified as one of:
 
 Promotion flow:
 
-1. a pattern changes in assignments, quizzes, or tests
+1. a pattern changes in assignments or tests
 2. it is recorded as local or experimental
 3. if it proves better or reusable, this canon and the audit are updated
 4. only then does it become stable or a primitive candidate
@@ -480,7 +479,7 @@ The weekly promotion-review automation should be used to surface promotion candi
 
 ## Change Protocol
 
-Any meaningful teacher assignments/quizzes/tests UX change should update this canon when it changes:
+Any meaningful teacher assignments/tests UX change should update this canon when it changes:
 
 - the interaction ladder
 - shell structure
@@ -494,4 +493,4 @@ When updating this file, explicitly note whether the pattern is:
 
 - assignment-led and already stable
 - experimental and under review
-- promoted from quizzes/tests because it is now the better family pattern
+- promoted from tests because it is now the better family pattern
