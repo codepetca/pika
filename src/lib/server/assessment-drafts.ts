@@ -481,10 +481,10 @@ export async function syncAssessmentQuestionsFromDraft(
       position,
     }),
     errorMessages: {
-      load: 'Failed to load quiz questions for sync',
-      update: 'Failed to update synced quiz question',
-      insert: 'Failed to insert synced quiz question',
-      delete: 'Failed to delete removed quiz question',
+      load: 'Failed to load assessment questions for sync',
+      update: 'Failed to update synced assessment question',
+      insert: 'Failed to insert synced assessment question',
+      delete: 'Failed to delete removed assessment question',
     },
   })
 }
@@ -606,7 +606,7 @@ async function syncAssessmentQuestionRowsFromDraft<TQuestion extends { id: strin
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Generic helpers shared by quiz/test draft routes
+// Generic helpers shared by assessment draft routes
 // ────────────────────────────────────────────────────────────────────────────
 
 export type EnsureDraftConfig<TContent> = {
@@ -634,7 +634,7 @@ export type EnsureDraftConfig<TContent> = {
 
 /**
  * Ensures an assessment draft exists and is valid; creates/repairs it if not.
- * Shared by quiz and test draft routes to eliminate duplication.
+ * Shared by assessment draft routes to eliminate duplication.
  */
 export async function ensureAssessmentDraft<TContent>(
   supabase: SupabaseLike,
@@ -721,7 +721,7 @@ export async function ensureAssessmentDraft<TContent>(
 
 /**
  * Sync title and show_results from a saved draft back to the parent assessment table.
- * Used after PATCH in quiz/test draft routes.
+ * Used after PATCH in assessment draft routes.
  */
 export async function syncAssessmentMetadataFromDraft(
   supabase: SupabaseLike,

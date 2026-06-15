@@ -9,36 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-08 — Assignment AI grading pane refresh
-
-**Completed:**
-- Refreshed the mounted selected-student assignment grading pane when a background assignment AI grading run completes, avoiding a full page refresh.
-- Applied the same pane refresh to the legacy synchronous batch auto-grade path.
-- Added classroom-view coverage that asserts a mounted grading pane receives a refresh-key bump after background AI grading completion.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (worktree rerun failed in baseline verification only: `LoginClient.test.tsx` two failures and `crypto.test.ts` password hash timeout; prior hub startup run failed different unrelated tests)
-- `pnpm vitest run tests/components/TeacherClassroomView.test.tsx`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-
-## 2026-06-08 — FAB subshell standardization
-
-**Completed:**
-- Added a standardized `floatingAction` split-button slot to `TeacherWorkSurfaceActionBar`.
-- Migrated teacher Classwork, Tests, Gradebook, Roster, and Announcements FAB clusters to one split action per first-level tab/workspace, moving secondary toggles/actions into the split menu.
-- Consolidated selected-assignment pane switching, survey visibility/edit actions, gradebook score display/column/email actions, roster CSV/remove/email actions, and announcement creation into standardized split menus.
-- Left Calendar/Attendance unchanged because their FAB controls are date/view navigation rather than action menus.
-- Deferred product quiz removal to a later pass; Tests remain in scope.
-
-**Validation:**
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm exec vitest run tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherGradebookTab.test.tsx tests/components/TeacherRosterTab.test.tsx tests/components/TeacherWorkSurfaceActionBar.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
-- `pnpm build`
-- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
-- Visual verification screenshots for teacher Classwork, Tests, Gradebook, Roster, Announcements, plus student Classwork sanity check.
-
 ## 2026-06-08 — Product quiz removal
 
 **Completed:**
@@ -683,6 +653,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `gh run watch 27520948663 --repo codepetca/pika --interval 15 --exit-status`
 - `gh pr merge 795 --repo codepetca/pika --merge --delete-branch`
 - `git -C /Users/stew/Repos/.worktrees/pika/production merge --ff-only origin/production`
+
 ## 2026-06-14 — Draft hook assessment option names
 
 **Completed:**
@@ -695,5 +666,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm exec tsc --noEmit`
 - `pnpm test tests/hooks/useDraftMode.test.ts`
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-14 — Assessment draft sync error wording
+
+**Completed:**
+- Renamed `syncAssessmentQuestionsFromDraft` failure messages from quiz-question wording to assessment-question wording.
+- Updated nearby generic assessment draft helper comments to avoid quiz/test route wording.
+- Updated the focused unit assertion for the renamed insert failure message.
+- Left compatibility exports, `AssessmentDraftType = 'quiz' | 'test'`, `quiz_questions`, `quiz_id`, route contracts, and persisted payload shapes unchanged.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/unit/assessment-drafts.test.ts`
 - `pnpm lint`
 - `pnpm test`
