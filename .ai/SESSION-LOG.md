@@ -9,44 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-08 — Quiz individual responses freshness audit
-
-**Completed:**
-- Scoped `QuizIndividualResponses` loaded responders, questions, stats, load errors, and grading notices to the active assessment scope.
-- Added request-id guards so stale individual-response result loads cannot overwrite after selected quiz/test id, API base, or assessment type changes.
-- Guarded save/clear/suggest completion paths so old assessment grading callbacks cannot repaint notices or trigger parent refreshes after a selection switch.
-- Added direct component coverage for stale result response overwrites and already-loaded old responses being hidden immediately on quiz switches.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/QuizIndividualResponses.test.tsx tests/components/QuizDetailPanel.test.tsx`
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm build`
-- `pnpm vitest run tests/components/StudentAssignmentsTab.test.tsx tests/components/TeacherGradebookTab.test.tsx`
-- `pnpm test`
-
-## 2026-06-08 — Gradebook action consistency audit
-
-**Completed:**
-- Replaced the Gradebook score-display split button with the shared `SegmentedControl`, keeping score display as a two-state mode control instead of an action menu.
-- Kept selected-student email actions as the only Gradebook split action, shown only when at least one valid selected student email exists.
-- Updated Gradebook component coverage to assert score-display pressed state, absence of the old score-display action menu, and separation between score-display controls and selected-email menu actions.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (initial run hit a `TeacherGradebookTab` timeout; reran `pnpm vitest run tests/components/TeacherGradebookTab.test.tsx`, then `bash scripts/verify-env.sh` passed)
-- `pnpm vitest run tests/components/TeacherGradebookTab.test.tsx`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook'`
-- Manual loaded recaptures: `/tmp/pika-teacher-loaded.png`, `/tmp/pika-teacher-selected.png`, `/tmp/pika-teacher-mobile-loaded.png`
-- `git diff --check`
-- `pnpm lint`
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test` (one unrelated `StudentHistoryPage` concurrency failure; isolated rerun passed)
-- `pnpm vitest run tests/components/StudentHistoryPage.test.tsx`
-- `pnpm vitest run --sequence.concurrent=false`
-
 ## 2026-06-09 — Assignment returned-comment duplication fix
 
 **Completed:**
@@ -690,6 +652,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm exec playwright test e2e/student-exam-mode.spec.ts -g "keeps a transient away restoration" --project=chromium-desktop`
 - `pnpm lint`
+
 ## 2026-06-14 — Teacher Tests payload type names
 
 **Completed:**
@@ -703,5 +666,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm exec tsc --noEmit`
 - `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-14 — Assessment utility fixture naming
+
+**Completed:**
+- Updated generic assessment utility comments and local parameter names from quiz wording to assessment wording.
+- Switched generic `tests/unit/assessments.test.ts` cases to use test-shaped fixtures for response eligibility, result visibility, editing, activation, and aggregation.
+- Left explicit legacy quiz alias/status coverage on `createMockQuiz` where the test is intentionally about quiz compatibility.
+- Did not change API response shapes, route contracts, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/unit/assessments.test.ts`
 - `pnpm lint`
 - `pnpm test`

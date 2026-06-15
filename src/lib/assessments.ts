@@ -87,23 +87,23 @@ export function getAssessmentType(
 }
 
 /**
- * Check if a student can respond to a quiz
+ * Check if a student can respond to an assessment.
  */
 export function canStudentRespond(
-  quiz: Pick<TestAssessment, 'status'>,
+  assessment: Pick<TestAssessment, 'status'>,
   hasResponded: boolean
 ): boolean {
-  return quiz.status === 'active' && !hasResponded
+  return assessment.status === 'active' && !hasResponded
 }
 
 /**
- * Check if a student can view quiz results
+ * Check if a student can view assessment results released through show_results.
  */
 export function canStudentViewResults(
-  quiz: Pick<TestAssessment, 'show_results' | 'status'>,
+  assessment: Pick<TestAssessment, 'show_results' | 'status'>,
   hasResponded: boolean
 ): boolean {
-  return quiz.show_results && quiz.status === 'closed' && hasResponded
+  return assessment.show_results && assessment.status === 'closed' && hasResponded
 }
 
 /**
@@ -174,7 +174,7 @@ export function canEditAssessmentQuestions(
 }
 
 /**
- * Aggregate quiz responses into per-question results
+ * Aggregate assessment responses into per-question results.
  */
 export function aggregateResults(
   questions: TestAssessmentQuestion[],
