@@ -9,31 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-07 — Student exam reload-resume e2e coverage
-
-**Completed:**
-- Added a focused Playwright student exam-mode flow that starts an open-response test, waits for draft autosave, reloads the browser, reopens the test, and verifies the draft resumes.
-- Asserted reload telemetry is recorded as route-exit activity while window/full-screen exit telemetry remains unchanged.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (initially failed until `pnpm install` restored `node_modules`; rerun via `bash scripts/verify-env.sh` passed)
-- `pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop -g "resumes an in-progress"`
-- `pnpm lint`
-
-## 2026-06-08 — Classroom sidebar history tightening
-
-**Completed:**
-- Changed first-level classroom sidebar navigation to replace the current history entry instead of pushing a lateral tab entry.
-- Changed the Classwork sidebar reset path to clear selected assignment state with replace for both teacher and student nav.
-- Added regression coverage for generic sidebar tab replacement and the Classwork selection-clear replace behavior while preserving existing in-tab workspace push coverage.
-
-**Validation:**
-- `pnpm exec vitest run tests/components/NavItems.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
-- Headless Playwright check: Daily → Classwork → assignment detail → Back returned to Classwork summary.
-- `pnpm test -- tests/components/NavItems.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx` (ran the full suite due script argument handling; only failed the pre-existing `TeacherGradebookTab.test.tsx` timeout)
-
 ## 2026-06-08 — Quiz individual responses freshness audit
 
 **Completed:**
@@ -715,3 +690,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm exec playwright test e2e/student-exam-mode.spec.ts -g "keeps a transient away restoration" --project=chromium-desktop`
 - `pnpm lint`
+## 2026-06-14 — Teacher Tests payload type names
+
+**Completed:**
+- Added current-key local response types in `TeacherTestsTab` for teacher test list and results payloads.
+- Kept legacy `quiz` and `quizzes` fields documented as compatibility fallbacks in those local types.
+- Updated `TeacherTestsTab` component fixtures so current `test` results and create payloads are the default.
+- Added explicit legacy `quiz` results-payload fallback coverage.
+- Did not change API response shapes, route contracts, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `pnpm test`

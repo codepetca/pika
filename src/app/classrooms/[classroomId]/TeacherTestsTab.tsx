@@ -122,6 +122,28 @@ interface TestGradingQuestionSummary {
   responseMonospace: boolean
 }
 
+type TeacherTestListResponse = {
+  tests?: TestAssessmentWithStats[]
+  /** Legacy compatibility key retained by active Tests APIs during contract migration. */
+  quizzes?: TestAssessmentWithStats[]
+}
+
+type TeacherTestResultsQuestionResponse = {
+  id: string
+  question_type?: unknown
+  response_monospace?: unknown
+}
+
+type TeacherTestResultsResponse = {
+  test?: TestAssessment | null
+  /** Legacy compatibility key retained by active Tests APIs during contract migration. */
+  quiz?: TestAssessment | null
+  students?: TestGradingStudentRow[]
+  questions?: TeacherTestResultsQuestionResponse[]
+  active_ai_grading_run?: TestAiGradingRunSummary | null
+  error?: string
+}
+
 type WorkspaceState = 'list' | 'selected'
 type WorkspaceTab = 'authoring' | 'grading'
 type TestEditModalView = 'edit' | 'markdown'
@@ -732,7 +754,7 @@ export function TeacherTestsTab({
     setLoading(true)
     try {
       const query = new URLSearchParams({ classroom_id: classroom.id })
-      const data = await fetchJSONWithCache<{ tests?: TestAssessmentWithStats[]; quizzes?: TestAssessmentWithStats[] }>(
+      const data = await fetchJSONWithCache<TeacherTestListResponse>(
         `teacher-tests:${classroom.id}`,
         async () => {
           const response = await fetch(`${apiBasePath}?${query.toString()}`)
@@ -803,7 +825,7 @@ export function TeacherTestsTab({
     }
     setGradingError('')
     try {
-      const { ok, data } = await fetchJSONWithCache<{ ok: boolean; data: any }>(
+      const { ok, data } = await fetchJSONWithCache<{ ok: boolean; data: TeacherTestResultsResponse }>(
         `teacher-test-results:${requestedTestId}:${requestId}`,
         async () => {
           const response = await fetch(`${apiBasePath}/${requestedTestId}/results`, { cache: 'no-store' })
@@ -835,7 +857,7 @@ export function TeacherTestsTab({
       setGradingStudents(nextStudents)
       setGradingQuestions(
         Array.isArray(data.questions)
-          ? data.questions.map((question: any) => ({
+          ? data.questions.map((question) => ({
               id: String(question.id),
               questionType:
                 question.question_type === 'open_response' ? 'open_response' : 'multiple_choice',
