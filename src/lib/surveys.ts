@@ -40,15 +40,6 @@ export function isSurveyVisibleToStudents(
   return isVisibleAtNow(survey.opens_at, now)
 }
 
-export function isSurveyHardDueElapsed(
-  survey: Pick<Survey, 'due_at' | 'due_policy'>,
-  now: Date = new Date()
-): boolean {
-  if (survey.due_policy !== 'hard' || !survey.due_at) return false
-  const dueAt = new Date(survey.due_at)
-  return Number.isFinite(dueAt.getTime()) && dueAt <= now
-}
-
 export function hasSurveyOpened(
   survey: Pick<Survey, 'status' | 'opens_at'>,
   now: Date = new Date()
@@ -62,7 +53,6 @@ export function canStudentRespondToSurvey(
   now: Date = new Date()
 ): boolean {
   if (!isSurveyVisibleToStudents(survey, now)) return false
-  if (isSurveyHardDueElapsed(survey, now)) return false
   if (!hasResponded) return true
   return survey.dynamic_responses
 }

@@ -38,7 +38,7 @@ describe('SurveyModal', () => {
     expect(screen.getByText('Saved')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
     expect(screen.getByText('Due')).toBeInTheDocument()
-    expect(screen.getByLabelText('Due mode')).toHaveDisplayValue('Hard due')
+    expect(screen.queryByText('Due mode')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Show class results to students')).toBeInTheDocument()
     expect(screen.getByLabelText('Allow students to update answers while open')).toBeInTheDocument()
     expect(screen.getByRole('dialog')).toHaveClass('!max-w-5xl')
