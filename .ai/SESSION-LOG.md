@@ -1667,3 +1667,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
 - `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Manual Playwright screenshots: `/tmp/pika-modal-assignment-desktop.png`, `/tmp/pika-modal-material-desktop.png`, `/tmp/pika-modal-survey-desktop.png`, `/tmp/pika-modal-announcement-desktop.png`, `/tmp/pika-modal-survey-mobile.png`, `/tmp/pika-modal-material-mobile.png`
+
+## 2026-06-14 — Remove survey due mode
+
+**Completed:**
+- Removed the Survey `Due mode` selector from creation, settings, and workspace due controls.
+- Kept survey due dates informational while open; student response/update behavior now relies on the `Allow students to update answers while open` checkbox.
+- Added a Preview action to the survey setup modal that flushes autosave and opens the existing survey workspace preview mode.
+- Removed the hard-due response block from the student survey response API.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/unit/surveys.test.ts tests/api/student/surveys-route.test.ts tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-survey-no-due-mode-desktop.png`, `/tmp/pika-survey-no-due-mode-mobile.png`, `/tmp/pika-survey-no-due-mode-dark.png`, `/tmp/pika-survey-preview-workspace.png`

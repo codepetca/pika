@@ -580,7 +580,11 @@ describe('POST /api/student/surveys/[id]/respond', () => {
     }
   })
 
-  it('blocks student responses after a hard due date', async () => {
+  it('uses response-editing settings instead of legacy hard due policy', async () => {
+    mockSurveyState.survey = {
+      ...mockSurveyState.survey,
+      dynamic_responses: false,
+    }
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table !== 'survey_responses') {
         throw new Error(`Unexpected table: ${table}`)
@@ -588,7 +592,7 @@ describe('POST /api/student/surveys/[id]/respond', () => {
 
       const query: any = {
         eq: vi.fn(() => query),
-        limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+        limit: vi.fn().mockResolvedValue({ data: [{ id: 'response-1' }], error: null }),
       }
       return {
         select: vi.fn((columns: string) => {
@@ -608,7 +612,7 @@ describe('POST /api/student/surveys/[id]/respond', () => {
     const data = await response.json()
 
     expect(response.status).toBe(400)
-    expect(data).toEqual({ error: 'Survey responses closed at the due date' })
+    expect(data).toEqual({ error: 'You have already responded to this survey' })
     expect(mockSupabaseClient.from).toHaveBeenCalledTimes(1)
   })
 })

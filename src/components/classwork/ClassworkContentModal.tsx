@@ -1,13 +1,12 @@
 'use client'
 
 import { useId, useRef, type ReactNode, type Ref } from 'react'
-import { Eye, Info } from 'lucide-react'
+import { Eye } from 'lucide-react'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { DateActionBar } from '@/components/DateActionBar'
 import { ACTIONBAR_BUTTON_CLASSNAME } from '@/components/PageLayout'
-import { Button, FormField, Input, Select, SplitButton, type SplitButtonProps } from '@/ui'
+import { Button, FormField, Input, SplitButton, type SplitButtonProps } from '@/ui'
 import { cn } from '@/ui/utils'
-import type { SurveyDuePolicy } from '@/types'
 
 type ClassworkContentModalShellProps = {
   isOpen: boolean
@@ -100,23 +99,10 @@ type ClassworkModalSaveStatusProps = {
 type ClassworkModalSurveyDueFieldsProps = {
   dueDate: string
   dueTime: string
-  duePolicy: SurveyDuePolicy
   disabled?: boolean
   onDueDateChange: (next: string) => void
   onDueTimeChange: (next: string) => void
-  onDuePolicyChange: (next: SurveyDuePolicy) => void
 }
-
-type SurveyDuePolicySelectProps = {
-  value: SurveyDuePolicy
-  disabled?: boolean
-  onChange: (next: SurveyDuePolicy) => void
-}
-
-const SURVEY_DUE_POLICY_OPTIONS = [
-  { value: 'soft', label: 'Soft due' },
-  { value: 'hard', label: 'Hard due' },
-]
 
 const TOP_LINE_FIELD_TONE_CLASS = {
   default: 'text-text-default',
@@ -425,14 +411,12 @@ function ClassworkModalTimeAction({
 export function ClassworkModalSurveyDueFields({
   dueDate,
   dueTime,
-  duePolicy,
   disabled,
   onDueDateChange,
   onDueTimeChange,
-  onDuePolicyChange,
 }: ClassworkModalSurveyDueFieldsProps) {
   return (
-    <div className="grid min-w-0 gap-3 sm:grid-cols-[18rem_11rem] lg:w-[30rem] lg:items-end">
+    <div className="min-w-0 lg:w-[18rem]">
       <ClassworkModalTopLineField
         label="Due"
         required
@@ -452,11 +436,6 @@ export function ClassworkModalSurveyDueFields({
           />
         </div>
       </ClassworkModalTopLineField>
-      <SurveyDuePolicySelect
-        value={duePolicy}
-        disabled={disabled}
-        onChange={onDuePolicyChange}
-      />
     </div>
   )
 }
@@ -522,41 +501,6 @@ export function DateTimeFields({
           {error}
         </p>
       )}
-    </div>
-  )
-}
-
-export function SurveyDuePolicySelect({
-  value,
-  disabled,
-  onChange,
-}: SurveyDuePolicySelectProps) {
-  const selectId = useId()
-  const helpText = value === 'hard'
-    ? 'Hard due closes student responses at the due date.'
-    : 'Soft due shows a due date but keeps the survey open. Students can still respond or amend while the survey is open.'
-
-  return (
-    <div className="min-w-0">
-      <div className="mb-1 flex min-h-5 items-center gap-1.5">
-        <label htmlFor={selectId} className="text-sm font-medium text-text-default">
-          Due mode
-        </label>
-        <span
-          className="inline-flex h-5 w-5 items-center justify-center rounded-full text-text-muted"
-          title={helpText}
-        >
-          <Info className="h-3.5 w-3.5" aria-hidden="true" />
-          <span className="sr-only">Due mode help</span>
-        </span>
-      </div>
-      <Select
-        id={selectId}
-        value={value}
-        disabled={disabled}
-        options={SURVEY_DUE_POLICY_OPTIONS}
-        onChange={(event) => onChange(event.target.value as SurveyDuePolicy)}
-      />
     </div>
   )
 }

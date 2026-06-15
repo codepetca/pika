@@ -5,6 +5,7 @@ import { addDaysToDateString } from '@/lib/date-string'
 import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetupForm'
 import {
   ClassworkContentModalShell,
+  ClassworkModalPreviewButton,
   ClassworkModalPrimaryButton,
   ClassworkModalSaveStatus,
   ClassworkModalSurveyDueFields,
@@ -17,7 +18,7 @@ import {
   combineScheduleDateTimeToIso,
   getTodayInSchedulingTimezone,
 } from '@/lib/scheduling'
-import type { Survey, SurveyDuePolicy } from '@/types'
+import type { Survey } from '@/types'
 
 type SurveySettingsValues = {
   title: string
@@ -25,7 +26,6 @@ type SurveySettingsValues = {
   dynamicResponses: boolean
   dueDate: string
   dueTime: string
-  duePolicy: SurveyDuePolicy
 }
 
 interface SurveyCreationModalProps {
@@ -33,6 +33,7 @@ interface SurveyCreationModalProps {
   classroomId: string
   onClose: () => void
   onDraftSaved?: (survey: Survey) => void
+  onPreview?: (survey: Survey) => void
   onSuccess: (survey: Survey) => void
 }
 
@@ -47,7 +48,6 @@ function areSurveySettingsEqual(left: SurveySettingsValues, right: SurveySetting
     && left.dynamicResponses === right.dynamicResponses
     && left.dueDate === right.dueDate
     && left.dueTime === right.dueTime
-    && left.duePolicy === right.duePolicy
 }
 
 function getDefaultSurveyValues(): SurveySettingsValues {
@@ -57,7 +57,6 @@ function getDefaultSurveyValues(): SurveySettingsValues {
     dynamicResponses: false,
     dueDate: addDaysToDateString(getTodayInSchedulingTimezone(), 1),
     dueTime: DEFAULT_SCHEDULE_TIME,
-    duePolicy: 'soft',
   }
 }
 
@@ -66,6 +65,7 @@ export function SurveyCreationModal({
   classroomId,
   onClose,
   onDraftSaved,
+  onPreview,
   onSuccess,
 }: SurveyCreationModalProps) {
   const titleInputRef = useRef<HTMLInputElement>(null)
@@ -75,7 +75,6 @@ export function SurveyCreationModal({
   const [dynamicResponses, setDynamicResponses] = useState(false)
   const [dueDate, setDueDate] = useState('')
   const [dueTime, setDueTime] = useState(DEFAULT_SCHEDULE_TIME)
-  const [duePolicy, setDuePolicy] = useState<SurveyDuePolicy>('soft')
   const [creatingDraft, setCreatingDraft] = useState(false)
   const [error, setError] = useState('')
 
@@ -85,9 +84,8 @@ export function SurveyCreationModal({
     dynamicResponses,
     dueDate,
     dueTime,
-    duePolicy,
     ...overrides,
-  }), [dueDate, duePolicy, dueTime, dynamicResponses, showResults, title])
+  }), [dueDate, dueTime, dynamicResponses, showResults, title])
 
   const saveSurveySettings = useCallback(async (values: SurveySettingsValues) => {
     if (!currentSurvey) return values
@@ -97,7 +95,7 @@ export function SurveyCreationModal({
       show_results: values.showResults,
       dynamic_responses: values.dynamicResponses,
       due_at: combineScheduleDateTimeToIso(values.dueDate, values.dueTime),
-      due_policy: values.duePolicy,
+      due_policy: 'soft',
     }
     const cleanTitle = values.title.trim()
     if (cleanTitle) {
@@ -123,7 +121,6 @@ export function SurveyCreationModal({
       dynamicResponses: updatedSurvey.dynamic_responses,
       dueDate: values.dueDate,
       dueTime: values.dueTime,
-      duePolicy: updatedSurvey.due_policy ?? values.duePolicy,
     }
   }, [currentSurvey, onDraftSaved])
 
@@ -149,7 +146,6 @@ export function SurveyCreationModal({
     setDynamicResponses(defaults.dynamicResponses)
     setDueDate(defaults.dueDate)
     setDueTime(defaults.dueTime)
-    setDuePolicy(defaults.duePolicy)
     setError('')
     setCreatingDraft(true)
     resetAutosave(null)
@@ -174,7 +170,7 @@ export function SurveyCreationModal({
             show_results: defaults.showResults,
             dynamic_responses: defaults.dynamicResponses,
             due_at: combineScheduleDateTimeToIso(defaults.dueDate, defaults.dueTime),
-            due_policy: defaults.duePolicy,
+            due_policy: 'soft',
           }),
         })
         const data = await response.json().catch(() => ({}))
@@ -212,6 +208,20 @@ export function SurveyCreationModal({
     const flushed = await flushAutosave()
     if (!flushed) return
     onSuccess(currentSurvey)
+    onClose()
+  }
+
+  async function previewSurvey() {
+    if (!currentSurvey) return
+    if (!title.trim()) {
+      setError('Title is required')
+      titleInputRef.current?.focus()
+      return
+    }
+
+    const flushed = await flushAutosave()
+    if (!flushed) return
+    onPreview?.(currentSurvey)
     onClose()
   }
 
@@ -253,7 +263,6 @@ export function SurveyCreationModal({
             <ClassworkModalSurveyDueFields
               dueDate={dueDate}
               dueTime={dueTime}
-              duePolicy={duePolicy}
               disabled={creatingDraft}
               onDueDateChange={(nextDate) => {
                 setDueDate(nextDate)
@@ -263,9 +272,13 @@ export function SurveyCreationModal({
                 setDueTime(nextTime)
                 updateValues({ dueTime: nextTime })
               }}
-              onDuePolicyChange={(nextPolicy) => {
-                setDuePolicy(nextPolicy)
-                updateValues({ duePolicy: nextPolicy })
+            />
+          )}
+          secondaryActions={(
+            <ClassworkModalPreviewButton
+              disabled={busy || !currentSurvey}
+              onClick={() => {
+                void previewSurvey()
               }}
             />
           )}

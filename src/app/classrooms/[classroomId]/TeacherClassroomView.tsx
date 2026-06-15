@@ -867,7 +867,7 @@ export function TeacherClassroomView({
   const [surveyModalId, setSurveyModalId] = useState<string | null>(null)
   const [createdSurveyEditorIntent, setCreatedSurveyEditorIntent] = useState<{
     surveyId: string
-    editMode: 'edit' | 'markdown'
+    editMode: 'edit' | 'markdown' | 'preview'
     focusTitle?: boolean
   } | null>(null)
   const [isReordering, setIsReordering] = useState(false)
@@ -1089,7 +1089,7 @@ export function TeacherClassroomView({
 
   const handleSurveySaved = useCallback((
     survey: Survey,
-    options?: { initialEditMode?: 'edit' | 'markdown'; focusTitle?: boolean },
+    options?: { initialEditMode?: 'edit' | 'markdown' | 'preview'; focusTitle?: boolean },
   ) => {
     invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
     invalidateCachedJSON(`student-surveys:${classroom.id}`)
@@ -3201,6 +3201,10 @@ export function TeacherClassroomView({
         classroomId={classroom.id}
         onClose={() => setIsSurveyCreateModalOpen(false)}
         onDraftSaved={handleSurveyDraftSaved}
+        onPreview={(survey) => {
+          setIsSurveyCreateModalOpen(false)
+          handleSurveySaved(survey, { initialEditMode: 'preview' })
+        }}
         onSuccess={(survey) => {
           setIsSurveyCreateModalOpen(false)
           handleSurveySaved(survey, { initialEditMode: 'edit' })

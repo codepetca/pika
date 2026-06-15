@@ -17,7 +17,7 @@ import {
   getTodayInSchedulingTimezone,
   parseScheduleIsoToParts,
 } from '@/lib/scheduling'
-import type { Survey, SurveyDuePolicy } from '@/types'
+import type { Survey } from '@/types'
 
 type SurveySettingsValues = {
   title: string
@@ -25,7 +25,6 @@ type SurveySettingsValues = {
   dynamicResponses: boolean
   dueDate: string
   dueTime: string
-  duePolicy: SurveyDuePolicy
 }
 
 interface SurveyModalProps {
@@ -53,7 +52,6 @@ function getSurveyValues(survey: Survey): SurveySettingsValues {
     dynamicResponses: survey.dynamic_responses,
     dueDate: due.date,
     dueTime: due.time,
-    duePolicy: survey.due_policy ?? 'soft',
   }
 }
 
@@ -63,7 +61,6 @@ function areSurveySettingsEqual(left: SurveySettingsValues, right: SurveySetting
     && left.dynamicResponses === right.dynamicResponses
     && left.dueDate === right.dueDate
     && left.dueTime === right.dueTime
-    && left.duePolicy === right.duePolicy
 }
 
 export function SurveyModal({
@@ -79,7 +76,6 @@ export function SurveyModal({
   const [dynamicResponses, setDynamicResponses] = useState(false)
   const [dueDate, setDueDate] = useState('')
   const [dueTime, setDueTime] = useState(DEFAULT_SCHEDULE_TIME)
-  const [duePolicy, setDuePolicy] = useState<SurveyDuePolicy>('soft')
   const [error, setError] = useState('')
 
   const buildValues = useCallback((overrides?: Partial<SurveySettingsValues>): SurveySettingsValues => ({
@@ -88,9 +84,8 @@ export function SurveyModal({
     dynamicResponses,
     dueDate,
     dueTime,
-    duePolicy,
     ...overrides,
-  }), [dueDate, duePolicy, dueTime, dynamicResponses, showResults, title])
+  }), [dueDate, dueTime, dynamicResponses, showResults, title])
 
   const saveSurveySettings = useCallback(async (values: SurveySettingsValues) => {
     if (!values.dueDate || !values.dueTime) throw new Error('Due date is required')
@@ -104,7 +99,7 @@ export function SurveyModal({
       show_results: values.showResults,
       dynamic_responses: values.dynamicResponses,
       due_at: combineScheduleDateTimeToIso(values.dueDate, values.dueTime),
-      due_policy: values.duePolicy,
+      due_policy: 'soft',
     }
     if (cleanTitle) {
       update.title = cleanTitle
@@ -127,7 +122,6 @@ export function SurveyModal({
       dynamicResponses: updatedSurvey.dynamic_responses,
       dueDate: values.dueDate,
       dueTime: values.dueTime,
-      duePolicy: updatedSurvey.due_policy ?? values.duePolicy,
     }
   }, [currentSurvey, onSuccess])
 
@@ -152,7 +146,6 @@ export function SurveyModal({
     setDynamicResponses(values.dynamicResponses)
     setDueDate(values.dueDate)
     setDueTime(values.dueTime)
-    setDuePolicy(values.duePolicy)
     setError('')
     resetAutosave(values)
 
@@ -201,7 +194,6 @@ export function SurveyModal({
             <ClassworkModalSurveyDueFields
               dueDate={dueDate}
               dueTime={dueTime}
-              duePolicy={duePolicy}
               onDueDateChange={(nextDate) => {
                 setDueDate(nextDate)
                 updateValues({ dueDate: nextDate })
@@ -209,10 +201,6 @@ export function SurveyModal({
               onDueTimeChange={(nextTime) => {
                 setDueTime(nextTime)
                 updateValues({ dueTime: nextTime })
-              }}
-              onDuePolicyChange={(nextPolicy) => {
-                setDuePolicy(nextPolicy)
-                updateValues({ duePolicy: nextPolicy })
               }}
             />
           )}
