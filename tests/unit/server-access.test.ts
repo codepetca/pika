@@ -8,6 +8,7 @@ import {
 import {
   assertStudentCanAccessAssessment,
   assertStudentCanAccessQuiz,
+  assertTeacherOwnsAssessment,
   assertTeacherOwnsQuiz,
 } from '@/lib/server/assessments'
 import {
@@ -171,7 +172,7 @@ describe('server access helpers', () => {
   })
 
   describe('assessment access', () => {
-    it('returns 403 when the teacher requests archived quiz access with archived checks enabled', async () => {
+    it('returns 403 when the teacher requests archived assessment access with archived checks enabled', async () => {
       mockSupabaseClient.from.mockImplementation((table: string) => {
         expect(table).toBe('quizzes')
         return createSingleSelectResult({
@@ -196,67 +197,27 @@ describe('server access helpers', () => {
         })
       })
 
-      await expect(assertTeacherOwnsQuiz('teacher-1', 'quiz-1', { checkArchived: true })).resolves.toEqual({
+      await expect(assertTeacherOwnsAssessment('teacher-1', 'quiz-1', { checkArchived: true })).resolves.toEqual({
         ok: false,
         status: 403,
         error: 'Classroom is archived',
       })
     })
 
-    it('returns 404 when the quiz does not exist for a student', async () => {
+    it('returns 404 when the assessment does not exist for a student', async () => {
       mockSupabaseClient.from.mockImplementation((table: string) => {
         expect(table).toBe('quizzes')
         return createSingleSelectResult({ data: null, error: { code: 'PGRST116' } })
       })
 
-      await expect(assertStudentCanAccessQuiz('student-1', 'quiz-1')).resolves.toEqual({
+      await expect(assertStudentCanAccessAssessment('student-1', 'quiz-1')).resolves.toEqual({
         ok: false,
         status: 404,
-        error: 'Quiz not found',
+        error: 'Assessment not found',
       })
     })
 
-    it('returns the quiz when the student is enrolled in an active classroom', async () => {
-      mockSupabaseClient.from.mockImplementation((table: string) => {
-        if (table === 'quizzes') {
-          return createSingleSelectResult({
-            data: {
-              id: 'quiz-1',
-              classroom_id: 'classroom-1',
-              status: 'active',
-              opens_at: null,
-              title: 'Quiz 1',
-              show_results: false,
-              position: 0,
-              created_by: 'teacher-1',
-              created_at: '2026-03-01T00:00:00.000Z',
-              updated_at: '2026-03-01T00:00:00.000Z',
-              classrooms: {
-                id: 'classroom-1',
-                teacher_id: 'teacher-1',
-                archived_at: null,
-              },
-            },
-            error: null,
-          })
-        }
-
-        expect(table).toBe('classroom_enrollments')
-        return createSingleSelectResult({ data: { id: 'enrollment-1' }, error: null })
-      })
-
-      const result = await assertStudentCanAccessQuiz('student-1', 'quiz-1')
-
-      expect(result.ok).toBe(true)
-      if (result.ok) {
-        expect(result.assessment).toBe(result.quiz)
-        expect(result.assessment.id).toBe('quiz-1')
-        expect(result.quiz.id).toBe('quiz-1')
-        expect(result.quiz.classrooms.archived_at).toBeNull()
-      }
-    })
-
-    it('supports the canonical assessment access helper with the legacy quiz table contract', async () => {
+    it('returns the assessment when the student is enrolled in an active classroom', async () => {
       mockSupabaseClient.from.mockImplementation((table: string) => {
         if (table === 'quizzes') {
           return createSingleSelectResult({
@@ -291,7 +252,51 @@ describe('server access helpers', () => {
       if (result.ok) {
         expect(result.assessment).toBe(result.quiz)
         expect(result.assessment.id).toBe('quiz-1')
+        expect(result.quiz.id).toBe('quiz-1')
+        expect(result.quiz.classrooms.archived_at).toBeNull()
       }
+    })
+
+    it('keeps legacy quiz access aliases wired to the assessment contract', async () => {
+      mockSupabaseClient.from.mockImplementation((table: string) => {
+        if (table === 'quizzes') {
+          return createSingleSelectResult({
+            data: {
+              id: 'quiz-1',
+              classroom_id: 'classroom-1',
+              status: 'active',
+              opens_at: null,
+              title: 'Quiz 1',
+              show_results: false,
+              position: 0,
+              created_by: 'teacher-1',
+              created_at: '2026-03-01T00:00:00.000Z',
+              updated_at: '2026-03-01T00:00:00.000Z',
+              classrooms: {
+                id: 'classroom-1',
+                teacher_id: 'teacher-1',
+                archived_at: null,
+              },
+            },
+            error: null,
+          })
+        }
+
+        expect(table).toBe('classroom_enrollments')
+        return createSingleSelectResult({ data: { id: 'enrollment-1' }, error: null })
+      })
+
+      const result = await assertStudentCanAccessQuiz('student-1', 'quiz-1')
+
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.assessment).toBe(result.quiz)
+        expect(result.assessment.id).toBe('quiz-1')
+      }
+
+      await expect(assertTeacherOwnsQuiz('teacher-1', 'quiz-1')).resolves.toMatchObject({
+        ok: true,
+      })
     })
   })
 
