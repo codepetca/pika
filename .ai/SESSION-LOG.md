@@ -1685,3 +1685,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
 - `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Manual Playwright screenshots: `/tmp/pika-survey-no-due-mode-desktop.png`, `/tmp/pika-survey-no-due-mode-mobile.png`, `/tmp/pika-survey-no-due-mode-dark.png`, `/tmp/pika-survey-preview-workspace.png`
+
+## 2026-06-14 — Make survey setup Preview student-facing
+
+**Completed:**
+- Changed the survey setup Preview handoff to open a student-only preview surface instead of the full teacher authoring workspace.
+- Added a preview-only mode to `TeacherSurveyWorkspace` that renders `TeacherSurveyPreview` without due settings, live-change controls, code, delete, or save-due actions.
+- Added a small close control in the modal chrome so teachers can dismiss the student preview without adding teacher controls inside the preview card.
+- Added component and classroom regression coverage for the preview-only handoff.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/TeacherSurveyWorkspace.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3003 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-survey-student-preview-desktop.png`, `/tmp/pika-survey-student-preview-mobile.png`, `/tmp/pika-survey-student-preview-dark.png`
+- Note: `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth` was attempted earlier and failed because the login button stayed disabled in the auth setup flow; existing `.auth` storage states were valid for visual verification.
