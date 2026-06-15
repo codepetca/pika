@@ -1,5 +1,5 @@
 /**
- * Utilities for managing flagged questions during test/quiz taking.
+ * Utilities for managing flagged questions during test taking.
  * Flagged questions are stored client-side in localStorage, keyed by test ID.
  */
 

@@ -44,7 +44,7 @@ describe('StudentTestResults', () => {
     fetchMock.mockReturnValue(new Promise(() => {})) // never resolves
 
     const { container } = render(
-      <StudentTestResults testId="quiz-1" myResponses={{}} />
+      <StudentTestResults testId="test-1" myResponses={{}} />
     )
 
     // Spinner renders an svg or loading element
@@ -55,13 +55,13 @@ describe('StudentTestResults', () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({
       ok: false,
-      json: async () => ({ error: 'Quiz not found' }),
+      json: async () => ({ error: 'Test not found' }),
     })
 
-    render(<StudentTestResults testId="quiz-1" myResponses={{}} />)
+    render(<StudentTestResults testId="test-1" myResponses={{}} />)
 
     await waitFor(() => {
-      expect(screen.getByText('Quiz not found')).toBeInTheDocument()
+      expect(screen.getByText('Test not found')).toBeInTheDocument()
     })
   })
 
@@ -72,7 +72,7 @@ describe('StudentTestResults', () => {
       json: async () => ({ results: [] }),
     })
 
-    render(<StudentTestResults testId="quiz-1" myResponses={{}} />)
+    render(<StudentTestResults testId="test-1" myResponses={{}} />)
 
     await waitFor(() => {
       expect(screen.getByText('No results available.')).toBeInTheDocument()
@@ -111,7 +111,7 @@ describe('StudentTestResults', () => {
 
     render(
       <StudentTestResults
-        testId="quiz-1"
+        testId="test-1"
         myResponses={{ q1: 1 }}
         assessmentType="test"
         apiBasePath="/api/student/tests"
@@ -158,7 +158,7 @@ describe('StudentTestResults', () => {
 
     const { container } = render(
       <StudentTestResults
-        testId="quiz-1"
+        testId="test-1"
         myResponses={{ q1: 0 }}
         assessmentType="test"
         apiBasePath="/api/student/tests"
@@ -219,7 +219,7 @@ describe('StudentTestResults', () => {
 
     render(
       <StudentTestResults
-        testId="quiz-1"
+        testId="test-1"
         myResponses={{}}
         assessmentType="test"
         apiBasePath="/api/student/tests"
@@ -269,7 +269,7 @@ describe('StudentTestResults', () => {
 
     render(
       <StudentTestResults
-        testId="quiz-1"
+        testId="test-1"
         myResponses={{}}
         assessmentType="test"
         apiBasePath="/api/student/tests"

@@ -9,25 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-08 — Product quiz removal
-
-**Completed:**
-- Removed teacher and student `/api/*/quizzes` product routes, quiz override route, teacher quiz tab, quiz card/modal components, and matching route/component tests.
-- Made the student assessment tab and shared legacy-named quiz components operate against tests by default while preserving test database compatibility.
-- Removed quizzes from gradebook output, course blueprint package import/export, blueprint AI targets, classroom blueprint source loading, and course-site grading summaries.
-- Renamed the teacher assessment update browser event from the old quiz name to a tests-specific event.
-- Updated AI routing, architecture, course blueprint package, and teacher work-surface docs so quizzes are no longer described as an active product surface.
-- PR self-review tightened remaining blueprint and actual-site paths so legacy quiz assessments are not cloned or rendered.
-
-**Validation:**
-- `pnpm lint`
-- `pnpm test --run tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizzesTab.test.tsx tests/components/StudentQuizResults.test.tsx tests/components/StudentQuizForm.test.tsx`
-- `pnpm test` (301 files / 2655 tests)
-- Post-review focused checks for blueprint/test paths and isolated `StudentHistoryPage` flake rerun.
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms"`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests"`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=gradebook"`
-
 ## 2026-06-08 — Legacy quiz UI naming cleanup
 
 **Completed:**
@@ -682,4 +663,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm test tests/unit/assessment-drafts.test.ts`
 - `pnpm lint`
+- `pnpm test`
+
+## 2026-06-14 — Current test fixture wording cleanup
+
+**Completed:**
+- Renamed server assessment visibility unit-test descriptions and locals from quiz wording to assessment wording.
+- Updated `StudentTestResults` current-surface test fixtures to use `test-1` and `Test not found` while preserving the explicit legacy `quizId` alias test.
+- Updated the flagged-question helper file comment from test/quiz taking to test taking.
+- Did not change runtime behavior, schema, API payloads, compatibility aliases, or persisted `quiz_id` fields.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/unit/server-assessments.test.ts tests/components/StudentTestResults.test.tsx tests/lib/flag-questions.test.ts`
+- `pnpm lint`
+- `pnpm test` (first run hit an unrelated `StudentLessonCalendarTab.test.tsx` timeout; isolated rerun passed)
 - `pnpm test`
