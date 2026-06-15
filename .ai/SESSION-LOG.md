@@ -687,3 +687,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash scripts/verify-env.sh`
 - `pnpm exec playwright test e2e/teacher-exam-mode.spec.ts --project=chromium-desktop`
 - `pnpm lint`
+
+## 2026-06-14 — Legacy quiz server access names
+
+**Completed:**
+- Exported the assessment access result type from `src/lib/server/assessments.ts` as `AssessmentAccessResult`.
+- Updated assessment access not-found errors from quiz wording to assessment wording.
+- Updated server access unit tests to exercise assessment-named helpers as the primary path.
+- Kept legacy `assertTeacherOwnsQuiz`, `assertStudentCanAccessQuiz`, and `quiz` result fields covered as compatibility aliases.
+- Did not change API response shapes, database tables, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/unit/server-access.test.ts`
+- `pnpm lint`
+- `pnpm test`

@@ -23,7 +23,7 @@ export type AssessmentAccessRecord = {
 
 export type QuizAccessRecord = AssessmentAccessRecord
 
-type AccessResult<T> =
+export type AssessmentAccessResult<T> =
   | { ok: true; assessment: T; quiz: T }
   | { ok: false; status: number; error: string }
 
@@ -34,7 +34,7 @@ type AssessmentVisibilityRecord = {
 
 type QuizVisibilityRecord = AssessmentVisibilityRecord
 
-function assessmentAccessSuccess<T>(assessment: T): AccessResult<T> {
+function assessmentAccessSuccess<T>(assessment: T): AssessmentAccessResult<T> {
   return {
     ok: true,
     assessment,
@@ -65,7 +65,7 @@ export async function assertTeacherOwnsAssessment(
   teacherId: string,
   assessmentId: string,
   opts?: { checkArchived?: boolean }
-): Promise<AccessResult<AssessmentAccessRecord>> {
+): Promise<AssessmentAccessResult<AssessmentAccessRecord>> {
   const supabase = getServiceRoleClient()
   const { data: assessment, error } = await supabase
     .from('quizzes')
@@ -81,7 +81,7 @@ export async function assertTeacherOwnsAssessment(
     .single()
 
   if (error || !assessment) {
-    return { ok: false, status: 404, error: 'Quiz not found' }
+    return { ok: false, status: 404, error: 'Assessment not found' }
   }
 
   if (assessment.classrooms.teacher_id !== teacherId) {
@@ -100,7 +100,7 @@ export const assertTeacherOwnsQuiz = assertTeacherOwnsAssessment
 export async function assertStudentCanAccessAssessment(
   studentId: string,
   assessmentId: string
-): Promise<AccessResult<AssessmentAccessRecord>> {
+): Promise<AssessmentAccessResult<AssessmentAccessRecord>> {
   const supabase = getServiceRoleClient()
   const { data: assessment, error } = await supabase
     .from('quizzes')
@@ -116,7 +116,7 @@ export async function assertStudentCanAccessAssessment(
     .single()
 
   if (error || !assessment) {
-    return { ok: false, status: 404, error: 'Quiz not found' }
+    return { ok: false, status: 404, error: 'Assessment not found' }
   }
 
   if (assessment.classrooms.archived_at) {
