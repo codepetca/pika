@@ -7,7 +7,6 @@ import { Spinner } from '@/components/Spinner'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import {
   ClassworkContentModalShell,
-  ClassworkModalPreviewButton,
   ClassworkModalSplitAction,
   ClassworkModalTopLine,
   ClassworkModalTopLineField,
@@ -110,7 +109,6 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   const [pendingEditScheduleTime, setPendingEditScheduleTime] = useState('')
   const [showScheduleDropdown, setShowScheduleDropdown] = useState(false)
   const [showEditScheduleDropdown, setShowEditScheduleDropdown] = useState(false)
-  const [showAnnouncementPreview, setShowAnnouncementPreview] = useState(false)
   const editTextareaRef = useRef<HTMLTextAreaElement>(null)
   const newTextareaRef = useRef<HTMLTextAreaElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -228,7 +226,6 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     setEditScheduleDateTime('')
     setOriginalScheduledFor(null)
     setShowEditScheduleDropdown(false)
-    setShowAnnouncementPreview(false)
   }
 
   async function saveEdit() {
@@ -395,7 +392,6 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
       setIsCreating(false)
       setNewTitle('')
       setNewContent('')
-      setShowAnnouncementPreview(false)
     }
   }
 
@@ -578,7 +574,6 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
             setNewContent('')
             setScheduleDateTime('')
             setShowScheduleDropdown(false)
-            setShowAnnouncementPreview(false)
           }
         }}
         title={modalTitle}
@@ -635,14 +630,6 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                 </div>
               </ClassworkModalTopLineField>
             ) : null}
-            secondaryActions={(
-              <ClassworkModalPreviewButton
-                onClick={() => setShowAnnouncementPreview((current) => !current)}
-                disabled={saving || !modalBody.trim()}
-                active={showAnnouncementPreview}
-                label={showAnnouncementPreview ? 'Edit' : 'Preview'}
-              />
-            )}
             primaryActions={(
               <div className="relative flex items-center" ref={editingAnnouncement ? editDropdownRef : dropdownRef}>
                 {modalScheduledFor ? (
@@ -720,29 +707,23 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
             )}
           />
 
-          {showAnnouncementPreview ? (
-            <div className="min-h-[10rem] rounded-lg border border-border bg-surface-2 p-3">
-              <AnnouncementContent content={modalBody} />
-            </div>
-          ) : (
-            <textarea
-              ref={editingAnnouncement ? editTextareaRef : newTextareaRef}
-              aria-label={editingAnnouncement ? 'Edit announcement body' : 'Announcement body'}
-              value={modalBody}
-              onChange={(event) => {
-                if (editingAnnouncement) {
-                  setEditContent(event.target.value)
-                } else {
-                  setNewContent(event.target.value)
-                }
-              }}
-              onKeyDown={editingAnnouncement ? handleEditKeyDown : handleNewKeyDown}
-              disabled={saving}
-              rows={8}
-              className="max-h-[50vh] min-h-[12rem] w-full resize-y overflow-y-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-              placeholder="Write an announcement..."
-            />
-          )}
+          <textarea
+            ref={editingAnnouncement ? editTextareaRef : newTextareaRef}
+            aria-label={editingAnnouncement ? 'Edit announcement body' : 'Announcement body'}
+            value={modalBody}
+            onChange={(event) => {
+              if (editingAnnouncement) {
+                setEditContent(event.target.value)
+              } else {
+                setNewContent(event.target.value)
+              }
+            }}
+            onKeyDown={editingAnnouncement ? handleEditKeyDown : handleNewKeyDown}
+            disabled={saving}
+            rows={8}
+            className="max-h-[50vh] min-h-[12rem] w-full resize-y overflow-y-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+            placeholder="Write an announcement..."
+          />
 
         </div>
       </ClassworkContentModalShell>
