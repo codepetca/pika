@@ -168,6 +168,8 @@ Use raw `fetch()` only for one-off mutations (POST/PATCH/DELETE) or when freshne
 ### Assessments Pattern
 Pika exposes **tests** as the active assessment surface. Quiz product routes and tabs have been removed.
 Some database history and compatibility response keys still retain legacy quiz naming during the contract transition.
+Before changing remaining `quiz` / `quizzes` names, load
+[`docs/guidance/legacy-quiz-contract-cleanup.md`](../guidance/legacy-quiz-contract-cleanup.md).
 
 - **Test status**: `getStudentTestStatus()` from `@/lib/tests` — uses `returned_at` field
 - **Draft editing**: unified `assessment_drafts` table + JSON Patch via `@/lib/server/assessment-drafts`

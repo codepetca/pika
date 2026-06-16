@@ -9,21 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-09 — Legacy quiz student Tests state naming pass
-
-**Completed:**
-- Created `codex/legacy-quiz-ui-state-names` from the merged `origin/main`.
-- Renamed active `StudentTestsTab` local state, refs, handlers, and selected-detail object keys from quiz-oriented names to test-oriented names.
-- Preserved legacy API compatibility response keys (`quiz`, `quizzes`) and existing child component `quizId` prop contracts.
-- Did not touch database schema, migrations, RPCs, storage paths, or production API route contracts.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2655 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm vitest run tests/components/StudentTestsTab.test.tsx`
-- `pnpm vitest run tests/components/StudentTestForm.test.tsx tests/components/StudentTestResults.test.tsx`
-- `pnpm lint`
-
 ## 2026-06-09 — Legacy quiz teacher Tests state naming pass
 
 **Completed:**
@@ -672,5 +657,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm exec tsc --noEmit`
 - `pnpm test tests/components/TestDetailPanel.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-16 — Legacy quiz contract cleanup plan
+
+**Completed:**
+- Added `docs/guidance/legacy-quiz-contract-cleanup.md` to inventory remaining internal `quiz` / `quizzes` references by category.
+- Documented what can still be safely renamed versus what requires payload, gradebook, course package, or schema migration planning.
+- Added routing from `docs/ai-instructions.md` and the architecture assessments section so future passes load the cleanup guide.
+- No production schema, API payload, or runtime behavior changes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/course-blueprint-package-docs.test.ts`
 - `pnpm lint`
 - `pnpm test`
