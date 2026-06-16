@@ -9,21 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-09 — Legacy quiz teacher Tests state naming pass
-
-**Completed:**
-- Created `codex/legacy-quiz-teacher-state-names` from merged `origin/main`.
-- Renamed `ClassroomPageClient` teacher Tests parent state from `selectedQuiz`/`handleSelectQuiz` to `selectedTest`/`handleSelectTest`.
-- Renamed the local pending-delete object key from `quiz` to `test` for active Tests deletion state.
-- Preserved legacy `quizId` query cleanup and existing child component/API compatibility contracts.
-- Did not touch database schema, migrations, RPCs, storage paths, or production API route contracts.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2655 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm vitest run tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-
 ## 2026-06-09 — Legacy quiz component prop alias pass
 
 **Completed:**
@@ -671,5 +656,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/course-blueprint-package-docs.test.ts`
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-16 — Legacy quiz markdown fixture clarity
+
+**Completed:**
+- Updated `tests/lib/quiz-markdown.test.ts` so the suite explicitly describes legacy quiz markdown compatibility.
+- Replaced arbitrary `Intro Quiz` fixture titles with `Legacy Check-in` while preserving the intentional `# Quiz` legacy markdown format.
+- Left production markdown helpers, schema, API payloads, and runtime behavior unchanged.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/lib/quiz-markdown.test.ts`
 - `pnpm lint`
 - `pnpm test`
