@@ -71,15 +71,13 @@ describe('AssignmentModal', () => {
       expect(screen.getByRole('button', { name: 'Close assignment modal' })).toBeInTheDocument()
     })
 
-    it('renders WYSIWYG instructions with markdown-safe formatting and a preview modal', async () => {
-      const onClose = vi.fn()
-
+    it('renders WYSIWYG instructions with markdown-safe formatting without a preview action', () => {
       render(
         <AssignmentModal
           isOpen={true}
           classroomId="classroom-1"
           assignment={baseAssignment}
-          onClose={onClose}
+          onClose={vi.fn()}
           onSuccess={vi.fn()}
         />
       )
@@ -100,28 +98,11 @@ describe('AssignmentModal', () => {
       expect(screen.getByRole('button', { name: 'Inline code' })).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Underline' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Block formatting' })).not.toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Preview' })).not.toBeInTheDocument()
 
       const instructions = screen.getByRole('textbox', { name: 'Instructions' })
       expect(instructions).toHaveTextContent('Original instructions')
       expect(screen.getByText('Students see this before they begin.')).toBeInTheDocument()
-
-      fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
-
-      const previewDialog = await screen.findByRole('dialog', { name: 'Instructions' })
-      expect(within(previewDialog).getByText((_content, element) => (
-        element?.tagName.toLowerCase() === 'p' && element.textContent === 'Original instructions'
-      ))).toBeInTheDocument()
-      expect(within(previewDialog).queryByText('Original title')).not.toBeInTheDocument()
-      expect(within(previewDialog).queryByText('Close')).not.toBeInTheDocument()
-
-      fireEvent.keyDown(document, { key: 'Escape' })
-
-      await waitFor(() => {
-        expect(screen.queryByRole('dialog', { name: 'Instructions' })).not.toBeInTheDocument()
-      })
-      expect(screen.getByRole('dialog', { name: 'Edit Draft' })).toBeInTheDocument()
-      expect(onClose).not.toHaveBeenCalled()
     })
 
     it('keeps markdown instruction tools visible when the user preference is off', async () => {
@@ -143,7 +124,7 @@ describe('AssignmentModal', () => {
         expect(screen.getByRole('button', { name: 'Format text as heading' })).toBeInTheDocument()
       })
       expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Preview' })).not.toBeInTheDocument()
       expect(screen.getByRole('textbox', { name: 'Instructions' })).toHaveTextContent('Original instructions')
     })
 

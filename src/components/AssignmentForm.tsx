@@ -4,7 +4,6 @@ import type { ReactNode, RefObject } from 'react'
 import { Button } from '@/ui'
 import { ContentField, MarkdownContentEditor } from '@/components/editor'
 import {
-  ClassworkModalPreviewButton,
   ClassworkModalTopLine,
   ClassworkModalTopLineField,
 } from '@/components/classwork/ClassworkContentModal'
@@ -22,7 +21,6 @@ interface AssignmentFormProps {
   onInstructionsMarkdownChange: (next: string) => void
   onInstructionsConversionWarningChange?: (warning: string | null) => void
   onDueAtChange: (next: string) => void
-  onPreviewInstructions?: () => void
   disabled?: boolean
   error?: string
   titleInputRef?: RefObject<HTMLInputElement>
@@ -43,7 +41,6 @@ export function AssignmentForm({
   onInstructionsMarkdownChange,
   onInstructionsConversionWarningChange,
   onDueAtChange,
-  onPreviewInstructions,
   disabled = false,
   error,
   titleInputRef,
@@ -92,12 +89,6 @@ export function AssignmentForm({
             )
           })()
         )}
-        secondaryActions={onPreviewInstructions ? (
-          <ClassworkModalPreviewButton
-            onClick={onPreviewInstructions}
-            disabled={disabled}
-          />
-        ) : null}
         primaryActions={topRowActions}
       />
 

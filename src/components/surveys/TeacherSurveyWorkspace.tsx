@@ -39,7 +39,6 @@ interface TeacherSurveyWorkspaceProps {
   surveyId: string
   isReadOnly?: boolean
   initialEditMode?: 'edit' | 'markdown' | 'preview'
-  previewOnly?: boolean
   autoEditTitle?: boolean
   onInitialEditModeConsumed?: () => void
   onBack: () => void
@@ -462,7 +461,6 @@ export function TeacherSurveyWorkspace({
   surveyId,
   isReadOnly = false,
   initialEditMode,
-  previewOnly = false,
   autoEditTitle = false,
   onInitialEditModeConsumed,
   onBack,
@@ -569,8 +567,8 @@ export function TeacherSurveyWorkspace({
     setSurveyEditMode(initialEditMode)
     setSurveyMarkdownError('')
     setSurveyMarkdownInfo('')
-    if (!previewOnly) onInitialEditModeConsumed?.()
-  }, [initialEditMode, onInitialEditModeConsumed, previewOnly, survey])
+    onInitialEditModeConsumed?.()
+  }, [initialEditMode, onInitialEditModeConsumed, survey])
 
   async function saveTitle(title: string) {
     if (!survey) return
@@ -833,16 +831,6 @@ export function TeacherSurveyWorkspace({
     return (
       <div className="flex flex-1 items-center justify-center p-6 text-sm text-danger">
         {error || 'Survey unavailable'}
-      </div>
-    )
-  }
-
-  if (previewOnly) {
-    return (
-      <div className="h-full min-h-0 overflow-auto bg-page p-4">
-        <div className="mx-auto max-w-3xl">
-          <TeacherSurveyPreview survey={survey} questions={questions} />
-        </div>
       </div>
     )
   }

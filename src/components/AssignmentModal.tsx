@@ -9,11 +9,10 @@ import {
   ClassworkModalSaveStatus,
   ClassworkModalSplitAction,
 } from '@/components/classwork/ClassworkContentModal'
-import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import type { AssignmentSubmissionRequirementDraft } from '@/lib/assignment-submission-requirements'
 import { getRelativeDueDate } from '@/lib/assignment-relative-date'
-import { ConfirmDialog, ContentDialog, DialogPanel } from '@/ui'
+import { ConfirmDialog, DialogPanel } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
 import { format, isValid, parse } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
@@ -140,7 +139,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   const [markdownWarning, setMarkdownWarning] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
-  const [showInstructionsPreview, setShowInstructionsPreview] = useState(false)
   const [submissionRequirements, setSubmissionRequirements] = useState<AssignmentSubmissionRequirementDraft[]>([])
 
   const defaultDueAt = addDaysToDateString(getTodayInToronto(), 1)
@@ -195,10 +193,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   } = scheduling
 
   useEffect(() => {
-    if (!isOpen) {
-      setShowInstructionsPreview(false)
-      return
-    }
+    if (!isOpen) return
 
     // Reset state when modal opens
     setError('')
@@ -644,8 +639,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   }
 
   async function handleClose() {
-    setShowInstructionsPreview(false)
-
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = null
@@ -685,7 +678,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       : 'primary'
     : 'muted'
   const scheduleDueDateValidationMessage = getScheduleDueDateValidationMessage(scheduleIso, dueAt, isScheduleValid)
-  const previewSubtitle = isLive ? title.trim() || undefined : undefined
   const saveStatusContent = <ClassworkModalSaveStatus status={saveStatus} />
 
   return (
@@ -693,10 +685,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       <ClassworkContentModalShell
         isOpen={isOpen}
         onClose={() => {
-          if (showInstructionsPreview) {
-            setShowInstructionsPreview(false)
-            return
-          }
           void handleClose()
         }}
         title={modalTitle}
@@ -713,7 +701,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           onInstructionsMarkdownChange={handleInstructionsMarkdownChange}
           onInstructionsConversionWarningChange={setMarkdownWarning}
           onDueAtChange={handleDueAtChange}
-          onPreviewInstructions={() => setShowInstructionsPreview(true)}
           disabled={saving || releasing || creating}
           error={error}
           titleInputRef={titleInputRef}
@@ -762,20 +749,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           }
         />
       </ClassworkContentModalShell>
-
-      <ContentDialog
-        isOpen={isOpen && showInstructionsPreview}
-        onClose={() => setShowInstructionsPreview(false)}
-        title="Instructions"
-        subtitle={previewSubtitle}
-        maxWidth="!max-w-2xl"
-        showFooterClose={false}
-      >
-        <LimitedMarkdown
-          content={instructionsMarkdown}
-          emptyPlaceholder={<div className="text-sm text-text-muted">No assignment details provided.</div>}
-        />
-      </ContentDialog>
 
       <DialogPanel
         isOpen={showCreateScheduleModal}

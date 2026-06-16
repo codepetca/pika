@@ -1,7 +1,6 @@
 'use client'
 
 import { useId, useRef, type ReactNode, type Ref } from 'react'
-import { Eye } from 'lucide-react'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { DateActionBar } from '@/components/DateActionBar'
 import { ACTIONBAR_BUTTON_CLASSNAME } from '@/components/PageLayout'
@@ -64,14 +63,6 @@ type ClassworkModalTopLineFieldProps = {
   labelClassName?: string
   controlClassName?: string
   children: ReactNode
-}
-
-type ClassworkModalPreviewButtonProps = {
-  onClick: () => void
-  disabled?: boolean
-  active?: boolean
-  label?: string
-  className?: string
 }
 
 type ClassworkModalActionIntent = 'publish' | 'primary'
@@ -283,29 +274,6 @@ export function ClassworkModalTopLineField({
         {children}
       </div>
     </div>
-  )
-}
-
-export function ClassworkModalPreviewButton({
-  onClick,
-  disabled,
-  active = false,
-  label = 'Preview',
-  className,
-}: ClassworkModalPreviewButtonProps) {
-  return (
-    <Button
-      type="button"
-      variant={active ? 'primary' : 'secondary'}
-      size="sm"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn('h-9 w-9 px-0 sm:w-auto sm:px-3 sm:gap-1.5', className)}
-      aria-label={label}
-    >
-      <Eye className="h-4 w-4" aria-hidden="true" />
-      <span className="hidden sm:inline">{label}</span>
-    </Button>
   )
 }
 
