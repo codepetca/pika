@@ -6,10 +6,10 @@ import {
   quizToMarkdown,
 } from '@/lib/quiz-markdown'
 
-describe('assessmentToMarkdown', () => {
-  it('serializes assessment draft content into markdown', () => {
+describe('legacy quiz markdown compatibility', () => {
+  it('serializes assessment draft content into legacy quiz markdown', () => {
     const markdown = assessmentToMarkdown({
-      title: 'Intro Quiz',
+      title: 'Legacy Check-in',
       show_results: false,
       questions: [
         {
@@ -20,17 +20,15 @@ describe('assessmentToMarkdown', () => {
       ],
     })
 
-    expect(markdown).toContain('Title: Intro Quiz')
+    expect(markdown).toContain('Title: Legacy Check-in')
     expect(markdown).toContain('Show Results: false')
     expect(markdown).toContain('Prompt:')
     expect(markdown).toContain('- Plan')
   })
-})
 
-describe('markdownToAssessment', () => {
-  it('parses assessment markdown into draft content', () => {
+  it('parses legacy quiz markdown into assessment draft content', () => {
     const markdown = `# Quiz
-Title: Intro Quiz
+Title: Legacy Check-in
 Show Results: true
 
 ## Questions
@@ -46,7 +44,7 @@ Options:
 
     expect(result.errors).toEqual([])
     expect(result.draftContent).toMatchObject({
-      title: 'Intro Quiz',
+      title: 'Legacy Check-in',
       show_results: true,
       questions: [
         {
@@ -57,10 +55,10 @@ Options:
       ],
     })
     expect(result.draftContent?.source_format).toBe('markdown')
-    expect(result.draftContent?.source_markdown).toContain('Title: Intro Quiz')
+    expect(result.draftContent?.source_markdown).toContain('Title: Legacy Check-in')
   })
 
-  it('returns actionable errors for invalid markdown', () => {
+  it('returns actionable errors for invalid legacy quiz markdown', () => {
     const markdown = `# Quiz
 Title: 
 
