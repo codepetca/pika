@@ -5,7 +5,6 @@ import { addDaysToDateString } from '@/lib/date-string'
 import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetupForm'
 import {
   ClassworkContentModalShell,
-  ClassworkModalPreviewButton,
   ClassworkModalPrimaryButton,
   ClassworkModalSaveStatus,
   ClassworkModalSurveyDueFields,
@@ -33,7 +32,6 @@ interface SurveyCreationModalProps {
   classroomId: string
   onClose: () => void
   onDraftSaved?: (survey: Survey) => void
-  onPreview?: (survey: Survey) => void
   onSuccess: (survey: Survey) => void
 }
 
@@ -65,7 +63,6 @@ export function SurveyCreationModal({
   classroomId,
   onClose,
   onDraftSaved,
-  onPreview,
   onSuccess,
 }: SurveyCreationModalProps) {
   const titleInputRef = useRef<HTMLInputElement>(null)
@@ -211,20 +208,6 @@ export function SurveyCreationModal({
     onClose()
   }
 
-  async function previewSurvey() {
-    if (!currentSurvey) return
-    if (!title.trim()) {
-      setError('Title is required')
-      titleInputRef.current?.focus()
-      return
-    }
-
-    const flushed = await flushAutosave()
-    if (!flushed) return
-    onPreview?.(currentSurvey)
-    onClose()
-  }
-
   async function handleClose() {
     if (creatingDraft) return
     const flushed = await flushAutosave()
@@ -271,14 +254,6 @@ export function SurveyCreationModal({
               onDueTimeChange={(nextTime) => {
                 setDueTime(nextTime)
                 updateValues({ dueTime: nextTime })
-              }}
-            />
-          )}
-          secondaryActions={(
-            <ClassworkModalPreviewButton
-              disabled={busy || !currentSurvey}
-              onClick={() => {
-                void previewSurvey()
               }}
             />
           )}

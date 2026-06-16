@@ -37,9 +37,8 @@ import {
   SquareMenu,
   Trash2,
   Unlock,
-  X,
 } from 'lucide-react'
-import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, SplitButton, Tooltip, useAppMessage, useOverlayMessage, type SplitButtonOption } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, FormField, Input, SplitButton, Tooltip, useAppMessage, useOverlayMessage, type SplitButtonOption } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
@@ -47,7 +46,6 @@ import { AssignmentModal } from '@/components/AssignmentModal'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import {
   ClassworkContentModalShell,
-  ClassworkModalPreviewButton,
   ClassworkModalSaveStatus,
   ClassworkModalSplitAction,
   ClassworkModalTopLine,
@@ -75,7 +73,7 @@ import {
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
-import { RichTextEditor, RichTextViewer } from '@/components/editor'
+import { RichTextEditor } from '@/components/editor'
 import {
   ACTIONBAR_ICON_BUTTON_CLASSNAME,
 } from '@/components/PageLayout'
@@ -413,7 +411,6 @@ function TeacherMaterialDialog({
   const [saving, setSaving] = useState(false)
   const [creatingDraft, setCreatingDraft] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showPreview, setShowPreview] = useState(false)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [scheduleDate, setScheduleDate] = useState('')
   const [scheduleTime, setScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
@@ -481,7 +478,6 @@ function TeacherMaterialDialog({
     setTitle(getDisplayedMaterialTitle(material))
     setContent(material?.content || EMPTY_DOC)
     setError(null)
-    setShowPreview(false)
     setShowScheduleModal(false)
     setCreatingDraft(!material && !isReadOnly)
     resetAutosave(material ? {
@@ -626,12 +622,6 @@ function TeacherMaterialDialog({
             titleDisabled={saving || creatingDraft || isReadOnly}
             titleStatus={<ClassworkModalSaveStatus status={autosaveStatus} />}
             onTitleChange={handleMaterialTitleChange}
-            secondaryActions={(
-              <ClassworkModalPreviewButton
-                onClick={() => setShowPreview(true)}
-                disabled={saving || creatingDraft}
-              />
-            )}
             primaryActions={isDraft ? (
               <ClassworkModalSplitAction
                 label={saving ? 'Posting...' : 'Post Material'}
@@ -673,16 +663,6 @@ function TeacherMaterialDialog({
 
         </div>
       </ClassworkContentModalShell>
-
-      <ContentDialog
-        isOpen={isOpen && showPreview}
-        onClose={() => setShowPreview(false)}
-        title={title.trim() || 'Material preview'}
-        maxWidth="!max-w-2xl"
-        showFooterClose={false}
-      >
-        <RichTextViewer content={content} />
-      </ContentDialog>
 
       <DialogPanel
         isOpen={showScheduleModal}
@@ -866,7 +846,6 @@ export function TeacherClassroomView({
   const [isSurveyScheduleOpen, setIsSurveyScheduleOpen] = useState(false)
   const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
   const [surveyModalId, setSurveyModalId] = useState<string | null>(null)
-  const [surveyPreviewOnlyId, setSurveyPreviewOnlyId] = useState<string | null>(null)
   const [createdSurveyEditorIntent, setCreatedSurveyEditorIntent] = useState<{
     surveyId: string
     editMode: 'edit' | 'markdown' | 'preview'
@@ -1091,7 +1070,7 @@ export function TeacherClassroomView({
 
   const handleSurveySaved = useCallback((
     survey: Survey,
-    options?: { initialEditMode?: 'edit' | 'markdown' | 'preview'; focusTitle?: boolean; previewOnly?: boolean },
+    options?: { initialEditMode?: 'edit' | 'markdown' | 'preview'; focusTitle?: boolean },
   ) => {
     invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
     invalidateCachedJSON(`student-surveys:${classroom.id}`)
@@ -1113,7 +1092,6 @@ export function TeacherClassroomView({
       editMode: options?.initialEditMode ?? 'edit',
       focusTitle: options?.focusTitle,
     })
-    setSurveyPreviewOnlyId(options?.previewOnly ? survey.id : null)
     setSurveyModalId(survey.id)
     writeCookie(`teacherAssignmentsSelection:${classroom.id}`, 'summary')
     setSelection({ mode: 'summary' })
@@ -1162,13 +1140,11 @@ export function TeacherClassroomView({
   }, [classroom.id])
 
   const openSurveyModal = useCallback((surveyId: string) => {
-    setSurveyPreviewOnlyId(null)
     setSurveyModalId(surveyId)
   }, [])
 
   const closeSurveyModal = useCallback((options?: { replace?: boolean }) => {
     setSurveyModalId(null)
-    setSurveyPreviewOnlyId(null)
     setCreatedSurveyEditorIntent(null)
     if (selection.mode === 'survey') return
     updateSearchParams?.((params) => {
@@ -3206,10 +3182,6 @@ export function TeacherClassroomView({
         classroomId={classroom.id}
         onClose={() => setIsSurveyCreateModalOpen(false)}
         onDraftSaved={handleSurveyDraftSaved}
-        onPreview={(survey) => {
-          setIsSurveyCreateModalOpen(false)
-          handleSurveySaved(survey, { initialEditMode: 'preview', previewOnly: true })
-        }}
         onSuccess={(survey) => {
           setIsSurveyCreateModalOpen(false)
           handleSurveySaved(survey, { initialEditMode: 'edit' })
@@ -3221,21 +3193,11 @@ export function TeacherClassroomView({
         onClose={() => closeSurveyModal()}
         ariaLabelledBy="survey-workspace-dialog-title"
         maxWidth="max-w-6xl"
-        className="relative h-[85vh] overflow-hidden p-0"
+        className="h-[85vh] overflow-hidden p-0"
       >
         <h2 id="survey-workspace-dialog-title" className="sr-only">
           Survey
         </h2>
-        {surveyPreviewOnlyId === surveyModalId ? (
-          <button
-            type="button"
-            className="absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-control text-text-muted transition-colors hover:bg-surface-hover hover:text-text-default focus:outline-none focus:ring-2 focus:ring-ring"
-            aria-label="Close preview"
-            onClick={() => closeSurveyModal()}
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        ) : null}
         {surveyModalId ? (
           <TeacherSurveyWorkspace
             classroomId={classroom.id}
@@ -3246,7 +3208,6 @@ export function TeacherClassroomView({
                 ? createdSurveyEditorIntent.editMode
                 : undefined
             }
-            previewOnly={surveyPreviewOnlyId === surveyModalId}
             autoEditTitle={
               createdSurveyEditorIntent?.surveyId === surveyModalId &&
               createdSurveyEditorIntent.focusTitle === true

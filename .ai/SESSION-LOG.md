@@ -1578,3 +1578,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3003 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Manual Playwright screenshots: `/tmp/pika-survey-student-preview-desktop.png`, `/tmp/pika-survey-student-preview-mobile.png`, `/tmp/pika-survey-student-preview-dark.png`
 - Note: `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth` was attempted earlier and failed because the login button stayed disabled in the auth setup flow; existing `.auth` storage states were valid for visual verification.
+
+## 2026-06-16 — Remove classwork modal Preview actions
+
+**Completed:**
+- Removed the shared `ClassworkModalPreviewButton` from the classwork modal shell/template.
+- Removed top-line Preview actions and dead preview state/dialog code from assignment, material, survey setup, and announcement modals.
+- Removed the survey setup preview-only handoff path while keeping the survey authoring workspace's internal Preview mode.
+- Updated component/classroom regression tests to assert setup modals no longer expose Preview.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/SurveyCreationModal.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/AssignmentModal.test.tsx tests/components/AnnouncementsMarkdown.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3004 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-no-preview-assignment-modal.png`, `/tmp/pika-no-preview-material-modal.png`, `/tmp/pika-no-preview-survey-modal.png`, `/tmp/pika-no-preview-announcement-modal.png`, `/tmp/pika-no-preview-survey-mobile.png`
