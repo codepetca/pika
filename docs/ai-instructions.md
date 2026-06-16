@@ -22,6 +22,7 @@ After startup, load only task-specific docs:
 | UI/UX | [`docs/core/design.md`](./core/design.md), [`docs/guidance/ui/README.md`](./guidance/ui/README.md), [`docs/guidance/ui/stable.md`](./guidance/ui/stable.md), [`docs/guidance/ui/change-brief.md`](./guidance/ui/change-brief.md), [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md) |
 | Teacher assignments/tests shell/layout | [`docs/guidance/ui/teacher-work-surfaces.md`](./guidance/ui/teacher-work-surfaces.md), [`docs/guidance/assignment-ux-language.md`](./guidance/assignment-ux-language.md), [`docs/guidance/ui/audit-teacher-work-surfaces.md`](./guidance/ui/audit-teacher-work-surfaces.md) |
 | Migrations, Supabase query-shape, rollout compatibility | [`docs/guidance/schema-rollout-checklist.md`](./guidance/schema-rollout-checklist.md) |
+| Legacy quiz/tests contract cleanup | [`docs/guidance/legacy-quiz-contract-cleanup.md`](./guidance/legacy-quiz-contract-cleanup.md), [`docs/guidance/schema-rollout-checklist.md`](./guidance/schema-rollout-checklist.md) |
 | Large TSX/shared shell refactors | [`docs/guidance/component-refactor-checklist.md`](./guidance/component-refactor-checklist.md) |
 | TDD, coverage, or test design | [`docs/core/tests.md`](./core/tests.md) |
 | Setup, runtime, or deployment questions | [`docs/core/project-context.md`](./core/project-context.md) |
