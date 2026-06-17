@@ -5,19 +5,25 @@ import { addDaysToDateString } from '@/lib/date-string'
 import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetupForm'
 import {
   ClassworkContentModalShell,
-  ClassworkModalPrimaryButton,
   ClassworkModalSaveStatus,
+  ClassworkModalSplitAction,
   ClassworkModalSurveyDueFields,
   ClassworkModalTopLine,
 } from '@/components/classwork/ClassworkContentModal'
+import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
+import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
 import { useClassworkAutosave } from '@/hooks/useClassworkAutosave'
 import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import {
   DEFAULT_SCHEDULE_TIME,
   combineScheduleDateTimeToIso,
   getTodayInSchedulingTimezone,
+  isScheduleIsoInFuture,
+  parseScheduleIsoToParts,
 } from '@/lib/scheduling'
-import type { Survey } from '@/types'
+import { getSurveyStatusBadgeClass, getSurveyStatusLabel } from '@/lib/surveys'
+import { DialogPanel } from '@/ui'
+import type { Survey, SurveyWithStats } from '@/types'
 
 type SurveySettingsValues = {
   title: string
@@ -30,22 +36,21 @@ type SurveySettingsValues = {
 interface SurveyCreationModalProps {
   isOpen: boolean
   classroomId: string
+  surveyId?: string | null
+  survey?: Survey | null
+  isReadOnly?: boolean
+  initialEditMode?: 'edit' | 'markdown' | 'preview'
+  autoEditTitle?: boolean
   onClose: () => void
   onDraftSaved?: (survey: Survey) => void
-  onSuccess: (survey: Survey) => void
+  onSurveyUpdated?: (survey: Survey) => void
+  onQuestionCountChanged?: (surveyId: string, questionsCount: number) => void
+  onSurveyDeleted?: (surveyId: string) => void
 }
 
 function getDisplayedSurveyTitle(survey: Survey | null): string {
   if (!survey) return ''
   return isGeneratedAssessmentTitle(survey.title) ? '' : survey.title
-}
-
-function areSurveySettingsEqual(left: SurveySettingsValues, right: SurveySettingsValues): boolean {
-  return left.title === right.title
-    && left.showResults === right.showResults
-    && left.dynamicResponses === right.dynamicResponses
-    && left.dueDate === right.dueDate
-    && left.dueTime === right.dueTime
 }
 
 function getDefaultSurveyValues(): SurveySettingsValues {
@@ -58,22 +63,63 @@ function getDefaultSurveyValues(): SurveySettingsValues {
   }
 }
 
+function getSurveyValues(survey: Survey): SurveySettingsValues {
+  const defaults = getDefaultSurveyValues()
+  const due = survey.due_at ? parseScheduleIsoToParts(survey.due_at) : null
+
+  return {
+    title: getDisplayedSurveyTitle(survey),
+    showResults: survey.show_results,
+    dynamicResponses: survey.dynamic_responses,
+    dueDate: due?.date ?? defaults.dueDate,
+    dueTime: due?.time ?? defaults.dueTime,
+  }
+}
+
+function getSurveyQuestionsCount(survey: Survey | null | undefined): number {
+  const stats = (survey as SurveyWithStats | null | undefined)?.stats
+  return stats?.questions_count ?? 0
+}
+
+function areSurveySettingsEqual(left: SurveySettingsValues, right: SurveySettingsValues): boolean {
+  return left.title === right.title
+    && left.showResults === right.showResults
+    && left.dynamicResponses === right.dynamicResponses
+    && left.dueDate === right.dueDate
+    && left.dueTime === right.dueTime
+}
+
 export function SurveyCreationModal({
   isOpen,
   classroomId,
+  surveyId,
+  survey,
+  isReadOnly = false,
+  initialEditMode,
+  autoEditTitle = false,
   onClose,
   onDraftSaved,
-  onSuccess,
+  onSurveyUpdated,
+  onQuestionCountChanged,
+  onSurveyDeleted,
 }: SurveyCreationModalProps) {
   const titleInputRef = useRef<HTMLInputElement>(null)
-  const [currentSurvey, setCurrentSurvey] = useState<Survey | null>(null)
+  const [currentSurvey, setCurrentSurvey] = useState<Survey | null>(survey ?? null)
   const [title, setTitle] = useState('')
   const [showResults, setShowResults] = useState(true)
   const [dynamicResponses, setDynamicResponses] = useState(false)
   const [dueDate, setDueDate] = useState('')
   const [dueTime, setDueTime] = useState(DEFAULT_SCHEDULE_TIME)
   const [creatingDraft, setCreatingDraft] = useState(false)
+  const [actionBusy, setActionBusy] = useState(false)
   const [error, setError] = useState('')
+  const [questionsCount, setQuestionsCount] = useState(getSurveyQuestionsCount(survey))
+  const [scheduleDate, setScheduleDate] = useState(getTodayInSchedulingTimezone())
+  const [scheduleTime, setScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
+
+  const isCreateMode = !surveyId
+  const activeSurveyId = surveyId ?? currentSurvey?.id ?? null
 
   const buildValues = useCallback((overrides?: Partial<SurveySettingsValues>): SurveySettingsValues => ({
     title,
@@ -88,17 +134,19 @@ export function SurveyCreationModal({
     if (!currentSurvey) return values
     if (!values.dueDate || !values.dueTime) throw new Error('Due date is required')
 
+    const cleanTitle = values.title.trim()
+    if (!cleanTitle && !isGeneratedAssessmentTitle(currentSurvey.title)) {
+      throw new Error('Title is required')
+    }
+
     const update: Record<string, unknown> = {
       show_results: values.showResults,
       dynamic_responses: values.dynamicResponses,
       due_at: combineScheduleDateTimeToIso(values.dueDate, values.dueTime),
       due_policy: 'soft',
     }
-    const cleanTitle = values.title.trim()
     if (cleanTitle) {
       update.title = cleanTitle
-    } else if (!isGeneratedAssessmentTitle(currentSurvey.title)) {
-      throw new Error('Title is required')
     }
 
     const response = await fetch(`/api/teacher/surveys/${currentSurvey.id}`, {
@@ -110,16 +158,11 @@ export function SurveyCreationModal({
     if (!response.ok) throw new Error(data.error || 'Failed to save survey')
 
     const updatedSurvey = data.survey as Survey
+    const savedValues = getSurveyValues(updatedSurvey)
     setCurrentSurvey(updatedSurvey)
-    onDraftSaved?.(updatedSurvey)
-    return {
-      title: getDisplayedSurveyTitle(updatedSurvey),
-      showResults: updatedSurvey.show_results,
-      dynamicResponses: updatedSurvey.dynamic_responses,
-      dueDate: values.dueDate,
-      dueTime: values.dueTime,
-    }
-  }, [currentSurvey, onDraftSaved])
+    onSurveyUpdated?.(updatedSurvey)
+    return savedValues
+  }, [currentSurvey, onSurveyUpdated])
 
   const {
     status: autosaveStatus,
@@ -127,7 +170,7 @@ export function SurveyCreationModal({
     schedule: scheduleAutosave,
     flush: flushAutosave,
   } = useClassworkAutosave<SurveySettingsValues>({
-    disabled: creatingDraft || !currentSurvey,
+    disabled: creatingDraft || isReadOnly || !currentSurvey,
     isEqual: areSurveySettingsEqual,
     onSave: saveSurveySettings,
     onError: setError,
@@ -136,24 +179,55 @@ export function SurveyCreationModal({
   useEffect(() => {
     if (!isOpen) return
 
-    const defaults = getDefaultSurveyValues()
-    setCurrentSurvey(null)
-    setTitle(defaults.title)
-    setShowResults(defaults.showResults)
-    setDynamicResponses(defaults.dynamicResponses)
-    setDueDate(defaults.dueDate)
-    setDueTime(defaults.dueTime)
     setError('')
-    setCreatingDraft(true)
-    resetAutosave(null)
+    setActionBusy(false)
+    setShowScheduleModal(false)
+
+    if (isCreateMode) {
+      const defaults = getDefaultSurveyValues()
+      setCurrentSurvey(null)
+      setTitle(defaults.title)
+      setShowResults(defaults.showResults)
+      setDynamicResponses(defaults.dynamicResponses)
+      setDueDate(defaults.dueDate)
+      setDueTime(defaults.dueTime)
+      setQuestionsCount(0)
+      setCreatingDraft(!isReadOnly)
+      resetAutosave(null)
+    } else {
+      setCreatingDraft(false)
+      setQuestionsCount(getSurveyQuestionsCount(survey))
+      if (survey) {
+        const nextValues = getSurveyValues(survey)
+        setCurrentSurvey(survey)
+        setTitle(nextValues.title)
+        setShowResults(nextValues.showResults)
+        setDynamicResponses(nextValues.dynamicResponses)
+        setDueDate(nextValues.dueDate)
+        setDueTime(nextValues.dueTime)
+        resetAutosave(nextValues)
+      } else {
+        const defaults = getDefaultSurveyValues()
+        setCurrentSurvey(null)
+        setTitle(defaults.title)
+        setShowResults(defaults.showResults)
+        setDynamicResponses(defaults.dynamicResponses)
+        setDueDate(defaults.dueDate)
+        setDueTime(defaults.dueTime)
+        resetAutosave(null)
+      }
+    }
 
     setTimeout(() => {
       titleInputRef.current?.focus()
+      if (autoEditTitle || isCreateMode) {
+        titleInputRef.current?.select()
+      }
     }, 100)
-  }, [isOpen, resetAutosave])
+  }, [autoEditTitle, isCreateMode, isOpen, isReadOnly, resetAutosave, survey])
 
   useEffect(() => {
-    if (!creatingDraft || !isOpen || currentSurvey) return
+    if (!creatingDraft || !isOpen || currentSurvey || !isCreateMode || isReadOnly) return
 
     async function createSurveyDraft() {
       const defaults = getDefaultSurveyValues()
@@ -173,10 +247,14 @@ export function SurveyCreationModal({
         const data = await response.json().catch(() => ({}))
         if (!response.ok) throw new Error(data.error || 'Failed to create survey')
 
-        const survey = data.survey as Survey
-        setCurrentSurvey(survey)
-        onDraftSaved?.(survey)
-        resetAutosave(defaults)
+        const createdSurvey = data.survey as Survey
+        setCurrentSurvey(createdSurvey)
+        setTitle(getDisplayedSurveyTitle(createdSurvey))
+        setShowResults(createdSurvey.show_results)
+        setDynamicResponses(createdSurvey.dynamic_responses)
+        resetAutosave(getSurveyValues(createdSurvey))
+        onDraftSaved?.(createdSurvey)
+        onSurveyUpdated?.(createdSurvey)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to create survey')
         onClose()
@@ -186,7 +264,7 @@ export function SurveyCreationModal({
     }
 
     void createSurveyDraft()
-  }, [classroomId, creatingDraft, currentSurvey, isOpen, onClose, onDraftSaved, resetAutosave])
+  }, [classroomId, creatingDraft, currentSurvey, isCreateMode, isOpen, isReadOnly, onClose, onDraftSaved, onSurveyUpdated, resetAutosave])
 
   function updateValues(next: Partial<SurveySettingsValues>) {
     const values = buildValues(next)
@@ -194,105 +272,302 @@ export function SurveyCreationModal({
     scheduleAutosave(values)
   }
 
-  async function continueToEditor() {
-    if (!currentSurvey) return
+  async function ensureReadyToOpen() {
+    if (!currentSurvey) return false
     if (!title.trim()) {
       setError('Title is required')
       titleInputRef.current?.focus()
-      return
+      return false
     }
+    if (questionsCount < 1) {
+      setError('Add at least one question before opening the survey.')
+      return false
+    }
+    return flushAutosave()
+  }
 
-    const flushed = await flushAutosave()
-    if (!flushed) return
-    onSuccess(currentSurvey)
-    onClose()
+  async function patchSurvey(update: Record<string, unknown>, options?: { closeAfter?: boolean }) {
+    if (!currentSurvey || actionBusy) return
+
+    setActionBusy(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/teacher/surveys/${currentSurvey.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(update),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to update survey')
+
+      const updatedSurvey = data.survey as Survey
+      setCurrentSurvey(updatedSurvey)
+      onSurveyUpdated?.(updatedSurvey)
+      if (options?.closeAfter) onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update survey')
+    } finally {
+      setActionBusy(false)
+    }
+  }
+
+  async function openSurveyNow() {
+    const ready = await ensureReadyToOpen()
+    if (!ready) return
+    await patchSurvey({ status: 'active', opens_at: null }, { closeAfter: true })
+  }
+
+  function openScheduleModal() {
+    if (currentSurvey?.opens_at && isScheduleIsoInFuture(currentSurvey.opens_at)) {
+      const scheduled = parseScheduleIsoToParts(currentSurvey.opens_at)
+      setScheduleDate(scheduled.date)
+      setScheduleTime(scheduled.time)
+    } else {
+      setScheduleDate(getTodayInSchedulingTimezone())
+      setScheduleTime(DEFAULT_SCHEDULE_TIME)
+    }
+    setShowScheduleModal(true)
+  }
+
+  async function scheduleSurveyOpen() {
+    const ready = await ensureReadyToOpen()
+    if (!ready) return
+    await patchSurvey({
+      status: 'active',
+      opens_at: combineScheduleDateTimeToIso(scheduleDate, scheduleTime),
+    }, { closeAfter: true })
+    setShowScheduleModal(false)
+  }
+
+  async function closeSurvey() {
+    await patchSurvey({ status: 'closed' })
   }
 
   async function handleClose() {
-    if (creatingDraft) return
+    if (creatingDraft || actionBusy) return
     const flushed = await flushAutosave()
     if (flushed) {
       onClose()
     }
   }
 
-  const busy = creatingDraft || autosaveStatus === 'saving'
+  function handleWorkspaceSurveyUpdated(updatedSurvey: Survey) {
+    setCurrentSurvey((previous) => {
+      if (!previous || previous.id !== updatedSurvey.id) {
+        const nextValues = getSurveyValues(updatedSurvey)
+        setTitle(nextValues.title)
+        setShowResults(nextValues.showResults)
+        setDynamicResponses(nextValues.dynamicResponses)
+        setDueDate(nextValues.dueDate)
+        setDueTime(nextValues.dueTime)
+        resetAutosave(nextValues)
+      }
+      return updatedSurvey
+    })
+    onSurveyUpdated?.(updatedSurvey)
+  }
+
+  function handleQuestionCountChanged(nextSurveyId: string, nextQuestionsCount: number) {
+    setQuestionsCount(nextQuestionsCount)
+    onQuestionCountChanged?.(nextSurveyId, nextQuestionsCount)
+  }
+
+  const busy = creatingDraft || actionBusy || autosaveStatus === 'saving'
+  const statusBadge = currentSurvey ? (
+    <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getSurveyStatusBadgeClass(currentSurvey.status)}`}>
+      {getSurveyStatusLabel(currentSurvey.status)}
+    </span>
+  ) : null
+  const canOpenSurvey = questionsCount > 0
+  const isSurveyOpen = currentSurvey?.status === 'active'
+  const primaryActionLabel = actionBusy
+    ? 'Saving...'
+    : isSurveyOpen
+      ? 'Close Poll'
+      : 'Open Poll'
 
   return (
-    <ClassworkContentModalShell
-      isOpen={isOpen}
-      onClose={() => {
-        void handleClose()
-      }}
-      title={creatingDraft ? 'Creating Draft...' : 'New Survey'}
-      titleId="survey-create-modal-title"
-      closeLabel="Close survey modal"
-      closeDisabled={creatingDraft}
-      maxWidth="!max-w-5xl"
-    >
-      <div className="w-full space-y-4">
-        <ClassworkModalTopLine
-          title={title}
-          titlePlaceholder="Enter survey title"
-          titleError={error}
-          titleDisabled={creatingDraft}
-          titleInputRef={titleInputRef}
-          titleStatus={<ClassworkModalSaveStatus status={autosaveStatus} />}
-          onTitleChange={(nextTitle) => {
-            setTitle(nextTitle)
-            updateValues({ title: nextTitle })
-          }}
-          meta={(
-            <ClassworkModalSurveyDueFields
-              dueDate={dueDate}
-              dueTime={dueTime}
-              disabled={creatingDraft}
-              onDueDateChange={(nextDate) => {
-                setDueDate(nextDate)
-                updateValues({ dueDate: nextDate })
-              }}
-              onDueTimeChange={(nextTime) => {
-                setDueTime(nextTime)
-                updateValues({ dueTime: nextTime })
-              }}
-            />
-          )}
-          primaryActions={(
-            <ClassworkModalPrimaryButton
-              disabled={busy || !currentSurvey}
-              onClick={() => {
-                void continueToEditor()
+    <>
+      <ClassworkContentModalShell
+        isOpen={isOpen}
+        onClose={() => {
+          void handleClose()
+        }}
+        title={creatingDraft ? 'Creating Draft...' : currentSurvey ? 'Edit Survey' : 'New Survey'}
+        titleId="survey-create-modal-title"
+        closeLabel="Close survey modal"
+        closeDisabled={creatingDraft || actionBusy}
+        maxWidth="!max-w-6xl"
+      >
+        <div className="w-full space-y-4">
+          <ClassworkModalTopLine
+            title={title}
+            titlePlaceholder="Enter survey title"
+            titleError={error}
+            titleDisabled={creatingDraft || isReadOnly}
+            titleInputRef={titleInputRef}
+            titleStatus={(
+              <span className="inline-flex items-center gap-2">
+                <ClassworkModalSaveStatus status={autosaveStatus} />
+                {statusBadge}
+              </span>
+            )}
+            onTitleChange={(nextTitle) => {
+              setTitle(nextTitle)
+              updateValues({ title: nextTitle })
+            }}
+            onTitleBlur={() => {
+              void flushAutosave()
+            }}
+            meta={(
+              <ClassworkModalSurveyDueFields
+                dueDate={dueDate}
+                dueTime={dueTime}
+                disabled={creatingDraft || isReadOnly}
+                onDueDateChange={(nextDate) => {
+                  setDueDate(nextDate)
+                  updateValues({ dueDate: nextDate })
+                }}
+                onDueTimeChange={(nextTime) => {
+                  setDueTime(nextTime)
+                  updateValues({ dueTime: nextTime })
+                }}
+              />
+            )}
+            primaryActions={currentSurvey ? (
+              <ClassworkModalSplitAction
+                label={primaryActionLabel}
+                intent={isSurveyOpen ? 'primary' : 'publish'}
+                disabled={busy || isReadOnly || (!isSurveyOpen && !canOpenSurvey)}
+                onPrimaryClick={() => {
+                  if (isSurveyOpen) {
+                    void closeSurvey()
+                  } else {
+                    void openSurveyNow()
+                  }
+                }}
+                toggleAriaLabel="Choose survey action"
+                options={
+                  isSurveyOpen
+                    ? [
+                        {
+                          id: 'close',
+                          label: 'Close poll',
+                          onSelect: () => {
+                            void closeSurvey()
+                          },
+                          disabled: busy || isReadOnly,
+                        },
+                      ]
+                    : [
+                        {
+                          id: 'open-now',
+                          label: 'Open now',
+                          onSelect: () => {
+                            void openSurveyNow()
+                          },
+                          disabled: busy || isReadOnly || !canOpenSurvey,
+                        },
+                        {
+                          id: 'schedule',
+                          label: 'Schedule...',
+                          onSelect: openScheduleModal,
+                          disabled: busy || isReadOnly || !canOpenSurvey,
+                        },
+                      ]
+                }
+                primaryButtonProps={{
+                  className: 'min-w-[6.5rem]',
+                }}
+              />
+            ) : null}
+          />
+
+          <div className="flex max-w-xl flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <AssessmentSetupCheckbox
+              checked={showResults}
+              disabled={creatingDraft || isReadOnly}
+              onChange={(checked) => {
+                setShowResults(checked)
+                updateValues({ showResults: checked })
               }}
             >
-              Edit Survey
-            </ClassworkModalPrimaryButton>
+              Show class results to students
+            </AssessmentSetupCheckbox>
+
+            <AssessmentSetupCheckbox
+              checked={dynamicResponses}
+              disabled={creatingDraft || isReadOnly}
+              onChange={(checked) => {
+                setDynamicResponses(checked)
+                updateValues({ dynamicResponses: checked })
+              }}
+            >
+              Allow students to update answers while open
+            </AssessmentSetupCheckbox>
+          </div>
+
+          {activeSurveyId ? (
+            <TeacherSurveyWorkspace
+              classroomId={classroomId}
+              surveyId={activeSurveyId}
+              isReadOnly={isReadOnly}
+              initialEditMode={initialEditMode ?? 'edit'}
+              autoEditTitle={false}
+              embedded
+              hideSettingsHeader
+              surveyOverride={currentSurvey}
+              onBack={onClose}
+              onSurveyUpdated={handleWorkspaceSurveyUpdated}
+              onQuestionCountChanged={handleQuestionCountChanged}
+              onSurveyDeleted={(deletedSurveyId) => {
+                onSurveyDeleted?.(deletedSurveyId)
+                onClose()
+              }}
+            />
+          ) : (
+            <div className="flex min-h-[16rem] items-center justify-center text-sm text-text-muted">
+              Creating survey...
+            </div>
           )}
-        />
-
-        <div className="max-w-xl space-y-4">
-          <AssessmentSetupCheckbox
-            checked={showResults}
-            disabled={creatingDraft}
-            onChange={(checked) => {
-              setShowResults(checked)
-              updateValues({ showResults: checked })
-            }}
-          >
-            Show class results to students
-          </AssessmentSetupCheckbox>
-
-          <AssessmentSetupCheckbox
-            checked={dynamicResponses}
-            disabled={creatingDraft}
-            onChange={(checked) => {
-              setDynamicResponses(checked)
-              updateValues({ dynamicResponses: checked })
-            }}
-          >
-            Allow students to update answers while open
-          </AssessmentSetupCheckbox>
         </div>
-      </div>
-    </ClassworkContentModalShell>
+      </ClassworkContentModalShell>
+
+      <DialogPanel
+        isOpen={showScheduleModal}
+        onClose={() => {
+          if (actionBusy) return
+          setShowScheduleModal(false)
+        }}
+        maxWidth="max-w-sm"
+        className="p-4"
+        ariaLabelledBy="survey-modal-schedule-title"
+      >
+        <h3 id="survey-modal-schedule-title" className="mb-2 text-sm font-semibold text-text-default">
+          Schedule Survey
+        </h3>
+        <ScheduleDateTimePicker
+          date={scheduleDate}
+          time={scheduleTime}
+          minDate={getTodayInSchedulingTimezone()}
+          isFutureValid={
+            !!scheduleDate &&
+            isScheduleIsoInFuture(combineScheduleDateTimeToIso(scheduleDate, scheduleTime))
+          }
+          onDateChange={setScheduleDate}
+          onTimeChange={setScheduleTime}
+          onCancel={() => setShowScheduleModal(false)}
+          onConfirm={() => {
+            void scheduleSurveyOpen()
+          }}
+          confirmLabel={actionBusy ? 'Scheduling...' : 'Schedule'}
+          dateLabel="Open date"
+          timeLabel="Open time"
+          showHeader={false}
+          showTimezoneLabel={false}
+          className="border-0 bg-transparent p-0 shadow-none"
+        />
+      </DialogPanel>
+    </>
   )
 }
