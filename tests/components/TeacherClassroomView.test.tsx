@@ -1334,7 +1334,7 @@ describe('TeacherClassroomView', () => {
     ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({
-        survey: makeSurveySummary('survey-new', 'Class feedback'),
+        survey: makeSurveySummary('survey-new', 'Untitled 2026-05-14 10:15:30'),
       }),
     })
     const updateSearchParams = vi.fn()
@@ -1350,12 +1350,14 @@ describe('TeacherClassroomView', () => {
     openAddClassworkMenu()
     fireEvent.click(screen.getByRole('menuitem', { name: /Survey/ }))
     const createDialog = await screen.findByRole('dialog')
-    await within(createDialog).findByRole('button', { name: 'Edit Survey' })
+    await within(createDialog).findByText('Survey workspace survey-new mode edit')
+    expect(within(createDialog).queryByRole('button', { name: 'Edit Survey' })).not.toBeInTheDocument()
     expect(within(createDialog).queryByRole('button', { name: 'Preview' })).not.toBeInTheDocument()
-    fireEvent.change(within(createDialog).getByPlaceholderText('Enter survey title'), {
+    const titleInput = within(createDialog).getByPlaceholderText('Enter survey title')
+    fireEvent.change(titleInput, {
       target: { value: 'Class feedback' },
     })
-    fireEvent.click(within(createDialog).getByRole('button', { name: 'Edit Survey' }))
+    fireEvent.blur(titleInput)
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -1387,10 +1389,7 @@ describe('TeacherClassroomView', () => {
       due_policy: 'soft',
     })
     expect(await screen.findByRole('dialog')).toHaveTextContent('Survey workspace survey-new mode edit')
-
-    const { params } = applySearchParamsUpdate(updateSearchParams.mock.calls[0])
-    expect(params.get('surveyId')).toBeNull()
-    expect(params.get('assignmentId')).toBeNull()
+    expect(updateSearchParams).not.toHaveBeenCalled()
   })
 
   it('auto-creates a draft material and removes the manual Save Draft action', async () => {

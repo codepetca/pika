@@ -1595,3 +1595,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `E2E_BASE_URL=http://localhost:3004 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Manual Playwright screenshots: `/tmp/pika-no-preview-assignment-modal.png`, `/tmp/pika-no-preview-material-modal.png`, `/tmp/pika-no-preview-survey-modal.png`, `/tmp/pika-no-preview-announcement-modal.png`, `/tmp/pika-no-preview-survey-mobile.png`
+
+## 2026-06-17 — Unify survey create/edit modal
+
+**Completed:**
+- Reworked `SurveyCreationModal` so survey creation immediately opens the full survey authoring workspace inside the shared classwork modal shell instead of handing off to a second editor.
+- Reused the same survey modal for edit actions, with the shared title/save/status/due/posting top line owning survey metadata and poll open/schedule/close actions.
+- Embedded `TeacherSurveyWorkspace` below the shared top line, hid its duplicate title/due settings, and kept question authoring, code, preview, and delete controls in the survey workspace area.
+- Fixed the workspace load callback dependencies with refs so parent question-count updates do not cause repeated survey reloads.
+- Updated classroom and survey-modal tests to cover the inline survey workspace create flow and autosaved title changes.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/SurveyCreationModal.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/AssignmentModal.test.tsx tests/components/AnnouncementsMarkdown.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3004 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-unified-survey-create-modal.png`, `/tmp/pika-unified-survey-edit-modal.png`, `/tmp/pika-unified-survey-create-mobile.png`
