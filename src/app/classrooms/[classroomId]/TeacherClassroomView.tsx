@@ -53,7 +53,6 @@ import {
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { SortableSurveyCard } from '@/components/surveys/SortableSurveyCard'
 import { SurveyCreationModal } from '@/components/surveys/SurveyCreationModal'
-import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
 import { TeacherSurveyResultsPane } from '@/components/surveys/TeacherSurveyResultsPane'
 import {
   TeacherAssignmentStudentTable,
@@ -849,7 +848,6 @@ export function TeacherClassroomView({
   const [createdSurveyEditorIntent, setCreatedSurveyEditorIntent] = useState<{
     surveyId: string
     editMode: 'edit' | 'markdown' | 'preview'
-    focusTitle?: boolean
   } | null>(null)
   const [isReordering, setIsReordering] = useState(false)
   const [assignmentEditMode, setAssignmentEditMode] = useState(false)
@@ -1068,42 +1066,6 @@ export function TeacherClassroomView({
     }
   }, [classroom.id, handleMaterialSaved, isCreatingMaterialFromAction, isReadOnly])
 
-  const handleSurveySaved = useCallback((
-    survey: Survey,
-    options?: { initialEditMode?: 'edit' | 'markdown' | 'preview'; focusTitle?: boolean },
-  ) => {
-    invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
-    invalidateCachedJSON(`student-surveys:${classroom.id}`)
-    setSurveys((current) => {
-      const withStats = survey as SurveyWithStats
-      const exists = current.some((item) => item.id === survey.id)
-      return exists
-        ? current.map((item) => (item.id === survey.id ? { ...item, ...withStats } : item))
-        : [
-            ...current,
-            {
-              ...withStats,
-              stats: withStats.stats ?? { total_students: 0, responded: 0, questions_count: 0 },
-            },
-          ]
-    })
-    setCreatedSurveyEditorIntent({
-      surveyId: survey.id,
-      editMode: options?.initialEditMode ?? 'edit',
-      focusTitle: options?.focusTitle,
-    })
-    setSurveyModalId(survey.id)
-    writeCookie(`teacherAssignmentsSelection:${classroom.id}`, 'summary')
-    setSelection({ mode: 'summary' })
-    updateSearchParams?.((params) => {
-      params.set('tab', 'assignments')
-      params.delete('assignmentId')
-      params.delete('surveyId')
-      params.delete('assignmentStudentId')
-    }, { replace: true })
-    void loadAssignments({ preserveContent: true })
-  }, [classroom.id, loadAssignments, updateSearchParams])
-
   const handleSurveyDraftSaved = useCallback((survey: Survey) => {
     invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
     invalidateCachedJSON(`student-surveys:${classroom.id}`)
@@ -1111,7 +1073,18 @@ export function TeacherClassroomView({
       const withStats = survey as SurveyWithStats
       const exists = current.some((item) => item.id === survey.id)
       return exists
-        ? current.map((item) => (item.id === survey.id ? { ...item, ...withStats } : item))
+        ? current.map((item) => (
+            item.id === survey.id
+              ? {
+                  ...item,
+                  ...withStats,
+                  stats: {
+                    ...item.stats,
+                    ...(withStats.stats ?? {}),
+                  },
+                }
+              : item
+          ))
         : [
             ...current,
             {
@@ -3178,61 +3151,38 @@ export function TeacherClassroomView({
       />
 
       <SurveyCreationModal
-        isOpen={isSurveyCreateModalOpen}
+        isOpen={isSurveyCreateModalOpen || !!surveyModalId}
         classroomId={classroom.id}
-        onClose={() => setIsSurveyCreateModalOpen(false)}
+        surveyId={surveyModalId}
+        survey={surveyModalId ? currentSurveys.find((survey) => survey.id === surveyModalId) ?? null : null}
+        isReadOnly={isReadOnly}
+        initialEditMode={
+          surveyModalId && createdSurveyEditorIntent?.surveyId === surveyModalId
+            ? createdSurveyEditorIntent.editMode
+            : undefined
+        }
+        onClose={() => {
+          if (surveyModalId) {
+            closeSurveyModal()
+          } else {
+            setIsSurveyCreateModalOpen(false)
+          }
+          setCreatedSurveyEditorIntent(null)
+        }}
         onDraftSaved={handleSurveyDraftSaved}
-        onSuccess={(survey) => {
-          setIsSurveyCreateModalOpen(false)
-          handleSurveySaved(survey, { initialEditMode: 'edit' })
+        onSurveyUpdated={handleSurveyDraftSaved}
+        onQuestionCountChanged={handleSurveyQuestionCountChanged}
+        onSurveyDeleted={(deletedSurveyId) => {
+          setSurveys((current) => current.filter((survey) => survey.id !== deletedSurveyId))
+          invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+          invalidateCachedJSON(`student-surveys:${classroom.id}`)
+          if (surveyModalId) {
+            closeSurveyModal({ replace: true })
+          } else {
+            setIsSurveyCreateModalOpen(false)
+          }
         }}
       />
-
-      <DialogPanel
-        isOpen={!!surveyModalId}
-        onClose={() => closeSurveyModal()}
-        ariaLabelledBy="survey-workspace-dialog-title"
-        maxWidth="max-w-6xl"
-        className="h-[85vh] overflow-hidden p-0"
-      >
-        <h2 id="survey-workspace-dialog-title" className="sr-only">
-          Survey
-        </h2>
-        {surveyModalId ? (
-          <TeacherSurveyWorkspace
-            classroomId={classroom.id}
-            surveyId={surveyModalId}
-            isReadOnly={isReadOnly}
-            initialEditMode={
-              createdSurveyEditorIntent?.surveyId === surveyModalId
-                ? createdSurveyEditorIntent.editMode
-                : undefined
-            }
-            autoEditTitle={
-              createdSurveyEditorIntent?.surveyId === surveyModalId &&
-              createdSurveyEditorIntent.focusTitle === true
-            }
-            onInitialEditModeConsumed={() => setCreatedSurveyEditorIntent(null)}
-            onBack={() => closeSurveyModal()}
-            onSurveyUpdated={(updatedSurvey) => {
-              setSurveys((current) =>
-                current.map((survey) =>
-                  survey.id === updatedSurvey.id ? { ...survey, ...updatedSurvey } : survey
-                )
-              )
-              invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
-              invalidateCachedJSON(`student-surveys:${classroom.id}`)
-            }}
-            onQuestionCountChanged={handleSurveyQuestionCountChanged}
-            onSurveyDeleted={(surveyId) => {
-              setSurveys((current) => current.filter((survey) => survey.id !== surveyId))
-              invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
-              invalidateCachedJSON(`student-surveys:${classroom.id}`)
-              closeSurveyModal({ replace: true })
-            }}
-          />
-        ) : null}
-      </DialogPanel>
 
     </>
   )
