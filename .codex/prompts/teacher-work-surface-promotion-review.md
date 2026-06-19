@@ -3,7 +3,6 @@
 Review the teacher work-surface family only:
 
 - teacher assignments
-- teacher quizzes
 - teacher tests
 
 Stay out of unrelated teacher tabs, the main classroom shell, and all student-only surfaces unless they materially affect the teacher-side implementation of this family.
@@ -16,7 +15,7 @@ Read and compare:
 - [`docs/guidance/ui/teacher-work-surfaces.md`](/docs/guidance/ui/teacher-work-surfaces.md)
 - [`docs/guidance/ui/audit-teacher-work-surfaces.md`](/docs/guidance/ui/audit-teacher-work-surfaces.md)
 - relevant files under [`docs/guidance/ui/experimental/`](/docs/guidance/ui/experimental/) only if they materially affect this family
-- current implementation of teacher assignments, teacher quizzes, and teacher tests
+- current implementation of teacher assignments and teacher tests
 
 ## Goal
 
