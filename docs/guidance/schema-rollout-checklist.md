@@ -9,6 +9,7 @@ Use this checklist for migrations, Supabase query-shape changes, compatibility s
 - introducing a new persisted field
 - adding a fallback for pre-migration or partially rolled-out environments
 - changing a teacher or student API response contract
+- renaming an active contract while legacy keys, props, or helpers remain supported
 
 ## Pre-Change Checks
 
@@ -17,6 +18,7 @@ Use this checklist for migrations, Supabase query-shape changes, compatibility s
 - Confirm browser-side Supabase access is not being added
 - Confirm writes stay in server routes with existing auth helpers
 - Identify whether reads must tolerate both pre-migration and post-migration schemas during rollout
+- Name the compatibility boundary explicitly: persisted schema, API payload, TypeScript alias, prop contract, or test fixture contract
 
 ## Migration Checklist
 
@@ -31,8 +33,23 @@ Use this checklist for migrations, Supabase query-shape changes, compatibility s
 - Narrow the select list to rendered or returned fields
 - Avoid accidentally exposing extra columns while adding a new field
 - Keep teacher/student response shaping explicit when rollout fallbacks exist
+- Decide whether the pass is dual-read, dual-write, or dual-read plus dual-write; do not leave that implicit
+- List every in-repo producer and consumer that still touches the legacy key or shape
+- Add a regression for any current-path reader that must prefer the new key while still accepting the legacy fallback
 - Add a regression for the fallback path when a new column is unavailable
 - Add a regression for the steady-state path when the column is present
+
+## Compatibility Migration Slice
+
+When the change is a naming or contract migration, split the work into narrow passes:
+
+- producers: where the contract is emitted or stored
+- active consumers: current UI, hooks, and server readers
+- compatibility aliases: wrappers, fallback readers, legacy response keys
+- tests and fixtures: current-path wording versus deliberate fallback coverage
+- docs: guidance that should explain what remains intentionally legacy
+
+Each pass should say what is intentionally not changing yet.
 
 ## Review Prompt
 
@@ -43,4 +60,6 @@ What widened?
 What fallback exists?
 What breaks if the migration has not been applied yet?
 Which regression proves the intended payload shape?
+Which readers now prefer the new contract first?
+Which legacy readers or aliases are intentionally still alive after this pass?
 ```

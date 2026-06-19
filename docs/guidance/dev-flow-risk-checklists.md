@@ -22,6 +22,11 @@ Applies when changing long-lived workspaces, split panes, editors, autosave surf
 - Preserve mounted workspace children across autosave, transient overlays, parent metadata updates, and background refetches.
 - Prefer local summary patching over full parent reloads when the child already has the fresh state.
 - Test that the active workspace does not remount when autosave completes or when non-destructive metadata changes.
+- If async state belongs to a route, classroom, selected record, or pane owner, name that identity boundary before editing.
+- Tag loaded state with its owner identity when stale data could remain visible during navigation or reselection.
+- Guard late async completions before every visible state write; a response for classroom A must not repaint classroom B.
+- Clear or hide owner-scoped sidebar/detail state synchronously when the owner changes, even before the next request resolves.
+- Add at least one stale-response regression for risky route-keyed work: start load A, switch to B, resolve A late, prove B stays visible.
 - For structural refactors, use this implementation contract:
 
 ```text
@@ -34,6 +39,17 @@ Do not move business logic, data loading, selection state, grading behavior, rou
 The migrated assignment UI should look and behave the same after the refactor. Any visible difference must be explicitly listed and justified before continuing.
 
 Stop and reassess if the new shell API starts needing domain-specific props such as assignment status, test status, grading state, AI run state, student selection, rubric state, or return behavior.
+```
+
+### Workspace-State Review Prompt
+
+Before opening the PR, answer:
+
+```text
+What is the owner identity for this async state?
+Which late responses are now ignored?
+Which state clears immediately on owner change?
+Which regression proves A resolving after switching to B cannot repaint the UI?
 ```
 
 ## Async Grading

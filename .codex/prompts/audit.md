@@ -18,6 +18,15 @@ Also declare the task risk profile before reporting audit status:
 
 If a non-`none` risk profile applies, review `docs/guidance/dev-flow-risk-checklists.md` and report whether the relevant behavioral checks were covered by tests, visual verification, or explicit follow-up.
 
+If the change touches route-keyed async state or classroom/selection switching, also report:
+- owner identity named: yes/no
+- stale-response regression added: yes/no
+
+If the change is a contract or naming migration, also report:
+- migration slice named: yes/no
+- new-contract-first reader coverage added: yes/no
+- intentional legacy aliases remaining are listed: yes/no
+
 If changed UI files introduce or modify composite widget behavior, also review:
 - `docs/guidance/ui/composite-widget-accessibility.md`
 
