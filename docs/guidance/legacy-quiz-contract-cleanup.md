@@ -152,6 +152,11 @@ Requires a follow-up design and approval:
    - Continue replacing non-contract test fixture wording and local variable
      names.
    - Preserve explicit fallback tests for `quiz` / `quizzes`.
+   - Prefer narrow slices: active callers first, compatibility helpers next,
+     fixtures/docs last.
+   - For each slice, record the exit criterion up front, for example:
+     "all active Tests readers prefer `test/tests` first" or
+     "remaining `quiz` hits are compatibility tests only".
    - Validate with focused tests for touched areas, then `pnpm lint` and
      `pnpm test`.
 
@@ -195,6 +200,9 @@ For each implementation pass:
   "What widened?", "What fallback exists?", "What breaks if the migration has
   not been applied yet?", and "Which regression proves the intended payload
   shape?"
+- For active contract renames, also answer:
+  "Which readers prefer the new contract first?" and
+  "Which legacy aliases are intentionally still alive after this pass?"
 - Run focused tests for the touched area.
 - Run `pnpm lint`.
 - Run `pnpm test`.

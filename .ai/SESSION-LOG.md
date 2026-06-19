@@ -9,34 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-09 — Legacy quiz component test prop migration pass
-
-**Completed:**
-- Created `codex/legacy-quiz-test-prop-tests` from merged `origin/main`.
-- Migrated direct component tests for `StudentTestForm`, `StudentTestResults`, `TestIndividualResponses`, and `TestDetailPanel` to active `testId`, `test`, and `onTestUpdate` props.
-- Added narrow compatibility assertions for legacy `quizId`, `quiz`, and `onQuizUpdate` aliases so fallback support remains intentional.
-- Updated the `TeacherTestsTab` mock of `TestDetailPanel` to model the active test-named prop contract instead of accepting legacy aliases.
-- Did not touch production runtime code, database schema, migrations, RPCs, storage paths, API payload keys, or DB-shaped `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2655 tests before edits)
-- `pnpm vitest run tests/components/StudentTestForm.test.tsx tests/components/StudentTestResults.test.tsx tests/components/TestIndividualResponses.test.tsx tests/components/TestDetailPanel.test.tsx tests/components/TeacherTestsTab.test.tsx`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check`
-- `pnpm test` (301 files / 2662 tests)
-
-## 2026-06-09 — Session log trim buffer
-
-**Completed:**
-- Split the session-log trim policy into a 60-entry CI cap and a 40-entry default retention target.
-- Preserved `--check --keep` compatibility without adding another public flag.
-- Updated startup guidance and trim tests so agents compact below the CI boundary after appending.
-
-**Validation:**
-- `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check` (kept 40 of 61 entries; cap 60)
-- `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts`
-
 ## 2026-06-09 — Remove trim --max flag
 
 **Completed:**
@@ -668,3 +640,28 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm tsx scripts/measure-ai-grading-prompts.ts`
 - `pnpm lint`
 - `pnpm test`
+
+## 2026-06-19 — Skill progression map refresh
+
+**Completed:**
+- Reviewed recent merged PRs and review evidence to identify the next engineering skills worth deepening.
+- Anchored recommendations to the June 8-16, 2026 PR cluster around legacy quiz-to-test contract cleanup and classroom-switch race-condition fixes.
+- Found that the strongest recurring review signals were stale async state during classroom navigation and compatibility gaps during naming-contract migration.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only`
+- `gh pr list --repo codepetca/pika --state merged --limit 15 --json number,title,mergedAt,url`
+- `gh api graphql` review scan across recent merged PRs
+
+## 2026-06-19 — Dev-flow skill upgrades
+
+**Completed:**
+- Implemented the three skill improvements as repo guidance updates instead of a separate process layer.
+- Strengthened `docs/guidance/dev-flow-risk-checklists.md` with explicit route-owner identity, stale-response guards, and A-then-B regression expectations for workspace-state work.
+- Expanded `docs/guidance/schema-rollout-checklist.md` and `docs/guidance/legacy-quiz-contract-cleanup.md` to require explicit migration slices, new-contract-first readers, and listed surviving legacy aliases.
+- Expanded `docs/guidance/component-refactor-checklist.md` to require sliced refactors with grep/test exit criteria.
+- Wired the new checks into `.codex/prompts/session-start.md`, `.codex/prompts/audit.md`, and `.codex/prompts/tdd.md`.
+
+**Validation:**
+- `git diff -- docs/guidance/dev-flow-risk-checklists.md docs/guidance/schema-rollout-checklist.md docs/guidance/component-refactor-checklist.md docs/guidance/legacy-quiz-contract-cleanup.md .codex/prompts/session-start.md .codex/prompts/audit.md .codex/prompts/tdd.md`
+- `sed -n '1,220p' .codex/prompts/tdd.md`
