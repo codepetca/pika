@@ -63,6 +63,7 @@ export function ClassroomDropdown({
     handleTriggerKeyDown,
     handleItemKeyDown,
     handleTriggerClick,
+    triggerRef,
     itemRefs,
     containerRef,
     setIsOpen,
@@ -99,6 +100,7 @@ export function ClassroomDropdown({
       {/* Trigger */}
       <button
         id={triggerId}
+        ref={triggerRef}
         type="button"
         onPointerDown={() => {
           if (openingClassroomId) return
@@ -139,6 +141,7 @@ export function ClassroomDropdown({
         }`}
         role="listbox"
         aria-labelledby={triggerId}
+        aria-hidden={!isOpen}
       >
         {classrooms.map((classroom, index) => {
           const isCurrent = classroom.id === currentClassroom?.id

@@ -88,6 +88,7 @@ export function UserMenu({ user }: UserMenuProps) {
     handleTriggerKeyDown,
     handleItemKeyDown,
     handleTriggerClick,
+    triggerRef,
     itemRefs,
     containerRef,
   } = useDropdownNav({
@@ -116,6 +117,7 @@ export function UserMenu({ user }: UserMenuProps) {
       {/* Avatar trigger */}
       <button
         id={triggerId}
+        ref={triggerRef}
         onClick={handleTriggerClick}
         onKeyDown={handleTriggerKeyDown}
         className="flex items-center justify-center w-8 h-8 rounded-full transition-all hover:ring-2 hover:ring-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
@@ -143,6 +145,7 @@ export function UserMenu({ user }: UserMenuProps) {
         }`}
         role="menu"
         aria-labelledby={triggerId}
+        aria-hidden={!isOpen}
       >
         {/* User info section */}
         <div className="px-4 py-3 border-b border-border">

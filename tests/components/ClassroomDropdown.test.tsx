@@ -38,7 +38,8 @@ describe('ClassroomDropdown', () => {
     const trigger = screen.getByRole('button', { name: 'Select classroom' })
     fireEvent.mouseEnter(trigger)
 
-    expect(screen.getByRole('listbox')).toHaveClass('pointer-events-none')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(document.getElementById(trigger.getAttribute('aria-controls') ?? '')).toHaveAttribute('aria-hidden', 'true')
 
     pointerClick(trigger)
 
@@ -140,5 +141,54 @@ describe('ClassroomDropdown', () => {
     fireEvent.keyDown(gamma, { key: 'Enter' })
 
     expect(push).toHaveBeenCalledWith('/classrooms/class-3?tab=attendance')
+  })
+
+  it('closes with Escape and outside click while restoring focus to the trigger', () => {
+    render(
+      <ClassroomDropdown
+        classrooms={classrooms}
+        currentClassroomId="class-2"
+        currentTab="attendance"
+      />
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Select classroom' })
+    pointerClick(trigger)
+    const alpha = screen.getByRole('option', { name: /Alpha/ })
+    expect(alpha).toHaveFocus()
+
+    fireEvent.keyDown(alpha, { key: 'Escape' })
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+
+    pointerClick(trigger)
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+
+    fireEvent.mouseDown(document.body)
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+  })
+
+  it('does not steal focus on outside clicks while closed', () => {
+    render(
+      <>
+        <button type="button">Outside target</button>
+        <ClassroomDropdown
+          classrooms={classrooms}
+          currentClassroomId="class-2"
+          currentTab="attendance"
+        />
+      </>
+    )
+
+    const outsideTarget = screen.getByRole('button', { name: 'Outside target' })
+    outsideTarget.focus()
+
+    fireEvent.mouseDown(document.body)
+
+    expect(outsideTarget).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Select classroom' })).not.toHaveFocus()
   })
 })

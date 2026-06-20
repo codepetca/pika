@@ -9,19 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-12 — Skill progression workflow hardening
-
-**Completed:**
-- Added a new UI acceptance brief guide so non-trivial UI work records the target surface, reference, roles, viewports, themes, states, primary signal, and out-of-scope treatments before coding.
-- Added schema rollout and component refactor checklists to make migration/query-shape PRs and large TSX extraction PRs declare rollout risk, fallback expectations, and shared-component boundaries up front.
-- Updated AI routing, session-start, issue-worker, agent-role, UI canon, and UI verification guidance so the acceptance brief plus role/viewport/theme/state verification matrix are part of the default workflow.
-- Added explicit specialist-skill trigger guidance for `product-design:get-context`, `pika-ui-verify`, `supabase:supabase-postgres-best-practices`, and `vercel:react-best-practices`.
-
-**Validation:**
-- Reviewed diffs for `docs/ai-instructions.md`, `.codex/prompts/session-start.md`, `docs/guides/ai-ui-testing.md`, `.codex/prompts/ui-verify.md`, `.codex/skills/pika-ui-verify/SKILL.md`, `docs/core/agents.md`, `docs/issue-worker.md`, and the new guidance docs.
-- `node scripts/trim-session-log.mjs`
-- `node scripts/trim-session-log.mjs --check`
-
 ## 2026-06-09 — Classwork action chooser pilot
 
 **Completed:**
@@ -785,3 +772,28 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm build`
+
+## 2026-06-20 — Composite widget accessibility audit
+
+**Completed:**
+- Continued the bounded systems/UI audit program with the composite-widget accessibility slice.
+- Audited shared menu/listbox widgets and identified a concrete fix-now issue in the `useDropdownNav` consumers: closed account/classroom dropdown surfaces stayed exposed in the accessibility tree, and Escape/outside close did not return focus to the trigger.
+- Added a trigger ref and focus restoration path to `useDropdownNav` for Escape, outside click, and trigger-close behavior.
+- Marked closed `UserMenu` and `ClassroomDropdown` menu/listbox surfaces with `aria-hidden` while preserving their existing visual transitions.
+- Added semantic regression coverage for closed menus being unavailable by role and focus restoration after Escape/outside close.
+
+**Accessibility checklist:**
+- checklist reviewed: yes
+- keyboard behavior covered: yes
+- semantic state covered by tests: yes
+- remaining manual follow-up: none
+
+**Validation:**
+- `pnpm test tests/components/ClassroomDropdown.test.tsx tests/components/UserMenu.test.tsx`
+- `git diff --check`
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm build`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`.
+- Additional open-state visual verification: reviewed `/tmp/pika-user-menu-open.png` and `/tmp/pika-classroom-dropdown-open.png`.
+- `pnpm test` (308 files / 2742 tests)
