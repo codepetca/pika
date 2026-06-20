@@ -41,6 +41,7 @@ describe('server classroom-order helpers', () => {
 
     expect(query.eq).toHaveBeenCalledWith('teacher_id', 'teacher-1')
     expect(query.is).toHaveBeenCalledWith('archived_at', null)
+    expect(query.select).toHaveBeenCalledWith('id,title,class_code,theme_color,term_label,updated_at,archived_at,position')
     expect(query.order).toHaveBeenNthCalledWith(1, 'position', { ascending: true })
     expect(query.order).toHaveBeenNthCalledWith(2, 'updated_at', { ascending: false })
   })
@@ -79,11 +80,66 @@ describe('server classroom-order helpers', () => {
     await expect(listActiveTeacherClassrooms(supabase as never, 'teacher-2')).resolves.toBe(fallbackResult)
 
     expect(supabase.from).toHaveBeenCalledTimes(2)
+    expect(firstQuery.select).toHaveBeenCalledWith('id,title,class_code,theme_color,term_label,updated_at,archived_at,position')
+    expect(fallbackQuery.select).toHaveBeenCalledWith('id,title,class_code,theme_color,term_label,updated_at,archived_at,position')
     expect(firstQuery.order).toHaveBeenNthCalledWith(1, 'position', { ascending: true })
     expect(firstQuery.order).toHaveBeenNthCalledWith(2, 'updated_at', { ascending: false })
     expect(fallbackQuery.eq).toHaveBeenCalledWith('teacher_id', 'teacher-2')
     expect(fallbackQuery.is).toHaveBeenCalledWith('archived_at', null)
     expect(fallbackQuery.order).toHaveBeenCalledWith('updated_at', { ascending: false })
+  })
+
+  it('falls back to a legacy narrow select when theme_color is unavailable', async () => {
+    const fallbackResult = { data: [{ id: 'c3' }], error: null }
+
+    const firstQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      is: vi.fn(),
+      order: vi.fn(),
+    }
+    firstQuery.select.mockReturnValue(firstQuery)
+    firstQuery.eq.mockReturnValue(firstQuery)
+    firstQuery.is.mockReturnValue(firstQuery)
+    firstQuery.order
+      .mockReturnValueOnce(firstQuery)
+      .mockResolvedValueOnce({ data: null, error: { message: 'column classrooms.theme_color does not exist' } })
+
+    const secondQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      is: vi.fn(),
+      order: vi.fn(),
+    }
+    secondQuery.select.mockReturnValue(secondQuery)
+    secondQuery.eq.mockReturnValue(secondQuery)
+    secondQuery.is.mockReturnValue(secondQuery)
+    secondQuery.order.mockResolvedValue({ data: null, error: { message: 'column classrooms.theme_color does not exist' } })
+
+    const legacyQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      is: vi.fn(),
+      order: vi.fn(),
+    }
+    legacyQuery.select.mockReturnValue(legacyQuery)
+    legacyQuery.eq.mockReturnValue(legacyQuery)
+    legacyQuery.is.mockReturnValue(legacyQuery)
+    legacyQuery.order
+      .mockReturnValueOnce(legacyQuery)
+      .mockResolvedValueOnce(fallbackResult)
+
+    const supabase = {
+      from: vi.fn()
+        .mockReturnValueOnce(firstQuery)
+        .mockReturnValueOnce(secondQuery)
+        .mockReturnValueOnce(legacyQuery),
+    }
+
+    await expect(listActiveTeacherClassrooms(supabase as never, 'teacher-3')).resolves.toBe(fallbackResult)
+
+    expect(supabase.from).toHaveBeenCalledTimes(3)
+    expect(legacyQuery.select).toHaveBeenCalledWith('id,title,class_code,term_label,updated_at,archived_at,position')
   })
 
   it('returns null next position when first classroom lookup fails', async () => {

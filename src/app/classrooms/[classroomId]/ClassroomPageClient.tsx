@@ -126,10 +126,13 @@ export function ClassroomPageClient({
   initialSearchParams,
 }: ClassroomPageClientProps) {
   const { leftSidebarExpanded } = useLayoutInitialState()
+  const [clientClassroom, setClientClassroom] = useState(classroom)
+  const [clientTeacherClassrooms, setClientTeacherClassrooms] = useState(teacherClassrooms)
 
   const isTeacher = user.role === 'teacher'
-  const isArchived = isTeacher && !!classroom.archived_at
-  const basePath = `/classrooms/${classroom.id}`
+  const effectiveClassroom = clientClassroom.id === classroom.id ? clientClassroom : classroom
+  const isArchived = isTeacher && !!effectiveClassroom.archived_at
+  const basePath = `/classrooms/${effectiveClassroom.id}`
   const defaultTab = isTeacher ? 'attendance' : 'today'
   const validTabs = useMemo(
     () =>
@@ -140,7 +143,7 @@ export function ClassroomPageClient({
   )
 
   const initialQueryString = buildInitialQueryString(initialSearchParams, initialTab)
-  const routeQueryKey = `${classroom.id}\n${initialQueryString}`
+  const routeQueryKey = `${effectiveClassroom.id}\n${initialQueryString}`
   const [queryString, setQueryString] = useState(initialQueryString)
   const queryStringRef = useRef(queryString)
   const routeQueryKeyRef = useRef(routeQueryKey)
@@ -151,6 +154,25 @@ export function ClassroomPageClient({
   useEffect(() => {
     queryStringRef.current = effectiveQueryString
   }, [effectiveQueryString])
+
+  useEffect(() => {
+    setClientClassroom(classroom)
+  }, [classroom])
+
+  useEffect(() => {
+    setClientTeacherClassrooms(teacherClassrooms)
+  }, [teacherClassrooms])
+
+  const handleClassroomUpdated = useCallback((updatedClassroom: Classroom) => {
+    setClientClassroom((current) => (
+      current.id === updatedClassroom.id ? { ...current, ...updatedClassroom } : current
+    ))
+    setClientTeacherClassrooms((current) => (
+      current.some((c) => c.id === updatedClassroom.id)
+        ? current.map((c) => (c.id === updatedClassroom.id ? { ...c, ...updatedClassroom } : c))
+        : current
+    ))
+  }, [])
 
   useEffect(() => {
     routeQueryKeyRef.current = routeQueryKey
@@ -219,15 +241,16 @@ export function ClassroomPageClient({
       routeKey={routeKey}
       initialLeftExpanded={leftSidebarExpanded}
     >
-      <ClassDaysProvider classroomId={classroom.id}>
+      <ClassDaysProvider classroomId={effectiveClassroom.id}>
         <ClassroomPageContent
-          classroom={classroom}
+          classroom={effectiveClassroom}
           user={user}
-          teacherClassrooms={teacherClassrooms}
+          teacherClassrooms={clientTeacherClassrooms}
           activeTab={activeTab}
           isArchived={isArchived}
           searchParams={activeSearchParams}
           updateSearchParams={updateSearchParams}
+          onClassroomUpdated={handleClassroomUpdated}
         />
       </ClassDaysProvider>
     </ThreePanelProvider>
@@ -373,6 +396,7 @@ function ClassroomPageContent({
   isArchived,
   searchParams,
   updateSearchParams,
+  onClassroomUpdated,
 }: {
   classroom: Classroom
   user: UserInfo
@@ -381,6 +405,7 @@ function ClassroomPageContent({
   isArchived: boolean
   searchParams: URLSearchParams
   updateSearchParams: UpdateSearchParamsFn
+  onClassroomUpdated: (classroom: Classroom) => void
 }) {
   const { openLeft, close: closeMobileDrawer } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
@@ -1169,12 +1194,14 @@ function ClassroomPageContent({
               id: c.id,
               title: c.title,
               code: c.class_code,
+              themeColor: c.theme_color,
             }))
           : [
               {
                 id: classroom.id,
                 title: classroom.title,
                 code: classroom.class_code,
+                themeColor: classroom.theme_color,
               },
             ]
       }
@@ -1324,6 +1351,7 @@ function ClassroomPageContent({
                       <TeacherSettingsTab
                         classroom={classroom}
                         sectionParam={sectionParam}
+                        onClassroomUpdated={onClassroomUpdated}
                         onSectionChange={(section) =>
                           navigateInClassroom((params) => {
                             params.set('tab', 'settings')

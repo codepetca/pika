@@ -1,9 +1,15 @@
 import { act, render, screen } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import { AppHeader } from '@/components/AppHeader'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TooltipProvider } from '@/ui'
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}))
 
 function Wrapper({ children }: { children: ReactNode }) {
   return (
@@ -50,5 +56,55 @@ describe('AppHeader exam mode', () => {
 
     expect(screen.getByLabelText('Exits 2')).toHaveClass('text-text-muted')
     expect(screen.queryByText('Exit detected')).not.toBeInTheDocument()
+  })
+})
+
+describe('AppHeader classroom theme', () => {
+  it('themes the appbar from the current classroom color', () => {
+    render(
+      <AppHeader
+        classrooms={[
+          { id: 'class-1', title: 'Alpha', code: 'AAA111', themeColor: 'teal' },
+          { id: 'class-2', title: 'Beta', code: 'BBB222', themeColor: 'rose' },
+        ]}
+        currentClassroomId="class-2"
+      />,
+      { wrapper: Wrapper }
+    )
+
+    const header = screen.getByRole('banner')
+
+    expect(header).toHaveAttribute('data-classroom-theme-color', 'rose')
+    expect(header).toHaveClass('classroom-theme-appbar')
+    expect(header).not.toHaveClass('border')
+    expect(header.getAttribute('style')).toContain('--classroom-accent-light')
+    expect(header.getAttribute('style')).toContain('--classroom-accent-dark')
+    expect(screen.getByAltText('Pika')).not.toHaveClass('pika-logo-classroom')
+  })
+
+  it('keeps the brand logo on unthemed appbars', () => {
+    render(<AppHeader pageTitle="Classrooms" />, { wrapper: Wrapper })
+
+    expect(screen.getByAltText('Pika')).not.toHaveClass('pika-logo-classroom')
+  })
+
+  it('keeps appbar classroom theme to the gradient without an accent underline', () => {
+    const tokens = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8')
+    const appbarRule = tokens.match(/\.classroom-theme-appbar \{(?<body>[\s\S]*?)\}/)?.groups?.body ?? ''
+
+    expect(appbarRule).toContain('linear-gradient')
+    expect(appbarRule).not.toContain('border-color')
+    expect(appbarRule).not.toContain('border-left-color')
+    expect(appbarRule).not.toContain('box-shadow')
+    expect(appbarRule).not.toContain('border-bottom-color')
+  })
+
+  it('keeps classroom card theme to the gradient without accent borders', () => {
+    const tokens = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8')
+    const cardRule = tokens.match(/\.classroom-theme-card \{(?<body>[\s\S]*?)\}/)?.groups?.body ?? ''
+
+    expect(cardRule).toContain('linear-gradient')
+    expect(cardRule).not.toContain('border-color')
+    expect(cardRule).not.toContain('border-left-color')
   })
 })

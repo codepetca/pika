@@ -49,12 +49,16 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherClassroomView', () => ({
 }))
 
 vi.mock('@/components/AppShell', () => ({
-  AppShell: ({ children, pageTitle }: any) => (
-    <div>
-      <div data-testid="app-shell-page-title">{pageTitle}</div>
-      {children}
-    </div>
-  ),
+  AppShell: ({ children, classrooms, currentClassroomId, pageTitle }: any) => {
+    const currentClassroom = classrooms?.find((c: any) => c.id === currentClassroomId)
+    return (
+      <div>
+        <div data-testid="app-shell-page-title">{pageTitle}</div>
+        <div data-testid="app-shell-classroom-theme">{currentClassroom?.themeColor}</div>
+        {children}
+      </div>
+    )
+  },
 }))
 
 vi.mock('@/components/layout', async () => {
@@ -244,7 +248,14 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherGradebookTab', () => ({
   TeacherGradebookTab: () => <div />,
 }))
 vi.mock('@/app/classrooms/[classroomId]/TeacherSettingsTab', () => ({
-  TeacherSettingsTab: () => <div />,
+  TeacherSettingsTab: ({ classroom, onClassroomUpdated }: any) => (
+    <button
+      type="button"
+      onClick={() => onClassroomUpdated?.({ ...classroom, title: 'Physics Updated', theme_color: 'teal' })}
+    >
+      Update classroom theme
+    </button>
+  ),
 }))
 vi.mock('@/app/classrooms/[classroomId]/TeacherLessonCalendarTab', () => ({
   TeacherLessonCalendarTab: () => <div />,
@@ -304,6 +315,7 @@ const classroom: Classroom = {
   teacher_id: 'teacher-1',
   title: 'Physics',
   class_code: 'ABC123',
+  theme_color: 'blue',
   term_label: null,
   allow_enrollment: true,
   start_date: null,
@@ -382,6 +394,19 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     mockAssignmentsToMarkdown.mockReturnValue({
       markdown: '## Assignment One',
       hasRichContent: false,
+    })
+  })
+
+  it('updates the app shell classroom theme when settings saves classroom changes', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=settings')
+    renderClient({ initialTab: 'settings', initialSearchParams: { tab: 'settings' } })
+
+    expect(screen.getByTestId('app-shell-classroom-theme')).toHaveTextContent('blue')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Update classroom theme' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('app-shell-classroom-theme')).toHaveTextContent('teal')
     })
   })
 

@@ -1,4 +1,5 @@
 import type { Operation } from 'fast-json-patch'
+import type { ClassroomThemeColor } from '@/lib/classroom-theme'
 
 export type UserRole = 'student' | 'teacher'
 
@@ -74,6 +75,7 @@ export interface Classroom {
   teacher_id: string
   title: string
   class_code: string
+  theme_color: ClassroomThemeColor
   position?: number
   term_label: string | null
   allow_enrollment: boolean
@@ -760,6 +762,7 @@ export interface CreateClassroomFromBlueprintInput {
   title: string
   classCode?: string
   termLabel?: string
+  themeColor?: ClassroomThemeColor
   semester?: 'semester1' | 'semester2'
   year?: number
   start_date?: string
@@ -1107,6 +1110,7 @@ export interface LinkedBlueprintClassroom {
   id: string
   title: string
   class_code: string
+  theme_color: ClassroomThemeColor
   term_label: string | null
   actual_site_slug: string | null
   actual_site_published: boolean

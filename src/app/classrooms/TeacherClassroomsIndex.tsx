@@ -29,6 +29,7 @@ import { PageContent, PageLayout } from '@/components/PageLayout'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import type { Classroom } from '@/types'
 import { fetchTeacherClassrooms, invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
+import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
 
 interface Props {
   initialClassrooms: Classroom[]
@@ -397,10 +398,14 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                 </DragOverlay>
               </DndContext>
             ) : (
-              sortedArchived.map((c) => (
+              sortedArchived.map((c) => {
+                const theme = getClassroomThemeDefinition(c.theme_color)
+                return (
                 <div
                   key={c.id}
-                  className="flex flex-col gap-3 rounded-card border border-border bg-surface px-5 py-4 shadow-elevated lg:grid lg:grid-cols-[minmax(0,1fr),auto] lg:items-center lg:gap-5"
+                  data-classroom-theme-color={theme.value}
+                  style={getClassroomThemeStyle(theme.value)}
+                  className="classroom-theme classroom-theme-card classroom-theme-card-interactive flex flex-col gap-3 overflow-hidden rounded-card border border-border bg-surface px-5 py-4 shadow-elevated lg:grid lg:grid-cols-[minmax(0,1fr),auto] lg:items-center lg:gap-5"
                 >
                   <button
                     type="button"
@@ -409,12 +414,12 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                     disabled={openingClassroomId !== null}
                     aria-busy={openingClassroomId === c.id}
                     className={[
-                      '-m-1.5 min-w-0 rounded-control p-1.5 text-left transition-colors',
-                      openingClassroomId === c.id ? 'cursor-wait bg-surface-accent' : 'hover:bg-surface-accent',
+                      '-m-1.5 min-w-0 rounded-control p-1.5 text-left',
+                      openingClassroomId === c.id ? 'cursor-wait' : '',
                     ].join(' ')}
                   >
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <div className="text-base font-semibold text-text-default">{c.title}</div>
+                      <div className="min-w-0 truncate text-base font-semibold text-text-default">{c.title}</div>
                       {c.term_label && (
                         <div className="text-sm text-text-muted">{c.term_label}</div>
                       )}
@@ -451,7 +456,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                     </Button>
                   </div>
                 </div>
-              ))
+              )})
             )}
           </div>
         )}
@@ -473,6 +478,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
       <FloatingActionCluster
         placement="bottom"
+        chrome="none"
         data-testid="classroom-bottom-controls"
       >
         <div className="relative min-h-9">

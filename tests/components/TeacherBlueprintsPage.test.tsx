@@ -94,6 +94,7 @@ const blueprintDetail = {
       id: 'c-9',
       title: 'Semester 2',
       class_code: 'ABC123',
+      theme_color: 'blue',
       term_label: null,
       actual_site_slug: null,
       actual_site_published: false,
