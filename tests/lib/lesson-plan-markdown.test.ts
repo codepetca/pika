@@ -17,6 +17,7 @@ const mockClassroom: Classroom = {
   teacher_id: 't-1',
   title: 'Biology 101',
   class_code: 'BIO101',
+  theme_color: 'blue',
   term_label: null,
   allow_enrollment: true,
   start_date: '2025-01-07', // Tuesday

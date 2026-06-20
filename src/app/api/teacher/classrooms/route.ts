@@ -4,7 +4,8 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { createClassroomSchema } from '@/lib/validations/teacher'
 import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
-import { hydrateClassroomRecord } from '@/lib/server/classrooms'
+import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
+import { getLeastUsedClassroomThemeColor } from '@/lib/classroom-theme'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -50,24 +51,30 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
   }
 
   return NextResponse.json({
-    classrooms: (classrooms || []).map((classroom) => hydrateClassroomRecord(classroom as Record<string, any>)),
+    classrooms: hydrateClassroomRecords((classrooms || []) as Record<string, any>[]),
   })
 })
 
 // POST /api/teacher/classrooms - Create classroom
 export const POST = withErrorHandler('CreateClassroom', async (request: NextRequest) => {
   const user = await requireRole('teacher')
-  const { title, classCode, termLabel } = createClassroomSchema.parse(await request.json())
+  const { title, classCode, termLabel, themeColor } = createClassroomSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
 
   const finalClassCode = classCode || generateClassCode()
   const nextPosition = await getNextTeacherClassroomPosition(supabase, user.id)
+  const activeClassroomsResult = themeColor ? null : await listActiveTeacherClassrooms(supabase, user.id)
+  const defaultThemeColor = getLeastUsedClassroomThemeColor(
+    (activeClassroomsResult?.data || []).map((classroom: any) => classroom.theme_color),
+    `${user.id}:${title}`
+  )
   const insertBody: Record<string, any> = {
     teacher_id: user.id,
     title,
     class_code: finalClassCode,
     term_label: termLabel || null,
+    theme_color: themeColor || defaultThemeColor,
   }
 
   if (nextPosition !== null) {

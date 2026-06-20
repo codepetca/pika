@@ -126,3 +126,44 @@
   --shadow-panel: 0 4px 12px -2px rgb(0 0 0 / 0.32), 0 2px 4px -2px rgb(0 0 0 / 0.24);
   --shadow-dialog: 0 25px 50px -12px rgb(0 0 0 / 0.5);
 }
+
+.classroom-theme {
+  --classroom-accent: var(--classroom-accent-light);
+  --classroom-accent-soft: var(--classroom-accent-soft-light);
+  --classroom-accent-text: var(--classroom-accent-text-light);
+}
+
+.dark .classroom-theme {
+  --classroom-accent: var(--classroom-accent-dark);
+  --classroom-accent-soft: var(--classroom-accent-soft-dark);
+  --classroom-accent-text: var(--classroom-accent-text-dark);
+}
+
+.classroom-theme-appbar {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--classroom-accent) 24%, var(--color-surface)) 0%, var(--classroom-accent-soft) 40%, var(--color-surface) 100%);
+}
+
+.classroom-theme-card {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--classroom-accent) 26%, var(--color-surface)) 0%, var(--classroom-accent-soft) 42%, var(--color-surface) 88%),
+    var(--color-surface);
+}
+
+.classroom-theme-card-interactive {
+  transition: box-shadow 150ms ease, transform 150ms ease;
+}
+
+.classroom-theme-card-interactive:hover,
+.classroom-theme-card-interactive:focus-visible,
+.classroom-theme-card-interactive:focus-within {
+  box-shadow: var(--shadow-panel);
+  transform: translateY(-1px);
+}
+
+.classroom-theme-option {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--classroom-accent) 20%, var(--color-surface)) 0%, var(--classroom-accent-soft) 46%, var(--color-surface) 100%);
+}
+
+.classroom-theme-option-selected {
+  border-left-color: var(--classroom-accent) !important;
+}

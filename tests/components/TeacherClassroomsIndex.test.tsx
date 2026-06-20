@@ -57,6 +57,19 @@ describe('TeacherClassroomsIndex', () => {
     expect(classroomFetchCalls).toHaveLength(0)
   })
 
+  it('themes the classroom card background without an accent border', async () => {
+    const classrooms = [createMockClassroom({ id: 'c1', title: 'Math 101', theme_color: 'teal' })]
+    renderTeacherClassroomsIndex(classrooms)
+
+    const card = await screen.findByTestId('classroom-card')
+
+    expect(card).toHaveAttribute('data-classroom-theme-color', 'teal')
+    expect(card).toHaveClass('classroom-theme-card')
+    expect(card).toHaveClass('classroom-theme-card-interactive')
+    expect(card).toHaveClass('border')
+    expect(card).not.toHaveClass('border-l-4')
+  })
+
   it('never shows the create button in archived view', async () => {
     vi.mocked(fetchTeacherClassrooms).mockResolvedValueOnce([
       createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' }),
@@ -80,8 +93,13 @@ describe('TeacherClassroomsIndex', () => {
     const bottomControls = screen.getByTestId('classroom-bottom-controls')
     const card = screen.getByTestId('classroom-card')
 
-    expect(bottomControls).toHaveClass('fixed', 'left-1/2', 'z-40', 'rounded-lg', 'bg-surface/95')
-    expect(bottomControls).toHaveClass('shadow-elevated', 'backdrop-blur')
+    expect(bottomControls).toHaveClass('fixed', 'left-1/2', 'z-40', 'rounded-lg')
+    expect(bottomControls).not.toHaveClass('bg-surface/95')
+    expect(bottomControls).not.toHaveClass('py-2')
+    expect(bottomControls).not.toHaveClass('pl-3')
+    expect(bottomControls).not.toHaveClass('pr-1')
+    expect(bottomControls).not.toHaveClass('shadow-elevated')
+    expect(bottomControls).not.toHaveClass('backdrop-blur')
     expect(bottomControls.className).toContain('bottom-[calc(1rem+env(safe-area-inset-bottom))]')
     expect(bottomControls.className).toContain('max-w-[40.5rem]')
     expect(bottomControls).not.toHaveClass('rounded-card')

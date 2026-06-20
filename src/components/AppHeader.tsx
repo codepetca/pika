@@ -11,6 +11,7 @@ import { PikaLogo } from './PikaLogo'
 import { Tooltip } from '@/ui'
 import { useFullscreen } from '@/hooks/use-fullscreen'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
+import { getClassroomThemeDefinition, getClassroomThemeStyle, type ClassroomThemeColor } from '@/lib/classroom-theme'
 
 interface AppHeaderProps {
   user?: {
@@ -23,6 +24,7 @@ interface AppHeaderProps {
     id: string
     title: string
     code: string
+    themeColor: ClassroomThemeColor
   }>
   currentClassroomId?: string
   currentTab?: string
@@ -78,6 +80,9 @@ export function AppHeader({
     pageTitle === 'Classrooms'
       ? 'text-base sm:text-lg'
       : 'text-sm'
+  const themedClassroom = classrooms?.find((classroom) => classroom.id === currentClassroomId)
+  const classroomTheme = themedClassroom ? getClassroomThemeDefinition(themedClassroom.themeColor) : null
+  const headerStyle = classroomTheme ? getClassroomThemeStyle(classroomTheme.value) : undefined
 
   useEffect(() => {
     if (isExamMode) return
@@ -121,7 +126,14 @@ export function AppHeader({
   }, [examExitCount])
 
   return (
-    <header className="sticky top-0 z-50 h-12 bg-surface border-b border-border grid grid-cols-[1fr_minmax(0,1fr)_1fr] items-center px-4">
+    <header
+      className={[
+        'sticky top-0 z-50 grid h-12 grid-cols-[1fr_minmax(0,1fr)_1fr] items-center border-b border-border bg-surface px-4',
+        classroomTheme ? 'classroom-theme classroom-theme-appbar' : '',
+      ].filter(Boolean).join(' ')}
+      data-classroom-theme-color={classroomTheme?.value}
+      style={headerStyle}
+    >
       {/* Left section */}
       <div className="flex min-w-0 items-center gap-3">
         {/* Mobile sidebar trigger (classroom pages) */}
@@ -143,7 +155,7 @@ export function AppHeader({
           <Link
             href="/classrooms"
             aria-label="Home"
-            className="flex-shrink-0"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center"
             onClick={(event) => {
               const allow = onNavigateHome?.('/classrooms')
               if (allow === false) {

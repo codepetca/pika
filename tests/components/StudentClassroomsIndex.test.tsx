@@ -25,4 +25,17 @@ describe('StudentClassroomsIndex', () => {
     expect(openButton).toBeDisabled()
     expect(screen.getByText('Opening classroom...')).toBeInTheDocument()
   })
+
+  it('themes the classroom card background without an accent border', () => {
+    const classrooms = [createMockClassroom({ id: 'c1', title: 'Math 101', theme_color: 'rose' })]
+    render(<StudentClassroomsIndex initialClassrooms={classrooms} />)
+
+    const openButton = screen.getByRole('button', { name: /^Math 101/ })
+
+    expect(openButton).toHaveAttribute('data-classroom-theme-color', 'rose')
+    expect(openButton).toHaveClass('classroom-theme-card')
+    expect(openButton).toHaveClass('classroom-theme-card-interactive')
+    expect(openButton).toHaveClass('border')
+    expect(openButton).not.toHaveClass('border-l-4')
+  })
 })

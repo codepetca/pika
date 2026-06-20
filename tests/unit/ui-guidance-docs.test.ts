@@ -54,4 +54,18 @@ describe('ui guidance docs and prompts', () => {
     expect(auditSkill).toContain('without a relevant changed test')
     expect(auditSkill).toContain('path-aware guardrail, not a proof system')
   })
+
+  it('keeps teacher work-surface review prompts aligned with the assignments/tests canon', () => {
+    const uiCanon = readRepoFile('docs/guidance/ui/teacher-work-surfaces.md')
+    const auditDoc = readRepoFile('docs/guidance/ui/audit-teacher-work-surfaces.md')
+    const reviewPrompt = readRepoFile('.codex/prompts/teacher-work-surface-promotion-review.md')
+
+    for (const content of [uiCanon, auditDoc, reviewPrompt]) {
+      expect(content).toContain('teacher assignments')
+      expect(content).toContain('teacher tests')
+    }
+
+    expect(reviewPrompt).not.toContain('teacher quizzes')
+    expect(reviewPrompt).toContain('current implementation of teacher assignments and teacher tests')
+  })
 })

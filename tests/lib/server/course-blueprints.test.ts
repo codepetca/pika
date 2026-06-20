@@ -439,6 +439,7 @@ describe('course-blueprints server helpers', () => {
             id: 'c-1',
             title: 'Semester 1',
             class_code: 'ABC123',
+            theme_color: 'blue',
             term_label: 'Sem 1',
             actual_site_published: true,
             archived_at: null,
@@ -549,6 +550,7 @@ describe('course-blueprints server helpers', () => {
         makeQueryBuilder({ data: [], error: null }),
       ],
       classrooms: [
+        makeQueryBuilder({ data: [], error: null }),
         makeQueryBuilder({ data: [], error: null }),
         makeQueryBuilder({ data: [], error: null }),
         makeQueryBuilder({ data: null, error: null }),

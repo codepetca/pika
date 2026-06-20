@@ -29,6 +29,8 @@ Manual fallback:
    - For large TSX refactors or shared shell extraction, read `docs/guidance/component-refactor-checklist.md`.
    - For non-trivial work, declare risk profile: `none`, `workspace-state`, `async-grading`, `exam-mode`, or `runtime-platform`.
    - If any risk profile applies, read `docs/guidance/dev-flow-risk-checklists.md`.
+   - If the change touches route-keyed async UI state, selected detail fetches, or classroom switching, explicitly name the owner identity and plan one stale-response regression before coding.
+   - If the change is a contract or naming migration, explicitly name the slice: producers, active consumers, compatibility aliases, fixtures, or docs.
    - When available in the current session, prefer `product-design:get-context`, `pika-ui-verify`, `supabase:supabase-postgres-best-practices`, and `vercel:react-best-practices` at their matching trigger points.
 8. If `$ARGUMENTS` is an issue number, run `gh issue view $ARGUMENTS --json number,title,body,labels`.
 9. State the task, propose the approach, and wait for approval before coding.

@@ -63,7 +63,7 @@ describe('StudentTestsTab exam mode', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        quizzes: [{
+        tests: [{
           id: 'test-1',
           title: 'Midterm Test',
           assessment_type: 'test',
@@ -80,7 +80,7 @@ describe('StudentTestsTab exam mode', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        quiz: {
+        test: {
           id: 'test-1',
           title: 'Midterm Test',
           assessment_type: 'test',
@@ -107,6 +107,54 @@ describe('StudentTestsTab exam mode', () => {
       }),
     })
   }
+
+  it('reads legacy quiz-keyed test payloads as a compatibility fallback', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      quizzes: [{
+        id: 'legacy-test-1',
+        title: 'Legacy-Keyed Test',
+        assessment_type: 'test',
+        status: 'active',
+        show_results: false,
+        position: 0,
+        student_status: 'not_started',
+      }],
+    }))
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      quiz: {
+        id: 'legacy-test-1',
+        title: 'Legacy-Keyed Test',
+        assessment_type: 'test',
+        status: 'active',
+        show_results: false,
+        position: 0,
+        student_status: 'not_started',
+      },
+      student_status: 'not_started',
+      questions: [
+        {
+          id: 'legacy-question-1',
+          quiz_id: 'legacy-test-1',
+          question_text: 'Legacy-keyed detail question',
+          options: ['A', 'B'],
+          question_type: 'multiple_choice',
+          points: 1,
+          response_max_chars: 5000,
+          position: 0,
+        },
+      ],
+      student_responses: {},
+      focus_summary: null,
+    }))
+
+    render(<StudentTestsTab classroom={classroom} assessmentType="test" />)
+
+    expect(await screen.findByText('Legacy-Keyed Test')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Legacy-Keyed Test'))
+
+    expect(await screen.findByText('1 question · 1 pt total')).toBeInTheDocument()
+  })
 
   it('ignores stale assessment list responses after classroom changes', async () => {
     const firstClassroom = createMockClassroom({ id: 'classroom-a', title: 'Classroom A' })
@@ -136,7 +184,7 @@ describe('StudentTestsTab exam mode', () => {
 
     await act(async () => {
       secondList.resolve(jsonResponse({
-        quizzes: [{
+        tests: [{
           id: 'test-current',
           title: 'Current Classroom Test',
           assessment_type: 'test',
@@ -155,7 +203,7 @@ describe('StudentTestsTab exam mode', () => {
 
     await act(async () => {
       firstList.resolve(jsonResponse({
-        quizzes: [{
+        tests: [{
           id: 'test-stale',
           title: 'Stale Classroom Test',
           assessment_type: 'test',
@@ -180,7 +228,7 @@ describe('StudentTestsTab exam mode', () => {
     fetchMock.mockImplementation((url: string) => {
       if (url.includes('/api/student/tests?classroom_id=classroom-a')) {
         return Promise.resolve(jsonResponse({
-          quizzes: [{
+          tests: [{
             id: 'test-old',
             title: 'Older Test',
             assessment_type: 'test',
@@ -193,7 +241,7 @@ describe('StudentTestsTab exam mode', () => {
       }
       if (url.includes('/api/student/tests?classroom_id=classroom-b')) {
         return Promise.resolve(jsonResponse({
-          quizzes: [{
+          tests: [{
             id: 'test-current',
             title: 'Current Classroom Test',
             assessment_type: 'test',
@@ -230,7 +278,7 @@ describe('StudentTestsTab exam mode', () => {
 
     await act(async () => {
       firstDetail.resolve(jsonResponse({
-        quiz: {
+        test: {
           id: 'test-old',
           title: 'Older Test',
           assessment_type: 'test',
@@ -466,7 +514,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -483,7 +531,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -515,7 +563,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               status: 'closed',
               assessment_type: 'test',
@@ -581,7 +629,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [
+            tests: [
               {
                 id: 'test-1',
                 title: 'Midterm Test',
@@ -600,7 +648,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -632,7 +680,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               status: 'closed',
               assessment_type: 'test',
@@ -691,7 +739,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -708,7 +756,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -811,7 +859,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -828,7 +876,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -941,7 +989,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -958,7 +1006,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -1109,7 +1157,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -1126,7 +1174,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -1207,7 +1255,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -1224,7 +1272,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -1329,7 +1377,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -1346,7 +1394,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -1459,7 +1507,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -1476,7 +1524,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -1576,7 +1624,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -1593,7 +1641,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -1686,7 +1734,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -1703,7 +1751,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -1787,7 +1835,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -1804,7 +1852,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -1841,7 +1889,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               status: 'closed',
@@ -1901,7 +1949,7 @@ describe('StudentTestsTab exam mode', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        quizzes: [
+        tests: [
           {
             id: 'test-closed',
             title: 'Closed Test',
@@ -1955,7 +2003,7 @@ describe('StudentTestsTab exam mode', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        quizzes: [
+        tests: [
           {
             id: 'test-active-new',
             title: 'Newest Active Test',
@@ -2006,7 +2054,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2023,7 +2071,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2117,7 +2165,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [
+            tests: [
               {
                 id: 'test-1',
                 title: 'Midterm Test',
@@ -2146,7 +2194,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2267,7 +2315,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2284,7 +2332,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2381,7 +2429,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2398,7 +2446,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2502,7 +2550,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2519,7 +2567,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2605,7 +2653,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2622,7 +2670,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2711,7 +2759,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2728,7 +2776,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2852,7 +2900,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2869,7 +2917,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2967,7 +3015,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -2984,7 +3032,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -3110,7 +3158,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -3127,7 +3175,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -3267,7 +3315,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -3284,7 +3332,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -3415,7 +3463,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -3432,7 +3480,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -3616,7 +3664,7 @@ describe('StudentTestsTab exam mode', () => {
           return {
             ok: true,
             json: async () => ({
-              quizzes: [{
+              tests: [{
                 id: 'test-1',
                 title: 'Midterm Test',
                 assessment_type: 'test',
@@ -3633,7 +3681,7 @@ describe('StudentTestsTab exam mode', () => {
           return {
             ok: true,
             json: async () => ({
-              quiz: {
+              test: {
                 id: 'test-1',
                 status: 'active',
                 assessment_type: 'test',
@@ -3652,7 +3700,7 @@ describe('StudentTestsTab exam mode', () => {
           return {
             ok: true,
             json: async () => ({
-              quiz: {
+              test: {
                 id: 'test-1',
                 title: 'Midterm Test',
                 assessment_type: 'test',
@@ -3790,7 +3838,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quizzes: [{
+            tests: [{
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',
@@ -3807,7 +3855,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               status: 'active',
               assessment_type: 'test',
@@ -3826,7 +3874,7 @@ describe('StudentTestsTab exam mode', () => {
         return {
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               id: 'test-1',
               title: 'Midterm Test',
               assessment_type: 'test',

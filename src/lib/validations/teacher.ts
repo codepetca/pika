@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CLASSROOM_THEME_COLORS } from '@/lib/classroom-theme'
 
 const slugSchema = z
   .string()
@@ -21,6 +22,8 @@ const actualSiteConfigSchema = plannedSiteConfigSchema.extend({
   lesson_plan_scope: z.enum(['current_week', 'one_week_ahead', 'all']),
 })
 
+const classroomThemeColorSchema = z.enum(CLASSROOM_THEME_COLORS)
+
 /**
  * POST /api/teacher/classrooms
  */
@@ -29,6 +32,7 @@ export const createClassroomSchema = z.object({
   classCode: z.string().optional(),
   termLabel: z.string().optional(),
   blueprintId: z.string().uuid().optional(),
+  themeColor: classroomThemeColorSchema.optional(),
 })
 
 export const createCourseBlueprintSchema = z.object({
@@ -66,6 +70,7 @@ export const createClassroomFromBlueprintSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   classCode: z.string().optional(),
   termLabel: z.string().optional(),
+  themeColor: classroomThemeColorSchema.optional(),
   semester: z.enum(['semester1', 'semester2']).optional(),
   year: z.number().int().optional(),
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -93,6 +98,7 @@ export const updateClassroomPublishingSchema = z.object({
   allowEnrollment: z.boolean().optional(),
   joinPolicy: z.enum(['roster', 'open_join']).optional(),
   archived: z.boolean().optional(),
+  themeColor: classroomThemeColorSchema.optional(),
   lessonPlanVisibility: z.enum(['current_week', 'one_week_ahead', 'all']).optional(),
   actualSiteSlug: slugSchema.nullable().optional(),
   actualSitePublished: z.boolean().optional(),

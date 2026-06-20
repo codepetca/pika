@@ -21,12 +21,14 @@ export type ConflictDraft = {
   content: DraftContent
 } | null
 
-interface UseDraftModeOptions {
-  quizId: string
-  quizTitle: string
+type DraftModeAssessmentIdentity =
+  | { assessmentId: string; assessmentTitle: string; quizId?: string; quizTitle?: string }
+  | { assessmentId?: string; assessmentTitle?: string; quizId: string; quizTitle: string }
+
+type UseDraftModeOptions = DraftModeAssessmentIdentity & {
   showResults: boolean
   apiBasePath: string
-  /** Called after a successful save so the parent can refresh quiz metadata. */
+  /** Called after a successful save so the parent can refresh assessment metadata. */
   onUpdate: () => void
   /** Called with a human-readable error message; called with '' to clear. */
   onError: (msg: string) => void
@@ -58,7 +60,7 @@ export interface UseDraftModeReturn {
 }
 
 /**
- * Manages draft autosave state for quiz/test editors.
+ * Manages draft autosave state for assessment editors.
  *
  * Isolated concerns: debounced autosave, throttled saves, JSON-Patch
  * diffing, 409 conflict detection, and inline title editing.
@@ -66,26 +68,31 @@ export interface UseDraftModeReturn {
  * @example
  * ```tsx
  * const draft = useDraftMode({
- *   quizId: quiz.id,
- *   quizTitle: quiz.title,
- *   showResults: quiz.show_results,
+ *   assessmentId: test.id,
+ *   assessmentTitle: test.title,
+ *   showResults: test.show_results,
  *   apiBasePath,
- *   onUpdate: onQuizUpdate,
+ *   onUpdate: onTestUpdate,
  *   onError: setError,
  *   onQuestionsChange: setQuestions,
  * })
  * ```
  */
-export function useDraftMode({
-  quizId,
-  quizTitle,
-  showResults,
-  apiBasePath,
-  onUpdate,
-  onError,
-  onQuestionsChange,
-}: UseDraftModeOptions): UseDraftModeReturn {
-  const [editTitle, setEditTitle] = useState(quizTitle)
+export function useDraftMode(options: UseDraftModeOptions): UseDraftModeReturn {
+  const {
+    showResults,
+    apiBasePath,
+    onUpdate,
+    onError,
+    onQuestionsChange,
+  } = options
+  const assessmentId = options.assessmentId ?? options.quizId
+  const assessmentTitle = options.assessmentTitle ?? options.quizTitle
+  if (!assessmentId || !assessmentTitle) {
+    throw new Error('useDraftMode requires assessmentId/assessmentTitle')
+  }
+
+  const [editTitle, setEditTitle] = useState(assessmentTitle)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [savingTitle, setSavingTitle] = useState(false)
   const [saveStatus, setSaveStatus] = useState<DraftSaveStatus>('saved')
@@ -104,12 +111,12 @@ export function useDraftMode({
     saveStatusRef.current = saveStatus
   }, [saveStatus])
 
-  // Reset title/conflict state when a different quiz is selected
+  // Reset title/conflict state when a different assessment is selected
   useEffect(() => {
-    setEditTitle(quizTitle)
+    setEditTitle(assessmentTitle)
     setIsEditingTitle(false)
     setConflictDraft(null)
-  }, [quizId, quizTitle])
+  }, [assessmentId, assessmentTitle])
 
   /** Normalise raw question data from the server into the TestAssessmentQuestion shape. */
   const normalizeDraftQuestions = useCallback(
@@ -120,7 +127,7 @@ export function useDraftMode({
           question.question_type === 'open_response' ? 'open_response' : 'multiple_choice'
         return {
           id: String(question.id || crypto.randomUUID()),
-          quiz_id: quizId,
+          quiz_id: assessmentId,
           question_text: String(question.question_text || ''),
           options: Array.isArray(question.options)
             ? question.options.map((o) => String(o))
@@ -158,7 +165,7 @@ export function useDraftMode({
         } as TestAssessmentQuestion
       })
     },
-    [quizId]
+    [assessmentId]
   )
 
   const applyServerDraft = useCallback(
@@ -171,7 +178,7 @@ export function useDraftMode({
       if (!draft?.content) return
 
       const nextTitle =
-        typeof draft.content.title === 'string' ? draft.content.title : quizTitle
+        typeof draft.content.title === 'string' ? draft.content.title : assessmentTitle
       const nextShowResults =
         typeof draft.content.show_results === 'boolean' ? draft.content.show_results : showResults
       const nextQuestions = normalizeDraftQuestions(draft.content.questions || [])
@@ -190,7 +197,7 @@ export function useDraftMode({
       onError('')
       setConflictDraft(null)
     },
-    [normalizeDraftQuestions, onError, onQuestionsChange, quizTitle, showResults]
+    [normalizeDraftQuestions, onError, onQuestionsChange, assessmentTitle, showResults]
   )
 
   const saveDraft = useCallback(
@@ -232,7 +239,7 @@ export function useDraftMode({
       }
 
       try {
-        const response = await fetch(`${apiBasePath}/${quizId}/draft`, {
+        const response = await fetch(`${apiBasePath}/${assessmentId}/draft`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -285,7 +292,7 @@ export function useDraftMode({
         onError(saveError instanceof Error ? saveError.message : 'Failed to save draft')
       }
     },
-    [apiBasePath, applyServerDraft, normalizeDraftQuestions, onError, onUpdate, quizId]
+    [apiBasePath, applyServerDraft, normalizeDraftQuestions, onError, onUpdate, assessmentId]
   )
 
   const scheduleSave = useCallback(
@@ -343,10 +350,10 @@ export function useDraftMode({
             try {
               return (JSON.parse(lastSavedDraftRef.current) as { title?: string })?.title
             } catch {
-              return quizTitle
+              return assessmentTitle
             }
           })()) ||
-        quizTitle
+        assessmentTitle
 
       if (!trimmed) {
         setEditTitle(fallbackTitle)
@@ -365,7 +372,7 @@ export function useDraftMode({
       onError('')
       scheduleSave(nextDraft, { force: true })
     },
-    [editTitle, onError, quizTitle, scheduleSave, showResults]
+    [assessmentTitle, editTitle, onError, scheduleSave, showResults]
   )
 
   // Flush pending unsaved draft on unmount (e.g. navigating away mid-edit)
