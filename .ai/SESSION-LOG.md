@@ -9,22 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-10 — Legacy quiz TestDetailPanel fixture cleanup pass
-
-**Completed:**
-- Created `codex/legacy-quiz-test-fixtures` from merged `origin/main`.
-- Renamed pure `TestDetailPanel` component-test fixtures from legacy quiz-shaped local names to test/assessment names.
-- Updated fake test ids and route expectations in stale-load/autosave cases from `quiz-*` to `test-*` where they are not DB fields or API compatibility payload keys.
-- Preserved intentional compatibility coverage for legacy `quiz`/`onQuizUpdate` props, API `quiz` response fallbacks, DB-shaped `quiz_id` fields, and the same-id legacy `assessment_type: 'quiz'` race case.
-- Did not touch production runtime code, database schema, migrations, RPCs, storage paths, or API payload contracts.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2662 tests before edits)
-- `pnpm vitest run tests/components/TestDetailPanel.test.tsx`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm test` (301 files / 2662 tests)
-
 ## 2026-06-10 — Tests selected-student grading pane scrollbar fix
 
 **Completed:**
@@ -785,3 +769,25 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm build`
 - `pnpm vitest run --sequence.concurrent=false` (303 files / 2690 tests)
+
+## 2026-06-20 — Pika logo dark-token cleanup
+
+**Completed:**
+- Continued the systems/UI audit program with a bounded UI consistency slice.
+- Moved the Pika logo dark-mode filter out of component-local `dark:` utility classes and into `src/styles/tokens.css` as `--pika-logo-filter`.
+- Updated `PikaLogo` to use the semantic `pika-logo` class.
+- Removed the obsolete `PikaLogo` `dark:` exception from the active design guidance.
+- Added AppHeader regression coverage that asserts the logo uses the tokenized class and no component-level `dark:` utilities.
+- Addressed subagent review feedback by matching Tailwind's previous composed filter order for the dark-mode logo token.
+
+**Validation:**
+- `rg -n "dark:" src/app src/components --glob '*.tsx' --glob '*.ts'` returned no matches.
+- `pnpm vitest run tests/components/AppHeader.test.tsx`
+- `pnpm vitest run tests/unit/ui-guidance-docs.test.ts tests/unit/ai-startup-docs.test.ts tests/components/AppHeader.test.tsx`
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm build`
+- Visual verification: `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; reviewed `/tmp/pika-teacher.png`, `/tmp/pika-teacher-mobile.png`, and `/tmp/pika-student.png`.
+- Additional visual verification for role/viewport/theme matrix: reviewed `/tmp/pika-student-desktop.png`, `/tmp/pika-teacher-dark.png`, `/tmp/pika-teacher-mobile-dark.png`, `/tmp/pika-student-dark.png`, and `/tmp/pika-student-mobile-dark.png`.
+- Post-review fix validation: `pnpm vitest run tests/components/AppHeader.test.tsx tests/unit/ui-guidance-docs.test.ts`, `git diff --check`, `pnpm lint`, `bash .codex/skills/pika-audit/scripts/audit.sh`, `pnpm build`.
+- Post-review visual verification: reviewed `/tmp/pika-teacher-dark-after-review.png` and `/tmp/pika-student-mobile-dark-after-review.png`.
