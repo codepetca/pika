@@ -21,6 +21,7 @@ interface UseDropdownNavReturn {
   handleTriggerKeyDown: (e: React.KeyboardEvent) => void
   handleItemKeyDown: (e: React.KeyboardEvent) => void
   handleTriggerClick: () => void
+  triggerRef: React.RefObject<HTMLButtonElement>
   itemRefs: React.MutableRefObject<(HTMLElement | null)[]>
   containerRef: React.RefObject<HTMLDivElement>
 }
@@ -39,6 +40,7 @@ export function useDropdownNav({
   const [isOpen, setIsOpen] = useState(false)
   const [focusedIndex, setFocusedIndex] = useState(-1)
   const containerRef = useRef<HTMLDivElement>(null!)
+  const triggerRef = useRef<HTMLButtonElement>(null!)
   const itemRefs = useRef<(HTMLElement | null)[]>([])
 
   // Generate unique IDs for ARIA relationships
@@ -61,15 +63,18 @@ export function useDropdownNav({
     return -1
   }, [isItemDisabled, itemCount])
 
-  const close = useCallback(() => {
+  const close = useCallback((options?: { restoreFocus?: boolean }) => {
     setIsOpen(false)
     setFocusedIndex(-1)
     onClose?.()
+    if (options?.restoreFocus) {
+      triggerRef.current?.focus()
+    }
   }, [onClose])
 
   const handleTriggerClick = useCallback(() => {
     if (isOpen) {
-      close()
+      close({ restoreFocus: true })
     } else {
       setIsOpen(true)
       setFocusedIndex(getNextEnabledIndex(initialFocusedIndex))
@@ -89,7 +94,7 @@ export function useDropdownNav({
     switch (e.key) {
       case 'Escape':
         e.preventDefault()
-        close()
+        close({ restoreFocus: true })
         break
       case 'ArrowDown':
         e.preventDefault()
@@ -116,7 +121,7 @@ export function useDropdownNav({
     switch (e.key) {
       case 'Escape':
         e.preventDefault()
-        close()
+        close({ restoreFocus: true })
         break
       case 'ArrowDown':
         e.preventDefault()
@@ -149,14 +154,16 @@ export function useDropdownNav({
 
   // Close on click outside
   useEffect(() => {
+    if (!isOpen) return
+
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        close()
+        close({ restoreFocus: true })
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [close])
+  }, [close, isOpen])
 
   // Reset refs array when item count changes
   useEffect(() => {
@@ -174,6 +181,7 @@ export function useDropdownNav({
     handleTriggerKeyDown,
     handleItemKeyDown,
     handleTriggerClick,
+    triggerRef,
     itemRefs,
     containerRef,
   }
