@@ -9,24 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-10 — Tests selected-student grading pane scrollbar fix
-
-**Completed:**
-- Created `codex/tests-selected-student-scrollbar` from `origin/main`.
-- Fixed the selected Tests grading inspector scroll container so it fills the right pane as a flex child and clips horizontal overflow.
-- Confirmed the issue was not in `TeacherWorkspaceSplit`; the gapped split pane width was correct, but the inspector's inner scroll node could size to content inside `TestWorkspacePaneFrame`.
-- Added a focused `TeacherTestsTab` assertion for the inspector scroll container sizing and overflow classes.
-- Kept the change scoped to the selected Tests grading pane layout; no FAB/action-cluster work was touched.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2662 tests before edits)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/TeacherWorkspaceSplit.test.tsx tests/components/TestStudentGradingPanel.test.tsx`
-- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
-- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests&testId=91d01b50-807d-43ac-a5db-018c9645ac94&testMode=grading&testStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
-- Playwright desktop forced-scroll check: right pane scroll node `rightDeltaPx: 0` while vertically overflowing (`scrollHeight 956`, `clientHeight 504`).
-
 ## 2026-06-10 — Legacy quiz utility alias pass
 
 **Completed:**
@@ -791,3 +773,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Additional visual verification for role/viewport/theme matrix: reviewed `/tmp/pika-student-desktop.png`, `/tmp/pika-teacher-dark.png`, `/tmp/pika-teacher-mobile-dark.png`, `/tmp/pika-student-dark.png`, and `/tmp/pika-student-mobile-dark.png`.
 - Post-review fix validation: `pnpm vitest run tests/components/AppHeader.test.tsx tests/unit/ui-guidance-docs.test.ts`, `git diff --check`, `pnpm lint`, `bash .codex/skills/pika-audit/scripts/audit.sh`, `pnpm build`.
 - Post-review visual verification: reviewed `/tmp/pika-teacher-dark-after-review.png` and `/tmp/pika-student-mobile-dark-after-review.png`.
+
+## 2026-06-20 — Historical design-system dark-mode examples cleanup
+
+**Completed:**
+- Continued the systems/UI audit program with a docs-only UI guidance consistency slice.
+- Updated the historical `docs/design-system.md` dark-mode section so it points to semantic tokens instead of raw theme-switching utility examples.
+- Added UI guidance regression coverage to keep that historical section aligned with semantic-token guidance.
+- Addressed subagent review feedback by tightening the regression test to match exact semantic-token class examples.
+
+**Validation:**
+- `pnpm vitest run tests/unit/ui-guidance-docs.test.ts`
+- `git diff --check`
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- Post-review fix validation: `pnpm vitest run tests/unit/ui-guidance-docs.test.ts`, `git diff --check`, `pnpm lint`, `bash .codex/skills/pika-audit/scripts/audit.sh`

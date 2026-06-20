@@ -298,24 +298,24 @@ red-900    // Error background (dark)
 
 ### Dark Mode Implementation (REQUIRED)
 
-**All components MUST include dark mode variants:**
+New UI work must use semantic tokens from the active design-system layer instead of raw theme-switching utilities in app code. Keep theme switching centralized in `src/styles/tokens.css` and `src/ui` primitives.
 
 ```tsx
 // Standard pattern for backgrounds
-className="bg-white dark:bg-gray-900"
-className="bg-gray-50 dark:bg-gray-950"
+className="bg-page"
+className="bg-surface"
+className="bg-surface-hover"
 
 // Standard pattern for text
-className="text-gray-900 dark:text-white"
-className="text-gray-600 dark:text-gray-400"
-className="text-gray-700 dark:text-gray-300"
+className="text-text-default"
+className="text-text-muted"
 
 // Standard pattern for borders
-className="border-gray-200 dark:border-gray-700"
-className="border-gray-300 dark:border-gray-600"
+className="border-border"
+className="border-border-strong"
 
 // Hover states
-className="hover:bg-gray-50 dark:hover:bg-gray-800"
+className="hover:bg-surface-hover"
 ```
 
 ### Playful Accents (minimal use)
