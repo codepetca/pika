@@ -25,6 +25,25 @@ Read this when any of these are true:
 - If a shared component replaces repeated markup, list the repeated structure it owns
 - List visible behavior that must remain unchanged if this is a structural refactor
 - Add focused regression tests for the extracted shell contract, not only the parent surface
+- Split large naming or shared-shell refactors into explicit passes when behavior, imports, and compatibility cleanup would otherwise land together
+- Give each pass a grep- or test-based exit criterion so "done" does not depend on memory
+- Keep compatibility wrappers or aliases in their own phase unless removing them is mechanically proven safe in the same diff
+
+## Refactor Slicing Pattern
+
+For broad structural or naming transitions, prefer this order:
+
+1. active callers and imports
+2. compatibility wrappers or aliases
+3. API/read-path cleanup
+4. fixtures and test wording
+5. docs and follow-up removals
+
+Each PR should name:
+
+- what moved in this slice
+- what intentionally stayed behind
+- which search or tests prove the slice boundary
 
 ## Review Prompt
 
@@ -35,4 +54,6 @@ Is this a shell extraction, a behavior extraction, or both?
 What business logic stayed out of the shared component?
 Which parent-level tests prove the refactor did not redesign the surface?
 Which component-level tests prove the new shared contract?
+If this is part of a larger migration, what exact slice is this PR responsible for?
+What grep or regression proves the remaining work is outside this PR on purpose?
 ```

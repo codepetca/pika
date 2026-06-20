@@ -20,12 +20,16 @@ vi.mock('@/lib/auth', () => ({
     throw new Error('Unauthorized')
   }),
 }))
-vi.mock('@/lib/server/classrooms', () => ({
-  assertStudentCanAccessClassroom: vi.fn(async () => ({
-    ok: true,
-    classroom: { id: 'classroom-1', archived_at: null },
-  })),
-}))
+vi.mock('@/lib/server/classrooms', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/server/classrooms')>('@/lib/server/classrooms')
+  return {
+    ...actual,
+    assertStudentCanAccessClassroom: vi.fn(async () => ({
+      ok: true,
+      classroom: { id: 'classroom-1', archived_at: null },
+    })),
+  }
+})
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -76,6 +80,7 @@ describe('GET /api/student/classrooms/[id]', () => {
                     id: 'classroom-1',
                     title: 'Math 101',
                     class_code: 'MATH101',
+                    theme_color: 'teal',
                     term_label: 'Fall 2024',
                   },
                   error: null,
@@ -96,6 +101,7 @@ describe('GET /api/student/classrooms/[id]', () => {
         id: 'classroom-1',
         title: 'Math 101',
         class_code: 'MATH101',
+        theme_color: 'teal',
       })
     })
 

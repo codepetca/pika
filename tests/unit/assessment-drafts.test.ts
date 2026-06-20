@@ -477,7 +477,7 @@ describe('assessment drafts', () => {
     ).resolves.toEqual({
       ok: false,
       status: 500,
-      error: 'Failed to insert synced quiz question',
+      error: 'Failed to insert synced assessment question',
     })
   })
 

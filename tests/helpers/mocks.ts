@@ -101,6 +101,7 @@ export const createMockClassroom = (overrides: Partial<Classroom> = {}): Classro
   teacher_id: 'teacher-1',
   title: 'Test Classroom',
   class_code: 'TEST01',
+  theme_color: 'blue',
   term_label: 'Fall 2024',
   allow_enrollment: true,
   start_date: null,

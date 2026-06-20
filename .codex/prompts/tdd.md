@@ -2,6 +2,7 @@ Use TDD for the feature described in `$ARGUMENTS`.
 
 If you have not already loaded it, read `docs/core/tests.md` first.
 If the task touches workspace state, async grading, exam mode, or runtime/platform behavior, also read `docs/guidance/dev-flow-risk-checklists.md` and name the risk profile before writing tests.
+If the task is a naming or contract migration, also read `docs/guidance/schema-rollout-checklist.md` and name the slice before writing tests.
 
 Steps:
 1. Identify the target test file under `tests/lib/`, `tests/api/`, `tests/hooks/`, or `tests/components/`.
@@ -12,5 +13,7 @@ Steps:
 6. Re-run the focused test and any nearby regression tests.
 7. Check coverage when the change affects shared core logic.
 8. For workspace-state work, include a regression that the active editor/form/workspace stays mounted across non-destructive updates.
-9. For async-grading work, include recovery/retry/partial-failure coverage.
-10. For exam-mode work, include transient-loss, sustained-loss, restore, and draft-preservation coverage.
+9. For route-keyed workspace-state work, include a regression where request A resolves after switching to B and prove A is ignored.
+10. For async-grading work, include recovery/retry/partial-failure coverage.
+11. For exam-mode work, include transient-loss, sustained-loss, restore, and draft-preservation coverage.
+12. For contract-migration work, include both new-contract-first coverage and explicit fallback coverage when compatibility remains.

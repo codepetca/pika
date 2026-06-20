@@ -431,6 +431,7 @@ const classroom: Classroom = {
   teacher_id: 'teacher-1',
   title: 'Physics',
   class_code: 'ABC123',
+  theme_color: 'blue',
   term_label: null,
   allow_enrollment: true,
   start_date: null,

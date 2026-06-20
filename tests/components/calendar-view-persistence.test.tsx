@@ -38,6 +38,7 @@ const mockClassroom: Classroom = {
   teacher_id: 't1',
   title: 'Test Classroom',
   class_code: 'ABC123',
+  theme_color: 'blue',
   term_label: null,
   allow_enrollment: true,
   start_date: '2026-01-01',

@@ -12,9 +12,9 @@ vi.mock('next/navigation', () => ({
 
 describe('ClassroomDropdown', () => {
   const classrooms = [
-    { id: 'class-1', title: 'Alpha', code: 'AAA111' },
-    { id: 'class-2', title: 'Beta', code: 'BBB222' },
-    { id: 'class-3', title: 'Gamma', code: 'CCC333' },
+    { id: 'class-1', title: 'Alpha', code: 'AAA111', themeColor: 'teal' as const },
+    { id: 'class-2', title: 'Beta', code: 'BBB222', themeColor: 'rose' as const },
+    { id: 'class-3', title: 'Gamma', code: 'CCC333', themeColor: 'cyan' as const },
   ]
 
   beforeEach(() => {
@@ -63,6 +63,26 @@ describe('ClassroomDropdown', () => {
     expect(options[1]).toHaveAttribute('aria-current', 'page')
     expect(options[1]).toBeDisabled()
     expect(screen.getByText('Current')).toBeInTheDocument()
+  })
+
+  it('renders classroom names without marker elements', () => {
+    render(
+      <ClassroomDropdown
+        classrooms={classrooms}
+        currentClassroomId="class-2"
+        currentTab="attendance"
+      />
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Select classroom' })
+    expect(trigger).toHaveTextContent('Beta')
+    expect(trigger.querySelector('[data-classroom-theme-color]')).toBeNull()
+
+    pointerClick(trigger)
+
+    expect(screen.getByRole('option', { name: /Alpha/ })).toHaveTextContent('Alpha')
+    expect(screen.getByRole('option', { name: /Gamma/ })).toHaveTextContent('Gamma')
+    expect(screen.getByRole('listbox').querySelector('[data-classroom-theme-color]')).toBeNull()
   })
 
   it('navigates to the selected classroom tab', () => {

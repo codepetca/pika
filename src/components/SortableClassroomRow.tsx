@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Archive, GripVertical, LoaderCircle } from 'lucide-react'
+import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
 import type { Classroom } from '@/types'
 
 interface SortableClassroomRowProps {
@@ -55,13 +56,11 @@ function ClassroomRowFrame({
         aria-busy={isOpening}
         className={[
           'col-start-2 row-start-1 min-w-0 rounded-control -m-1.5 ml-1 p-1.5 text-left transition-colors sm:ml-2',
-          isOpening ? 'cursor-wait bg-surface-accent' : isDisabled ? 'cursor-wait' : 'hover:bg-surface-accent',
+          isOpening ? 'cursor-wait' : isDisabled ? 'cursor-wait' : '',
         ].join(' ')}
       >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <div className="min-w-0 text-base font-semibold text-text-default">
-            {classroom.title}
-          </div>
+          <div className="min-w-0 truncate text-base font-semibold text-text-default">{classroom.title}</div>
           {classroom.term_label && (
             <div className="text-sm text-text-muted">{classroom.term_label}</div>
           )}
@@ -85,8 +84,14 @@ function ClassroomRowFrame({
 }
 
 export function ClassroomRowGhost({ classroom }: { classroom: Classroom }) {
+  const theme = getClassroomThemeDefinition(classroom.theme_color)
+
   return (
-    <div className="min-w-[320px] rounded-card border border-border bg-surface shadow-xl ring-1 ring-primary/40">
+    <div
+      className="classroom-theme classroom-theme-card min-w-[320px] rounded-card border border-border bg-surface shadow-xl ring-1 ring-primary/40"
+      style={getClassroomThemeStyle(theme.value)}
+      data-classroom-theme-color={theme.value}
+    >
       <ClassroomRowFrame
         classroom={classroom}
         className="pointer-events-none"
@@ -124,17 +129,20 @@ export function SortableClassroomRow({
   } = useSortable({ id: classroom.id, disabled: isDragDisabled || !showEditControls })
 
   const style = {
+    ...getClassroomThemeStyle(classroom.theme_color),
     transform: CSS.Transform.toString(transform),
     transition: isDragging ? undefined : transition,
   }
+  const theme = getClassroomThemeDefinition(classroom.theme_color)
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       data-testid="classroom-card"
+      data-classroom-theme-color={theme.value}
       className={[
-        'rounded-card border border-border bg-surface shadow-elevated overflow-hidden',
+        'classroom-theme classroom-theme-card classroom-theme-card-interactive overflow-hidden rounded-card border border-border bg-surface shadow-elevated',
         isDragging ? 'opacity-40' : '',
       ].join(' ')}
     >

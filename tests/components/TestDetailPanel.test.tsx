@@ -135,6 +135,50 @@ describe('TestDetailPanel', () => {
     })
   })
 
+  it('reads legacy quiz-keyed test detail payloads as a compatibility fallback', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string) => {
+      if (url.endsWith('/api/teacher/tests/legacy-test/draft')) {
+        return Promise.resolve(jsonResponse({
+          draft: {
+            version: 1,
+            content: {
+              questions: [],
+            },
+          },
+        }))
+      }
+      if (url.endsWith('/api/teacher/tests/legacy-test')) {
+        return Promise.resolve(jsonResponse({
+          quiz: {
+            documents: [
+              { id: 'legacy-doc', title: 'Legacy Reference', source: 'text', content: 'Legacy detail' },
+            ],
+          },
+        }))
+      }
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ id: 'legacy-test', title: 'Legacy-Keyed Detail' })}
+        classroomId="classroom-1"
+        apiBasePath="/api/teacher/tests"
+        onTestUpdate={vi.fn()}
+      />,
+      { wrapper: Wrapper }
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Documents (1)' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Documents (1)' }))
+
+    expect(screen.getByText('Legacy Reference')).toBeInTheDocument()
+  })
+
   it('ignores stale draft responses after selected assessment changes', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     const staleDraft = createDeferred<Response>()
@@ -285,7 +329,7 @@ describe('TestDetailPanel', () => {
 
     await act(async () => {
       currentDetail.resolve(jsonResponse({
-        quiz: {
+        test: {
           documents: [
             { id: 'doc-current', title: 'Current Reference', source: 'text', content: 'Current' },
           ],
@@ -303,7 +347,7 @@ describe('TestDetailPanel', () => {
 
     await act(async () => {
       staleDetail.resolve(jsonResponse({
-        quiz: {
+        test: {
           documents: [
             { id: 'doc-stale', title: 'Stale Reference', source: 'text', content: 'Stale' },
           ],
@@ -329,7 +373,7 @@ describe('TestDetailPanel', () => {
       }
       if (url.endsWith('/api/teacher/tests/assessment-1')) {
         return Promise.resolve(jsonResponse({
-          quiz: {
+          test: {
             documents: [
               { id: 'doc-current', title: 'Current Test Reference', source: 'text', content: 'Current' },
             ],
@@ -455,7 +499,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          quiz: {
+          test: {
             documents: [
               { id: 'doc-1', title: 'Java API', url: 'https://docs.oracle.com', source: 'link' },
             ],
@@ -503,7 +547,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          quiz: {
+          test: {
             documents: [
               { id: 'doc-1', title: 'Java API', url: 'https://docs.oracle.com', source: 'link' },
             ],
@@ -558,7 +602,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          quiz: { documents: [] },
+          test: { documents: [] },
           questions: summaryDetailQuestions,
         }),
       })
@@ -615,7 +659,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          quiz: {
+          test: {
             documents: [],
           },
         }),
@@ -765,7 +809,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          quiz: {
+          test: {
             documents: [],
           },
         }),
@@ -819,7 +863,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          quiz: {
+          test: {
             documents: [],
           },
         }),
@@ -876,7 +920,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          quiz: {
+          test: {
             documents: [],
           },
         }),
@@ -930,7 +974,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          quiz: {
+          test: {
             documents: [],
           },
         }),
@@ -1057,7 +1101,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          quiz: {
+          test: {
             documents: [],
           },
         }),
@@ -1117,7 +1161,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          quiz: {
+          test: {
             documents: [],
           },
         }),
@@ -1184,7 +1228,7 @@ describe('TestDetailPanel', () => {
           return {
             ok: true,
             json: async () => ({
-              quiz: {
+              test: {
                 documents: [],
               },
             }),
@@ -1291,7 +1335,7 @@ describe('TestDetailPanel', () => {
           return Promise.resolve({
             ok: true,
             json: async () => ({
-              quiz: {
+              test: {
                 documents: [],
               },
             }),
@@ -1398,7 +1442,7 @@ describe('TestDetailPanel', () => {
           }))
         }
         if (url === '/api/teacher/tests/test-save-stale' && !options) {
-          return Promise.resolve(jsonResponse({ quiz: { documents: [] } }))
+          return Promise.resolve(jsonResponse({ test: { documents: [] } }))
         }
         if (url === '/api/teacher/tests/test-save-current/draft' && !options) {
           return Promise.resolve(jsonResponse({
@@ -1413,7 +1457,7 @@ describe('TestDetailPanel', () => {
           }))
         }
         if (url === '/api/teacher/tests/test-save-current' && !options) {
-          return Promise.resolve(jsonResponse({ quiz: { documents: [] } }))
+          return Promise.resolve(jsonResponse({ test: { documents: [] } }))
         }
 
         throw new Error(`Unexpected fetch: ${url} ${options?.method || 'GET'}`)
@@ -1523,7 +1567,7 @@ describe('TestDetailPanel', () => {
           }))
         }
         if (url === '/api/teacher/tests/test-pending-save' && !options) {
-          return Promise.resolve(jsonResponse({ quiz: { documents: [] } }))
+          return Promise.resolve(jsonResponse({ test: { documents: [] } }))
         }
         if (url === '/api/teacher/tests/test-pending-current/draft' && !options) {
           return Promise.resolve(jsonResponse({
@@ -1538,7 +1582,7 @@ describe('TestDetailPanel', () => {
           }))
         }
         if (url === '/api/teacher/tests/test-pending-current' && !options) {
-          return Promise.resolve(jsonResponse({ quiz: { documents: [] } }))
+          return Promise.resolve(jsonResponse({ test: { documents: [] } }))
         }
 
         throw new Error(`Unexpected fetch: ${url} ${options?.method || 'GET'}`)
@@ -1620,7 +1664,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          quiz: {
+          test: {
             documents: [],
           },
         }),
@@ -1682,7 +1726,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          quiz: {
+          test: {
             documents: [],
           },
         }),
@@ -1743,7 +1787,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          quiz: {
+          test: {
             documents: [],
           },
         }),
@@ -1805,7 +1849,7 @@ describe('TestDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          quiz: {
+          test: {
             documents: [],
           },
         }),
@@ -1877,7 +1921,7 @@ describe('TestDetailPanel', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               documents: [],
             },
           }),
@@ -1987,7 +2031,7 @@ _None_
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               documents: [],
             },
           }),
@@ -2090,7 +2134,7 @@ _None_
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               documents: [],
             },
           }),
@@ -2195,7 +2239,7 @@ Correct Option: 2
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               documents: [],
             },
           }),
@@ -2257,7 +2301,7 @@ Correct Option: 2
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               documents: [],
             },
           }),
@@ -2304,7 +2348,7 @@ Correct Option: 2
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               documents: [],
             },
           }),
@@ -2443,7 +2487,7 @@ _None_
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               documents: [],
             },
           }),
@@ -2510,7 +2554,7 @@ Prompt:
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               documents: [],
             },
           }),
@@ -2826,7 +2870,7 @@ Prompt:
           return {
             ok: true,
             json: async () => ({
-              quiz: { documents: [] },
+              test: { documents: [] },
             }),
           }
         }
@@ -2836,7 +2880,7 @@ Prompt:
           return {
             ok: true,
             json: async () => ({
-              quiz: {
+              test: {
                 documents: body.documents,
               },
             }),
@@ -2847,7 +2891,7 @@ Prompt:
           return {
             ok: true,
             json: async () => ({
-              quiz: {
+              test: {
                 documents: [
                   {
                     id: JSON.parse(String(fetchMock.mock.calls.find((call: any[]) => call[1]?.method === 'PATCH')?.[1]?.body)).documents[0].id,
@@ -2946,7 +2990,7 @@ Prompt:
           return {
             ok: true,
             json: async () => ({
-              quiz: {
+              test: {
                 documents: [
                   {
                     id: 'doc-1',
@@ -2967,7 +3011,7 @@ Prompt:
           return {
             ok: true,
             json: async () => ({
-              quiz: {
+              test: {
                 documents: [
                   {
                     id: 'doc-1',
@@ -3050,7 +3094,7 @@ Prompt:
           return {
             ok: true,
             json: async () => ({
-              quiz: {
+              test: {
                 documents: [
                   {
                     id: 'doc-1',
@@ -3071,7 +3115,7 @@ Prompt:
           return {
             ok: true,
             json: async () => ({
-              quiz: {
+              test: {
                 documents: [
                   {
                     id: 'doc-1',
@@ -3136,13 +3180,13 @@ Prompt:
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            quiz: { documents: [] },
+            test: { documents: [] },
           }),
         })
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               documents: [
                 {
                   id: 'doc-text-1',
@@ -3170,7 +3214,7 @@ Prompt:
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            quiz: {
+            test: {
               documents: [
                 {
                   id: 'doc-text-1',
@@ -3250,7 +3294,7 @@ Prompt:
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            quiz: { documents: [] },
+            test: { documents: [] },
           }),
         })
 

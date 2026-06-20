@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { LoaderCircle } from 'lucide-react'
 import { Button, Card, EmptyState } from '@/ui'
 import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
+import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
 import type { Classroom } from '@/types'
 
 interface Props {
@@ -51,35 +52,40 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
           />
         ) : (
           <Card tone="panel" padding="none" className="overflow-hidden">
-            {sorted.map((c) => (
-              <button
-                key={c.id}
-                data-testid="classroom-card"
-                onClick={() => openClassroom(c)}
-                disabled={openingClassroomId !== null}
-                aria-busy={openingClassroomId === c.id}
-                className={[
-                  'w-full border-b border-border px-5 py-4 text-left transition-colors last:border-b-0',
-                  openingClassroomId === c.id ? 'cursor-wait bg-surface-accent' : 'cursor-pointer hover:bg-surface-accent',
-                ].join(' ')}
-              >
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <div className="text-base font-semibold text-text-default">{c.title}</div>
-                  {c.term_label && (
-                    <div className="text-sm text-text-muted">{c.term_label}</div>
-                  )}
-                </div>
-                <div className="mt-1 text-sm leading-6 text-text-muted">
-                  Code: <span className="font-mono tracking-[0.18em]">{c.class_code}</span>
-                </div>
-                {openingClassroomId === c.id && (
-                  <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-                    <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                    Opening classroom...
+            {sorted.map((c) => {
+              const theme = getClassroomThemeDefinition(c.theme_color)
+              return (
+                <button
+                  key={c.id}
+                  data-testid="classroom-card"
+                  data-classroom-theme-color={theme.value}
+                  onClick={() => openClassroom(c)}
+                  disabled={openingClassroomId !== null}
+                  aria-busy={openingClassroomId === c.id}
+                  style={getClassroomThemeStyle(theme.value)}
+                  className={[
+                    'classroom-theme classroom-theme-card classroom-theme-card-interactive w-full border border-border px-5 py-4 text-left',
+                    openingClassroomId === c.id ? 'cursor-wait' : 'cursor-pointer',
+                  ].join(' ')}
+                >
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <div className="min-w-0 truncate text-base font-semibold text-text-default">{c.title}</div>
+                    {c.term_label && (
+                      <div className="text-sm text-text-muted">{c.term_label}</div>
+                    )}
                   </div>
-                )}
-              </button>
-            ))}
+                  <div className="mt-1 text-sm leading-6 text-text-muted">
+                    Code: <span className="font-mono tracking-[0.18em]">{c.class_code}</span>
+                  </div>
+                  {openingClassroomId === c.id && (
+                    <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+                      <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                      Opening classroom...
+                    </div>
+                  )}
+                </button>
+              )
+            })}
           </Card>
         )}
       </PageContent>

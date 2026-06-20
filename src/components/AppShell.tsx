@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { AppHeader } from './AppHeader'
 import { AuthSessionWatcher } from './AuthSessionWatcher'
+import type { ClassroomThemeColor } from '@/lib/classroom-theme'
 
 interface AppShellProps {
   children: ReactNode
@@ -15,6 +16,7 @@ interface AppShellProps {
     id: string
     title: string
     code: string
+    themeColor: ClassroomThemeColor
   }>
   currentClassroomId?: string
   currentTab?: string

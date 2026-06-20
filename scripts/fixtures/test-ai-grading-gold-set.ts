@@ -71,7 +71,7 @@ const nonCodingOsmosis = {
 } as const
 
 const nonCodingInheritance = {
-  testTitle: 'Intro CS Concepts Quiz',
+  testTitle: 'Intro CS Concepts Test',
   questionText: 'Explain what inheritance means in object-oriented programming.',
   maxPoints: 5,
   responseMonospace: false,
