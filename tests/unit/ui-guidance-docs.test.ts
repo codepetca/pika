@@ -24,6 +24,17 @@ describe('ui guidance docs and prompts', () => {
     expect(designSystem).toContain('Historical reference only')
   })
 
+  it('keeps historical design-system dark-mode examples aligned with semantic tokens', () => {
+    const designSystem = readRepoFile('docs/design-system.md')
+    const darkModeSection = designSystem.match(/### Dark Mode Implementation \(REQUIRED\)(?<body>[\s\S]*?)### Playful Accents/)?.groups?.body ?? ''
+
+    expect(darkModeSection).toContain('semantic tokens')
+    expect(darkModeSection).toMatch(/className="bg-surface"/)
+    expect(darkModeSection).toMatch(/className="text-text-default"/)
+    expect(darkModeSection).toMatch(/className="border-border"/)
+    expect(darkModeSection).not.toContain('dark:')
+  })
+
   it('requires the UI guidance declaration in issue and Codex workflows', () => {
     const files = [
       'docs/workflow/handle-issue.md',
