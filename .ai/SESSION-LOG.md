@@ -9,24 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-12 — Startup orient-only mode and fast verify-env
-
-**Completed:**
-- Added `--orient-only` / `--read-only` support to `.codex/skills/pika-session-start/scripts/session_start.sh` so report-only and docs-only runs can load startup context without mutating `.env.local` or running `verify-env.sh`.
-- Changed `scripts/verify-env.sh` so the default path stops after environment and dependency checks; test execution now requires `--tests` or `--full`.
-- Updated startup guidance in `.ai/START-HERE.md`, `.codex/prompts/session-start.md`, `.claude/commands/session-start.md`, `AGENTS.md`, and the `pika-session-start` skill to document the read-only startup path and the new verify-env modes.
-- Extended `tests/unit/ai-startup-docs.test.ts` to lock the non-mutating orient-only behavior, the fast default `verify-env.sh` path, and the startup-doc references.
-
-**Validation:**
-- `pnpm install --frozen-lockfile`
-- `bash scripts/verify-env.sh --help`
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh --help`
-- `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only`
-- `bash scripts/verify-env.sh`
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `git diff --check`
-
 ## 2026-06-12 — Skill progression workflow hardening
 
 **Completed:**
@@ -782,6 +764,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `rg -n "@/lib/supabase|@supabase/supabase-js|getSupabaseClient|getServiceRoleClient" src/app src/components src/hooks src/lib src/ui --glob '*.{ts,tsx}' --glob '!src/app/api/**' --glob '!src/lib/server/**'`
 - `pnpm test tests/unit/browser-supabase-access.test.ts tests/unit/api-route-standards.test.ts tests/unit/supabase.test.ts`
+- `git diff --check`
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm build`
+
+## 2026-06-20 — Student notification read-cache audit
+
+**Completed:**
+- Continued the bounded systems/UI audit program with the client read-cache drift slice.
+- Audited client GET reads for repeated classroom-scoped requests and identified student notification reads as a concrete fix-now item.
+- Wrapped `StudentNotificationsProvider` notification GETs in `fetchJSONWithCache` with a short classroom-scoped TTL so same-classroom mounts/focus reads dedupe.
+- Invalidated the classroom notification cache when local notification helpers mark/decrement counts and before explicit `refresh()` so quick remounts or manual refreshes cannot replay stale pre-action counts.
+- Added regression coverage for simultaneous same-classroom provider reads, explicit refresh freshness, and post-local-update remount freshness.
+- No UI layout or styling changed.
+
+**Validation:**
+- `pnpm test tests/components/StudentNotificationsProvider.test.tsx`
 - `git diff --check`
 - `pnpm lint`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`

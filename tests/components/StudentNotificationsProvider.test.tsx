@@ -4,6 +4,7 @@ import {
   StudentNotificationsProvider,
   useStudentNotifications,
 } from '@/components/StudentNotificationsProvider'
+import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 
 function notificationFetchCalls(fetchMock: ReturnType<typeof vi.fn>) {
   return fetchMock.mock.calls.filter(
@@ -38,12 +39,22 @@ describe('StudentNotificationsProvider', () => {
     )
   }
 
+  function RefreshProbe() {
+    const notifications = useStudentNotifications()
+    return (
+      <button type="button" onClick={() => void notifications?.refresh()}>
+        tests:{notifications?.activeTestsCount ?? 0}
+      </button>
+    )
+  }
+
   beforeEach(() => {
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
   })
 
   afterEach(() => {
+    invalidateCachedJSONMatching('student-notifications:')
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -58,6 +69,85 @@ describe('StudentNotificationsProvider', () => {
 
     await waitFor(() => {
       expect(notificationFetchCalls(fetchMock)).toHaveLength(1)
+    })
+  })
+
+  it('deduplicates simultaneous same-classroom notification reads', async () => {
+    let resolveFetch: (value: Response) => void = () => {}
+    fetchMock.mockReturnValueOnce(
+      new Promise<Response>((resolve) => {
+        resolveFetch = resolve
+      }),
+    )
+
+    render(
+      <>
+        <StudentNotificationsProvider classroomId="c1">
+          <div />
+        </StudentNotificationsProvider>
+        <StudentNotificationsProvider classroomId="c1">
+          <div />
+        </StudentNotificationsProvider>
+      </>
+    )
+
+    await waitFor(() => {
+      expect(notificationFetchCalls(fetchMock)).toHaveLength(1)
+    })
+
+    await act(async () => {
+      resolveFetch({
+        ok: true,
+        json: async () => ({
+          hasTodayEntry: true,
+          unviewedAssignmentsCount: 0,
+          activeTestsCount: 0,
+          unreadAnnouncementsCount: 0,
+        }),
+      } as Response)
+    })
+  })
+
+  it('bypasses cached notifications on explicit refresh', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          hasTodayEntry: true,
+          unviewedAssignmentsCount: 0,
+          activeTestsCount: 2,
+          unreadAnnouncementsCount: 0,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          hasTodayEntry: true,
+          unviewedAssignmentsCount: 0,
+          activeTestsCount: 1,
+          unreadAnnouncementsCount: 0,
+        }),
+      })
+
+    render(
+      <StudentNotificationsProvider classroomId="c1">
+        <RefreshProbe />
+      </StudentNotificationsProvider>
+    )
+
+    await waitFor(() => {
+      expect(document.body).toHaveTextContent('tests:2')
+    })
+
+    await act(async () => {
+      document.querySelector('button')?.dispatchEvent(
+        new MouseEvent('click', { bubbles: true })
+      )
+    })
+
+    await waitFor(() => {
+      expect(notificationFetchCalls(fetchMock)).toHaveLength(2)
+      expect(document.body).toHaveTextContent('tests:1')
     })
   })
 
@@ -143,5 +233,57 @@ describe('StudentNotificationsProvider', () => {
     })
 
     expect(document.body).toHaveTextContent('tests:1')
+  })
+
+  it('invalidates cached notifications after local count updates', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        hasTodayEntry: true,
+        unviewedAssignmentsCount: 0,
+        activeTestsCount: 2,
+        unreadAnnouncementsCount: 0,
+      }),
+    })
+
+    const { unmount } = render(
+      <StudentNotificationsProvider classroomId="c1">
+        <NotificationProbe />
+      </StudentNotificationsProvider>
+    )
+
+    await waitFor(() => {
+      expect(document.body).toHaveTextContent('tests:2')
+    })
+
+    act(() => {
+      document.querySelector('button')?.dispatchEvent(
+        new MouseEvent('click', { bubbles: true })
+      )
+    })
+
+    expect(document.body).toHaveTextContent('tests:1')
+    unmount()
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        hasTodayEntry: true,
+        unviewedAssignmentsCount: 0,
+        activeTestsCount: 1,
+        unreadAnnouncementsCount: 0,
+      }),
+    })
+
+    render(
+      <StudentNotificationsProvider classroomId="c1">
+        <NotificationProbe />
+      </StudentNotificationsProvider>
+    )
+
+    await waitFor(() => {
+      expect(notificationFetchCalls(fetchMock)).toHaveLength(2)
+      expect(document.body).toHaveTextContent('tests:1')
+    })
   })
 })
