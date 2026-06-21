@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { addMonths, addWeeks, endOfMonth, format, startOfMonth, startOfWeek, subMonths, subWeeks } from 'date-fns'
 import { CalendarActionBar } from '@/components/CalendarActionBar'
 import { Spinner } from '@/components/Spinner'
@@ -25,6 +25,10 @@ export function StudentLessonCalendarTab({
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
+  const loadRequestIdRef = useRef(0)
+  const currentClassroomIdRef = useRef(classroom.id)
+  currentClassroomIdRef.current = classroom.id
   const classDays = useClassDays(classroom.id)
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<CalendarViewMode>(() => {
@@ -44,9 +48,27 @@ export function StudentLessonCalendarTab({
     end: classroom.end_date || format(endOfMonth(currentDate), 'yyyy-MM-dd'),
   }
 
+  useEffect(() => {
+    loadRequestIdRef.current += 1
+    setLessonPlans([])
+    setAssignments([])
+    setAnnouncements([])
+    setMaxDate(null)
+    setLoadedClassroomId(null)
+    setLoading(true)
+  }, [classroom.id])
+
   // Fetch lesson plans, assignments, and announcements in parallel
   useEffect(() => {
     async function loadCalendarData() {
+      const requestId = loadRequestIdRef.current + 1
+      loadRequestIdRef.current = requestId
+      const requestedClassroomId = classroom.id
+      const isCurrentLoad = () => (
+        loadRequestIdRef.current === requestId &&
+        currentClassroomIdRef.current === requestedClassroomId
+      )
+
       setLoading(true)
       try {
         const [lessonPlansData, assignmentsData, announcementsData] = await Promise.all([
@@ -87,18 +109,34 @@ export function StudentLessonCalendarTab({
             return { announcements: [] }
           }),
         ])
+        if (!isCurrentLoad()) return
         setLessonPlans(lessonPlansData.lesson_plans || [])
         setMaxDate(lessonPlansData.max_date || null)
         setAssignments(assignmentsData.assignments || [])
         setAnnouncements(announcementsData.announcements || [])
+        setLoadedClassroomId(requestedClassroomId)
       } catch (err) {
+        if (!isCurrentLoad()) return
         console.error('Error loading calendar data:', err)
+        setLessonPlans([])
+        setMaxDate(null)
+        setAssignments([])
+        setAnnouncements([])
+        setLoadedClassroomId(requestedClassroomId)
       } finally {
-        setLoading(false)
+        if (isCurrentLoad()) {
+          setLoading(false)
+        }
       }
     }
     loadCalendarData()
   }, [classroom.id, fetchRange.start, fetchRange.end])
+
+  const hasCurrentClassroomData = loadedClassroomId === classroom.id
+  const currentLessonPlans = hasCurrentClassroomData ? lessonPlans : []
+  const currentAssignments = hasCurrentClassroomData ? assignments : []
+  const currentAnnouncements = hasCurrentClassroomData ? announcements : []
+  const isLoading = loading || !hasCurrentClassroomData
 
   // Handle assignment click - navigate to assignments tab with the assignment selected
   const handleAssignmentClick = useCallback(
@@ -145,7 +183,7 @@ export function StudentLessonCalendarTab({
     handleDateChange(new Date())
   }, [handleDateChange])
 
-  if (loading && lessonPlans.length === 0) {
+  if (isLoading && currentLessonPlans.length === 0) {
     return (
       <PageLayout bleedX={false}>
         <PageContent>
@@ -173,9 +211,9 @@ export function StudentLessonCalendarTab({
         <div className="overflow-hidden rounded-lg border border-border bg-surface">
           <LessonCalendar
             classroom={classroom}
-            lessonPlans={lessonPlans}
-            assignments={assignments}
-            announcements={announcements}
+            lessonPlans={currentLessonPlans}
+            assignments={currentAssignments}
+            announcements={currentAnnouncements}
             classDays={classDays}
             viewMode={viewMode}
             currentDate={currentDate}
