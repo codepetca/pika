@@ -9,13 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-12 — Assignment Layout Tooltip Copy
-
-- Changed the selected Assignment layout cycle tooltip to the concise copy `Toggle Layout`.
-- Left the accessible button label unchanged so screen reader users still hear the current layout context.
-- Verified with `bash scripts/verify-env.sh`, `pnpm exec tsc --noEmit --pretty false`, and `pnpm test tests/components/TeacherClassroomView.test.tsx`.
-- Playwright hover screenshot confirmed the tooltip renders exactly `Toggle Layout` and the previous dynamic `Layout: … Next: …` copy is gone.
-
 ## 2026-06-12 — Action Cluster PR Rebase
 
 - Rebased `codex/action-cluster-classwork` onto `origin/main` and resolved the `TeacherTestsTab.test.tsx` helper import conflict by keeping `createMockTest` plus the branch's `Classroom` typing.
@@ -747,3 +740,15 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `E2E_BASE_URL=http://localhost:3101 pnpm exec playwright test e2e/teacher-exam-mode.spec.ts --project=chromium-desktop`
 - `pnpm lint`
 - Note: `E2E_BASE_URL=http://127.0.0.1:3101 ...` failed in auth setup with teacher login `Failed to fetch`; rerunning on `localhost:3101` passed.
+
+## 2026-06-21 — Teacher telemetry E2E review fix
+
+**Completed:**
+- Addressed review feedback on PR #815 by loosening the teacher grading-row away-duration assertion so valid one-away-session durations above nine seconds do not make the E2E flaky.
+- Kept the API-side `away_total_seconds >= 1` assertion as the source of truth for nonzero away time.
+
+**Validation:**
+- `E2E_BASE_URL=http://localhost:3101 pnpm exec playwright test e2e/teacher-exam-mode.spec.ts --project=chromium-desktop`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`

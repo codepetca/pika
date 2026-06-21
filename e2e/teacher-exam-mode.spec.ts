@@ -387,8 +387,14 @@ test.describe('teacher exam mode', () => {
       await expect(
         gradingRow.getByLabel(/Exits [1-9]\. Away\/focus 1, in-app exits 1, window\/full-screen exits 1\./),
       ).toBeVisible()
+      const positiveAwayDurationPattern = '(?:0:0[1-9]|0:[1-5]\\d|[1-9]\\d*:[0-5]\\d)'
       await expect(
-        gradingRow.getByLabel(/Away time 0:0[1-9]\. Away from test route for 0:0[1-9] total\./),
+        gradingRow.getByLabel(
+          new RegExp(
+            `Away time ${positiveAwayDurationPattern}\\. ` +
+              `Away from test route for ${positiveAwayDurationPattern} total\\.`,
+          ),
+        ),
       ).toBeVisible()
     } finally {
       await page.setViewportSize({ width: 1440, height: 900 }).catch(() => undefined)
