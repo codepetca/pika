@@ -345,11 +345,16 @@ export function TeacherTestsTab({
     testId: null,
     counts: new Map(),
   })
+  const latestTestsRequestIdRef = useRef(0)
+  const latestCreateTestRequestIdRef = useRef(0)
+  const currentClassroomIdRef = useRef(classroom.id)
+  const previousClassroomIdRef = useRef(classroom.id)
   const handledCompletedRunKeysRef = useRef<Set<string>>(new Set())
   const selectedTestIdRef = useRef<string | null>(null)
   const selectedTestDraftSummaryRef = useRef<AssessmentEditorSummaryUpdate | null>(null)
 
   const [tests, setTests] = useState<TestAssessmentWithStats[]>([])
+  const [loadedTestsClassroomId, setLoadedTestsClassroomId] = useState<string | null>(null)
   const { showMessage } = useAppMessage()
   const [loading, setLoading] = useState(true)
   const [internalSelectedWorkspaceTab, setInternalSelectedWorkspaceTab] = useState<WorkspaceTab>('grading')
@@ -399,6 +404,7 @@ export function TeacherTestsTab({
   const selectedStudentId =
     selectedTestStudentId !== undefined ? selectedTestStudentId : internalSelectedStudentId
   const workspaceState: WorkspaceState = selectedTestId ? 'selected' : 'list'
+  currentClassroomIdRef.current = classroom.id
   const [gradingInfo, setGradingInfo] = useState('')
   const [gradingWarning, setGradingWarning] = useState('')
   const [isBatchAutoGrading, setIsBatchAutoGrading] = useState(false)
@@ -445,9 +451,14 @@ export function TeacherTestsTab({
     })
   )
 
+  const hasCurrentTests = loadedTestsClassroomId === classroom.id
+  const visibleTests = useMemo(
+    () => (hasCurrentTests ? tests : []),
+    [hasCurrentTests, tests],
+  )
   const selectedTest = useMemo(
-    () => tests.find((test) => test.id === selectedTestId) ?? null,
-    [selectedTestId, tests]
+    () => visibleTests.find((test) => test.id === selectedTestId) ?? null,
+    [selectedTestId, visibleTests]
   )
   const activeTestAiRun = useMemo(() => {
     if (!selectedTestId || !testAiGradingRun) return null
@@ -586,6 +597,64 @@ export function TeacherTestsTab({
   const clearTestWorkspace = useCallback((options?: UpdateSearchOptions) => {
     navigateTestWorkspace({ testId: null, mode: null, studentId: null }, options)
   }, [navigateTestWorkspace])
+
+  useEffect(() => {
+    if (previousClassroomIdRef.current === classroom.id) return
+
+    previousClassroomIdRef.current = classroom.id
+    latestTestsRequestIdRef.current += 1
+    latestCreateTestRequestIdRef.current += 1
+    latestGradingRequestIdRef.current += 1
+    setTests([])
+    setLoadedTestsClassroomId(null)
+    setLoading(true)
+    setTestEditMode(false)
+    setIsReorderingTests(false)
+    setIsCreatingTest(false)
+    setShowEditModal(false)
+    setTestEditModalView('edit')
+    setTestEditSaveStatus('saved')
+    setHasPendingMarkdownImport(false)
+    setPendingDeleteTest(null)
+    setIsDeletingTest(false)
+    setStatusActionError('')
+    setSelectedTestDraftSummary(null)
+    selectedTestDraftSummaryRef.current = null
+    setGradingStudents([])
+    setUnreviewedExitCounts({})
+    setExitAlertStudentId(null)
+    setGradingQuestions([])
+    setGradingServerTestStatus(null)
+    setGradingServerTestId(null)
+    setTestAiGradingRun(null)
+    setGradingLoading(false)
+    setGradingRefreshing(false)
+    setGradingError('')
+    setGradingInfo('')
+    setGradingWarning('')
+    setTestGradingSaveState({ canSave: false, isSaving: false, status: 'idle' })
+    setIsBatchAutoGrading(false)
+    setIsBatchReturning(false)
+    setIsBatchUnsubmitting(false)
+    setIsBatchUpdatingAccess(false)
+    setShowReturnConfirm(false)
+    setShowUnsubmitConfirm(false)
+    setPendingUnsubmitStudent(null)
+    setPendingOpenAccessStudent(null)
+    setPendingCloseAccessStudent(null)
+    setShowCloseAccessConfirm(false)
+    setPendingOpenAccessStudentIds(null)
+    setPendingCloseAccessStudentIds(null)
+    setShowBatchGradeModal(false)
+    setPendingDeleteStudentAttemptIds(null)
+    setIsDeletingStudentAttempt(false)
+    setStatusUpdating(false)
+    setCheckingActivation(false)
+    setShowActivateConfirm(false)
+    setShowCloseConfirm(false)
+    clearBatchSelection()
+    clearTestWorkspace({ replace: true })
+  }, [classroom.id, clearBatchSelection, clearTestWorkspace])
 
   const {
     scrollRef: gradingStudentTableScrollRef,
@@ -751,11 +820,19 @@ export function TeacherTestsTab({
   }, [applyTestSummaryPatch, selectedTestId])
 
   const loadTests = useCallback(async () => {
+    const requestId = latestTestsRequestIdRef.current + 1
+    latestTestsRequestIdRef.current = requestId
+    const requestedClassroomId = classroom.id
+    const isCurrentRequest = () => (
+      latestTestsRequestIdRef.current === requestId &&
+      currentClassroomIdRef.current === requestedClassroomId
+    )
+
     setLoading(true)
     try {
-      const query = new URLSearchParams({ classroom_id: classroom.id })
+      const query = new URLSearchParams({ classroom_id: requestedClassroomId })
       const data = await fetchJSONWithCache<TeacherTestListResponse>(
-        `teacher-tests:${classroom.id}`,
+        `teacher-tests:${requestedClassroomId}`,
         async () => {
           const response = await fetch(`${apiBasePath}?${query.toString()}`)
           const payload = await response.json()
@@ -764,6 +841,7 @@ export function TeacherTestsTab({
         },
         0,
       )
+      if (!isCurrentRequest()) return
       const loadedTests = readTestsFromPayload<TestAssessmentWithStats>(data)
       const currentSelectedTestId = selectedTestIdRef.current
       const currentDraftSummary = selectedTestDraftSummaryRef.current
@@ -776,10 +854,16 @@ export function TeacherTestsTab({
             )
           : loadedTests
       )
+      setLoadedTestsClassroomId(requestedClassroomId)
     } catch (error) {
+      if (!isCurrentRequest()) return
       console.error('Error loading tests:', error)
+      setTests([])
+      setLoadedTestsClassroomId(requestedClassroomId)
     } finally {
-      setLoading(false)
+      if (isCurrentRequest()) {
+        setLoading(false)
+      }
     }
   }, [classroom.id])
 
@@ -909,11 +993,11 @@ export function TeacherTestsTab({
 
   useEffect(() => {
     if (!selectedTestId || loading) return
-    if (tests.some((test) => test.id === selectedTestId)) return
+    if (visibleTests.some((test) => test.id === selectedTestId)) return
 
     clearTestWorkspace({ replace: true })
     clearBatchSelection()
-  }, [clearBatchSelection, clearTestWorkspace, loading, selectedTestId, tests])
+  }, [clearBatchSelection, clearTestWorkspace, loading, selectedTestId, visibleTests])
 
   useEffect(() => {
     selectedTestDraftSummaryRef.current = null
@@ -1329,12 +1413,20 @@ export function TeacherTestsTab({
   async function handleNewTest() {
     if (isCreatingTest || isReadOnly || loading) return
 
+    const requestId = latestCreateTestRequestIdRef.current + 1
+    latestCreateTestRequestIdRef.current = requestId
+    const requestedClassroomId = classroom.id
+    const isCurrentCreate = () => (
+      latestCreateTestRequestIdRef.current === requestId &&
+      currentClassroomIdRef.current === requestedClassroomId
+    )
+
     setIsCreatingTest(true)
     try {
       const response = await fetch(apiBasePath, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ classroom_id: classroom.id }),
+        body: JSON.stringify({ classroom_id: requestedClassroomId }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
@@ -1344,11 +1436,15 @@ export function TeacherTestsTab({
       if (!createdTest) {
         throw new Error('Failed to create test')
       }
+      if (!isCurrentCreate()) return
       handleTestCreated(createdTest)
     } catch (error: any) {
+      if (!isCurrentCreate()) return
       showMessage({ text: error?.message || 'Failed to create test', tone: 'warning' })
     } finally {
-      setIsCreatingTest(false)
+      if (isCurrentCreate()) {
+        setIsCreatingTest(false)
+      }
     }
   }
 
@@ -1404,11 +1500,11 @@ export function TeacherTestsTab({
       const { active, over } = event
       if (!over || active.id === over.id || isReorderingTests || isReadOnly || !testEditMode) return
 
-      const oldIndex = tests.findIndex((test) => test.id === active.id)
-      const newIndex = tests.findIndex((test) => test.id === over.id)
+      const oldIndex = visibleTests.findIndex((test) => test.id === active.id)
+      const newIndex = visibleTests.findIndex((test) => test.id === over.id)
       if (oldIndex === -1 || newIndex === -1) return
 
-      const reordered = arrayMove(tests, oldIndex, newIndex)
+      const reordered = arrayMove(visibleTests, oldIndex, newIndex)
       setTests(reordered)
       setIsReorderingTests(true)
       try {
@@ -1444,7 +1540,7 @@ export function TeacherTestsTab({
       loadTests,
       showMessage,
       testEditMode,
-      tests,
+      visibleTests,
     ]
   )
 
@@ -2584,7 +2680,7 @@ export function TeacherTestsTab({
     <div className="flex justify-center py-12">
       <Spinner size="lg" />
     </div>
-  ) : tests.length === 0 ? (
+  ) : visibleTests.length === 0 ? (
     <EmptyState
       title="No tests yet"
       description="Create a test to get started."
@@ -2598,11 +2694,11 @@ export function TeacherTestsTab({
       onDragEnd={handleTestDragEnd}
     >
       <SortableContext
-        items={tests.map((test) => test.id)}
+        items={visibleTests.map((test) => test.id)}
         strategy={verticalListSortingStrategy}
       >
         <TeacherWorkItemList>
-          {tests.map((test) => (
+          {visibleTests.map((test) => (
             <TeacherTestCard
               key={test.id}
               test={test}

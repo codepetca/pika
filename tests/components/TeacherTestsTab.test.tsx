@@ -6,6 +6,7 @@ import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { TEACHER_TESTS_UPDATED_EVENT, TEACHER_TEST_GRADING_ROW_UPDATED_EVENT } from '@/lib/events'
 import { createMockClassroom, createMockTest } from '../helpers/mocks'
+import { invalidateCachedJSON } from '@/lib/request-cache'
 import type { Classroom, TestAssessmentWithStats } from '@/types'
 
 const { setOpenMock } = vi.hoisted(() => ({
@@ -265,9 +266,12 @@ function makeResultsResponse(overrides?: {
 
 describe('TeacherTestsTab', () => {
   const classroom = createMockClassroom()
+  const secondClassroom = createMockClassroom({ id: 'classroom-2', title: 'Second Classroom' })
   let fetchMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
+    invalidateCachedJSON(`teacher-tests:${classroom.id}`)
+    invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
     setOpenMock.mockReset()
@@ -275,6 +279,8 @@ describe('TeacherTestsTab', () => {
   })
 
   afterEach(() => {
+    invalidateCachedJSON(`teacher-tests:${classroom.id}`)
+    invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
     vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
@@ -346,6 +352,233 @@ describe('TeacherTestsTab', () => {
     expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(screen.queryByText('Choose a test to review settings, questions, and grading details.')).not.toBeInTheDocument()
     expect(listFetchCalls(fetchMock)[0][0]).toContain('/api/teacher/tests?classroom_id=')
+  })
+
+  it('ignores late tests-list responses after switching classrooms', async () => {
+    type PendingFetch = {
+      url: string
+      resolve: (value: { ok: boolean; json: () => Promise<{ tests: TestAssessmentWithStats[] }> }) => void
+    }
+    const pending: PendingFetch[] = []
+
+    fetchMock.mockImplementation((url: string) => (
+      new Promise((resolve) => {
+        pending.push({ url, resolve: resolve as PendingFetch['resolve'] })
+      })
+    ))
+
+    function resolveTests(classroomId: string, tests: TestAssessmentWithStats[]) {
+      const request = pending.find((item) => item.url === `/api/teacher/tests?classroom_id=${classroomId}`)
+      expect(request).toBeTruthy()
+      request?.resolve({
+        ok: true,
+        json: async () => ({ tests }),
+      })
+    }
+
+    const view = renderTab({ classroom })
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(`/api/teacher/tests?classroom_id=${classroom.id}`)
+    })
+
+    view.rerender(
+      <TeacherTestsTab
+        classroom={secondClassroom}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(`/api/teacher/tests?classroom_id=${secondClassroom.id}`)
+    })
+
+    await act(async () => {
+      resolveTests(secondClassroom.id, [makeTest({ id: 'test-b', classroom_id: secondClassroom.id, title: 'Class B Test' })])
+      await Promise.resolve()
+    })
+
+    expect(await screen.findByText('Class B Test')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveTests(classroom.id, [makeTest({ id: 'test-a', classroom_id: classroom.id, title: 'Class A Test' })])
+      await Promise.resolve()
+    })
+
+    expect(screen.queryByText('Class A Test')).not.toBeInTheDocument()
+    expect(screen.getByText('Class B Test')).toBeInTheDocument()
+  })
+
+  it('clears pending test delete confirmation after switching classrooms', async () => {
+    mockTestsResponse([makeTest({ id: 'test-a', classroom_id: classroom.id, title: 'Class A Test' })])
+    const view = renderTab({ classroom })
+
+    expect(await screen.findByText('Class A Test')).toBeInTheDocument()
+
+    toggleTestListControls()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Class A Test' }))
+    expect(await screen.findByText('Delete test?')).toBeInTheDocument()
+
+    mockTestsResponse([makeTest({ id: 'test-b', classroom_id: secondClassroom.id, title: 'Class B Test' })])
+    view.rerender(
+      <TeacherTestsTab
+        classroom={secondClassroom}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByText('Delete test?')).not.toBeInTheDocument()
+    })
+    expect(await screen.findByText('Class B Test')).toBeInTheDocument()
+  })
+
+  it('closes the edit dialog after switching classrooms', async () => {
+    mockTestsResponse([makeTest({ id: 'test-a', classroom_id: classroom.id, title: 'Class A Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({ testId: 'test-a', testTitle: 'Class A Test' }))
+    const view = renderTab({ classroom })
+
+    fireEvent.click(await screen.findByText('Class A Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Test' }))
+    expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Class A Test')
+
+    mockTestsResponse([makeTest({ id: 'test-b', classroom_id: secondClassroom.id, title: 'Class B Test' })])
+    view.rerender(
+      <TeacherTestsTab
+        classroom={secondClassroom}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('mock-test-detail')).not.toBeInTheDocument()
+    })
+    expect(await screen.findByText('Class B Test')).toBeInTheDocument()
+  })
+
+  it('ignores a late create-test response after switching classrooms', async () => {
+    type PendingCreate = {
+      resolve: (value: { ok: boolean; json: () => Promise<{ test: TestAssessmentWithStats }> }) => void
+    }
+    let pendingCreate: PendingCreate | null = null
+
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/teacher/tests' && init?.method === 'POST') {
+        return new Promise((resolve) => {
+          pendingCreate = { resolve: resolve as PendingCreate['resolve'] }
+        })
+      }
+      if (url === `/api/teacher/tests?classroom_id=${secondClassroom.id}`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            tests: [makeTest({ id: 'test-b', classroom_id: secondClassroom.id, title: 'Class B Test' })],
+          }),
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ tests: [] }),
+      })
+    })
+
+    const view = renderTab({ classroom })
+
+    expect(await screen.findByRole('button', { name: 'New test' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'New test' }))
+
+    await waitFor(() => {
+      expect(pendingCreate).toBeTruthy()
+    })
+
+    view.rerender(
+      <TeacherTestsTab
+        classroom={secondClassroom}
+      />,
+    )
+
+    expect(await screen.findByText('Class B Test')).toBeInTheDocument()
+
+    await act(async () => {
+      pendingCreate?.resolve({
+        ok: true,
+        json: async () => ({
+          test: makeTest({ id: 'test-a-created', classroom_id: classroom.id, title: 'Created In Class A' }),
+        }),
+      })
+      await Promise.resolve()
+    })
+
+    expect(screen.queryByText('Created In Class A')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('mock-test-detail')).not.toBeInTheDocument()
+    expect(screen.getByText('Class B Test')).toBeInTheDocument()
+  })
+
+  it('does not let an old create request clear the current classroom create state', async () => {
+    type PendingCreate = {
+      classroomId: string
+      resolve: (value: { ok: boolean; json: () => Promise<{ test: TestAssessmentWithStats }> }) => void
+    }
+    const pendingCreates: PendingCreate[] = []
+
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === '/api/teacher/tests' && init?.method === 'POST') {
+        const classroomId = JSON.parse(init.body as string).classroom_id as string
+        return new Promise((resolve) => {
+          pendingCreates.push({ classroomId, resolve: resolve as PendingCreate['resolve'] })
+        })
+      }
+      if (url === `/api/teacher/tests?classroom_id=${secondClassroom.id}`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            tests: [makeTest({ id: 'test-b', classroom_id: secondClassroom.id, title: 'Class B Test' })],
+          }),
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ tests: [] }),
+      })
+    })
+
+    const view = renderTab({ classroom })
+
+    expect(await screen.findByRole('button', { name: 'New test' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'New test' }))
+
+    await waitFor(() => {
+      expect(pendingCreates.some((request) => request.classroomId === classroom.id)).toBe(true)
+    })
+
+    view.rerender(
+      <TeacherTestsTab
+        classroom={secondClassroom}
+      />,
+    )
+
+    expect(await screen.findByText('Class B Test')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'New test' }))
+
+    await waitFor(() => {
+      expect(pendingCreates.some((request) => request.classroomId === secondClassroom.id)).toBe(true)
+    })
+
+    const newTestButton = screen.getByRole('button', { name: 'New test' })
+    expect(newTestButton).toBeDisabled()
+
+    const oldRequest = pendingCreates.find((request) => request.classroomId === classroom.id)
+    await act(async () => {
+      oldRequest?.resolve({
+        ok: true,
+        json: async () => ({
+          test: makeTest({ id: 'test-a-created', classroom_id: classroom.id, title: 'Created In Class A' }),
+        }),
+      })
+      await Promise.resolve()
+    })
+
+    expect(screen.getByRole('button', { name: 'New test' })).toBeDisabled()
+    expect(screen.queryByText('Created In Class A')).not.toBeInTheDocument()
+    expect(screen.getByText('Class B Test')).toBeInTheDocument()
   })
 
   it('disables test create and options actions for archived classrooms', async () => {
