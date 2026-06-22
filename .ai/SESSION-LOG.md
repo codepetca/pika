@@ -790,12 +790,14 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Kept `fetchJSONWithCache` intact for existing custom fetcher callers and left API payload shape unchanged.
 - Added request-cache coverage for successful JSON parsing, API error precedence, fallback errors for non-JSON failures, and cached helper reuse.
 - Updated hook/component tests for the new helper call shape without changing visible UI behavior.
+- Addressed independent review by preserving JSON parse rejection for successful malformed responses and adding `init` passthrough coverage.
 
 **Cache/helper checklist:**
 - API schema or payload changed: no
 - Cache key semantics changed: no
 - TTL behavior changed: no; callers keep existing `0`, `60_000`, and notification TTL values
 - Error behavior changed: no; `{ error: string }` payloads still win over fallback messages
+- Successful malformed JSON behavior changed: no; successful parse failures still reject instead of caching `null`
 - Existing custom fetcher support: retained through `fetchJSONWithCache`
 - Visible behavior intended to change: none
 

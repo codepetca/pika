@@ -119,6 +119,17 @@ describe('request cache', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/example', undefined)
   })
 
+  it('fetchJSON rejects successful responses with malformed JSON', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => {
+        throw new Error('bad json')
+      },
+    }))
+
+    await expect(fetchJSON('/api/example')).rejects.toThrow('bad json')
+  })
+
   it('fetchJSON throws API error messages before fallback errors', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: false,
@@ -151,5 +162,19 @@ describe('request cache', () => {
     await expect(fetchCachedJSON(key, '/api/example', { ttlMs: 60_000 })).resolves.toEqual({ version: 1 })
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('fetchCachedJSON passes request init to fetch', async () => {
+    const key = `${TEST_PREFIX}cached-api-json-init`
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ saved: true }),
+    })
+    const init = { headers: { accept: 'application/json' } }
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchCachedJSON(key, '/api/example', { init })).resolves.toEqual({ saved: true })
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/example', init)
   })
 })

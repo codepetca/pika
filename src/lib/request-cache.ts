@@ -26,13 +26,14 @@ export async function fetchJSON<T>(
   options: FetchJSONOptions = {},
 ): Promise<T> {
   const response = await fetch(input, options.init)
-  const payload = await response.json().catch(() => null) as unknown
 
-  if (!response.ok) {
-    throw new Error(readPayloadError(payload) || options.errorMessage || 'Request failed')
+  if (response.ok) {
+    return await response.json() as T
   }
 
-  return payload as T
+  const payload = await response.json().catch(() => null) as unknown
+
+  throw new Error(readPayloadError(payload) || options.errorMessage || 'Request failed')
 }
 
 export async function fetchJSONWithCache<T>(
