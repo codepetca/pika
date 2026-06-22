@@ -632,6 +632,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `git diff --check`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`
 
 ## 2026-06-21 — Stale async classroom-state audit
 
