@@ -9,6 +9,7 @@ import {
   loadAttendanceEntries,
   loadAttendanceRoster,
 } from '@/lib/server/attendance-report'
+import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -28,20 +29,9 @@ export const GET = withErrorHandler('GetAttendance', async (request: NextRequest
   }
 
   const supabase = getServiceRoleClient()
-
-  // Verify ownership
-  const { data: classroom, error: classroomError } = await supabase
-    .from('classrooms')
-    .select('teacher_id')
-    .eq('id', classroomId)
-    .single()
-
-  if (classroomError || !classroom) {
-    throw new ApiError(404, 'Classroom not found')
-  }
-
-  if (classroom.teacher_id !== user.id) {
-    throw new ApiError(403, 'Forbidden')
+  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId, { supabase })
+  if (!ownership.ok) {
+    throw new ApiError(ownership.status, ownership.error)
   }
 
   const { rows: classDays, error: classDaysError } = await loadAttendanceClassDays(supabase, classroomId)

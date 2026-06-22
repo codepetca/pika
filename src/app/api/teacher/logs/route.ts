@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { loadClassroomRoster } from '@/lib/server/classroom-roster'
+import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { chunkValues, loadChunkedRows } from '@/lib/server/query-chunks'
 import type { Entry } from '@/types'
 
@@ -54,24 +55,11 @@ export const GET = withErrorHandler('GetTeacherLogs', async (request: NextReques
   }
 
   const supabase = getServiceRoleClient()
-
-  const { data: classroom, error: classroomError } = await supabase
-    .from('classrooms')
-    .select('teacher_id')
-    .eq('id', classroomId)
-    .single()
-
-  if (classroomError || !classroom) {
+  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId, { supabase })
+  if (!ownership.ok) {
     return NextResponse.json(
-      { error: 'Classroom not found' },
-      { status: 404 }
-    )
-  }
-
-  if (classroom.teacher_id !== user.id) {
-    return NextResponse.json(
-      { error: 'Forbidden' },
-      { status: 403 }
+      { error: ownership.error },
+      { status: ownership.status }
     )
   }
 

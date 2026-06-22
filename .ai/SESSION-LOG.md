@@ -9,22 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-13 — Legacy quiz type contract cleanup
-
-**Completed:**
-- Inverted the shared assessment type definitions so active `TestAssessment*`, `StudentTest*`, and `TestFocus*` names are canonical in `src/types/index.ts`.
-- Kept legacy `Quiz*` type exports as compatibility aliases/interfaces for DB-shaped and older contract code.
-- Updated assessment utilities and server access helpers to consume canonical Test/Assessment type names while preserving legacy exports and response shapes.
-- Moved the active TeacherTestsTab component test from `QuizWithStats` to `TestAssessmentWithStats`.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm test tests/unit/assessments.test.ts tests/lib/assessments.test.ts tests/lib/test-api-contract.test.ts tests/components/TeacherTestsTab.test.tsx`
-- `pnpm test` (303 files / 2678 tests)
-- `git diff --check`
-
 ## 2026-06-13 — Teacher lesson calendar stale classroom load guard
 
 **Completed:**
@@ -810,3 +794,27 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-06-22 — Teacher classroom access helper reuse
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with a Supabase route/query helper consolidation slice.
+- Extended `assertTeacherOwnsClassroom` to include classroom `title` and accept an optional existing service-role client, preserving the default helper call shape.
+- Reused the helper in read-only teacher routes that previously duplicated `classrooms.select('teacher_id')` ownership checks: attendance, export CSV, log summary, logs, and student history.
+- Kept each route's current response style, status codes, payloads, and downstream query shape unchanged.
+- Added helper-level coverage proving the shared classroom access helper returns `title` and reuses a provided Supabase client.
+
+**Route/query helper checklist:**
+- Schema or migration changed: no
+- Browser-side Supabase access changed: no
+- Authorization semantics changed: no; 404 not found and 403 forbidden still come from the same ownership predicate
+- Payload shape changed: no
+- Supabase query count changed: no intended extra queries; migrated routes pass their existing service client into the helper
+- Visible behavior intended to change: none
+
+**Validation:**
+- `pnpm test tests/unit/server-access.test.ts tests/api/teacher/attendance.test.ts tests/api/teacher/export-csv.test.ts tests/api/teacher/log-summary.test.ts tests/api/teacher/logs.test.ts tests/api/teacher/student-history.test.ts`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
