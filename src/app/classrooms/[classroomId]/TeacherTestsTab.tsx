@@ -56,6 +56,12 @@ import { readTestFromPayload, readTestsFromPayload } from '@/lib/test-api-contra
 import { compareByNameFields } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
+import {
+  useTestWorkspaceNavigation,
+  type TestWorkspaceState as WorkspaceState,
+  type TestWorkspaceTab as WorkspaceTab,
+  type UpdateSearchParamsFn,
+} from '@/hooks/useTestWorkspaceNavigation'
 import { Button, ConfirmDialog, DialogPanel, EmptyState, RefreshingIndicator, Select, SplitButton, Tooltip, useAppMessage, useOverlayMessage, type SplitButtonProps } from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
@@ -85,15 +91,6 @@ interface Props {
   onRequestTestPreview?: (preview: { testId: string; title: string }) => void
   onRequestDelete?: () => void
 }
-
-type UpdateSearchOptions = {
-  replace?: boolean
-}
-
-type UpdateSearchParamsFn = (
-  updater: (params: URLSearchParams) => void,
-  options?: UpdateSearchOptions,
-) => void
 
 interface TestGradingStudentRow {
   student_id: string
@@ -144,8 +141,6 @@ type TeacherTestResultsResponse = {
   error?: string
 }
 
-type WorkspaceState = 'list' | 'selected'
-type WorkspaceTab = 'authoring' | 'grading'
 type TestEditModalView = 'edit' | 'markdown'
 type TestEditSaveStatus = 'saved' | 'saving' | 'unsaved'
 type TestGradingSortColumn = 'first_name' | 'last_name'
@@ -357,8 +352,6 @@ export function TeacherTestsTab({
   const [loadedTestsClassroomId, setLoadedTestsClassroomId] = useState<string | null>(null)
   const { showMessage } = useAppMessage()
   const [loading, setLoading] = useState(true)
-  const [internalSelectedWorkspaceTab, setInternalSelectedWorkspaceTab] = useState<WorkspaceTab>('grading')
-  const [internalSelectedTestId, setInternalSelectedTestId] = useState<string | null>(null)
   const [testEditMode, setTestEditMode] = useState(false)
   const [isReorderingTests, setIsReorderingTests] = useState(false)
   const [selectedTestDraftSummary, setSelectedTestDraftSummary] = useState<AssessmentEditorSummaryUpdate | null>(null)
@@ -382,7 +375,6 @@ export function TeacherTestsTab({
   const [gradingRefreshing, setGradingRefreshing] = useState(false)
   const [gradingError, setGradingError] = useState('')
   const [gradingSortColumn, setGradingSortColumn] = useState<TestGradingSortColumn>('last_name')
-  const [internalSelectedStudentId, setInternalSelectedStudentId] = useState<string | null>(null)
   const [gradingInspectorWidth, setGradingInspectorWidth] = useState(50)
   const [testGradingPanelRefreshToken, setTestGradingPanelRefreshToken] = useState(0)
   const [testGradingSaveState, setTestGradingSaveState] = useState<{
@@ -395,15 +387,20 @@ export function TeacherTestsTab({
     status: 'idle',
   })
 
-  const selectedTestId =
-    selectedTestIdProp !== undefined ? selectedTestIdProp : internalSelectedTestId
-  const selectedWorkspaceTab =
-    selectedTestMode === 'authoring' || selectedTestMode === 'grading'
-      ? selectedTestMode
-      : internalSelectedWorkspaceTab
-  const selectedStudentId =
-    selectedTestStudentId !== undefined ? selectedTestStudentId : internalSelectedStudentId
-  const workspaceState: WorkspaceState = selectedTestId ? 'selected' : 'list'
+  const {
+    selectedTestId,
+    selectedWorkspaceTab,
+    selectedStudentId,
+    workspaceState,
+    setSelectedStudentId,
+    navigateTestWorkspace,
+    clearTestWorkspace,
+  } = useTestWorkspaceNavigation({
+    selectedTestId: selectedTestIdProp,
+    selectedTestMode,
+    selectedTestStudentId,
+    updateSearchParams,
+  })
   currentClassroomIdRef.current = classroom.id
   const [gradingInfo, setGradingInfo] = useState('')
   const [gradingWarning, setGradingWarning] = useState('')
@@ -559,45 +556,6 @@ export function TeacherTestsTab({
     setExitAlertStudentId((prev) => (prev === studentId ? null : prev))
   }, [])
 
-  const setSelectedStudentId = useCallback((nextStudentId: string | null) => {
-    setInternalSelectedStudentId(nextStudentId)
-  }, [])
-
-  const navigateTestWorkspace = useCallback((
-    next: {
-      testId: string | null
-      mode?: WorkspaceTab | null
-      studentId?: string | null
-    },
-    options?: UpdateSearchOptions,
-  ) => {
-    const nextMode = next.testId ? (next.mode ?? 'grading') : null
-    setInternalSelectedTestId(next.testId)
-    setInternalSelectedWorkspaceTab(nextMode ?? 'grading')
-    setInternalSelectedStudentId(next.studentId ?? null)
-
-    updateSearchParams?.((params) => {
-      params.set('tab', 'tests')
-      if (next.testId) {
-        params.set('testId', next.testId)
-        params.set('testMode', nextMode ?? 'grading')
-        if (nextMode === 'grading' && next.studentId) {
-          params.set('testStudentId', next.studentId)
-        } else {
-          params.delete('testStudentId')
-        }
-      } else {
-        params.delete('testId')
-        params.delete('testMode')
-        params.delete('testStudentId')
-      }
-    }, options)
-  }, [updateSearchParams])
-
-  const clearTestWorkspace = useCallback((options?: UpdateSearchOptions) => {
-    navigateTestWorkspace({ testId: null, mode: null, studentId: null }, options)
-  }, [navigateTestWorkspace])
-
   useEffect(() => {
     if (previousClassroomIdRef.current === classroom.id) return
 
@@ -674,7 +632,7 @@ export function TeacherTestsTab({
 
   const selectGradingStudent = useCallback((studentId: string | null) => {
     preserveGradingStudentTableScrollPosition()
-    setInternalSelectedStudentId(studentId)
+    setSelectedStudentId(studentId)
     if (!selectedTestId || selectedWorkspaceTab !== 'grading') return
     navigateTestWorkspace({
       testId: selectedTestId,
@@ -685,6 +643,7 @@ export function TeacherTestsTab({
     navigateTestWorkspace,
     preserveGradingStudentTableScrollPosition,
     selectedTestId,
+    setSelectedStudentId,
     selectedWorkspaceTab,
   ])
 

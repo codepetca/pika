@@ -1559,6 +1559,31 @@ describe('TeacherTestsTab', () => {
     expect(params.get('testStudentId')).toBeNull()
   })
 
+  it('reports selected grading student changes through search params', async () => {
+    const updateSearchParams = vi.fn((updater: (params: URLSearchParams) => void) => {
+      const params = new URLSearchParams('tab=tests')
+      updater(params)
+    })
+
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
+    renderTab({ updateSearchParams })
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Alice Zephyr'))
+
+    await waitFor(() => {
+      expect(updateSearchParams).toHaveBeenCalledTimes(2)
+    })
+
+    const params = new URLSearchParams('tab=tests&testId=test-1&testMode=grading')
+    updateSearchParams.mock.calls[1][0](params)
+    expect(params.get('testId')).toBe('test-1')
+    expect(params.get('testMode')).toBe('grading')
+    expect(params.get('testStudentId')).toBe('student-1')
+  })
+
   it('opens controlled authoring params in the test editor', async () => {
     const updateSearchParams = vi.fn()
 
