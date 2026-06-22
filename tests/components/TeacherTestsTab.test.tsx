@@ -640,6 +640,8 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
+    expect(screen.queryByText('Failed to load test results')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Close All' })).toBeInTheDocument()
   })
 
