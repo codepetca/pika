@@ -9,32 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-13 — Teacher lesson calendar stale classroom load guard
-
-**Completed:**
-- Continued the systems/UI audit client freshness track after PR #780.
-- Guarded teacher lesson calendar lesson-plan, assignment, announcement, and markdown async loads so late responses from a previous classroom cannot update the current classroom view.
-- Tagged loaded lesson plans, assignments, and announcements with the classroom id they belong to, so previously loaded classroom data is hidden while the next classroom loads.
-- Added regression coverage for both late stale responses after a classroom change and immediate hiding of previous-classroom data while the next classroom is pending.
-- Addressed subagent PR review feedback by clearing/reloading open markdown sidebar content when the classroom changes and blocking saves while markdown content is not associated with the current classroom.
-- Guarded late autosave PUT responses before they can retag or mutate visible lesson-plan state after the teacher switches classrooms.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/TeacherLessonCalendarTab.test.tsx`
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm build`
-- `pnpm vitest run --sequence.concurrent=false` (303 files / 2682 tests)
-- Subagent PR review found stale open-sidebar markdown and late autosave response gaps.
-- `pnpm vitest run tests/components/TeacherLessonCalendarTab.test.tsx` (after review fixes; 8 tests)
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm build`
-- `pnpm vitest run --sequence.concurrent=false` (303 files / 2684 tests)
-
 ## 2026-06-13 — Legacy quiz server draft helper names
 
 **Completed:**
@@ -814,6 +788,27 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Validation:**
 - `pnpm test tests/unit/server-access.test.ts tests/api/teacher/attendance.test.ts tests/api/teacher/export-csv.test.ts tests/api/teacher/log-summary.test.ts tests/api/teacher/logs.test.ts tests/api/teacher/student-history.test.ts`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+
+## 2026-06-22 — Paged Supabase test helper
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with a test mock simplification slice.
+- Extracted the duplicated paged Supabase table/query-log mock from teacher attendance and export CSV API tests into `tests/support/paged-supabase.ts`.
+- Updated both route suites to use `createPagedQueryLog` and `mockPagedTable` from the shared support helper.
+- Kept production code, route behavior, mock behavior, and assertions unchanged.
+
+**Test mock checklist:**
+- Production code changed: no
+- Test behavior changed: no intended behavior change; affected tests still cover pagination, chunking, and query scoping
+- Helper scope: paged `select().in().order().range()` mocks only
+- Broad migration attempted: no; only identical local duplicates were consolidated
+
+**Validation:**
+- `pnpm test tests/api/teacher/attendance.test.ts tests/api/teacher/export-csv.test.ts`
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm lint`
 - `git diff --check`

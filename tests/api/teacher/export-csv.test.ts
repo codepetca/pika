@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET } from '@/app/api/teacher/export-csv/route'
 import { NextRequest } from 'next/server'
+import { createPagedQueryLog, mockPagedTable } from '../../support/paged-supabase'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
@@ -12,67 +13,6 @@ vi.mock('@/lib/attendance', () => ({ computeAttendanceRecords: vi.fn(() => []) }
 vi.mock('@/lib/timezone', () => ({ getTodayInToronto: vi.fn(() => '2026-04-25') }))
 
 const mockSupabaseClient = { from: vi.fn() }
-
-type QueryLog = {
-  inCalls: Array<{ table: string; column: string; values: string[] }>
-  orderCalls: Array<{ table: string; column: string }>
-  rangeCalls: Array<{ table: string; from: number; to: number }>
-}
-
-function createQueryLog(): QueryLog {
-  return { inCalls: [], orderCalls: [], rangeCalls: [] }
-}
-
-function mockPagedTable(
-  rows: Array<Record<string, any>>,
-  options: {
-    table?: string
-    log?: QueryLog
-    error?: any
-  } = {},
-) {
-  return {
-    select: vi.fn(() => {
-      const filters: Array<{ column: string; values: string[] }> = []
-      const query: any = {
-        in: vi.fn((column: string, values: string[]) => {
-          filters.push({ column, values })
-          if (options.table) {
-            options.log?.inCalls.push({ table: options.table, column, values })
-          }
-          return query
-        }),
-        order: vi.fn((column: string) => {
-          if (options.table) {
-            options.log?.orderCalls.push({ table: options.table, column })
-          }
-          return query
-        }),
-        range: vi.fn((from: number, to: number) => {
-          if (options.table) {
-            options.log?.rangeCalls.push({ table: options.table, from, to })
-          }
-          if (options.error) {
-            return Promise.resolve({ data: null, error: options.error })
-          }
-
-          const filteredRows = rows.filter((row) =>
-            filters.every((filter) => {
-              if (!(filter.column in row)) return true
-              return filter.values.includes(String(row[filter.column]))
-            })
-          )
-
-          return Promise.resolve({
-            data: filteredRows.slice(from, to + 1),
-            error: null,
-          })
-        }),
-      }
-      return query
-    }),
-  }
-}
 
 describe('GET /api/teacher/export-csv', () => {
   beforeEach(() => {
@@ -198,7 +138,7 @@ describe('GET /api/teacher/export-csv', () => {
   it('paginates large rosters before computing the CSV export', async () => {
     const { computeAttendanceRecords } = await import('@/lib/attendance')
     ;(computeAttendanceRecords as any).mockReturnValueOnce([])
-    const log = createQueryLog()
+    const log = createPagedQueryLog()
     const enrollments = Array.from({ length: 1001 }, (_, index) => {
       const ordinal = index + 1
       const padded = ordinal.toString().padStart(4, '0')
@@ -248,7 +188,7 @@ describe('GET /api/teacher/export-csv', () => {
   it('scopes and paginates dense entry reads for enrolled students', async () => {
     const { computeAttendanceRecords } = await import('@/lib/attendance')
     ;(computeAttendanceRecords as any).mockReturnValueOnce([])
-    const log = createQueryLog()
+    const log = createPagedQueryLog()
     const studentIds = Array.from({ length: 51 }, (_, index) => `student-${index + 1}`)
     const enrollments = studentIds.map((studentId, index) => ({
       id: `enrollment-${index + 1}`,
