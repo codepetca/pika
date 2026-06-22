@@ -379,7 +379,7 @@ describe('TeacherTestsTab', () => {
     const view = renderTab({ classroom })
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(`/api/teacher/tests?classroom_id=${classroom.id}`)
+      expect(fetchMock).toHaveBeenCalledWith(`/api/teacher/tests?classroom_id=${classroom.id}`, undefined)
     })
 
     view.rerender(
@@ -389,7 +389,7 @@ describe('TeacherTestsTab', () => {
     )
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(`/api/teacher/tests?classroom_id=${secondClassroom.id}`)
+      expect(fetchMock).toHaveBeenCalledWith(`/api/teacher/tests?classroom_id=${secondClassroom.id}`, undefined)
     })
 
     await act(async () => {

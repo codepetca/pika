@@ -9,35 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-13 — Student Today stale classroom load guard
-
-**Completed:**
-- Reestablished the systems/UI audit goal and continued the active client freshness slice.
-- Guarded `StudentTodayTab` entry and lesson-plan async responses by request id and classroom id so late responses from a previous classroom cannot overwrite the current classroom view.
-- Passed the loaded classroom id through `onLessonPlanLoad` and made `ClassroomPageClient` ignore stale lesson-plan updates.
-- Added regression coverage for switching from classroom A to classroom B before classroom A's entries and lesson plan resolve.
-- Updated the adjacent `ClassroomPageClientAssignmentsEditMode` mock to use the new lesson-plan callback contract.
-- Addressed subagent PR review feedback by storing the Today sidebar lesson plan with its classroom id so classroom route changes synchronously hide stale previous-classroom plan content.
-- Added parent-level regression coverage for clearing the Student Today sidebar plan when the classroom route changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/StudentTodayTabHistory.test.tsx`
-- `pnpm vitest run tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
-- `pnpm vitest run tests/components/StudentTodayTabHistory.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm build`
-- `pnpm vitest run --sequence.concurrent=false` (303 files / 2673 tests)
-- Subagent PR review found one P2 stale sidebar display gap.
-- `pnpm vitest run tests/components/StudentTodayTabHistory.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx` (after review fix; 32 tests)
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm build`
-- `pnpm vitest run --sequence.concurrent=false` (303 files / 2674 tests)
-
 ## 2026-06-13 — Legacy quiz type contract cleanup
 
 **Completed:**
@@ -804,6 +775,36 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm test tests/lib/test-api-contract.test.ts tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-06-22 — Cached API JSON helper
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with a typed client API/cache helper slice.
+- Added `fetchJSON` and `fetchCachedJSON` to `src/lib/request-cache.ts` so repeated client reads can share JSON parsing, API error payload handling, and cache TTL wiring.
+- Migrated `useTeacherTestList`, `useGradebookData`, and `StudentNotificationsProvider` from inline cached fetcher lambdas to the typed helper.
+- Kept `fetchJSONWithCache` intact for existing custom fetcher callers and left API payload shape unchanged.
+- Added request-cache coverage for successful JSON parsing, API error precedence, fallback errors for non-JSON failures, and cached helper reuse.
+- Updated hook/component tests for the new helper call shape without changing visible UI behavior.
+- Addressed independent review by preserving JSON parse rejection for successful malformed responses and adding `init` passthrough coverage.
+
+**Cache/helper checklist:**
+- API schema or payload changed: no
+- Cache key semantics changed: no
+- TTL behavior changed: no; callers keep existing `0`, `60_000`, and notification TTL values
+- Error behavior changed: no; `{ error: string }` payloads still win over fallback messages
+- Successful malformed JSON behavior changed: no; successful parse failures still reject instead of caching `null`
+- Existing custom fetcher support: retained through `fetchJSONWithCache`
+- Visible behavior intended to change: none
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/unit/request-cache.test.ts tests/hooks/useTeacherTestList.test.ts tests/hooks/useGradebookData.test.ts tests/components/StudentNotificationsProvider.test.tsx`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
 - `pnpm lint`
 - `git diff --check`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`

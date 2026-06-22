@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
-import { fetchJSONWithCache } from '@/lib/request-cache'
+import { fetchCachedJSON } from '@/lib/request-cache'
 import { readTestsFromPayload } from '@/lib/test-api-contract'
 import { applyTestSummaryPatchToTest } from '@/lib/test-summary-patch'
 import type { AssessmentEditorSummaryUpdate, TestAssessmentWithStats } from '@/types'
@@ -61,15 +61,10 @@ export function useTeacherTestList({
     setLoading(true)
     try {
       const query = new URLSearchParams({ classroom_id: requestedClassroomId })
-      const data = await fetchJSONWithCache<TeacherTestListResponse>(
+      const data = await fetchCachedJSON<TeacherTestListResponse>(
         `teacher-tests:${requestedClassroomId}`,
-        async () => {
-          const response = await fetch(`${apiBasePath}?${query.toString()}`)
-          const payload = await response.json()
-          if (!response.ok) throw new Error(payload.error || 'Failed to load tests')
-          return payload
-        },
-        0,
+        `${apiBasePath}?${query.toString()}`,
+        { ttlMs: 0, errorMessage: 'Failed to load tests' },
       )
       if (!isCurrentRequest()) return
 
