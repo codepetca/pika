@@ -52,7 +52,13 @@ import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { getTestExitCount } from '@/lib/tests'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
-import { readTestFromPayload } from '@/lib/test-api-contract'
+import {
+  readTeacherTestResultsFromPayload,
+  readTestFromPayload,
+  type TeacherTestGradingQuestionSummary as TestGradingQuestionSummary,
+  type TeacherTestGradingStudentRow as TestGradingStudentRow,
+  type TeacherTestResultsPayload,
+} from '@/lib/test-api-contract'
 import { applyTestSummaryPatchToTest } from '@/lib/test-summary-patch'
 import { compareByNameFields } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
@@ -70,7 +76,6 @@ import type {
   AssessmentWorkspaceSummaryPatch,
   Classroom,
   TestAssessment,
-  TestFocusSummary,
   TestAssessmentWithStats,
   TestAiGradingRunSummary,
 } from '@/types'
@@ -92,49 +97,6 @@ interface Props {
   }) => void
   onRequestTestPreview?: (preview: { testId: string; title: string }) => void
   onRequestDelete?: () => void
-}
-
-interface TestGradingStudentRow {
-  student_id: string
-  name: string | null
-  first_name: string | null
-  last_name: string | null
-  email: string
-  status: 'not_started' | 'in_progress' | 'closed' | 'submitted' | 'returned'
-  submitted_at: string | null
-  closed_for_grading_at?: string | null
-  last_activity_at: string | null
-  points_earned: number
-  points_possible: number
-  percent: number | null
-  graded_open_responses: number
-  ungraded_open_responses: number
-  access_state?: 'open' | 'closed' | null
-  effective_access?: 'open' | 'closed'
-  access_source?: 'test' | 'student'
-  focus_summary: TestFocusSummary | null
-}
-
-interface TestGradingQuestionSummary {
-  id: string
-  questionType: 'multiple_choice' | 'open_response'
-  responseMonospace: boolean
-}
-
-type TeacherTestResultsQuestionResponse = {
-  id: string
-  question_type?: unknown
-  response_monospace?: unknown
-}
-
-type TeacherTestResultsResponse = {
-  test?: TestAssessment | null
-  /** Legacy compatibility key retained by active Tests APIs during contract migration. */
-  quiz?: TestAssessment | null
-  students?: TestGradingStudentRow[]
-  questions?: TeacherTestResultsQuestionResponse[]
-  active_ai_grading_run?: TestAiGradingRunSummary | null
-  error?: string
 }
 
 type TestEditModalView = 'edit' | 'markdown'
@@ -785,7 +747,7 @@ export function TeacherTestsTab({
     }
     setGradingError('')
     try {
-      const { ok, data } = await fetchJSONWithCache<{ ok: boolean; data: TeacherTestResultsResponse }>(
+      const { ok, data } = await fetchJSONWithCache<{ ok: boolean; data: TeacherTestResultsPayload }>(
         `teacher-test-results:${requestedTestId}:${requestId}`,
         async () => {
           const response = await fetch(`${apiBasePath}/${requestedTestId}/results`, { cache: 'no-store' })
@@ -794,17 +756,13 @@ export function TeacherTestsTab({
         0,
       )
       if (isStaleRequest()) return
-      if (!ok) throw new Error(data.error || 'Failed to load test results')
+      const results = readTeacherTestResultsFromPayload(data)
+      if (!ok) throw new Error(results.error || 'Failed to load test results')
 
-      const responseTest = readTestFromPayload<TestAssessment>(data)
-      const nextStatus =
-        responseTest?.status === 'draft' || responseTest?.status === 'active' || responseTest?.status === 'closed'
-          ? (responseTest.status as TestAssessment['status'])
-          : null
-
+      const nextStatus = results.testStatus
       setGradingServerTestStatus(nextStatus)
       setGradingServerTestId(requestedTestId)
-      setTestAiGradingRun((data.active_ai_grading_run as TestAiGradingRunSummary | null) ?? null)
+      setTestAiGradingRun(results.activeAiGradingRun)
       if (nextStatus) {
         setTests((prev) =>
           prev.map((test) =>
@@ -812,19 +770,10 @@ export function TeacherTestsTab({
           )
         )
       }
-      const nextStudents = (data.students || []) as TestGradingStudentRow[]
+      const nextStudents = results.students
       recordGradingExitCountChanges(requestedTestId, nextStudents)
       setGradingStudents(nextStudents)
-      setGradingQuestions(
-        Array.isArray(data.questions)
-          ? data.questions.map((question) => ({
-              id: String(question.id),
-              questionType:
-                question.question_type === 'open_response' ? 'open_response' : 'multiple_choice',
-              responseMonospace: question.response_monospace === true,
-            }))
-          : []
-      )
+      setGradingQuestions(results.questions)
     } catch (error: any) {
       if (isStaleRequest()) return
       setGradingError(error.message || 'Failed to load test results')
