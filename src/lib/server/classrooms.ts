@@ -10,8 +10,11 @@ import {
 } from '@/lib/classroom-theme'
 import type { Classroom } from '@/types'
 
+type SupabaseClient = ReturnType<typeof getServiceRoleClient>
+
 export type ClassroomAccessRecord = {
   id: string
+  title: string
   teacher_id: string
   archived_at: string | null
   actual_site_slug: string | null
@@ -51,14 +54,19 @@ type AccessResult<T> =
   | { ok: true; classroom: T }
   | { ok: false; status: number; error: string }
 
+type ClassroomAccessOptions = {
+  supabase?: SupabaseClient
+}
+
 export async function assertTeacherOwnsClassroom(
   teacherId: string,
-  classroomId: string
+  classroomId: string,
+  options: ClassroomAccessOptions = {},
 ): Promise<AccessResult<ClassroomAccessRecord>> {
-  const supabase = getServiceRoleClient()
+  const supabase = options.supabase ?? getServiceRoleClient()
   const { data: classroom, error } = await supabase
     .from('classrooms')
-    .select('id, teacher_id, archived_at, actual_site_slug, actual_site_published')
+    .select('id, title, teacher_id, archived_at, actual_site_slug, actual_site_published')
     .eq('id', classroomId)
     .single()
 
@@ -75,9 +83,10 @@ export async function assertTeacherOwnsClassroom(
 
 export async function assertTeacherCanMutateClassroom(
   teacherId: string,
-  classroomId: string
+  classroomId: string,
+  options: ClassroomAccessOptions = {},
 ): Promise<AccessResult<ClassroomAccessRecord>> {
-  const ownership = await assertTeacherOwnsClassroom(teacherId, classroomId)
+  const ownership = await assertTeacherOwnsClassroom(teacherId, classroomId, options)
   if (!ownership.ok) {
     return ownership
   }

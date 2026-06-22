@@ -72,6 +72,41 @@ describe('server access helpers', () => {
       })
     })
 
+    it('returns classroom title and reuses a provided Supabase client', async () => {
+      const providedSupabase = {
+        from: vi.fn((table: string) => {
+          expect(table).toBe('classrooms')
+          return createSingleSelectResult({
+            data: {
+              id: 'classroom-1',
+              title: 'Period 1',
+              teacher_id: 'teacher-1',
+              archived_at: null,
+              actual_site_slug: 'period-1',
+              actual_site_published: true,
+            },
+            error: null,
+          })
+        }),
+      }
+
+      await expect(
+        assertTeacherOwnsClassroom('teacher-1', 'classroom-1', { supabase: providedSupabase as any })
+      ).resolves.toEqual({
+        ok: true,
+        classroom: {
+          id: 'classroom-1',
+          title: 'Period 1',
+          teacher_id: 'teacher-1',
+          archived_at: null,
+          actual_site_slug: 'period-1',
+          actual_site_published: true,
+        },
+      })
+      expect(providedSupabase.from).toHaveBeenCalledTimes(1)
+      expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+    })
+
     it('blocks mutation when the classroom is archived', async () => {
       mockSupabaseClient.from.mockImplementation((table: string) => {
         expect(table).toBe('classrooms')

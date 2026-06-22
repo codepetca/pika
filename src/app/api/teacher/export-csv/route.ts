@@ -9,6 +9,7 @@ import {
   loadAttendanceEntries,
   loadAttendanceRoster,
 } from '@/lib/server/attendance-report'
+import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -31,25 +32,11 @@ export const GET = withErrorHandler('GetTeacherExportCsv', async (request, conte
   }
 
   const supabase = getServiceRoleClient()
-
-  // Verify ownership
-  const { data: classroom, error: classroomError } = await supabase
-    .from('classrooms')
-    .select('teacher_id, title')
-    .eq('id', classroomId)
-    .single()
-
-  if (classroomError || !classroom) {
+  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId, { supabase })
+  if (!ownership.ok) {
     return NextResponse.json(
-      { error: 'Classroom not found' },
-      { status: 404 }
-    )
-  }
-
-  if (classroom.teacher_id !== user.id) {
-    return NextResponse.json(
-      { error: 'Forbidden' },
-      { status: 403 }
+      { error: ownership.error },
+      { status: ownership.status }
     )
   }
 
@@ -136,7 +123,7 @@ export const GET = withErrorHandler('GetTeacherExportCsv', async (request, conte
   })
 
   // Return CSV file
-  const filename = `attendance-${classroom.title.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`
+  const filename = `attendance-${ownership.classroom.title.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`
   return new NextResponse(csv, {
     headers: {
       'Content-Type': 'text/csv',
