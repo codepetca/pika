@@ -10,7 +10,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
 
 type NotificationState = {
   hasTodayEntry: boolean
@@ -56,17 +56,13 @@ export function StudentNotificationsProvider({
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const data = await fetchJSONWithCache<StudentNotificationsResponse>(
+      const data = await fetchCachedJSON<StudentNotificationsResponse>(
         getStudentNotificationsCacheKey(classroomId),
-        async () => {
-          const res = await fetch(`/api/student/notifications?classroom_id=${classroomId}`)
-          if (!res.ok) {
-            console.error('Failed to fetch notifications:', res.status)
-            throw new Error('Failed to fetch notifications')
-          }
-          return res.json()
+        `/api/student/notifications?classroom_id=${classroomId}`,
+        {
+          ttlMs: NOTIFICATIONS_CACHE_TTL_MS,
+          errorMessage: 'Failed to fetch notifications',
         },
-        NOTIFICATIONS_CACHE_TTL_MS,
       )
       setHasTodayEntry(data.hasTodayEntry)
       setUnviewedAssignmentsCount(data.unviewedAssignmentsCount)

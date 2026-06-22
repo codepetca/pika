@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  fetchCachedJSON,
+  fetchJSON,
   fetchJSONWithCache,
   invalidateCachedJSON,
   invalidateCachedJSONMatching,
@@ -19,6 +21,10 @@ function deferred<T>() {
 }
 
 describe('request cache', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   afterEach(() => {
     invalidateCachedJSONMatching(TEST_PREFIX)
   })
@@ -100,5 +106,50 @@ describe('request cache', () => {
 
     expect(freshFetcher).toHaveBeenCalledTimes(1)
     expect(fallbackFetcher).not.toHaveBeenCalled()
+  })
+
+  it('fetchJSON returns parsed JSON for successful responses', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchJSON('/api/example')).resolves.toEqual({ ok: true })
+    expect(fetchMock).toHaveBeenCalledWith('/api/example', undefined)
+  })
+
+  it('fetchJSON throws API error messages before fallback errors', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: 'Specific failure' }),
+    }))
+
+    await expect(fetchJSON('/api/example', { errorMessage: 'Fallback failure' })).rejects.toThrow('Specific failure')
+  })
+
+  it('fetchJSON throws fallback errors when error payload is unavailable', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => {
+        throw new Error('not json')
+      },
+    }))
+
+    await expect(fetchJSON('/api/example', { errorMessage: 'Fallback failure' })).rejects.toThrow('Fallback failure')
+  })
+
+  it('fetchCachedJSON reuses cached API responses', async () => {
+    const key = `${TEST_PREFIX}cached-api-json`
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ version: 1 }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchCachedJSON(key, '/api/example', { ttlMs: 60_000 })).resolves.toEqual({ version: 1 })
+    await expect(fetchCachedJSON(key, '/api/example', { ttlMs: 60_000 })).resolves.toEqual({ version: 1 })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

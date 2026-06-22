@@ -6,6 +6,35 @@ type CacheEntry = {
 
 const cache = new Map<string, CacheEntry>()
 
+type FetchJSONOptions = {
+  init?: RequestInit
+  errorMessage?: string
+}
+
+type FetchCachedJSONOptions = FetchJSONOptions & {
+  ttlMs?: number
+}
+
+function readPayloadError(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object') return null
+  const error = (payload as { error?: unknown }).error
+  return typeof error === 'string' && error.trim() ? error : null
+}
+
+export async function fetchJSON<T>(
+  input: RequestInfo | URL,
+  options: FetchJSONOptions = {},
+): Promise<T> {
+  const response = await fetch(input, options.init)
+  const payload = await response.json().catch(() => null) as unknown
+
+  if (!response.ok) {
+    throw new Error(readPayloadError(payload) || options.errorMessage || 'Request failed')
+  }
+
+  return payload as T
+}
+
 export async function fetchJSONWithCache<T>(
   key: string,
   fetcher: () => Promise<T>,
@@ -46,6 +75,19 @@ export async function fetchJSONWithCache<T>(
   })
 
   return pending
+}
+
+export function fetchCachedJSON<T>(
+  key: string,
+  input: RequestInfo | URL,
+  options: FetchCachedJSONOptions = {},
+): Promise<T> {
+  const { ttlMs = 15_000, ...fetchOptions } = options
+  return fetchJSONWithCache(
+    key,
+    () => fetchJSON<T>(input, fetchOptions),
+    ttlMs,
+  )
 }
 
 export function prefetchJSON<T>(

@@ -58,7 +58,7 @@ describe('useTeacherTestList', () => {
       }),
     )
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests?classroom_id=classroom-1')
+    expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests?classroom_id=classroom-1', undefined)
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     expect(result.current.tests).toHaveLength(1)
@@ -127,13 +127,13 @@ describe('useTeacherTestList', () => {
     )
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests?classroom_id=classroom-1')
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests?classroom_id=classroom-1', undefined)
     })
 
     rerender({ classroomId: 'classroom-2' })
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests?classroom_id=classroom-2')
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests?classroom_id=classroom-2', undefined)
     })
 
     await act(async () => {
