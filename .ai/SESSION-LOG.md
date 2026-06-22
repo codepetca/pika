@@ -9,26 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-12 — Legacy quiz API compatibility contract helper
-
-**Completed:**
-- Created `codex/legacy-quiz-contract-compat` from current `origin/main`.
-- Inventoried remaining `quiz` / `quizzes` references and separated persisted/database contracts from active Tests API compatibility aliases.
-- Added `src/lib/test-api-contract.ts` to centralize the active Tests API `{ test, quiz }` and `{ tests, quizzes }` compatibility payloads.
-- Updated student and teacher Tests API routes to use the shared compatibility helper without changing response shape.
-- Added canonical `assessment` success data to `src/lib/server/assessments.ts` while preserving the legacy `quiz` alias.
-- Trimmed redundant `docs/ai-instructions.md` wording after the rebased `origin/main` startup-doc changes exceeded the enforced default startup context budget.
-- Did not touch production schema, migrations, RPCs, storage paths, gradebook contracts, course blueprint contracts, or DB-shaped `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/lib/test-api-contract.test.ts tests/unit/server-access.test.ts tests/api/teacher/tests-route.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-results.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/api/student/tests-session-status.test.ts`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm vitest run tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts`
-- `pnpm test` (303 files / 2672 tests)
-- `git diff --check`
-
 ## 2026-06-13 — Legacy quiz client response readers
 
 **Completed:**
@@ -793,3 +773,29 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test`
 - `pnpm build`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms"`; reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`.
+
+## 2026-06-22 — Teacher tests list-state extraction
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with the next behavior-preserving TeacherTestsTab decomposition slice.
+- Extracted classroom-owned tests-list loading, visible-list ownership, event reload handling, request freshness checks, and selected-draft summary patching into `useTeacherTestList`.
+- Moved shared selected-test summary patching into `src/lib/test-summary-patch.ts` so the hook and parent mutations use the same behavior.
+- Kept rendering, routing, grading rows, mutations, dialogs, batch actions, and workspace mode state in `TeacherTestsTab`.
+- Added hook-level coverage for current-classroom loads, hiding prior-classroom data while loading, late response rejection, matching update-event reloads, and draft-summary patching.
+- Updated the parent component regression for visible list reload after `TEACHER_TESTS_UPDATED_EVENT`.
+
+**Workspace-state checklist:**
+- owner identity: classroom id
+- late responses ignored: yes, request id plus current classroom id checks in the hook
+- state clears immediately on owner change: visible tests are hidden when loaded owner differs from current classroom
+- A-after-B regression: covered in `tests/hooks/useTeacherTestList.test.ts` and parent coverage remains in `TeacherTestsTab.test.tsx`
+- visible behavior intended to change: none
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/hooks/useTeacherTestList.test.ts tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`

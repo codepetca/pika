@@ -2904,7 +2904,7 @@ describe('TeacherTestsTab', () => {
     expect(screen.getByRole('menuitem', { name: /AI Grade/ })).toBeEnabled()
   })
 
-  it('reloads the list once when the update event fires', async () => {
+  it('reloads the visible list once when the update event fires', async () => {
     mockTestsResponse([])
     renderTab()
 
@@ -2912,7 +2912,7 @@ describe('TeacherTestsTab', () => {
       expect(listFetchCalls(fetchMock)).toHaveLength(1)
     })
 
-    mockTestsResponse([])
+    mockTestsResponse([makeTest({ id: 'test-reloaded', title: 'Reloaded Test' })])
 
     act(() => {
       window.dispatchEvent(
@@ -2925,5 +2925,6 @@ describe('TeacherTestsTab', () => {
     await waitFor(() => {
       expect(listFetchCalls(fetchMock)).toHaveLength(2)
     })
+    expect(await screen.findByText('Reloaded Test')).toBeInTheDocument()
   })
 })
