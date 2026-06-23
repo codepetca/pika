@@ -18,9 +18,9 @@ import type {
   GradebookStudentSummary,
 } from '@/types'
 import {
+  Button,
   Input,
   Tooltip,
-  type SplitButtonOption,
   useAppMessage,
 } from '@/ui'
 import {
@@ -29,6 +29,11 @@ import {
 } from '@/components/AssessmentStatusIndicator'
 import { Spinner } from '@/components/Spinner'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import {
+  TeacherWorkSurfaceActionCluster,
+  TeacherWorkSurfaceIconMenuButton,
+  type TeacherWorkSurfaceActionItem,
+} from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import {
@@ -1660,21 +1665,23 @@ export function TeacherGradebookTab({
   }
 
   const isSettingsActive = columnEditorOpen
-  const scoreDisplayOptions: SplitButtonOption[] = [
+  const scoreDisplayOptions: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'score-display-percent',
       label: 'Show %',
       checked: scoreDisplayMode === 'percent',
+      checkedRole: 'menuitemradio',
       onSelect: () => handleScoreDisplayModeChange('percent'),
     },
     {
       id: 'score-display-raw',
       label: 'Show Raw',
       checked: scoreDisplayMode === 'raw',
+      checkedRole: 'menuitemradio',
       onSelect: () => handleScoreDisplayModeChange('raw'),
     },
   ]
-  const selectedEmailOptions: SplitButtonOption[] = [
+  const selectedEmailOptions: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'copy-selected-emails',
       label: `Copy emails (${selectedStudentEmails.length})`,
@@ -1696,7 +1703,7 @@ export function TeacherGradebookTab({
       onSelect: () => openOutlook(selectedStudentEmails),
     },
   ]
-  const gradebookActionOptions: SplitButtonOption[] = [
+  const gradebookActionOptions: TeacherWorkSurfaceActionItem[] = [
     ...scoreDisplayOptions,
     {
       id: 'column-controls',
@@ -1723,27 +1730,39 @@ export function TeacherGradebookTab({
 
   const actionBar = (
     <TeacherWorkSurfaceActionBar
-      floatingAction={{
-        label: hasSelectedEmailActions ? (
-          <span className="inline-flex items-center gap-2 whitespace-nowrap">
-            <Mail className="h-4 w-4" aria-hidden="true" />
-            <span>Email ({selectedStudentEmails.length})</span>
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-2 whitespace-nowrap">
-            <ListFilter className="h-4 w-4" aria-hidden="true" />
-            <span>{scoreDisplayLabel}</span>
-          </span>
-        ),
-        onPrimaryClick: hasSelectedEmailActions
-          ? () => openDefaultEmail(selectedStudentEmails)
-          : () => handleScoreDisplayModeChange(nextScoreDisplayMode),
-        options: gradebookActionOptions,
-        variant: hasSelectedEmailActions ? 'primary' : 'secondary',
-        size: 'sm',
-        toggleAriaLabel: 'Gradebook actions',
-        menuPlacement: 'down',
-      }}
+      center={
+        <TeacherWorkSurfaceActionCluster>
+          <Button
+            type="button"
+            variant={hasSelectedEmailActions ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={hasSelectedEmailActions
+              ? () => openDefaultEmail(selectedStudentEmails)
+              : () => handleScoreDisplayModeChange(nextScoreDisplayMode)}
+          >
+            {hasSelectedEmailActions ? (
+              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                <Mail className="h-4 w-4" aria-hidden="true" />
+                <span>Email ({selectedStudentEmails.length})</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                <ListFilter className="h-4 w-4" aria-hidden="true" />
+                <span>{scoreDisplayLabel}</span>
+              </span>
+            )}
+          </Button>
+          <TeacherWorkSurfaceIconMenuButton
+            ariaLabel="Gradebook actions"
+            tooltip="Gradebook actions"
+            icon={<Settings className="h-4 w-4" aria-hidden="true" />}
+            items={gradebookActionOptions}
+            menuPlacement="down"
+            menuAlign="center"
+            menuClassName="w-64"
+          />
+        </TeacherWorkSurfaceActionCluster>
+      }
       centerPlacement="floating"
     />
   )
