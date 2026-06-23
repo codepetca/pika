@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TeacherAnnouncementsSection } from '@/app/classrooms/[classroomId]/TeacherAnnouncementsSection'
 import { StudentAnnouncementsSection } from '@/app/classrooms/[classroomId]/StudentAnnouncementsSection'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
+import { TooltipProvider } from '@/ui'
 import type { Announcement, Classroom } from '@/types'
 
 const classroom: Classroom = {
@@ -71,6 +72,14 @@ function mockAnnouncementFetch(announcements: Announcement[] = [markdownAnnounce
   )
 }
 
+function teacherAnnouncementsElement(sectionClassroom: Classroom) {
+  return (
+    <TooltipProvider>
+      <TeacherAnnouncementsSection classroom={sectionClassroom} />
+    </TooltipProvider>
+  )
+}
+
 describe('announcement markdown rendering', () => {
   beforeEach(() => {
     invalidateCachedJSONMatching('teacher-announcements:')
@@ -83,7 +92,7 @@ describe('announcement markdown rendering', () => {
   })
 
   it('renders teacher announcements as markdown without turning link clicks into edit mode', async () => {
-    render(<TeacherAnnouncementsSection classroom={classroom} />)
+    render(teacherAnnouncementsElement(classroom))
 
     const link = await screen.findByRole('link', { name: 'course outline' })
 
@@ -99,7 +108,7 @@ describe('announcement markdown rendering', () => {
   })
 
   it('renders a larger, vertically resizable creation textarea', async () => {
-    const { container } = render(<TeacherAnnouncementsSection classroom={classroom} />)
+    const { container } = render(teacherAnnouncementsElement(classroom))
 
     await screen.findByRole('link', { name: 'course outline' })
     fireEvent.click(screen.getByRole('button', { name: 'New announcement' }))
@@ -120,8 +129,21 @@ describe('announcement markdown rendering', () => {
     expect(screen.getByRole('menuitem', { name: 'Schedule...' })).toBeInTheDocument()
   })
 
+  it('keeps announcement creation in the shared action surface menu', async () => {
+    render(teacherAnnouncementsElement(classroom))
+
+    await screen.findByRole('link', { name: 'course outline' })
+
+    expect(screen.getByRole('button', { name: 'New announcement' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Announcement actions' }))
+
+    const menu = screen.getByRole('menu', { name: 'Announcement actions' })
+    expect(menu).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Announcement' })).toBeInTheDocument()
+  })
+
   it('labels the edit announcement textarea', async () => {
-    render(<TeacherAnnouncementsSection classroom={classroom} />)
+    render(teacherAnnouncementsElement(classroom))
 
     await screen.findByRole('link', { name: 'course outline' })
     fireEvent.click(screen.getByText('bring notes'))
@@ -159,7 +181,7 @@ describe('announcement markdown rendering', () => {
       },
     ])
 
-    render(<TeacherAnnouncementsSection classroom={classroom} />)
+    render(teacherAnnouncementsElement(classroom))
 
     const newest = await screen.findByText('Newest update')
     const middle = screen.getByText('Middle update')
@@ -206,11 +228,11 @@ describe('announcement markdown rendering', () => {
       title: 'Second classroom update',
     }
 
-    const view = render(<TeacherAnnouncementsSection classroom={classroom} />)
+    const view = render(teacherAnnouncementsElement(classroom))
 
     await screen.findByText('Unit update')
 
-    view.rerender(<TeacherAnnouncementsSection classroom={secondClassroom} />)
+    view.rerender(teacherAnnouncementsElement(secondClassroom))
 
     expect(screen.queryByText('Unit update')).not.toBeInTheDocument()
 

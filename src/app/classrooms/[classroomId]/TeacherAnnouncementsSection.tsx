@@ -1,12 +1,17 @@
 'use client'
 
 import { useCallback, useEffect, useState, useRef } from 'react'
-import { Trash2, Plus, Clock, Calendar } from 'lucide-react'
+import { Trash2, Plus, Clock, Calendar, Settings } from 'lucide-react'
 import { Button, ConfirmDialog, FormField, Input, SplitButton } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import {
+  TeacherWorkSurfaceActionCluster,
+  TeacherWorkSurfaceIconMenuButton,
+  type TeacherWorkSurfaceActionItem,
+} from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import type { Announcement, Classroom } from '@/types'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { cn } from '@/ui/utils'
@@ -400,6 +405,13 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
 
   const currentAnnouncements = loadedClassroomId === classroom.id ? announcements : []
   const isLoading = loading || loadedClassroomId !== classroom.id
+  const announcementActionItems: TeacherWorkSurfaceActionItem[] = [
+    {
+      id: 'announcement',
+      label: 'Announcement',
+      onSelect: () => setIsCreating(true),
+    },
+  ]
 
   if (isLoading) {
     return (
@@ -414,27 +426,33 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
       {!isReadOnly && (
         <TeacherWorkSurfaceActionBar
           testId="announcements-actionbar-center"
-          floatingAction={{
-            label: (
-              <span className="inline-flex items-center gap-1.5">
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                <span>New</span>
-              </span>
-            ),
-            onPrimaryClick: () => setIsCreating(true),
-            options: [
-              {
-                id: 'announcement',
-                label: 'Announcement',
-                onSelect: () => setIsCreating(true),
-              },
-            ],
-            disabled: isCreating || saving,
-            variant: 'primary',
-            toggleAriaLabel: 'Announcement actions',
-            menuPlacement: 'down',
-            primaryButtonProps: { 'aria-label': 'New announcement' },
-          }}
+          center={
+            <TeacherWorkSurfaceActionCluster>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => setIsCreating(true)}
+                disabled={isCreating || saving}
+                aria-label="New announcement"
+              >
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  <span>New</span>
+                </span>
+              </Button>
+              <TeacherWorkSurfaceIconMenuButton
+                ariaLabel="Announcement actions"
+                tooltip="Announcement actions"
+                icon={<Settings className="h-4 w-4" aria-hidden="true" />}
+                items={announcementActionItems}
+                disabled={isCreating || saving}
+                menuPlacement="down"
+                menuAlign="center"
+                menuClassName="w-64"
+              />
+            </TeacherWorkSurfaceActionCluster>
+          }
           centerPlacement="floating"
         />
       )}
