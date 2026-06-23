@@ -85,7 +85,7 @@ function TeacherWorkSurfaceActionMenuButton({
   const getEnabledMenuItems = useCallback(() => {
     return Array.from(
       menuRef.current?.querySelectorAll<HTMLButtonElement>(
-        '[role="menuitem"], [role="menuitemcheckbox"]'
+        '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]'
       ) ?? []
     ).filter((item) => !item.disabled)
   }, [])

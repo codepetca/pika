@@ -809,6 +809,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Preserved existing Gradebook behavior: score display toggles when no students are selected, selected-student email remains the primary action, and column controls stay in the actions menu.
 - Added optional radio semantics to `TeacherWorkSurfaceActionItem` so mutually exclusive score display menu items expose `menuitemradio` while column controls remain `menuitemcheckbox`.
 - Added focused component coverage for Gradebook menu semantics and shared action-cluster checked roles.
+- Addressed independent review by including `menuitemradio` items in shared menu keyboard focus management and covering arrow/Home/End focus behavior.
 
 **UI verification:**
 - Teacher desktop light: default, open menu, selected email action

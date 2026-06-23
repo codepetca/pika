@@ -87,5 +87,13 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('menuitemradio', { name: 'Show Raw' })).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByRole('menuitemcheckbox', { name: 'Column controls' })).toHaveAttribute('aria-checked', 'false')
+
+    expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveFocus()
+    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    expect(screen.getByRole('menuitemradio', { name: 'Show Raw' })).toHaveFocus()
+    fireEvent.keyDown(window, { key: 'End' })
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Column controls' })).toHaveFocus()
+    fireEvent.keyDown(window, { key: 'Home' })
+    expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveFocus()
   })
 })
