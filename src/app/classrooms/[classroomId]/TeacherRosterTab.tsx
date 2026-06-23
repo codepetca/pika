@@ -2,10 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { ConfirmDialog, type SplitButtonOption, useAppMessage } from '@/ui'
+import { Button, ConfirmDialog, useAppMessage } from '@/ui'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
+import {
+  TeacherWorkSurfaceActionCluster,
+  TeacherWorkSurfaceIconMenuButton,
+  type TeacherWorkSurfaceActionItem,
+} from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import {
   DataTable,
@@ -20,7 +25,7 @@ import {
   TableCard,
 } from '@/components/DataTable'
 import type { Classroom, RosterJoinSource } from '@/types'
-import { Check, Copy, Mail, Pencil, X } from 'lucide-react'
+import { Check, Copy, Mail, Pencil, Plus, Settings, X } from 'lucide-react'
 import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { compareByNameFields, toggleSort } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
@@ -412,7 +417,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     }`
   }
 
-  const rosterActionOptions: SplitButtonOption[] = [
+  const rosterActionOptions: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'upload-csv',
       label: '+ CSV',
@@ -431,7 +436,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     })
   }
 
-  const selectedEmailOptions: SplitButtonOption[] = [
+  const selectedEmailOptions: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'copy-student-emails',
       label: `Copy emails (${selectedStudentEmails.length})`,
@@ -485,7 +490,7 @@ export function TeacherRosterTab({ classroom }: Props) {
       },
     )
   }
-  const combinedRosterActionOptions: SplitButtonOption[] = [
+  const combinedRosterActionOptions: TeacherWorkSurfaceActionItem[] = [
     ...rosterActionOptions,
     ...(someSelected
       ? selectedEmailOptions.map((option, index) => ({
@@ -497,18 +502,36 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   const actionBar = (
     <TeacherWorkSurfaceActionBar
-      floatingAction={{
-        label: '+ Students',
-        onPrimaryClick: () => {
-          if (isReadOnly || isRosterLoading) return
-          setAddModalOpen(true)
-        },
-        options: combinedRosterActionOptions,
-        disabled: isReadOnly || isRosterLoading,
-        size: 'sm',
-        toggleAriaLabel: 'Roster actions',
-        menuPlacement: 'down',
-      }}
+      center={
+        <TeacherWorkSurfaceActionCluster>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={() => {
+              if (isReadOnly || isRosterLoading) return
+              setAddModalOpen(true)
+            }}
+            disabled={isReadOnly || isRosterLoading}
+            aria-label="Add students"
+          >
+            <span className="inline-flex items-center gap-2 whitespace-nowrap">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              <span>Students</span>
+            </span>
+          </Button>
+          <TeacherWorkSurfaceIconMenuButton
+            ariaLabel="Roster actions"
+            tooltip="Roster actions"
+            icon={<Settings className="h-4 w-4" aria-hidden="true" />}
+            items={combinedRosterActionOptions}
+            disabled={isReadOnly || isRosterLoading}
+            menuPlacement="down"
+            menuAlign="center"
+            menuClassName="w-64"
+          />
+        </TeacherWorkSurfaceActionCluster>
+      }
       centerPlacement="floating"
     />
   )

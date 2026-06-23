@@ -9,22 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-13 — Legacy quiz markdown helper aliases
-
-**Completed:**
-- Added assessment-named markdown helper exports in `src/lib/quiz-markdown.ts`: `assessmentToMarkdown`, `markdownToAssessment`, and `AssessmentMarkdown*` types.
-- Kept `quizToMarkdown`, `markdownToQuiz`, and `QuizMarkdown*` exports as compatibility aliases.
-- Updated active `TestDetailPanel` markdown editing code to import and call the assessment-named helpers.
-- Expanded markdown unit coverage for the new helper names and alias compatibility.
-- Did not change markdown format text, route payloads, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm test tests/lib/quiz-markdown.test.ts tests/components/TestDetailPanel.test.tsx tests/unit/assessment-drafts.test.ts`
-- `git diff --check`
-
 ## 2026-06-13 — Legacy quiz assessment helper names
 
 **Completed:**
@@ -823,6 +807,33 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Validation:**
 - `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh && git diff --check`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-06-23 — Roster action surface
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with the next canonical classroom action-surface slice.
+- Replaced the Roster tab's custom split-button floating action with the shared teacher work-surface action cluster: a standalone Students primary action plus a quiet icon menu.
+- Preserved existing Roster behavior: the primary action still opens Add Students, selected-student email actions remain in the Roster actions menu, and removal actions stay destructive menu items.
+- Updated focused Roster component tests to assert the shared action-cluster shape without changing roster management behavior.
+- Addressed independent review by keeping the compact visual label while exposing the primary action as `Add students` for assistive technology.
+
+**UI verification:**
+- Teacher desktop light: default, open menu, selected-student menu
+- Teacher mobile light: default
+- Teacher desktop dark: default, open menu
+- Student: n/a; changed surface is teacher-only
+- Composite widget checklist reviewed: yes
+- Keyboard behavior covered by shared menu handling: yes
+- Semantic state covered by tests: yes
+- Remaining manual follow-up: none
+
+**Validation:**
+- `pnpm test tests/components/TeacherRosterTab.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm lint`
 - `bash .codex/skills/pika-audit/scripts/audit.sh && git diff --check`
