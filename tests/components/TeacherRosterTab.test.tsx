@@ -307,7 +307,7 @@ describe('TeacherRosterTab', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select Grace Hopper' }))
 
-    expect(screen.getByRole('button', { name: 'Students' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add students' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Email \(2\)/ })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Roster actions' }))

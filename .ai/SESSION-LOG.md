@@ -820,6 +820,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Replaced the Roster tab's custom split-button floating action with the shared teacher work-surface action cluster: a standalone Students primary action plus a quiet icon menu.
 - Preserved existing Roster behavior: the primary action still opens Add Students, selected-student email actions remain in the Roster actions menu, and removal actions stay destructive menu items.
 - Updated focused Roster component tests to assert the shared action-cluster shape without changing roster management behavior.
+- Addressed independent review by keeping the compact visual label while exposing the primary action as `Add students` for assistive technology.
 
 **UI verification:**
 - Teacher desktop light: default, open menu, selected-student menu
