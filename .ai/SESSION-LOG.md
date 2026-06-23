@@ -9,22 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-13 — Legacy quiz grading payload reader
-
-**Completed:**
-- Normalized `TestStudentGradingPanel` results payloads into a canonical `test` field.
-- Used the shared Tests API reader so current `test` payloads are preferred while legacy `quiz` payloads still work as fallback.
-- Updated grading panel fixtures to use the current `test` key and added explicit legacy `quiz` fallback coverage.
-- Did not change API response shapes, route contracts, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/TestStudentGradingPanel.test.tsx tests/lib/test-api-contract.test.ts`
-- `pnpm lint`
-- `pnpm test`
-- `git diff --check`
-
 ## 2026-06-13 — Student Tests payload type names
 
 **Completed:**
@@ -850,5 +834,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm e2e:auth`
 - Playwright screenshots: `/tmp/pika-announcements-action-desktop-light-default.png`, `/tmp/pika-announcements-action-desktop-light-menu.png`, `/tmp/pika-announcements-action-mobile-light-default.png`, `/tmp/pika-announcements-action-mobile-light-menu.png`, `/tmp/pika-announcements-action-desktop-dark-default.png`, `/tmp/pika-announcements-action-desktop-dark-menu.png`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-06-23 — Student assignments cached JSON
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with a client read-cache consistency slice.
+- Replaced `StudentAssignmentsTab`'s three manual cached GET fetchers with the shared `fetchCachedJSON` helper for assignments, materials, and surveys.
+- Preserved existing cache keys, 20s TTLs, request-id stale response guard, classroom-change clearing, and optional survey fallback behavior.
+- Kept the slice non-visual: no layout, copy, or interaction changes.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/unit/request-cache.test.ts`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm build`
