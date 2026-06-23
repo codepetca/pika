@@ -9,23 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-13 — Legacy quiz assessment helper names
-
-**Completed:**
-- Added assessment-named primary helper exports in `src/lib/assessments.ts` for status labels/badges, assessment type resolution, option validation, activation checks, edit policy, and focus-summary aggregation.
-- Updated `src/lib/tests.ts` to re-export test helpers from the assessment-named helpers instead of quiz-named aliases.
-- Updated active internal callers in markdown parsing and assessment draft validation to import `validateAssessmentOptions`.
-- Kept all legacy quiz-named helper exports as compatibility aliases and added alias coverage.
-- Updated test activation validation copy from quiz wording to test wording.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/assessments.test.ts tests/lib/assessments.test.ts tests/lib/quiz-markdown.test.ts tests/unit/assessment-drafts.test.ts tests/components/TestDetailPanel.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-- `git diff --check`
-
 ## 2026-06-13 — Legacy quiz grading payload reader
 
 **Completed:**
@@ -837,5 +820,35 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm lint`
 - `bash .codex/skills/pika-audit/scripts/audit.sh && git diff --check`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-06-23 — Announcements action surface
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with the final legacy classroom action-surface caller.
+- Replaced the Announcements tab's custom split-button floating action with the shared teacher work-surface action cluster: a standalone New primary action plus a quiet icon menu.
+- Removed the unused `floatingAction` and `floatingActionStatus` compatibility path from `TeacherWorkSurfaceActionBar`.
+- Preserved existing Announcements behavior: the primary action still starts a new announcement, the action menu still exposes Announcement, and composer/editor Post/Schedule split buttons remain unchanged.
+- Updated focused Announcements component coverage and wrapped teacher renders in `TooltipProvider` to match the app shell used by the shared icon menu.
+
+**UI verification:**
+- Teacher desktop light: default, open menu
+- Teacher mobile light: default, open menu
+- Teacher desktop dark: default, open menu
+- Student: n/a; changed surface is teacher-only
+- Composite widget checklist reviewed: yes
+- Keyboard behavior covered by shared menu handling: yes
+- Semantic state covered by tests: yes
+- Remaining manual follow-up: none
+
+**Validation:**
+- `pnpm test tests/components/AnnouncementsMarkdown.test.tsx tests/components/TeacherWorkSurfaceActionBar.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm e2e:auth`
+- Playwright screenshots: `/tmp/pika-announcements-action-desktop-light-default.png`, `/tmp/pika-announcements-action-desktop-light-menu.png`, `/tmp/pika-announcements-action-mobile-light-default.png`, `/tmp/pika-announcements-action-mobile-light-menu.png`, `/tmp/pika-announcements-action-desktop-dark-default.png`, `/tmp/pika-announcements-action-desktop-dark-menu.png`
 - `pnpm test`
 - `pnpm build`
