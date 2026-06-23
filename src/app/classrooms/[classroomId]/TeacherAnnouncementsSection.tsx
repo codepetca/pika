@@ -13,7 +13,7 @@ import {
   type TeacherWorkSurfaceActionItem,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import type { Announcement, Classroom } from '@/types'
-import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
 import { cn } from '@/ui/utils'
 import {
   ANNOUNCEMENT_TITLE_MAX_LENGTH,
@@ -32,6 +32,8 @@ interface Props {
   classroom: Classroom
   className?: string
 }
+
+type AnnouncementsResponse = { announcements?: Announcement[] }
 
 const ANNOUNCEMENT_TEXTAREA_MIN_HEIGHT_PX = 160
 
@@ -114,14 +116,10 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     loadRequestIdRef.current = requestId
     setLoading(true)
     try {
-      const data = await fetchJSONWithCache(
+      const data = await fetchCachedJSON<AnnouncementsResponse>(
         `teacher-announcements:${classroom.id}`,
-        async () => {
-          const res = await fetch(`/api/teacher/classrooms/${classroom.id}/announcements`)
-          if (!res.ok) throw new Error('Failed to load announcements')
-          return res.json()
-        },
-        20_000,
+        `/api/teacher/classrooms/${classroom.id}/announcements`,
+        { ttlMs: 20_000, errorMessage: 'Failed to load announcements' },
       )
       if (loadRequestIdRef.current !== requestId) return
       setAnnouncements(data.announcements || [])

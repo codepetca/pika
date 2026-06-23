@@ -6,7 +6,7 @@ import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { Spinner } from '@/components/Spinner'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import type { Announcement, Classroom } from '@/types'
-import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
 import { cn } from '@/ui/utils'
 import { normalizeAnnouncementTitle, sortAnnouncementsNewestFirst } from '@/lib/announcements'
 
@@ -14,6 +14,8 @@ interface Props {
   classroom: Classroom
   className?: string
 }
+
+type AnnouncementsResponse = { announcements?: Announcement[] }
 
 export function StudentAnnouncementsSection({ classroom, className }: Props) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
@@ -29,14 +31,10 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
     loadRequestIdRef.current = requestId
     setLoading(true)
     try {
-      const data = await fetchJSONWithCache(
+      const data = await fetchCachedJSON<AnnouncementsResponse>(
         `student-announcements:${classroom.id}`,
-        async () => {
-          const res = await fetch(`/api/student/classrooms/${classroom.id}/announcements`)
-          if (!res.ok) throw new Error('Failed to load announcements')
-          return res.json()
-        },
-        20_000,
+        `/api/student/classrooms/${classroom.id}/announcements`,
+        { ttlMs: 20_000, errorMessage: 'Failed to load announcements' },
       )
       if (loadRequestIdRef.current !== requestId) return
       setAnnouncements(data.announcements || [])

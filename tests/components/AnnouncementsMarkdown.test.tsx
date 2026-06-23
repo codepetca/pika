@@ -107,6 +107,20 @@ describe('announcement markdown rendering', () => {
     })
   })
 
+  it('reuses the teacher announcement cache on remount', async () => {
+    const fetchMock = vi.mocked(fetch)
+
+    const firstRender = render(teacherAnnouncementsElement(classroom))
+
+    await screen.findByRole('link', { name: 'course outline' })
+
+    firstRender.unmount()
+    render(teacherAnnouncementsElement(classroom))
+
+    await screen.findByRole('link', { name: 'course outline' })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('renders a larger, vertically resizable creation textarea', async () => {
     const { container } = render(teacherAnnouncementsElement(classroom))
 
