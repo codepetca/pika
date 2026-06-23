@@ -235,7 +235,7 @@ describe('TeacherRosterTab', () => {
     expect(screen.queryByRole('separator', { name: 'Resize Roster panes' })).not.toBeInTheDocument()
   })
 
-  it('opens single-student removal from the floating roster actions dropdown with confirmation', async () => {
+  it('opens single-student removal from the roster actions menu with confirmation', async () => {
     const user = userEvent.setup()
     const fetchMock = mockRosterFetch()
 
@@ -265,7 +265,7 @@ describe('TeacherRosterTab', () => {
     expect(getIndividualDeleteCalls(fetchMock)).toHaveLength(0)
   })
 
-  it('shows and confirms removal for multiple checked students from the floating actions dropdown', async () => {
+  it('shows and confirms removal for multiple checked students from the roster actions menu', async () => {
     const user = userEvent.setup()
     const fetchMock = mockRosterFetch()
 
@@ -307,7 +307,7 @@ describe('TeacherRosterTab', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace' }))
     await user.click(screen.getByRole('checkbox', { name: 'Select Grace Hopper' }))
 
-    expect(screen.getByRole('button', { name: '+ Students' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Students' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Email \(2\)/ })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Roster actions' }))
