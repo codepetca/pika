@@ -9,19 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-14 — Teacher exam access lifecycle e2e
-
-**Completed:**
-- Added a focused Playwright teacher exam-mode flow covering draft test activation, opening all student access, closing all student access, and summary card open/closed access counts.
-- The spec creates a single open-response draft test through existing teacher API routes, selects a seeded classroom with enrolled students, drives lifecycle transitions through the teacher grading workspace UI, and deletes its test record in cleanup.
-- Risk profile: exam-mode.
-- Model recommendation: GPT-5 Codex - e2e coverage task with repo-specific Playwright and API setup.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm exec playwright test e2e/teacher-exam-mode.spec.ts --project=chromium-desktop`
-- `pnpm lint`
-
 ## 2026-06-14 — Legacy quiz server access names
 
 **Completed:**
@@ -850,6 +837,25 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `bash scripts/verify-env.sh`
 - `pnpm test tests/components/StudentLessonCalendarTab.test.tsx tests/unit/request-cache.test.ts`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-06-23 — Announcements cached JSON
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with a client read-cache consistency slice for announcements.
+- Replaced teacher and student announcement manual cached GET fetchers with the shared `fetchCachedJSON` helper.
+- Preserved existing cache keys, 20s TTLs, request-id stale response guards, and mutation cache invalidation.
+- Added a focused teacher announcement remount regression to prove the cache key is reused.
+- Kept the slice non-visual: no layout, copy, or interaction changes.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/AnnouncementsMarkdown.test.tsx tests/unit/request-cache.test.ts`
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm lint`
 - `git diff --check`
