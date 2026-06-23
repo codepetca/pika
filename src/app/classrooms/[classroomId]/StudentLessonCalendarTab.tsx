@@ -8,7 +8,7 @@ import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useClassDays } from '@/hooks/useClassDays'
 import { readCookie, writeCookie } from '@/lib/cookies'
-import { fetchJSONWithCache } from '@/lib/request-cache'
+import { fetchCachedJSON } from '@/lib/request-cache'
 import type { Classroom, LessonPlan, Assignment, Announcement } from '@/types'
 
 interface Props {
@@ -16,6 +16,10 @@ interface Props {
   onNavigateToAssignments?: (assignmentId: string) => void
   onNavigateToAnnouncements?: () => void
 }
+
+type StudentLessonPlansResponse = { lesson_plans?: LessonPlan[]; max_date?: string | null }
+type StudentAssignmentsResponse = { assignments?: Assignment[] }
+type StudentAnnouncementsResponse = { announcements?: Announcement[] }
 
 export function StudentLessonCalendarTab({
   classroom,
@@ -72,38 +76,26 @@ export function StudentLessonCalendarTab({
       setLoading(true)
       try {
         const [lessonPlansData, assignmentsData, announcementsData] = await Promise.all([
-          fetchJSONWithCache<{ lesson_plans?: LessonPlan[]; max_date?: string | null }>(
+          fetchCachedJSON<StudentLessonPlansResponse>(
             `student-lesson-plans:${classroom.id}:${fetchRange.start}:${fetchRange.end}`,
-            async () => {
-              const res = await fetch(`/api/student/classrooms/${classroom.id}/lesson-plans?start=${fetchRange.start}&end=${fetchRange.end}`)
-              if (!res.ok) throw new Error('Failed to load lesson plans')
-              return res.json()
-            },
-            20_000,
+            `/api/student/classrooms/${classroom.id}/lesson-plans?start=${fetchRange.start}&end=${fetchRange.end}`,
+            { ttlMs: 20_000, errorMessage: 'Failed to load lesson plans' },
           ).catch((err) => {
             console.error('Error loading lesson plans:', err)
             return { lesson_plans: [], max_date: null }
           }),
-          fetchJSONWithCache<{ assignments?: Assignment[] }>(
+          fetchCachedJSON<StudentAssignmentsResponse>(
             `student-assignments:${classroom.id}`,
-            async () => {
-              const res = await fetch(`/api/student/assignments?classroom_id=${classroom.id}`)
-              if (!res.ok) throw new Error('Failed to load assignments')
-              return res.json()
-            },
-            20_000,
+            `/api/student/assignments?classroom_id=${classroom.id}`,
+            { ttlMs: 20_000, errorMessage: 'Failed to load assignments' },
           ).catch((err) => {
             console.error('Error loading calendar assignments:', err)
             return { assignments: [] }
           }),
-          fetchJSONWithCache<{ announcements?: Announcement[] }>(
+          fetchCachedJSON<StudentAnnouncementsResponse>(
             `student-announcements:${classroom.id}`,
-            async () => {
-              const res = await fetch(`/api/student/classrooms/${classroom.id}/announcements`)
-              if (!res.ok) throw new Error('Failed to load announcements')
-              return res.json()
-            },
-            20_000,
+            `/api/student/classrooms/${classroom.id}/announcements`,
+            { ttlMs: 20_000, errorMessage: 'Failed to load announcements' },
           ).catch((err) => {
             console.error('Error loading calendar announcements:', err)
             return { announcements: [] }

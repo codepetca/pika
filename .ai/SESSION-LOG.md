@@ -9,22 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-13 — Student Tests payload type names
-
-**Completed:**
-- Renamed local `StudentTestsTab` response type aliases so current `test` and `tests` payload fields are primary.
-- Collapsed duplicated session-status test/quiz summary shapes into one current `StudentTestSessionStatusSummary`.
-- Kept legacy `quiz` and `quizzes` fields in the local types as documented compatibility fallbacks.
-- Did not change runtime behavior, API response shapes, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/StudentTestsTab.test.tsx tests/lib/test-api-contract.test.ts`
-- `pnpm lint`
-- `pnpm test`
-- `git diff --check`
-
 ## 2026-06-14 — Teacher exam access lifecycle e2e
 
 **Completed:**
@@ -848,6 +832,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `bash scripts/verify-env.sh`
 - `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/unit/request-cache.test.ts`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-06-23 — Student calendar cached JSON
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with another client read-cache consistency slice.
+- Replaced `StudentLessonCalendarTab`'s manual cached GET fetchers with the shared `fetchCachedJSON` helper for lesson plans, assignments, and announcements.
+- Preserved existing cache keys, 20s TTLs, request-id/classroom stale response guard, and per-resource fallback behavior.
+- Kept the slice non-visual: no layout, copy, or interaction changes.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/StudentLessonCalendarTab.test.tsx tests/unit/request-cache.test.ts`
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm lint`
 - `git diff --check`
