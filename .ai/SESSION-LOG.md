@@ -9,21 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-13 — Legacy quiz server draft helper names
-
-**Completed:**
-- Added assessment-named primary draft helpers in `src/lib/server/assessment-drafts.ts`: `AssessmentDraftContent`, `AssessmentDraftQuestion`, `validateAssessmentDraftContent`, `buildAssessmentDraftContentFromRows`, and `syncAssessmentQuestionsFromDraft`.
-- Kept legacy `QuizDraft*`, `validateQuizDraftContent`, `buildQuizDraftContentFromRows`, and `syncQuizQuestionsFromDraft` exports as compatibility aliases.
-- Updated internal markdown/course-blueprint typing and assessment draft unit tests to prefer assessment-named helpers.
-- Did not change database tables, persisted `quiz_id` fields, route payload shapes, migrations, RPCs, or storage paths.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/assessment-drafts.test.ts tests/lib/quiz-markdown.test.ts tests/lib/server/course-blueprints.test.ts tests/lib/server/course-sites.test.ts`
-- `pnpm lint`
-- `git diff --check`
-
 ## 2026-06-13 — Legacy quiz markdown helper aliases
 
 **Completed:**
@@ -815,3 +800,30 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `git diff --check`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
+
+## 2026-06-23 — Gradebook action surface
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with the canonical classroom action-surface slice.
+- Replaced the Gradebook tab's custom split-button floating action with the shared teacher work-surface action cluster: a standalone score/email primary action plus a quiet icon menu.
+- Preserved existing Gradebook behavior: score display toggles when no students are selected, selected-student email remains the primary action, and column controls stay in the actions menu.
+- Added optional radio semantics to `TeacherWorkSurfaceActionItem` so mutually exclusive score display menu items expose `menuitemradio` while column controls remain `menuitemcheckbox`.
+- Added focused component coverage for Gradebook menu semantics and shared action-cluster checked roles.
+
+**UI verification:**
+- Teacher desktop light: default, open menu, selected email action
+- Teacher mobile light: default
+- Teacher desktop dark: default, open menu
+- Student: n/a; changed surface is teacher-only
+- Composite widget checklist reviewed: yes
+- Keyboard behavior covered by existing shared menu handling: yes
+- Semantic state covered by tests: yes
+- Remaining manual follow-up: none
+
+**Validation:**
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh && git diff --check`
+- `pnpm test`
+- `pnpm build`
