@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom, getClassroomStudentIds } from '@/lib/server/classrooms'
-import { isMissingSurveysTableError } from '@/lib/server/surveys'
+import { isMissingSurveyDueColumnsError, isMissingSurveysTableError } from '@/lib/server/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
 import { loadChunkedRows } from '@/lib/server/query-chunks'
@@ -18,6 +18,17 @@ type SurveyQuestionStatsRow = {
 type SurveyResponseStatsRow = {
   survey_id: string
   student_id: string
+}
+
+type SurveyInsertPayload = {
+  classroom_id: string
+  title: string
+  show_results: boolean
+  dynamic_responses: boolean
+  due_at?: string | null
+  due_policy?: SurveyDuePolicy
+  created_by: string
+  position: number
 }
 
 const SURVEY_LIST_STATS_PAGE_SIZE = 1000
@@ -227,20 +238,42 @@ export const POST = withErrorHandler('PostTeacherSurvey', async (request) => {
     return NextResponse.json({ error: 'Failed to create survey' }, { status: 500 })
   }
 
-  const { data: survey, error } = await supabase
-    .from('surveys')
-    .insert({
+  const buildInsertPayload = (includeDueFields: boolean): SurveyInsertPayload => {
+    const payload: SurveyInsertPayload = {
       classroom_id,
       title: cleanTitle,
       show_results: show_results === true,
       dynamic_responses: dynamic_responses === true,
-      due_at: parsedDueAt,
-      due_policy,
       created_by: user.id,
       position,
-    })
-    .select()
-    .single()
+    }
+    if (includeDueFields) {
+      payload.due_at = parsedDueAt
+      payload.due_policy = due_policy
+    }
+    return payload
+  }
+
+  const insertSurvey = (includeDueFields: boolean) =>
+    supabase
+      .from('surveys')
+      .insert(buildInsertPayload(includeDueFields))
+      .select()
+      .single()
+
+  let { data: survey, error } = await insertSurvey(true)
+
+  if (error && isMissingSurveyDueColumnsError(error)) {
+    console.warn('Survey due columns are not available yet; creating survey without due fields')
+    ;({ data: survey, error } = await insertSurvey(false))
+    if (survey) {
+      survey = {
+        ...survey,
+        due_at: null,
+        due_policy: 'soft',
+      }
+    }
+  }
 
   if (error || !survey) {
     console.error('Error creating survey:', error)

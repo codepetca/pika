@@ -31,6 +31,19 @@ export function isMissingSurveysTableError(error: any): boolean {
   return error?.code === 'PGRST205' || message.includes('surveys')
 }
 
+export function isMissingSurveyDueColumnsError(error: any): boolean {
+  const combined = [
+    error?.message,
+    error?.details,
+    error?.hint,
+  ]
+    .map((value) => String(value || '').toLowerCase())
+    .join(' ')
+
+  const mentionsDueColumn = combined.includes('due_at') || combined.includes('due_policy')
+  return (error?.code === '42703' || error?.code === 'PGRST204') && mentionsDueColumn
+}
+
 export async function assertTeacherOwnsSurvey(
   teacherId: string,
   surveyId: string,
