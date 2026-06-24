@@ -1272,6 +1272,67 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('Schedule Survey')
   })
 
+  it('reschedules an active survey without sending a redundant active status', async () => {
+    const updatedOpenAt = '2099-01-01T14:00:00.000Z'
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return Promise.resolve({ assignments: [] })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({
+          surveys: [
+            makeSurveySummary('survey-1', 'Game Jam Links', {
+              status: 'active',
+              opens_at: '2099-01-02T14:00:00.000Z',
+              stats: { total_students: 2, responded: 0, questions_count: 1 },
+            }),
+          ],
+        })
+      }
+      if (key === `class-days:${classroom.id}`) {
+        return Promise.resolve({ class_days: [] })
+      }
+      return fetcher()
+    })
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        survey: makeSurveySummary('survey-1', 'Game Jam Links', {
+          status: 'active',
+          opens_at: updatedOpenAt,
+        }),
+      }),
+    })
+
+    render(<TeacherClassroomView classroom={classroom} selectedSurveyId="survey-1" />)
+
+    expect(await screen.findByTestId('mock-survey-results-pane')).toHaveTextContent('Survey results survey-1')
+    fireEvent.click(screen.getByRole('button', { name: 'Schedule open...' }))
+
+    const scheduleDialog = await screen.findByRole('dialog')
+    fireEvent.change(within(scheduleDialog).getByLabelText('Open date'), {
+      target: { value: '2099-01-01' },
+    })
+    fireEvent.change(within(scheduleDialog).getByLabelText('Open time'), {
+      target: { value: '09:00' },
+    })
+    fireEvent.click(within(scheduleDialog).getByRole('button', { name: 'Schedule' }))
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/teacher/surveys/survey-1',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ opens_at: updatedOpenAt }),
+        }),
+      )
+    })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('enables opening a draft survey after adding its first question in the edit modal', async () => {
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {

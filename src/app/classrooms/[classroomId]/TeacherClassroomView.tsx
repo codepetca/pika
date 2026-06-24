@@ -3065,7 +3065,7 @@ export function TeacherClassroomView({
           onCancel={() => setIsSurveyScheduleOpen(false)}
           onConfirm={() => {
             void patchSelectedSurvey({
-              status: 'active',
+              ...(selectedSurvey?.status === 'active' ? {} : { status: 'active' }),
               opens_at: combineScheduleDateTimeToIso(surveyScheduleDate, surveyScheduleTime),
             }).then((updated) => {
               if (updated) setIsSurveyScheduleOpen(false)
