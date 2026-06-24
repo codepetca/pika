@@ -15,7 +15,7 @@ import type { Classroom, LessonPlan, Assignment, Announcement } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
 import { normalizeLessonPlanMarkdown } from '@/lib/lesson-plan-content'
-import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
 import {
   fetchTeacherLessonPlansForRange,
   invalidateTeacherLessonPlansForClassroom,
@@ -196,14 +196,10 @@ export function TeacherLessonCalendarTab({
 
     async function loadAssignments() {
       try {
-        const data = await fetchJSONWithCache<{ assignments?: Assignment[] }>(
+        const data = await fetchCachedJSON<{ assignments?: Assignment[] }>(
           `teacher-assignments:${requestedClassroomId}`,
-          async () => {
-            const res = await fetch(`/api/teacher/assignments?classroom_id=${requestedClassroomId}`)
-            if (!res.ok) throw new Error('Failed to load assignments')
-            return res.json()
-          },
-          20_000,
+          `/api/teacher/assignments?classroom_id=${requestedClassroomId}`,
+          { errorMessage: 'Failed to load assignments', ttlMs: 20_000 },
         )
         if (!isCurrentLoad()) return
         setAssignmentsClassroomId(requestedClassroomId)
@@ -238,14 +234,10 @@ export function TeacherLessonCalendarTab({
 
     async function loadAnnouncements() {
       try {
-        const data = await fetchJSONWithCache<{ announcements?: Announcement[] }>(
+        const data = await fetchCachedJSON<{ announcements?: Announcement[] }>(
           `teacher-announcements:${requestedClassroomId}`,
-          async () => {
-            const res = await fetch(`/api/teacher/classrooms/${requestedClassroomId}/announcements`)
-            if (!res.ok) throw new Error('Failed to load announcements')
-            return res.json()
-          },
-          20_000,
+          `/api/teacher/classrooms/${requestedClassroomId}/announcements`,
+          { errorMessage: 'Failed to load announcements', ttlMs: 20_000 },
         )
         if (!isCurrentLoad()) return
         setAnnouncementsClassroomId(requestedClassroomId)

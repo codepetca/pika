@@ -9,18 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-13 — Student exam-mode transient focus e2e
-
-**Completed:**
-- Added a focused Playwright e2e case covering transient blur/focus restoration during an active student exam.
-- Verified the open-response draft stays visible, exam lock overlays do not appear, and focus telemetry records a zero-second away restoration.
-- Reused the existing exam-mode API setup and cleanup helpers; no schema, app logic, or seeded data changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec playwright test e2e/student-exam-mode.spec.ts -g "keeps a transient away restoration" --project=chromium-desktop`
-- `pnpm lint`
-
 ## 2026-06-14 — Teacher Tests payload type names
 
 **Completed:**
@@ -858,6 +846,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `bash scripts/verify-env.sh`
 - `pnpm vitest run tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-06-24 — Teacher lesson calendar cached JSON
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with another client read-cache consistency slice.
+- Replaced `TeacherLessonCalendarTab`'s manual cached assignment and announcement GET fetchers with `fetchCachedJSON`.
+- Preserved existing cache keys, 20s TTLs, stale classroom guards, assignment-update invalidation, and non-visual behavior.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm vitest run tests/components/TeacherLessonCalendarTab.test.tsx tests/unit/request-cache.test.ts`
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `git diff --check`
