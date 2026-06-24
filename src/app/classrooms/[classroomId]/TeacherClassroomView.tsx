@@ -109,7 +109,7 @@ import {
 } from '@/lib/events'
 import { applyDirection, compareByNameFields, toggleSort as toggleSortState } from '@/lib/table-sort'
 import type { SortDirection } from '@/lib/table-sort'
-import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchCachedJSON, fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { fetchClassDaysForClassroom } from '@/lib/class-days-client'
 import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { readCookie, writeCookie } from '@/lib/cookies'
@@ -117,6 +117,18 @@ import { safeSessionGetJson, safeSessionSetJson } from '@/lib/client-storage'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
+}
+
+type TeacherAssignmentsResponse = {
+  assignments?: AssignmentWithStats[]
+}
+
+type TeacherMaterialsResponse = {
+  materials?: ClassworkMaterial[]
+}
+
+type TeacherSurveysResponse = {
+  surveys?: SurveyWithStats[]
 }
 
 type TeacherAssignmentSelection =
@@ -723,32 +735,20 @@ export function TeacherClassroomView({
     }
     try {
       const [assignmentsData, materialsData, surveysData, classDaysData] = await Promise.all([
-        fetchJSONWithCache(
+        fetchCachedJSON<TeacherAssignmentsResponse>(
           `teacher-assignments:${classroom.id}`,
-          async () => {
-            const response = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
-            if (!response.ok) throw new Error('Failed to load assignments')
-            return response.json()
-          },
-          20_000,
+          `/api/teacher/assignments?classroom_id=${classroom.id}`,
+          { errorMessage: 'Failed to load assignments', ttlMs: 20_000 },
         ),
-        fetchJSONWithCache(
+        fetchCachedJSON<TeacherMaterialsResponse>(
           `teacher-materials:${classroom.id}`,
-          async () => {
-            const response = await fetch(`/api/teacher/classrooms/${classroom.id}/materials`)
-            if (!response.ok) throw new Error('Failed to load materials')
-            return response.json()
-          },
-          20_000,
+          `/api/teacher/classrooms/${classroom.id}/materials`,
+          { errorMessage: 'Failed to load materials', ttlMs: 20_000 },
         ),
-        fetchJSONWithCache(
+        fetchCachedJSON<TeacherSurveysResponse>(
           `teacher-surveys:${classroom.id}`,
-          async () => {
-            const response = await fetch(`/api/teacher/surveys?classroom_id=${classroom.id}`)
-            if (!response.ok) throw new Error('Failed to load surveys')
-            return response.json()
-          },
-          20_000,
+          `/api/teacher/surveys?classroom_id=${classroom.id}`,
+          { errorMessage: 'Failed to load surveys', ttlMs: 20_000 },
         ).catch(() => ({ surveys: [] })),
         fetchClassDaysForClassroom(classroom.id).catch((err) => {
           console.error('Error loading class days:', err)

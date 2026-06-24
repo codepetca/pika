@@ -9,22 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-14 — Legacy quiz server access names
-
-**Completed:**
-- Exported the assessment access result type from `src/lib/server/assessments.ts` as `AssessmentAccessResult`.
-- Updated assessment access not-found errors from quiz wording to assessment wording.
-- Updated server access unit tests to exercise assessment-named helpers as the primary path.
-- Kept legacy `assertTeacherOwnsQuiz`, `assertStudentCanAccessQuiz`, and `quiz` result fields covered as compatibility aliases.
-- Did not change API response shapes, database tables, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/server-access.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
 ## 2026-06-13 — Student exam-mode transient focus e2e
 
 **Completed:**
@@ -857,6 +841,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash scripts/verify-env.sh`
 - `pnpm test tests/components/AnnouncementsMarkdown.test.tsx tests/unit/request-cache.test.ts`
 - `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-06-23 — Teacher classroom cached JSON
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with a small client read-cache consistency slice in the teacher classroom assignments view.
+- Replaced the assignments, materials, and surveys summary GET loaders with `fetchCachedJSON`, preserving cache keys, 20s TTLs, error messages, survey fallback, and stale classroom/request guards.
+- Left selected-assignment detail loading on `fetchJSONWithCache` because its short TTL and refresh-counter key are intentional.
+- Kept the slice non-visual: no layout, copy, or interaction changes.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm vitest run tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `git diff --check`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`

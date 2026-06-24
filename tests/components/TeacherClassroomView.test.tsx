@@ -402,6 +402,19 @@ vi.mock('@/components/DataTable', () => ({
 }))
 
 vi.mock('@/lib/request-cache', () => ({
+  fetchCachedJSON: (key: string, input: RequestInfo | URL, options?: { ttlMs?: number; errorMessage?: string }) =>
+    mockFetchJSONWithCache(
+      key,
+      async () => {
+        const response = await fetch(input)
+        const payload = await response.json()
+        if (!response.ok) {
+          throw new Error(payload?.error || options?.errorMessage || 'Request failed')
+        }
+        return payload
+      },
+      options?.ttlMs,
+    ),
   fetchJSONWithCache: (...args: any[]) => mockFetchJSONWithCache(...args),
   invalidateCachedJSON: (...args: any[]) => mockInvalidateCachedJSON(...args),
 }))
