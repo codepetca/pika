@@ -9,22 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-14 — Teacher Tests payload type names
-
-**Completed:**
-- Added current-key local response types in `TeacherTestsTab` for teacher test list and results payloads.
-- Kept legacy `quiz` and `quizzes` fields documented as compatibility fallbacks in those local types.
-- Updated `TeacherTestsTab` component fixtures so current `test` results and create payloads are the default.
-- Added explicit legacy `quiz` results-payload fallback coverage.
-- Did not change API response shapes, route contracts, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-
 ## 2026-06-14 — Assessment utility fixture naming
 
 **Completed:**
@@ -863,6 +847,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `bash scripts/verify-env.sh`
 - `pnpm vitest run tests/components/TeacherLessonCalendarTab.test.tsx tests/unit/request-cache.test.ts`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`
+
+## 2026-06-24 — Student log history cached JSON
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with a small client read-cache consistency slice.
+- Replaced `StudentLogHistory`'s latest and load-more manual cached history GET fetchers with `fetchCachedJSON`.
+- Preserved existing cache keys, 60s TTL, pagination URL params, loading behavior, and error handling.
+- Added a focused regression proving the load-more history page is reused from cache on a repeated request.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm vitest run tests/components/StudentLogHistory.test.tsx tests/unit/request-cache.test.ts`
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `git diff --check`
