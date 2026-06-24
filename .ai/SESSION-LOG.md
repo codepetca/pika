@@ -2702,3 +2702,41 @@ cross-role visual verification.
 - `git diff --check`
 - `E2E_BASE_URL=http://localhost:3004 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Manual Playwright screenshots: `/tmp/pika-unified-survey-create-modal.png`, `/tmp/pika-unified-survey-edit-modal.png`, `/tmp/pika-unified-survey-create-mobile.png`
+
+## 2026-06-22 — Fix survey schedule PR review findings
+
+**Completed:**
+- Fixed survey rescheduling so active scheduled surveys can update `opens_at` without being rejected as an invalid active-to-active transition.
+- Made teacher survey create/update tolerant of a deployment window before `surveys.due_at` and `surveys.due_policy` are present in PostgREST schema cache by retrying without the new due fields.
+- Added regression coverage for active survey rescheduling and due-column fallback behavior.
+
+**Validation:**
+- `pnpm vitest run tests/api/teacher/surveys-route.test.ts tests/api/teacher/surveys-id-route.test.ts tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- `bash scripts/verify-env.sh --tests`
+
+## 2026-06-24 — Rebase classwork modal PR onto main
+
+**Completed:**
+- Rebasing `codex/classwork-content-modals` onto current `origin/main` completed after resolving `TeacherAnnouncementsSection` conflicts around the announcement action menu and shared classwork modal imports.
+- Renamed the survey due migration from `079_add_survey_due_policy.sql` to `080_add_survey_due_policy.sql` because `origin/main` now owns `079_classroom_theme_color.sql`.
+- Restored the local PR review fixes after the rebase.
+
+**Validation:**
+- `pnpm vitest run tests/api/teacher/surveys-route.test.ts tests/api/teacher/surveys-id-route.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/AnnouncementsMarkdown.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- `git diff --cached --check`
+
+## 2026-06-24 — Rebase classwork modal PR after main advanced
+
+**Completed:**
+- Rebasing `codex/classwork-content-modals` onto the latest `origin/main` completed cleanly after main advanced again.
+- Restored the local survey review-fix patch and kept the survey due migration at `080_add_survey_due_policy.sql`.
+
+**Validation:**
+- `pnpm vitest run tests/api/teacher/surveys-route.test.ts tests/api/teacher/surveys-id-route.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/AnnouncementsMarkdown.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- `git diff --cached --check`

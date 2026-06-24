@@ -832,4 +832,103 @@ describe('POST /api/teacher/surveys', () => {
       }),
     })
   })
+
+  it('retries survey creation without due fields when the due columns are not migrated yet', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const insert = vi.fn((payload: Record<string, unknown>) => ({
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValueOnce(
+          insert.mock.calls.length === 1
+            ? {
+                data: null,
+                error: {
+                  code: 'PGRST204',
+                  message: "Could not find the 'due_at' column of 'surveys' in the schema cache",
+                },
+              }
+            : {
+                data: {
+                  id: 'survey-1',
+                  status: 'draft',
+                  opens_at: null,
+                  ...payload,
+                },
+                error: null,
+              },
+        ),
+      })),
+    }))
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: { position: 1 }, error: null }),
+                })),
+              })),
+            })),
+          })),
+        }
+      }
+      if (table === 'classwork_materials') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: { position: 2 }, error: null }),
+                })),
+              })),
+            })),
+          })),
+        }
+      }
+      if (table === 'surveys') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                })),
+              })),
+            })),
+          })),
+          insert,
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/surveys', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          title: 'Weekly check-in',
+          due_at: '2026-01-02T20:30:00.000Z',
+          due_policy: 'soft',
+        }),
+      }),
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(201)
+    expect(insert).toHaveBeenCalledTimes(2)
+    expect(insert.mock.calls[0][0]).toEqual(expect.objectContaining({
+      due_at: '2026-01-02T20:30:00.000Z',
+      due_policy: 'soft',
+    }))
+    expect(insert.mock.calls[1][0]).not.toHaveProperty('due_at')
+    expect(insert.mock.calls[1][0]).not.toHaveProperty('due_policy')
+    expect(data.survey).toEqual(expect.objectContaining({
+      id: 'survey-1',
+      title: 'Weekly check-in',
+      due_at: null,
+      due_policy: 'soft',
+    }))
+    warnSpy.mockRestore()
+  })
 })
