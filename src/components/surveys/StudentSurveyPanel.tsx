@@ -1,13 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { formatInTimeZone } from 'date-fns-tz'
 import { ExternalLink, Pencil } from 'lucide-react'
 import { Button, Card, Input } from '@/ui'
 import { FloatingActionCluster } from '@/components/FloatingActionCluster'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { Spinner } from '@/components/Spinner'
 import { SurveyOptionResultBar } from '@/components/surveys/SurveyOptionResultBar'
-import { canStudentViewSurveyResults } from '@/lib/surveys'
+import { canStudentRespondToSurvey, canStudentViewSurveyResults } from '@/lib/surveys'
 import type {
   StudentSurveyStatus,
   Survey,
@@ -110,6 +111,11 @@ function StudentSurveyResults({ payload }: { payload: SurveyResultsPayload | nul
   )
 }
 
+function formatSurveyDueLabel(dueAt: string | null | undefined) {
+  if (!dueAt) return null
+  return formatInTimeZone(new Date(dueAt), 'America/Toronto', "EEE MMM d, h:mm a")
+}
+
 export function StudentSurveyPanel({
   surveyId,
   onCompleted,
@@ -194,9 +200,8 @@ export function StudentSurveyPanel({
 
   const canRespond = useMemo(() => {
     if (!activeDetail) return false
-    if (activeDetail.survey.status !== 'active') return false
     const hasSubmitted = activeDetail.has_submitted ?? Object.keys(activeDetail.student_responses || {}).length > 0
-    return !hasSubmitted || activeDetail.survey.dynamic_responses
+    return canStudentRespondToSurvey(activeDetail.survey, hasSubmitted)
   }, [activeDetail])
 
   const allAnswered = useMemo(() => {
@@ -255,6 +260,7 @@ export function StudentSurveyPanel({
   const { survey, questions } = activeDetail
   const hasSubmitted = activeDetail.has_submitted ?? Object.keys(activeDetail.student_responses || {}).length > 0
   const canViewResults = canStudentViewSurveyResults(survey)
+  const dueLabel = formatSurveyDueLabel(survey.due_at)
   const showResponseForm = isEditingResponse || !canViewResults
   const showResults = canViewResults
   const surveyActionFab = canViewResults && canRespond ? (
@@ -280,7 +286,9 @@ export function StudentSurveyPanel({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <h2 className="text-xl font-semibold text-text-default">{survey.title}</h2>
-              <p className="mt-1 text-sm text-text-muted">Survey</p>
+              <p className="mt-1 text-sm text-text-muted">
+                {dueLabel ? `Due ${dueLabel}` : 'Survey'}
+              </p>
             </div>
             {hasSubmitted && (
               <span className="rounded-badge bg-success-bg px-2.5 py-1 text-xs font-semibold text-success">

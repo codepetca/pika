@@ -1,5 +1,5 @@
 import { getServiceRoleClient } from '@/lib/supabase'
-import type { SurveyStatus } from '@/types'
+import type { SurveyDuePolicy, SurveyStatus } from '@/types'
 
 export type SurveyAccessRecord = {
   id: string
@@ -7,6 +7,8 @@ export type SurveyAccessRecord = {
   title: string
   status: SurveyStatus
   opens_at: string | null
+  due_at: string | null
+  due_policy: SurveyDuePolicy
   show_results: boolean
   dynamic_responses: boolean
   position: number
@@ -27,6 +29,19 @@ type AccessResult<T> =
 export function isMissingSurveysTableError(error: any): boolean {
   const message = String(error?.message || '')
   return error?.code === 'PGRST205' || message.includes('surveys')
+}
+
+export function isMissingSurveyDueColumnsError(error: any): boolean {
+  const combined = [
+    error?.message,
+    error?.details,
+    error?.hint,
+  ]
+    .map((value) => String(value || '').toLowerCase())
+    .join(' ')
+
+  const mentionsDueColumn = combined.includes('due_at') || combined.includes('due_policy')
+  return (error?.code === '42703' || error?.code === 'PGRST204') && mentionsDueColumn
 }
 
 export async function assertTeacherOwnsSurvey(

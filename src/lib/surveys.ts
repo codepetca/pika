@@ -48,7 +48,7 @@ export function hasSurveyOpened(
 }
 
 export function canStudentRespondToSurvey(
-  survey: Pick<Survey, 'status' | 'opens_at' | 'dynamic_responses'>,
+  survey: Pick<Survey, 'status' | 'opens_at' | 'dynamic_responses' | 'due_at' | 'due_policy'>,
   hasResponded: boolean,
   now: Date = new Date()
 ): boolean {
@@ -68,7 +68,7 @@ export function canStudentViewSurveyResults(
 }
 
 export function getStudentSurveyStatus(
-  survey: Pick<Survey, 'status' | 'opens_at' | 'show_results' | 'dynamic_responses'>,
+  survey: Pick<Survey, 'status' | 'opens_at' | 'show_results' | 'dynamic_responses' | 'due_at' | 'due_policy'>,
   hasResponded: boolean,
   now: Date = new Date()
 ): StudentSurveyStatus {

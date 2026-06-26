@@ -7,11 +7,14 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
   type TextareaHTMLAttributes,
 } from 'react'
 import { Code, ExternalLink, Eye, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { addDaysToDateString } from '@/lib/date-string'
 import { Button, Card, ConfirmDialog, FormField, Input, Select } from '@/ui'
 import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetupForm'
+import { DateTimeFields } from '@/components/classwork/ClassworkContentModal'
 import { EditableAssessmentTitle } from '@/components/assessment/EditableAssessmentTitle'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { Spinner } from '@/components/Spinner'
@@ -24,14 +27,23 @@ import {
   getSurveyStatusLabel,
 } from '@/lib/surveys'
 import { markdownToSurvey, surveyToMarkdown } from '@/lib/survey-markdown'
+import {
+  DEFAULT_SCHEDULE_TIME,
+  combineScheduleDateTimeToIso,
+  getTodayInSchedulingTimezone,
+  parseScheduleIsoToParts,
+} from '@/lib/scheduling'
 import type { Survey, SurveyQuestion, SurveyQuestionResult, SurveyQuestionType } from '@/types'
 
 interface TeacherSurveyWorkspaceProps {
   classroomId: string
   surveyId: string
   isReadOnly?: boolean
-  initialEditMode?: 'edit' | 'markdown'
+  initialEditMode?: 'edit' | 'markdown' | 'preview'
   autoEditTitle?: boolean
+  embedded?: boolean
+  hideSettingsHeader?: boolean
+  surveyOverride?: Survey | null
   onInitialEditModeConsumed?: () => void
   onBack: () => void
   onSurveyUpdated: (survey: Survey) => void
@@ -454,6 +466,9 @@ export function TeacherSurveyWorkspace({
   isReadOnly = false,
   initialEditMode,
   autoEditTitle = false,
+  embedded = false,
+  hideSettingsHeader = false,
+  surveyOverride,
   onInitialEditModeConsumed,
   onBack,
   onSurveyUpdated,
@@ -471,6 +486,9 @@ export function TeacherSurveyWorkspace({
   const [statusChanging, setStatusChanging] = useState(false)
   const [titleSaving, setTitleSaving] = useState(false)
   const [responseSettingSaving, setResponseSettingSaving] = useState(false)
+  const [dueSettingSaving, setDueSettingSaving] = useState(false)
+  const [dueDate, setDueDate] = useState('')
+  const [dueTime, setDueTime] = useState(DEFAULT_SCHEDULE_TIME)
   const [titleError, setTitleError] = useState('')
   const [surveyEditMode, setSurveyEditMode] = useState<'edit' | 'markdown' | 'preview'>('edit')
   const [surveyMarkdown, setSurveyMarkdown] = useState('')
@@ -479,6 +497,7 @@ export function TeacherSurveyWorkspace({
   const [surveyMarkdownError, setSurveyMarkdownError] = useState('')
   const [surveyMarkdownInfo, setSurveyMarkdownInfo] = useState('')
   const onSurveyUpdatedRef = useRef(onSurveyUpdated)
+  const onQuestionCountChangedRef = useRef(onQuestionCountChanged)
   const consumedInitialEditModeRef = useRef<string | null>(null)
   const loadRequestIdRef = useRef(0)
   const currentSurveyIdRef = useRef(surveyId)
@@ -487,6 +506,10 @@ export function TeacherSurveyWorkspace({
   useEffect(() => {
     onSurveyUpdatedRef.current = onSurveyUpdated
   }, [onSurveyUpdated])
+
+  useEffect(() => {
+    onQuestionCountChangedRef.current = onQuestionCountChanged
+  }, [onQuestionCountChanged])
 
   const activeDetail = detail?.survey?.id === surveyId ? detail : null
   const survey = activeDetail?.survey ?? null
@@ -509,8 +532,10 @@ export function TeacherSurveyWorkspace({
       const data = await response.json()
       if (loadRequestIdRef.current !== requestId || currentSurveyIdRef.current !== requestedSurveyId) return
       if (!response.ok) throw new Error(data.error || 'Failed to load survey')
-      setDetail({ survey: data.survey, questions: data.questions || [] })
+      const loadedQuestions = data.questions || []
+      setDetail({ survey: data.survey, questions: loadedQuestions })
       onSurveyUpdatedRef.current(data.survey)
+      onQuestionCountChangedRef.current?.(requestedSurveyId, loadedQuestions.length)
     } catch (err) {
       if (loadRequestIdRef.current === requestId && currentSurveyIdRef.current === requestedSurveyId) {
         setError(err instanceof Error ? err.message : 'Failed to load survey')
@@ -528,12 +553,38 @@ export function TeacherSurveyWorkspace({
   }, [loadSurvey])
 
   useEffect(() => {
+    if (!surveyOverride) return
+    setDetail((current) => {
+      if (!current || current.survey.id !== surveyOverride.id) return current
+      return {
+        ...current,
+        survey: {
+          ...current.survey,
+          ...surveyOverride,
+        },
+      }
+    })
+  }, [surveyOverride])
+
+  useEffect(() => {
     if (!survey) return
     if (surveyMarkdownDirty) return
     if (surveyMarkdown !== currentSurveyMarkdown) {
       setSurveyMarkdown(currentSurveyMarkdown)
     }
   }, [currentSurveyMarkdown, survey, surveyMarkdown, surveyMarkdownDirty])
+
+  useEffect(() => {
+    if (!survey) return
+    if (survey.due_at) {
+      const due = parseScheduleIsoToParts(survey.due_at)
+      setDueDate(due.date)
+      setDueTime(due.time)
+    } else {
+      setDueDate(addDaysToDateString(getTodayInSchedulingTimezone(), 1))
+      setDueTime(DEFAULT_SCHEDULE_TIME)
+    }
+  }, [survey])
 
   useEffect(() => {
     if (!survey || !initialEditMode) return
@@ -603,6 +654,31 @@ export function TeacherSurveyWorkspace({
       setError(err instanceof Error ? err.message : 'Failed to update survey')
     } finally {
       setResponseSettingSaving(false)
+    }
+  }
+
+  async function saveDueSettings() {
+    if (!survey || !dueDate || !dueTime) return
+
+    setDueSettingSaving(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/teacher/surveys/${surveyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          due_at: combineScheduleDateTimeToIso(dueDate, dueTime),
+          due_policy: 'soft',
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to update survey due date')
+      setDetail((current) => current ? { ...current, survey: data.survey } : current)
+      onSurveyUpdated(data.survey)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update survey due date')
+    } finally {
+      setDueSettingSaving(false)
     }
   }
 
@@ -787,88 +863,135 @@ export function TeacherSurveyWorkspace({
     )
   }
 
+  const modeControls: ReactNode = (
+    <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+      {!hideSettingsHeader && (
+        <AssessmentSetupCheckbox
+          checked={survey.dynamic_responses}
+          disabled={isReadOnly || responseSettingSaving}
+          onChange={(checked) => {
+            void saveResponseEditing(checked)
+          }}
+        >
+          Allow live changes
+        </AssessmentSetupCheckbox>
+      )}
+      <Button
+        size="sm"
+        variant={surveyEditMode === 'preview' ? 'subtle' : 'secondary'}
+        aria-pressed={surveyEditMode === 'preview'}
+        onClick={() => {
+          setSurveyEditMode((current) => (current === 'preview' ? 'edit' : 'preview'))
+          setSurveyMarkdownError('')
+          setSurveyMarkdownInfo('')
+        }}
+      >
+        <Eye className="mr-1 h-4 w-4" aria-hidden="true" />
+        Preview
+      </Button>
+      <Button
+        size="sm"
+        variant={surveyEditMode === 'markdown' ? 'subtle' : 'secondary'}
+        aria-pressed={surveyEditMode === 'markdown'}
+        onClick={() => {
+          setSurveyEditMode((current) => (current === 'markdown' ? 'edit' : 'markdown'))
+          setSurveyMarkdownError('')
+          setSurveyMarkdownInfo('')
+        }}
+      >
+        <Code className="mr-1 h-4 w-4" aria-hidden="true" />
+        Code
+      </Button>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="text-danger hover:bg-danger-bg"
+        onClick={() => setDeleteConfirmOpen(true)}
+        disabled={isReadOnly || statusChanging}
+      >
+        <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />
+        Delete
+      </Button>
+    </div>
+  )
+
   return (
-    <div className="h-full min-h-0 overflow-auto p-4">
+    <div className={embedded ? 'min-h-0' : 'h-full min-h-0 overflow-auto p-4'}>
       <div className="mx-auto flex max-w-5xl flex-col gap-4">
-        <Card tone="panel" padding="md" className="space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <EditableAssessmentTitle
-              title={survey.title}
-              inputLabel="Survey title"
-              editLabel="Edit survey title"
-              disabled={isReadOnly || titleSaving}
-              saving={titleSaving}
-              error={titleError}
-              generatedTitleLabel="Untitled Survey"
-              autoEdit={autoEditTitle}
-              onSave={saveTitle}
-              trailing={
-                <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${statusClassName}`}>
-                  {getSurveyStatusLabel(survey.status)}
-                </span>
-              }
-            />
-
-            <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-              <AssessmentSetupCheckbox
-                checked={survey.dynamic_responses}
-                disabled={isReadOnly || responseSettingSaving}
-                onChange={(checked) => {
-                  void saveResponseEditing(checked)
-                }}
-              >
-                Allow live changes
-              </AssessmentSetupCheckbox>
-              <Button
-                size="sm"
-                variant={surveyEditMode === 'preview' ? 'subtle' : 'secondary'}
-                aria-pressed={surveyEditMode === 'preview'}
-                onClick={() => {
-                  setSurveyEditMode((current) => (current === 'preview' ? 'edit' : 'preview'))
-                  setSurveyMarkdownError('')
-                  setSurveyMarkdownInfo('')
-                }}
-              >
-                <Eye className="mr-1 h-4 w-4" aria-hidden="true" />
-                Preview
-              </Button>
-              <Button
-                size="sm"
-                variant={surveyEditMode === 'markdown' ? 'subtle' : 'secondary'}
-                aria-pressed={surveyEditMode === 'markdown'}
-                onClick={() => {
-                  setSurveyEditMode((current) => (current === 'markdown' ? 'edit' : 'markdown'))
-                  setSurveyMarkdownError('')
-                  setSurveyMarkdownInfo('')
-                }}
-              >
-                <Code className="mr-1 h-4 w-4" aria-hidden="true" />
-                Code
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-danger hover:bg-danger-bg"
-                onClick={() => setDeleteConfirmOpen(true)}
-                disabled={isReadOnly || statusChanging}
-              >
-                <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />
-                Delete
-              </Button>
+        {hideSettingsHeader ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {modeControls}
             </div>
+            {error && (
+              <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+                {error}
+              </div>
+            )}
+            {surveyMarkdownDirty && surveyEditMode !== 'edit' ? (
+              <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+                Markdown edits not applied
+              </div>
+            ) : null}
           </div>
+        ) : (
+          <Card tone="panel" padding="md" className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <EditableAssessmentTitle
+                title={survey.title}
+                inputLabel="Survey title"
+                editLabel="Edit survey title"
+                disabled={isReadOnly || titleSaving}
+                saving={titleSaving}
+                error={titleError}
+                generatedTitleLabel="Untitled Survey"
+                autoEdit={autoEditTitle}
+                onSave={saveTitle}
+                trailing={
+                  <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${statusClassName}`}>
+                    {getSurveyStatusLabel(survey.status)}
+                  </span>
+                }
+              />
 
-          {error && (
-            <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-              {error}
+              {modeControls}
             </div>
-          )}
-          {surveyMarkdownDirty && surveyEditMode !== 'edit' ? (
-            <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-              Markdown edits not applied
+
+            <div className="grid gap-3 border-t border-border pt-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+              <DateTimeFields
+                label="Due"
+                date={dueDate}
+                time={dueTime}
+                disabled={isReadOnly || dueSettingSaving}
+                required
+                onDateChange={setDueDate}
+                onTimeChange={setDueTime}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                className="lg:mb-0.5"
+                onClick={() => {
+                  void saveDueSettings()
+                }}
+                disabled={isReadOnly || dueSettingSaving || !dueDate || !dueTime}
+              >
+                {dueSettingSaving ? 'Saving...' : 'Save due'}
+              </Button>
             </div>
-          ) : null}
-        </Card>
+
+            {error && (
+              <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+                {error}
+              </div>
+            )}
+            {surveyMarkdownDirty && surveyEditMode !== 'edit' ? (
+              <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+                Markdown edits not applied
+              </div>
+            ) : null}
+          </Card>
+        )}
 
         {surveyEditMode === 'markdown' ? (
           <Card tone="panel" padding="md" className="flex min-h-[560px] flex-col gap-3">

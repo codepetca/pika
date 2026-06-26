@@ -10,6 +10,8 @@ function makeSurvey(overrides: Partial<Survey> = {}): Survey {
     title: 'Resource Links',
     status: 'draft',
     opens_at: null,
+    due_at: '2026-01-02T20:30:00.000Z',
+    due_policy: 'hard',
     show_results: true,
     dynamic_responses: false,
     position: 0,
@@ -21,7 +23,7 @@ function makeSurvey(overrides: Partial<Survey> = {}): Survey {
 }
 
 describe('SurveyModal', () => {
-  it('keeps settings edits compact while using the shared setup shell', () => {
+  it('uses the shared classwork top row for survey settings', () => {
     render(
       <SurveyModal
         isOpen={true}
@@ -33,8 +35,12 @@ describe('SurveyModal', () => {
 
     expect(screen.getByRole('heading', { name: 'Edit Survey' })).toBeInTheDocument()
     expect(screen.getByDisplayValue('Game Jam Links')).toHaveAttribute('placeholder', 'Enter survey title')
+    expect(screen.getByText('Saved')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+    expect(screen.getByText('Due')).toBeInTheDocument()
+    expect(screen.queryByText('Due mode')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Show class results to students')).toBeInTheDocument()
     expect(screen.getByLabelText('Allow students to update answers while open')).toBeInTheDocument()
-    expect(screen.getByRole('dialog')).toHaveClass('max-w-md')
+    expect(screen.getByRole('dialog')).toHaveClass('!max-w-5xl')
   })
 })

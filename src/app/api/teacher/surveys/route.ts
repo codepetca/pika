@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom, getClassroomStudentIds } from '@/lib/server/classrooms'
-import { isMissingSurveysTableError } from '@/lib/server/surveys'
+import { isMissingSurveyDueColumnsError, isMissingSurveysTableError } from '@/lib/server/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
 import { loadChunkedRows } from '@/lib/server/query-chunks'
+import type { SurveyDuePolicy } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -17,6 +18,17 @@ type SurveyQuestionStatsRow = {
 type SurveyResponseStatsRow = {
   survey_id: string
   student_id: string
+}
+
+type SurveyInsertPayload = {
+  classroom_id: string
+  title: string
+  show_results: boolean
+  dynamic_responses: boolean
+  due_at?: string | null
+  due_policy?: SurveyDuePolicy
+  created_by: string
+  position: number
 }
 
 const SURVEY_LIST_STATS_PAGE_SIZE = 1000
@@ -184,11 +196,13 @@ export const GET = withErrorHandler('GetTeacherSurveys', async (request) => {
 export const POST = withErrorHandler('PostTeacherSurvey', async (request) => {
   const user = await requireRole('teacher')
   const body = await request.json()
-  const { classroom_id, title, show_results = true, dynamic_responses = false } = body as {
+  const { classroom_id, title, show_results = true, dynamic_responses = false, due_at, due_policy = 'soft' } = body as {
     classroom_id?: string
     title?: string
     show_results?: boolean
     dynamic_responses?: boolean
+    due_at?: string | null
+    due_policy?: SurveyDuePolicy
   }
 
   if (!classroom_id) {
@@ -196,6 +210,19 @@ export const POST = withErrorHandler('PostTeacherSurvey', async (request) => {
   }
 
   const cleanTitle = title?.trim() || getFallbackAssessmentTitle()
+  const validDuePolicies: SurveyDuePolicy[] = ['soft', 'hard']
+  if (!validDuePolicies.includes(due_policy)) {
+    return NextResponse.json({ error: 'Invalid due policy' }, { status: 400 })
+  }
+
+  let parsedDueAt: string | null = null
+  if (due_at) {
+    const parsed = new Date(due_at)
+    if (Number.isNaN(parsed.getTime())) {
+      return NextResponse.json({ error: 'Invalid due date' }, { status: 400 })
+    }
+    parsedDueAt = parsed.toISOString()
+  }
 
   const ownership = await assertTeacherCanMutateClassroom(user.id, classroom_id)
   if (!ownership.ok) {
@@ -211,18 +238,42 @@ export const POST = withErrorHandler('PostTeacherSurvey', async (request) => {
     return NextResponse.json({ error: 'Failed to create survey' }, { status: 500 })
   }
 
-  const { data: survey, error } = await supabase
-    .from('surveys')
-    .insert({
+  const buildInsertPayload = (includeDueFields: boolean): SurveyInsertPayload => {
+    const payload: SurveyInsertPayload = {
       classroom_id,
       title: cleanTitle,
       show_results: show_results === true,
       dynamic_responses: dynamic_responses === true,
       created_by: user.id,
       position,
-    })
-    .select()
-    .single()
+    }
+    if (includeDueFields) {
+      payload.due_at = parsedDueAt
+      payload.due_policy = due_policy
+    }
+    return payload
+  }
+
+  const insertSurvey = (includeDueFields: boolean) =>
+    supabase
+      .from('surveys')
+      .insert(buildInsertPayload(includeDueFields))
+      .select()
+      .single()
+
+  let { data: survey, error } = await insertSurvey(true)
+
+  if (error && isMissingSurveyDueColumnsError(error)) {
+    console.warn('Survey due columns are not available yet; creating survey without due fields')
+    ;({ data: survey, error } = await insertSurvey(false))
+    if (survey) {
+      survey = {
+        ...survey,
+        due_at: null,
+        due_policy: 'soft',
+      }
+    }
+  }
 
   if (error || !survey) {
     console.error('Error creating survey:', error)

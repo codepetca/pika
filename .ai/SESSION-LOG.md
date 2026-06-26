@@ -9,223 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-14 — Assessment utility fixture naming
-
-**Completed:**
-- Updated generic assessment utility comments and local parameter names from quiz wording to assessment wording.
-- Switched generic `tests/unit/assessments.test.ts` cases to use test-shaped fixtures for response eligibility, result visibility, editing, activation, and aggregation.
-- Left explicit legacy quiz alias/status coverage on `createMockQuiz` where the test is intentionally about quiz compatibility.
-- Did not change API response shapes, route contracts, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/assessments.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Production release sync
-
-**Completed:**
-- Merged latest `origin/main` into `production` through protected PR #795.
-- Verified required GitHub checks passed before merging.
-- Synced the local production worktree to `origin/production` at `f483bbcbdc055fef379b655d6162b03c5fee073e`.
-- Risk profile: runtime-platform.
-- Model recommendation: GPT-5 Codex - protected-branch release orchestration with CI and worktree synchronization.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `bash .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh`
-- `gh run watch 27520948663 --repo codepetca/pika --interval 15 --exit-status`
-- `gh pr merge 795 --repo codepetca/pika --merge --delete-branch`
-- `git -C /Users/stew/Repos/.worktrees/pika/production merge --ff-only origin/production`
-
-## 2026-06-14 — Draft hook assessment option names
-
-**Completed:**
-- Renamed the primary `useDraftMode` options from `quizId`/`quizTitle` to `assessmentId`/`assessmentTitle`.
-- Kept legacy `quizId`/`quizTitle` option aliases for compatibility and added focused test coverage for them.
-- Updated hook comments, examples, and tests to use assessment/test wording by default.
-- Left DB-shaped `quiz_id` question fields and draft route contracts unchanged.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/hooks/useDraftMode.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Assessment draft sync error wording
-
-**Completed:**
-- Renamed `syncAssessmentQuestionsFromDraft` failure messages from quiz-question wording to assessment-question wording.
-- Updated nearby generic assessment draft helper comments to avoid quiz/test route wording.
-- Updated the focused unit assertion for the renamed insert failure message.
-- Left compatibility exports, `AssessmentDraftType = 'quiz' | 'test'`, `quiz_questions`, `quiz_id`, route contracts, and persisted payload shapes unchanged.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/assessment-drafts.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Current test fixture wording cleanup
-
-**Completed:**
-- Renamed server assessment visibility unit-test descriptions and locals from quiz wording to assessment wording.
-- Updated `StudentTestResults` current-surface test fixtures to use `test-1` and `Test not found` while preserving the explicit legacy `quizId` alias test.
-- Updated the flagged-question helper file comment from test/quiz taking to test taking.
-- Did not change runtime behavior, schema, API payloads, compatibility aliases, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/server-assessments.test.ts tests/components/StudentTestResults.test.tsx tests/lib/flag-questions.test.ts`
-- `pnpm lint`
-- `pnpm test` (first run hit an unrelated `StudentLessonCalendarTab.test.tsx` timeout; isolated rerun passed)
-- `pnpm test`
-
-## 2026-06-14 — Teacher work-surface docs test wording
-
-**Completed:**
-- Updated stable teacher work-surface guidance from assignments/quizzes/tests to assignments/tests.
-- Removed active teacher quiz authoring/state-machine references from the canon.
-- Updated the work-surface audit and stable guidance index to match the active Tests product surface.
-- Left the explicit legacy drift row for tests/quizzes shell paths because it documents drift to avoid copying.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/ui-guidance-docs.test.ts tests/unit/ai-startup-docs.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Individual test response fixture wording
-
-**Completed:**
-- Renamed `TestIndividualResponses` current-surface test helper and stale/current fixture ids from quiz wording to test wording.
-- Updated stale-response test descriptions to say selected test changes.
-- Preserved explicit legacy `quizId` alias coverage and left runtime compatibility props unchanged.
-- No schema, API payload, or production code changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/TestIndividualResponses.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Arbitrary quiz fixture wording cleanup
-
-**Completed:**
-- Renamed arbitrary announcement and lesson-calendar fixture copy from Quiz wording to Test wording.
-- Updated the generic dev-flow risk checklist example from quiz status to test status.
-- Left schema, API compatibility keys, gradebook category fields, and legacy alias coverage unchanged.
-- No production schema or runtime contract changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/api/teacher/announcements.test.ts tests/unit/announcements.test.ts tests/components/LessonCalendar.test.tsx tests/components/LessonDayCell.test.tsx`
-- `pnpm lint`
-- `pnpm test` (first run hit unrelated component timeout failures; failed files passed on isolated rerun)
-- `pnpm test`
-
-## 2026-06-14 — Student tests response fixture keys
-
-**Completed:**
-- Updated `StudentTestsTab` test fixtures to use current `tests`/`test` response keys by default.
-- Added explicit legacy `quiz`/`quizzes` response-key fallback coverage for the student tests component.
-- Left DB-shaped `quiz_id` question fields and legacy `student-quiz-action-footer` test id unchanged.
-- No production code, schema, or API contract changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/StudentTestsTab.test.tsx` (first run hit an unrelated exam-mode timeout after the new fallback test passed; rerun passed)
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Test detail response fixture keys
-
-**Completed:**
-- Updated `TestDetailPanel` test fixtures to use current `test` response keys by default.
-- Added explicit legacy `quiz` response-key fallback coverage for teacher test detail payloads.
-- Preserved legacy `quiz`/`onQuizUpdate` prop alias coverage and the stale same-id quiz assessment scenario.
-- No production code, schema, or API contract changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/TestDetailPanel.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-16 — Legacy quiz contract cleanup plan
-
-**Completed:**
-- Added `docs/guidance/legacy-quiz-contract-cleanup.md` to inventory remaining internal `quiz` / `quizzes` references by category.
-- Documented what can still be safely renamed versus what requires payload, gradebook, course package, or schema migration planning.
-- Added routing from `docs/ai-instructions.md` and the architecture assessments section so future passes load the cleanup guide.
-- No production schema, API payload, or runtime behavior changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/course-blueprint-package-docs.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-16 — Legacy quiz markdown fixture clarity
-
-**Completed:**
-- Updated `tests/lib/quiz-markdown.test.ts` so the suite explicitly describes legacy quiz markdown compatibility.
-- Replaced arbitrary `Intro Quiz` fixture titles with `Legacy Check-in` while preserving the intentional `# Quiz` legacy markdown format.
-- Left production markdown helpers, schema, API payloads, and runtime behavior unchanged.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/lib/quiz-markdown.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-16 — Test AI gold-set fixture wording
-
-**Completed:**
-- Renamed the active Test AI grading gold-set title from `Intro CS Concepts Quiz` to `Intro CS Concepts Test`.
-- Verified the old fixture wording is gone from scripts/tests/source docs.
-- Left AI grading logic, schema, API payloads, and runtime contracts unchanged.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm tsx scripts/measure-ai-grading-prompts.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-19 — Skill progression map refresh
-
-**Completed:**
-- Reviewed recent merged PRs and review evidence to identify the next engineering skills worth deepening.
-- Anchored recommendations to the June 8-16, 2026 PR cluster around legacy quiz-to-test contract cleanup and classroom-switch race-condition fixes.
-- Found that the strongest recurring review signals were stale async state during classroom navigation and compatibility gaps during naming-contract migration.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only`
-- `gh pr list --repo codepetca/pika --state merged --limit 15 --json number,title,mergedAt,url`
-- `gh api graphql` review scan across recent merged PRs
-
-## 2026-06-19 — Dev-flow skill upgrades
-
-**Completed:**
-- Implemented the three skill improvements as repo guidance updates instead of a separate process layer.
-- Strengthened `docs/guidance/dev-flow-risk-checklists.md` with explicit route-owner identity, stale-response guards, and A-then-B regression expectations for workspace-state work.
-- Expanded `docs/guidance/schema-rollout-checklist.md` and `docs/guidance/legacy-quiz-contract-cleanup.md` to require explicit migration slices, new-contract-first readers, and listed surviving legacy aliases.
-- Expanded `docs/guidance/component-refactor-checklist.md` to require sliced refactors with grep/test exit criteria.
-- Wired the new checks into `.codex/prompts/session-start.md`, `.codex/prompts/audit.md`, and `.codex/prompts/tdd.md`.
-
-**Validation:**
-- `git diff -- docs/guidance/dev-flow-risk-checklists.md docs/guidance/schema-rollout-checklist.md docs/guidance/component-refactor-checklist.md docs/guidance/legacy-quiz-contract-cleanup.md .codex/prompts/session-start.md .codex/prompts/audit.md .codex/prompts/tdd.md`
-- `sed -n '1,220p' .codex/prompts/tdd.md`
-
 ## 2026-06-09 — Classroom theme colors
 
 **Completed:**
@@ -871,3 +654,246 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm build`
+- Rebased `codex/action-cluster-classwork` onto `origin/main` and resolved the `TeacherTestsTab.test.tsx` helper import conflict by keeping `createMockTest` plus the branch's `Classroom` typing.
+- Verified the rebased branch with `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx tests/components/TeacherTestsTab.test.tsx` and `pnpm exec tsc --noEmit --pretty false`.
+
+## 2026-06-10 — Classwork content modal consistency
+
+**Completed:**
+- Created `codex/classwork-content-modals` worktree and implemented a shared classwork modal shell for assignments, materials, surveys, and announcements.
+- Added scheduled release support for materials and hid future-scheduled materials from students.
+- Added survey due dates with reusable `soft` / `hard` due policy handling; hard due blocks student submissions/amendments after the due date, soft due leaves the survey open.
+- Added survey due/policy controls to create, edit, and teacher workspace flows; student survey UI now shows due state.
+- Moved announcement create/edit into the shared modal shell while keeping announcements in their existing tab.
+- Added migration `079_add_survey_due_policy.sql` for `surveys.due_at` and `surveys.due_policy`.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test` (301 files / 2666 tests)
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
+- Manual Playwright modal screenshots: `/tmp/pika-material-modal.png`, `/tmp/pika-survey-modal.png`, `/tmp/pika-announcement-modal.png`
+
+## 2026-06-11 — Classwork modal top-row alignment follow-up
+
+**Completed:**
+- Added a reusable `ClassworkContentModalTopRow` to the shared classwork modal shell so title, metadata, preview/tools, and primary actions live in the same top modal area.
+- Moved assignment, material, survey create/edit, and announcement modal title/action rows onto the shared top row.
+- Widened survey modals to the classwork modal width and kept due date/time plus soft/hard policy controls aligned in the top row on desktop, with stacked mobile behavior.
+- Removed duplicate bottom action clusters where the top row now owns modal actions.
+
+**Validation:**
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-modal-assignment.png`, `/tmp/pika-modal-material.png`, `/tmp/pika-modal-survey.png`, `/tmp/pika-modal-announcement.png`, `/tmp/pika-modal-survey-mobile.png`, `/tmp/pika-modal-assignment-mobile.png`
+- `pnpm test tests/components/AssignmentModal.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/AnnouncementsMarkdown.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+
+## 2026-06-12 — Classwork modal top-line template
+
+**Completed:**
+- Added assignment-style top-line template helpers: `ClassworkModalTopLine`, `ClassworkModalTopLineField`, `ClassworkModalPreviewButton`, and `ClassworkModalSplitAction`.
+- Migrated assignment, material, survey create/edit, and announcement modals onto the new template API.
+- Converted material posting to use the same post/schedule split action pattern as assignment and announcement.
+- Kept modal-specific scheduling and save behavior outside the template so the shared layer owns layout/anatomy rather than business logic.
+
+**Validation:**
+- `bash scripts/verify-env.sh` before edits: completed with baseline failures in `tests/components/AssignmentModal.test.tsx` call count and `tests/unit/ai-startup-docs.test.ts` timeout.
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/AssignmentModal.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/AnnouncementsMarkdown.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-template-assignment-modal.png`, `/tmp/pika-template-material-modal.png`, `/tmp/pika-template-survey-modal.png`, `/tmp/pika-template-announcement-modal.png`, `/tmp/pika-template-material-mobile-modal.png`
+
+## 2026-06-12 — Classwork modal action color policy
+
+**Completed:**
+- Added an `intent` policy to `ClassworkModalSplitAction` so publish actions resolve to green `success` and non-publish primary actions remain blue.
+- Migrated assignment, material, and announcement publish split buttons to the shared publish intent.
+- Kept survey create/save actions blue because they create or save survey setup rather than immediately publishing content.
+- Made scheduled announcement creation use the same publish color treatment.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/AssignmentModal.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/AnnouncementsMarkdown.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-policy-assignment-modal.png`, `/tmp/pika-policy-material-modal.png`, `/tmp/pika-policy-survey-modal.png`, `/tmp/pika-policy-announcement-modal.png`, `/tmp/pika-policy-material-mobile-modal.png`
+
+## 2026-06-12 — Classwork modal autosave consistency
+
+**Completed:**
+- Added shared classwork modal save status UI and a reusable `useClassworkAutosave` hook.
+- Moved material drafts to autosave, removed the manual `Save Draft` action, and kept material post/schedule controls in the shared top-line shell.
+- Moved survey create/edit settings to autosave, removed manual save/create setup actions, and kept survey due date/time plus soft/hard due mode in the shared top-line shell.
+- Fixed the Material action-menu create path so a newly created material draft opens in the modal after the draft is created.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/AssignmentModal.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-autosave-assignment-modal.png`, `/tmp/pika-autosave-material-modal.png`, `/tmp/pika-autosave-survey-modal.png`, `/tmp/pika-autosave-material-mobile.png`, `/tmp/pika-autosave-survey-mobile.png`
+
+## 2026-06-12 — Rebase classwork modal branch
+
+**Completed:**
+- Rebasing `codex/classwork-content-modals` onto `origin/main` completed.
+- Resolved conflicts in `TeacherClassroomView.tsx` and `TeacherClassroomView.test.tsx` by preserving main's `New Classwork` action-cluster UI and wiring Material creation to the autosave draft-open flow.
+- Confirmed migration numbering: `origin/main` ends at `078`, branch keeps `079_add_survey_due_policy.sql`, and no duplicate migration prefixes exist.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/AssignmentModal.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+
+## 2026-06-13 — Tighten classwork modal template usage
+
+**Completed:**
+- Removed the Delete action from the Material authoring modal; delete remains available from classwork list/card controls.
+- Added shared modal wrappers for survey due fields and non-split primary actions so Survey create/edit uses the same top-line template API as Assignment and Material.
+- Kept Survey without Preview/Post controls because survey content editing/opening is handled by the survey workspace flow rather than a content preview modal.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/AssignmentModal.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-consistency-assignment-modal.png`, `/tmp/pika-consistency-material-modal.png`, `/tmp/pika-consistency-survey-modal.png`, `/tmp/pika-consistency-material-mobile.png`, `/tmp/pika-consistency-survey-mobile.png`
+
+## 2026-06-13 — Standardize survey due picker UI
+
+**Completed:**
+- Reused the assignment `DateActionBar` due-date button for survey creation due dates.
+- Added a matching action-bar time picker button for survey due time in the shared classwork modal shell.
+- Propagated disabled state through the shared date picker and assignment form.
+- Updated the `TeacherClassroomView` test mock for the shared action-bar button class export.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/AssignmentModal.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-modal-assignment-desktop.png`, `/tmp/pika-modal-material-desktop.png`, `/tmp/pika-modal-survey-desktop.png`, `/tmp/pika-modal-announcement-desktop.png`, `/tmp/pika-modal-survey-mobile.png`, `/tmp/pika-modal-material-mobile.png`
+
+## 2026-06-14 — Remove survey due mode
+
+**Completed:**
+- Removed the Survey `Due mode` selector from creation, settings, and workspace due controls.
+- Kept survey due dates informational while open; student response/update behavior now relies on the `Allow students to update answers while open` checkbox.
+- Added a Preview action to the survey setup modal that flushes autosave and opens the existing survey workspace preview mode.
+- Removed the hard-due response block from the student survey response API.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/unit/surveys.test.ts tests/api/student/surveys-route.test.ts tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-survey-no-due-mode-desktop.png`, `/tmp/pika-survey-no-due-mode-mobile.png`, `/tmp/pika-survey-no-due-mode-dark.png`, `/tmp/pika-survey-preview-workspace.png`
+
+## 2026-06-14 — Make survey setup Preview student-facing
+
+**Completed:**
+- Changed the survey setup Preview handoff to open a student-only preview surface instead of the full teacher authoring workspace.
+- Added a preview-only mode to `TeacherSurveyWorkspace` that renders `TeacherSurveyPreview` without due settings, live-change controls, code, delete, or save-due actions.
+- Added a small close control in the modal chrome so teachers can dismiss the student preview without adding teacher controls inside the preview card.
+- Added component and classroom regression coverage for the preview-only handoff.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/TeacherSurveyWorkspace.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3003 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-survey-student-preview-desktop.png`, `/tmp/pika-survey-student-preview-mobile.png`, `/tmp/pika-survey-student-preview-dark.png`
+- Note: `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth` was attempted earlier and failed because the login button stayed disabled in the auth setup flow; existing `.auth` storage states were valid for visual verification.
+
+## 2026-06-16 — Remove classwork modal Preview actions
+
+**Completed:**
+- Removed the shared `ClassworkModalPreviewButton` from the classwork modal shell/template.
+- Removed top-line Preview actions and dead preview state/dialog code from assignment, material, survey setup, and announcement modals.
+- Removed the survey setup preview-only handoff path while keeping the survey authoring workspace's internal Preview mode.
+- Updated component/classroom regression tests to assert setup modals no longer expose Preview.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/SurveyCreationModal.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/AssignmentModal.test.tsx tests/components/AnnouncementsMarkdown.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3004 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-no-preview-assignment-modal.png`, `/tmp/pika-no-preview-material-modal.png`, `/tmp/pika-no-preview-survey-modal.png`, `/tmp/pika-no-preview-announcement-modal.png`, `/tmp/pika-no-preview-survey-mobile.png`
+
+## 2026-06-17 — Unify survey create/edit modal
+
+**Completed:**
+- Reworked `SurveyCreationModal` so survey creation immediately opens the full survey authoring workspace inside the shared classwork modal shell instead of handing off to a second editor.
+- Reused the same survey modal for edit actions, with the shared title/save/status/due/posting top line owning survey metadata and poll open/schedule/close actions.
+- Embedded `TeacherSurveyWorkspace` below the shared top line, hid its duplicate title/due settings, and kept question authoring, code, preview, and delete controls in the survey workspace area.
+- Fixed the workspace load callback dependencies with refs so parent question-count updates do not cause repeated survey reloads.
+- Updated classroom and survey-modal tests to cover the inline survey workspace create flow and autosaved title changes.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/components/SurveyCreationModal.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSurveyWorkspace.test.tsx tests/components/AssignmentModal.test.tsx tests/components/AnnouncementsMarkdown.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3004 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Manual Playwright screenshots: `/tmp/pika-unified-survey-create-modal.png`, `/tmp/pika-unified-survey-edit-modal.png`, `/tmp/pika-unified-survey-create-mobile.png`
+
+## 2026-06-22 — Fix survey schedule PR review findings
+
+**Completed:**
+- Fixed survey rescheduling so active scheduled surveys can update `opens_at` without being rejected as an invalid active-to-active transition.
+- Made teacher survey create/update tolerant of a deployment window before `surveys.due_at` and `surveys.due_policy` are present in PostgREST schema cache by retrying without the new due fields.
+- Added regression coverage for active survey rescheduling and due-column fallback behavior.
+
+**Validation:**
+- `pnpm vitest run tests/api/teacher/surveys-route.test.ts tests/api/teacher/surveys-id-route.test.ts tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- `bash scripts/verify-env.sh --tests`
+
+## 2026-06-24 — Rebase classwork modal PR onto main
+
+**Completed:**
+- Rebasing `codex/classwork-content-modals` onto current `origin/main` completed after resolving `TeacherAnnouncementsSection` conflicts around the announcement action menu and shared classwork modal imports.
+- Renamed the survey due migration from `079_add_survey_due_policy.sql` to `080_add_survey_due_policy.sql` because `origin/main` now owns `079_classroom_theme_color.sql`.
+- Restored the local PR review fixes after the rebase.
+
+**Validation:**
+- `pnpm vitest run tests/api/teacher/surveys-route.test.ts tests/api/teacher/surveys-id-route.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/AnnouncementsMarkdown.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- `git diff --cached --check`
+
+## 2026-06-24 — Rebase classwork modal PR after main advanced
+
+**Completed:**
+- Rebasing `codex/classwork-content-modals` onto the latest `origin/main` completed cleanly after main advanced again.
+- Restored the local survey review-fix patch and kept the survey due migration at `080_add_survey_due_policy.sql`.
+
+**Validation:**
+- `pnpm vitest run tests/api/teacher/surveys-route.test.ts tests/api/teacher/surveys-id-route.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/AnnouncementsMarkdown.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- `git diff --cached --check`

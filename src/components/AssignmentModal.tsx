@@ -4,12 +4,15 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { AssignmentSubmissionRequirementsEditor } from '@/components/AssignmentSubmissionRequirementsEditor'
-import { CreationModalShell } from '@/components/creation/CreationModalShell'
-import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+import {
+  ClassworkContentModalShell,
+  ClassworkModalSaveStatus,
+  ClassworkModalSplitAction,
+} from '@/components/classwork/ClassworkContentModal'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import type { AssignmentSubmissionRequirementDraft } from '@/lib/assignment-submission-requirements'
 import { getRelativeDueDate } from '@/lib/assignment-relative-date'
-import { ConfirmDialog, ContentDialog, DialogPanel, SplitButton } from '@/ui'
+import { ConfirmDialog, DialogPanel } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
 import { format, isValid, parse } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
@@ -139,7 +142,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   const [markdownWarning, setMarkdownWarning] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
-  const [showInstructionsPreview, setShowInstructionsPreview] = useState(false)
   const [submissionRequirements, setSubmissionRequirements] = useState<AssignmentSubmissionRequirementDraft[]>([])
 
   const defaultDueAt = addDaysToDateString(getTodayInToronto(), 1)
@@ -217,10 +219,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   } = scheduling
 
   useEffect(() => {
-    if (!isOpen) {
-      setShowInstructionsPreview(false)
-      return
-    }
+    if (!isOpen) return
 
     // Reset state when modal opens
     setError('')
@@ -696,8 +695,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   }
 
   async function handleClose() {
-    setShowInstructionsPreview(false)
-
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = null
@@ -737,30 +734,13 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       : 'primary'
     : 'muted'
   const scheduleDueDateValidationMessage = getScheduleDueDateValidationMessage(scheduleIso, dueAt, isScheduleValid)
-  const previewSubtitle = isLive ? title.trim() || undefined : undefined
-  const saveStatusContent = (
-    <span
-      className={`text-xs ${
-        saveStatus === 'saved'
-          ? 'text-success'
-          : saveStatus === 'saving'
-            ? 'text-text-muted'
-            : 'text-warning'
-      }`}
-    >
-      {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
-    </span>
-  )
+  const saveStatusContent = <ClassworkModalSaveStatus status={saveStatus} />
 
   return (
     <>
-      <CreationModalShell
+      <ClassworkContentModalShell
         isOpen={isOpen}
         onClose={() => {
-          if (showInstructionsPreview) {
-            setShowInstructionsPreview(false)
-            return
-          }
           void handleClose()
         }}
         title={modalTitle}
@@ -778,7 +758,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           onInstructionsUndo={handleInstructionsUndo}
           onInstructionsRedo={handleInstructionsRedo}
           onDueAtChange={handleDueAtChange}
-          onPreviewInstructions={() => setShowInstructionsPreview(true)}
           disabled={saving || releasing || creating}
           error={error}
           titleInputRef={titleInputRef}
@@ -806,17 +785,16 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           topRowActions={
             currentAssignment && !isLive ? (
               <div className="flex items-end">
-                <SplitButton
+                <ClassworkModalSplitAction
                   label={primaryLabel}
                   onPrimaryClick={() => {
                     void handleTriggerPrimaryAction()
                   }}
-                  variant={effectivePrimaryAction === 'post' ? 'success' : 'primary'}
+                  intent={effectivePrimaryAction === 'post' ? 'publish' : 'primary'}
                   size="md"
                   disabled={creating || releasing || saving || !currentAssignment}
                   className="shadow-sm"
                   toggleAriaLabel="Choose assignment action"
-                  menuPlacement="down"
                   primaryButtonProps={{
                     className: 'w-[3.5rem] justify-center font-semibold sm:w-[5.75rem]',
                   }}
@@ -829,21 +807,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
             ) : null
           }
         />
-      </CreationModalShell>
-
-      <ContentDialog
-        isOpen={isOpen && showInstructionsPreview}
-        onClose={() => setShowInstructionsPreview(false)}
-        title="Instructions"
-        subtitle={previewSubtitle}
-        maxWidth="!max-w-2xl"
-        showFooterClose={false}
-      >
-        <LimitedMarkdown
-          content={instructionsMarkdown}
-          emptyPlaceholder={<div className="text-sm text-text-muted">No assignment details provided.</div>}
-        />
-      </ContentDialog>
+      </ClassworkContentModalShell>
 
       <DialogPanel
         isOpen={showCreateScheduleModal}

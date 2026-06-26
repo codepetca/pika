@@ -25,6 +25,7 @@ interface CreationModalTopRowProps {
   titleRequired?: boolean
   titleDisabled?: boolean
   titleInputRef?: Ref<HTMLInputElement>
+  titleMaxLength?: number
   titleInputClassName?: string
   titleFieldClassName?: string
   titleStatus?: ReactNode
@@ -107,6 +108,7 @@ export function CreationModalTopRow({
   titleRequired = true,
   titleDisabled = false,
   titleInputRef,
+  titleMaxLength,
   titleInputClassName,
   titleFieldClassName,
   titleStatus,
@@ -129,6 +131,7 @@ export function CreationModalTopRow({
       onBlur={onTitleBlur}
       required={titleRequired}
       disabled={titleDisabled}
+      maxLength={titleMaxLength}
       placeholder={titlePlaceholder}
       hasError={Boolean(titleError)}
       aria-invalid={titleError ? 'true' : undefined}
