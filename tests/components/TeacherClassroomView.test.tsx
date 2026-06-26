@@ -1511,6 +1511,70 @@ describe('TeacherClassroomView', () => {
     })
   })
 
+  it('keeps schedule controls available when editing a scheduled material', async () => {
+    const scheduledRelease = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    const postedRelease = new Date().toISOString()
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return Promise.resolve({
+          assignments: [
+            makeAssignmentSummary('assignment-1', 'Assignment One'),
+          ],
+        })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({
+          materials: [
+            makeMaterialSummary('material-scheduled', 'Scheduled Reading', {
+              is_draft: false,
+              released_at: scheduledRelease,
+            }),
+          ],
+        })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
+      if (key === `class-days:${classroom.id}`) {
+        return Promise.resolve({ class_days: [] })
+      }
+      return fetcher()
+    })
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        material: makeMaterialSummary('material-scheduled', 'Scheduled Reading', {
+          is_draft: false,
+          released_at: postedRelease,
+        }),
+      }),
+    })
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Scheduled Reading' }))
+
+    const materialDialog = await screen.findByRole('dialog')
+    expect(materialDialog).toHaveTextContent('Edit Scheduled Material')
+    expect(within(materialDialog).getByRole('button', { name: 'Save schedule' })).toBeInTheDocument()
+    expect(within(materialDialog).getByRole('button', { name: 'Schedule...' })).toBeInTheDocument()
+    fireEvent.click(within(materialDialog).getByRole('button', { name: 'Post now' }))
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        `/api/teacher/classrooms/${classroom.id}/materials/material-scheduled`,
+        expect.objectContaining({ method: 'PATCH' }),
+      )
+    })
+    const postNowRequest = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
+      ([url]) => url === `/api/teacher/classrooms/${classroom.id}/materials/material-scheduled`,
+    )
+    const postNowBody = JSON.parse(String(postNowRequest?.[1]?.body))
+    expect(postNowBody.is_draft).toBe(false)
+    expect(postNowBody.released_at).toEqual(expect.any(String))
+    expect(postNowBody.released_at).not.toBe(scheduledRelease)
+  })
+
   it('exits classwork organize mode from the organize toggle', async () => {
     const onEditModeChange = vi.fn()
 

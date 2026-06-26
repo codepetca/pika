@@ -416,6 +416,7 @@ function TeacherMaterialDialog({
   const { showMessage } = useAppMessage()
   const isReadOnly = !!classroom.archived_at
   const isDraft = currentMaterial?.is_draft ?? true
+  const isScheduled = !!currentMaterial?.released_at && isScheduleIsoInFuture(currentMaterial.released_at)
 
   const buildMaterialValues = useCallback((overrides?: Partial<MaterialEditorValues>): MaterialEditorValues => ({
     title,
@@ -577,7 +578,10 @@ function TeacherMaterialDialog({
         title: getDisplayedMaterialTitle(updatedMaterial),
         content: updatedMaterial.content,
       })
-      showMessage({ text: releaseAt ? 'Material scheduled.' : 'Material posted.', tone: 'success' })
+      showMessage({
+        text: releaseAt && isScheduleIsoInFuture(releaseAt) ? 'Material scheduled.' : 'Material posted.',
+        tone: 'success',
+      })
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save material')
@@ -594,12 +598,34 @@ function TeacherMaterialDialog({
     }
   }
 
+  function openMaterialScheduleModal() {
+    if (currentMaterial?.released_at && isScheduleIsoInFuture(currentMaterial.released_at)) {
+      const scheduled = parseScheduleIsoToParts(currentMaterial.released_at)
+      setScheduleDate(scheduled.date)
+      setScheduleTime(scheduled.time)
+    } else {
+      setScheduleDate(getTodayInSchedulingTimezone())
+      setScheduleTime(DEFAULT_SCHEDULE_TIME)
+    }
+    setShowScheduleModal(true)
+  }
+
   const busy = saving || creatingDraft || autosaveStatus === 'saving'
   const modalTitle = creatingDraft
     ? 'Creating Draft...'
     : currentMaterial?.is_draft
       ? 'Edit Draft'
-      : 'Material'
+      : isScheduled
+        ? 'Edit Scheduled Material'
+        : 'Material'
+  const showReleaseActions = isDraft || isScheduled
+  const materialPrimaryLabel = saving
+    ? isScheduled
+      ? 'Saving...'
+      : 'Posting...'
+    : isScheduled
+      ? 'Save schedule'
+      : 'Post Material'
 
   return (
     <>
@@ -621,23 +647,43 @@ function TeacherMaterialDialog({
             titleDisabled={saving || creatingDraft || isReadOnly}
             titleStatus={<ClassworkModalSaveStatus status={autosaveStatus} />}
             onTitleChange={handleMaterialTitleChange}
-            primaryActions={isDraft ? (
+            primaryActions={showReleaseActions ? (
               <ClassworkModalSplitAction
-                label={saving ? 'Posting...' : 'Post Material'}
-                intent="publish"
+                label={materialPrimaryLabel}
+                intent={isScheduled ? 'primary' : 'publish'}
                 onPrimaryClick={() => {
-                  void publishMaterial()
+                  void publishMaterial(isScheduled
+                    ? combineScheduleDateTimeToIso(scheduleDate, scheduleTime)
+                    : undefined
+                  )
                 }}
                 disabled={busy || isReadOnly || !currentMaterial}
                 toggleAriaLabel="Choose material action"
-                options={[
-                  {
-                    id: 'schedule',
-                    label: 'Schedule...',
-                    onSelect: () => setShowScheduleModal(true),
-                    disabled: busy || isReadOnly || !currentMaterial,
-                  },
-                ]}
+                options={isScheduled
+                  ? [
+                      {
+                        id: 'schedule',
+                        label: 'Schedule...',
+                        onSelect: openMaterialScheduleModal,
+                        disabled: busy || isReadOnly || !currentMaterial,
+                      },
+                      {
+                        id: 'post-now',
+                        label: 'Post now',
+                        onSelect: () => {
+                          void publishMaterial(new Date().toISOString())
+                        },
+                        disabled: busy || isReadOnly || !currentMaterial,
+                      },
+                    ]
+                  : [
+                      {
+                        id: 'schedule',
+                        label: 'Schedule...',
+                        onSelect: openMaterialScheduleModal,
+                        disabled: busy || isReadOnly || !currentMaterial,
+                      },
+                    ]}
                 primaryButtonProps={{
                   className: 'min-w-[7.5rem]',
                 }}
@@ -690,7 +736,7 @@ function TeacherMaterialDialog({
         onConfirm={() => {
           void publishMaterial(combineScheduleDateTimeToIso(scheduleDate, scheduleTime))
         }}
-        confirmLabel={saving ? 'Scheduling...' : 'Schedule'}
+        confirmLabel={saving ? 'Scheduling...' : isScheduled ? 'Save schedule' : 'Schedule'}
         dateLabel="Release date"
         timeLabel="Release time"
         showHeader={false}
