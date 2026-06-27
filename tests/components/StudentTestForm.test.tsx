@@ -94,6 +94,37 @@ describe('StudentTestForm preview mode', () => {
     expect(screen.getByRole('textbox', { name: 'Response for question 1' })).toBeInTheDocument()
   })
 
+  it('requires non-blank open responses before enabling submit', () => {
+    render(
+      <StudentTestForm
+        testId="test-open-response-submit-id"
+        questions={[
+          createMockTestQuestion({
+            id: 'q1',
+            question_text: 'Explain your reasoning.',
+            options: [],
+            question_type: 'open_response',
+            position: 0,
+          }),
+        ]}
+        assessmentType="test"
+        previewMode
+        onSubmitted={vi.fn()}
+      />
+    )
+
+    const submitButton = screen.getByRole('button', { name: 'Submit' })
+    const textbox = screen.getByRole('textbox', { name: 'Response for question 1' })
+
+    expect(submitButton).toBeDisabled()
+
+    fireEvent.change(textbox, { target: { value: '   ' } })
+    expect(submitButton).toBeDisabled()
+
+    fireEvent.change(textbox, { target: { value: 'A clear explanation.' } })
+    expect(submitButton).toBeEnabled()
+  })
+
   it('flags and unfags a question', async () => {
     const onSubmitted = vi.fn()
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildTestAttemptHistoryMetrics,
+  isCompleteTestResponseForQuestion,
   normalizeTestResponses,
   validateTestResponsesAgainstQuestions,
 } from '@/lib/test-attempts'
@@ -128,6 +129,36 @@ describe('test-attempts utilities', () => {
         { requireAllQuestions: true }
       )
     ).toEqual({ valid: false, error: 'All questions must be answered' })
+  })
+
+  it('checks whether a response fully answers a question', () => {
+    expect(
+      isCompleteTestResponseForQuestion(
+        { id: 'q-1', question_type: 'multiple_choice', options: ['A', 'B'] },
+        { question_type: 'multiple_choice', selected_option: 0 }
+      )
+    ).toBe(true)
+
+    expect(
+      isCompleteTestResponseForQuestion(
+        { id: 'q-2', question_type: 'open_response', options: [] },
+        { question_type: 'open_response', response_text: '  explanation  ' }
+      )
+    ).toBe(true)
+
+    expect(
+      isCompleteTestResponseForQuestion(
+        { id: 'q-3', question_type: 'open_response', options: [] },
+        { question_type: 'open_response', response_text: '   ' }
+      )
+    ).toBe(false)
+
+    expect(
+      isCompleteTestResponseForQuestion(
+        { id: 'q-4', question_type: 'multiple_choice', options: ['A', 'B'] },
+        { question_type: 'open_response', response_text: 'A' }
+      )
+    ).toBe(false)
   })
 
   it('builds metrics from response counts', () => {
