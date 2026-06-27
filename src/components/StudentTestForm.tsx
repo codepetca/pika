@@ -5,6 +5,7 @@ import { Button, ConfirmDialog } from '@/ui'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import {
   DEFAULT_OPEN_RESPONSE_MAX_CHARS,
+  isCompleteTestResponseForQuestion,
   normalizeTestResponses,
   type TestResponses,
 } from '@/lib/test-attempts'
@@ -91,16 +92,9 @@ export function StudentTestForm({
   const lastSavedResponsesRef = useRef('')
   const lastSaveAttemptAtRef = useRef(0)
 
-  const allAnswered = questions.every((question) => {
-    const response = responses[question.id]
-    const questionType =
-      question.question_type === 'open_response' ? 'open_response' : 'multiple_choice'
-    if (!response) return false
-    if (questionType === 'open_response') {
-      return response.question_type === 'open_response' && response.response_text.trim().length > 0
-    }
-    return response.question_type === 'multiple_choice'
-  })
+  const allAnswered = questions.every((question) =>
+    isCompleteTestResponseForQuestion(question, responses[question.id])
+  )
   const saveStatusLabel =
     saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Unsaved changes'
 

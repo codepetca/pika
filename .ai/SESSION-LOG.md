@@ -9,21 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-14 — Assessment utility fixture naming
-
-**Completed:**
-- Updated generic assessment utility comments and local parameter names from quiz wording to assessment wording.
-- Switched generic `tests/unit/assessments.test.ts` cases to use test-shaped fixtures for response eligibility, result visibility, editing, activation, and aggregation.
-- Left explicit legacy quiz alias/status coverage on `createMockQuiz` where the test is intentionally about quiz compatibility.
-- Did not change API response shapes, route contracts, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/assessments.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
 ## 2026-06-14 — Production release sync
 
 **Completed:**
@@ -871,3 +856,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-06-27 — Weekly simplification: test answer completeness
+
+**Completed:**
+- Selected the student test attempt/submit path as the weekly simplification hotspot because answer-completeness logic gates exam-mode draft submission in both API validation and UI submit state.
+- Added shared `isCompleteTestResponseForQuestion` logic in `src/lib/test-attempts.ts` and reused it from `StudentTestForm`.
+- Preserved behavior for multiple-choice answers, blank open responses, mismatched response types, and API validation errors.
+- Added unit and component regressions for the shared helper and open-response submit gating.
+- Opened draft PR: https://github.com/codepetca/pika/pull/832
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `./node_modules/.bin/vitest run tests/unit/test-attempts.test.ts tests/components/StudentTestForm.test.tsx`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `./node_modules/.bin/vitest run`
+- Note: `pnpm test ...` was blocked before Vitest by pnpm approve-builds in this fresh worktree; direct local Vitest was used after `verify-env.sh` passed.

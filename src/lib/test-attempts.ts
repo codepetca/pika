@@ -4,7 +4,7 @@ export const DEFAULT_OPEN_RESPONSE_MAX_CHARS = 5000
 
 export type TestResponses = Record<string, TestResponseDraftValue>
 
-type QuestionOptionSet = {
+export type TestAttemptQuestion = {
   id: string
   question_type?: TestQuestionType | null
   options: unknown[]
@@ -74,8 +74,22 @@ function parseResponseValue(raw: unknown): TestResponseDraftValue | null {
   return parseTypedResponseValue(rawRecord) ?? parseLegacyResponseValue(rawRecord)
 }
 
-function getQuestionType(question: QuestionOptionSet): TestQuestionType {
+function getQuestionType(question: TestAttemptQuestion): TestQuestionType {
   return question.question_type === 'open_response' ? 'open_response' : 'multiple_choice'
+}
+
+export function isCompleteTestResponseForQuestion(
+  question: TestAttemptQuestion,
+  response: TestResponseDraftValue | undefined
+): boolean {
+  if (!response) return false
+
+  const questionType = getQuestionType(question)
+  if (questionType === 'open_response') {
+    return response.question_type === 'open_response' && response.response_text.trim().length > 0
+  }
+
+  return response.question_type === 'multiple_choice'
 }
 
 export function normalizeTestResponses(input: unknown): TestResponses {
@@ -97,7 +111,7 @@ export function normalizeTestResponses(input: unknown): TestResponses {
 
 export function validateTestResponsesAgainstQuestions(
   responses: TestResponses,
-  questions: QuestionOptionSet[],
+  questions: TestAttemptQuestion[],
   options?: { requireAllQuestions?: boolean }
 ): { valid: boolean; error?: string } {
   const questionById = new Map(questions.map((q) => [q.id, q]))
@@ -138,17 +152,7 @@ export function validateTestResponsesAgainstQuestions(
 
   if (options?.requireAllQuestions) {
     for (const question of questions) {
-      const response = responses[question.id]
-      if (!response) {
-        return { valid: false, error: 'All questions must be answered' }
-      }
-
-      const questionType = getQuestionType(question)
-      if (questionType === 'open_response') {
-        if (response.question_type !== 'open_response' || !response.response_text.trim()) {
-          return { valid: false, error: 'All questions must be answered' }
-        }
-      } else if (response.question_type !== 'multiple_choice') {
+      if (!isCompleteTestResponseForQuestion(question, responses[question.id])) {
         return { valid: false, error: 'All questions must be answered' }
       }
     }
