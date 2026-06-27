@@ -11,34 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-21 — Phase 2 shared application navigation
-
-**Completed:**
-- Merged independently reviewed PR #902 as `14de9893`, fast-forwarded the hub, and started Phase 2 item 7 from current `main` in a dedicated worktree.
-- Added a shared `AppNavigation` route-family mechanism with active-page semantics, stable prefix matching, 44px link targets, visible keyboard focus, and narrow-width horizontal overflow.
-- Added an optional application-navigation region to `AppShell` and migrated the teacher utility layout from its duplicate logo/header/logout implementation to the canonical compact `AppHeader`, `UserMenu`, session watcher, and shared navigation band.
-- Preserved the existing `Classrooms`, `Blueprints`, and `Calendar` destinations without adding a dashboard destination or changing classroom navigation, page content, API contracts, schema, production state, or data.
-- Added direct navigation, shell-order, and teacher-layout regressions plus stable guidance for incremental utility-family migration.
-- Browser-verified teacher Blueprints and Calendar at desktop/mobile widths in light/dark themes, including active-link focus and navigation-shell overflow isolation. The student mobile shell remained unchanged and overflow-free. Calendar's previously ranked narrow-screen content compression remains assigned to its Phase 3 vertical slice.
-- Opened PR #903 for independent review.
-- Accepted independent-review findings that the first implementation dropped the prior teacher-content gutters and used an outward focus ring that could be clipped by the navigation scroller. Restored the content geometry, moved focus treatment inside each link, and added a durable browser contract for every teacher utility route.
-
-**Validation:**
-- `pnpm test --run` (392 files / 3,584 tests)
-- Focused application-navigation, app-shell, teacher-layout, and app-header suites (4 files / 12 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (613 modules / 0 allowances)
-- `pnpm build`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Custom Playwright teacher desktop/mobile light/dark navigation matrix plus unchanged student mobile-dark regression (7 checks including auth setup)
-- Durable Playwright teacher dashboard/Blueprints/Calendar desktop-light and mobile-dark navigation contract
-- `node scripts/trim-session-log.mjs --check`
-- `git diff --check`
-
-**Remaining:**
-- Complete full repository verification, independent review, and merge for the teacher navigation slice. Then migrate the student utility family as a separate Phase 2 item 7 PR.
-
 ## 2026-07-21 — Phase 2 student utility navigation
 
 **Completed:**
@@ -1192,3 +1164,28 @@ future persistence shape without enabling unapproved schema behavior.
 
 **Remaining:**
 - Publish or merge the isolated `codex/authoring-system` worktree when ready; no schema rollout is required.
+
+## 2026-07-25 — Rebased and reviewed PR 832
+
+**Risk profile:** exam-mode
+
+**Model recommendation:** GPT-5.6 Terra — standard-risk application behavior review.
+
+**Completed:**
+- Rebased the test-answer completeness simplification from PR #832 onto current `origin/main` in a dedicated worktree.
+- Preserved the shared completeness predicate used by the student submit gate and TypeScript final-response validator; whitespace-only open responses remain incomplete.
+- Removed a stale test prop exposed by the rebase and repaired the old session-log edit so current continuity entries remain intact and chronological.
+- Completed an independent correctness and test-adequacy review with no actionable or merge-blocking findings.
+
+**Validation:**
+- Focused test-submit Vitest: 5 files / 49 tests.
+- Full Vitest suite.
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm check:architecture` (631 modules / 0 allowances)
+- `pnpm build`
+- `node scripts/trim-session-log.mjs --check`
+- `git diff --check`
+
+**Remaining:**
+- Push the rebased exact head to PR #832 and require fresh CI before merge.
