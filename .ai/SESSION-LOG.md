@@ -9,21 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-14 — Assessment utility fixture naming
-
-**Completed:**
-- Updated generic assessment utility comments and local parameter names from quiz wording to assessment wording.
-- Switched generic `tests/unit/assessments.test.ts` cases to use test-shaped fixtures for response eligibility, result visibility, editing, activation, and aggregation.
-- Left explicit legacy quiz alias/status coverage on `createMockQuiz` where the test is intentionally about quiz compatibility.
-- Did not change API response shapes, route contracts, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/assessments.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
 ## 2026-06-14 — Production release sync
 
 **Completed:**
@@ -818,6 +803,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-07-05 — Test draft route simplification
+
+**Completed:**
+- Weekly Pika simplification selected the teacher test draft API route as the hotspot because it duplicated assessment draft creation/repair logic already available in `ensureAssessmentDraft`.
+- Removed the route-local `ensureTestDraft` helper from `src/app/api/teacher/tests/[id]/draft/route.ts` and routed GET/PATCH through the shared assessment draft helper.
+- Updated `tests/api/teacher/tests-draft-route.test.ts` to cover the shared helper path while preserving document validation and save behavior.
+- Opened draft PR #834: https://github.com/codepetca/pika/pull/834
+- Risk profile: workspace-state, because test draft preservation and repair are stateful editor concerns.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `./node_modules/.bin/vitest run tests/api/teacher/tests-draft-route.test.ts`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `./node_modules/.bin/vitest run`
+- `pnpm test` was attempted but blocked before Vitest by pnpm ignored build-script approval (`@parcel/watcher`, `esbuild`, `unrs-resolver`).
 
 ## 2026-06-23 — Teacher classroom cached JSON
 
