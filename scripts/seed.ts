@@ -2,7 +2,7 @@
  * Seed script for development/testing
  *
  * Usage: pnpm run seed
- *        ENV_FILE=<path-to-env-file> pnpm run seed
+ *        ENV_FILE=.env.custom.local pnpm run seed
  *
  * This script creates test data without clearing existing data:
  * 1. Creates test users (1 teacher, 2 students)
