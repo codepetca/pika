@@ -11,7 +11,7 @@
 ```
 [ ] Resolve repo root: git rev-parse --show-toplevel
 [ ] Verify repo root is a feature worktree, not $HOME/Repos/pika for branch work
-[ ] Ensure .env.local symlinks to $HOME/Repos/.env/pika/.env.local
+[ ] Ensure .env.local exists (shared setups symlink to $HOME/Repos/.env/pika/.env.local; collaborators: cp .env.example .env.local)
 [ ] Run: bash scripts/verify-env.sh
 [ ] Check status: git status --short --branch
 [ ] Read: .ai/CURRENT.md

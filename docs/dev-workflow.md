@@ -79,7 +79,12 @@ intended worktree.
 
 ### Environment files
 
-All worktrees share a single canonical `.env.local` file:
+> **Collaborators:** the shared canonical env file below is the maintainer's
+> machine-specific convention. If you don't have `$HOME/Repos/.env/pika/`,
+> just keep your own `.env.local` (copied from `.env.example` — see the
+> README) in each checkout and skip the symlink steps.
+
+On the maintainer's setup, all worktrees share a single canonical `.env.local` file:
 
 ```
 $HOME/Repos/.env/pika/.env.local
