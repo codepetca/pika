@@ -9,37 +9,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-14 — Production release sync
-
-**Completed:**
-- Merged latest `origin/main` into `production` through protected PR #795.
-- Verified required GitHub checks passed before merging.
-- Synced the local production worktree to `origin/production` at `f483bbcbdc055fef379b655d6162b03c5fee073e`.
-- Risk profile: runtime-platform.
-- Model recommendation: GPT-5 Codex - protected-branch release orchestration with CI and worktree synchronization.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `bash .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh`
-- `gh run watch 27520948663 --repo codepetca/pika --interval 15 --exit-status`
-- `gh pr merge 795 --repo codepetca/pika --merge --delete-branch`
-- `git -C /Users/stew/Repos/.worktrees/pika/production merge --ff-only origin/production`
-
-## 2026-06-14 — Draft hook assessment option names
-
-**Completed:**
-- Renamed the primary `useDraftMode` options from `quizId`/`quizTitle` to `assessmentId`/`assessmentTitle`.
-- Kept legacy `quizId`/`quizTitle` option aliases for compatibility and added focused test coverage for them.
-- Updated hook comments, examples, and tests to use assessment/test wording by default.
-- Left DB-shaped `quiz_id` question fields and draft route contracts unchanged.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/hooks/useDraftMode.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
 ## 2026-06-14 — Assessment draft sync error wording
 
 **Completed:**
@@ -884,3 +853,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash scripts/verify-env.sh`
 - `corepack pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop --grep "preserves an open-response draft when teacher closes and reopens access"`
 - `corepack pnpm lint`
+
+## 2026-07-09 — Remove stale staging environment references
+
+**Completed:**
+- Removed stale staging-environment references now that the staging Supabase environment is gone: README.md (seed `ENV_FILE` example, UI gallery wording, renamed the "Staging workflow" E2E section to a remote/preview workflow), docs/core/pilot-mvp.md (Environments section and manual cron trigger now reference Vercel preview deployments), docs/core/project-context.md, docs/core/tests.md, docs/semester-plan.md, docs/deployment/BREVO-SETUP.md, seed script headers (scripts/seed.ts, scripts/seed-gld2o.ts), and src/lib/email.ts comments.
+- Kept the generic `ENV_FILE=<path-to-env-file>` mechanism and reworded remote-testing guidance to Vercel preview deployments.
+- Left the seeded `GLD2O Staging` classroom title unchanged (test-data name, not an environment reference) and `.ai/JOURNAL-ARCHIVE.md` (historical archive).
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `grep -rni staging` (only seed-data classroom title and journal archive remain)
+- `pnpm lint`
+- `pnpm exec tsc --noEmit`

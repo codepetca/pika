@@ -3,7 +3,7 @@ import { sendBrevoEmail } from './brevo'
 /**
  * Sends an email with a signup verification code
  * In development mode (ENABLE_MOCK_EMAIL=true), logs to console instead
- * In production/staging, sends via Brevo template
+ * Otherwise (production and preview deployments), sends via Brevo template
  */
 export async function sendSignupCode(email: string, code: string): Promise<void> {
   const isMockMode = process.env.ENABLE_MOCK_EMAIL === 'true'
@@ -37,7 +37,7 @@ export async function sendSignupCode(email: string, code: string): Promise<void>
 /**
  * Sends an email with a password reset verification code
  * In development mode (ENABLE_MOCK_EMAIL=true), logs to console instead
- * In production/staging, sends via Brevo template
+ * Otherwise (production and preview deployments), sends via Brevo template
  */
 export async function sendPasswordResetCode(email: string, code: string): Promise<void> {
   const isMockMode = process.env.ENABLE_MOCK_EMAIL === 'true'

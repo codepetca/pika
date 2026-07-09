@@ -95,7 +95,7 @@ esac
 │    - Push branch to GitHub                              │
 │    - Supabase creates preview branch automatically      │
 │    - Or: Create manual preview in Supabase dashboard    │
-│    - Run smoke tests against staging                    │
+│    - Run smoke tests against the preview branch         │
 └─────────────────────┬───────────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────────┐
@@ -174,7 +174,7 @@ SELECT * FROM entries WHERE date > '2025-01-01';
 
 - [ ] Document current schema state (export via Supabase dashboard)
 - [ ] Test backup/restore procedure once
-- [ ] Set up Supabase preview branches for staging
+- [ ] Set up Supabase preview branches
 - [ ] Create rollback SQL for any planned migrations
 
 ---

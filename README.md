@@ -119,7 +119,7 @@ pnpm run seed
 
 If you keep multiple Supabase environments, you can point seed scripts at a specific env file:
 ```bash
-ENV_FILE=.env.staging.local ALLOW_DB_WIPE=true pnpm run seed:fresh
+ENV_FILE=<path-to-env-file> ALLOW_DB_WIPE=true pnpm run seed:fresh
 ```
 
 7) **Run dev server**
@@ -139,7 +139,7 @@ pnpm run test:ui
 
 ### UI Review (Gallery + Snapshots)
 
-Enable the UI gallery (recommended on staging):
+Enable the UI gallery (recommended on Vercel preview deployments):
 ```env
 ENABLE_UI_GALLERY=true
 ```
@@ -167,9 +167,9 @@ E2E_BASE_URL=http://localhost:3000 pnpm run e2e:snapshots
 pnpm exec playwright show-report playwright-report
 ```
 
-**Staging workflow**:
+**Remote workflow (e.g. a Vercel preview deployment)**:
 ```bash
-E2E_BASE_URL=https://your-staging-url \
+E2E_BASE_URL=https://your-preview-url \
 E2E_TEACHER_EMAIL=teacher@yrdsb.ca \
 E2E_STUDENT_EMAIL=student1@student.yrdsb.ca \
 E2E_PASSWORD=test1234 \
