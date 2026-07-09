@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -7,6 +7,7 @@ const DEFAULT_MAX_ENTRIES = 60
 const DEFAULT_KEEP = Math.floor(DEFAULT_MAX_ENTRIES * 2 / 3)
 const DEFAULT_SOURCE = '.ai/SESSION-LOG.md'
 const DEFAULT_OUTPUT = '.ai/SESSION-LOG.md'
+const DEFAULT_ARCHIVE = '.ai/JOURNAL-ARCHIVE.md'
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 function parseArgs(argv) {
@@ -16,6 +17,7 @@ function parseArgs(argv) {
     keepWasSet: false,
     source: DEFAULT_SOURCE,
     output: DEFAULT_OUTPUT,
+    archive: DEFAULT_ARCHIVE,
   }
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -34,6 +36,11 @@ function parseArgs(argv) {
     } else if (arg === '--output' && next) {
       args.output = next
       index += 1
+    } else if (arg === '--archive' && next) {
+      args.archive = next
+      index += 1
+    } else if (arg === '--no-archive') {
+      args.archive = null
     } else if (arg === '--help' || arg === '-h') {
       args.help = true
     } else {
@@ -51,10 +58,11 @@ function parseArgs(argv) {
 
 function usage() {
   return [
-    'Usage: node scripts/trim-session-log.mjs [--keep 40] [--source .ai/SESSION-LOG.md] [--output .ai/SESSION-LOG.md]',
+    'Usage: node scripts/trim-session-log.mjs [--keep 40] [--source .ai/SESSION-LOG.md] [--output .ai/SESSION-LOG.md] [--archive .ai/JOURNAL-ARCHIVE.md | --no-archive]',
     '       node scripts/trim-session-log.mjs --check [--keep 60] [--source .ai/SESSION-LOG.md]',
     '',
     'Keeps the latest session entries, where each entry starts with a markdown "## " heading.',
+    'Trimmed entries are appended to the archive file so history is preserved; pass --no-archive to discard them instead.',
     'Use --check to fail when the source has more entries than the check cap.',
   ].join('\n')
 }
@@ -81,6 +89,7 @@ function buildSessionLog(entries) {
     '- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.',
     '- Use `node scripts/trim-session-log.mjs --check` to verify the log is within the 60-entry cap.',
     '- Keep enough recent entries for weekly automations to inspect roughly the last week of work.',
+    '- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.',
     '- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.',
     '',
     '',
@@ -89,7 +98,23 @@ function buildSessionLog(entries) {
   return `${header}${entries.join('\n\n')}\n`
 }
 
-function trimSessionLog({ keep, source, output }) {
+function appendToArchive(archivePath, entries) {
+  const archiveHeader = [
+    '# Pika Project Journal',
+    '',
+    '**Rules:**',
+    '- Append-only. Never delete entries.',
+    '- `scripts/trim-session-log.mjs` appends entries trimmed from `.ai/SESSION-LOG.md` here.',
+    '',
+    '',
+  ].join('\n')
+  const existing = existsSync(archivePath) ? readFileSync(archivePath, 'utf8') : ''
+  const base = existing.trim().length > 0 ? `${existing.replace(/\n+$/, '')}\n\n` : archiveHeader
+
+  writeFileSync(archivePath, `${base}${entries.join('\n\n')}\n`)
+}
+
+function trimSessionLog({ keep, source, output, archive }) {
   const sourcePath = resolve(repoRoot, source)
   const outputPath = resolve(repoRoot, output)
   const markdown = readFileSync(sourcePath, 'utf8')
@@ -100,13 +125,21 @@ function trimSessionLog({ keep, source, output }) {
   }
 
   const retainedEntries = entries.slice(-keep)
+  const removedEntries = entries.slice(0, entries.length - retainedEntries.length)
+
+  if (archive && removedEntries.length > 0) {
+    appendToArchive(resolve(repoRoot, archive), removedEntries)
+  }
+
   writeFileSync(outputPath, buildSessionLog(retainedEntries))
 
   return {
     source,
     output,
+    archive,
     total: entries.length,
     retained: retainedEntries.length,
+    archived: archive ? removedEntries.length : 0,
   }
 }
 
@@ -145,8 +178,9 @@ try {
     console.log(`${result.source} is within cap: ${result.total}/${result.maxEntries} entries`)
   } else {
     const result = trimSessionLog(args)
+    const archiveNote = result.archived > 0 ? `; archived ${result.archived} to ${result.archive}` : ''
     console.log(
-      `Trimmed ${result.output}: kept ${result.retained} of ${result.total} entries from ${result.source}`,
+      `Trimmed ${result.output}: kept ${result.retained} of ${result.total} entries from ${result.source}${archiveNote}`,
     )
   }
 } catch (error) {

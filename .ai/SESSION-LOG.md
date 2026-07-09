@@ -7,22 +7,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
 - Use `node scripts/trim-session-log.mjs --check` to verify the log is within the 60-entry cap.
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
-
-## 2026-06-14 — Assessment draft sync error wording
-
-**Completed:**
-- Renamed `syncAssessmentQuestionsFromDraft` failure messages from quiz-question wording to assessment-question wording.
-- Updated nearby generic assessment draft helper comments to avoid quiz/test route wording.
-- Updated the focused unit assertion for the renamed insert failure message.
-- Left compatibility exports, `AssessmentDraftType = 'quiz' | 'test'`, `quiz_questions`, `quiz_id`, route contracts, and persisted payload shapes unchanged.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/assessment-drafts.test.ts`
-- `pnpm lint`
-- `pnpm test`
 
 ## 2026-06-14 — Current test fixture wording cleanup
 
@@ -867,3 +853,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - `pnpm test tests/unit/ai-startup-docs.test.ts` (26/26 passed)
 - `gh api repos/codepetca/pika/rulesets/{10460660,12273665}` confirmed new rules active
+
+## 2026-07-09 — Archive trimmed session-log entries instead of deleting
+
+**Completed:**
+- Fixed `scripts/trim-session-log.mjs` so entries it removes from `.ai/SESSION-LOG.md` are appended to the bottom of `.ai/JOURNAL-ARCHIVE.md` (preserving entry markdown and chronological order) instead of being permanently deleted, matching the header claim that full history lives in the archive.
+- Added `--archive <path>` and `--no-archive` flags; archiving is on by default and skipped when nothing is trimmed. A missing archive file is created with a minimal append-only header.
+- Documented the archiving behavior in the generated session-log header rules and script usage text.
+- Updated `tests/unit/trim-session-log.test.ts`: existing temp-path tests now pass explicit `--archive`/`--no-archive` (so they cannot write to the real archive), plus new coverage for appending to an existing archive, default-path archive creation, and no-op trims leaving the archive untouched.
+- Note: entries trimmed between ~2026-05-05 and 2026-06-14 predate this fix; they are gone from the archive but recoverable from `.ai/SESSION-LOG.md` git history.
+
+**Validation:**
+- `pnpm test tests/unit/trim-session-log.test.ts` (8/8 passed)
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `node scripts/trim-session-log.mjs --check`
+- `pnpm lint`

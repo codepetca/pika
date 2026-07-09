@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -15,6 +15,7 @@ describe('trim-session-log script', () => {
     try {
       const sourcePath = join(repoRoot, 'source.md')
       const outputPath = join(repoRoot, 'SESSION-LOG.md')
+      const archivePath = join(repoRoot, 'JOURNAL-ARCHIVE.md')
 
       writeFileSync(
         sourcePath,
@@ -35,7 +36,7 @@ describe('trim-session-log script', () => {
 
       execFileSync(
         'node',
-        [scriptPath, '--source', sourcePath, '--output', outputPath, '--keep', '2'],
+        [scriptPath, '--source', sourcePath, '--output', outputPath, '--archive', archivePath, '--keep', '2'],
         { cwd: repoRoot },
       )
 
@@ -49,6 +50,12 @@ describe('trim-session-log script', () => {
       expect(output).toContain('## 2026-05-02 - Second')
       expect(output).toContain('## 2026-05-03 - Third')
       expect(output.match(/^## /gm)).toHaveLength(2)
+
+      const archived = readFileSync(archivePath, 'utf8')
+
+      expect(archived).toContain('## 2026-05-01 - First')
+      expect(archived).toContain('first entry')
+      expect(archived).not.toContain('## 2026-05-02 - Second')
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
     }
@@ -67,7 +74,9 @@ describe('trim-session-log script', () => {
 
       writeFileSync(sourcePath, ['# Pika Session Log', '', ...entries].join('\n\n'))
 
-      execFileSync('node', [scriptPath, '--source', sourcePath, '--output', outputPath], { cwd: repoRoot })
+      execFileSync('node', [scriptPath, '--source', sourcePath, '--output', outputPath, '--no-archive'], {
+        cwd: repoRoot,
+      })
 
       const output = readFileSync(outputPath, 'utf8')
 
@@ -111,9 +120,95 @@ describe('trim-session-log script', () => {
       expect(output).not.toContain('## 2026-05-01 - First')
       expect(output).toContain('## 2026-05-02 - Second')
       expect(output.match(/^## /gm)).toHaveLength(1)
+
+      const archived = readFileSync(join(repoRoot, '.ai/JOURNAL-ARCHIVE.md'), 'utf8')
+
+      expect(archived).toContain('## 2026-05-01 - First')
+      expect(archived).toContain('first entry')
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
       rmSync(otherCwd, { recursive: true, force: true })
+    }
+  })
+
+  it('appends trimmed entries to an existing archive without altering prior content', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'pika-session-log-archive-'))
+
+    try {
+      const sourcePath = join(repoRoot, 'source.md')
+      const outputPath = join(repoRoot, 'SESSION-LOG.md')
+      const archivePath = join(repoRoot, 'JOURNAL-ARCHIVE.md')
+      const existingArchive = [
+        '# Pika Project Journal',
+        '',
+        '## 2026-04-30 - Archived earlier',
+        'older archived entry',
+        '',
+      ].join('\n')
+
+      writeFileSync(archivePath, existingArchive)
+      writeFileSync(
+        sourcePath,
+        [
+          '# Pika Session Log',
+          '',
+          '## 2026-05-01 - First',
+          'first entry',
+          '',
+          '## 2026-05-02 - Second',
+          'second entry',
+          '',
+          '## 2026-05-03 - Third',
+          'third entry',
+          '',
+        ].join('\n'),
+      )
+
+      execFileSync(
+        'node',
+        [scriptPath, '--source', sourcePath, '--output', outputPath, '--archive', archivePath, '--keep', '1'],
+        { cwd: repoRoot },
+      )
+
+      const archived = readFileSync(archivePath, 'utf8')
+
+      expect(archived).toContain('# Pika Project Journal')
+      expect(archived).toContain('## 2026-04-30 - Archived earlier')
+      expect(archived.indexOf('## 2026-04-30 - Archived earlier')).toBeLessThan(
+        archived.indexOf('## 2026-05-01 - First'),
+      )
+      expect(archived.indexOf('## 2026-05-01 - First')).toBeLessThan(archived.indexOf('## 2026-05-02 - Second'))
+      expect(archived).toContain('second entry')
+      expect(archived).not.toContain('## 2026-05-03 - Third')
+      expect(archived.endsWith('second entry\n')).toBe(true)
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('does not touch the archive when nothing is trimmed', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'pika-session-log-noop-'))
+
+    try {
+      const sourcePath = join(repoRoot, 'source.md')
+      const outputPath = join(repoRoot, 'SESSION-LOG.md')
+      const archivePath = join(repoRoot, 'JOURNAL-ARCHIVE.md')
+
+      writeFileSync(
+        sourcePath,
+        ['# Pika Session Log', '', '## 2026-05-01 - First', 'first entry', ''].join('\n'),
+      )
+
+      execFileSync(
+        'node',
+        [scriptPath, '--source', sourcePath, '--output', outputPath, '--archive', archivePath, '--keep', '5'],
+        { cwd: repoRoot },
+      )
+
+      expect(readFileSync(outputPath, 'utf8')).toContain('## 2026-05-01 - First')
+      expect(existsSync(archivePath)).toBe(false)
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
     }
   })
 
