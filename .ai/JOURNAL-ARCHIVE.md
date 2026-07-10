@@ -11096,3 +11096,18 @@
 - `pnpm test tests/api/teacher/tests-student-access.test.ts tests/components/TeacherClassroomView.test.tsx tests/unit/test-student-access.test.ts`
 - `pnpm test:coverage`
 - `pnpm lint`
+
+## 2026-06-14 — Assessment draft sync error wording
+
+**Completed:**
+- Renamed `syncAssessmentQuestionsFromDraft` failure messages from quiz-question wording to assessment-question wording.
+- Updated nearby generic assessment draft helper comments to avoid quiz/test route wording.
+- Updated the focused unit assertion for the renamed insert failure message.
+- Left compatibility exports, `AssessmentDraftType = 'quiz' | 'test'`, `quiz_questions`, `quiz_id`, route contracts, and persisted payload shapes unchanged.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/unit/assessment-drafts.test.ts`
+- `pnpm lint`
+- `pnpm test`
