@@ -11127,3 +11127,17 @@
 - `pnpm lint`
 - `pnpm test` (first run hit an unrelated `StudentLessonCalendarTab.test.tsx` timeout; isolated rerun passed)
 - `pnpm test`
+
+## 2026-06-14 — Teacher work-surface docs test wording
+
+**Completed:**
+- Updated stable teacher work-surface guidance from assignments/quizzes/tests to assignments/tests.
+- Removed active teacher quiz authoring/state-machine references from the canon.
+- Updated the work-surface audit and stable guidance index to match the active Tests product surface.
+- Left the explicit legacy drift row for tests/quizzes shell paths because it documents drift to avoid copying.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/ui-guidance-docs.test.ts tests/unit/ai-startup-docs.test.ts`
+- `pnpm lint`
+- `pnpm test`

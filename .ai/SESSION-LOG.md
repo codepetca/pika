@@ -10,20 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-14 — Teacher work-surface docs test wording
-
-**Completed:**
-- Updated stable teacher work-surface guidance from assignments/quizzes/tests to assignments/tests.
-- Removed active teacher quiz authoring/state-machine references from the canon.
-- Updated the work-surface audit and stable guidance index to match the active Tests product surface.
-- Left the explicit legacy drift row for tests/quizzes shell paths because it documents drift to avoid copying.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/ui-guidance-docs.test.ts tests/unit/ai-startup-docs.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
 ## 2026-06-14 — Individual test response fixture wording
 
 **Completed:**
@@ -865,3 +851,12 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `grep -rni staging` (only seed-data classroom title and journal archive remain)
 - `pnpm lint`
 - `pnpm exec tsc --noEmit`
+
+## 2026-07-10 — Bump GitHub Actions off deprecated Node 20
+
+**Completed:**
+- Bumped pinned action majors in ci.yml and ui-policy.yml to clear the "Node.js 20 is deprecated" runner warning: checkout v4→v7, setup-node v4→v6, pnpm/action-setup v4→v6, cache v4→v6, upload-artifact v4→v7.
+- All step inputs used are stable across these majors (no removed inputs); relying on CI to validate.
+
+**Validation:**
+- CI `Test & Build` on the PR (self-validating workflow change)
