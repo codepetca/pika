@@ -860,3 +860,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Validation:**
 - CI `Test & Build` on the PR (self-validating workflow change)
+## 2026-07-10 — Repo cleanup and /repo-tidy skill
+
+**Completed:**
+- Deleted 101 stale remote branches (95 merged/closed-PR + 6 from closing stalled PRs) and ~140 local branches; pruned phantom `origin/pr/672` ref.
+- Removed 20 stale worktrees and 2 orphan directories; tagged 9 scratch-branch tips as `rescue/*` (local-only) before deleting.
+- Closed stalled PRs #298, #323, #328, #341, #568, #739. Rescued uncommitted work from an unattended worktree into PR #838.
+- Enabled `delete_branch_on_merge` on the repo so merged PR branches self-clean.
+- Added `scripts/repo-tidy.sh` (read-only hygiene report) plus `/repo-tidy` command in `.claude/commands/` and `.codex/prompts/`, and documented it in `docs/dev-workflow.md`.
+
+**Validation:**
+- `bash scripts/repo-tidy.sh` (clean run against the tidied repo)
+- `pnpm test tests/unit/ai-startup-docs.test.ts` (26/26 passed)
+- `pnpm lint`
