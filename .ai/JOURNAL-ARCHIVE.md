@@ -11111,3 +11111,19 @@
 - `pnpm test tests/unit/assessment-drafts.test.ts`
 - `pnpm lint`
 - `pnpm test`
+
+## 2026-06-14 — Current test fixture wording cleanup
+
+**Completed:**
+- Renamed server assessment visibility unit-test descriptions and locals from quiz wording to assessment wording.
+- Updated `StudentTestResults` current-surface test fixtures to use `test-1` and `Test not found` while preserving the explicit legacy `quizId` alias test.
+- Updated the flagged-question helper file comment from test/quiz taking to test taking.
+- Did not change runtime behavior, schema, API payloads, compatibility aliases, or persisted `quiz_id` fields.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/unit/server-assessments.test.ts tests/components/StudentTestResults.test.tsx tests/lib/flag-questions.test.ts`
+- `pnpm lint`
+- `pnpm test` (first run hit an unrelated `StudentLessonCalendarTab.test.tsx` timeout; isolated rerun passed)
+- `pnpm test`

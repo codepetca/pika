@@ -10,22 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-14 — Current test fixture wording cleanup
-
-**Completed:**
-- Renamed server assessment visibility unit-test descriptions and locals from quiz wording to assessment wording.
-- Updated `StudentTestResults` current-surface test fixtures to use `test-1` and `Test not found` while preserving the explicit legacy `quizId` alias test.
-- Updated the flagged-question helper file comment from test/quiz taking to test taking.
-- Did not change runtime behavior, schema, API payloads, compatibility aliases, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/server-assessments.test.ts tests/components/StudentTestResults.test.tsx tests/lib/flag-questions.test.ts`
-- `pnpm lint`
-- `pnpm test` (first run hit an unrelated `StudentLessonCalendarTab.test.tsx` timeout; isolated rerun passed)
-- `pnpm test`
-
 ## 2026-06-14 — Teacher work-surface docs test wording
 
 **Completed:**
@@ -854,18 +838,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/ai-startup-docs.test.ts` (26/26 passed)
 - `gh api repos/codepetca/pika/rulesets/{10460660,12273665}` confirmed new rules active
 
-## 2026-07-09 — Remove stale staging environment references
-
-**Completed:**
-- Removed stale staging-environment references now that the staging Supabase environment is gone: README.md (seed `ENV_FILE` example, UI gallery wording, renamed the "Staging workflow" E2E section to a remote/preview workflow), docs/core/pilot-mvp.md (Environments section and manual cron trigger now reference Vercel preview deployments), docs/core/project-context.md, docs/core/tests.md, docs/semester-plan.md, docs/deployment/BREVO-SETUP.md, seed script headers (scripts/seed.ts, scripts/seed-gld2o.ts), and src/lib/email.ts comments.
-- Kept the generic `ENV_FILE` mechanism (examples now use a pasteable `.env.custom.local`) and reworded remote-testing guidance to Vercel preview deployments.
-- Left the seeded `GLD2O Staging` classroom title unchanged (test-data name, not an environment reference) and `.ai/JOURNAL-ARCHIVE.md` (historical archive).
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `grep -rni staging` (only seed-data classroom title and journal archive remain)
-- `pnpm lint`
-- `pnpm exec tsc --noEmit`
 ## 2026-07-09 — Archive trimmed session-log entries instead of deleting
 
 **Completed:**
@@ -880,3 +852,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test tests/unit/ai-startup-docs.test.ts`
 - `node scripts/trim-session-log.mjs --check`
 - `pnpm lint`
+
+## 2026-07-09 — Remove stale staging environment references
+
+**Completed:**
+- Removed stale staging-environment references now that the staging Supabase environment is gone: README.md (seed `ENV_FILE` example, UI gallery wording, renamed the "Staging workflow" E2E section to a remote/preview workflow), docs/core/pilot-mvp.md (Environments section and manual cron trigger now reference Vercel preview deployments), docs/core/project-context.md, docs/core/tests.md, docs/semester-plan.md, docs/deployment/BREVO-SETUP.md, seed script headers (scripts/seed.ts, scripts/seed-gld2o.ts), and src/lib/email.ts comments.
+- Kept the generic `ENV_FILE` mechanism (examples now use a pasteable `.env.custom.local`) and reworded remote-testing guidance to Vercel preview deployments.
+- Left the seeded `GLD2O Staging` classroom title unchanged (test-data name, not an environment reference) and `.ai/JOURNAL-ARCHIVE.md` (historical archive).
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `grep -rni staging` (only seed-data classroom title and journal archive remain)
+- `pnpm lint`
+- `pnpm exec tsc --noEmit`
