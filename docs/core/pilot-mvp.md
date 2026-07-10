@@ -9,7 +9,7 @@ This doc captures the current pilot direction and decisions so we can move quick
 - **Internal dry-run:** Dec 16, 2025
 
 ## Environments
-- **Staging:** Vercel “staging” environment (used for dry-run and early pilot testing)
+- **Preview:** Vercel preview deployments (per-branch; used for dry-run and early pilot testing)
 
 ## Email (Brevo)
 - Use transactional email for signup verification / password reset.
@@ -94,7 +94,7 @@ To support automated history analysis, MVP should treat **Pika as the primary dr
 - On-demand summarization should return cached results unless the assignment doc has changed since the last summary.
 - Nightly batch recomputes summaries only for **submitted** assignment docs changed since last summary.
 - Scheduled execution: Vercel Cron (configured in Vercel dashboard; production recommended) at `0 6 * * *` (06:00 UTC; 1:00am Toronto in winter, 2:00am in summer) → `GET /api/cron/nightly-assignment-summaries` (protected via `CRON_SECRET`).
-- Manual staging trigger (non-production only):
+- Manual trigger (non-production only, e.g. a Vercel preview deployment):
   - `curl -X POST \"$NEXT_PUBLIC_APP_URL/api/cron/nightly-assignment-summaries?force=1\" -H \"Authorization: Bearer $CRON_SECRET\"`
 
 ## Out of Scope (for MVP)

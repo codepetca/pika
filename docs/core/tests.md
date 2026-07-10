@@ -140,7 +140,7 @@ Focus on **critical user flows**:
 
 ### UI Snapshot Runs (Playwright)
 
-For visual review (spacing/aesthetics), we also support a **manual** Playwright snapshot run against staging:
+For visual review (spacing/aesthetics), we also support a **manual** Playwright snapshot run against a deployed environment (e.g. a Vercel preview deployment):
 - Spec: `e2e/ui-snapshots.spec.ts`
 - Output (local): `artifacts/ui-snapshots/` (screenshots) and `playwright-report/` (HTML report)
 - Gallery (web): `/__ui` (gated by `ENABLE_UI_GALLERY=true`)
