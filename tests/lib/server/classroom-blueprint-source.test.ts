@@ -124,6 +124,7 @@ describe('classroom blueprint source loader', () => {
         title: 'Project',
         instructions_markdown: 'Build it',
         due_at: '2026-02-16T04:30:00.000Z',
+        gradebook_weight: 25,
         is_draft: false,
         position: 2,
       }],
@@ -138,6 +139,8 @@ describe('classroom blueprint source loader', () => {
         title: 'Project',
         default_due_days: 13,
         default_due_time: '23:30',
+        gradebook_weight: 25,
+        is_draft: true,
       }),
     ])
   })

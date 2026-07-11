@@ -13,6 +13,7 @@ describe('course blueprint assignment markdown', () => {
         default_due_days: 7,
         default_due_time: '23:59',
         points_possible: 30,
+        gradebook_weight: 25,
         include_in_final: true,
         is_draft: true,
         position: 0,
@@ -45,10 +46,12 @@ describe('course blueprint assignment markdown', () => {
     expect(markdown).toContain('### Submission Requirements')
     expect(markdown).toContain('- repo_link | Repo link | required | Use your public GitHub repository.')
     expect(markdown).toContain('- image | Screenshot | optional | Upload a screenshot.')
+    expect(markdown).toContain('Gradebook Weight: 25')
 
     const parsed = markdownToCourseBlueprintAssignments(markdown, [])
 
     expect(parsed.errors).toEqual([])
+    expect(parsed.assignments[0]?.gradebook_weight).toBe(25)
     expect(parsed.assignments[0]?.submission_requirements).toEqual([
       expect.objectContaining({
         type: 'repo_link',
@@ -72,5 +75,14 @@ describe('course blueprint assignment markdown', () => {
         position: 2,
       }),
     ])
+  })
+
+  it('rejects invalid gradebook weights', () => {
+    const parsed = markdownToCourseBlueprintAssignments(
+      '## Assignment\nDue Days: 1\nDue Time: 23:59\nGradebook Weight: 0\nInclude In Final: true',
+      []
+    )
+
+    expect(parsed.errors).toContain('Assignment "Assignment" has invalid Gradebook Weight')
   })
 })

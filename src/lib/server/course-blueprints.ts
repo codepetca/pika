@@ -344,6 +344,7 @@ export async function syncCourseBlueprintAssignments(
     default_due_days: number
     default_due_time: string
     points_possible: number | null
+    gradebook_weight?: number | null
     include_in_final: boolean
     is_draft: boolean
     position: number
@@ -396,6 +397,7 @@ export async function syncCourseBlueprintAssignments(
         default_due_days: assignment.default_due_days,
         default_due_time: assignment.default_due_time,
         points_possible: assignment.points_possible,
+        gradebook_weight: assignment.gradebook_weight ?? 10,
         include_in_final: assignment.include_in_final,
         is_draft: assignment.is_draft,
         position: assignment.position,
@@ -416,6 +418,7 @@ export async function syncCourseBlueprintAssignments(
         default_due_days: assignment.default_due_days,
         default_due_time: assignment.default_due_time,
         points_possible: assignment.points_possible,
+        gradebook_weight: assignment.gradebook_weight ?? 10,
         include_in_final: assignment.include_in_final,
         is_draft: assignment.is_draft,
         position: assignment.position,
@@ -437,6 +440,9 @@ export async function syncCourseBlueprintAssessments(
     title: string
     content: AssessmentDraftContent | TestDraftContent
     documents: TestDocument[]
+    points_possible?: number | null
+    gradebook_weight?: number | null
+    include_in_final?: boolean
     position: number
   }>,
   options?: {
@@ -513,6 +519,9 @@ export async function syncCourseBlueprintAssessments(
         title: assessment.title,
         content: assessment.content,
         documents: assessment.documents,
+        points_possible: assessment.points_possible ?? null,
+        gradebook_weight: assessment.gradebook_weight ?? 10,
+        include_in_final: assessment.include_in_final ?? true,
         position: assessment.position,
       }))
     )
@@ -527,6 +536,9 @@ export async function syncCourseBlueprintAssessments(
         title: assessment.title,
         content: assessment.content,
         documents: assessment.documents,
+        points_possible: assessment.points_possible ?? null,
+        gradebook_weight: assessment.gradebook_weight ?? 10,
+        include_in_final: assessment.include_in_final ?? true,
         position: assessment.position,
       })
       .eq('id', assessment.id!)
@@ -821,6 +833,7 @@ async function cloneBlueprintIntoClassroom(
         released_at: null,
         scheduled_release_at: null,
         points_possible: assignment.points_possible,
+        gradebook_weight: assignment.gradebook_weight,
         include_in_final: assignment.include_in_final,
         created_by: teacherId,
       }
@@ -875,6 +888,9 @@ async function cloneBlueprintIntoClassroom(
         scheduled_release_at: null,
         show_results: draft.show_results,
         documents: assessment.documents || [],
+        points_possible: assessment.points_possible,
+        gradebook_weight: assessment.gradebook_weight,
+        include_in_final: assessment.include_in_final,
       })
       .select()
       .single()

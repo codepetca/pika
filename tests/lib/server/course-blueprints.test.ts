@@ -812,6 +812,7 @@ describe('course-blueprints server helpers', () => {
           default_due_days: 14,
           default_due_time: '23:30',
           points_possible: 20,
+          gradebook_weight: 25,
           include_in_final: true,
           is_draft: false,
           position: 0,
@@ -839,6 +840,9 @@ describe('course-blueprints server helpers', () => {
             }],
           },
           documents: [],
+          points_possible: 40,
+          gradebook_weight: 35,
+          include_in_final: false,
           position: 1,
         }],
         error: null,
@@ -889,6 +893,7 @@ describe('course-blueprints server helpers', () => {
       is_draft: true,
       released_at: null,
       scheduled_release_at: null,
+      gradebook_weight: 25,
     })])
     expect(requirementInsert.insert).toHaveBeenCalledWith([
       expect.objectContaining({ assignment_id: 'new-a-1', label: 'Published essay' }),
@@ -898,6 +903,9 @@ describe('course-blueprints server helpers', () => {
       status: 'draft',
       released_at: null,
       scheduled_release_at: null,
+      points_possible: 40,
+      gradebook_weight: 35,
+      include_in_final: false,
     }))
     expect(questionInsert.insert).toHaveBeenCalledWith([
       expect.objectContaining({ question_text: 'Explain recursion.', points: 5 }),

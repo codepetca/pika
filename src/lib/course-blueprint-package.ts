@@ -63,6 +63,7 @@ export type CourseBlueprintImportResult = {
     default_due_days: number
     default_due_time: string
     points_possible: number | null
+    gradebook_weight: number
     include_in_final: boolean
     is_draft: boolean
     position: number
@@ -78,7 +79,7 @@ export type CourseBlueprintImportResult = {
 
 export function buildCoursePackageManifest(blueprint: CourseBlueprint): CoursePackageManifest {
   return {
-    version: '2',
+    version: '3',
     exported_at: new Date().toISOString(),
     title: blueprint.title,
     subject: blueprint.subject,
@@ -225,6 +226,7 @@ export function buildCourseBlueprintExportBundle(detail: CourseBlueprintDetail):
     default_due_days: assignment.default_due_days,
     default_due_time: assignment.default_due_time,
     points_possible: assignment.points_possible,
+    gradebook_weight: assignment.gradebook_weight,
     include_in_final: assignment.include_in_final,
     is_draft: assignment.is_draft,
     position: assignment.position,
@@ -238,6 +240,9 @@ export function buildCourseBlueprintExportBundle(detail: CourseBlueprintDetail):
       title: assessment.title,
       content: assessment.content as any,
       documents: assessment.documents ?? [],
+      points_possible: assessment.points_possible,
+      gradebook_weight: assessment.gradebook_weight,
+      include_in_final: assessment.include_in_final,
       position: assessment.position,
     }))
 
@@ -344,8 +349,18 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
         ? normalizePlannedCourseSiteConfig(manifest.planned_site_config)
         : DEFAULT_PLANNED_COURSE_SITE_CONFIG,
     },
-    assignments: assignmentResult.assignments,
-    assessments: testResult.assessments.sort((left, right) => left.position - right.position),
+    assignments: assignmentResult.assignments.map((assignment) => ({
+      ...assignment,
+      gradebook_weight: assignment.gradebook_weight ?? 10,
+    })),
+    assessments: testResult.assessments
+      .map((assessment) => ({
+        ...assessment,
+        points_possible: assessment.points_possible ?? null,
+        gradebook_weight: assessment.gradebook_weight ?? 10,
+        include_in_final: assessment.include_in_final ?? true,
+      }))
+      .sort((left, right) => left.position - right.position),
     lesson_templates: lessonResult.lesson_templates,
     errors: [
       ...assignmentResult.errors,

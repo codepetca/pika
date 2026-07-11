@@ -838,10 +838,11 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Preserved assignment due timing as Toronto-local offsets from the source classroom start date.
 - Made assignments and tests created from blueprints explicitly unpublished for teacher review.
 - Added a realistic blueprint-to-classroom acceptance regression covering resources, assignments, submission requirements, tests/questions, lesson plans, relative due dates, and excluded student records.
+- Added migration 080 and course-package v3 support to preserve assignment/test point scales, gradebook weights, and final-grade inclusion, including validation and backward-compatible defaults for older packages.
 - Documented the classroom rollover contract.
 
 **Validation:**
-- Blueprint-focused Vitest suite (29/29 passed)
+- Blueprint-focused Vitest suite (36/36 passed)
 - `pnpm lint`
 - `pnpm build`
 - Pika audit
