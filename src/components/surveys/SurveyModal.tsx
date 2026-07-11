@@ -77,6 +77,7 @@ export function SurveyModal({
   const [dueDate, setDueDate] = useState('')
   const [dueTime, setDueTime] = useState(DEFAULT_SCHEDULE_TIME)
   const [error, setError] = useState('')
+  const initializedSurveyIdRef = useRef<string | null>(null)
 
   const buildValues = useCallback((overrides?: Partial<SurveySettingsValues>): SurveySettingsValues => ({
     title,
@@ -137,7 +138,12 @@ export function SurveyModal({
   })
 
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) {
+      initializedSurveyIdRef.current = null
+      return
+    }
+    if (initializedSurveyIdRef.current === survey.id) return
+    initializedSurveyIdRef.current = survey.id
 
     const values = getSurveyValues(survey)
     setCurrentSurvey(survey)

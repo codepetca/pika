@@ -1511,6 +1511,60 @@ describe('TeacherClassroomView', () => {
     })
   })
 
+  it('flushes material title autosave on blur without changing release actions', async () => {
+    const material = makeMaterialSummary('material-draft', 'Draft Reading', {
+      is_draft: true,
+      released_at: null,
+    })
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        return Promise.resolve({ assignments: [] })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [material] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
+      if (key === `class-days:${classroom.id}`) {
+        return Promise.resolve({ class_days: [] })
+      }
+      return fetcher()
+    })
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        material: makeMaterialSummary('material-draft', 'Updated Reading', {
+          is_draft: true,
+          released_at: null,
+        }),
+      }),
+    })
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Draft Reading' }))
+    const materialDialog = await screen.findByRole('dialog')
+    const titleInput = within(materialDialog).getByPlaceholderText('Reading, link, handout...')
+    fireEvent.change(titleInput, { target: { value: 'Updated Reading' } })
+    fireEvent.blur(titleInput)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        `/api/teacher/classrooms/${classroom.id}/materials/material-draft`,
+        expect.objectContaining({ method: 'PATCH' }),
+      )
+    })
+    const updateRequest = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
+      ([url, options]) =>
+        url === `/api/teacher/classrooms/${classroom.id}/materials/material-draft`
+        && options?.method === 'PATCH',
+    )
+    expect(JSON.parse(String(updateRequest?.[1]?.body))).toMatchObject({ title: 'Updated Reading' })
+    expect(within(materialDialog).getByRole('button', { name: 'Post Material' })).toBeInTheDocument()
+    expect(within(materialDialog).getByRole('button', { name: 'Schedule...' })).toBeInTheDocument()
+  })
+
   it('keeps schedule controls available when editing a scheduled material', async () => {
     const scheduledRelease = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
     const postedRelease = new Date().toISOString()

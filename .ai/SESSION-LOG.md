@@ -10,34 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-21 — Stale async classroom-state audit
-
-**Completed:**
-- Continued the bounded systems/UI audit with the stale async classroom/workspace state slice.
-- Fixed `StudentLessonCalendarTab` so lesson plans, assignments, announcements, and max-date state clear on classroom changes and only current classroom request ids can write visible state.
-- Fixed `TeacherTestsTab` so the tests list and selected/grading workspace state reset on classroom changes, and late `/api/teacher/tests?classroom_id=...` responses cannot repaint the newly selected classroom with old-classroom tests.
-- Added regression coverage for late classroom A responses arriving after a switch to classroom B in both student calendar and teacher tests flows.
-- Addressed subagent review feedback by clearing owner-scoped teacher test modal/action state on classroom changes, including delete/edit/batch/status/access/return/unsubmit/delete-work pending state, and by ignoring late create-test responses from a previous classroom.
-- Addressed follow-up subagent review feedback by guarding create-test completion with a request id so an old classroom create cannot clear the current classroom's in-flight create state.
-
-**Workspace-state checklist:**
-- owner identity: classroom id
-- late responses ignored: yes, request id plus current classroom id checks
-- state clears immediately on owner change: yes, for calendar data and teacher tests workspace state
-- owner-scoped action state clears immediately on owner change: yes
-- current-owner create busy state protected from old requests: yes
-- cache boundary checked: yes, classroom-scoped cache keys invalidated in tests
-- remaining manual follow-up: none
-
-**Validation:**
-- `pnpm test tests/components/StudentLessonCalendarTab.test.tsx tests/components/TeacherTestsTab.test.tsx`
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms"`; reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`.
-
 ## 2026-06-22 — Teacher tests workspace navigation extraction
 
 **Completed:**
@@ -761,3 +733,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm vitest run tests/components/TeacherClassroomView.test.tsx` (49 passed)
 - `pnpm lint`
 - `git diff --check origin/main...HEAD`
+
+## 2026-07-11 — Fix classwork modal review findings
+
+**Completed:**
+- Prevented same-record parent refreshes from reinitializing open material and survey editors, preserving newer local edits while autosave requests are in flight.
+- Added a distinct scheduled-survey modal state with `Save schedule`, `Schedule...`, and `Open now` actions plus an explicit Scheduled badge.
+- Kept the survey schedule dialog open when its update request fails.
+- Added regression coverage for in-flight survey autosave, scheduled actions, and scheduling failures.
+
+**Validation:**
+- `pnpm vitest run tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/TeacherClassroomView.test.tsx` (55 passed)
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Targeted Playwright screenshots reviewed for the scheduled survey modal and action menu at 1440x900 and 390x844; temporary survey deleted.
