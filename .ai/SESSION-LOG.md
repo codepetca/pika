@@ -2740,3 +2740,14 @@ cross-role visual verification.
 - `pnpm lint`
 - `git diff --check`
 - `git diff --cached --check`
+
+## 2026-07-11 — Rebase classwork modal PR onto latest main
+
+**Completed:**
+- Recreated the feature worktree and rebased all 12 classwork modal commits onto current `origin/main` without content conflicts.
+- Confirmed `080_add_survey_due_policy.sql` remains sequential after main's `079_classroom_theme_color.sql`, with no duplicate migration prefixes.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherClassroomView.test.tsx` (49 passed)
+- `pnpm lint`
+- `git diff --check origin/main...HEAD`
