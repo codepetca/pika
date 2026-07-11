@@ -864,3 +864,35 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
 - `git diff --check`
+## 2026-07-10 — Bump GitHub Actions off deprecated Node 20
+
+**Completed:**
+- Bumped pinned action majors in ci.yml and ui-policy.yml to clear the "Node.js 20 is deprecated" runner warning: checkout v4→v7, setup-node v4→v6, pnpm/action-setup v4→v6, cache v4→v6, upload-artifact v4→v7.
+- All step inputs used are stable across these majors (no removed inputs); relying on CI to validate.
+
+**Validation:**
+- CI `Test & Build` on the PR (self-validating workflow change)
+
+## 2026-07-10 — Repo cleanup and /repo-tidy skill
+
+**Completed:**
+- Deleted 101 stale remote branches (95 merged/closed-PR + 6 from closing stalled PRs) and ~140 local branches; pruned phantom `origin/pr/672` ref.
+- Removed 20 stale worktrees and 2 orphan directories; tagged 9 scratch-branch tips as `rescue/*` (local-only) before deleting.
+- Closed stalled PRs #298, #323, #328, #341, #568, #739. Rescued uncommitted work from an unattended worktree into PR #838.
+- Enabled `delete_branch_on_merge` on the repo so merged PR branches self-clean.
+- Added `scripts/repo-tidy.sh` (read-only hygiene report) plus `/repo-tidy` command in `.claude/commands/` and `.codex/prompts/`, and documented it in `docs/dev-workflow.md`.
+
+**Validation:**
+- `bash scripts/repo-tidy.sh` (clean run against the tidied repo)
+- `pnpm test tests/unit/ai-startup-docs.test.ts` (26/26 passed)
+- `pnpm lint`
+
+## 2026-07-10 — Issue backlog triage + CONTRIBUTING "Finding work" section
+
+**Completed:**
+- Triaged 61 open issues → 46. Closed 10 delivered-by-merged-PR (#86/#87/#88/#99/#144/#418/#431/#460/#523/#417), 2 duplicates (#451→#152, #366→#362), 1 abandoned (#252), 2 out-of-direction Clerk auth (#434/#449).
+- Labeled all 46 survivors (0 unlabeled): 14 bug, 29 enhancement, 4 good-first-issue, 2 needs-triage (new label).
+- Added a "Finding something to work on" section to CONTRIBUTING.md pointing collaborators at label filters and noting big ideas (e.g. gamification #205) vs ad-hoc feature work.
+
+**Validation:**
+- `gh issue list` label coverage check (0 unlabeled)
