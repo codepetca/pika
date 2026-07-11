@@ -96,6 +96,7 @@ import {
   type AssignmentWorkspaceMode,
 } from '@/lib/assignment-grading-layout'
 import { buildOrderedClassworkItems } from '@/lib/classwork-order'
+import { isSurveyScheduled } from '@/lib/surveys'
 import type {
   Classroom,
   Assignment,
@@ -2144,6 +2145,7 @@ export function TeacherClassroomView({
     if (!selectedSurveyId) return null
     return currentSurveys.find((survey) => survey.id === selectedSurveyId) ?? null
   }, [currentSurveys, selectedSurveyId])
+  const selectedSurveyIsScheduled = selectedSurvey ? isSurveyScheduled(selectedSurvey) : false
 
   const patchSelectedSurvey = useCallback(async (update: Record<string, unknown>) => {
     if (!selectedSurveyId) return false
@@ -2726,7 +2728,9 @@ export function TeacherClassroomView({
         content={
           selectedSurvey.status === 'draft' && selectedSurvey.stats.questions_count === 0
             ? 'Add a question before opening the poll'
-            : selectedSurvey.status === 'active'
+            : selectedSurveyIsScheduled
+              ? 'Open poll now'
+              : selectedSurvey.status === 'active'
               ? 'Close poll'
               : 'Open poll'
         }
@@ -2735,38 +2739,46 @@ export function TeacherClassroomView({
           <SplitButton
             label={
               <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                {selectedSurvey.status === 'active' ? (
+                {selectedSurvey.status === 'active' && !selectedSurveyIsScheduled ? (
                   <Unlock className="h-4 w-4" aria-hidden="true" />
                 ) : (
                   <Lock className="h-4 w-4" aria-hidden="true" />
                 )}
-                <span>{selectedSurvey.status === 'active' ? 'Close poll' : 'Open poll'}</span>
+                <span>
+                  {selectedSurveyIsScheduled
+                    ? 'Open now'
+                    : selectedSurvey.status === 'active'
+                      ? 'Close poll'
+                      : 'Open poll'}
+                </span>
               </span>
             }
             onPrimaryClick={() => {
-              void patchSelectedSurvey({
-                status: selectedSurvey.status === 'active' ? 'closed' : 'active',
-              })
+              void patchSelectedSurvey(
+                selectedSurveyIsScheduled
+                  ? { opens_at: null }
+                  : { status: selectedSurvey.status === 'active' ? 'closed' : 'active' }
+              )
             }}
             options={[
               {
                 id: 'open-poll',
                 label: 'Open poll',
-                checked: selectedSurvey.status === 'active',
+                checked: selectedSurvey.status === 'active' && !selectedSurveyIsScheduled,
                 onSelect: () => {
-                  void patchSelectedSurvey({ status: 'active' })
+                  void patchSelectedSurvey({ status: 'active', opens_at: null })
                 },
                 disabled:
                   isReadOnly ||
                   surveyActionBusy ||
                   isDeletingSurvey ||
-                  selectedSurvey.status === 'active' ||
+                  (selectedSurvey.status === 'active' && !selectedSurveyIsScheduled) ||
                   selectedSurvey.stats.questions_count === 0,
               },
               {
                 id: 'schedule-open',
                 label: 'Schedule open...',
-                checked: selectedSurvey.status === 'active' && !!selectedSurvey.opens_at && isScheduleIsoInFuture(selectedSurvey.opens_at),
+                checked: selectedSurveyIsScheduled,
                 onSelect: () => {
                   openSurveyScheduleDialog(selectedSurvey)
                 },
@@ -2834,8 +2846,12 @@ export function TeacherClassroomView({
             toggleAriaLabel="More survey actions"
             menuPlacement="down"
             primaryButtonProps={{
-              'aria-label': selectedSurvey.status === 'active' ? 'Close poll' : 'Open poll',
-              'aria-pressed': selectedSurvey.status === 'active',
+              'aria-label': selectedSurveyIsScheduled
+                ? 'Open now'
+                : selectedSurvey.status === 'active'
+                  ? 'Close poll'
+                  : 'Open poll',
+              'aria-pressed': selectedSurvey.status === 'active' && !selectedSurveyIsScheduled,
               disabled:
                 isReadOnly ||
                 surveyActionBusy ||

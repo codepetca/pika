@@ -33,6 +33,7 @@ export function useClassworkAutosave<T>({
   const lastSaveAtRef = useRef(0)
   const lastSavedValuesRef = useRef<T | null>(null)
   const pendingValuesRef = useRef<T | null>(null)
+  const inFlightSaveRef = useRef<Promise<boolean> | null>(null)
   const disabledRef = useRef(disabled)
   const isEqualRef = useRef(isEqual)
   const onSaveRef = useRef(onSave)
@@ -75,35 +76,51 @@ export function useClassworkAutosave<T>({
     setStatus(values ? 'saved' : 'saving')
   }, [clearTimers])
 
-  const saveNow = useCallback(async (values: T) => {
-    if (disabledRef.current) return true
+  const drainPending = useCallback(() => {
+    if (inFlightSaveRef.current) return inFlightSaveRef.current
 
-    const saved = lastSavedValuesRef.current
-    if (saved && isEqualRef.current(saved, values)) {
-      pendingValuesRef.current = null
-      setStatus('saved')
-      return true
-    }
+    const savePromise = (async () => {
+      while (pendingValuesRef.current && !disabledRef.current) {
+        const values = pendingValuesRef.current
+        const saved = lastSavedValuesRef.current
 
-    setStatus('saving')
-    lastSaveAtRef.current = Date.now()
+        if (saved && isEqualRef.current(saved, values)) {
+          pendingValuesRef.current = null
+          setStatus('saved')
+          return true
+        }
 
-    try {
-      const savedValues = await onSaveRef.current(values)
-      const latestPending = pendingValuesRef.current
-      if (latestPending && !isEqualRef.current(latestPending, values)) {
-        return
+        setStatus('saving')
+        lastSaveAtRef.current = Date.now()
+
+        try {
+          const savedValues = await onSaveRef.current(values)
+          lastSavedValuesRef.current = savedValues ?? values
+          if (
+            pendingValuesRef.current
+            && isEqualRef.current(pendingValuesRef.current, values)
+          ) {
+            pendingValuesRef.current = null
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Failed to save changes'
+          onErrorRef.current?.(message)
+          setStatus('unsaved')
+          return false
+        }
       }
-      lastSavedValuesRef.current = savedValues ?? values
-      pendingValuesRef.current = null
-      setStatus('saved')
+
+      if (!pendingValuesRef.current) setStatus('saved')
       return true
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to save changes'
-      onErrorRef.current?.(message)
-      setStatus('unsaved')
-      return false
-    }
+    })()
+
+    inFlightSaveRef.current = savePromise
+    void savePromise.finally(() => {
+      if (inFlightSaveRef.current === savePromise) {
+        inFlightSaveRef.current = null
+      }
+    })
+    return savePromise
   }, [])
 
   const queueSave = useCallback((values: T, options?: SaveOptions) => {
@@ -120,24 +137,21 @@ export function useClassworkAutosave<T>({
     const msSinceLastSave = now - lastSaveAtRef.current
 
     if (options?.force || msSinceLastSave >= minIntervalMs) {
-      void saveNow(values)
+      void drainPending()
       return
     }
 
     throttledTimeoutRef.current = setTimeout(() => {
       throttledTimeoutRef.current = null
-      const latest = pendingValuesRef.current
-      if (latest) {
-        void saveNow(latest)
-      }
+      void drainPending()
     }, minIntervalMs - msSinceLastSave)
-  }, [minIntervalMs, saveNow])
+  }, [drainPending, minIntervalMs])
 
   const schedule = useCallback((values: T) => {
     if (disabledRef.current) return
 
     const saved = lastSavedValuesRef.current
-    if (saved && isEqualRef.current(saved, values)) {
+    if (saved && isEqualRef.current(saved, values) && !inFlightSaveRef.current) {
       pendingValuesRef.current = null
       setStatus('saved')
       return
@@ -160,8 +174,8 @@ export function useClassworkAutosave<T>({
     const pending = pendingValuesRef.current
     if (!pending || disabledRef.current) return true
     clearTimers()
-    return saveNow(pending)
-  }, [clearTimers, saveNow])
+    return drainPending()
+  }, [clearTimers, drainPending])
 
   return {
     status,

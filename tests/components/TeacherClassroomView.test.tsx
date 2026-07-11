@@ -1333,6 +1333,48 @@ describe('TeacherClassroomView', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
+  it('shows a scheduled survey as scheduled and opens it immediately without closing it', async () => {
+    const scheduledSurvey = makeSurveySummary('survey-1', 'Game Jam Links', {
+      status: 'active',
+      opens_at: '2099-01-02T14:00:00.000Z',
+      stats: { total_students: 2, responded: 0, questions_count: 1 },
+    })
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) return Promise.resolve({ assignments: [] })
+      if (key === `teacher-materials:${classroom.id}`) return Promise.resolve({ materials: [] })
+      if (key === `teacher-surveys:${classroom.id}`) return Promise.resolve({ surveys: [scheduledSurvey] })
+      if (key === `class-days:${classroom.id}`) return Promise.resolve({ class_days: [] })
+      return fetcher()
+    })
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ survey: { ...scheduledSurvey, opens_at: null } }),
+    })
+
+    const { rerender } = render(
+      <TeacherClassroomView classroom={classroom} selectedSurveyId={null} />,
+    )
+
+    expect(await screen.findByRole('button', { name: 'Game Jam Links' })).toBeInTheDocument()
+    expect(screen.getByText('Scheduled')).toBeInTheDocument()
+
+    rerender(<TeacherClassroomView classroom={classroom} selectedSurveyId="survey-1" />)
+
+    const openNowButton = await screen.findByRole('button', { name: 'Open now' })
+    expect(openNowButton).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(openNowButton)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/teacher/surveys/survey-1',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ opens_at: null }),
+        }),
+      )
+    })
+  })
+
   it('enables opening a draft survey after adding its first question in the edit modal', async () => {
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {

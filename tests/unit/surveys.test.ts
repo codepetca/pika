@@ -4,6 +4,7 @@ import {
   aggregateSurveyResults,
   canStudentRespondToSurvey,
   getStudentSurveyStatus,
+  isSurveyScheduled,
   normalizeSurveyQuestionInput,
   validateSurveyOptions,
   validateSurveyResponses,
@@ -60,6 +61,15 @@ function makeResponse(overrides: Partial<SurveyResponse> = {}): SurveyResponse {
 }
 
 describe('survey utilities', () => {
+  it('identifies only active surveys with a future opening time as scheduled', () => {
+    const now = new Date('2026-01-02T00:00:00.000Z')
+
+    expect(isSurveyScheduled(makeSurvey({ opens_at: '2026-01-03T00:00:00.000Z' }), now)).toBe(true)
+    expect(isSurveyScheduled(makeSurvey({ opens_at: '2026-01-01T00:00:00.000Z' }), now)).toBe(false)
+    expect(isSurveyScheduled(makeSurvey({ status: 'draft', opens_at: '2026-01-03T00:00:00.000Z' }), now)).toBe(false)
+    expect(isSurveyScheduled(makeSurvey({ opens_at: null }), now)).toBe(false)
+  })
+
   it('allows dynamic surveys to be updated while open', () => {
     const survey = makeSurvey({ dynamic_responses: true })
 

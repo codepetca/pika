@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Trash2 } from 'lucide-react'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
-import { getSurveyStatusBadgeClass, getSurveyStatusLabel } from '@/lib/surveys'
+import { getSurveyStatusBadgeClass, getSurveyStatusLabel, isSurveyScheduled } from '@/lib/surveys'
 import { Button, Tooltip } from '@/ui'
 import type { SurveyWithStats } from '@/types'
 
@@ -40,8 +40,11 @@ export function SortableSurveyCard({
     transition: isDragging ? undefined : transition,
   }
 
-  const statusLabel = getSurveyStatusLabel(survey.status)
-  const statusClassName = getSurveyStatusBadgeClass(survey.status)
+  const scheduled = isSurveyScheduled(survey)
+  const statusLabel = scheduled ? 'Scheduled' : getSurveyStatusLabel(survey.status)
+  const statusClassName = scheduled
+    ? 'bg-warning-bg text-warning'
+    : getSurveyStatusBadgeClass(survey.status)
 
   return (
     <TeacherWorkItemCardFrame

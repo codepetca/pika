@@ -10,84 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-22 — Teacher tests workspace navigation extraction
-
-**Completed:**
-- Started the bounded architecture/UI improvement goal with a behavior-preserving TeacherTestsTab decomposition slice.
-- Extracted controlled/uncontrolled tests workspace selection, workspace mode, selected grading student, and URL search-param mutation into `useTestWorkspaceNavigation`.
-- Kept grading data loading, business actions, modal state, and workspace side effects in `TeacherTestsTab`.
-- Added hook contract coverage for list defaults, grading navigation, authoring student-param cleanup, workspace clearing, and controlled-prop precedence.
-- Added a parent `TeacherTestsTab` regression proving grading row selection still writes `testStudentId` through search params.
-
-**Refactor checklist:**
-- boundary: workspace navigation/search-param state only
-- shell or behavior extraction: behavior extraction for local navigation state, no UI shell change
-- business logic moved: none
-- visible behavior intended to change: none
-- remaining decomposition: teacher tests grading/list/action state still intentionally stays in the parent for future slices
-
-**Validation:**
-- `pnpm test tests/hooks/useTestWorkspaceNavigation.test.ts tests/components/TeacherTestsTab.test.tsx`
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms"`; reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`.
-
-## 2026-06-22 — Teacher tests list-state extraction
-
-**Completed:**
-- Continued the bounded architecture/UI improvement goal with the next behavior-preserving TeacherTestsTab decomposition slice.
-- Extracted classroom-owned tests-list loading, visible-list ownership, event reload handling, request freshness checks, and selected-draft summary patching into `useTeacherTestList`.
-- Moved shared selected-test summary patching into `src/lib/test-summary-patch.ts` so the hook and parent mutations use the same behavior.
-- Kept rendering, routing, grading rows, mutations, dialogs, batch actions, and workspace mode state in `TeacherTestsTab`.
-- Added hook-level coverage for current-classroom loads, hiding prior-classroom data while loading, late response rejection, matching update-event reloads, and draft-summary patching.
-- Updated the parent component regression for visible list reload after `TEACHER_TESTS_UPDATED_EVENT`.
-
-**Workspace-state checklist:**
-- owner identity: classroom id
-- late responses ignored: yes, request id plus current classroom id checks in the hook
-- state clears immediately on owner change: visible tests are hidden when loaded owner differs from current classroom
-- A-after-B regression: covered in `tests/hooks/useTeacherTestList.test.ts` and parent coverage remains in `TeacherTestsTab.test.tsx`
-- visible behavior intended to change: none
-
-**Validation:**
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm test tests/hooks/useTeacherTestList.test.ts tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-- `pnpm build`
-
-## 2026-06-22 — Teacher test results normalization
-
-**Completed:**
-- Continued the bounded architecture/UI improvement goal with a behavior-preserving legacy contract cleanup slice.
-- Moved teacher test results payload normalization from `TeacherTestsTab` into `readTeacherTestResultsFromPayload` in `src/lib/test-api-contract.ts`.
-- Kept current `test` payload keys preferred while retaining the legacy `quiz` fallback for compatibility.
-- Exported typed teacher grading student/question result shapes from the contract helper and kept UI state, fetch ownership, grading actions, and rendering in `TeacherTestsTab`.
-- Added contract tests for current-key preference, legacy fallback, active run/error passthrough, question summary mapping, and unknown-status filtering.
-- Strengthened the parent `TeacherTestsTab` legacy fallback regression to prove the normalized results request still loads without the generic results error.
-
-**Compatibility checklist:**
-- What widened: no API payload, query, or schema widened; only client-side normalization moved to a helper.
-- Fallback: legacy `quiz` detail key remains supported through `readTestFromPayload`.
-- Migration dependency: none; no schema or server contract changed.
-- Intended payload regression: `tests/lib/test-api-contract.test.ts` covers current `test` preference and legacy `quiz` fallback.
-- Legacy aliases still alive: `quiz`/`quizzes` response aliases and fallback readers remain intentionally alive.
-- Visible behavior intended to change: none.
-
-**Validation:**
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm test tests/lib/test-api-contract.test.ts tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-06-22 — Cached API JSON helper
 
 **Completed:**
@@ -438,6 +360,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
 - `git diff --check`
+
 ## 2026-07-10 — Bump GitHub Actions off deprecated Node 20
 
 **Completed:**
@@ -748,3 +671,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Targeted Playwright screenshots reviewed for the scheduled survey modal and action menu at 1440x900 and 390x844; temporary survey deleted.
+
+## 2026-07-11 — Fix final classwork modal review findings
+
+**Completed:**
+- Serialized shared classwork autosaves so newer pending edits are persisted after older requests complete and `flush()` waits for the latest state.
+- Centralized scheduled-survey detection and used it for survey cards, the survey modal, and selected-survey actions.
+- Changed future-scheduled survey actions from `Close poll` to `Open now` without cancelling the schedule accidentally.
+- Added regression coverage for ordered autosaves, scheduled status labeling, and opening a scheduled survey immediately.
+
+**Validation:**
+- `pnpm test` (311 files, 2798 tests passed)
+- `pnpm exec vitest run tests/components/SortableSurveyCard.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/TeacherClassroomView.test.tsx tests/unit/surveys.test.ts` (70 passed)
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- Standard teacher/student and targeted teacher desktop/mobile Playwright screenshots reviewed; temporary survey deleted.
