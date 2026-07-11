@@ -51,7 +51,8 @@ Package manager: pnpm (recommended via Corepack; `package.json#packageManager`)
    - `corepack enable`
    - `pnpm install`
 2. Set up `.env.local` using the shared-worktree flow in [`docs/dev-workflow.md`](../dev-workflow.md).
-   - Default: symlink the worktree’s `.env.local` to `$HOME/Repos/.env/pika/.env.local`
+   - Maintainer default: symlink the worktree’s `.env.local` to `$HOME/Repos/.env/pika/.env.local`
+   - Collaborator default: `cp .env.example .env.local`, then fill in the required values
    - Exception-only: use a branch-specific env file when intentionally isolating backend state
 3. Ensure pending migrations have been applied by a human before runtime work that depends on them.
    - AI agents may create or edit migration files, but must not run `supabase db push`, `supabase db reset`, or similar migration commands

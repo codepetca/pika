@@ -13,7 +13,8 @@ Read this at the start of every AI session. Use `.ai/SESSION-LOG.md` only for re
 - Main hub checkout: `$HOME/Repos/pika`
 - New named Pika worktrees: `$HOME/.codex/worktrees/pika/<branch-name>`
 - Codex Desktop may also use app-managed worktrees: `$HOME/.codex/worktrees/<id>/pika`
-- Shared env file: `$HOME/Repos/.env/pika/.env.local`; each worktree must symlink `.env.local` to it before running the app
+- Maintainer shared env file: `$HOME/Repos/.env/pika/.env.local`; worktrees on that setup symlink `.env.local` to it before running the app
+- Collaborator setup may keep a checkout-local `.env.local` copied from `.env.example`
 - Runtime and package-manager requirements live in `.nvmrc`, `package.json`, and `scripts/verify-env.sh`
 - Worktree and shared-env setup are defined only in `docs/dev-workflow.md`
 

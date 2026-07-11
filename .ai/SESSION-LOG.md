@@ -10,6 +10,37 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-06-14 — Individual test response fixture wording
+
+**Completed:**
+- Renamed `TestIndividualResponses` current-surface test helper and stale/current fixture ids from quiz wording to test wording.
+- Updated stale-response test descriptions to say selected test changes.
+- Preserved explicit legacy `quizId` alias coverage and left runtime compatibility props unchanged.
+- No schema, API payload, or production code changes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/components/TestIndividualResponses.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-14 — Arbitrary quiz fixture wording cleanup
+
+**Completed:**
+- Renamed arbitrary announcement and lesson-calendar fixture copy from Quiz wording to Test wording.
+- Updated the generic dev-flow risk checklist example from quiz status to test status.
+- Left schema, API compatibility keys, gradebook category fields, and legacy alias coverage unchanged.
+- No production schema or runtime contract changes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/api/teacher/announcements.test.ts tests/unit/announcements.test.ts tests/components/LessonCalendar.test.tsx tests/components/LessonDayCell.test.tsx`
+- `pnpm lint`
+- `pnpm test` (first run hit unrelated component timeout failures; failed files passed on isolated rerun)
+- `pnpm test`
+
 ## 2026-06-14 — Student tests response fixture keys
 
 **Completed:**
@@ -821,6 +852,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm exec tsc --noEmit`
 
+## 2026-07-11 — Collaborator-local env startup guidance
+
+**Completed:**
+- Aligned the remaining startup/env guidance drift so collaborator-owned `.env.local` files are explicitly valid outside the maintainer symlink setup.
+- Updated `AGENTS.md`, `.ai/CURRENT.md`, `.codex/prompts/session-start.md`, `.claude/commands/session-start.md`, and `docs/core/project-context.md` to describe the maintainer symlink as the default on that machine, while allowing collaborators to copy `.env.example`.
+- Replaced the `ai-startup-docs` invariant that enforced a universal symlink requirement with a dual-path check that requires both the maintainer shared-env path and collaborator-local setup guidance.
+- No product code, runtime behavior, migrations, or dependencies changed.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
+- `git diff --check`
 ## 2026-07-10 — Bump GitHub Actions off deprecated Node 20
 
 **Completed:**
