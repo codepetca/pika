@@ -708,6 +708,7 @@ export interface CourseBlueprintAssignment {
   default_due_days: number
   default_due_time: string
   points_possible: number | null
+  gradebook_weight: number
   include_in_final: boolean
   is_draft: boolean
   position: number
@@ -722,6 +723,9 @@ export interface CourseBlueprintAssessment {
   title: string
   content: Record<string, unknown>
   documents: TestDocument[]
+  points_possible: number | null
+  gradebook_weight: number
+  include_in_final: boolean
   position: number
   created_at: string
   updated_at: string

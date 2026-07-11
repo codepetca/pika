@@ -27,8 +27,8 @@ A course package is a tar archive with these root files:
 - Course title, subject, grade level, course code, and term template
 - Planned course site slug, published flag, and section visibility
 - Course overview, outline, and resources
-- Assignment plans, default due offsets, default due times, points, final-grade inclusion, and draft state
-- Test definitions represented in Markdown
+- Assignment plans, default due offsets, default due times, points, gradebook weights, final-grade inclusion, and draft state
+- Test definitions, point scales, gradebook weights, and final-grade inclusion represented in Markdown
 - Test document metadata/content when represented by the test Markdown format
 - Lesson plan templates
 
