@@ -896,3 +896,12 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Validation:**
 - `gh issue list` label coverage check (0 unlabeled)
+
+## 2026-07-10 — Auto-label new issues with needs-triage
+
+**Completed:**
+- Added .github/workflows/triage-label.yml: on issue `opened`, adds `needs-triage` if the issue has zero labels (leaves template/pre-labeled issues alone).
+- Dependency-free (uses pre-installed gh CLI, no pinned actions) and least-privilege (`permissions: issues: write` only, over the repo's read-only default).
+
+**Validation:**
+- YAML parse check; workflow runs only on issue events (no CI impact to validate here)

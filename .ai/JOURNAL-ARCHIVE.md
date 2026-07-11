@@ -11172,3 +11172,18 @@
 - `pnpm lint`
 - `pnpm test` (first run hit unrelated component timeout failures; failed files passed on isolated rerun)
 - `pnpm test`
+
+## 2026-06-14 — Student tests response fixture keys
+
+**Completed:**
+- Updated `StudentTestsTab` test fixtures to use current `tests`/`test` response keys by default.
+- Added explicit legacy `quiz`/`quizzes` response-key fallback coverage for the student tests component.
+- Left DB-shaped `quiz_id` question fields and legacy `student-quiz-action-footer` test id unchanged.
+- No production code, schema, or API contract changes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/components/StudentTestsTab.test.tsx` (first run hit an unrelated exam-mode timeout after the new fallback test passed; rerun passed)
+- `pnpm lint`
+- `pnpm test`
