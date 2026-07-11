@@ -24,6 +24,22 @@ Follow the [README Getting Started](./README.md#getting-started). In short:
 You do **not** need Vercel, Brevo, or an OpenAI key for normal development.
 Never commit `.env*` files or real credentials.
 
+## Finding something to work on
+
+Day-to-day features are usually handled directly with the maintainer as they
+come up rather than filed as issues — so **check in before starting anything
+substantial**. The issue tracker is used for two things:
+
+- **Tracked bugs and smaller enhancements** — browse by label:
+  - [`good first issue`](https://github.com/codepetca/pika/issues?q=is%3Aopen+label%3A%22good+first+issue%22) — self-contained on-ramps, start here
+  - [`bug`](https://github.com/codepetca/pika/issues?q=is%3Aopen+label%3Abug) / [`enhancement`](https://github.com/codepetca/pika/issues?q=is%3Aopen+label%3Aenhancement) — the general backlog
+  - `needs-triage` — not ready to pick up; ask the maintainer to clarify first
+- **Large multi-session ideas** (e.g. the Pika Pet gamification system, #205) —
+  these are tracked as issues and may already be in progress. Comment before
+  starting so you don't collide with active work.
+
+Comment on an issue to claim it before you start.
+
 ## Workflow: everything goes through a PR
 
 `main` and `production` are protected. Direct pushes are blocked; every change
