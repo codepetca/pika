@@ -148,6 +148,9 @@ describe('SurveyCreationModal', () => {
     await waitFor(() => expect(patchBodies).toHaveLength(1))
 
     fireEvent.change(titleInput, { target: { value: 'Newer local title' } })
+    fireEvent.blur(titleInput)
+    expect(patchBodies).toHaveLength(1)
+
     resolveFirstPatch?.({
       ok: true,
       json: async () => ({ survey: makeSurvey({ title: 'First saved title' }) }),
@@ -157,7 +160,6 @@ describe('SurveyCreationModal', () => {
       expect(titleInput).toHaveValue('Newer local title')
     })
 
-    fireEvent.blur(titleInput)
     await waitFor(() => expect(patchBodies).toHaveLength(2))
     expect(patchBodies[1].title).toBe('Newer local title')
   })

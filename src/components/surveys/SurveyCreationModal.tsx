@@ -21,7 +21,7 @@ import {
   isScheduleIsoInFuture,
   parseScheduleIsoToParts,
 } from '@/lib/scheduling'
-import { getSurveyStatusBadgeClass, getSurveyStatusLabel } from '@/lib/surveys'
+import { getSurveyStatusBadgeClass, getSurveyStatusLabel, isSurveyScheduled } from '@/lib/surveys'
 import { DialogPanel } from '@/ui'
 import type { Survey, SurveyWithStats } from '@/types'
 
@@ -396,21 +396,19 @@ export function SurveyCreationModal({
   }
 
   const busy = creatingDraft || actionBusy || autosaveStatus === 'saving'
-  const isSurveyScheduled = currentSurvey?.status === 'active'
-    && !!currentSurvey.opens_at
-    && isScheduleIsoInFuture(currentSurvey.opens_at)
-  const isSurveyOpen = currentSurvey?.status === 'active' && !isSurveyScheduled
+  const surveyIsScheduled = currentSurvey ? isSurveyScheduled(currentSurvey) : false
+  const isSurveyOpen = currentSurvey?.status === 'active' && !surveyIsScheduled
   const statusBadge = currentSurvey ? (
     <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${
-      isSurveyScheduled ? 'bg-warning-bg text-warning' : getSurveyStatusBadgeClass(currentSurvey.status)
+      surveyIsScheduled ? 'bg-warning-bg text-warning' : getSurveyStatusBadgeClass(currentSurvey.status)
     }`}>
-      {isSurveyScheduled ? 'Scheduled' : getSurveyStatusLabel(currentSurvey.status)}
+      {surveyIsScheduled ? 'Scheduled' : getSurveyStatusLabel(currentSurvey.status)}
     </span>
   ) : null
   const canOpenSurvey = questionsCount > 0
   const primaryActionLabel = actionBusy
     ? 'Saving...'
-    : isSurveyScheduled
+    : surveyIsScheduled
       ? 'Save schedule'
       : isSurveyOpen
       ? 'Close Poll'
@@ -426,7 +424,7 @@ export function SurveyCreationModal({
         title={
           creatingDraft
             ? 'Creating Draft...'
-            : isSurveyScheduled
+            : surveyIsScheduled
               ? 'Edit Scheduled Survey'
               : currentSurvey
                 ? 'Edit Survey'
@@ -475,10 +473,10 @@ export function SurveyCreationModal({
             primaryActions={currentSurvey ? (
               <ClassworkModalSplitAction
                 label={primaryActionLabel}
-                intent={isSurveyOpen || isSurveyScheduled ? 'primary' : 'publish'}
-                disabled={busy || isReadOnly || (!isSurveyOpen && !isSurveyScheduled && !canOpenSurvey)}
+                intent={isSurveyOpen || surveyIsScheduled ? 'primary' : 'publish'}
+                disabled={busy || isReadOnly || (!isSurveyOpen && !surveyIsScheduled && !canOpenSurvey)}
                 onPrimaryClick={() => {
-                  if (isSurveyScheduled) {
+                  if (surveyIsScheduled) {
                     void scheduleSurveyOpen()
                   } else if (isSurveyOpen) {
                     void closeSurvey()
@@ -488,7 +486,7 @@ export function SurveyCreationModal({
                 }}
                 toggleAriaLabel="Choose survey action"
                 options={
-                  isSurveyScheduled
+                  surveyIsScheduled
                     ? [
                         {
                           id: 'schedule',

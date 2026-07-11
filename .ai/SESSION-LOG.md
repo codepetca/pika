@@ -2456,6 +2456,7 @@ cross-role visual verification.
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
 - `git diff --check`
+
 ## 2026-07-10 — Bump GitHub Actions off deprecated Node 20
 
 **Completed:**
@@ -2766,3 +2767,19 @@ cross-role visual verification.
 - `git diff --check`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
 - Targeted Playwright screenshots reviewed for the scheduled survey modal and action menu at 1440x900 and 390x844; temporary survey deleted.
+
+## 2026-07-11 — Fix final classwork modal review findings
+
+**Completed:**
+- Serialized shared classwork autosaves so newer pending edits are persisted after older requests complete and `flush()` waits for the latest state.
+- Centralized scheduled-survey detection and used it for survey cards, the survey modal, and selected-survey actions.
+- Changed future-scheduled survey actions from `Close poll` to `Open now` without cancelling the schedule accidentally.
+- Added regression coverage for ordered autosaves, scheduled status labeling, and opening a scheduled survey immediately.
+
+**Validation:**
+- `pnpm test` (311 files, 2798 tests passed)
+- `pnpm exec vitest run tests/components/SortableSurveyCard.test.tsx tests/components/SurveyCreationModal.test.tsx tests/components/TeacherClassroomView.test.tsx tests/unit/surveys.test.ts` (70 passed)
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- Standard teacher/student and targeted teacher desktop/mobile Playwright screenshots reviewed; temporary survey deleted.
