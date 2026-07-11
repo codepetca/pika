@@ -10,37 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-14 — Individual test response fixture wording
-
-**Completed:**
-- Renamed `TestIndividualResponses` current-surface test helper and stale/current fixture ids from quiz wording to test wording.
-- Updated stale-response test descriptions to say selected test changes.
-- Preserved explicit legacy `quizId` alias coverage and left runtime compatibility props unchanged.
-- No schema, API payload, or production code changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/TestIndividualResponses.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Arbitrary quiz fixture wording cleanup
-
-**Completed:**
-- Renamed arbitrary announcement and lesson-calendar fixture copy from Quiz wording to Test wording.
-- Updated the generic dev-flow risk checklist example from quiz status to test status.
-- Left schema, API compatibility keys, gradebook category fields, and legacy alias coverage unchanged.
-- No production schema or runtime contract changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/api/teacher/announcements.test.ts tests/unit/announcements.test.ts tests/components/LessonCalendar.test.tsx tests/components/LessonDayCell.test.tsx`
-- `pnpm lint`
-- `pnpm test` (first run hit unrelated component timeout failures; failed files passed on isolated rerun)
-- `pnpm test`
-
 ## 2026-06-14 — Student tests response fixture keys
 
 **Completed:**
@@ -860,6 +829,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Validation:**
 - CI `Test & Build` on the PR (self-validating workflow change)
+
 ## 2026-07-10 — Repo cleanup and /repo-tidy skill
 
 **Completed:**
@@ -873,3 +843,13 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash scripts/repo-tidy.sh` (clean run against the tidied repo)
 - `pnpm test tests/unit/ai-startup-docs.test.ts` (26/26 passed)
 - `pnpm lint`
+
+## 2026-07-10 — Issue backlog triage + CONTRIBUTING "Finding work" section
+
+**Completed:**
+- Triaged 61 open issues → 46. Closed 10 delivered-by-merged-PR (#86/#87/#88/#99/#144/#418/#431/#460/#523/#417), 2 duplicates (#451→#152, #366→#362), 1 abandoned (#252), 2 out-of-direction Clerk auth (#434/#449).
+- Labeled all 46 survivors (0 unlabeled): 14 bug, 29 enhancement, 4 good-first-issue, 2 needs-triage (new label).
+- Added a "Finding something to work on" section to CONTRIBUTING.md pointing collaborators at label filters and noting big ideas (e.g. gamification #205) vs ad-hoc feature work.
+
+**Validation:**
+- `gh issue list` label coverage check (0 unlabeled)

@@ -11141,3 +11141,34 @@
 - `pnpm test tests/unit/ui-guidance-docs.test.ts tests/unit/ai-startup-docs.test.ts`
 - `pnpm lint`
 - `pnpm test`
+
+## 2026-06-14 — Individual test response fixture wording
+
+**Completed:**
+- Renamed `TestIndividualResponses` current-surface test helper and stale/current fixture ids from quiz wording to test wording.
+- Updated stale-response test descriptions to say selected test changes.
+- Preserved explicit legacy `quizId` alias coverage and left runtime compatibility props unchanged.
+- No schema, API payload, or production code changes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/components/TestIndividualResponses.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-14 — Arbitrary quiz fixture wording cleanup
+
+**Completed:**
+- Renamed arbitrary announcement and lesson-calendar fixture copy from Quiz wording to Test wording.
+- Updated the generic dev-flow risk checklist example from quiz status to test status.
+- Left schema, API compatibility keys, gradebook category fields, and legacy alias coverage unchanged.
+- No production schema or runtime contract changes.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm test tests/api/teacher/announcements.test.ts tests/unit/announcements.test.ts tests/components/LessonCalendar.test.tsx tests/components/LessonDayCell.test.tsx`
+- `pnpm lint`
+- `pnpm test` (first run hit unrelated component timeout failures; failed files passed on isolated rerun)
+- `pnpm test`
