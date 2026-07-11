@@ -117,6 +117,7 @@ export function SurveyCreationModal({
   const [scheduleDate, setScheduleDate] = useState(getTodayInSchedulingTimezone())
   const [scheduleTime, setScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const initializedSurveyKeyRef = useRef<string | null>(null)
 
   const isCreateMode = !surveyId
   const activeSurveyId = surveyId ?? currentSurvey?.id ?? null
@@ -177,7 +178,15 @@ export function SurveyCreationModal({
   })
 
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) {
+      initializedSurveyKeyRef.current = null
+      return
+    }
+
+    const initializationKey = isCreateMode ? 'new-survey' : surveyId ?? survey?.id ?? null
+    if (!initializationKey || initializedSurveyKeyRef.current === initializationKey) return
+    if (!isCreateMode && !survey) return
+    initializedSurveyKeyRef.current = initializationKey
 
     setError('')
     setActionBusy(false)
@@ -192,6 +201,8 @@ export function SurveyCreationModal({
       setDueDate(defaults.dueDate)
       setDueTime(defaults.dueTime)
       setQuestionsCount(0)
+      setScheduleDate(getTodayInSchedulingTimezone())
+      setScheduleTime(DEFAULT_SCHEDULE_TIME)
       setCreatingDraft(!isReadOnly)
       resetAutosave(null)
     } else {
@@ -205,6 +216,14 @@ export function SurveyCreationModal({
         setDynamicResponses(nextValues.dynamicResponses)
         setDueDate(nextValues.dueDate)
         setDueTime(nextValues.dueTime)
+        if (survey.opens_at && isScheduleIsoInFuture(survey.opens_at)) {
+          const scheduled = parseScheduleIsoToParts(survey.opens_at)
+          setScheduleDate(scheduled.date)
+          setScheduleTime(scheduled.time)
+        } else {
+          setScheduleDate(getTodayInSchedulingTimezone())
+          setScheduleTime(DEFAULT_SCHEDULE_TIME)
+        }
         resetAutosave(nextValues)
       } else {
         const defaults = getDefaultSurveyValues()
@@ -214,6 +233,8 @@ export function SurveyCreationModal({
         setDynamicResponses(defaults.dynamicResponses)
         setDueDate(defaults.dueDate)
         setDueTime(defaults.dueTime)
+        setScheduleDate(getTodayInSchedulingTimezone())
+        setScheduleTime(DEFAULT_SCHEDULE_TIME)
         resetAutosave(null)
       }
     }
@@ -224,7 +245,7 @@ export function SurveyCreationModal({
         titleInputRef.current?.select()
       }
     }, 100)
-  }, [autoEditTitle, isCreateMode, isOpen, isReadOnly, resetAutosave, survey])
+  }, [autoEditTitle, isCreateMode, isOpen, isReadOnly, resetAutosave, survey, surveyId])
 
   useEffect(() => {
     if (!creatingDraft || !isOpen || currentSurvey || !isCreateMode || isReadOnly) return
@@ -286,8 +307,8 @@ export function SurveyCreationModal({
     return flushAutosave()
   }
 
-  async function patchSurvey(update: Record<string, unknown>, options?: { closeAfter?: boolean }) {
-    if (!currentSurvey || actionBusy) return
+  async function patchSurvey(update: Record<string, unknown>, options?: { closeAfter?: boolean }): Promise<boolean> {
+    if (!currentSurvey || actionBusy) return false
 
     setActionBusy(true)
     setError('')
@@ -304,8 +325,10 @@ export function SurveyCreationModal({
       setCurrentSurvey(updatedSurvey)
       onSurveyUpdated?.(updatedSurvey)
       if (options?.closeAfter) onClose()
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update survey')
+      return false
     } finally {
       setActionBusy(false)
     }
@@ -332,11 +355,11 @@ export function SurveyCreationModal({
   async function scheduleSurveyOpen() {
     const ready = await ensureReadyToOpen()
     if (!ready) return
-    await patchSurvey({
+    const scheduled = await patchSurvey({
       status: 'active',
       opens_at: combineScheduleDateTimeToIso(scheduleDate, scheduleTime),
     }, { closeAfter: true })
-    setShowScheduleModal(false)
+    if (scheduled) setShowScheduleModal(false)
   }
 
   async function closeSurvey() {
@@ -373,16 +396,23 @@ export function SurveyCreationModal({
   }
 
   const busy = creatingDraft || actionBusy || autosaveStatus === 'saving'
+  const isSurveyScheduled = currentSurvey?.status === 'active'
+    && !!currentSurvey.opens_at
+    && isScheduleIsoInFuture(currentSurvey.opens_at)
+  const isSurveyOpen = currentSurvey?.status === 'active' && !isSurveyScheduled
   const statusBadge = currentSurvey ? (
-    <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getSurveyStatusBadgeClass(currentSurvey.status)}`}>
-      {getSurveyStatusLabel(currentSurvey.status)}
+    <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${
+      isSurveyScheduled ? 'bg-warning-bg text-warning' : getSurveyStatusBadgeClass(currentSurvey.status)
+    }`}>
+      {isSurveyScheduled ? 'Scheduled' : getSurveyStatusLabel(currentSurvey.status)}
     </span>
   ) : null
   const canOpenSurvey = questionsCount > 0
-  const isSurveyOpen = currentSurvey?.status === 'active'
   const primaryActionLabel = actionBusy
     ? 'Saving...'
-    : isSurveyOpen
+    : isSurveyScheduled
+      ? 'Save schedule'
+      : isSurveyOpen
       ? 'Close Poll'
       : 'Open Poll'
 
@@ -393,7 +423,15 @@ export function SurveyCreationModal({
         onClose={() => {
           void handleClose()
         }}
-        title={creatingDraft ? 'Creating Draft...' : currentSurvey ? 'Edit Survey' : 'New Survey'}
+        title={
+          creatingDraft
+            ? 'Creating Draft...'
+            : isSurveyScheduled
+              ? 'Edit Scheduled Survey'
+              : currentSurvey
+                ? 'Edit Survey'
+                : 'New Survey'
+        }
         titleId="survey-create-modal-title"
         closeLabel="Close survey modal"
         closeDisabled={creatingDraft || actionBusy}
@@ -437,10 +475,12 @@ export function SurveyCreationModal({
             primaryActions={currentSurvey ? (
               <ClassworkModalSplitAction
                 label={primaryActionLabel}
-                intent={isSurveyOpen ? 'primary' : 'publish'}
-                disabled={busy || isReadOnly || (!isSurveyOpen && !canOpenSurvey)}
+                intent={isSurveyOpen || isSurveyScheduled ? 'primary' : 'publish'}
+                disabled={busy || isReadOnly || (!isSurveyOpen && !isSurveyScheduled && !canOpenSurvey)}
                 onPrimaryClick={() => {
-                  if (isSurveyOpen) {
+                  if (isSurveyScheduled) {
+                    void scheduleSurveyOpen()
+                  } else if (isSurveyOpen) {
                     void closeSurvey()
                   } else {
                     void openSurveyNow()
@@ -448,7 +488,24 @@ export function SurveyCreationModal({
                 }}
                 toggleAriaLabel="Choose survey action"
                 options={
-                  isSurveyOpen
+                  isSurveyScheduled
+                    ? [
+                        {
+                          id: 'schedule',
+                          label: 'Schedule...',
+                          onSelect: openScheduleModal,
+                          disabled: busy || isReadOnly || !canOpenSurvey,
+                        },
+                        {
+                          id: 'open-now',
+                          label: 'Open now',
+                          onSelect: () => {
+                            void openSurveyNow()
+                          },
+                          disabled: busy || isReadOnly || !canOpenSurvey,
+                        },
+                      ]
+                    : isSurveyOpen
                     ? [
                         {
                           id: 'close',

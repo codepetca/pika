@@ -413,6 +413,7 @@ function TeacherMaterialDialog({
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [scheduleDate, setScheduleDate] = useState('')
   const [scheduleTime, setScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
+  const initializedMaterialKeyRef = useRef<string | null>(null)
   const { showMessage } = useAppMessage()
   const isReadOnly = !!classroom.archived_at
   const isDraft = currentMaterial?.is_draft ?? true
@@ -473,7 +474,15 @@ function TeacherMaterialDialog({
   } = autosave
 
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) {
+      initializedMaterialKeyRef.current = null
+      return
+    }
+
+    const initializationKey = material?.id ?? 'new-material'
+    if (initializedMaterialKeyRef.current === initializationKey) return
+    initializedMaterialKeyRef.current = initializationKey
+
     setCurrentMaterial(material)
     setTitle(getDisplayedMaterialTitle(material))
     setContent(material?.content || EMPTY_DOC)
@@ -647,6 +656,9 @@ function TeacherMaterialDialog({
             titleDisabled={saving || creatingDraft || isReadOnly}
             titleStatus={<ClassworkModalSaveStatus status={autosaveStatus} />}
             onTitleChange={handleMaterialTitleChange}
+            onTitleBlur={() => {
+              void flushAutosave()
+            }}
             primaryActions={showReleaseActions ? (
               <ClassworkModalSplitAction
                 label={materialPrimaryLabel}

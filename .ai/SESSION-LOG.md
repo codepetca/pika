@@ -2751,3 +2751,18 @@ cross-role visual verification.
 - `pnpm vitest run tests/components/TeacherClassroomView.test.tsx` (49 passed)
 - `pnpm lint`
 - `git diff --check origin/main...HEAD`
+
+## 2026-07-11 — Fix classwork modal review findings
+
+**Completed:**
+- Prevented same-record parent refreshes from reinitializing open material and survey editors, preserving newer local edits while autosave requests are in flight.
+- Added a distinct scheduled-survey modal state with `Save schedule`, `Schedule...`, and `Open now` actions plus an explicit Scheduled badge.
+- Kept the survey schedule dialog open when its update request fails.
+- Added regression coverage for in-flight survey autosave, scheduled actions, and scheduling failures.
+
+**Validation:**
+- `pnpm vitest run tests/components/SurveyCreationModal.test.tsx tests/components/SurveyModal.test.tsx tests/components/TeacherClassroomView.test.tsx` (55 passed)
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Targeted Playwright screenshots reviewed for the scheduled survey modal and action menu at 1440x900 and 390x844; temporary survey deleted.
