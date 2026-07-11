@@ -616,7 +616,7 @@ describe('course-blueprints server helpers', () => {
             default_due_time: '23:59',
             points_possible: 20,
             include_in_final: true,
-            is_draft: false,
+            is_draft: true,
             position: 0,
           },
         ],
@@ -749,7 +749,7 @@ describe('course-blueprints server helpers', () => {
       })
     )
     expect(assignmentInsertBuilder.insert).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ title: 'Essay' })])
+      expect.arrayContaining([expect.objectContaining({ title: 'Essay', is_draft: true })])
     )
     expect(assessmentInsertBuilder.insert).toHaveBeenCalledWith(
       expect.arrayContaining([expect.objectContaining({ title: 'Unit Test' })])
@@ -769,6 +769,149 @@ describe('course-blueprints server helpers', () => {
         }),
       })
     )
+  })
+
+  it('creates a teacher-ready classroom with reusable content kept unpublished', async () => {
+    mockGenerateClassDaysForClassroom.mockResolvedValue({ ok: true })
+    const assignmentInsert = makeQueryBuilder({
+      data: [{ id: 'new-a-1', title: 'Essay', position: 0 }],
+      error: null,
+    })
+    const requirementInsert = makeQueryBuilder({ data: null, error: null })
+    const testInsert = makeQueryBuilder({ data: { id: 'new-t-1' }, error: null })
+    const questionInsert = makeQueryBuilder({ data: null, error: null })
+    const draftUpsert = makeQueryBuilder({ data: null, error: null })
+    const resourceUpsert = makeQueryBuilder({ data: null, error: null })
+    const lessonUpsert = makeQueryBuilder({ data: null, error: null })
+
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [makeQueryBuilder({
+        data: {
+          id: 'b-1',
+          teacher_id: 'teacher-1',
+          title: 'Reusable CS',
+          overview_markdown: 'Course overview',
+          outline_markdown: 'Course outline',
+          resources_markdown: 'Course resources',
+        },
+        error: null,
+      })],
+      course_blueprint_assignments: [makeQueryBuilder({
+        data: [{
+          id: 'ba-1',
+          title: 'Essay',
+          instructions_markdown: 'Write an essay',
+          submission_requirements_json: [{
+            type: 'link',
+            label: 'Published essay',
+            instructions: '',
+            required: true,
+            position: 0,
+            validation_policy_json: {},
+          }],
+          default_due_days: 14,
+          default_due_time: '23:30',
+          points_possible: 20,
+          include_in_final: true,
+          is_draft: false,
+          position: 0,
+        }],
+        error: null,
+      })],
+      course_blueprint_assessments: [makeQueryBuilder({
+        data: [{
+          id: 'bt-1',
+          assessment_type: 'test',
+          title: 'Unit Test',
+          content: {
+            title: 'Unit Test',
+            show_results: false,
+            questions: [{
+              question_type: 'open_response',
+              question_text: 'Explain recursion.',
+              options: [],
+              correct_option: null,
+              answer_key: 'A function calls itself.',
+              sample_solution: '',
+              points: 5,
+              response_max_chars: 1000,
+              response_monospace: false,
+            }],
+          },
+          documents: [],
+          position: 1,
+        }],
+        error: null,
+      })],
+      course_blueprint_lesson_templates: [makeQueryBuilder({
+        data: [{ id: 'bl-1', title: 'Lesson 1', content_markdown: 'Introduction', position: 0 }],
+        error: null,
+      })],
+      classrooms: [
+        makeQueryBuilder({ data: [], error: null }),
+        makeQueryBuilder({ data: [], error: null }),
+        makeQueryBuilder({ data: null, error: null }),
+        makeQueryBuilder({ data: [], error: null }),
+        makeQueryBuilder({
+          data: { id: 'new-c-1', teacher_id: 'teacher-1', title: 'CS Fall', start_date: null },
+          error: null,
+        }),
+        makeQueryBuilder({
+          data: { id: 'new-c-1', teacher_id: 'teacher-1', title: 'CS Fall', start_date: '2026-09-08' },
+          error: null,
+        }),
+      ],
+      classroom_resources: [resourceUpsert],
+      assignments: [assignmentInsert],
+      assignment_submission_requirements: [requirementInsert],
+      tests: [testInsert],
+      test_questions: [questionInsert],
+      assessment_drafts: [draftUpsert],
+      class_days: [makeQueryBuilder({ data: [{ date: '2026-09-08' }], error: null })],
+      lesson_plans: [lessonUpsert],
+    })
+
+    const result = await createClassroomFromBlueprint('teacher-1', {
+      blueprintId: 'b-1',
+      title: 'CS Fall',
+      start_date: '2026-09-08',
+      end_date: '2027-01-29',
+    } as any)
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      classroom: expect.objectContaining({ id: 'new-c-1', title: 'CS Fall' }),
+      lesson_mapping: { applied_lesson_templates: 1, overflow_lesson_templates: [] },
+    }))
+    expect(assignmentInsert.insert).toHaveBeenCalledWith([expect.objectContaining({
+      title: 'Essay',
+      due_at: '2026-09-23T03:30:00.000Z',
+      is_draft: true,
+      released_at: null,
+      scheduled_release_at: null,
+    })])
+    expect(requirementInsert.insert).toHaveBeenCalledWith([
+      expect.objectContaining({ assignment_id: 'new-a-1', label: 'Published essay' }),
+    ])
+    expect(testInsert.insert).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Unit Test',
+      status: 'draft',
+      released_at: null,
+      scheduled_release_at: null,
+    }))
+    expect(questionInsert.insert).toHaveBeenCalledWith([
+      expect.objectContaining({ question_text: 'Explain recursion.', points: 5 }),
+    ])
+    expect(resourceUpsert.upsert).toHaveBeenCalled()
+    expect(lessonUpsert.upsert).toHaveBeenCalledWith(
+      [expect.objectContaining({ date: '2026-09-08' })],
+      { onConflict: 'classroom_id,date' }
+    )
+    expect(mockSupabase.from).not.toHaveBeenCalledWith('classroom_enrollments')
+    expect(mockSupabase.from).not.toHaveBeenCalledWith('assignment_docs')
+    expect(mockSupabase.from).not.toHaveBeenCalledWith('test_responses')
+    expect(mockSupabase.from).not.toHaveBeenCalledWith('attendance')
+    expect(mockSupabase.from).not.toHaveBeenCalledWith('announcements')
   })
 
   it('rolls back blueprint promotion when classroom linking fails', async () => {

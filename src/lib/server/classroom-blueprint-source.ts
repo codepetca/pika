@@ -1,3 +1,5 @@
+import { differenceInCalendarDays, isValid, parseISO } from 'date-fns'
+import { toZonedTime } from 'date-fns-tz'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { tiptapToMarkdown } from '@/lib/limited-markdown'
@@ -53,6 +55,23 @@ type LoadClassroomBlueprintSourceOptions = {
 
 function getSupabase() {
   return getServiceRoleClient()
+}
+
+function getReusableAssignmentTiming(classroomStartDate: string | null, dueAt: string | null) {
+  if (!dueAt) return { default_due_days: 0, default_due_time: '23:59' }
+
+  const dueDate = parseISO(dueAt)
+  if (!isValid(dueDate)) return { default_due_days: 0, default_due_time: '23:59' }
+
+  const torontoDueDate = toZonedTime(dueDate, 'America/Toronto')
+  const defaultDueTime = `${String(torontoDueDate.getHours()).padStart(2, '0')}:${String(torontoDueDate.getMinutes()).padStart(2, '0')}`
+  if (!classroomStartDate) return { default_due_days: 0, default_due_time: defaultDueTime }
+
+  const startDate = parseISO(classroomStartDate)
+  return {
+    default_due_days: isValid(startDate) ? differenceInCalendarDays(torontoDueDate, startDate) : 0,
+    default_due_time: defaultDueTime,
+  }
 }
 
 async function loadAssessmentDraftContent(
@@ -173,12 +192,11 @@ export async function loadClassroomBlueprintSource(
       assignments: ((assignmentsResult.data || []) as Array<Record<string, any>>).map((assignment) => ({
         title: assignment.title,
         instructions_markdown: getAssignmentInstructionsMarkdown(assignment as any).markdown,
-        default_due_days: 0,
-        default_due_time: '23:59',
+        ...getReusableAssignmentTiming(classroom.start_date ?? null, assignment.due_at ?? null),
         points_possible: assignment.points_possible ?? null,
         gradebook_weight: assignment.gradebook_weight ?? null,
         include_in_final: assignment.include_in_final ?? true,
-        is_draft: !!assignment.is_draft,
+        is_draft: true,
         position: assignment.position ?? 0,
       })),
       quizzes: [],

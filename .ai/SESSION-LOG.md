@@ -10,81 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-14 — Individual test response fixture wording
-
-**Completed:**
-- Renamed `TestIndividualResponses` current-surface test helper and stale/current fixture ids from quiz wording to test wording.
-- Updated stale-response test descriptions to say selected test changes.
-- Preserved explicit legacy `quizId` alias coverage and left runtime compatibility props unchanged.
-- No schema, API payload, or production code changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/TestIndividualResponses.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Arbitrary quiz fixture wording cleanup
-
-**Completed:**
-- Renamed arbitrary announcement and lesson-calendar fixture copy from Quiz wording to Test wording.
-- Updated the generic dev-flow risk checklist example from quiz status to test status.
-- Left schema, API compatibility keys, gradebook category fields, and legacy alias coverage unchanged.
-- No production schema or runtime contract changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/api/teacher/announcements.test.ts tests/unit/announcements.test.ts tests/components/LessonCalendar.test.tsx tests/components/LessonDayCell.test.tsx`
-- `pnpm lint`
-- `pnpm test` (first run hit unrelated component timeout failures; failed files passed on isolated rerun)
-- `pnpm test`
-
-## 2026-06-14 — Student tests response fixture keys
-
-**Completed:**
-- Updated `StudentTestsTab` test fixtures to use current `tests`/`test` response keys by default.
-- Added explicit legacy `quiz`/`quizzes` response-key fallback coverage for the student tests component.
-- Left DB-shaped `quiz_id` question fields and legacy `student-quiz-action-footer` test id unchanged.
-- No production code, schema, or API contract changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/StudentTestsTab.test.tsx` (first run hit an unrelated exam-mode timeout after the new fallback test passed; rerun passed)
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Test detail response fixture keys
-
-**Completed:**
-- Updated `TestDetailPanel` test fixtures to use current `test` response keys by default.
-- Added explicit legacy `quiz` response-key fallback coverage for teacher test detail payloads.
-- Preserved legacy `quiz`/`onQuizUpdate` prop alias coverage and the stale same-id quiz assessment scenario.
-- No production code, schema, or API contract changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/TestDetailPanel.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-16 — Legacy quiz contract cleanup plan
-
-**Completed:**
-- Added `docs/guidance/legacy-quiz-contract-cleanup.md` to inventory remaining internal `quiz` / `quizzes` references by category.
-- Documented what can still be safely renamed versus what requires payload, gradebook, course package, or schema migration planning.
-- Added routing from `docs/ai-instructions.md` and the architecture assessments section so future passes load the cleanup guide.
-- No production schema, API payload, or runtime behavior changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/course-blueprint-package-docs.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
 ## 2026-06-16 — Legacy quiz markdown fixture clarity
 
 **Completed:**
@@ -864,6 +789,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
 - `git diff --check`
+
 ## 2026-07-10 — Bump GitHub Actions off deprecated Node 20
 
 **Completed:**
@@ -905,3 +831,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Validation:**
 - YAML parse check; workflow runs only on issue events (no CI impact to validate here)
+
+## 2026-07-11 — Teacher-ready blueprint classroom rollover
+
+**Completed:**
+- Preserved assignment due timing as Toronto-local offsets from the source classroom start date.
+- Made assignments and tests created from blueprints explicitly unpublished for teacher review.
+- Added a realistic blueprint-to-classroom acceptance regression covering resources, assignments, submission requirements, tests/questions, lesson plans, relative due dates, and excluded student records.
+- Documented the classroom rollover contract.
+
+**Validation:**
+- Blueprint-focused Vitest suite (29/29 passed)
+- `pnpm lint`
+- `pnpm build`
+- Pika audit

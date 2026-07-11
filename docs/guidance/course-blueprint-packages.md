@@ -46,3 +46,9 @@ Course packages are reusable planning files, not classroom backups. They exclude
 6. Review the resulting Course Blueprint before using it to create a classroom or publishing its planned course site.
 
 Do not use this package for automatic `actual -> blueprint` sync. Classroom changes should be reviewed and explicitly saved back into a Course Blueprint.
+
+## Classroom Rollover
+
+When a teacher saves an existing classroom as a blueprint, assignment due dates are converted into offsets from the source classroom start date using `America/Toronto`. Creating a classroom from that blueprint applies those offsets to the new classroom start date.
+
+Blueprint-created assignments and tests are always created unpublished. The teacher must review due dates, lesson-plan calendar mapping, and assessment settings before releasing classwork to students. A blueprint never copies students, submissions, grades, attendance, or announcements into the new classroom.

@@ -34,11 +34,13 @@ vi.mock('@/lib/limited-markdown', () => ({
 function seedSourceSupabase(overrides?: {
   testQuestionsError?: any
   assessmentDraftError?: any
+  classroom?: Record<string, any>
+  assignments?: Array<Record<string, any>>
 }) {
   mockSupabase = makeSupabaseFromQueues({
     classrooms: [
       makeQueryBuilder({
-        data: { id: 'c-1', teacher_id: 'teacher-1', title: 'CS 11', course_overview_markdown: '', course_outline_markdown: '' },
+        data: overrides?.classroom || { id: 'c-1', teacher_id: 'teacher-1', title: 'CS 11', course_overview_markdown: '', course_outline_markdown: '' },
         error: null,
       }),
     ],
@@ -46,7 +48,7 @@ function seedSourceSupabase(overrides?: {
       makeQueryBuilder({ data: { content: { markdown: 'Resources' } }, error: null }),
     ],
     assignments: [
-      makeQueryBuilder({ data: [], error: null }),
+      makeQueryBuilder({ data: overrides?.assignments || [], error: null }),
     ],
     tests: [
       makeQueryBuilder({ data: [{ id: 't-1', title: 'Test 1', status: 'active', show_results: true, position: 0 }], error: null }),
@@ -105,5 +107,38 @@ describe('classroom blueprint source loader', () => {
     })
 
     errorSpy.mockRestore()
+  })
+
+  it('preserves assignment timing relative to the source classroom start in Toronto', async () => {
+    seedSourceSupabase({
+      classroom: {
+        id: 'c-1',
+        teacher_id: 'teacher-1',
+        title: 'CS 11',
+        start_date: '2026-02-02',
+        course_overview_markdown: '',
+        course_outline_markdown: '',
+      },
+      assignments: [{
+        id: 'a-1',
+        title: 'Project',
+        instructions_markdown: 'Build it',
+        due_at: '2026-02-16T04:30:00.000Z',
+        is_draft: false,
+        position: 2,
+      }],
+    })
+
+    const result = await loadClassroomBlueprintSource('teacher-1', 'c-1')
+
+    expect(result).toEqual(expect.objectContaining({ ok: true }))
+    if (!result.ok) throw new Error('Expected classroom source to load')
+    expect(result.source.assignments).toEqual([
+      expect.objectContaining({
+        title: 'Project',
+        default_due_days: 13,
+        default_due_time: '23:30',
+      }),
+    ])
   })
 })
