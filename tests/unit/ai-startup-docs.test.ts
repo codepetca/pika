@@ -144,18 +144,33 @@ describe('AI startup docs', () => {
     expect(workflow).toContain('git rev-parse --show-toplevel')
   })
 
-  it('documents the shared env symlink requirement', () => {
-    const files = [
+  it('documents both maintainer shared-env and collaborator-local env setups', () => {
+    const sharedEnvFiles = [
       '.ai/START-HERE.md',
       '.ai/CURRENT.md',
       'AGENTS.md',
       'docs/dev-workflow.md',
       '.codex/prompts/session-start.md',
       '.claude/commands/session-start.md',
+      'docs/core/project-context.md',
+    ]
+    const collaboratorFiles = [
+      '.ai/START-HERE.md',
+      '.ai/CURRENT.md',
+      'AGENTS.md',
+      'docs/dev-workflow.md',
+      '.codex/prompts/session-start.md',
+      '.claude/commands/session-start.md',
+      'docs/core/project-context.md',
     ]
 
-    for (const file of files) {
+    for (const file of sharedEnvFiles) {
       expect(readRepoFile(file)).toContain('$HOME/Repos/.env/pika/.env.local')
+    }
+
+    for (const file of collaboratorFiles) {
+      const content = readRepoFile(file)
+      expect(content).toMatch(/\.env\.example|collaborator/i)
     }
   })
 
