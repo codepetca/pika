@@ -130,13 +130,18 @@ Test password-based flows:
   verified metadata.
 - Restore equality and cold-compaction database tests exercise a real hot-to-cold-to-hot round trip,
   forced transactional rollback, idempotent replay, concurrency rejection, strict verification,
-  durable-but-ineligible cleanup staging, and service-role isolation. A lease-based source-object
-  deletion worker and its authoritative post-delete verification tests remain required before
-  compaction can be enabled beyond a named recovery canary.
+  durable-but-ineligible cleanup staging, lease reclaim/backoff/completion, and service-role
+  isolation.
 - Cold-compaction coordinator tests prove disabled-by-default teacher/archive canary gates, immutable
   artifact and manifest verification, exact database-to-archive inventory equality, bounded and
   idempotent cleanup staging, atomic-finalization ordering, completed replay, and fail-closed handling
   when a completion response cannot prove its committed state. No route or schedule invokes it.
+- Source-object cleanup worker tests prove strict claim validation, full-byte checksum and size
+  verification before removal, authoritative exact-key absence afterward, stale-lease rejection,
+  durable retry evidence, independent claim containment, and privacy-safe metrics.
+- Source-object cleanup trigger tests prove cron-secret authentication, independent worker/trigger
+  gates, one-claim bounds, GET/POST parity, exact status propagation, and unhealthy batch signaling;
+  they also lock out automatic Vercel scheduling during the manual-canary stage.
 - Gradex runtime coordinator tests prove the internal feature gate, source archive identity/checksum
   binding, HMAC-key-bound idempotency, private no-overwrite upload, complete read-back verification,
   finalization ordering, deterministic retry reuse, and terminal-versus-retryable object cleanup.

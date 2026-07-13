@@ -10,31 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-22 — Teacher tests workspace navigation extraction
-
-**Completed:**
-- Started the bounded architecture/UI improvement goal with a behavior-preserving TeacherTestsTab decomposition slice.
-- Extracted controlled/uncontrolled tests workspace selection, workspace mode, selected grading student, and URL search-param mutation into `useTestWorkspaceNavigation`.
-- Kept grading data loading, business actions, modal state, and workspace side effects in `TeacherTestsTab`.
-- Added hook contract coverage for list defaults, grading navigation, authoring student-param cleanup, workspace clearing, and controlled-prop precedence.
-- Added a parent `TeacherTestsTab` regression proving grading row selection still writes `testStudentId` through search params.
-
-**Refactor checklist:**
-- boundary: workspace navigation/search-param state only
-- shell or behavior extraction: behavior extraction for local navigation state, no UI shell change
-- business logic moved: none
-- visible behavior intended to change: none
-- remaining decomposition: teacher tests grading/list/action state still intentionally stays in the parent for future slices
-
-**Validation:**
-- `pnpm test tests/hooks/useTestWorkspaceNavigation.test.ts tests/components/TeacherTestsTab.test.tsx`
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms"`; reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`.
-
 ## 2026-06-22 — Teacher tests list-state extraction
 
 **Completed:**
@@ -759,4 +734,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash -n scripts/check-classroom-archive-compaction-database.sh`
 - Pika pre-commit audit
 - Local migration replay intentionally not run; GitHub's ephemeral Supabase database job is the execution authority
+- `git diff --check`
+
+## 2026-07-13 — Manual classroom source cleanup canary
+
+**Completed:**
+- Added a `CRON_SECRET`-authenticated GET/POST canary route around the source-object cleanup worker with a separate disabled-by-default trigger gate.
+- Bounded every manual invocation to one lease and preserved the worker's independent enablement, checksum-before-remove, authoritative absence, stale-lease, and durable retry contracts.
+- Kept durably recorded item failures healthy while returning `503` when any claim lacks durable retry evidence; responses expose opaque object references but no storage paths, checksums, classroom ids, or content.
+- Locked the route out of `vercel.json` and documented both cleanup gates as disabled. No production setting, database, row, Storage object, UI caller, or schedule was changed.
+- Corrected stale lifecycle/test documentation that still described the source cleanup worker as unfinished.
+
+**Validation:**
+- Full Vitest suite (335 files / 2,977 tests)
+- Focused cleanup worker/trigger suites (2 files / 22 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
 - `git diff --check`

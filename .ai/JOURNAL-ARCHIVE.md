@@ -11640,3 +11640,28 @@
 - `pnpm test`
 - `pnpm build`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms"`; reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`.
+
+## 2026-06-22 — Teacher tests workspace navigation extraction
+
+**Completed:**
+- Started the bounded architecture/UI improvement goal with a behavior-preserving TeacherTestsTab decomposition slice.
+- Extracted controlled/uncontrolled tests workspace selection, workspace mode, selected grading student, and URL search-param mutation into `useTestWorkspaceNavigation`.
+- Kept grading data loading, business actions, modal state, and workspace side effects in `TeacherTestsTab`.
+- Added hook contract coverage for list defaults, grading navigation, authoring student-param cleanup, workspace clearing, and controlled-prop precedence.
+- Added a parent `TeacherTestsTab` regression proving grading row selection still writes `testStudentId` through search params.
+
+**Refactor checklist:**
+- boundary: workspace navigation/search-param state only
+- shell or behavior extraction: behavior extraction for local navigation state, no UI shell change
+- business logic moved: none
+- visible behavior intended to change: none
+- remaining decomposition: teacher tests grading/list/action state still intentionally stays in the parent for future slices
+
+**Validation:**
+- `pnpm test tests/hooks/useTestWorkspaceNavigation.test.ts tests/components/TeacherTestsTab.test.tsx`
+- `git diff --check`
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms"`; reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`.

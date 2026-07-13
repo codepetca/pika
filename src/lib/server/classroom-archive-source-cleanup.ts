@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { getServiceRoleClient } from '@/lib/supabase'
 
@@ -85,6 +85,18 @@ type ObjectReadResult =
 
 export function isClassroomArchiveSourceCleanupEnabled(): boolean {
   return process.env.CLASSROOM_ARCHIVE_SOURCE_CLEANUP_ENABLED?.trim().toLowerCase() === 'true'
+}
+
+export function isClassroomArchiveSourceCleanupTriggerEnabled(): boolean {
+  return process.env.CLASSROOM_ARCHIVE_SOURCE_CLEANUP_TRIGGER_ENABLED
+    ?.trim()
+    .toLowerCase() === 'true'
+}
+
+export function resolveClassroomArchiveSourceCleanupLeaseToken(
+  value?: string | null,
+): string {
+  return value ? uuidSchema.parse(value.trim()) : randomUUID()
 }
 
 function isMissingCleanupRpc(error: { code?: string; message?: string } | null | undefined) {
