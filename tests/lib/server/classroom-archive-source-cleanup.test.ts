@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   CLASSROOM_ARCHIVE_SOURCE_CLEANUP_MAX_CLAIMS,
   isClassroomArchiveSourceCleanupEnabled,
+  isClassroomArchiveSourceCleanupTriggerEnabled,
+  resolveClassroomArchiveSourceCleanupLeaseToken,
   runClassroomArchiveSourceCleanup,
 } from '@/lib/server/classroom-archive-source-cleanup'
 
@@ -154,9 +156,18 @@ describe('classroom archive source-object cleanup', () => {
 
   it('requires an explicit server gate before claiming or touching storage', async () => {
     vi.stubEnv('CLASSROOM_ARCHIVE_SOURCE_CLEANUP_ENABLED', 'false')
+    vi.stubEnv('CLASSROOM_ARCHIVE_SOURCE_CLEANUP_TRIGGER_ENABLED', 'false')
     const mock = createSupabaseMock()
 
     expect(isClassroomArchiveSourceCleanupEnabled()).toBe(false)
+    expect(isClassroomArchiveSourceCleanupTriggerEnabled()).toBe(false)
+    vi.stubEnv('CLASSROOM_ARCHIVE_SOURCE_CLEANUP_TRIGGER_ENABLED', ' TRUE ')
+    expect(isClassroomArchiveSourceCleanupTriggerEnabled()).toBe(true)
+    expect(resolveClassroomArchiveSourceCleanupLeaseToken(LEASE_TOKEN)).toBe(LEASE_TOKEN)
+    expect(resolveClassroomArchiveSourceCleanupLeaseToken()).toMatch(
+      /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/,
+    )
+    expect(() => resolveClassroomArchiveSourceCleanupLeaseToken('not-a-uuid')).toThrow()
     const result = await run(mock)
 
     expect(result).toEqual(expect.objectContaining({

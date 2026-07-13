@@ -29,8 +29,22 @@ downloads the immutable private archive, verifies its outer checksum, strict man
 resource counts, storage counts, actor snapshots, and embedded object checksums, then stages the exact
 source-object inventory before invoking migration 085's atomic completion. Both the teacher UUID and
 archive UUID must be explicitly allowlisted and `CLASSROOM_ARCHIVE_COMPACTION_ENABLED=true`; all
-settings default off. There is no route, UI, schedule, or production caller, and there is not yet a
-source-object cleanup worker, so deployment alone cannot compact a classroom or delete an object.
+settings default off. There is no route, UI, schedule, or production caller, so deployment alone
+cannot compact a classroom.
+
+Migration `086_classroom_archive_source_object_cleanup.sql` and
+`src/lib/server/classroom-archive-source-cleanup.ts` implement the separate deletion boundary. The
+worker requires `CLASSROOM_ARCHIVE_SOURCE_CLEANUP_ENABLED=true`, leases at most 10 rows from completed
+compactions with matching cold tombstones, reads each exact source key, and verifies its complete
+bytes against the archived SHA-256 and byte count before removal. It completes a lease only after an
+exact-key read authoritatively reports absence. Mismatches, missing buckets, uncertain reads,
+unconfirmed deletion, and stale leases fail closed with durable retry evidence.
+
+`/api/cron/classroom-archive-source-cleanup` is the manual deletion canary. It additionally requires
+`CRON_SECRET` and `CLASSROOM_ARCHIVE_SOURCE_CLEANUP_TRIGGER_ENABLED=true`, claims at most one object,
+and returns `503` when any failed claim lacks durable retry evidence. GET and POST share the same
+contract. The route is absent from `vercel.json`, has no UI caller, and both gates default off;
+automatic scheduling requires separate approval after a named recovery canary succeeds.
 
 The export endpoint accepts an optional UUID `Idempotency-Key` and an optional strict retention policy.
 It also requires `CLASSROOM_ARCHIVE_EXPORT_ENABLED=true` and the teacher UUID in the server-only
