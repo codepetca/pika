@@ -4,10 +4,14 @@ import {
   isAllowedClassroomLifecycleTransition,
 } from '@/lib/contracts/classroom-lifecycle'
 
-const archiveVerification = {
+const archiveReadBackVerification = {
   operation_id: '10000000-0000-4000-8000-000000000001',
+  archive_id: '20000000-0000-4000-8000-000000000001',
   artifact_sha256: 'a'.repeat(64),
+  content_sha256: 'b'.repeat(64),
   verified_at: '2026-07-13T12:00:00.000Z',
+  read_back_verified: true,
+  artifact_checksum_verified: true,
   manifest_verified: true,
   resource_checksums_verified: true,
   resource_counts_verified: true,
@@ -15,8 +19,13 @@ const archiveVerification = {
   actor_snapshots_verified: true,
 }
 
+const archiveVerification = {
+  ...archiveReadBackVerification,
+  source_object_cleanup_staged: true,
+}
+
 const restoreVerification = {
-  ...archiveVerification,
+  ...archiveReadBackVerification,
   schema_adapter_verified: true,
   actor_references_resolved: true,
   restored_resource_counts_verified: true,
@@ -46,6 +55,24 @@ describe('classroom lifecycle contract', () => {
       to: 'archived_cold',
       verification: archiveVerification,
     }).success).toBe(true)
+
+    expect(classroomLifecycleTransitionSchema.safeParse({
+      from: 'archived_hot',
+      to: 'archived_cold',
+      verification: {
+        ...archiveVerification,
+        source_object_cleanup_staged: false,
+      },
+    }).success).toBe(false)
+
+    expect(classroomLifecycleTransitionSchema.safeParse({
+      from: 'archived_hot',
+      to: 'archived_cold',
+      verification: {
+        ...archiveVerification,
+        read_back_verified: false,
+      },
+    }).success).toBe(false)
   })
 
   it('requires verified restore evidence before cold data becomes hot', () => {

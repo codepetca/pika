@@ -73,6 +73,7 @@ declare
   v_teacher_id constant uuid := '11000000-0000-4000-8000-000000000001';
   v_classroom_id constant uuid := '21000000-0000-4000-8000-000000000001';
   v_archive_id constant uuid := '25000000-0000-4000-8000-000000000001';
+  v_compaction_id constant uuid := '25000000-0000-4000-8000-000000000002';
   v_restore_id constant uuid := '26000000-0000-4000-8000-000000000001';
   v_capacity_id constant uuid := '26000000-0000-4000-8000-000000000002';
   v_concurrent_id constant uuid := '26000000-0000-4000-8000-000000000003';
@@ -82,7 +83,6 @@ declare
   v_rows jsonb;
   v_mismatch_count integer;
   v_source_revision bigint;
-  v_archived_at timestamptz;
 begin
   v_result := public.begin_classroom_archive_export(
     v_archive_id,
@@ -127,7 +127,7 @@ begin
     1024,
     4096,
     v_counts,
-    '{}'::jsonb,
+    '{"total_count":0,"total_bytes":0,"by_bucket":{}}'::jsonb,
     '{
       "read_back_verified": true,
       "artifact_checksum_verified": true,
@@ -145,21 +145,51 @@ begin
   select revision into v_source_revision
   from public.classroom_archive_revisions
   where classroom_id = v_classroom_id;
-  select (row_data->>'archived_at')::timestamptz into v_archived_at
-  from expected_restore_rows
-  where table_name = 'classrooms' and row_id = v_classroom_id;
 
-  insert into public.classroom_cold_tombstones (
-    classroom_id, teacher_id, archive_id, title, archived_at, source_revision
-  ) values (
-    v_classroom_id,
+  v_result := public.begin_classroom_archive_compaction(
+    v_compaction_id,
     v_teacher_id,
+    v_classroom_id,
     v_archive_id,
-    'Restore contract classroom',
-    v_archived_at,
-    v_source_revision
+    repeat('9', 64)
   );
-  delete from public.classrooms where id = v_classroom_id;
+  if coalesce((v_result->>'ok')::boolean, false) is not true
+    or v_result->>'operation_status' <> 'snapshot_ready'
+  then
+    raise exception 'Restore round trip compaction begin failed: %', v_result;
+  end if;
+  v_result := public.stage_classroom_archive_compaction_objects(
+    v_compaction_id,
+    v_teacher_id,
+    '[]'::jsonb
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true then
+    raise exception 'Restore round trip cleanup staging failed: %', v_result;
+  end if;
+  v_result := public.complete_classroom_archive_compaction(
+    v_compaction_id,
+    v_teacher_id,
+    jsonb_build_object(
+      'operation_id', v_compaction_id,
+      'archive_id', v_archive_id,
+      'artifact_sha256', repeat('b', 64),
+      'content_sha256', repeat('c', 64),
+      'verified_at', clock_timestamp(),
+      'read_back_verified', true,
+      'artifact_checksum_verified', true,
+      'manifest_verified', true,
+      'resource_checksums_verified', true,
+      'resource_counts_verified', true,
+      'storage_objects_verified', true,
+      'actor_snapshots_verified', true,
+      'source_object_cleanup_staged', true
+    )
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true
+    or v_result->>'operation_status' <> 'completed'
+  then
+    raise exception 'Restore round trip compaction failed: %', v_result;
+  end if;
   if exists (select 1 from public.classrooms where id = v_classroom_id) then
     raise exception 'Classroom was not removed for cold restore canary';
   end if;
