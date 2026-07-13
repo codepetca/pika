@@ -100,6 +100,7 @@ declare
   v_result jsonb;
   v_counts jsonb;
   v_verification jsonb;
+  v_claim_count integer;
 begin
   v_result := public.begin_classroom_archive_export(
     v_rollback_archive_id,
@@ -320,7 +321,11 @@ begin
     1024,
     4096,
     v_counts,
-    '{"total_count":0,"total_bytes":0,"by_bucket":{}}'::jsonb,
+    '{
+      "total_count": 1,
+      "total_bytes": 10,
+      "by_bucket": {"assignment-artifacts": {"count": 1, "bytes": 10}}
+    }'::jsonb,
     '{
       "read_back_verified": true,
       "artifact_checksum_verified": true,
@@ -347,8 +352,22 @@ begin
   perform public.stage_classroom_archive_compaction_objects(
     v_success_compaction_id,
     v_teacher_id,
-    '[]'::jsonb
+    '[{
+      "storage_bucket":"assignment-artifacts",
+      "storage_path":"teacher/classroom/success.txt",
+      "sha256":"6666666666666666666666666666666666666666666666666666666666666666",
+      "byte_size":10
+    }]'::jsonb
   );
+  select count(*) into v_claim_count
+  from public.claim_due_classroom_archive_source_object_cleanup(
+    '26000000-0000-4000-8000-000000000030',
+    1,
+    300
+  );
+  if v_claim_count <> 0 then
+    raise exception 'Staged source-object cleanup was claimable before compaction completed';
+  end if;
   v_verification := jsonb_build_object(
     'operation_id', v_success_compaction_id,
     'archive_id', v_success_archive_id,
@@ -408,6 +427,178 @@ $contract$;
 
 reset role;
 
+set local role service_role;
+
+do $cleanup_claim$
+declare
+  v_claim record;
+  v_claim_count integer;
+begin
+  begin
+    perform public.claim_due_classroom_archive_source_object_cleanup(
+      '26000000-0000-4000-8000-000000000031',
+      0,
+      300
+    );
+    raise exception 'Invalid source-object cleanup claim bounds were accepted';
+  exception when invalid_parameter_value then null;
+  end;
+
+  select * into v_claim
+  from public.claim_due_classroom_archive_source_object_cleanup(
+    '26000000-0000-4000-8000-000000000031',
+    1,
+    300
+  );
+  if v_claim.operation_id is null
+    or v_claim.operation_id <> '25000000-0000-4000-8000-000000000022'::uuid
+    or v_claim.archive_id <> '24000000-0000-4000-8000-000000000022'::uuid
+    or v_claim.classroom_id <> '21000000-0000-4000-8000-000000000022'::uuid
+    or v_claim.storage_bucket <> 'assignment-artifacts'
+    or v_claim.storage_path <> 'teacher/classroom/success.txt'
+    or v_claim.expected_sha256 <> repeat('6', 64)
+    or v_claim.expected_byte_size <> 10
+    or v_claim.attempt_count <> 1
+  then
+    raise exception 'Source-object cleanup claim contract differed: %', row_to_json(v_claim);
+  end if;
+
+  select count(*) into v_claim_count
+  from public.claim_due_classroom_archive_source_object_cleanup(
+    '26000000-0000-4000-8000-000000000032',
+    1,
+    300
+  );
+  if v_claim_count <> 0 then
+    raise exception 'Active source-object cleanup lease was claimed twice';
+  end if;
+end;
+$cleanup_claim$;
+
+reset role;
+
+update public.classroom_archive_source_object_cleanup
+set lease_expires_at = clock_timestamp() - interval '1 second'
+where operation_id = '25000000-0000-4000-8000-000000000022'::uuid;
+
+set local role service_role;
+
+do $cleanup_reclaim$
+declare
+  v_claim record;
+  v_claim_count integer;
+begin
+  select * into v_claim
+  from public.claim_due_classroom_archive_source_object_cleanup(
+    '26000000-0000-4000-8000-000000000032',
+    1,
+    300
+  );
+  if v_claim.operation_id is null or v_claim.attempt_count <> 2 then
+    raise exception 'Expired source-object cleanup lease was not reclaimed';
+  end if;
+  if public.complete_classroom_archive_source_object_cleanup(
+    v_claim.operation_id,
+    v_claim.storage_bucket,
+    v_claim.storage_path,
+    '26000000-0000-4000-8000-000000000031'
+  ) then
+    raise exception 'Stale source-object cleanup lease completed work';
+  end if;
+  if not public.fail_classroom_archive_source_object_cleanup(
+    v_claim.operation_id,
+    v_claim.storage_bucket,
+    v_claim.storage_path,
+    '26000000-0000-4000-8000-000000000032',
+    'contract_retry'
+  ) then
+    raise exception 'Current source-object cleanup lease could not record failure';
+  end if;
+  select count(*) into v_claim_count
+  from public.claim_due_classroom_archive_source_object_cleanup(
+    '26000000-0000-4000-8000-000000000033',
+    1,
+    300
+  );
+  if v_claim_count <> 0 then
+    raise exception 'Source-object cleanup retry backoff was bypassed';
+  end if;
+end;
+$cleanup_reclaim$;
+
+reset role;
+
+update public.classroom_archive_source_object_cleanup
+set next_attempt_at = clock_timestamp()
+where operation_id = '25000000-0000-4000-8000-000000000022'::uuid;
+
+set local role service_role;
+
+do $cleanup_complete$
+declare
+  v_claim record;
+begin
+  select * into v_claim
+  from public.claim_due_classroom_archive_source_object_cleanup(
+    '26000000-0000-4000-8000-000000000033',
+    1,
+    300
+  );
+  if v_claim.operation_id is null or v_claim.attempt_count <> 3 then
+    raise exception 'Failed source-object cleanup was not claimable after backoff';
+  end if;
+  begin
+    perform public.complete_classroom_archive_source_object_cleanup(
+      v_claim.operation_id,
+      v_claim.storage_bucket,
+      '../outside',
+      '26000000-0000-4000-8000-000000000033'
+    );
+    raise exception 'Invalid source-object cleanup completion path was accepted';
+  exception when invalid_parameter_value then null;
+  end;
+  if public.complete_classroom_archive_source_object_cleanup(
+    v_claim.operation_id,
+    v_claim.storage_bucket,
+    v_claim.storage_path,
+    '26000000-0000-4000-8000-000000000034'
+  ) then
+    raise exception 'Wrong source-object cleanup lease completed work';
+  end if;
+  if not public.complete_classroom_archive_source_object_cleanup(
+    v_claim.operation_id,
+    v_claim.storage_bucket,
+    v_claim.storage_path,
+    '26000000-0000-4000-8000-000000000033'
+  ) then
+    raise exception 'Current source-object cleanup lease could not complete work';
+  end if;
+  if public.complete_classroom_archive_source_object_cleanup(
+    v_claim.operation_id,
+    v_claim.storage_bucket,
+    v_claim.storage_path,
+    '26000000-0000-4000-8000-000000000033'
+  ) then
+    raise exception 'Completed source-object cleanup replay mutated the ledger';
+  end if;
+  if not exists (
+    select 1
+    from public.classroom_archive_source_object_cleanup
+    where operation_id = v_claim.operation_id
+      and storage_bucket = v_claim.storage_bucket
+      and storage_path = v_claim.storage_path
+      and status = 'deleted'
+      and deleted_at is not null
+      and lease_token is null
+      and lease_expires_at is null
+  ) then
+    raise exception 'Source-object cleanup completion did not preserve audit evidence';
+  end if;
+end;
+$cleanup_complete$;
+
+reset role;
+
 do $security$
 begin
   if has_function_privilege(
@@ -424,6 +615,25 @@ begin
     'EXECUTE'
   ) then
     raise exception 'Authenticated role can execute classroom compaction RPCs';
+  end if;
+  if has_function_privilege(
+    'authenticated',
+    'public.claim_due_classroom_archive_source_object_cleanup(uuid,integer,integer)',
+    'EXECUTE'
+  ) or has_function_privilege(
+    'authenticated',
+    'public.complete_classroom_archive_source_object_cleanup(uuid,text,text,uuid)',
+    'EXECUTE'
+  ) or has_function_privilege(
+    'authenticated',
+    'public.fail_classroom_archive_source_object_cleanup(uuid,text,text,uuid,text)',
+    'EXECUTE'
+  ) or has_function_privilege(
+    'anon',
+    'public.claim_due_classroom_archive_source_object_cleanup(uuid,integer,integer)',
+    'EXECUTE'
+  ) then
+    raise exception 'Authenticated role can execute source-object cleanup RPCs';
   end if;
   if has_table_privilege(
     'authenticated',

@@ -1,0 +1,358 @@
+import { createHash } from 'node:crypto'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  CLASSROOM_ARCHIVE_SOURCE_CLEANUP_MAX_CLAIMS,
+  isClassroomArchiveSourceCleanupEnabled,
+  runClassroomArchiveSourceCleanup,
+} from '@/lib/server/classroom-archive-source-cleanup'
+
+const LEASE_TOKEN = '10000000-0000-4000-8000-000000000001'
+const OPERATION_ID = '20000000-0000-4000-8000-000000000001'
+const OPERATION_TWO_ID = '20000000-0000-4000-8000-000000000002'
+const ARCHIVE_ID = '30000000-0000-4000-8000-000000000001'
+const CLASSROOM_ID = '40000000-0000-4000-8000-000000000001'
+const PATH = 'teacher/classroom/submission.txt'
+const PATH_TWO = 'teacher/classroom/submission-two.txt'
+const SOURCE_BYTES = Buffer.from('verified source bytes')
+const SOURCE_SHA256 = createHash('sha256').update(SOURCE_BYTES).digest('hex')
+
+type Claim = {
+  operation_id: string
+  archive_id: string
+  classroom_id: string
+  storage_bucket: string
+  storage_path: string
+  expected_sha256: string
+  expected_byte_size: number
+  attempt_count: number
+}
+
+function claim(
+  operationId = OPERATION_ID,
+  path = PATH,
+  overrides: Partial<Claim> = {},
+): Claim {
+  return {
+    operation_id: operationId,
+    archive_id: ARCHIVE_ID,
+    classroom_id: CLASSROOM_ID,
+    storage_bucket: 'assignment-artifacts',
+    storage_path: path,
+    expected_sha256: SOURCE_SHA256,
+    expected_byte_size: SOURCE_BYTES.byteLength,
+    attempt_count: 1,
+    ...overrides,
+  }
+}
+
+function createSupabaseMock(options: {
+  claims?: Claim[]
+  claimError?: { code?: string; message?: string }
+  completeResult?: boolean
+  failResult?: boolean
+  initiallyMissing?: string[]
+  objectBytes?: Record<string, Uint8Array>
+  removeErrorPaths?: string[]
+  retainedPaths?: string[]
+  readErrorPaths?: string[]
+  noSuchBucketPaths?: string[]
+} = {}) {
+  const claims = options.claims ?? [claim()]
+  const calls: string[] = []
+  const objects = new Map<string, Uint8Array>()
+  for (const item of claims) {
+    objects.set(item.storage_path, options.objectBytes?.[item.storage_path] ?? SOURCE_BYTES)
+  }
+  for (const path of options.initiallyMissing ?? []) objects.delete(path)
+
+  const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+    calls.push(`rpc:${name}`)
+    if (name === 'claim_due_classroom_archive_source_object_cleanup') {
+      return options.claimError
+        ? { data: null, error: options.claimError }
+        : { data: claims, error: null }
+    }
+    if (name === 'complete_classroom_archive_source_object_cleanup') {
+      return { data: options.completeResult ?? true, error: null }
+    }
+    if (name === 'fail_classroom_archive_source_object_cleanup') {
+      return { data: options.failResult ?? true, error: null }
+    }
+    throw new Error(`Unexpected RPC: ${name} ${JSON.stringify(args)}`)
+  })
+
+  const download = vi.fn(async (path: string) => {
+    calls.push(`download:${path}`)
+    if (options.noSuchBucketPaths?.includes(path)) {
+      return {
+        data: null,
+        error: { status: 404, statusCode: 'NoSuchBucket', message: 'Bucket missing' },
+      }
+    }
+    if (options.readErrorPaths?.includes(path)) {
+      return {
+        data: null,
+        error: { status: 503, statusCode: 'SlowDown', message: 'Try again' },
+      }
+    }
+    const bytes = objects.get(path)
+    if (bytes) {
+      return {
+        data: {
+          arrayBuffer: async () => Uint8Array.from(bytes).buffer,
+        } as Blob,
+        error: null,
+      }
+    }
+    return {
+      data: null,
+      error: { status: 404, statusCode: 'NoSuchKey', message: 'Object missing' },
+    }
+  })
+
+  const remove = vi.fn(async (paths: string[]) => {
+    const path = paths[0]
+    calls.push(`remove:${path}`)
+    if (!options.retainedPaths?.includes(path)) objects.delete(path)
+    if (options.removeErrorPaths?.includes(path)) {
+      return { data: null, error: { status: 503, statusCode: 'SlowDown' } }
+    }
+    return { data: [{ name: path }], error: null }
+  })
+  const storageFrom = vi.fn(() => ({ download, remove }))
+
+  return {
+    calls,
+    client: { rpc, storage: { from: storageFrom } } as any,
+    download,
+    objects,
+    remove,
+    rpc,
+    storageFrom,
+  }
+}
+
+function run(
+  mock: ReturnType<typeof createSupabaseMock>,
+  overrides: { limit?: number; leaseSeconds?: number } = {},
+) {
+  return runClassroomArchiveSourceCleanup({
+    supabase: mock.client,
+    leaseToken: LEASE_TOKEN,
+    limit: overrides.limit,
+    leaseSeconds: overrides.leaseSeconds,
+  })
+}
+
+describe('classroom archive source-object cleanup', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+    vi.stubEnv('CLASSROOM_ARCHIVE_SOURCE_CLEANUP_ENABLED', 'true')
+    vi.spyOn(console, 'info').mockImplementation(() => undefined)
+  })
+
+  it('requires an explicit server gate before claiming or touching storage', async () => {
+    vi.stubEnv('CLASSROOM_ARCHIVE_SOURCE_CLEANUP_ENABLED', 'false')
+    const mock = createSupabaseMock()
+
+    expect(isClassroomArchiveSourceCleanupEnabled()).toBe(false)
+    const result = await run(mock)
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      error_code: 'classroom_archive_source_cleanup_not_enabled',
+    }))
+    expect(mock.rpc).not.toHaveBeenCalled()
+    expect(mock.storageFrom).not.toHaveBeenCalled()
+  })
+
+  it('verifies exact bytes before removal and authoritative absence before completion', async () => {
+    const mock = createSupabaseMock()
+    const result = await run(mock)
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      claimed: 1,
+      deleted: 1,
+      failed: 0,
+    }))
+    expect(mock.rpc).toHaveBeenNthCalledWith(
+      1,
+      'claim_due_classroom_archive_source_object_cleanup',
+      {
+        p_lease_token: LEASE_TOKEN,
+        p_limit: CLASSROOM_ARCHIVE_SOURCE_CLEANUP_MAX_CLAIMS,
+        p_lease_seconds: 300,
+      },
+    )
+    expect(mock.calls).toEqual([
+      'rpc:claim_due_classroom_archive_source_object_cleanup',
+      `download:${PATH}`,
+      `remove:${PATH}`,
+      `download:${PATH}`,
+      'rpc:complete_classroom_archive_source_object_cleanup',
+    ])
+    expect(mock.rpc).toHaveBeenLastCalledWith(
+      'complete_classroom_archive_source_object_cleanup',
+      {
+        p_operation_id: OPERATION_ID,
+        p_storage_bucket: 'assignment-artifacts',
+        p_storage_path: PATH,
+        p_lease_token: LEASE_TOKEN,
+      },
+    )
+  })
+
+  it('completes without removal when the exact object is already absent', async () => {
+    const mock = createSupabaseMock({ initiallyMissing: [PATH] })
+    const result = await run(mock)
+
+    expect(result).toEqual(expect.objectContaining({ deleted: 1, failed: 0 }))
+    expect(mock.remove).not.toHaveBeenCalled()
+    expect(mock.rpc).toHaveBeenCalledWith(
+      'complete_classroom_archive_source_object_cleanup',
+      expect.objectContaining({ p_storage_path: PATH }),
+    )
+  })
+
+  it.each([
+    ['byte count', Buffer.from('short'), 'archive_source_object_mismatch'],
+    ['checksum', Buffer.from('verified source bytez'), 'archive_source_object_mismatch'],
+  ])('does not remove an object with a mismatched %s', async (_label, bytes, errorCode) => {
+    const mock = createSupabaseMock({ objectBytes: { [PATH]: bytes } })
+    const result = await run(mock)
+
+    expect(result.ok && result.results[0]).toEqual(expect.objectContaining({
+      status: 'failed',
+      error_code: errorCode,
+      retry_recorded: true,
+    }))
+    expect(mock.remove).not.toHaveBeenCalled()
+    expect(mock.rpc).not.toHaveBeenCalledWith(
+      'complete_classroom_archive_source_object_cleanup',
+      expect.anything(),
+    )
+  })
+
+  it('does not confuse a missing bucket or uncertain read with object absence', async () => {
+    for (const options of [
+      { noSuchBucketPaths: [PATH] },
+      { readErrorPaths: [PATH] },
+    ]) {
+      const mock = createSupabaseMock(options)
+      const result = await run(mock)
+
+      expect(result.ok && result.results[0]).toEqual(expect.objectContaining({
+        status: 'failed',
+        error_code: 'archive_source_object_read_failed',
+      }))
+      expect(mock.remove).not.toHaveBeenCalled()
+    }
+  })
+
+  it('accepts authoritative absence even when removal returned an error', async () => {
+    const mock = createSupabaseMock({ removeErrorPaths: [PATH] })
+    const result = await run(mock)
+
+    expect(result).toEqual(expect.objectContaining({ deleted: 1, failed: 0 }))
+  })
+
+  it('records a retry when read-back still finds the object', async () => {
+    const mock = createSupabaseMock({ retainedPaths: [PATH] })
+    const result = await run(mock)
+
+    expect(result.ok && result.results[0]).toEqual(expect.objectContaining({
+      status: 'failed',
+      error_code: 'archive_source_object_delete_unconfirmed',
+      retry_recorded: true,
+    }))
+    expect(mock.rpc).not.toHaveBeenCalledWith(
+      'complete_classroom_archive_source_object_cleanup',
+      expect.anything(),
+    )
+  })
+
+  it('does not mutate the ledger after stale lease completion is rejected', async () => {
+    const mock = createSupabaseMock({ completeResult: false })
+    const result = await run(mock)
+
+    expect(result.ok && result.results[0]).toEqual(expect.objectContaining({
+      status: 'failed',
+      error_code: 'archive_source_cleanup_completion_rejected',
+      retry_recorded: false,
+    }))
+    expect(mock.rpc).not.toHaveBeenCalledWith(
+      'fail_classroom_archive_source_object_cleanup',
+      expect.anything(),
+    )
+  })
+
+  it('contains one failed object and continues independent claims', async () => {
+    const mock = createSupabaseMock({
+      claims: [claim(), claim(OPERATION_TWO_ID, PATH_TWO)],
+      objectBytes: { [PATH]: Buffer.from('wrong') },
+    })
+    const result = await run(mock, { limit: 2 })
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      claimed: 2,
+      deleted: 1,
+      failed: 1,
+    }))
+    expect(mock.remove).toHaveBeenCalledWith([PATH_TWO])
+  })
+
+  it('rejects malformed, duplicate, and oversized claim contracts before storage', async () => {
+    const malformed = createSupabaseMock({
+      claims: [claim(OPERATION_ID, '../outside')],
+    })
+    const duplicate = createSupabaseMock({ claims: [claim(), claim()] })
+    const oversized = createSupabaseMock({
+      claims: [claim(), claim(OPERATION_TWO_ID, PATH_TWO)],
+    })
+
+    for (const [mock, overrides] of [
+      [malformed, {}],
+      [duplicate, { limit: 2 }],
+      [oversized, { limit: 1 }],
+    ] as const) {
+      const result = await run(mock, overrides)
+      expect(result).toEqual(expect.objectContaining({
+        ok: false,
+        error_code: 'archive_source_cleanup_claim_contract_invalid',
+      }))
+      expect(mock.storageFrom).not.toHaveBeenCalled()
+    }
+  })
+
+  it('maps missing cleanup RPCs to migration 086 and validates runtime bounds', async () => {
+    const mock = createSupabaseMock({
+      claimError: { code: 'PGRST202', message: 'Function was not found' },
+    })
+    const result = await run(mock)
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      error_code: 'classroom_archive_source_cleanup_migration_required',
+      error: 'Classroom archive source cleanup requires migration 086',
+    }))
+    await expect(run(createSupabaseMock(), { limit: 0 })).rejects.toThrow()
+    await expect(run(createSupabaseMock(), { leaseSeconds: 29 })).rejects.toThrow()
+  })
+
+  it('keeps paths, checksums, and classroom identity out of results and metrics', async () => {
+    const mock = createSupabaseMock({ objectBytes: { [PATH]: Buffer.from('wrong') } })
+    const result = await run(mock)
+    const exposed = JSON.stringify({
+      result,
+      logs: vi.mocked(console.info).mock.calls,
+    })
+
+    expect(exposed).not.toContain(PATH)
+    expect(exposed).not.toContain(SOURCE_SHA256)
+    expect(exposed).not.toContain(CLASSROOM_ID)
+    expect(result.ok && result.results[0]).toHaveProperty('object_ref')
+  })
+})
