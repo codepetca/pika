@@ -14,9 +14,10 @@ describe('course blueprint grading configuration migration', () => {
     const migration = readMigration()
 
     expect(migration).toContain('public.course_blueprint_assignments')
+    expect(migration).toContain('alter column points_possible type numeric(6,2)')
     expect(migration).toContain('gradebook_weight integer not null default 10')
     expect(migration).toContain('public.course_blueprint_assessments')
-    expect(migration).toContain('points_possible integer')
+    expect(migration).toContain('points_possible numeric(6,2)')
     expect(migration).toContain('include_in_final boolean not null default true')
     expect(migration).toContain('gradebook_weight >= 1 and gradebook_weight <= 999')
   })

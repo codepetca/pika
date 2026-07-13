@@ -189,13 +189,13 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
       makeQueryBuilder({ data: [{ id: 'qq-2', prompt: 'Q2' }], error: null }),
     ],
     test_questions: [
-      makeQueryBuilder({ data: [{ id: 'tq-1', prompt: 'T1' }], error: null }),
+      makeQueryBuilder({ data: [{ id: 'tq-1', test_id: 't-1', prompt: 'T1' }], error: null }),
     ],
     assessment_drafts: [
-      makeQueryBuilder({ data: { content: { title: 'Quiz 1', questions: [{ id: 'qq-1' }] } }, error: null }),
-      makeQueryBuilder({ data: null, error: null }),
-      makeQueryBuilder({ data: { content: { title: 'Quiz 1', questions: [{ id: 'qq-1' }] } }, error: null }),
-      makeQueryBuilder({ data: null, error: null }),
+      makeQueryBuilder({ data: [{ assessment_id: 't-1', content: { title: 'Unit Test', questions: [{ id: 'tq-1' }] } }], error: null }),
+      makeQueryBuilder({ data: [], error: null }),
+      makeQueryBuilder({ data: [{ assessment_id: 't-1', content: { title: 'Unit Test', questions: [{ id: 'tq-1' }] } }], error: null }),
+      makeQueryBuilder({ data: [], error: null }),
     ],
     gradebook_settings: [
       makeQueryBuilder({
@@ -288,10 +288,12 @@ describe('course-sites server helpers', () => {
     )
 
     if (result.ok) {
+      expect(result.site.classroom).not.toHaveProperty('teacher_id')
       expect(result.site.assignments).toHaveLength(1)
       expect(result.site.lesson_plans).toHaveLength(1)
       expect(result.site.announcements).toHaveLength(1)
       expect(mockSupabase.from).not.toHaveBeenCalledWith('gradebook_settings')
+      expect(mockSupabase.from).not.toHaveBeenCalledWith('assessment_drafts')
     }
   })
 
