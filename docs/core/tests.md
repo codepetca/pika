@@ -136,6 +136,9 @@ Test password-based flows:
 - Gradex trigger route tests prove teacher authentication, explicit UUID idempotency, strict 90-day
   retention, separate teacher/archive canary gates, immutable archive ownership delegation, and
   exact coordinator status propagation without invoking production generation.
+- Gradex cleanup coordinator tests prove bounded lease claims, canonical object-path binding,
+  authoritative post-delete absence checks, stale-lease rejection, durable retry evidence,
+  per-claim failure containment, and fail-closed RPC/storage contract handling.
 
 ### 5. Integration & Smoke Tests
 
