@@ -33,8 +33,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Start ephemeral database and replay migrations
-        run: supabase db start
+      - name: Start ephemeral Supabase and replay migrations
+        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
 
       - name: Verify atomic blueprint rollback and replay
         run: bash scripts/check-atomic-blueprint-operations.sh
@@ -55,6 +55,9 @@ jobs:
         run: pnpm exec tsx scripts/check-classroom-resource-schema.ts
         env:
           CLASSROOM_SCHEMA_AUDIT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+      - name: Rehearse full classroom archive recovery on local Supabase
+        run: pnpm verify:classroom-archive-recovery
 
       - name: Stop ephemeral database
         if: always()
