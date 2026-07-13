@@ -42,6 +42,9 @@ jobs:
       - name: Verify archive operations and lifecycle evidence
         run: bash scripts/check-classroom-archive-database.sh
 
+      - name: Verify resumable archive restore round trip
+        run: bash scripts/check-classroom-archive-restore-database.sh
+
       - name: Audit classroom ownership graph and primary keys
         run: pnpm exec tsx scripts/check-classroom-resource-schema.ts
         env:

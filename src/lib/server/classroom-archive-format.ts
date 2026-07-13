@@ -73,6 +73,11 @@ export type VerifiedClassroomArchiveBundle =
     }
   | { ok: false; error: string }
 
+export type DecodedClassroomArchiveData = {
+  resources: Record<string, Record<string, unknown>[]>
+  actors: Array<ReturnType<typeof classroomArchiveActorSnapshotSchema.parse>>
+}
+
 export function canonicalizeJson(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalizeJson)
   if (!value || typeof value !== 'object') return value
@@ -279,16 +284,26 @@ function parseTar(input: Uint8Array): Map<string, Buffer> {
   return files
 }
 
-function countAndValidateNdjson(bytes: Buffer, validate?: (value: unknown) => void): number {
-  if (bytes.byteLength === 0) return 0
+function parseAndValidateNdjson(
+  bytes: Buffer,
+  validate?: (value: unknown) => void,
+): unknown[] {
+  if (bytes.byteLength === 0) return []
   const text = textDecoder.decode(bytes)
   if (!text.endsWith('\n')) throw new Error('NDJSON resource must end with a newline')
   const lines = text.slice(0, -1).split('\n')
-  for (const line of lines) {
+  return lines.map((line) => {
     const value = JSON.parse(line)
+    if (canonicalJsonStringify(value) !== line) {
+      throw new Error('NDJSON resource is not canonically serialized')
+    }
     validate?.(value)
-  }
-  return lines.length
+    return value
+  })
+}
+
+function countAndValidateNdjson(bytes: Buffer, validate?: (value: unknown) => void): number {
+  return parseAndValidateNdjson(bytes, validate).length
 }
 
 export function buildClassroomArchiveBundle(
@@ -481,6 +496,51 @@ export function verifyClassroomArchiveBundle(
       error: error instanceof Error ? error.message : 'Invalid classroom archive',
     }
   }
+}
+
+export function decodeClassroomArchiveData(
+  verified: Extract<VerifiedClassroomArchiveBundle, { ok: true }>,
+): DecodedClassroomArchiveData {
+  const resources: Record<string, Record<string, unknown>[]> = {}
+
+  for (const resource of CLASSROOM_RELATIONAL_RESOURCES) {
+    const descriptor = verified.manifest.resources.find((item) => item.table === resource.table)
+    const bytes = descriptor ? verified.files.get(descriptor.path) : undefined
+    if (!descriptor || !bytes) throw new Error(`Archive resource is missing: ${resource.table}`)
+    const rows = parseAndValidateNdjson(bytes)
+    const parsedRows = rows.map((row) => {
+      if (!isJsonObject(row)) {
+        throw new Error(`Classroom archive row for ${resource.table} must be an object`)
+      }
+      return row
+    })
+    const keys = parsedRows.map((row) =>
+      canonicalPrimaryKey(row, resource.primary_key, resource.table),
+    )
+    if (new Set(keys).size !== keys.length) {
+      throw new Error(`Classroom archive resource has duplicate primary keys: ${resource.table}`)
+    }
+    if (keys.some((key, index) => index > 0 && keys[index - 1].localeCompare(key) >= 0)) {
+      throw new Error(`Classroom archive resource is not in primary-key order: ${resource.table}`)
+    }
+    resources[resource.table] = parsedRows
+  }
+
+  const actorBytes = verified.files.get(verified.manifest.actors.path)
+  if (!actorBytes) throw new Error('Actor snapshots are missing')
+  const actors = parseAndValidateNdjson(
+    actorBytes,
+    (value) => classroomArchiveActorSnapshotSchema.parse(value),
+  ).map((value) => classroomArchiveActorSnapshotSchema.parse(value))
+  const actorIds = actors.map((actor) => actor.id)
+  if (new Set(actorIds).size !== actorIds.length) {
+    throw new Error('Classroom archive has duplicate actor snapshots')
+  }
+  if (actorIds.some((id, index) => index > 0 && actorIds[index - 1].localeCompare(id) >= 0)) {
+    throw new Error('Classroom archive actor snapshots are not in actor-id order')
+  }
+
+  return { resources, actors }
 }
 
 function parseManagedStorageUrl(

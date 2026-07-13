@@ -132,6 +132,8 @@ export const classroomArchiveManifestSchema = classroomArchiveManifestBaseSchema
         path: ['actors', 'path'],
       })
     }
+    const storageSources = new Set<string>()
+    const storageArchivePaths = new Set<string>()
     for (const [index, object] of manifest.storage_objects.entries()) {
       if (!object.archive_path.startsWith(`objects/${object.bucket}/`)) {
         context.addIssue({
@@ -140,6 +142,23 @@ export const classroomArchiveManifestSchema = classroomArchiveManifestBaseSchema
           path: ['storage_objects', index, 'archive_path'],
         })
       }
+      const sourceKey = `${object.bucket}\0${object.source_path}`
+      if (storageSources.has(sourceKey)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Duplicate storage source: ${object.bucket}/${object.source_path}`,
+          path: ['storage_objects', index, 'source_path'],
+        })
+      }
+      if (storageArchivePaths.has(object.archive_path)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Duplicate storage archive path: ${object.archive_path}`,
+          path: ['storage_objects', index, 'archive_path'],
+        })
+      }
+      storageSources.add(sourceKey)
+      storageArchivePaths.add(object.archive_path)
     }
     if (
       manifest.retention.mode === 'scheduled' &&

@@ -11,9 +11,18 @@ truth is in:
 Migration `082_verified_classroom_archive_exports.sql` and
 `POST /api/teacher/classrooms/[id]/archives` implement the export-only rollout stage. They create a
 private, read-back-verified archive while retaining every hot relational row and source object.
-They do not enable cold compaction, restore, Gradex generation, or automatic export on the existing
+They do not enable cold compaction, Gradex generation, or automatic export on the existing
 archive toggle. Current production behavior remains unchanged until a human applies the migration;
 `classrooms.archived_at` continues to make a classroom read-only while relational data stays hot.
+
+Migration `083_resumable_classroom_archive_restore.sql` and
+`POST /api/teacher/classrooms/[id]/archives/[archiveId]/restore` add the canary-only restore
+foundation. Restore requires a matching cold tombstone, so it cannot overwrite a hot classroom and
+is not activated merely by applying the migration. Pika still has no runtime cold-compaction path;
+the tombstone is populated only by an explicitly controlled canary until compaction is implemented.
+The route separately requires `CLASSROOM_ARCHIVE_RESTORE_ENABLED=true`, an exact teacher UUID in
+`CLASSROOM_ARCHIVE_RESTORE_TEACHER_IDS`, and an explicit
+`CLASSROOM_ARCHIVE_RESTORE_DATABASE_BUDGET_BYTES` value.
 
 The endpoint accepts an optional UUID `Idempotency-Key` and an optional strict retention policy.
 It also requires `CLASSROOM_ARCHIVE_EXPORT_ENABLED=true` and the teacher UUID in the server-only
@@ -45,7 +54,8 @@ objects. A course package is never evidence that classroom data is recoverable.
 - `archived_hot`: read-only, but relational rows and referenced source objects remain in place.
   Current representation: `archived_at is not null`.
 - `archived_cold`: a tombstone and verified archive metadata remain hot; classroom-owned rows have
-  been removed after a verified private archive was created. This state is not implemented yet.
+  been removed after a verified private archive was created. Migration 083 defines this database
+  representation, but no production compaction transition populates it yet.
 
 Only adjacent transitions are valid:
 
@@ -154,6 +164,20 @@ Restore is idempotent and fail-closed:
 9. Promote managed-object references and transition to `archived_hot` only after all checks pass.
 10. Keep the original archive immutable after restore.
 
+Migration 083 implements restore as bounded, resumable staging rather than one large JSON RPC.
+Every batch is limited to 500 rows and 1 MiB, must match the current table's exact columns, and must
+arrive parent-first. Finalization rejects conflicting hot rows and commits all 42 resources in one
+transaction. A transaction-local restore context prevents normal blueprint and archive revision
+triggers from mutating replayed values; the archived revision is restored explicitly. PostgreSQL,
+not the application, records final referential-integrity evidence after all inserts and ownership
+checks pass.
+
+Restore temporarily needs both staged JSONB and final relational rows. The begin RPC requires at
+least twice the archive's uncompressed size in configured database headroom, with a 1 MiB minimum.
+This conservative preflight does not guarantee that every 50 MB compressed archive fits near the
+Free-plan database limit. Operators must set the database budget to the actual plan quota and leave
+headroom for indexes, MVCC, and vacuum; a refusal leaves the cold archive unchanged.
+
 On failure, roll back relational writes, remove operation-scoped temporary objects, retain the cold
 tombstone and original archive, and store a retryable error code. Never mark the classroom hot or
 active after a partial restore.
@@ -212,8 +236,9 @@ restore rollback, and archives without a successful read-back check.
 3. **Export only:** create private archives for selected archived classrooms but retain all hot data.
    Compare counts/checksums and measure compression. Migration 082 and the teacher-only API implement
    this stage; rollout still requires human migration application and selected production canaries.
-4. **Restore canary:** restore a teacher-approved archive into an isolated canary target, compare all
-   rows/objects, then remove the canary. The original classroom remains hot and untouched.
+4. **Restore canary:** use migration 083's rollback-only database contract first. A teacher-approved
+   cold canary may then use the gated restore endpoint; compare all rows/objects and preserve the
+   immutable source archive. Production compaction remains disabled.
 5. **Opt-in cold compaction:** compact selected classrooms only after verified archive and restore
    evidence exists. Monitor recovery and storage cleanup.
 6. **Default cold policy:** consider automatic compaction after archiving only after sustained canary
