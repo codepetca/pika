@@ -10,6 +10,32 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-06-16 — Legacy quiz markdown fixture clarity
+
+**Completed:**
+- Updated `tests/lib/quiz-markdown.test.ts` so the suite explicitly describes legacy quiz markdown compatibility.
+- Replaced arbitrary `Intro Quiz` fixture titles with `Legacy Check-in` while preserving the intentional `# Quiz` legacy markdown format.
+- Left production markdown helpers, schema, API payloads, and runtime behavior unchanged.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/lib/quiz-markdown.test.ts`
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-16 — Test AI gold-set fixture wording
+
+**Completed:**
+- Renamed the active Test AI grading gold-set title from `Intro CS Concepts Quiz` to `Intro CS Concepts Test`.
+- Verified the old fixture wording is gone from scripts/tests/source docs.
+- Left AI grading logic, schema, API payloads, and runtime contracts unchanged.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm tsx scripts/measure-ai-grading-prompts.ts`
+- `pnpm lint`
+- `pnpm test`
+
 ## 2026-06-19 — Skill progression map refresh
 
 **Completed:**
@@ -856,3 +882,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash -n scripts/check-atomic-blueprint-operations.sh`
 - `git diff --check`
 - Ephemeral Supabase migration/behavior check pending PR CI
+## 2026-07-13 — Canonical classroom lifecycle and archive contracts
+
+**Completed:**
+- Added strict Zod-derived contracts for active, hot-archived, and cold-archived lifecycle states, with separate verified evidence for compaction and completed restore.
+- Encoded the current 42-table classroom ownership graph, all restore dependencies, privacy classes, parent-first restore order, child-first cleanup order, and a deidentified Gradex allowlist.
+- Added strict version 1 classroom archive and Gradex extract manifests with canonical file paths, row/byte counts, SHA-256 checksums, retention metadata, actor snapshots, managed storage descriptors, and restore preflight gates.
+- Defined the existing course package as a reusable, student-free, non-recoverable artifact; defined private archive/Gradex destinations and referenced-only discovery for the three current source buckets.
+- Added a read-only PostgreSQL catalog audit that fails on untracked/stale classroom resources, missing restore dependencies, or invalid selection keys, plus recovery, observability, compatibility, and production-canary guidance.
+- Added the unfinished `epic-classroom-lifecycle-archives` entry to the append-only feature inventory so repository status reflects the remaining implementation and production verification work.
+- Removed a duplicated architectural-direction section from `.ai/CURRENT.md` to keep the required startup context below its 16,000-character budget after adding the epic.
+- No application runtime path, database migration, database row, storage object, dependency, or production environment changed.
+
+**Validation:**
+- `pnpm test`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm exec vitest run tests/lib/contracts/classroom-lifecycle.test.ts tests/lib/contracts/classroom-artifacts.test.ts` (15 tests)
+- Read-only local catalog audit: `CLASSROOM_SCHEMA_AUDIT_DATABASE_URL=... pnpm exec tsx scripts/check-classroom-resource-schema.ts` (97 public foreign-key relationships)

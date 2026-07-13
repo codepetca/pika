@@ -1,0 +1,329 @@
+import { z } from 'zod'
+import {
+  CLASSROOM_RELATIONAL_RESOURCES,
+  GRADEX_RESOURCE_TABLES,
+} from '@/lib/contracts/classroom-data'
+
+export const CLASSROOM_ARCHIVE_FORMAT = 'pika.classroom-archive' as const
+export const CLASSROOM_ARCHIVE_VERSION = 1 as const
+export const GRADEX_EXTRACT_FORMAT = 'pika.gradex-classroom-extract' as const
+export const GRADEX_EXTRACT_VERSION = 1 as const
+
+const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/)
+const relativeArchivePathSchema = z.string().min(1).refine(
+  (value) => {
+    const segments = value.split('/')
+    return (
+      !value.startsWith('/') &&
+      !value.includes('\\') &&
+      !value.includes('\0') &&
+      segments.every((segment) => segment.length > 0 && segment !== '.' && segment !== '..')
+    )
+  },
+  'Object paths must be canonical relative paths without traversal segments',
+)
+
+const checksummedFileSchema = z.object({
+  path: relativeArchivePathSchema,
+  row_count: z.number().int().nonnegative(),
+  byte_size: z.number().int().nonnegative(),
+  sha256: sha256Schema,
+}).strict()
+
+const resourceFileSchema = checksummedFileSchema.extend({
+  table: z.string().min(1),
+}).strict()
+
+const storageObjectSchema = z.object({
+  bucket: z.enum(['assignment-artifacts', 'submission-images', 'test-documents']),
+  source_path: relativeArchivePathSchema,
+  archive_path: relativeArchivePathSchema,
+  byte_size: z.number().int().nonnegative(),
+  sha256: sha256Schema,
+  content_type: z.string().min(1).nullable(),
+}).strict()
+
+const archiveRetentionSchema = z.discriminatedUnion('mode', [
+  z.object({
+    mode: z.literal('teacher_managed'),
+    delete_after: z.null(),
+  }).strict(),
+  z.object({
+    mode: z.literal('scheduled'),
+    delete_after: z.string().datetime({ offset: true }),
+  }).strict(),
+])
+
+function requireExactResourceSet(
+  resources: Array<{ table: string; path: string }>,
+  expectedTables: string[],
+  context: z.RefinementCtx,
+) {
+  const actualTables = resources.map((resource) => resource.table)
+  const actualSet = new Set(actualTables)
+  const expectedSet = new Set(expectedTables)
+
+  for (const [index, table] of actualTables.entries()) {
+    if (actualTables.indexOf(table) !== index) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Duplicate resource descriptor: ${table}`,
+        path: ['resources', index, 'table'],
+      })
+    }
+    if (!expectedSet.has(table)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Unexpected resource descriptor: ${table}`,
+        path: ['resources', index, 'table'],
+      })
+    }
+    if (resources[index]?.path !== `data/${table}.ndjson`) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Resource ${table} must use its canonical data path`,
+        path: ['resources', index, 'path'],
+      })
+    }
+  }
+
+  for (const table of expectedTables) {
+    if (!actualSet.has(table)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Missing resource descriptor: ${table}`,
+        path: ['resources'],
+      })
+    }
+  }
+}
+
+const classroomArchiveManifestBaseSchema = z.object({
+  format: z.literal(CLASSROOM_ARCHIVE_FORMAT),
+  version: z.literal(CLASSROOM_ARCHIVE_VERSION),
+  archive_id: z.string().uuid(),
+  classroom_id: z.string().uuid(),
+  teacher_id: z.string().uuid(),
+  created_at: z.string().datetime({ offset: true }),
+  source: z.object({
+    schema_migration: z.string().regex(/^\d{3}(?:_[a-z0-9_]+)?$/),
+    app_commit: z.string().regex(/^[a-f0-9]{7,40}$/),
+  }).strict(),
+  compression: z.literal('tar+gzip'),
+  privacy_policy_version: z.literal(1),
+  retention: archiveRetentionSchema,
+  content_sha256: sha256Schema,
+  resources: z.array(resourceFileSchema),
+  actors: checksummedFileSchema,
+  storage_objects: z.array(storageObjectSchema),
+}).strict()
+
+export const classroomArchiveManifestSchema = classroomArchiveManifestBaseSchema.superRefine(
+  (manifest, context) => {
+    requireExactResourceSet(
+      manifest.resources,
+      CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table),
+      context,
+    )
+    if (manifest.actors.path !== 'actors.ndjson') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Actor snapshots must use actors.ndjson',
+        path: ['actors', 'path'],
+      })
+    }
+    for (const [index, object] of manifest.storage_objects.entries()) {
+      if (!object.archive_path.startsWith(`objects/${object.bucket}/`)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Storage object must be namespaced under objects/${object.bucket}/`,
+          path: ['storage_objects', index, 'archive_path'],
+        })
+      }
+    }
+    if (
+      manifest.retention.mode === 'scheduled' &&
+      Date.parse(manifest.retention.delete_after) <= Date.parse(manifest.created_at)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Scheduled archive deletion must be after archive creation',
+        path: ['retention', 'delete_after'],
+      })
+    }
+  },
+)
+
+export type ClassroomArchiveManifest = z.infer<typeof classroomArchiveManifestSchema>
+
+const gradexExtractManifestBaseSchema = z.object({
+  format: z.literal(GRADEX_EXTRACT_FORMAT),
+  version: z.literal(GRADEX_EXTRACT_VERSION),
+  extract_id: z.string().uuid(),
+  source_archive_ref: sha256Schema,
+  classroom_ref: sha256Schema,
+  generated_at: z.string().datetime({ offset: true }),
+  pseudonymization: z.literal('hmac-sha256-per-extract'),
+  privacy_policy_version: z.literal(1),
+  direct_identifiers_removed: z.literal(true),
+  storage_objects_included: z.literal(false),
+  delete_after: z.string().datetime({ offset: true }),
+  resources: z.array(resourceFileSchema),
+}).strict()
+
+export const gradexExtractManifestSchema = gradexExtractManifestBaseSchema.superRefine(
+  (manifest, context) => {
+    requireExactResourceSet(manifest.resources, GRADEX_RESOURCE_TABLES, context)
+    if (Date.parse(manifest.delete_after) <= Date.parse(manifest.generated_at)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Gradex extract deletion must be after generation',
+        path: ['delete_after'],
+      })
+    }
+  },
+)
+
+export type GradexExtractManifest = z.infer<typeof gradexExtractManifestSchema>
+
+export const classroomArchiveRestorePreflightSchema = z.object({
+  archive_id: z.string().uuid(),
+  target_schema_migration: z.string().regex(/^\d{3}(?:_[a-z0-9_]+)?$/),
+  archive_checksum_verified: z.boolean(),
+  manifest_verified: z.boolean(),
+  resource_checksums_verified: z.boolean(),
+  resource_counts_verified: z.boolean(),
+  storage_objects_verified: z.boolean(),
+  actor_snapshots_verified: z.boolean(),
+  schema_adapter_available: z.boolean(),
+  unresolved_actor_ids: z.array(z.string().uuid()),
+  adapter_chain: z.array(z.string().min(1)).default([]),
+}).strict()
+
+export type ClassroomArchiveRestorePreflight = z.infer<
+  typeof classroomArchiveRestorePreflightSchema
+>
+
+export function isClassroomArchiveRestoreReady(
+  preflight: ClassroomArchiveRestorePreflight,
+): boolean {
+  return (
+    preflight.archive_checksum_verified &&
+    preflight.manifest_verified &&
+    preflight.resource_checksums_verified &&
+    preflight.resource_counts_verified &&
+    preflight.storage_objects_verified &&
+    preflight.actor_snapshots_verified &&
+    preflight.schema_adapter_available &&
+    preflight.unresolved_actor_ids.length === 0
+  )
+}
+
+export const COURSE_BLUEPRINT_TRANSFER_CONTRACT = {
+  format: 'pika.course-package',
+  extension: '.course-package.tar',
+  manifest_version: '2',
+  recoverable_classroom_backup: false,
+  included_data: [
+    'course_metadata',
+    'teacher_authored_content',
+    'assignment_templates',
+    'assessment_templates',
+    'lesson_plan_templates',
+    'grading_configuration',
+    'submission_requirement_templates',
+    'planned_site_configuration',
+  ],
+  excluded_data: [
+    'authentication_credentials',
+    'classroom_join_credentials',
+    'enrollments_and_roster',
+    'student_identity',
+    'student_work',
+    'grades_and_feedback',
+    'attendance_and_journals',
+    'behavioral_telemetry',
+    'runtime_publication_state',
+    'storage_objects',
+  ],
+} as const
+
+export const CLASSROOM_STORAGE_CONTRACT = {
+  sources: [
+    {
+      bucket: 'assignment-artifacts',
+      visibility: 'private',
+      reference_discovery: 'assignment_submission_artifacts.storage_path',
+      copy_policy: 'referenced_only',
+    },
+    {
+      bucket: 'submission-images',
+      visibility: 'public',
+      reference_discovery: 'embedded_content_urls',
+      copy_policy: 'referenced_only',
+    },
+    {
+      bucket: 'test-documents',
+      visibility: 'public',
+      reference_discovery: 'tests.documents.url_or_snapshot_path',
+      copy_policy: 'referenced_only',
+    },
+  ],
+  destinations: [
+    {
+      bucket: 'classroom-archives',
+      visibility: 'private',
+      object_template: '{teacher_id}/{classroom_id}/{archive_id}/classroom-v1.tar.gz',
+    },
+    {
+      bucket: 'gradex-analytics-extracts',
+      visibility: 'private',
+      object_template: '{teacher_id}/{classroom_id}/{extract_id}/gradex-v1.tar.gz',
+    },
+  ],
+} as const
+
+export const CLASSROOM_ARTIFACT_PRIVACY_CONTRACT = {
+  course_blueprint: {
+    identity_mode: 'none',
+    contains_student_data: false,
+    storage_visibility: 'teacher_private',
+  },
+  classroom_archive: {
+    identity_mode: 'original_restricted',
+    contains_student_data: true,
+    storage_visibility: 'teacher_private',
+  },
+  gradex_extract: {
+    identity_mode: 'per_extract_pseudonym',
+    contains_student_data: true,
+    direct_identifiers_allowed: false,
+    raw_storage_objects_allowed: false,
+    storage_visibility: 'service_private',
+  },
+} as const
+
+export const GRADEX_DEIDENTIFICATION_CONTRACT = {
+  identifier_fields: 'hmac_sha256_per_extract',
+  identifier_scope: 'single_extract',
+  forbidden_output_fields: [
+    'email',
+    'first_name',
+    'last_name',
+    'student_number',
+    'teacher_id',
+    'student_id',
+    'user_id',
+    'created_by',
+    'updated_by',
+    'triggered_by',
+    'graded_by',
+    'returned_by',
+    'url',
+    'storage_path',
+  ],
+  free_text: 'redact_known_and_detected_identifiers',
+  timestamps: 'relative_offsets_only',
+  external_references: 'exclude',
+  release_gate: 'zero_detected_direct_identifiers',
+} as const
