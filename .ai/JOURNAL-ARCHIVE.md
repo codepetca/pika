@@ -11525,3 +11525,20 @@
 - `pnpm lint`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - Post-review fix validation: `pnpm vitest run tests/unit/ui-guidance-docs.test.ts`, `git diff --check`, `pnpm lint`, `bash .codex/skills/pika-audit/scripts/audit.sh`
+
+## 2026-06-20 — Browser Supabase access audit guard
+
+**Completed:**
+- Continued the bounded systems/UI audit program with the browser-side Supabase access slice.
+- Audited non-API/non-server source imports and confirmed current direct Supabase runtime usage is limited to server-rendered classroom pages and the shared server client module; `src/lib/user-profile.ts` uses a type-only Supabase import.
+- Added static regression coverage that fails if a browser-reachable module imports `@/lib/supabase` or `@supabase/supabase-js` at runtime.
+- Addressed subagent review feedback by changing the guard from a direct client-file scan to a TypeScript-AST runtime import graph rooted at every `use client` source file, while allowing type-only Supabase imports and catching static imports, dynamic imports, and `require()` calls.
+- No production UI or runtime behavior changed.
+
+**Validation:**
+- `rg -n "@/lib/supabase|@supabase/supabase-js|getSupabaseClient|getServiceRoleClient" src/app src/components src/hooks src/lib src/ui --glob '*.{ts,tsx}' --glob '!src/app/api/**' --glob '!src/lib/server/**'`
+- `pnpm test tests/unit/browser-supabase-access.test.ts tests/unit/api-route-standards.test.ts tests/unit/supabase.test.ts`
+- `git diff --check`
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm build`

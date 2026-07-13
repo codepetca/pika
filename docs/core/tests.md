@@ -133,6 +133,9 @@ Test password-based flows:
 - Gradex runtime coordinator tests prove the internal feature gate, source archive identity/checksum
   binding, HMAC-key-bound idempotency, private no-overwrite upload, complete read-back verification,
   finalization ordering, deterministic retry reuse, and terminal-versus-retryable object cleanup.
+- Gradex trigger route tests prove teacher authentication, explicit UUID idempotency, strict 90-day
+  retention, separate teacher/archive canary gates, immutable archive ownership delegation, and
+  exact coordinator status propagation without invoking production generation.
 
 ### 5. Integration & Smoke Tests
 

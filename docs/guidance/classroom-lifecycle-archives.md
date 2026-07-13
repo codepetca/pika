@@ -241,8 +241,17 @@ identity, uploads without overwrite to the private Gradex bucket, downloads the 
 repeats the independent integrity/privacy/relationship verification, and only then finalizes
 migration 084 evidence. A matching object is reused during retry; a transient finalization failure
 retains the verified object, while terminal rejection removes only an object uploaded by that
-attempt. The module is not yet called by an API route or cron, so production generation remains
-unreachable until a separately reviewed trigger and canary procedure are added.
+attempt.
+
+`POST /api/teacher/classrooms/[id]/archives/[archiveId]/gradex` is the separately gated teacher
+trigger. It requires teacher authentication, a caller-supplied UUID `Idempotency-Key`, an explicit
+future `delete_after` no more than 90 days away, the coordinator's enabled teacher allowlist, and a
+second `CLASSROOM_GRADEX_TRIGGER_ENABLED=true` gate with the exact source archive UUID in
+`CLASSROOM_GRADEX_TRIGGER_ARCHIVE_IDS`. Migration 084 remains the ownership authority: its begin RPC
+matches the immutable archive to both the authenticated teacher id and classroom id, including after
+the classroom becomes cold. The route has no UI or cron caller and every gate defaults off, so merely
+deploying it cannot generate an extract. Enabling a named production canary still requires explicit
+human migration, environment, archive, retention, and invocation approval.
 
 ## Observability
 

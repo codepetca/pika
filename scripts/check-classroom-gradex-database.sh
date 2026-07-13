@@ -17,6 +17,8 @@ declare
   v_classroom_id constant uuid := '21000000-0000-4000-8000-000000000011';
   v_export_operation_id constant uuid := '22000000-0000-4000-8000-000000000011';
   v_archive_id constant uuid := '23000000-0000-4000-8000-000000000011';
+  v_wrong_teacher_extract_id constant uuid := '24000000-0000-4000-8000-000000000009';
+  v_wrong_classroom_extract_id constant uuid := '24000000-0000-4000-8000-000000000010';
   v_extract_id constant uuid := '24000000-0000-4000-8000-000000000011';
   v_concurrent_id constant uuid := '24000000-0000-4000-8000-000000000012';
   v_superseding_id constant uuid := '24000000-0000-4000-8000-000000000013';
@@ -74,6 +76,33 @@ begin
     'direct_identifier_findings', 0,
     'verified_at', clock_timestamp()
   );
+
+  v_result := public.begin_classroom_gradex_extract(
+    v_wrong_teacher_extract_id, '11000000-0000-4000-8000-000000000099',
+    v_classroom_id, v_archive_id, repeat('2', 64), v_delete_after
+  );
+  if v_result->>'error_code' <> 'classroom_archive_not_found'
+    or exists (
+      select 1 from public.classroom_archive_operations
+      where id = v_wrong_teacher_extract_id
+    )
+  then
+    raise exception 'Foreign teacher Gradex request was not rejected safely: %', v_result;
+  end if;
+
+  v_result := public.begin_classroom_gradex_extract(
+    v_wrong_classroom_extract_id, v_teacher_id,
+    '21000000-0000-4000-8000-000000000099', v_archive_id,
+    repeat('3', 64), v_delete_after
+  );
+  if v_result->>'error_code' <> 'classroom_archive_not_found'
+    or exists (
+      select 1 from public.classroom_archive_operations
+      where id = v_wrong_classroom_extract_id
+    )
+  then
+    raise exception 'Wrong classroom Gradex request was not rejected safely: %', v_result;
+  end if;
 
   begin
     perform public.begin_classroom_gradex_extract(

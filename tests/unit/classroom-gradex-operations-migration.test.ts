@@ -26,6 +26,12 @@ describe('Gradex extract operations migration', () => {
     expect(migration).toContain('p_compressed_byte_size > 52428800')
   })
 
+  it('binds source archives to the authenticated teacher and requested classroom', () => {
+    expect(migration).toContain('v_archive.teacher_id <> p_teacher_id')
+    expect(migration).toContain('v_archive.classroom_id <> p_classroom_id')
+    expect(migration).toContain("'error_code', 'classroom_archive_not_found'")
+  })
+
   it('uses leased cleanup with retry and stale-lease protection', () => {
     expect(migration).toContain('for update skip locked')
     expect(migration).toContain('lease_expires_at')
