@@ -77,6 +77,10 @@ export function isClassroomGradexCleanupEnabled(): boolean {
   return process.env.CLASSROOM_GRADEX_CLEANUP_ENABLED?.trim().toLowerCase() === 'true'
 }
 
+export function isClassroomGradexCleanupTriggerEnabled(): boolean {
+  return process.env.CLASSROOM_GRADEX_CLEANUP_TRIGGER_ENABLED?.trim().toLowerCase() === 'true'
+}
+
 export function resolveClassroomGradexCleanupLeaseToken(
   value?: string | null,
 ): string {

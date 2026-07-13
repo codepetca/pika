@@ -10,31 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-20 — Composite widget accessibility audit
-
-**Completed:**
-- Continued the bounded systems/UI audit program with the composite-widget accessibility slice.
-- Audited shared menu/listbox widgets and identified a concrete fix-now issue in the `useDropdownNav` consumers: closed account/classroom dropdown surfaces stayed exposed in the accessibility tree, and Escape/outside close did not return focus to the trigger.
-- Added a trigger ref and focus restoration path to `useDropdownNav` for Escape, outside click, and trigger-close behavior.
-- Marked closed `UserMenu` and `ClassroomDropdown` menu/listbox surfaces with `aria-hidden` while preserving their existing visual transitions.
-- Added semantic regression coverage for closed menus being unavailable by role and focus restoration after Escape/outside close.
-
-**Accessibility checklist:**
-- checklist reviewed: yes
-- keyboard behavior covered: yes
-- semantic state covered by tests: yes
-- remaining manual follow-up: none
-
-**Validation:**
-- `pnpm test tests/components/ClassroomDropdown.test.tsx tests/components/UserMenu.test.tsx`
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm build`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`.
-- Additional open-state visual verification: reviewed `/tmp/pika-user-menu-open.png` and `/tmp/pika-classroom-dropdown-open.png`.
-- `pnpm test` (308 files / 2742 tests)
-
 ## 2026-06-21 — Teacher exam telemetry E2E coverage
 
 **Completed:**
@@ -765,4 +740,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm build`
+- `git diff --check`
+
+## 2026-07-13 — Manual Gradex cleanup canary trigger
+
+**Completed:**
+- Added a `CRON_SECRET`-authenticated GET/POST cleanup endpoint behind an independent disabled-by-default trigger gate while preserving the cleanup worker's separate gate.
+- Bounded the manual canary to one claim per invocation and delegated lease, storage deletion, exact read-back, completion, and retry behavior to the existing cleanup coordinator.
+- Kept durably recorded item retries healthy while returning `503` when any claim lacks durable retry evidence; responses expose no storage paths or content.
+- Added tests that lock the route out of `vercel.json`; no schedule, UI caller, migration, dependency, production database, row, storage object, or environment setting was changed.
+- Updated environment, lifecycle, test, and current-context documentation.
+
+**Validation:**
+- Full Vitest suite (330 files / 2,925 tests)
+- Focused trigger/cleanup/extract/operations/artifact/startup suites (6 files / 85 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika pre-commit audit
 - `git diff --check`

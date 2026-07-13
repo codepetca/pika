@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   CLASSROOM_GRADEX_CLEANUP_MAX_CLAIMS,
   isClassroomGradexCleanupEnabled,
+  isClassroomGradexCleanupTriggerEnabled,
   resolveClassroomGradexCleanupLeaseToken,
   runClassroomGradexCleanup,
 } from '@/lib/server/classroom-gradex-cleanup'
@@ -133,8 +134,12 @@ describe('classroom Gradex cleanup coordinator', () => {
 
   it('requires an explicit server cleanup gate and valid lease token', async () => {
     vi.stubEnv('CLASSROOM_GRADEX_CLEANUP_ENABLED', 'false')
+    vi.stubEnv('CLASSROOM_GRADEX_CLEANUP_TRIGGER_ENABLED', 'false')
     const mock = createSupabaseMock()
     expect(isClassroomGradexCleanupEnabled()).toBe(false)
+    expect(isClassroomGradexCleanupTriggerEnabled()).toBe(false)
+    vi.stubEnv('CLASSROOM_GRADEX_CLEANUP_TRIGGER_ENABLED', ' TRUE ')
+    expect(isClassroomGradexCleanupTriggerEnabled()).toBe(true)
     expect(resolveClassroomGradexCleanupLeaseToken(LEASE_TOKEN)).toBe(LEASE_TOKEN)
     expect(() => resolveClassroomGradexCleanupLeaseToken('not-a-uuid')).toThrow()
 
