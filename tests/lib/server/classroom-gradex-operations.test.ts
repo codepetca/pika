@@ -7,6 +7,7 @@ import {
   CLASSROOM_GRADEX_EXTRACT_BUCKET,
   createClassroomGradexExtract,
   isClassroomGradexExtractAllowed,
+  isClassroomGradexTriggerAllowed,
   resolveClassroomGradexHmacSecret,
 } from '@/lib/server/classroom-gradex-operations'
 import { buildGradexExtractFromClassroomArchive } from '@/lib/server/classroom-gradex-extract'
@@ -293,6 +294,20 @@ describe('classroom Gradex runtime coordinator', () => {
 
     vi.stubEnv('CLASSROOM_GRADEX_EXTRACT_HMAC_SECRET', 'too-short')
     expect(() => resolveClassroomGradexHmacSecret()).toThrow('at least 32 bytes')
+  })
+
+  it('requires a separate trigger flag and exact source archive allowlist', () => {
+    vi.stubEnv('CLASSROOM_GRADEX_TRIGGER_ENABLED', 'false')
+    vi.stubEnv('CLASSROOM_GRADEX_TRIGGER_ARCHIVE_IDS', ARCHIVE_ID)
+    expect(isClassroomGradexTriggerAllowed(ARCHIVE_ID)).toBe(false)
+
+    vi.stubEnv('CLASSROOM_GRADEX_TRIGGER_ENABLED', 'true')
+    vi.stubEnv(
+      'CLASSROOM_GRADEX_TRIGGER_ARCHIVE_IDS',
+      `50000000-0000-4000-8000-000000000001, ${ARCHIVE_ID}`,
+    )
+    expect(isClassroomGradexTriggerAllowed(ARCHIVE_ID)).toBe(true)
+    expect(isClassroomGradexTriggerAllowed('60000000-0000-4000-8000-000000000001')).toBe(false)
   })
 
   it('does not start an operation when the coordinator gate is disabled', async () => {

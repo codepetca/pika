@@ -10,23 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-20 — Browser Supabase access audit guard
-
-**Completed:**
-- Continued the bounded systems/UI audit program with the browser-side Supabase access slice.
-- Audited non-API/non-server source imports and confirmed current direct Supabase runtime usage is limited to server-rendered classroom pages and the shared server client module; `src/lib/user-profile.ts` uses a type-only Supabase import.
-- Added static regression coverage that fails if a browser-reachable module imports `@/lib/supabase` or `@supabase/supabase-js` at runtime.
-- Addressed subagent review feedback by changing the guard from a direct client-file scan to a TypeScript-AST runtime import graph rooted at every `use client` source file, while allowing type-only Supabase imports and catching static imports, dynamic imports, and `require()` calls.
-- No production UI or runtime behavior changed.
-
-**Validation:**
-- `rg -n "@/lib/supabase|@supabase/supabase-js|getSupabaseClient|getServiceRoleClient" src/app src/components src/hooks src/lib src/ui --glob '*.{ts,tsx}' --glob '!src/app/api/**' --glob '!src/lib/server/**'`
-- `pnpm test tests/unit/browser-supabase-access.test.ts tests/unit/api-route-standards.test.ts tests/unit/supabase.test.ts`
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm build`
-
 ## 2026-06-20 — Student notification read-cache audit
 
 **Completed:**
@@ -762,4 +745,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm build`
+- `git diff --check`
+
+## 2026-07-13 — Doubly gated Gradex teacher trigger
+
+**Completed:**
+- Added a teacher-authenticated Gradex generation route requiring an explicit UUID idempotency key and a future deletion timestamp bounded by the 90-day artifact contract.
+- Kept deployment fail-closed behind both the existing teacher coordinator allowlist and a separate exact source-archive canary flag/allowlist; no UI, cron, or automatic caller was added.
+- Delegated generation, immutable archive ownership, transformation, storage, read-back, privacy verification, and durable finalization to the existing coordinator and migration 084 boundaries.
+- Extended the rollback-only database contract and static migration guard to reject foreign-teacher and wrong-classroom archive requests without creating an operation.
+- Updated environment, lifecycle, test, and current-context documentation. No production database, migration, row, storage object, or environment setting was modified.
+
+**Validation:**
+- Full Vitest suite (328 files / 2,899 tests)
+- Focused trigger/coordinator/transformer/artifact/startup suites (5 files / 67 tests)
+- Focused route/coordinator/migration suite after ownership review (3 files / 29 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `bash -n scripts/check-classroom-gradex-database.sh`
+- Local executable database contract unavailable because the running Supabase container predates migration 082; migrations were not applied or modified
 - `git diff --check`

@@ -155,6 +155,18 @@ export function isClassroomGradexExtractAllowed(teacherId: string): boolean {
     .some((value) => value === parsedTeacherId)
 }
 
+export function isClassroomGradexTriggerAllowed(archiveId: string): boolean {
+  if (process.env.CLASSROOM_GRADEX_TRIGGER_ENABLED?.trim().toLowerCase() !== 'true') {
+    return false
+  }
+  const parsedArchiveId = uuidSchema.parse(archiveId)
+  return (process.env.CLASSROOM_GRADEX_TRIGGER_ARCHIVE_IDS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .some((value) => value === parsedArchiveId)
+}
+
 export function resolveClassroomGradexHmacSecret(): string {
   const secret = process.env.CLASSROOM_GRADEX_EXTRACT_HMAC_SECRET?.trim()
   if (!secret || Buffer.byteLength(secret, 'utf8') < 32) {
