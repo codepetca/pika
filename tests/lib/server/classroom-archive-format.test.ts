@@ -138,6 +138,26 @@ describe('classroom archive format', () => {
       storageObjects: [],
     })).toThrow()
   })
+
+  it('rejects duplicate storage source descriptors', () => {
+    const object = {
+      bucket: 'assignment-artifacts' as const,
+      sourcePath: 'student/assignment/evidence.png',
+      contentType: 'image/png',
+      bytes: Buffer.from('same-object'),
+    }
+    expect(() => buildClassroomArchiveBundle({
+      archiveId: ARCHIVE_ID,
+      classroomId: CLASSROOM_ID,
+      teacherId: TEACHER_ID,
+      createdAt: '2026-07-13T12:00:00.000Z',
+      source: { schemaMigration: '082_verified_classroom_archive_exports', appCommit: 'abcdef1' },
+      retention: { mode: 'teacher_managed', delete_after: null },
+      resources: emptyResources(),
+      actors: [],
+      storageObjects: [object, object],
+    })).toThrow('Duplicate source storage object')
+  })
 })
 
 describe('classroom archive storage discovery', () => {
