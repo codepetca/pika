@@ -398,6 +398,7 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
       expect.objectContaining({
         assignment_id: 'assignment-1',
         student_id: 'student-4',
+        content: { type: 'doc', content: [] },
         is_submitted: false,
         submitted_at: null,
         score_completion: 0,

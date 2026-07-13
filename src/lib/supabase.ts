@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database'
 
 // Server-side client with secret key for admin operations
 export function getSupabaseClient() {
@@ -9,7 +10,7 @@ export function getSupabaseClient() {
     throw new Error('Missing Supabase environment variables')
   }
 
-  return createClient(supabaseUrl, supabasePublishableKey)
+  return createClient<Database>(supabaseUrl, supabasePublishableKey)
 }
 
 export function getServiceRoleClient() {
@@ -25,7 +26,7 @@ export function getServiceRoleClient() {
     throw new Error('Missing SUPABASE_SECRET_KEY')
   }
 
-  return createClient(supabaseUrl, secretKey, {
+  return createClient<Database>(supabaseUrl, secretKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false

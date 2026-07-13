@@ -644,7 +644,7 @@ export function buildGradexExtractFromClassroomArchive(input: {
   deleteAfter: string
   hmacSecret: string
 }): BuiltGradexExtractBundle {
-  const expectedTables = new Set(GRADEX_RESOURCE_TABLES)
+  const expectedTables = new Set<string>(GRADEX_RESOURCE_TABLES)
   const configuredTables = Object.keys(PROJECTION_SPECS)
   if (
     configuredTables.length !== expectedTables.size ||

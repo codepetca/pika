@@ -13,7 +13,6 @@ import { normalizeTestDocuments } from '@/lib/test-documents'
 import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
 import { withLegacyQuizListKey } from '@/lib/test-api-contract'
-import type { TestAssessment } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -27,6 +26,7 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
   if (!classroomId) {
     return NextResponse.json({ error: 'classroom_id is required' }, { status: 400 })
   }
+  const requestedClassroomId = classroomId
 
   const supabase = getServiceRoleClient()
 
@@ -39,7 +39,7 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
     return supabase
       .from('tests')
       .select('*')
-      .eq('classroom_id', classroomId)
+      .eq('classroom_id', requestedClassroomId)
       .eq('status', status)
       .order('position', { ascending: false })
   }
@@ -219,7 +219,7 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
 
   const allTests = [...visibleActiveTests, ...visibleClosedTests]
 
-  const testsWithStatus = allTests.map((test: TestAssessment) => {
+  const testsWithStatus = allTests.map((test) => {
     const hasResponded = respondedTestIds.has(test.id)
     const isReturned = returnedTestIds.has(test.id)
     const access = getEffectiveStudentTestAccess({

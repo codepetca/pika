@@ -17,6 +17,7 @@ import {
   type ClassroomArchiveRestorePlan,
 } from '@/lib/server/classroom-archive-restore'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { parseDatabaseJson } from '@/lib/validations/database-json'
 
 const CLASSROOM_ARCHIVE_BUCKET = 'classroom-archives' as const
 const STAGING_BATCH_MAX_BYTES = 900 * 1024
@@ -564,7 +565,7 @@ export async function restoreClassroomArchive(args: {
           p_operation_id: args.operationId,
           p_teacher_id: args.teacherId,
           p_table_name: table,
-          p_rows: chunk,
+          p_rows: parseDatabaseJson(chunk),
         })
         if (response.error) {
           throw new ClassroomArchiveRestoreError(

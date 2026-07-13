@@ -9,6 +9,7 @@ import {
 import { buildAssignmentInstructionFields, getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { calculateAssignmentStats } from '@/lib/assignments'
 import { withErrorHandler } from '@/lib/api-handler'
+import type { TableInsert } from '@/types/database'
 import { isMissingAssignmentTeacherClearedAtColumnError } from '@/lib/server/assignments'
 import { isMissingSurveysTableError } from '@/lib/server/surveys'
 import {
@@ -294,7 +295,7 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
           description: '',
         }).markdown
   )
-  const insertBody: Record<string, any> = {
+  const insertBody: TableInsert<'assignments'> = {
     classroom_id,
     title: title.trim(),
     instructions_markdown: instructionFields.instructions_markdown,

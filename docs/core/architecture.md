@@ -67,7 +67,7 @@ src/
 │   │   └── tests.ts               # Test query helpers
 │   ├── assignments.ts, quizzes.ts, test-responses.ts, scheduling.ts …
 │   └── auth.ts, crypto.ts, timezone.ts, attendance.ts …
-├── types/                         # Shared TypeScript types (src/types/index.ts)
+├── types/                         # Domain types plus generated/custom database contracts
 └── ui/                            # Design-system primitives (import from @/ui NOT @/components)
     ├── Button, Input, FormField, Select, AlertDialog, ConfirmDialog, Card, Tooltip, SplitButton
 
@@ -81,6 +81,13 @@ tests/                             # Vitest unit + API suites
 ---
 
 ## Key Patterns
+
+### Supabase Database Contracts
+- `src/types/database.generated.ts` is generated from the public schema and must not be edited manually.
+- `src/types/database.ts` composes the generated schema with application-owned JSON, status, and RPC result contracts that PostgreSQL metadata cannot express precisely.
+- Both central clients in `src/lib/supabase.ts` use the composed `Database` type. New server data access should flow through those factories.
+- Use `TableRow`, `TableInsert`, and `TableUpdate` from `@/types/database` for persisted payloads instead of generic records or local copies of table shapes.
+- After changing a migration, start the local Supabase stack through the documented human workflow and run `pnpm run db:types:generate`. CI replays migrations in an ephemeral database and runs `pnpm run db:types:check` to reject drift.
 
 ### UI/Theming (Required)
 - **All UI must use semantic design tokens** — NOT raw color or `dark:` classes in app code.

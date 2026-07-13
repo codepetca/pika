@@ -3,7 +3,10 @@ import { z } from 'zod'
 import {
   classroomArchiveRetentionSchema,
 } from '@/lib/contracts/classroom-artifacts'
-import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
+import {
+  CLASSROOM_RELATIONAL_RESOURCES,
+  type ClassroomResourceTable,
+} from '@/lib/contracts/classroom-data'
 import {
   buildClassroomArchiveBundle,
   canonicalJsonStringify,
@@ -13,6 +16,7 @@ import {
   type ClassroomArchiveStorageObject,
 } from '@/lib/server/classroom-archive-format'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { parseDatabaseJson } from '@/lib/validations/database-json'
 
 export const CLASSROOM_ARCHIVE_BUCKET = 'classroom-archives' as const
 export const CLASSROOM_ARCHIVE_SOURCE_MIGRATION = '082_verified_classroom_archive_exports' as const
@@ -21,6 +25,7 @@ export const CLASSROOM_ARCHIVE_MAX_BYTES = 50 * 1024 * 1024
 const uuidSchema = z.string().uuid()
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/)
 const resourceCountsSchema = z.record(z.string(), z.number().int().nonnegative())
+const archiveResourceRowsSchema = z.array(z.record(z.string(), z.json()))
 
 const archiveVerificationSchema = z.object({
   read_back_verified: z.literal(true),
@@ -106,6 +111,23 @@ export type ClassroomArchiveExportResult =
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 type ArchiveRetention = z.infer<typeof classroomArchiveRetentionSchema>
+
+type ArchiveResourceSelect = {
+  in: (column: string, values: readonly string[]) => {
+    order: (
+      column: string,
+      options: { ascending: boolean },
+    ) => PromiseLike<{ data: unknown; error: unknown }>
+  }
+}
+
+function selectArchiveResourceRows(
+  supabase: SupabaseClient,
+  table: ClassroomResourceTable,
+): ArchiveResourceSelect {
+  // Supabase cannot correlate a runtime table/primary-key pair; the result is parsed below.
+  return supabase.from(table).select('*') as unknown as ArchiveResourceSelect
+}
 
 class ClassroomArchiveExportError extends Error {
   constructor(
@@ -220,10 +242,10 @@ async function loadSnapshotIds(
   return ids
 }
 
-async function loadResourceRows(
+async function loadResourceRows<Table extends ClassroomResourceTable>(
   supabase: SupabaseClient,
   operationId: string,
-  table: string,
+  table: Table,
   primaryKey: string,
   expectedCount: number,
 ): Promise<unknown[]> {
@@ -241,9 +263,7 @@ async function loadResourceRows(
   const chunkSize = 200
   for (let offset = 0; offset < ids.length; offset += chunkSize) {
     const chunk = ids.slice(offset, offset + chunkSize)
-    const { data, error } = await supabase
-      .from(table)
-      .select('*')
+    const { data, error } = await selectArchiveResourceRows(supabase, table)
       .in(primaryKey, chunk)
       .order(primaryKey, { ascending: true })
     if (error) {
@@ -254,7 +274,16 @@ async function loadResourceRows(
         true,
       )
     }
-    rows.push(...((data || []) as Record<string, unknown>[]))
+    const parsedRows = archiveResourceRowsSchema.safeParse(data || [])
+    if (!parsedRows.success) {
+      throw new ClassroomArchiveExportError(
+        'archive_resource_contract_invalid',
+        `Archive resource ${table} returned non-JSON rows`,
+        500,
+        false,
+      )
+    }
+    rows.push(...parsedRows.data)
   }
 
   if (rows.length !== expectedCount) {
@@ -676,7 +705,7 @@ export async function exportClassroomArchive(args: {
       p_compressed_byte_size: bundle.archive.byteLength,
       p_uncompressed_byte_size: bundle.uncompressedByteSize,
       p_resource_counts: snapshot.resource_counts,
-      p_storage_object_counts: storageObjectCounts,
+      p_storage_object_counts: parseDatabaseJson(storageObjectCounts),
       p_verification: verificationEvidence,
     })
     if (completeResponse.error) {

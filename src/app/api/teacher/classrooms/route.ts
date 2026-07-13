@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
+import type { TableInsert } from '@/types/database'
 import { createClassroomSchema } from '@/lib/validations/teacher'
 import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
@@ -68,7 +69,7 @@ export const POST = withErrorHandler('CreateClassroom', async (request: NextRequ
     (activeClassroomsResult?.data || []).map((classroom: any) => classroom.theme_color),
     `${user.id}:${title}`
   )
-  const insertBody: Record<string, any> = {
+  const insertBody: TableInsert<'classrooms'> = {
     teacher_id: user.id,
     title,
     class_code: finalClassCode,
