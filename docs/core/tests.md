@@ -139,6 +139,10 @@ Test password-based flows:
 - Gradex cleanup coordinator tests prove bounded lease claims, canonical object-path binding,
   authoritative post-delete absence checks, stale-lease rejection, durable retry evidence,
   per-claim failure containment, and fail-closed RPC/storage contract handling.
+- Gradex cleanup trigger tests prove cron-secret authentication, an independent trigger gate,
+  one-claim canary bounds, GET/POST parity, exact worker status propagation, and unhealthy batch
+  signaling when durable retry evidence is incomplete; they also lock out automatic Vercel
+  scheduling during the manual-canary stage.
 
 ### 5. Integration & Smoke Tests
 

@@ -261,8 +261,15 @@ each independent claim it requests deletion, reads the exact path again, and com
 lease only after Storage authoritatively reports that key absent. A present object, uncertain
 read-back, rejected completion, or unexpected client failure never records deletion; the worker
 records a stable retry code when it still owns the lease. Logs expose only lease ids, counts, and
-error codes, never paths or classroom content. The worker has no HTTP route, cron entry, or other
-caller yet, and its gate defaults off.
+error codes, never paths or classroom content.
+
+`/api/cron/classroom-gradex-cleanup` is the manual cleanup canary boundary. It requires
+`CRON_SECRET`, `CLASSROOM_GRADEX_CLEANUP_TRIGGER_ENABLED=true`, and the worker's independent
+`CLASSROOM_GRADEX_CLEANUP_ENABLED=true` gate. Each invocation claims at most one object, reports a
+durably recorded item retry as a healthy invocation, and returns `503` if retry evidence is
+incomplete. GET and POST have the same contract. The route is not listed in `vercel.json`, has no UI
+caller, and both cleanup gates default off; adding deployment scheduling requires separate approval
+after migration 084 and a named manual canary have been verified.
 
 ## Observability
 
