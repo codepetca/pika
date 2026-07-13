@@ -11510,3 +11510,18 @@
 - Additional visual verification for role/viewport/theme matrix: reviewed `/tmp/pika-student-desktop.png`, `/tmp/pika-teacher-dark.png`, `/tmp/pika-teacher-mobile-dark.png`, `/tmp/pika-student-dark.png`, and `/tmp/pika-student-mobile-dark.png`.
 - Post-review fix validation: `pnpm vitest run tests/components/AppHeader.test.tsx tests/unit/ui-guidance-docs.test.ts`, `git diff --check`, `pnpm lint`, `bash .codex/skills/pika-audit/scripts/audit.sh`, `pnpm build`.
 - Post-review visual verification: reviewed `/tmp/pika-teacher-dark-after-review.png` and `/tmp/pika-student-mobile-dark-after-review.png`.
+
+## 2026-06-20 — Historical design-system dark-mode examples cleanup
+
+**Completed:**
+- Continued the systems/UI audit program with a docs-only UI guidance consistency slice.
+- Updated the historical `docs/design-system.md` dark-mode section so it points to semantic tokens instead of raw theme-switching utility examples.
+- Added UI guidance regression coverage to keep that historical section aligned with semantic-token guidance.
+- Addressed subagent review feedback by tightening the regression test to match exact semantic-token class examples.
+
+**Validation:**
+- `pnpm vitest run tests/unit/ui-guidance-docs.test.ts`
+- `git diff --check`
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- Post-review fix validation: `pnpm vitest run tests/unit/ui-guidance-docs.test.ts`, `git diff --check`, `pnpm lint`, `bash .codex/skills/pika-audit/scripts/audit.sh`
