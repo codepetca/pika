@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { addDays, format, isValid, parse } from 'date-fns'
 import { fromZonedTime } from 'date-fns-tz'
 import { z } from 'zod'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { buildAssignmentInstructionFields } from '@/lib/assignment-instructions'
 import { normalizeAssignmentSubmissionRequirementDrafts } from '@/lib/assignment-submission-requirements'
 import { generateClassDays, generateClassDaysFromRange, getSemesterDates } from '@/lib/calendar'
@@ -18,6 +19,8 @@ import type {
   Semester,
 } from '@/types'
 import type { TestDraftContent } from '@/lib/server/assessment-drafts'
+import { parseDatabaseJson } from '@/lib/validations/database-json'
+import type { Database } from '@/types/database'
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const dateTimeSchema = z.string().datetime({ offset: true })
@@ -210,12 +213,12 @@ export const blueprintOperationResultSchema = z.discriminatedUnion('ok', [
 
 export type BlueprintOperationResult = z.infer<typeof blueprintOperationResultSchema>
 
-type SupabaseRpcClient = {
-  rpc: (name: string, args: Record<string, unknown>) => PromiseLike<{
-    data: unknown
-    error: { code?: string; message?: string } | null
-  }>
-}
+type BlueprintRpcName =
+  | 'create_course_blueprint_atomic'
+  | 'instantiate_course_blueprint_atomic'
+type BlueprintRpcArgs<Name extends BlueprintRpcName> =
+  Database['public']['Functions'][Name]['Args']
+type SupabaseRpcClient = Pick<SupabaseClient<Database>, 'rpc'>
 
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize)
@@ -266,10 +269,10 @@ function emitBlueprintOperationMetric(result: BlueprintOperationResult, duration
   }))
 }
 
-async function executeBlueprintOperation(
+async function executeBlueprintOperation<Name extends BlueprintRpcName>(
   supabase: SupabaseRpcClient,
-  rpcName: 'create_course_blueprint_atomic' | 'instantiate_course_blueprint_atomic',
-  args: Record<string, unknown>,
+  rpcName: Name,
+  args: BlueprintRpcArgs<Name>,
   operationId: string,
   operationType: 'import' | 'capture' | 'instantiate',
 ): Promise<BlueprintOperationResult> {
@@ -349,7 +352,7 @@ export async function createCourseBlueprintAtomic(args: {
       p_request_sha256: requestSha256,
       p_source_classroom_id: args.sourceClassroomId ?? null,
       p_expected_source_revision: expectedSourceRevision,
-      p_plan: plan,
+      p_plan: parseDatabaseJson(plan),
     },
     args.operationId,
     args.operationType,
@@ -378,7 +381,7 @@ export async function instantiateCourseBlueprintAtomic(args: {
       p_blueprint_id: args.blueprintId,
       p_request_sha256: requestSha256,
       p_expected_content_revision: plan.expected_content_revision,
-      p_plan: plan,
+      p_plan: parseDatabaseJson(plan),
     },
     args.operationId,
     'instantiate',

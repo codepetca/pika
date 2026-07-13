@@ -1,53 +1,29 @@
 import { tryApplyJsonPatch } from '@/lib/json-patch'
 import { validateAssessmentOptions } from '@/lib/assessments'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
-import type { JsonPatchOperation, TestQuestionType } from '@/types'
+import type {
+  AssessmentDraftContent,
+  AssessmentDraftQuestion,
+  AssessmentDraftType,
+  JsonPatchOperation,
+  TestDraftContent,
+  TestDraftQuestion,
+} from '@/types'
+
+export type {
+  AssessmentDraftContent,
+  AssessmentDraftQuestion,
+  AssessmentDraftType,
+  QuizDraftContent,
+  QuizDraftQuestion,
+  TestDraftContent,
+  TestDraftQuestion,
+} from '@/types'
 
 type SupabaseLike = any
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-
-export type AssessmentDraftType = 'quiz' | 'test'
-
-export type AssessmentDraftQuestion = {
-  id: string
-  question_text: string
-  options: string[]
-}
-
-export type QuizDraftQuestion = AssessmentDraftQuestion
-
-export type TestDraftQuestion = {
-  id: string
-  question_type: TestQuestionType
-  question_text: string
-  options: string[]
-  correct_option: number | null
-  answer_key: string | null
-  sample_solution: string | null
-  points: number
-  response_max_chars: number
-  response_monospace: boolean
-}
-
-export type AssessmentDraftContent = {
-  title: string
-  show_results: boolean
-  questions: AssessmentDraftQuestion[]
-  source_format?: 'markdown'
-  source_markdown?: string
-}
-
-export type QuizDraftContent = AssessmentDraftContent
-
-export type TestDraftContent = {
-  title: string
-  show_results: boolean
-  questions: TestDraftQuestion[]
-  source_format?: 'markdown'
-  source_markdown?: string
-}
 
 export type AssessmentDraftRow<TContent> = {
   id: string

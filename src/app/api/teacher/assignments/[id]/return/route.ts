@@ -9,6 +9,7 @@ import {
 } from '@/lib/assignments'
 import { loadTeacherOwnedAssignmentForGrade } from '@/lib/server/assignment-grades'
 import { isMissingAssignmentTeacherClearedAtColumnError } from '@/lib/server/assignments'
+import type { TableInsert, TableUpdate } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -17,7 +18,7 @@ async function updateAssignmentDocsForStudents(opts: {
   supabase: ReturnType<typeof getServiceRoleClient>
   assignmentId: string
   studentIds: string[]
-  values: Record<string, unknown>
+  values: TableUpdate<'assignment_docs'>
 }) {
   const { supabase, assignmentId, studentIds, values } = opts
   const { error } = await supabase
@@ -37,7 +38,7 @@ async function insertZeroReturnedAssignmentDocsForStudents(opts: {
   includeTeacherClearedAt: boolean
 }) {
   const { supabase, assignmentId, studentIds, now, includeTeacherClearedAt } = opts
-  const rows = studentIds.map((studentId) => ({
+  const rows: TableInsert<'assignment_docs'>[] = studentIds.map((studentId) => ({
     assignment_id: assignmentId,
     student_id: studentId,
     content: { type: 'doc', content: [] },

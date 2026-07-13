@@ -10,33 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-23 — Roster action surface
-
-**Completed:**
-- Continued the bounded architecture/UI improvement goal with the next canonical classroom action-surface slice.
-- Replaced the Roster tab's custom split-button floating action with the shared teacher work-surface action cluster: a standalone Students primary action plus a quiet icon menu.
-- Preserved existing Roster behavior: the primary action still opens Add Students, selected-student email actions remain in the Roster actions menu, and removal actions stay destructive menu items.
-- Updated focused Roster component tests to assert the shared action-cluster shape without changing roster management behavior.
-- Addressed independent review by keeping the compact visual label while exposing the primary action as `Add students` for assistive technology.
-
-**UI verification:**
-- Teacher desktop light: default, open menu, selected-student menu
-- Teacher mobile light: default
-- Teacher desktop dark: default, open menu
-- Student: n/a; changed surface is teacher-only
-- Composite widget checklist reviewed: yes
-- Keyboard behavior covered by shared menu handling: yes
-- Semantic state covered by tests: yes
-- Remaining manual follow-up: none
-
-**Validation:**
-- `pnpm test tests/components/TeacherRosterTab.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh && git diff --check`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-06-23 — Announcements action surface
 
 **Completed:**
@@ -706,4 +679,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm test` (312 files, 2,788 tests passed)
 - `pnpm build`
 - `git diff --check`
+
+## 2026-07-13 — Generated Supabase database contract
+
+**Completed:**
+- Generated and committed the public Supabase schema contract in `src/types/database.generated.ts`; added `src/types/database.ts` for application-owned JSON/status/RPC refinements and typed both central Supabase client factories.
+- Added `db:types:generate` / `db:types:check`, plus a CI `Database Contract` job that starts an ephemeral database, replays migrations, and rejects generated-type drift.
+- Replaced generic persisted payload records exposed by the typed client with `TableRow`, `TableInsert`, and `TableUpdate` contracts; extracted assessment draft contracts into shared domain types.
+- Fixed blueprint instantiation when `points_possible` is null by omitting it so PostgreSQL applies the assignment default; added a regression for null and explicit point values.
+- Added documentation for generated types, custom refinements, compatibility exceptions, and the migration workflow.
+- CI's clean replay exposed migration `080` from another worktree in the shared local stack; aligned the generated file to this branch's `001-079` history and made generation reject mismatched worktree/database migration histories.
+- No production access or local migration-application command was used. Local type generation/checking only read the already-running development stack; CI used its own ephemeral database.
+
+**Validation:**
+- `pnpm test` (311 files, 2785 tests passed)
+- `pnpm build`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm run lint`
+- `pnpm run db:types:check` preflight rejected the intentionally mismatched shared stack (`database=080`, worktree missing `080`)
 - `bash .codex/skills/pika-audit/scripts/audit.sh`

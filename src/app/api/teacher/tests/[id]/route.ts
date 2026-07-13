@@ -15,9 +15,24 @@ import {
 } from '@/lib/server/assessment-drafts'
 import { withErrorHandler } from '@/lib/api-handler'
 import { withLegacyQuizKey } from '@/lib/test-api-contract'
+import type { TableRow } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+type TestQuestionResponse = Omit<
+  TableRow<'test_questions'>,
+  | 'ai_reference_cache_answers'
+  | 'ai_reference_cache_generated_at'
+  | 'ai_reference_cache_key'
+  | 'ai_reference_cache_model'
+> & Partial<Pick<
+  TableRow<'test_questions'>,
+  | 'ai_reference_cache_answers'
+  | 'ai_reference_cache_generated_at'
+  | 'ai_reference_cache_key'
+  | 'ai_reference_cache_model'
+>>
 
 function isMissingCloseTestRpcError(error: {
   code?: string
@@ -61,7 +76,7 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
 
   let title = test.title
   let showResults = test.show_results
-  let responseQuestions = questions || []
+  let responseQuestions: TestQuestionResponse[] = questions || []
 
   const { draft, error: draftError } = await getAssessmentDraftByType<TestDraftContent>(
     supabase,

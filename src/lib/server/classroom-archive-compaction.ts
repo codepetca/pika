@@ -13,6 +13,7 @@ import {
   type ClassroomArchiveRestorePlan,
 } from '@/lib/server/classroom-archive-restore'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { parseDatabaseJson } from '@/lib/validations/database-json'
 
 const CLASSROOM_ARCHIVE_BUCKET = 'classroom-archives' as const
 const CLASSROOM_ARCHIVE_COMPACTION_MAX_BATCH_BYTES = 512 * 1024
@@ -497,7 +498,7 @@ async function stageRestorePreflight(args: {
         p_operation_id: args.operationId,
         p_teacher_id: args.teacherId,
         p_table_name: table,
-        p_rows: rows,
+        p_rows: parseDatabaseJson(rows),
       })
       const parsed = !response.error ? stageRowSuccessSchema.safeParse(response.data) : null
       if (!parsed || !parsed.success) {

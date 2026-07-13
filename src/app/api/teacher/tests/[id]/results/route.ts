@@ -616,10 +616,11 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     } satisfies TestAssessmentResponse]
   })
 
-  const aggregated = aggregateTestResults(
-    multipleChoiceQuestions as TestAssessmentQuestion[],
-    multipleChoiceResponses
-  )
+  const aggregateQuestions: TestAssessmentQuestion[] = multipleChoiceQuestions.map((question) => ({
+    ...question,
+    quiz_id: question.test_id,
+  }))
+  const aggregated = aggregateTestResults(aggregateQuestions, multipleChoiceResponses)
 
   const openQuestionIds = new Set(
     (questions || [])

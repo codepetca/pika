@@ -28,6 +28,17 @@ Use this checklist for migrations, Supabase query-shape changes, compatibility s
 - Any compatibility window is documented in the PR notes
 - AI does not apply migrations locally; humans do
 
+## Generated Database Contract
+
+- Do not edit `src/types/database.generated.ts` by hand
+- Regenerate it from the local migration schema with `pnpm run db:types:generate`
+- Generation stops if the running local database migration history differs from the current worktree
+- Keep application-specific JSON/status/RPC refinements in `src/types/database.ts`
+- Use `TableRow`, `TableInsert`, or `TableUpdate` for persisted payloads instead of `Record<string, ...>`
+- Run `pnpm run db:types:check` before opening the PR
+- Confirm the CI `Database Contract` job passes; it replays the branch migrations in an ephemeral Supabase database before checking drift
+- If a compatibility shim intentionally writes a pre-migration shape, isolate and document that exception instead of weakening the shared current-schema contract
+
 ## Query And Payload Checklist
 
 - Narrow the select list to rendered or returned fields

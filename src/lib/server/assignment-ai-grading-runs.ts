@@ -602,6 +602,11 @@ async function processAssignmentAiRunItem(opts: {
     })
   }
 
+  if (!item.assignment_doc_id) {
+    await markMissingGradeAndSkip('missing_doc')
+    return
+  }
+
   await updateRunItem(supabase, item.id, {
     status: 'processing',
     started_at: item.started_at ?? now,

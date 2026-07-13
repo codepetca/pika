@@ -169,15 +169,15 @@ export const classroomResourceInventorySchema = z.array(classroomResourceSchema)
   },
 )
 
-function resource(
-  table: string,
+function resource<const Table extends string>(
+  table: Table,
   parent: string | null,
   column: string | null,
   privacy: ClassroomDataPrivacyClass[],
   gradex: GradexDisposition = 'exclude',
   additionalRestoreDependencies: string[] = [],
   primaryKey: string[] = ['id'],
-): ClassroomResource {
+): ClassroomResource & { table: Table } {
   const actorColumns = CLASSROOM_ACTOR_REFERENCE_COLUMNS[
     table as keyof typeof CLASSROOM_ACTOR_REFERENCE_COLUMNS
   ] || []
@@ -197,7 +197,7 @@ function resource(
   }
 }
 
-export const CLASSROOM_RELATIONAL_RESOURCES: ClassroomResource[] = [
+export const CLASSROOM_RELATIONAL_RESOURCES = [
   resource('classrooms', null, null, ['teacher_content', 'operations']),
   resource('announcements', 'classrooms', 'classroom_id', ['teacher_content']),
   resource('announcement_reads', 'announcements', 'announcement_id', ['student_identity', 'operations']),
@@ -240,7 +240,9 @@ export const CLASSROOM_RELATIONAL_RESOURCES: ClassroomResource[] = [
   resource('test_questions', 'tests', 'test_id', ['teacher_content'], 'include_structured'),
   resource('test_responses', 'tests', 'test_id', ['student_identity', 'student_work', 'grades_and_feedback'], 'include_structured', ['test_questions']),
   resource('test_student_availability', 'tests', 'test_id', ['student_identity', 'operations']),
-]
+] as const satisfies readonly ClassroomResource[]
+
+export type ClassroomResourceTable = (typeof CLASSROOM_RELATIONAL_RESOURCES)[number]['table']
 
 classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)
 
@@ -291,10 +293,10 @@ export function auditClassroomResourceSchema(
     }
   }
 
-  const resourcesByTable = new Map(
+  const resourcesByTable = new Map<string, ClassroomResource>(
     CLASSROOM_RELATIONAL_RESOURCES.map((item) => [item.table, item]),
   )
-  const contractTables = new Set(resourcesByTable.keys())
+  const contractTables = new Set<string>(resourcesByTable.keys())
   const untrackedTables = Array.from(descendants)
     .filter((table) => !contractTables.has(table))
     .sort()
@@ -388,15 +390,16 @@ export function auditClassroomResourceSchema(
 
 export function getClassroomResourceOrder(
   direction: 'export' | 'restore' | 'purge',
-): string[] {
-  const ordered: string[] = []
+): ClassroomResourceTable[] {
+  const ordered: ClassroomResourceTable[] = []
   const remaining = new Map(
     CLASSROOM_RELATIONAL_RESOURCES.map((item) => [item.table, item]),
   )
 
   while (remaining.size > 0) {
+    const restored = new Set<string>(ordered)
     const ready = Array.from(remaining.values()).filter((item) =>
-      item.restore_after.every((dependency) => ordered.includes(dependency)),
+      item.restore_after.every((dependency) => restored.has(dependency)),
     )
 
     if (ready.length === 0) {

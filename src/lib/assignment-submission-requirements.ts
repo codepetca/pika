@@ -27,6 +27,8 @@ export interface AssignmentSubmissionValidationPolicy {
   expected_domains: string[]
 }
 
+export type AssignmentSubmissionValidationPolicyJson = Partial<AssignmentSubmissionValidationPolicy>
+
 export const LINK_VALIDATION_MODE_LABELS: Record<AssignmentLinkValidationMode, string> = {
   format_only: 'Basic URL',
   reachable: 'Reachable page',
@@ -47,6 +49,16 @@ export type AssignmentSubmissionRequirementDraft = {
   required?: boolean | null
   position?: number | null
   validation_policy_json?: Record<string, unknown> | null
+}
+
+export type NormalizedAssignmentSubmissionRequirementDraft = {
+  id?: string
+  type: AssignmentSubmissionRequirementType
+  label: string
+  instructions: string
+  required: boolean
+  position: number
+  validation_policy_json: AssignmentSubmissionValidationPolicyJson
 }
 
 function normalizeExpectedDomain(value: unknown): string | null {
@@ -90,7 +102,7 @@ export function normalizeAssignmentSubmissionValidationPolicy(
 export function buildAssignmentSubmissionValidationPolicyJson(
   type: AssignmentSubmissionRequirementType,
   policy: Partial<AssignmentSubmissionValidationPolicy>
-): Record<string, unknown> {
+): AssignmentSubmissionValidationPolicyJson {
   const normalized = normalizeAssignmentSubmissionValidationPolicy(type, {
     mode: policy.mode,
     expected_domains: policy.expected_domains,
@@ -131,7 +143,7 @@ export function isAssignmentSubmissionRequirementType(
 
 export function normalizeAssignmentSubmissionRequirementDrafts(
   drafts: AssignmentSubmissionRequirementDraft[]
-): AssignmentSubmissionRequirementDraft[] {
+): NormalizedAssignmentSubmissionRequirementDraft[] {
   return drafts
     .filter((draft) => isAssignmentSubmissionRequirementType(draft.type))
     .map((draft, index) => {

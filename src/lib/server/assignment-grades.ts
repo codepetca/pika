@@ -1,5 +1,6 @@
 import { ApiError, apiErrors } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
+import type { TableInsert } from '@/types/database'
 
 export type AssignmentGradeSaveMode = 'draft' | 'graded'
 export type AssignmentGradeApplyTarget = 'grade' | 'comments' | 'grade-and-comments'
@@ -181,14 +182,14 @@ export function buildAssignmentGradeRows(opts: {
   studentIds: string[]
   grade: ParsedAssignmentGradePayload
   now: string
-}) {
+}): TableInsert<'assignment_docs'>[] {
   const { assignmentId, studentIds, grade, now } = opts
 
   const shouldApplyGrade = grade.apply_target === 'grade' || grade.apply_target === 'grade-and-comments'
   const shouldApplyComments = grade.apply_target === 'comments' || grade.apply_target === 'grade-and-comments'
 
   return studentIds.map((studentId) => {
-    const row: Record<string, string | number | null> = {
+    const row: TableInsert<'assignment_docs'> = {
       assignment_id: assignmentId,
       student_id: studentId,
     }

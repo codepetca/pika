@@ -789,6 +789,47 @@ export type TestFocusEventType =
 export type TestQuestionType = 'multiple_choice' | 'open_response'
 export type TestDocumentSource = 'link' | 'upload' | 'text'
 
+export type AssessmentDraftType = 'quiz' | 'test'
+
+export type AssessmentDraftQuestion = {
+  id: string
+  question_text: string
+  options: string[]
+}
+
+export type QuizDraftQuestion = AssessmentDraftQuestion
+
+export type TestDraftQuestion = {
+  id: string
+  question_type: TestQuestionType
+  question_text: string
+  options: string[]
+  correct_option: number | null
+  answer_key: string | null
+  sample_solution: string | null
+  points: number
+  response_max_chars: number
+  response_monospace: boolean
+}
+
+export type AssessmentDraftContent = {
+  title: string
+  show_results: boolean
+  questions: AssessmentDraftQuestion[]
+  source_format?: 'markdown'
+  source_markdown?: string
+}
+
+export type QuizDraftContent = AssessmentDraftContent
+
+export type TestDraftContent = {
+  title: string
+  show_results: boolean
+  questions: TestDraftQuestion[]
+  source_format?: 'markdown'
+  source_markdown?: string
+}
+
 export interface TestDocument {
   id: string
   title: string

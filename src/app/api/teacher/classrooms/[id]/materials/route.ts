@@ -5,6 +5,7 @@ import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/l
 import { getServiceRoleClient } from '@/lib/supabase'
 import { isMissingSurveysTableError } from '@/lib/server/surveys'
 import type { TiptapContent } from '@/types'
+import type { TableInsert } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -137,7 +138,7 @@ export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (requ
   }
 
   const nextPosition = Math.max(lastAssignmentPosition, lastMaterialPosition, lastSurveyPosition) + 1
-  const insertBody: Record<string, unknown> = {
+  const insertBody: TableInsert<'classwork_materials'> = {
     classroom_id: classroomId,
     title: cleanTitle,
     content,

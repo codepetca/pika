@@ -21,6 +21,7 @@ import type {
   TestAiGradingRunStatus,
   TestAiGradingRunSummary,
 } from '@/types'
+import type { TableInsert } from '@/types/database'
 
 const TEST_AI_RETRY_BACKOFF_SECONDS = [7, 20, 45]
 export const TEST_AI_GRADING_RUN_CHUNK_SIZE = 8
@@ -883,7 +884,7 @@ export async function createOrResumeTestAiGradingRun(opts: {
     }
   }
 
-  const runPayload = {
+  const runPayload: TableInsert<'test_ai_grading_runs'> = {
     test_id: opts.testId,
     status: 'queued',
     triggered_by: opts.teacherId,

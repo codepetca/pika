@@ -16,6 +16,8 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "verify:classroom-archive-recovery": "bash scripts/check-classroom-archive-recovery-drill.sh",
+    "db:types:generate": "bash scripts/supabase-types.sh generate",
+    "db:types:check": "bash scripts/supabase-types.sh check",
     "measure:ai-grading-prompts": "tsx scripts/measure-ai-grading-prompts.ts",
     "dev-feedback": "node scripts/dev-feedback.mjs",
     "eval:test-ai-grading-gold-set": "tsx scripts/eval-test-ai-grading-gold-set.ts",

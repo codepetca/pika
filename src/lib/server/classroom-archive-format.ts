@@ -351,7 +351,9 @@ function countAndValidateNdjson(bytes: Buffer, validate?: (value: unknown) => vo
 export function buildClassroomArchiveBundle(
   input: BuildClassroomArchiveBundleInput,
 ): BuiltClassroomArchiveBundle {
-  const expectedTables = new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table))
+  const expectedTables = new Set<string>(
+    CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table),
+  )
   for (const table of expectedTables) {
     if (!Array.isArray(input.resources[table])) {
       throw new Error(`Missing classroom archive resource: ${table}`)

@@ -36,6 +36,9 @@ jobs:
       - name: Start ephemeral Supabase and replay migrations
         run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
 
+      - name: Check generated database types
+        run: pnpm run db:types:check
+
       - name: Verify atomic blueprint rollback and replay
         run: bash scripts/check-atomic-blueprint-operations.sh
 
