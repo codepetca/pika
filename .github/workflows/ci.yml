@@ -7,8 +7,8 @@ on:
     branches: [main, production]
 
 jobs:
-  blueprint-database-contract:
-    name: Blueprint Database Contract
+  architecture-database-contracts:
+    name: Architecture Database Contracts
     runs-on: ubuntu-latest
 
     steps:
@@ -20,11 +20,32 @@ jobs:
         with:
           version: 2.103.0
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.25.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Start ephemeral database and replay migrations
         run: supabase db start
 
       - name: Verify atomic blueprint rollback and replay
         run: bash scripts/check-atomic-blueprint-operations.sh
+
+      - name: Verify archive operations and lifecycle evidence
+        run: bash scripts/check-classroom-archive-database.sh
+
+      - name: Audit classroom ownership graph and primary keys
+        run: pnpm exec tsx scripts/check-classroom-resource-schema.ts
+        env:
+          CLASSROOM_SCHEMA_AUDIT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
 
       - name: Stop ephemeral database
         if: always()

@@ -27,6 +27,8 @@ const foreignKeyScopeSchema = z.object({
 
 export const classroomResourceSchema = z.object({
   table: z.string().min(1),
+  primary_key: z.array(z.string().min(1)).min(1),
+  actor_columns: z.array(z.string().min(1)),
   scope: z.discriminatedUnion('kind', [rootScopeSchema, foreignKeyScopeSchema]),
   restore_after: z.array(z.string().min(1)),
   privacy: z.array(classroomDataPrivacyClassSchema).min(1),
@@ -35,6 +37,40 @@ export const classroomResourceSchema = z.object({
 }).strict()
 
 export type ClassroomResource = z.infer<typeof classroomResourceSchema>
+
+export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
+  announcement_reads: ['user_id'],
+  announcements: ['created_by'],
+  assessment_drafts: ['created_by', 'updated_by'],
+  assignment_ai_grading_run_items: ['student_id'],
+  assignment_ai_grading_runs: ['triggered_by'],
+  assignment_docs: ['student_id'],
+  assignment_feedback_entries: ['created_by', 'student_id'],
+  assignment_repo_review_results: ['student_id'],
+  assignment_repo_review_runs: ['triggered_by'],
+  assignment_repo_targets: ['student_id'],
+  assignment_submission_artifacts: ['student_id'],
+  assignments: ['created_by'],
+  classroom_enrollments: ['student_id'],
+  classroom_resources: ['updated_by'],
+  classrooms: ['teacher_id'],
+  classwork_materials: ['created_by'],
+  entries: ['student_id'],
+  quiz_responses: ['student_id'],
+  quiz_student_scores: ['student_id'],
+  quizzes: ['created_by'],
+  report_card_rows: ['student_id'],
+  report_cards: ['created_by'],
+  survey_responses: ['student_id'],
+  surveys: ['created_by'],
+  test_ai_grading_run_items: ['student_id'],
+  test_ai_grading_runs: ['triggered_by'],
+  test_attempts: ['closed_for_grading_by', 'returned_by', 'student_id'],
+  test_focus_events: ['student_id'],
+  test_responses: ['graded_by', 'student_id'],
+  test_student_availability: ['student_id', 'updated_by'],
+  tests: ['created_by'],
+} as const satisfies Record<string, readonly string[]>
 
 export const classroomResourceInventorySchema = z.array(classroomResourceSchema).min(1).superRefine(
   (resources, context) => {
@@ -140,9 +176,15 @@ function resource(
   privacy: ClassroomDataPrivacyClass[],
   gradex: GradexDisposition = 'exclude',
   additionalRestoreDependencies: string[] = [],
+  primaryKey: string[] = ['id'],
 ): ClassroomResource {
+  const actorColumns = CLASSROOM_ACTOR_REFERENCE_COLUMNS[
+    table as keyof typeof CLASSROOM_ACTOR_REFERENCE_COLUMNS
+  ] || []
   return {
     table,
+    primary_key: primaryKey,
+    actor_columns: [...actorColumns],
     scope: parent && column
       ? { kind: 'foreign_key', parent, column }
       : { kind: 'root' },
@@ -177,7 +219,7 @@ export const CLASSROOM_RELATIONAL_RESOURCES: ClassroomResource[] = [
   resource('classroom_roster', 'classrooms', 'classroom_id', ['student_identity']),
   resource('classwork_materials', 'classrooms', 'classroom_id', ['teacher_content']),
   resource('entries', 'classrooms', 'classroom_id', ['student_identity', 'student_work']),
-  resource('gradebook_settings', 'classrooms', 'classroom_id', ['teacher_content', 'grades_and_feedback']),
+  resource('gradebook_settings', 'classrooms', 'classroom_id', ['teacher_content', 'grades_and_feedback'], 'exclude', [], ['classroom_id']),
   resource('lesson_plans', 'classrooms', 'classroom_id', ['teacher_content']),
   resource('log_summaries', 'classrooms', 'classroom_id', ['student_work', 'operations']),
   resource('quizzes', 'classrooms', 'classroom_id', ['teacher_content', 'grades_and_feedback']),
@@ -213,16 +255,25 @@ export type ClassroomSchemaRelationship = {
   child_columns: string[]
 }
 
+export type ClassroomSchemaPrimaryKey = {
+  table_name: string
+  columns: string[]
+}
+
 export type ClassroomResourceSchemaAudit = {
   ok: boolean
   untracked_tables: string[]
   stale_tables: string[]
   missing_restore_dependencies: string[]
   invalid_selection_scopes: string[]
+  invalid_primary_keys: string[]
+  untracked_actor_references: string[]
+  stale_actor_references: string[]
 }
 
 export function auditClassroomResourceSchema(
   relationships: ClassroomSchemaRelationship[],
+  primaryKeys: ClassroomSchemaPrimaryKey[],
 ): ClassroomResourceSchemaAudit {
   const descendants = new Set(['classrooms'])
   let changed = true
@@ -283,6 +334,37 @@ export function auditClassroomResourceSchema(
       ? []
       : [`${resource.table}.${scope.column}->${scope.parent}`]
   })
+  const primaryKeysByTable = new Map(
+    primaryKeys.map((primaryKey) => [primaryKey.table_name, primaryKey.columns]),
+  )
+  const invalidPrimaryKeys = CLASSROOM_RELATIONAL_RESOURCES.flatMap((resource) => {
+    const actual = primaryKeysByTable.get(resource.table)
+    return actual &&
+      actual.length === resource.primary_key.length &&
+      actual.every((column, index) => column === resource.primary_key[index])
+      ? []
+      : [`${resource.table}: expected (${resource.primary_key.join(',')}) got (${actual?.join(',') || 'none'})`]
+  })
+  const actualActorReferences = new Set(
+    relationships
+      .filter((relationship) =>
+        relationship.parent_table === 'users' && contractTables.has(relationship.child_table),
+      )
+      .flatMap((relationship) =>
+        relationship.child_columns.map((column) => `${relationship.child_table}.${column}`),
+      ),
+  )
+  const expectedActorReferences = new Set(
+    CLASSROOM_RELATIONAL_RESOURCES.flatMap((resource) =>
+      resource.actor_columns.map((column) => `${resource.table}.${column}`),
+    ),
+  )
+  const untrackedActorReferences = [...actualActorReferences]
+    .filter((reference) => !expectedActorReferences.has(reference))
+    .sort()
+  const staleActorReferences = [...expectedActorReferences]
+    .filter((reference) => !actualActorReferences.has(reference))
+    .sort()
 
   const uniqueMissingDependencies = Array.from(new Set(missingRestoreDependencies)).sort()
   return {
@@ -290,11 +372,17 @@ export function auditClassroomResourceSchema(
       untrackedTables.length === 0 &&
       staleTables.length === 0 &&
       uniqueMissingDependencies.length === 0 &&
-      invalidSelectionScopes.length === 0,
+      invalidSelectionScopes.length === 0 &&
+      invalidPrimaryKeys.length === 0 &&
+      untrackedActorReferences.length === 0 &&
+      staleActorReferences.length === 0,
     untracked_tables: untrackedTables,
     stale_tables: staleTables,
     missing_restore_dependencies: uniqueMissingDependencies,
     invalid_selection_scopes: invalidSelectionScopes.sort(),
+    invalid_primary_keys: invalidPrimaryKeys.sort(),
+    untracked_actor_references: untrackedActorReferences,
+    stale_actor_references: staleActorReferences,
   }
 }
 

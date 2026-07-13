@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CLASSROOM_ACTOR_REFERENCE_COLUMNS,
   CLASSROOM_RELATIONAL_RESOURCES,
   GRADEX_RESOURCE_TABLES,
   auditClassroomResourceSchema,
@@ -38,15 +39,29 @@ function archiveResourceFiles() {
 
 function contractRelationships() {
   return CLASSROOM_RELATIONAL_RESOURCES.flatMap((resource) => {
-    if (resource.scope.kind === 'root') return []
-    return resource.restore_after.map((parent) => ({
+    const ownershipRelationships = resource.scope.kind === 'root'
+      ? []
+      : resource.restore_after.map((parent) => ({
       child_table: resource.table,
       parent_table: parent,
       child_columns: [
         parent === resource.scope.parent ? resource.scope.column : `${parent}_id`,
       ],
     }))
+    const actorRelationships = resource.actor_columns.map((column) => ({
+      child_table: resource.table,
+      parent_table: 'users',
+      child_columns: [column],
+    }))
+    return [...ownershipRelationships, ...actorRelationships]
   })
+}
+
+function contractPrimaryKeys() {
+  return CLASSROOM_RELATIONAL_RESOURCES.map((resource) => ({
+    table_name: resource.table,
+    columns: resource.primary_key,
+  }))
 }
 
 function validArchiveManifest(): ClassroomArchiveManifest {
@@ -84,6 +99,8 @@ describe('classroom data inventory', () => {
     expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(42)
     expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(42)
     expect(CLASSROOM_RELATIONAL_RESOURCES[0].table).toBe('classrooms')
+    expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) => resource.table === 'test_attempts')?.actor_columns)
+      .toEqual(CLASSROOM_ACTOR_REFERENCE_COLUMNS.test_attempts)
   })
 
   it('exports and restores parents first and purges children first', () => {
@@ -125,7 +142,7 @@ describe('classroom data inventory', () => {
   it('detects schema resources that are not represented in the archive graph', () => {
     const relationships = contractRelationships()
 
-    expect(auditClassroomResourceSchema(relationships).ok).toBe(true)
+    expect(auditClassroomResourceSchema(relationships, contractPrimaryKeys()).ok).toBe(true)
     expect(auditClassroomResourceSchema([
       ...relationships,
       {
@@ -133,7 +150,7 @@ describe('classroom data inventory', () => {
         parent_table: 'classrooms',
         child_columns: ['classroom_id'],
       },
-    ])).toEqual(expect.objectContaining({
+    ], contractPrimaryKeys())).toEqual(expect.objectContaining({
       ok: false,
       untracked_tables: ['new_classroom_feature'],
     }))
@@ -144,7 +161,7 @@ describe('classroom data inventory', () => {
     const withoutQuizQuestions = relationships.filter((relationship) =>
       !(relationship.child_table === 'quiz_questions' && relationship.parent_table === 'quizzes'),
     )
-    expect(auditClassroomResourceSchema(withoutQuizQuestions)).toEqual(expect.objectContaining({
+    expect(auditClassroomResourceSchema(withoutQuizQuestions, contractPrimaryKeys())).toEqual(expect.objectContaining({
       ok: false,
       stale_tables: ['quiz_questions'],
     }))
@@ -156,7 +173,7 @@ describe('classroom data inventory', () => {
         parent_table: 'classroom_roster',
         child_columns: ['roster_id'],
       },
-    ])).toEqual(expect.objectContaining({
+    ], contractPrimaryKeys())).toEqual(expect.objectContaining({
       ok: false,
       missing_restore_dependencies: ['assignment_docs->classroom_roster'],
     }))
@@ -166,10 +183,43 @@ describe('classroom data inventory', () => {
         ? { ...relationship, child_columns: ['wrong_classroom_id'] }
         : relationship,
     )
-    expect(auditClassroomResourceSchema(wrongAssignmentScope)).toEqual(expect.objectContaining({
+    expect(auditClassroomResourceSchema(wrongAssignmentScope, contractPrimaryKeys())).toEqual(expect.objectContaining({
       ok: false,
       invalid_selection_scopes: ['assignments.classroom_id->classrooms'],
     }))
+
+    const wrongPrimaryKeys = contractPrimaryKeys().map((primaryKey) =>
+      primaryKey.table_name === 'assignments'
+        ? { ...primaryKey, columns: ['classroom_id', 'id'] }
+        : primaryKey,
+    )
+    expect(auditClassroomResourceSchema(relationships, wrongPrimaryKeys)).toEqual(expect.objectContaining({
+      ok: false,
+      invalid_primary_keys: ['assignments: expected (id) got (classroom_id,id)'],
+    }))
+  })
+
+  it('detects untracked and stale user-reference columns used for actor snapshots', () => {
+    const relationships = contractRelationships()
+    expect(auditClassroomResourceSchema([
+      ...relationships,
+      { child_table: 'assignments', parent_table: 'users', child_columns: ['reviewed_by'] },
+    ], contractPrimaryKeys())).toEqual(expect.objectContaining({
+      ok: false,
+      untracked_actor_references: ['assignments.reviewed_by'],
+    }))
+
+    const withoutAssignmentCreator = relationships.filter((relationship) =>
+      !(relationship.child_table === 'assignments' &&
+        relationship.parent_table === 'users' &&
+        relationship.child_columns.includes('created_by')),
+    )
+    expect(auditClassroomResourceSchema(withoutAssignmentCreator, contractPrimaryKeys())).toEqual(
+      expect.objectContaining({
+        ok: false,
+        stale_actor_references: ['assignments.created_by'],
+      }),
+    )
   })
 })
 

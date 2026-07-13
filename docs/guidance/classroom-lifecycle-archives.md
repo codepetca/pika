@@ -8,8 +8,20 @@ truth is in:
 - `src/lib/contracts/classroom-data.ts`
 - `src/lib/contracts/classroom-artifacts.ts`
 
-This contract does not enable cold archiving. Current production behavior remains unchanged:
-`classrooms.archived_at` makes a classroom read-only while all relational data stays hot.
+Migration `082_verified_classroom_archive_exports.sql` and
+`POST /api/teacher/classrooms/[id]/archives` implement the export-only rollout stage. They create a
+private, read-back-verified archive while retaining every hot relational row and source object.
+They do not enable cold compaction, restore, Gradex generation, or automatic export on the existing
+archive toggle. Current production behavior remains unchanged until a human applies the migration;
+`classrooms.archived_at` continues to make a classroom read-only while relational data stays hot.
+
+The endpoint accepts an optional UUID `Idempotency-Key` and an optional strict retention policy.
+It also requires `CLASSROOM_ARCHIVE_EXPORT_ENABLED=true` and the teacher UUID in the server-only
+`CLASSROOM_ARCHIVE_EXPORT_TEACHER_IDS` allowlist, so migration application alone cannot expose the
+canary operation broadly. The operation fails closed when migration 082 or the deployed git commit is
+unavailable. A completed retry returns the original immutable result. Retryable failures retain the
+row-id membership snapshot for up to 24 hours; terminal or expired snapshots are removed. No archive
+object path, signed URL, student content, or actor identity is emitted in operation logs.
 
 ## Artifact Boundaries
 
@@ -121,6 +133,12 @@ Archive and Gradex destination buckets are private. Signed URLs are short-lived 
 mechanisms, not persisted archive references. A restored classroom must use restored managed-object
 paths rather than stale signed URLs.
 
+Migration 082 caps each destination object at 50 MB, matching the Supabase Free plan upload limit.
+The export route rejects a larger compressed bundle without deleting hot data. Supabase currently
+documents 500 MB of database size and 1 GB of file storage on Free, so moving verified archives to
+Storage can create useful headroom only after restore and cold-compaction stages are implemented and
+verified. Storage usage still counts against the separate file-storage quota.
+
 ## Restore And Recovery
 
 Restore is idempotent and fail-closed:
@@ -192,7 +210,8 @@ restore rollback, and archives without a successful read-back check.
 2. **Inventory mode:** run read-only row/object sizing for archived classrooms and compare catalog
    relationships with the contract. No writes.
 3. **Export only:** create private archives for selected archived classrooms but retain all hot data.
-   Compare counts/checksums and measure compression.
+   Compare counts/checksums and measure compression. Migration 082 and the teacher-only API implement
+   this stage; rollout still requires human migration application and selected production canaries.
 4. **Restore canary:** restore a teacher-approved archive into an isolated canary target, compare all
    rows/objects, then remove the canary. The original classroom remains hot and untouched.
 5. **Opt-in cold compaction:** compact selected classrooms only after verified archive and restore
@@ -204,3 +223,41 @@ restore rollback, and archives without a successful read-back check.
 
 Production database access for inventory and verification is read-only unless a human explicitly
 approves a named canary operation. Migrations are applied by humans.
+
+## Export-Only Verification And Recovery
+
+The export coordinator uses a small database membership snapshot containing resource table names and
+primary-key values, rather than duplicating full classroom JSON in Postgres. `actors.ndjson` is captured
+separately from explicit, schema-audited foreign-key columns to `users`; arbitrary UUIDs in classroom
+content are never treated as actor references. Its strict allowlist excludes password hashes, WorkOS
+ids, sessions, verification codes, and tokens. Revision triggers cover all 41 non-root resources. A
+revision-row share lock makes membership and actor capture consistent; finalization rejects any
+descendant mutation that commits before verification.
+
+Every successful export must prove all of the following before `classroom_archives` metadata is
+inserted: exact 42-resource counts, canonical NDJSON checksums, strict manifest parsing, referenced
+storage-object checksums, actor snapshot validation, outer artifact checksum, private upload, full
+download/read-back equality, and unchanged source revision. Verified metadata cannot be updated.
+
+Recovery for this stage is intentionally conservative:
+
+1. A failure before finalization leaves the classroom `archived_hot`; no classroom rows or source
+   objects are removed.
+2. Retry the same idempotency key only when the operation reports `retryable: true` and its snapshot
+   has not expired.
+3. Use a new idempotency key after terminal failure or source mutation.
+4. An orphan uploaded by the current request is removed when terminal finalization fails. A process
+   interruption can leave an unreferenced private object; cleanup automation remains part of the
+   compaction phase and must compare object paths with the durable operation ledger.
+5. Never treat export-only success as permission to delete hot rows. Restore canary equality and the
+   opt-in compaction transaction are still required.
+
+Run the database-backed contract in an ephemeral Supabase instance:
+
+```bash
+supabase db start
+bash scripts/check-classroom-archive-database.sh
+CLASSROOM_SCHEMA_AUDIT_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres \
+  pnpm exec tsx scripts/check-classroom-resource-schema.ts
+supabase stop --no-backup
+```

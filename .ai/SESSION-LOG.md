@@ -10,57 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-16 — Legacy quiz markdown fixture clarity
-
-**Completed:**
-- Updated `tests/lib/quiz-markdown.test.ts` so the suite explicitly describes legacy quiz markdown compatibility.
-- Replaced arbitrary `Intro Quiz` fixture titles with `Legacy Check-in` while preserving the intentional `# Quiz` legacy markdown format.
-- Left production markdown helpers, schema, API payloads, and runtime behavior unchanged.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/lib/quiz-markdown.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-16 — Test AI gold-set fixture wording
-
-**Completed:**
-- Renamed the active Test AI grading gold-set title from `Intro CS Concepts Quiz` to `Intro CS Concepts Test`.
-- Verified the old fixture wording is gone from scripts/tests/source docs.
-- Left AI grading logic, schema, API payloads, and runtime contracts unchanged.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm tsx scripts/measure-ai-grading-prompts.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-19 — Skill progression map refresh
-
-**Completed:**
-- Reviewed recent merged PRs and review evidence to identify the next engineering skills worth deepening.
-- Anchored recommendations to the June 8-16, 2026 PR cluster around legacy quiz-to-test contract cleanup and classroom-switch race-condition fixes.
-- Found that the strongest recurring review signals were stale async state during classroom navigation and compatibility gaps during naming-contract migration.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only`
-- `gh pr list --repo codepetca/pika --state merged --limit 15 --json number,title,mergedAt,url`
-- `gh api graphql` review scan across recent merged PRs
-
-## 2026-06-19 — Dev-flow skill upgrades
-
-**Completed:**
-- Implemented the three skill improvements as repo guidance updates instead of a separate process layer.
-- Strengthened `docs/guidance/dev-flow-risk-checklists.md` with explicit route-owner identity, stale-response guards, and A-then-B regression expectations for workspace-state work.
-- Expanded `docs/guidance/schema-rollout-checklist.md` and `docs/guidance/legacy-quiz-contract-cleanup.md` to require explicit migration slices, new-contract-first readers, and listed surviving legacy aliases.
-- Expanded `docs/guidance/component-refactor-checklist.md` to require sliced refactors with grep/test exit criteria.
-- Wired the new checks into `.codex/prompts/session-start.md`, `.codex/prompts/audit.md`, and `.codex/prompts/tdd.md`.
-
-**Validation:**
-- `git diff -- docs/guidance/dev-flow-risk-checklists.md docs/guidance/schema-rollout-checklist.md docs/guidance/component-refactor-checklist.md docs/guidance/legacy-quiz-contract-cleanup.md .codex/prompts/session-start.md .codex/prompts/audit.md .codex/prompts/tdd.md`
-- `sed -n '1,220p' .codex/prompts/tdd.md`
-
 ## 2026-06-09 — Classroom theme colors
 
 **Completed:**
@@ -882,6 +831,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash -n scripts/check-atomic-blueprint-operations.sh`
 - `git diff --check`
 - Ephemeral Supabase migration/behavior check pending PR CI
+
 ## 2026-07-13 — Canonical classroom lifecycle and archive contracts
 
 **Completed:**
@@ -901,3 +851,27 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `pnpm exec vitest run tests/lib/contracts/classroom-lifecycle.test.ts tests/lib/contracts/classroom-artifacts.test.ts` (15 tests)
 - Read-only local catalog audit: `CLASSROOM_SCHEMA_AUDIT_DATABASE_URL=... pnpm exec tsx scripts/check-classroom-resource-schema.ts` (97 public foreign-key relationships)
+
+## 2026-07-13 — Verified export-only classroom archives
+
+**Completed:**
+- Added migration 082 and a fail-closed teacher API for private, immutable, deterministic classroom archive exports without deleting any hot row or source object.
+- Added idempotent snapshot/finalization RPCs, revision triggers for all 41 descendants, durable operation evidence, strict actor snapshots, 50 MB private archive/Gradex buckets, full upload read-back verification, and terminal/retry recovery behavior.
+- Added canonical tar+gzip and NDJSON serialization with strict manifest, row/byte/checksum, actor, storage-object, content, and outer-artifact verification.
+- Extended the 42-resource schema contract to audit actual primary keys and every direct actor foreign key; actor capture now uses only those explicit columns and rejects arbitrary user UUIDs in free text.
+- Restricted storage discovery by source context: assignment artifacts from relational paths, submission images from embedded content, and test documents only from `tests.documents`.
+- Added a server-only export enable flag plus teacher UUID allowlist, future-retention validation, structured privacy-safe metrics, database CI, recovery guidance, and adversarial regressions.
+- Kept the archive epic unfinished: restore, Gradex extract generation, cold compaction, cleanup automation, teacher UI, and production canaries remain pending.
+
+**Validation:**
+- `pnpm test` (320 files, 2,844 tests)
+- `pnpm lint`
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- Pika audit
+- Fresh isolated Supabase replay through migrations 080/081/082
+- Atomic blueprint database contract
+- Verified archive database contract, including stale-source, terminal replay, unrelated-UUID privacy, retention, grants, and immutable metadata checks
+- Classroom schema audit (102 public foreign-key relationships)
+- `bash -n scripts/check-classroom-archive-database.sh`
+- `git diff --check`
