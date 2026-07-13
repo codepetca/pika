@@ -90,6 +90,7 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
           actual_site_slug: 'cs11',
           actual_site_published: true,
           actual_site_config: { lesson_plan_scope: 'current_week' },
+          blueprint_source_revision: 1,
           source_blueprint_id: sourceBlueprintId,
           course_overview_markdown: 'Actual overview',
           course_outline_markdown: 'Actual outline',
@@ -102,6 +103,7 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
           teacher_id: 'teacher-1',
           title: 'CS 11',
           actual_site_config: { lesson_plan_scope: 'current_week' },
+          blueprint_source_revision: 1,
           source_blueprint_id: sourceBlueprintId,
           course_overview_markdown: 'Actual overview',
           course_outline_markdown: 'Actual outline',
@@ -129,6 +131,9 @@ function seedActualSiteSupabase(sourceBlueprintId = 'b-1') {
         ],
         error: null,
       }),
+    ],
+    assignment_submission_requirements: [
+      makeQueryBuilder({ data: [], error: null }),
     ],
     quizzes: [
       makeQueryBuilder({

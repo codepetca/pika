@@ -11275,3 +11275,16 @@
 - `pnpm test tests/lib/quiz-markdown.test.ts`
 - `pnpm lint`
 - `pnpm test`
+
+## 2026-06-16 — Test AI gold-set fixture wording
+
+**Completed:**
+- Renamed the active Test AI grading gold-set title from `Intro CS Concepts Quiz` to `Intro CS Concepts Test`.
+- Verified the old fixture wording is gone from scripts/tests/source docs.
+- Left AI grading logic, schema, API payloads, and runtime contracts unchanged.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm tsx scripts/measure-ai-grading-prompts.ts`
+- `pnpm lint`
+- `pnpm test`

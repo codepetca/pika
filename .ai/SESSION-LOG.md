@@ -10,19 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-16 — Test AI gold-set fixture wording
-
-**Completed:**
-- Renamed the active Test AI grading gold-set title from `Intro CS Concepts Quiz` to `Intro CS Concepts Test`.
-- Verified the old fixture wording is gone from scripts/tests/source docs.
-- Left AI grading logic, schema, API payloads, and runtime contracts unchanged.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm tsx scripts/measure-ai-grading-prompts.ts`
-- `pnpm lint`
-- `pnpm test`
-
 ## 2026-06-19 — Skill progression map refresh
 
 **Completed:**
@@ -849,3 +836,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - Pika audit
 - `git diff --check`
+
+## 2026-07-13 — Atomic and observable blueprint round trips
+
+**Completed:**
+- Replaced compensating-delete package import, classroom capture, and classroom instantiation with single transactional RPC boundaries and a service-role-only idempotency/failure ledger.
+- Added stable classroom and blueprint revision snapshots, including child-table triggers, final read checks, and transaction-time source locks to reject mixed-version write plans.
+- Preserved assignment submission requirements during classroom capture and kept new classroom assignments/tests unpublished for teacher review.
+- Added strict Zod write-plan/RPC response contracts, structured operation metrics, caller idempotency keys, failure metadata, and migration-required fail-closed behavior.
+- Added ephemeral Supabase contract checks for malformed plans, child-write rollback, stale capture rejection, and successful replay; documented rollout, rollback, recovery, retention, privacy, and observability.
+
+**Validation:**
+- `pnpm test` (314 files, 2,807 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- Pika audit
+- `bash -n scripts/check-atomic-blueprint-operations.sh`
+- `git diff --check`
+- Ephemeral Supabase migration/behavior check pending PR CI
