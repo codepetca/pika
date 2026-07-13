@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
-import { createCourseBlueprintFromClassroomSchema } from '@/lib/validations/teacher'
+import { createCourseBlueprintFromClassroomSchema } from '@/lib/validations/course-blueprints'
 import { createCourseBlueprintFromClassroom } from '@/lib/server/course-blueprints'
 import { resolveBlueprintOperationId } from '@/lib/server/course-blueprint-operations'
 

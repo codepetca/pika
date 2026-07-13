@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
-import { blueprintMergeSuggestionQuerySchema } from '@/lib/validations/teacher'
+import { blueprintMergeSuggestionQuerySchema } from '@/lib/validations/course-blueprints'
 import { getBlueprintMergeSuggestionSet } from '@/lib/server/course-sites'
 
 export const dynamic = 'force-dynamic'
