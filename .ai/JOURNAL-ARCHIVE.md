@@ -11612,3 +11612,31 @@
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-06-21 — Stale async classroom-state audit
+
+**Completed:**
+- Continued the bounded systems/UI audit with the stale async classroom/workspace state slice.
+- Fixed `StudentLessonCalendarTab` so lesson plans, assignments, announcements, and max-date state clear on classroom changes and only current classroom request ids can write visible state.
+- Fixed `TeacherTestsTab` so the tests list and selected/grading workspace state reset on classroom changes, and late `/api/teacher/tests?classroom_id=...` responses cannot repaint the newly selected classroom with old-classroom tests.
+- Added regression coverage for late classroom A responses arriving after a switch to classroom B in both student calendar and teacher tests flows.
+- Addressed subagent review feedback by clearing owner-scoped teacher test modal/action state on classroom changes, including delete/edit/batch/status/access/return/unsubmit/delete-work pending state, and by ignoring late create-test responses from a previous classroom.
+- Addressed follow-up subagent review feedback by guarding create-test completion with a request id so an old classroom create cannot clear the current classroom's in-flight create state.
+
+**Workspace-state checklist:**
+- owner identity: classroom id
+- late responses ignored: yes, request id plus current classroom id checks
+- state clears immediately on owner change: yes, for calendar data and teacher tests workspace state
+- owner-scoped action state clears immediately on owner change: yes
+- current-owner create busy state protected from old requests: yes
+- cache boundary checked: yes, classroom-scoped cache keys invalidated in tests
+- remaining manual follow-up: none
+
+**Validation:**
+- `pnpm test tests/components/StudentLessonCalendarTab.test.tsx tests/components/TeacherTestsTab.test.tsx`
+- `git diff --check`
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms"`; reviewed `/tmp/pika-teacher.png`, `/tmp/pika-student.png`, and `/tmp/pika-teacher-mobile.png`.
