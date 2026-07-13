@@ -10,20 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-21 — Teacher telemetry E2E review fix
-
-**Completed:**
-- Addressed review feedback on PR #815 by loosening the teacher grading-row away-duration assertion so valid one-away-session durations above nine seconds do not make the E2E flaky.
-- Kept the API-side `away_total_seconds >= 1` assertion as the source of truth for nonzero away time.
-
-**Validation:**
-- `E2E_BASE_URL=http://localhost:3101 pnpm exec playwright test e2e/teacher-exam-mode.spec.ts --project=chromium-desktop`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-06-21 — Stale async classroom-state audit
 
 **Completed:**
@@ -765,4 +751,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `bash -n` for compaction and restore database contracts
 - Pika pre-commit audit
 - Local migration replay intentionally not run; GitHub's ephemeral Supabase database job is the execution authority
+- `git diff --check`
+
+## 2026-07-13 — Gated classroom cold-compaction runtime coordinator
+
+**Completed:**
+- Added a server-only compaction coordinator over migration 085 with independent enablement, exact teacher allowlisting, and exact immutable-archive allowlisting; no route, UI, cron, or automatic caller was added.
+- Required canonical private archive paths, outer checksum equality, strict manifest/read-back verification, exact teacher/classroom/archive identity, exact relational and storage inventories, and bounded idempotent source-object cleanup staging before atomic finalization.
+- Added fail-closed completion handling that validates durable evidence and counts, never reports an ambiguous committed response as success, records terminal versus retryable operation failures, and returns completed replays without rereading Storage.
+- Documented disabled-by-default configuration and the remaining lease-based source-object cleanup worker. No production database, migration, row, object, schedule, or environment setting was modified.
+
+**Validation:**
+- Full Vitest suite (332 files / 2,950 tests)
+- Focused compaction/archive/lifecycle/restore/startup suites (6 files / 68 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
 - `git diff --check`

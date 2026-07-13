@@ -130,8 +130,13 @@ Test password-based flows:
   verified metadata.
 - Restore equality and cold-compaction database tests exercise a real hot-to-cold-to-hot round trip,
   forced transactional rollback, idempotent replay, concurrency rejection, strict verification,
-  durable-but-ineligible cleanup staging, and service-role isolation. Runtime object promotion and
-  deletion tests remain required before compaction can be enabled.
+  durable-but-ineligible cleanup staging, and service-role isolation. A lease-based source-object
+  deletion worker and its authoritative post-delete verification tests remain required before
+  compaction can be enabled beyond a named recovery canary.
+- Cold-compaction coordinator tests prove disabled-by-default teacher/archive canary gates, immutable
+  artifact and manifest verification, exact database-to-archive inventory equality, bounded and
+  idempotent cleanup staging, atomic-finalization ordering, completed replay, and fail-closed handling
+  when a completion response cannot prove its committed state. No route or schedule invokes it.
 - Gradex runtime coordinator tests prove the internal feature gate, source archive identity/checksum
   binding, HMAC-key-bound idempotency, private no-overwrite upload, complete read-back verification,
   finalization ordering, deterministic retry reuse, and terminal-versus-retryable object cleanup.

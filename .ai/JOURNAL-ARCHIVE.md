@@ -11598,3 +11598,17 @@
 - `E2E_BASE_URL=http://localhost:3101 pnpm exec playwright test e2e/teacher-exam-mode.spec.ts --project=chromium-desktop`
 - `pnpm lint`
 - Note: `E2E_BASE_URL=http://127.0.0.1:3101 ...` failed in auth setup with teacher login `Failed to fetch`; rerunning on `localhost:3101` passed.
+
+## 2026-06-21 — Teacher telemetry E2E review fix
+
+**Completed:**
+- Addressed review feedback on PR #815 by loosening the teacher grading-row away-duration assertion so valid one-away-session durations above nine seconds do not make the E2E flaky.
+- Kept the API-side `away_total_seconds >= 1` assertion as the source of truth for nonzero away time.
+
+**Validation:**
+- `E2E_BASE_URL=http://localhost:3101 pnpm exec playwright test e2e/teacher-exam-mode.spec.ts --project=chromium-desktop`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`

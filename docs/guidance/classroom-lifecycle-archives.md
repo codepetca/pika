@@ -23,14 +23,16 @@ The route separately requires `CLASSROOM_ARCHIVE_RESTORE_ENABLED=true`, an exact
 `CLASSROOM_ARCHIVE_RESTORE_TEACHER_IDS`, and an explicit
 `CLASSROOM_ARCHIVE_RESTORE_DATABASE_BUDGET_BYTES` value.
 
-Migration `085_atomic_classroom_archive_compaction.sql` defines the database-only hot-to-cold
-transition. It requires a matching immutable verified archive, exact source revision and ownership
-counts, fresh read-back evidence, and a completely staged source-object cleanup inventory before one
-transaction can create the tombstone and delete rows child-first. Staged source objects become
-cleanup-eligible only after the relational deletion commits. There is still no compaction runtime,
-route, UI, schedule, or production caller, so applying the migration alone cannot compact a classroom.
+Migration `085_atomic_classroom_archive_compaction.sql` and the server-only coordinator in
+`src/lib/server/classroom-archive-compaction.ts` define the hot-to-cold transition. The coordinator
+downloads the immutable private archive, verifies its outer checksum, strict manifest, identity,
+resource counts, storage counts, actor snapshots, and embedded object checksums, then stages the exact
+source-object inventory before invoking migration 085's atomic completion. Both the teacher UUID and
+archive UUID must be explicitly allowlisted and `CLASSROOM_ARCHIVE_COMPACTION_ENABLED=true`; all
+settings default off. There is no route, UI, schedule, or production caller, and there is not yet a
+source-object cleanup worker, so deployment alone cannot compact a classroom or delete an object.
 
-The endpoint accepts an optional UUID `Idempotency-Key` and an optional strict retention policy.
+The export endpoint accepts an optional UUID `Idempotency-Key` and an optional strict retention policy.
 It also requires `CLASSROOM_ARCHIVE_EXPORT_ENABLED=true` and the teacher UUID in the server-only
 `CLASSROOM_ARCHIVE_EXPORT_TEACHER_IDS` allowlist, so migration application alone cannot expose the
 canary operation broadly. The operation fails closed when migration 082 or the deployed git commit is
@@ -207,6 +209,15 @@ If any pre-deletion check fails, leave the classroom `archived_hot` and keep all
 If the deletion transaction fails at any point, the tombstone, row deletions, operation completion,
 and cleanup eligibility all roll back together. A terminal preflight failure removes the staged
 cleanup inventory; a retryable failure retains it under the same idempotency key until expiry.
+
+`src/lib/server/classroom-archive-compaction.ts` is the disabled-by-default runtime boundary for
+steps 1 and 5-7. It binds idempotency to the classroom/archive transition, requires exact teacher and
+archive canaries, accepts only the canonical private archive path, performs a fresh complete
+read-back, and derives cleanup rows only from the verified manifest. Cleanup descriptors are staged
+in bounded batches and finalization is attempted only after the aggregate count and bytes exactly
+match immutable archive metadata. A completed replay does not reread Storage. An unknown completion
+response is never reported as success because the database transaction may already have committed.
+The pending cleanup rows are deliberately left for a separate lease-based deletion worker.
 
 ## Gradex Extract
 
