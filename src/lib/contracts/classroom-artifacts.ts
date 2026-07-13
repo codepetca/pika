@@ -43,7 +43,7 @@ const storageObjectSchema = z.object({
   content_type: z.string().min(1).nullable(),
 }).strict()
 
-const archiveRetentionSchema = z.discriminatedUnion('mode', [
+export const classroomArchiveRetentionSchema = z.discriminatedUnion('mode', [
   z.object({
     mode: z.literal('teacher_managed'),
     delete_after: z.null(),
@@ -111,7 +111,7 @@ const classroomArchiveManifestBaseSchema = z.object({
   }).strict(),
   compression: z.literal('tar+gzip'),
   privacy_policy_version: z.literal(1),
-  retention: archiveRetentionSchema,
+  retention: classroomArchiveRetentionSchema,
   content_sha256: sha256Schema,
   resources: z.array(resourceFileSchema),
   actors: checksummedFileSchema,
@@ -155,6 +155,24 @@ export const classroomArchiveManifestSchema = classroomArchiveManifestBaseSchema
 )
 
 export type ClassroomArchiveManifest = z.infer<typeof classroomArchiveManifestSchema>
+
+export const classroomArchiveActorSnapshotSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  role: z.enum(['student', 'teacher']),
+  profile: z.object({
+    id: z.string().uuid(),
+    user_id: z.string().uuid(),
+    student_number: z.string().nullable(),
+    first_name: z.string(),
+    last_name: z.string(),
+    created_at: z.string().datetime({ offset: true }),
+  }).strict().nullable(),
+}).strict()
+
+export type ClassroomArchiveActorSnapshot = z.infer<
+  typeof classroomArchiveActorSnapshotSchema
+>
 
 const gradexExtractManifestBaseSchema = z.object({
   format: z.literal(GRADEX_EXTRACT_FORMAT),

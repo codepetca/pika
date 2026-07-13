@@ -11288,3 +11288,54 @@
 - `pnpm tsx scripts/measure-ai-grading-prompts.ts`
 - `pnpm lint`
 - `pnpm test`
+
+## 2026-06-16 — Legacy quiz markdown fixture clarity
+
+**Completed:**
+- Updated `tests/lib/quiz-markdown.test.ts` so the suite explicitly describes legacy quiz markdown compatibility.
+- Replaced arbitrary `Intro Quiz` fixture titles with `Legacy Check-in` while preserving the intentional `# Quiz` legacy markdown format.
+- Left production markdown helpers, schema, API payloads, and runtime behavior unchanged.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/lib/quiz-markdown.test.ts`
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-16 — Test AI gold-set fixture wording
+
+**Completed:**
+- Renamed the active Test AI grading gold-set title from `Intro CS Concepts Quiz` to `Intro CS Concepts Test`.
+- Verified the old fixture wording is gone from scripts/tests/source docs.
+- Left AI grading logic, schema, API payloads, and runtime contracts unchanged.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm tsx scripts/measure-ai-grading-prompts.ts`
+- `pnpm lint`
+- `pnpm test`
+
+## 2026-06-19 — Skill progression map refresh
+
+**Completed:**
+- Reviewed recent merged PRs and review evidence to identify the next engineering skills worth deepening.
+- Anchored recommendations to the June 8-16, 2026 PR cluster around legacy quiz-to-test contract cleanup and classroom-switch race-condition fixes.
+- Found that the strongest recurring review signals were stale async state during classroom navigation and compatibility gaps during naming-contract migration.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only`
+- `gh pr list --repo codepetca/pika --state merged --limit 15 --json number,title,mergedAt,url`
+- `gh api graphql` review scan across recent merged PRs
+
+## 2026-06-19 — Dev-flow skill upgrades
+
+**Completed:**
+- Implemented the three skill improvements as repo guidance updates instead of a separate process layer.
+- Strengthened `docs/guidance/dev-flow-risk-checklists.md` with explicit route-owner identity, stale-response guards, and A-then-B regression expectations for workspace-state work.
+- Expanded `docs/guidance/schema-rollout-checklist.md` and `docs/guidance/legacy-quiz-contract-cleanup.md` to require explicit migration slices, new-contract-first readers, and listed surviving legacy aliases.
+- Expanded `docs/guidance/component-refactor-checklist.md` to require sliced refactors with grep/test exit criteria.
+- Wired the new checks into `.codex/prompts/session-start.md`, `.codex/prompts/audit.md`, and `.codex/prompts/tdd.md`.
+
+**Validation:**
+- `git diff -- docs/guidance/dev-flow-risk-checklists.md docs/guidance/schema-rollout-checklist.md docs/guidance/component-refactor-checklist.md docs/guidance/legacy-quiz-contract-cleanup.md .codex/prompts/session-start.md .codex/prompts/audit.md .codex/prompts/tdd.md`
+- `sed -n '1,220p' .codex/prompts/tdd.md`

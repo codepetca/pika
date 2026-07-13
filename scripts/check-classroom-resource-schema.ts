@@ -1,10 +1,11 @@
 import { execFileSync } from 'node:child_process'
 import {
   auditClassroomResourceSchema,
+  type ClassroomSchemaPrimaryKey,
   type ClassroomSchemaRelationship,
 } from '../src/lib/contracts/classroom-data'
 
-const relationshipQuery = `
+const schemaQuery = `
 with relationships as (
   select
     child.relname as child_table,
@@ -24,12 +25,33 @@ with relationships as (
     and child_namespace.nspname = 'public'
     and parent_namespace.nspname = 'public'
   group by constraint_definition.oid, child.relname, parent.relname
+),
+primary_keys as (
+  select
+    relation.relname as table_name,
+    array_agg(column_definition.attname order by key_columns.ordinality) as columns
+  from pg_constraint constraint_definition
+  join pg_class relation on relation.oid = constraint_definition.conrelid
+  join pg_namespace relation_namespace on relation_namespace.oid = relation.relnamespace
+  join lateral unnest(constraint_definition.conkey) with ordinality key_columns(attnum, ordinality)
+    on true
+  join pg_attribute column_definition
+    on column_definition.attrelid = relation.oid
+    and column_definition.attnum = key_columns.attnum
+  where constraint_definition.contype = 'p'
+    and relation_namespace.nspname = 'public'
+  group by constraint_definition.oid, relation.relname
 )
-select coalesce(
-  json_agg(relationships order by parent_table, child_table),
-  '[]'::json
-)::text
-from relationships;
+select json_build_object(
+  'relationships', coalesce(
+    (select json_agg(relationships order by parent_table, child_table) from relationships),
+    '[]'::json
+  ),
+  'primary_keys', coalesce(
+    (select json_agg(primary_keys order by table_name) from primary_keys),
+    '[]'::json
+  )
+)::text;
 `
 
 const databaseUrl = process.env.CLASSROOM_SCHEMA_AUDIT_DATABASE_URL
@@ -40,11 +62,14 @@ if (!databaseUrl) {
 
 const output = execFileSync(
   'psql',
-  ['--dbname', databaseUrl, '-X', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', relationshipQuery],
+  ['--dbname', databaseUrl, '-X', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', schemaQuery],
   { encoding: 'utf8' },
 )
-const relationships = JSON.parse(output.trim()) as ClassroomSchemaRelationship[]
-const audit = auditClassroomResourceSchema(relationships)
+const schema = JSON.parse(output.trim()) as {
+  relationships: ClassroomSchemaRelationship[]
+  primary_keys: ClassroomSchemaPrimaryKey[]
+}
+const audit = auditClassroomResourceSchema(schema.relationships, schema.primary_keys)
 
 if (!audit.ok) {
   process.stderr.write(`Classroom resource schema contract failed:\n${JSON.stringify(audit, null, 2)}\n`)
@@ -52,5 +77,5 @@ if (!audit.ok) {
 }
 
 process.stdout.write(
-  `Classroom resource schema contract passes (${relationships.length} foreign-key relationships).\n`,
+  `Classroom resource schema contract passes (${schema.relationships.length} foreign-key relationships).\n`,
 )

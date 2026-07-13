@@ -116,6 +116,21 @@ Test password-based flows:
 - `/api/assignment-docs/[id]` → fetch/update only for owner student or classroom teacher
 - `/submit` and `/unsubmit` → submitted_at handling, status transitions, late/on-time logic
 
+### 4.5 Classroom Archives
+
+- Format tests prove canonical row ordering, deterministic tar+gzip output, strict manifests, and
+  checksum/read-back failure behavior.
+- Privacy tests reject actor credential fields and storage references outside the managed source
+  origin and allowlisted discovery paths.
+- API tests cover teacher auth boundaries, UUID idempotency keys, retention validation, and
+  migration/version fail-closed behavior.
+- Database-backed CI replays every migration, audits the 42-resource ownership graph and actual
+  primary keys, and proves revision triggers, atomic membership snapshots, idempotent replay,
+  stale-source rejection, private buckets, service-role-only RPCs, staging cleanup, and immutable
+  verified metadata.
+- Restore equality, cold-compaction rollback, object promotion, and Gradex scanner tests are required
+  before those later rollout stages can be enabled.
+
 ### 5. Integration & Smoke Tests
 
 **Location**: `tests/integration/` (or Playwright)
