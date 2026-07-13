@@ -10,21 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-20 — Historical design-system dark-mode examples cleanup
-
-**Completed:**
-- Continued the systems/UI audit program with a docs-only UI guidance consistency slice.
-- Updated the historical `docs/design-system.md` dark-mode section so it points to semantic tokens instead of raw theme-switching utility examples.
-- Added UI guidance regression coverage to keep that historical section aligned with semantic-token guidance.
-- Addressed subagent review feedback by tightening the regression test to match exact semantic-token class examples.
-
-**Validation:**
-- `pnpm vitest run tests/unit/ui-guidance-docs.test.ts`
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Post-review fix validation: `pnpm vitest run tests/unit/ui-guidance-docs.test.ts`, `git diff --check`, `pnpm lint`, `bash .codex/skills/pika-audit/scripts/audit.sh`
-
 ## 2026-06-20 — Browser Supabase access audit guard
 
 **Completed:**
@@ -762,3 +747,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - Pika pre-commit audit
+
+## 2026-07-13 — Gated Gradex runtime coordinator
+
+**Completed:**
+- Added a server-only coordinator that verifies immutable classroom archives before building Gradex extracts, then performs private no-overwrite upload, full read-back, independent integrity/privacy verification, and exact durable finalization.
+- Added explicit enablement, teacher allowlisting, a minimum-strength HMAC secret, HMAC-key fingerprint request binding, deterministic operation paths, strict Zod RPC contracts, and privacy-safe metrics.
+- Added safe replay, concurrent-upload reuse, terminal cleanup, and transient-finalization retry behavior without exposing any API, cron, or production execution path.
+- Documented the runtime boundary and configuration while keeping deletion automation, cold compaction, teacher UI, and production canaries unfinished. No production database, migration, row, or storage object was modified.
+
+**Validation:**
+- Full Vitest suite (327 files / 2,889 tests)
+- Focused archive/Gradex/runtime suites (4 files / 36 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`

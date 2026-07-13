@@ -130,6 +130,9 @@ Test password-based flows:
   verified metadata.
 - Restore equality, cold-compaction rollback, object promotion, and Gradex scanner tests are required
   before those later rollout stages can be enabled.
+- Gradex runtime coordinator tests prove the internal feature gate, source archive identity/checksum
+  binding, HMAC-key-bound idempotency, private no-overwrite upload, complete read-back verification,
+  finalization ordering, deterministic retry reuse, and terminal-versus-retryable object cleanup.
 
 ### 5. Integration & Smoke Tests
 

@@ -232,6 +232,18 @@ does not upload or delete any object by itself. The runtime coordinator must rea
 private object before finalization; the cleanup worker must delete the object before recording its
 lease as complete.
 
+`src/lib/server/classroom-gradex-operations.ts` implements the gated generation coordinator. The
+coordinator itself requires `CLASSROOM_GRADEX_EXTRACT_ENABLED=true`, an exact teacher UUID in
+`CLASSROOM_GRADEX_EXTRACT_TEACHER_IDS`, and a server-only
+`CLASSROOM_GRADEX_EXTRACT_HMAC_SECRET` of at least 32 bytes. It binds a non-secret fingerprint of
+that key into the idempotency request, verifies source archive metadata, checksum, manifest, and
+identity, uploads without overwrite to the private Gradex bucket, downloads the complete object,
+repeats the independent integrity/privacy/relationship verification, and only then finalizes
+migration 084 evidence. A matching object is reused during retry; a transient finalization failure
+retains the verified object, while terminal rejection removes only an object uploaded by that
+attempt. The module is not yet called by an API route or cron, so production generation remains
+unreachable until a separately reviewed trigger and canary procedure are added.
+
 ## Observability
 
 Every archive, restore, compaction, cleanup, Gradex generation, and purge operation needs durable
