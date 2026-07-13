@@ -11542,3 +11542,21 @@
 - `pnpm lint`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm build`
+
+## 2026-06-20 — Student notification read-cache audit
+
+**Completed:**
+- Continued the bounded systems/UI audit program with the client read-cache drift slice.
+- Audited client GET reads for repeated classroom-scoped requests and identified student notification reads as a concrete fix-now item.
+- Wrapped `StudentNotificationsProvider` notification GETs in `fetchJSONWithCache` with a short classroom-scoped TTL so same-classroom mounts/focus reads dedupe.
+- Invalidated the classroom notification cache when local notification helpers mark/decrement counts and before explicit `refresh()` so quick remounts or manual refreshes cannot replay stale pre-action counts.
+- Added regression coverage for simultaneous same-classroom provider reads, explicit refresh freshness, and post-local-update remount freshness.
+- No UI layout or styling changed.
+
+**Validation:**
+- `pnpm test tests/components/StudentNotificationsProvider.test.tsx`
+- `git diff --check`
+
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm build`

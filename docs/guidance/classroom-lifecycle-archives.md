@@ -253,6 +253,17 @@ the classroom becomes cold. The route has no UI or cron caller and every gate de
 deploying it cannot generate an extract. Enabling a named production canary still requires explicit
 human migration, environment, archive, retention, and invocation approval.
 
+`src/lib/server/classroom-gradex-cleanup.ts` implements the server-only retention worker. It requires
+`CLASSROOM_GRADEX_CLEANUP_ENABLED=true`, claims at most 10 migration 084 leases per invocation, and
+accepts only the private Gradex bucket plus the canonical
+`<teacher>/<classroom>/<extract>/gradex-v1.tar.gz` path whose extract segment matches the claim. For
+each independent claim it requests deletion, reads the exact path again, and completes the current
+lease only after Storage authoritatively reports that key absent. A present object, uncertain
+read-back, rejected completion, or unexpected client failure never records deletion; the worker
+records a stable retry code when it still owns the lease. Logs expose only lease ids, counts, and
+error codes, never paths or classroom content. The worker has no HTTP route, cron entry, or other
+caller yet, and its gate defaults off.
+
 ## Observability
 
 Every archive, restore, compaction, cleanup, Gradex generation, and purge operation needs durable

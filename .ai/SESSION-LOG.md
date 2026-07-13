@@ -10,23 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-20 — Student notification read-cache audit
-
-**Completed:**
-- Continued the bounded systems/UI audit program with the client read-cache drift slice.
-- Audited client GET reads for repeated classroom-scoped requests and identified student notification reads as a concrete fix-now item.
-- Wrapped `StudentNotificationsProvider` notification GETs in `fetchJSONWithCache` with a short classroom-scoped TTL so same-classroom mounts/focus reads dedupe.
-- Invalidated the classroom notification cache when local notification helpers mark/decrement counts and before explicit `refresh()` so quick remounts or manual refreshes cannot replay stale pre-action counts.
-- Added regression coverage for simultaneous same-classroom provider reads, explicit refresh freshness, and post-local-update remount freshness.
-- No UI layout or styling changed.
-
-**Validation:**
-- `pnpm test tests/components/StudentNotificationsProvider.test.tsx`
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm build`
-
 ## 2026-06-20 — Composite widget accessibility audit
 
 **Completed:**
@@ -765,4 +748,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `bash -n scripts/check-classroom-gradex-database.sh`
 - Local executable database contract unavailable because the running Supabase container predates migration 082; migrations were not applied or modified
+- `git diff --check`
+
+## 2026-07-13 — Verified Gradex retention cleanup runtime
+
+**Completed:**
+- Added a server-only, disabled-by-default cleanup coordinator over migration 084's lease claim, completion, and retry RPCs without adding an HTTP route, cron entry, or automatic caller.
+- Bounded each invocation to 10 claims and strictly validated the private bucket, canonical teacher/classroom/extract path shape, extract id binding, claim uniqueness, attempts, and lease inputs with Zod.
+- Required exact post-delete read-back evidence: only authoritative object-key absence can complete the current lease; missing buckets, present objects, uncertain Storage results, stale leases, and malformed RPC responses fail closed.
+- Added durable per-claim retry recording, stale-lease non-mutation, independent failure containment, privacy-safe aggregate metrics, and idempotent already-absent handling.
+- Updated environment, lifecycle, test, and current-context documentation. No production database, migration, row, storage object, route, schedule, or environment setting was modified.
+
+**Validation:**
+- Full Vitest suite (329 files / 2,915 tests)
+- Focused cleanup/generation/transformer/artifact/migration/startup suites (6 files / 80 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
 - `git diff --check`
