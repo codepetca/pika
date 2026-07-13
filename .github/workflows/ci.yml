@@ -42,7 +42,10 @@ jobs:
       - name: Verify archive operations and lifecycle evidence
         run: bash scripts/check-classroom-archive-database.sh
 
-      - name: Verify resumable archive restore round trip
+      - name: Verify atomic archive compaction rollback and cleanup staging
+        run: bash scripts/check-classroom-archive-compaction-database.sh
+
+      - name: Verify real compaction and resumable restore round trip
         run: bash scripts/check-classroom-archive-restore-database.sh
 
       - name: Verify Gradex extract operations and retention cleanup

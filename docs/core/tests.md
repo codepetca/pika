@@ -128,8 +128,10 @@ Test password-based flows:
   primary keys, and proves revision triggers, atomic membership snapshots, idempotent replay,
   stale-source rejection, private buckets, service-role-only RPCs, staging cleanup, and immutable
   verified metadata.
-- Restore equality, cold-compaction rollback, object promotion, and Gradex scanner tests are required
-  before those later rollout stages can be enabled.
+- Restore equality and cold-compaction database tests exercise a real hot-to-cold-to-hot round trip,
+  forced transactional rollback, idempotent replay, concurrency rejection, strict verification,
+  durable-but-ineligible cleanup staging, and service-role isolation. Runtime object promotion and
+  deletion tests remain required before compaction can be enabled.
 - Gradex runtime coordinator tests prove the internal feature gate, source archive identity/checksum
   binding, HMAC-key-bound idempotency, private no-overwrite upload, complete read-back verification,
   finalization ordering, deterministic retry reuse, and terminal-versus-retryable object cleanup.

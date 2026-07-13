@@ -10,19 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-21 — Teacher exam telemetry E2E coverage
-
-**Completed:**
-- Added a focused Playwright teacher exam-mode flow that creates an active open-response test, has the seeded student generate one route-exit attempt, one window/full-screen exit, and one away/focus event, then verifies the teacher grading row distinguishes those telemetry categories.
-- Reused existing teacher/student storage state setup and API-backed test creation/cleanup patterns; no app logic, migrations, or dependencies changed.
-- Selected this flow because student exam-mode E2E already covered lock/restoration/draft preservation, while teacher-side telemetry visibility remained a bounded exam-mode coverage gap.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `E2E_BASE_URL=http://localhost:3101 pnpm exec playwright test e2e/teacher-exam-mode.spec.ts --project=chromium-desktop`
-- `pnpm lint`
-- Note: `E2E_BASE_URL=http://127.0.0.1:3101 ...` failed in auth setup with teacher login `Failed to fetch`; rerunning on `localhost:3101` passed.
-
 ## 2026-06-21 — Teacher telemetry E2E review fix
 
 **Completed:**
@@ -758,4 +745,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-13 — Atomic classroom cold-compaction database contract
+
+**Completed:**
+- Added migration 085 with idempotent begin/stage/complete/fail compaction RPCs, exact archive/source/count verification, one child-first deletion transaction, and service-role-only access.
+- Added a durable source-object cleanup ledger whose rows remain ineligible `staged` work until relational deletion and tombstone creation commit atomically, then become retryable `pending` work.
+- Strengthened lifecycle Zod evidence with archive identity, both checksums, fresh read-back proof, and transition-specific compaction cleanup evidence.
+- Added forced rollback, concurrency, idempotency, traversal rejection, security, replay, and real hot-to-cold-to-hot database contracts in ephemeral CI; restore no longer manufactures its tombstone.
+- Kept rollout database-only: no route, runtime caller, UI, schedule, environment gate, production migration application, row, or Storage object was changed.
+
+**Validation:**
+- Full Vitest suite (331 files / 2,931 tests)
+- Focused lifecycle/migration/archive/restore/startup suites (6 files / 45 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `bash -n` for compaction and restore database contracts
+- Pika pre-commit audit
+- Local migration replay intentionally not run; GitHub's ephemeral Supabase database job is the execution authority
 - `git diff --check`
