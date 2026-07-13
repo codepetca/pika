@@ -91,6 +91,12 @@ pnpm run lint
 - `OPENAI_API_KEY` (optional; required for AI grading, nightly log summaries, and developer feedback extraction)
 - `OPENAI_SUMMARY_MODEL` / `OPENAI_DEVELOPER_FEEDBACK_MODEL` (optional model overrides)
 
+Classroom archive rollout controls are optional and disabled by default. Cold compaction requires
+`CLASSROOM_ARCHIVE_COMPACTION_ENABLED=true` plus exact UUID matches in both
+`CLASSROOM_ARCHIVE_COMPACTION_TEACHER_IDS` and `CLASSROOM_ARCHIVE_COMPACTION_ARCHIVE_IDS`. The
+coordinator is server-only and has no route or schedule; migration application and a named canary
+still require explicit human approval.
+
 Legacy anon/service keys are supported but publishable/secret are preferred.
 
 ---

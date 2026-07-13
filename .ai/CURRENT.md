@@ -7,7 +7,7 @@ Read this at the start of every AI session. Use `.ai/SESSION-LOG.md` only for re
 - Product status: core classroom, assignment, quiz/test, and auth flows are live.
 - Maintenance focus: coverage expansion, API-route standardization, UI decomposition, and AI-guidance cleanup.
 - Feature inventory: `.ai/features.json` is the status authority for big epics; check it directly for current pass/fail state.
-- Classroom archives: migrations 082-085 provide gated export/restore, atomic database compaction, and Gradex ledgers. All generation/cleanup triggers remain disabled and compaction has no runtime caller; UI and production canaries remain unfinished.
+- Classroom archives: migrations 082-085 provide gated export/restore, atomic compaction, and Gradex ledgers. A server-only, teacher/archive-allowlisted compaction coordinator has no route, UI, schedule, or production caller; object cleanup and production canaries remain unfinished.
 
 ## Environment And Workflow Facts
 
