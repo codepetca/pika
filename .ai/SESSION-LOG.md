@@ -10,23 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-13 — API auth-boundary negative coverage
-
-**Completed:**
-- Continued the systems/UI audit program with the API authorization-boundary slice.
-- Added negative teacher ownership and student enrollment coverage for legacy `GET /api/teacher/class-days`.
-- Added matching negative coverage for canonical `GET /api/classrooms/[classroomId]/class-days`.
-- Added teacher-side `GET /api/student/tests/[id]/history` coverage for non-owned tests and students outside the test classroom.
-- Confirmed the existing routes already block these paths before downstream class-day/history data reads; no production route changes were needed.
-
-**Validation:**
-- `pnpm vitest run tests/api/teacher/class-days.test.ts tests/api/classrooms-class-days.test.ts tests/api/student/tests-history.test.ts` (18 tests)
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm build`
-- `pnpm vitest run --sequence.concurrent=false` (303 files / 2690 tests)
-
 ## 2026-06-20 — Pika logo dark-token cleanup
 
 **Completed:**
@@ -767,3 +750,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Classroom schema audit (105 public foreign-key relationships)
 - Supabase lint: one existing migration-082 false positive for the function-local `classroom_archive_actor_ids` temporary table; both executable database contracts pass
 - `git diff --check`
+
+## 2026-07-13 — Deidentified Gradex artifact transformer
+
+**Completed:**
+- Added a server-only pure transformer that derives a deterministic Gradex tar+gzip artifact only from a strictly verified classroom archive.
+- Added explicit projections for every allowlisted assignment/test resource, per-extract HMAC relationship references, relative structured timestamps, shared direct-identifier redaction plus known-actor redaction, and exclusion of storage/external references.
+- Added independent verification for canonical manifests/NDJSON, resource/content checksums, HMAC shapes, projected relationships, exact resource inventory, and zero detected direct identifiers.
+- Capped version 1 extract retention at 90 days and documented that runtime operations, upload/finalization, deletion automation, and production canaries remain unfinished.
+
+**Validation:**
+- Focused Gradex, artifact-contract, and startup-policy suites (43 tests)
+- `pnpm test`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`

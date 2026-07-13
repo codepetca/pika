@@ -7,7 +7,7 @@ Read this at the start of every AI session. Use `.ai/SESSION-LOG.md` only for re
 - Product status: core classroom, assignment, quiz/test, and auth flows are live.
 - Maintenance focus: coverage expansion, API-route standardization, UI decomposition, and AI-guidance cleanup.
 - Feature inventory: `.ai/features.json` is the status authority for big epics; check it directly for current pass/fail state.
-- Classroom archive rollout: migration 082 provides verified export-only archives; stacked migration 083 provides canary-gated, resumable restore with exact database round-trip checks. Cold compaction, Gradex extract generation, teacher UI, and production canaries remain unfinished.
+- Classroom archives: migrations 082/083 provide gated verified export/restore. A stacked pure Gradex transformer exists, but runtime upload/retention, cold compaction, UI, and production canaries remain unfinished.
 
 ## Environment And Workflow Facts
 

@@ -159,7 +159,7 @@ function archiveObjectPath(bucket: ManagedSourceBucket, sourcePath: string): str
   return `objects/${bucket}/${sourceHash}`
 }
 
-function contentChecksum(
+export function contentChecksum(
   files: Array<{ path: string; byte_size: number; sha256: string }>,
 ): string {
   const canonicalDescriptors = [...files]
@@ -223,7 +223,7 @@ function buildTarHeader(path: string, size: number): Uint8Array {
   return header
 }
 
-function encodeTar(entries: Array<{ path: string; bytes: Uint8Array }>): Buffer {
+export function encodeTar(entries: Array<{ path: string; bytes: Uint8Array }>): Buffer {
   const seen = new Set<string>()
   const parts: Uint8Array[] = []
 
@@ -252,7 +252,7 @@ function parseTarOctal(source: Uint8Array, offset: number, length: number): numb
   return Number.parseInt(raw, 8)
 }
 
-function parseTar(input: Uint8Array): Map<string, Buffer> {
+export function parseTar(input: Uint8Array): Map<string, Buffer> {
   const files = new Map<string, Buffer>()
   let offset = 0
 
@@ -284,7 +284,7 @@ function parseTar(input: Uint8Array): Map<string, Buffer> {
   return files
 }
 
-function parseAndValidateNdjson(
+export function parseAndValidateNdjson(
   bytes: Buffer,
   validate?: (value: unknown) => void,
 ): unknown[] {
