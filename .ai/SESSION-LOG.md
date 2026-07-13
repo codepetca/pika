@@ -10,28 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-20 — Pika logo dark-token cleanup
-
-**Completed:**
-- Continued the systems/UI audit program with a bounded UI consistency slice.
-- Moved the Pika logo dark-mode filter out of component-local `dark:` utility classes and into `src/styles/tokens.css` as `--pika-logo-filter`.
-- Updated `PikaLogo` to use the semantic `pika-logo` class.
-- Removed the obsolete `PikaLogo` `dark:` exception from the active design guidance.
-- Added AppHeader regression coverage that asserts the logo uses the tokenized class and no component-level `dark:` utilities.
-- Addressed subagent review feedback by matching Tailwind's previous composed filter order for the dark-mode logo token.
-
-**Validation:**
-- `rg -n "dark:" src/app src/components --glob '*.tsx' --glob '*.ts'` returned no matches.
-- `pnpm vitest run tests/components/AppHeader.test.tsx`
-- `pnpm vitest run tests/unit/ui-guidance-docs.test.ts tests/unit/ai-startup-docs.test.ts tests/components/AppHeader.test.tsx`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm build`
-- Visual verification: `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; reviewed `/tmp/pika-teacher.png`, `/tmp/pika-teacher-mobile.png`, and `/tmp/pika-student.png`.
-- Additional visual verification for role/viewport/theme matrix: reviewed `/tmp/pika-student-desktop.png`, `/tmp/pika-teacher-dark.png`, `/tmp/pika-teacher-mobile-dark.png`, `/tmp/pika-student-dark.png`, and `/tmp/pika-student-mobile-dark.png`.
-- Post-review fix validation: `pnpm vitest run tests/components/AppHeader.test.tsx tests/unit/ui-guidance-docs.test.ts`, `git diff --check`, `pnpm lint`, `bash .codex/skills/pika-audit/scripts/audit.sh`, `pnpm build`.
-- Post-review visual verification: reviewed `/tmp/pika-teacher-dark-after-review.png` and `/tmp/pika-student-mobile-dark-after-review.png`.
-
 ## 2026-06-20 — Historical design-system dark-mode examples cleanup
 
 **Completed:**
@@ -765,3 +743,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm build`
+
+## 2026-07-13 — Durable Gradex operations and cleanup contract
+
+**Completed:**
+- Added stacked migration 084 with a service-role-only Gradex resource allowlist, idempotent begin/finalize/fail operations, immutable verified extract metadata, and a separate mutable retention-cleanup ledger.
+- Serialized generation per immutable source archive, capped retention and file size, required exact resource counts and verification evidence, and scheduled older extracts immediately when superseded.
+- Added lease-based cleanup claiming, stale-lease rejection, exponential retry, and durable deletion evidence without deleting audit metadata.
+- Tightened final review invariants for typed verification evidence, bounded verification timestamps, conflicting finalization replays, failure metadata, and cleanup lease inputs.
+- Kept the database contract unreachable from browser roles and added no API, cron, upload, deletion, or production execution path.
+
+**Validation:**
+- Fresh isolated Supabase replay through migration 084
+- Expanded rollback-only service-role Gradex database contract
+- Focused migration, transformer, artifact-contract, and startup-policy suites (47 tests)
+- Full Vitest suite (326 files / 2,874 tests)
+- `bash -n scripts/check-classroom-gradex-database.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- Pika pre-commit audit
