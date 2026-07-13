@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom, getClassroomStudentIds } from '@/lib/server/classrooms'
-import { isMissingSurveyDueColumnsError, isMissingSurveysTableError } from '@/lib/server/surveys'
+import {
+  isMissingSurveyDueColumnsError,
+  isMissingSurveysTableError,
+  SURVEY_DUE_MIGRATION_REQUIRED,
+} from '@/lib/server/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
 import { loadChunkedRows } from '@/lib/server/query-chunks'
@@ -238,7 +242,7 @@ export const POST = withErrorHandler('PostTeacherSurvey', async (request) => {
     return NextResponse.json({ error: 'Failed to create survey' }, { status: 500 })
   }
 
-  const buildInsertPayload = (includeDueFields: boolean): SurveyInsertPayload => {
+  const buildInsertPayload = (): SurveyInsertPayload => {
     const payload: SurveyInsertPayload = {
       classroom_id,
       title: cleanTitle,
@@ -246,33 +250,20 @@ export const POST = withErrorHandler('PostTeacherSurvey', async (request) => {
       dynamic_responses: dynamic_responses === true,
       created_by: user.id,
       position,
-    }
-    if (includeDueFields) {
-      payload.due_at = parsedDueAt
-      payload.due_policy = due_policy
+      due_at: parsedDueAt,
+      due_policy,
     }
     return payload
   }
 
-  const insertSurvey = (includeDueFields: boolean) =>
-    supabase
-      .from('surveys')
-      .insert(buildInsertPayload(includeDueFields))
-      .select()
-      .single()
-
-  let { data: survey, error } = await insertSurvey(true)
+  const { data: survey, error } = await supabase
+    .from('surveys')
+    .insert(buildInsertPayload())
+    .select()
+    .single()
 
   if (error && isMissingSurveyDueColumnsError(error)) {
-    console.warn('Survey due columns are not available yet; creating survey without due fields')
-    ;({ data: survey, error } = await insertSurvey(false))
-    if (survey) {
-      survey = {
-        ...survey,
-        due_at: null,
-        due_policy: 'soft',
-      }
-    }
+    return NextResponse.json(SURVEY_DUE_MIGRATION_REQUIRED, { status: 503 })
   }
 
   if (error || !survey) {

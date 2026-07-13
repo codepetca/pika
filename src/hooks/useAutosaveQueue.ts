@@ -1,9 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ClassworkModalSaveStatusValue } from '@/components/classwork/ClassworkContentModal'
 
-type UseClassworkAutosaveOptions<T> = {
+export type AutosaveQueueStatus = 'saved' | 'saving' | 'unsaved'
+
+type UseAutosaveQueueOptions<T> = {
   disabled?: boolean
   debounceMs?: number
   minIntervalMs?: number
@@ -19,15 +20,15 @@ type SaveOptions = {
 const DEFAULT_DEBOUNCE_MS = 3000
 const DEFAULT_MIN_INTERVAL_MS = 10000
 
-export function useClassworkAutosave<T>({
+export function useAutosaveQueue<T>({
   disabled = false,
   debounceMs = DEFAULT_DEBOUNCE_MS,
   minIntervalMs = DEFAULT_MIN_INTERVAL_MS,
   isEqual,
   onSave,
   onError,
-}: UseClassworkAutosaveOptions<T>) {
-  const [status, setStatus] = useState<ClassworkModalSaveStatusValue>('saved')
+}: UseAutosaveQueueOptions<T>) {
+  const [status, setStatus] = useState<AutosaveQueueStatus>('saved')
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const throttledTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSaveAtRef = useRef(0)
@@ -72,7 +73,7 @@ export function useClassworkAutosave<T>({
     clearTimers()
     lastSavedValuesRef.current = values
     pendingValuesRef.current = null
-    lastSaveAtRef.current = values ? Date.now() : 0
+    lastSaveAtRef.current = 0
     setStatus(values ? 'saved' : 'saving')
   }, [clearTimers])
 
@@ -96,10 +97,7 @@ export function useClassworkAutosave<T>({
         try {
           const savedValues = await onSaveRef.current(values)
           lastSavedValuesRef.current = savedValues ?? values
-          if (
-            pendingValuesRef.current
-            && isEqualRef.current(pendingValuesRef.current, values)
-          ) {
+          if (pendingValuesRef.current && isEqualRef.current(pendingValuesRef.current, values)) {
             pendingValuesRef.current = null
           }
         } catch (error) {
@@ -127,15 +125,12 @@ export function useClassworkAutosave<T>({
     if (disabledRef.current) return
 
     pendingValuesRef.current = values
-
     if (throttledTimeoutRef.current) {
       clearTimeout(throttledTimeoutRef.current)
       throttledTimeoutRef.current = null
     }
 
-    const now = Date.now()
-    const msSinceLastSave = now - lastSaveAtRef.current
-
+    const msSinceLastSave = Date.now() - lastSaveAtRef.current
     if (options?.force || msSinceLastSave >= minIntervalMs) {
       void drainPending()
       return
@@ -159,11 +154,7 @@ export function useClassworkAutosave<T>({
 
     pendingValuesRef.current = values
     setStatus('unsaved')
-
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current)
-    }
-
+    if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current)
     debounceTimeoutRef.current = setTimeout(() => {
       debounceTimeoutRef.current = null
       queueSave(values)
@@ -171,16 +162,10 @@ export function useClassworkAutosave<T>({
   }, [debounceMs, queueSave])
 
   const flush = useCallback(async () => {
-    const pending = pendingValuesRef.current
-    if (!pending || disabledRef.current) return true
+    if (!pendingValuesRef.current || disabledRef.current) return true
     clearTimers()
     return drainPending()
   }, [clearTimers, drainPending])
 
-  return {
-    status,
-    reset,
-    schedule,
-    flush,
-  }
+  return { status, reset, schedule, flush }
 }

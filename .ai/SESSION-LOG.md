@@ -2783,3 +2783,19 @@ cross-role visual verification.
 - `pnpm build`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - Standard teacher/student and targeted teacher desktop/mobile Playwright screenshots reviewed; temporary survey deleted.
+
+## 2026-07-13 — Re-architect classwork modal ownership
+
+**Completed:**
+- Reduced the shared classwork modal layer to presentation primitives and moved due-date controls into a separate composable field module.
+- Replaced feature-named autosave code with a domain-neutral serialized autosave queue and migrated assignment, material, and survey saves onto it.
+- Extracted the material editor from `TeacherClassroomView` into a feature-owned modal and made that modal own draft creation.
+- Removed the unused second survey modal so `SurveyCreationModal` is the single production create/edit surface.
+- Changed missing survey due-column behavior from silent field dropping to an explicit `503 SURVEY_DUE_MIGRATION_REQUIRED` response, while keeping the survey modal open with the error.
+- Added regressions for queue ordering, the shared modal contract, material modal composition, and migration-required survey writes.
+
+**Validation:**
+- `pnpm test` (312 files, 2800 tests passed before the final focused test additions)
+- Focused classwork modal tests, TypeScript, lint, and `git diff --check`
+- `pnpm build` (passed after stopping the dev server and clearing the generated `.next` cache)
+- Playwright teacher screenshots reviewed for assignment, material, and survey modals at 1440x900 and 390x844 in light and dark; student modal view is not applicable.
