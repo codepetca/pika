@@ -76,6 +76,17 @@ pnpm run test:coverage
 pnpm run lint
 ```
 
+The classroom archive recovery rehearsal runs only against an already-started local Supabase stack:
+
+```bash
+pnpm verify:classroom-archive-recovery
+```
+
+The command derives its credentials from `supabase status`, requires the local Supabase demo
+service-role JWT and an exact destructive-operation acknowledgement, and rejects non-loopback URLs.
+It creates and removes only a uniquely identified synthetic fixture. It must never be pointed at a
+hosted or production project.
+
 ---
 
 ## Environment Variables (required)

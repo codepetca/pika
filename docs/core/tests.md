@@ -142,6 +142,12 @@ Test password-based flows:
 - Source-object cleanup trigger tests prove cron-secret authentication, independent worker/trigger
   gates, one-claim bounds, GET/POST parity, exact status propagation, and unhealthy batch signaling;
   they also lock out automatic Vercel scheduling during the manual-canary stage.
+- Ephemeral full-stack CI starts local Supabase REST and Storage, creates a synthetic archived
+  classroom with submitted work and a managed object, and invokes the real export, compaction,
+  source-cleanup, and restore coordinators. The rehearsal proves representative row equality,
+  restored object-byte equality, cold tombstone removal, immutable archive retention, idempotent
+  replay, and complete synthetic-fixture teardown. Its guard rejects non-loopback targets and
+  non-local service-role credentials before any write.
 - Gradex runtime coordinator tests prove the internal feature gate, source archive identity/checksum
   binding, HMAC-key-bound idempotency, private no-overwrite upload, complete read-back verification,
   finalization ordering, deterministic retry reuse, and terminal-versus-retryable object cleanup.

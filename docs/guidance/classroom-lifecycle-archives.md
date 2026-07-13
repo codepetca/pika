@@ -345,6 +345,21 @@ restore rollback, and archives without a successful read-back check.
 Production database access for inventory and verification is read-only unless a human explicitly
 approves a named canary operation. Migrations are applied by humans.
 
+### Non-Production Recovery Rehearsal
+
+`pnpm verify:classroom-archive-recovery` exercises the complete runtime path against an already
+started local Supabase stack. It creates a unique synthetic archived classroom with a submission and
+one private source object, then calls the real export, compaction, source cleanup, and restore
+coordinators. It verifies representative relational equality, restored object bytes, cold tombstone
+removal, immutable archive retention, completed-work replay, and fixture teardown.
+
+The command has no hosted-project mode. Before constructing a client it requires an exact local
+destructive-operation acknowledgement, an HTTP loopback Supabase origin, and the Supabase local-demo
+service-role JWT. It rejects remote, TLS, credential-bearing, path-bearing, and deceptive loopback
+hostnames. CI obtains these values from `supabase status` after starting an ephemeral full stack.
+Passing this rehearsal is recovery evidence, not permission to enable a production canary or delete
+production data.
+
 ## Export-Only Verification And Recovery
 
 The export coordinator uses a small database membership snapshot containing resource table names and

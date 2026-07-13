@@ -58,6 +58,9 @@ function createSupabaseMock(options: {
   retainedPaths?: string[]
   readErrorPaths?: string[]
   noSuchBucketPaths?: string[]
+  useLocalNotFoundShape?: boolean
+  bucketLookupError?: boolean
+  unwrappedBadRequestPaths?: string[]
 } = {}) {
   const claims = options.claims ?? [claim()]
   const calls: string[] = []
@@ -97,6 +100,12 @@ function createSupabaseMock(options: {
         error: { status: 503, statusCode: 'SlowDown', message: 'Try again' },
       }
     }
+    if (options.unwrappedBadRequestPaths?.includes(path)) {
+      return {
+        data: null,
+        error: { status: 400, statusCode: '400', message: 'Bad request' },
+      }
+    }
     const bytes = objects.get(path)
     if (bytes) {
       return {
@@ -108,7 +117,13 @@ function createSupabaseMock(options: {
     }
     return {
       data: null,
-      error: { status: 404, statusCode: 'NoSuchKey', message: 'Object missing' },
+      error: options.useLocalNotFoundShape
+        ? {
+            name: 'StorageUnknownError',
+            message: 'Object not found',
+            originalError: { status: 400, statusText: 'Bad Request' },
+          }
+        : { status: 404, statusCode: 'NoSuchKey', message: 'Object missing' },
     }
   })
 
@@ -122,11 +137,15 @@ function createSupabaseMock(options: {
     return { data: [{ name: path }], error: null }
   })
   const storageFrom = vi.fn(() => ({ download, remove }))
+  const getBucket = vi.fn(async () => options.bucketLookupError
+    ? { data: null, error: { status: 404, statusCode: 'NoSuchBucket' } }
+    : { data: { id: 'assignment-artifacts' }, error: null })
 
   return {
     calls,
-    client: { rpc, storage: { from: storageFrom } } as any,
+    client: { rpc, storage: { from: storageFrom, getBucket } } as any,
     download,
+    getBucket,
     objects,
     remove,
     rpc,
@@ -224,6 +243,51 @@ describe('classroom archive source-object cleanup', () => {
     expect(mock.rpc).toHaveBeenCalledWith(
       'complete_classroom_archive_source_object_cleanup',
       expect.objectContaining({ p_storage_path: PATH }),
+    )
+  })
+
+  it('accepts the Supabase local Storage wrapped 400 as authoritative absence', async () => {
+    const mock = createSupabaseMock({ useLocalNotFoundShape: true })
+    const result = await run(mock)
+
+    expect(result).toEqual(expect.objectContaining({ deleted: 1, failed: 0 }))
+    expect(mock.rpc).toHaveBeenCalledWith(
+      'complete_classroom_archive_source_object_cleanup',
+      expect.objectContaining({ p_storage_path: PATH }),
+    )
+    expect(mock.getBucket).toHaveBeenCalledWith('assignment-artifacts')
+  })
+
+  it('does not treat an unwrapped generic 400 as object absence', async () => {
+    const mock = createSupabaseMock({ unwrappedBadRequestPaths: [PATH] })
+    const result = await run(mock)
+
+    expect(result.ok && result.results[0]).toEqual(expect.objectContaining({
+      status: 'failed',
+      error_code: 'archive_source_object_read_failed',
+    }))
+    expect(mock.getBucket).not.toHaveBeenCalled()
+    expect(mock.rpc).not.toHaveBeenCalledWith(
+      'complete_classroom_archive_source_object_cleanup',
+      expect.anything(),
+    )
+  })
+
+  it('does not treat a generic 404 as object absence when the bucket cannot be confirmed', async () => {
+    const mock = createSupabaseMock({
+      initiallyMissing: [PATH],
+      useLocalNotFoundShape: true,
+      bucketLookupError: true,
+    })
+    const result = await run(mock)
+
+    expect(result.ok && result.results[0]).toEqual(expect.objectContaining({
+      status: 'failed',
+      error_code: 'archive_source_object_read_failed',
+    }))
+    expect(mock.rpc).not.toHaveBeenCalledWith(
+      'complete_classroom_archive_source_object_cleanup',
+      expect.anything(),
     )
   })
 

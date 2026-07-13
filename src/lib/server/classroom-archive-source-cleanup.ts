@@ -72,10 +72,12 @@ export type ClassroomArchiveSourceCleanupResult =
     }
 
 type StorageErrorShape = {
+  name?: unknown
   status?: unknown
   statusCode?: unknown
   code?: unknown
   error?: unknown
+  originalError?: unknown
 }
 
 type ObjectReadResult =
@@ -109,17 +111,45 @@ function isMissingCleanupRpc(error: { code?: string; message?: string } | null |
   )
 }
 
-function isAuthoritativeMissingObject(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
+function missingObjectEvidence(
+  error: unknown,
+  inspectNested = true,
+): 'object' | 'generic' | null {
+  if (!error || typeof error !== 'object') return null
   const value = error as StorageErrorShape
   const codes = [value.statusCode, value.code, value.error]
     .filter((code): code is string | number => (
       typeof code === 'string' || typeof code === 'number'
     ))
     .map((code) => String(code).toLowerCase())
-  if (codes.includes('nosuchkey')) return true
-  const status = typeof value.status === 'number' ? value.status : Number(value.status)
-  return status === 404 && codes.includes('not_found')
+  if (codes.includes('nosuchbucket')) return null
+  if (codes.includes('nosuchkey')) return 'object'
+  const status = [value.status, value.statusCode]
+    .map((candidate) => typeof candidate === 'number' ? candidate : Number(candidate))
+    .find((candidate) => Number.isFinite(candidate))
+  if (status === 404 && (
+    codes.length === 0 || codes.includes('404') || codes.includes('not_found')
+  )) {
+    return 'generic'
+  }
+  if (
+    inspectNested
+    && value.name === 'StorageUnknownError'
+    && value.originalError
+    && typeof value.originalError === 'object'
+  ) {
+    const originalError = value.originalError as StorageErrorShape
+    const originalStatus = typeof originalError.status === 'number'
+      ? originalError.status
+      : Number(originalError.status)
+    // storage-js treats a local Storage 400/404 response as a missing object.
+    // Confirming the bucket separately below distinguishes that from a missing bucket.
+    if (originalStatus === 400 || originalStatus === 404) return 'generic'
+  }
+  if (inspectNested && value.originalError !== error) {
+    return missingObjectEvidence(value.originalError, false)
+  }
+  return null
 }
 
 function validateClaims(data: unknown, limit: number): CleanupClaim[] | null {
@@ -145,9 +175,11 @@ function objectRef(claim: CleanupClaim): string {
 }
 
 async function readObject(
-  bucket: ReturnType<SupabaseClient['storage']['from']>,
+  supabase: SupabaseClient,
+  bucketName: CleanupClaim['storage_bucket'],
   path: string,
 ): Promise<ObjectReadResult> {
+  const bucket = supabase.storage.from(bucketName)
   try {
     const response = await bucket.download(path)
     if (response.data) {
@@ -160,13 +192,29 @@ async function readObject(
         return { status: 'uncertain' }
       }
     }
-    return isAuthoritativeMissingObject(response.error)
-      ? { status: 'absent' }
-      : { status: 'uncertain' }
+    const evidence = missingObjectEvidence(response.error)
+    if (evidence === 'object') return { status: 'absent' }
+    if (evidence === 'generic') {
+      const bucketResponse = await supabase.storage.getBucket(bucketName)
+      if (!bucketResponse.error && bucketResponse.data?.id === bucketName) {
+        return { status: 'absent' }
+      }
+    }
+    return { status: 'uncertain' }
   } catch (error) {
-    return isAuthoritativeMissingObject(error)
-      ? { status: 'absent' }
-      : { status: 'uncertain' }
+    const evidence = missingObjectEvidence(error)
+    if (evidence === 'object') return { status: 'absent' }
+    if (evidence === 'generic') {
+      try {
+        const bucketResponse = await supabase.storage.getBucket(bucketName)
+        if (!bucketResponse.error && bucketResponse.data?.id === bucketName) {
+          return { status: 'absent' }
+        }
+      } catch {
+        // A missing or unreadable bucket is not evidence that the exact key was deleted.
+      }
+    }
+    return { status: 'uncertain' }
   }
 }
 
@@ -259,7 +307,11 @@ async function processCleanupClaim(args: {
   leaseToken: string
 }): Promise<ClassroomArchiveSourceCleanupItemResult> {
   const bucket = args.supabase.storage.from(args.claim.storage_bucket)
-  const beforeRemoval = await readObject(bucket, args.claim.storage_path)
+  const beforeRemoval = await readObject(
+    args.supabase,
+    args.claim.storage_bucket,
+    args.claim.storage_path,
+  )
 
   if (beforeRemoval.status === 'absent') return completeItem(args)
   if (beforeRemoval.status === 'uncertain') {
@@ -282,7 +334,11 @@ async function processCleanupClaim(args: {
     removeFailed = true
   }
 
-  const afterRemoval = await readObject(bucket, args.claim.storage_path)
+  const afterRemoval = await readObject(
+    args.supabase,
+    args.claim.storage_bucket,
+    args.claim.storage_path,
+  )
   if (afterRemoval.status === 'absent') return completeItem(args)
   if (afterRemoval.status === 'present') {
     return failedItem({
