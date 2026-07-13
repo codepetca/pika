@@ -22,6 +22,12 @@ export type SurveyAccessRecord = {
   }
 }
 
+export const SURVEY_DUE_MIGRATION_REQUIRED = {
+  error: 'Survey due dates are unavailable until migration 080 is applied.',
+  code: 'SURVEY_DUE_MIGRATION_REQUIRED',
+  migration_required: true,
+} as const
+
 type AccessResult<T> =
   | { ok: true; survey: T }
   | { ok: false; status: number; error: string }

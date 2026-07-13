@@ -10,36 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-22 — Cached API JSON helper
-
-**Completed:**
-- Continued the bounded architecture/UI improvement goal with a typed client API/cache helper slice.
-- Added `fetchJSON` and `fetchCachedJSON` to `src/lib/request-cache.ts` so repeated client reads can share JSON parsing, API error payload handling, and cache TTL wiring.
-- Migrated `useTeacherTestList`, `useGradebookData`, and `StudentNotificationsProvider` from inline cached fetcher lambdas to the typed helper.
-- Kept `fetchJSONWithCache` intact for existing custom fetcher callers and left API payload shape unchanged.
-- Added request-cache coverage for successful JSON parsing, API error precedence, fallback errors for non-JSON failures, and cached helper reuse.
-- Updated hook/component tests for the new helper call shape without changing visible UI behavior.
-- Addressed independent review by preserving JSON parse rejection for successful malformed responses and adding `init` passthrough coverage.
-
-**Cache/helper checklist:**
-- API schema or payload changed: no
-- Cache key semantics changed: no
-- TTL behavior changed: no; callers keep existing `0`, `60_000`, and notification TTL values
-- Error behavior changed: no; `{ error: string }` payloads still win over fallback messages
-- Successful malformed JSON behavior changed: no; successful parse failures still reject instead of caching `null`
-- Existing custom fetcher support: retained through `fetchJSONWithCache`
-- Visible behavior intended to change: none
-
-**Validation:**
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm test tests/unit/request-cache.test.ts tests/hooks/useTeacherTestList.test.ts tests/hooks/useGradebookData.test.ts tests/components/StudentNotificationsProvider.test.tsx`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-06-22 — Teacher classroom access helper reuse
 
 **Completed:**
@@ -687,3 +657,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - Standard teacher/student and targeted teacher desktop/mobile Playwright screenshots reviewed; temporary survey deleted.
+
+## 2026-07-13 — Re-architect classwork modal ownership
+
+**Completed:**
+- Reduced the shared classwork modal layer to presentation primitives and moved due-date controls into a separate composable field module.
+- Replaced feature-named autosave code with a domain-neutral serialized autosave queue and migrated assignment, material, and survey saves onto it.
+- Extracted the material editor from `TeacherClassroomView` into a feature-owned modal and made that modal own draft creation.
+- Removed the unused second survey modal so `SurveyCreationModal` is the single production create/edit surface.
+- Changed missing survey due-column behavior from silent field dropping to an explicit `503 SURVEY_DUE_MIGRATION_REQUIRED` response, while keeping the survey modal open with the error.
+- Added regressions for queue ordering, the shared modal contract, material modal composition, and migration-required survey writes.
+
+**Validation:**
+- `pnpm test` (312 files, 2800 tests passed before the final focused test additions)
+- Focused classwork modal tests, TypeScript, lint, and `git diff --check`
+- `pnpm build` (passed after stopping the dev server and clearing the generated `.next` cache)
+- Playwright teacher screenshots reviewed for assignment, material, and survey modals at 1440x900 and 390x844 in light and dark; student modal view is not applicable.

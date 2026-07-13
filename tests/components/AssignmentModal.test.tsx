@@ -187,7 +187,40 @@ describe('AssignmentModal', () => {
       let resolveFirstSave: (value: unknown) => void = () => {}
       fetchMock.mockImplementationOnce(() => new Promise((resolve) => {
         resolveFirstSave = resolve
-      }))
+      })).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          assignment: {
+            ...baseAssignment,
+            submission_requirements: [
+              {
+                id: 'requirement-link',
+                assignment_id: baseAssignment.id,
+                type: 'link',
+                label: 'Link',
+                instructions: '',
+                required: true,
+                position: 0,
+                validation_policy_json: {},
+                created_at: '2025-01-01T00:00:00.000Z',
+                updated_at: '2025-01-01T00:00:00.000Z',
+              },
+              {
+                id: 'requirement-repo',
+                assignment_id: baseAssignment.id,
+                type: 'repo',
+                label: 'Repo link',
+                instructions: '',
+                required: true,
+                position: 1,
+                validation_policy_json: {},
+                created_at: '2025-01-01T00:00:00.000Z',
+                updated_at: '2025-01-01T00:00:00.000Z',
+              },
+            ],
+          },
+        }),
+      })
 
       render(
         <AssignmentModal
@@ -210,6 +243,9 @@ describe('AssignmentModal', () => {
 
       fireEvent.click(requirementsGroup.getByRole('button', { name: 'Choose submission type' }))
       fireEvent.click(screen.getByRole('menuitem', { name: 'Repo' }))
+      fireEvent.blur(requirementsGroup.getByDisplayValue('Repo link'))
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
 
       await act(async () => {
         resolveFirstSave({
@@ -233,11 +269,18 @@ describe('AssignmentModal', () => {
           }),
         })
         await Promise.resolve()
+        await Promise.resolve()
       })
 
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      const secondRequest = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))
+      expect(secondRequest.submission_requirements).toEqual(expect.arrayContaining([
+        expect.objectContaining({ type: 'link' }),
+        expect.objectContaining({ type: 'repo_link' }),
+      ]))
       expect(requirementsGroup.getByDisplayValue('Link')).toBeInTheDocument()
       expect(requirementsGroup.getByDisplayValue('Repo link')).toBeInTheDocument()
-      expect(screen.getByText('Unsaved')).toBeInTheDocument()
+      expect(screen.getByText('Saved')).toBeInTheDocument()
     })
 
     it('confirms before removing an existing required submission', () => {

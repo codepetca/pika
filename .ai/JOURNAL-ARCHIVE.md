@@ -11564,3 +11564,33 @@
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-06-22 — Cached API JSON helper
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with a typed client API/cache helper slice.
+- Added `fetchJSON` and `fetchCachedJSON` to `src/lib/request-cache.ts` so repeated client reads can share JSON parsing, API error payload handling, and cache TTL wiring.
+- Migrated `useTeacherTestList`, `useGradebookData`, and `StudentNotificationsProvider` from inline cached fetcher lambdas to the typed helper.
+- Kept `fetchJSONWithCache` intact for existing custom fetcher callers and left API payload shape unchanged.
+- Added request-cache coverage for successful JSON parsing, API error precedence, fallback errors for non-JSON failures, and cached helper reuse.
+- Updated hook/component tests for the new helper call shape without changing visible UI behavior.
+- Addressed independent review by preserving JSON parse rejection for successful malformed responses and adding `init` passthrough coverage.
+
+**Cache/helper checklist:**
+- API schema or payload changed: no
+- Cache key semantics changed: no
+- TTL behavior changed: no; callers keep existing `0`, `60_000`, and notification TTL values
+- Error behavior changed: no; `{ error: string }` payloads still win over fallback messages
+- Successful malformed JSON behavior changed: no; successful parse failures still reject instead of caching `null`
+- Existing custom fetcher support: retained through `fetchJSONWithCache`
+- Visible behavior intended to change: none
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/unit/request-cache.test.ts tests/hooks/useTeacherTestList.test.ts tests/hooks/useGradebookData.test.ts tests/components/StudentNotificationsProvider.test.tsx`
+- `pnpm test tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`

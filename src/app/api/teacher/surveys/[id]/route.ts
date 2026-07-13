@@ -2,23 +2,16 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { canActivateSurvey, hasSurveyOpened } from '@/lib/surveys'
-import { assertTeacherOwnsSurvey, isMissingSurveyDueColumnsError } from '@/lib/server/surveys'
+import {
+  assertTeacherOwnsSurvey,
+  isMissingSurveyDueColumnsError,
+  SURVEY_DUE_MIGRATION_REQUIRED,
+} from '@/lib/server/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { SurveyDuePolicy, SurveyStatus } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-
-function withSurveyDueDefaults<T extends Record<string, any>>(survey: T): T & {
-  due_at: string | null
-  due_policy: SurveyDuePolicy
-} {
-  return {
-    ...survey,
-    due_at: survey.due_at ?? null,
-    due_policy: survey.due_policy ?? 'soft',
-  }
-}
 
 export const GET = withErrorHandler('GetTeacherSurvey', async (_request, context) => {
   const user = await requireRole('teacher')
@@ -172,32 +165,15 @@ export const PATCH = withErrorHandler('PatchTeacherSurvey', async (request, cont
     return NextResponse.json({ error: 'No updates provided' }, { status: 400 })
   }
 
-  const updateSurvey = (payload: Record<string, unknown>) =>
-    supabase
-      .from('surveys')
-      .update(payload)
-      .eq('id', id)
-      .select()
-      .single()
-
-  let { data: survey, error } = await updateSurvey(updates)
+  const { data: survey, error } = await supabase
+    .from('surveys')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
 
   if (error && isMissingSurveyDueColumnsError(error)) {
-    const fallbackUpdates = { ...updates }
-    delete fallbackUpdates.due_at
-    delete fallbackUpdates.due_policy
-
-    console.warn('Survey due columns are not available yet; updating survey without due fields')
-
-    if (Object.keys(fallbackUpdates).length > 0) {
-      ;({ data: survey, error } = await updateSurvey(fallbackUpdates))
-      if (survey) {
-        survey = withSurveyDueDefaults(survey)
-      }
-    } else {
-      survey = withSurveyDueDefaults(existing)
-      error = null
-    }
+    return NextResponse.json(SURVEY_DUE_MIGRATION_REQUIRED, { status: 503 })
   }
 
   if (error || !survey) {

@@ -97,6 +97,30 @@ describe('SurveyCreationModal', () => {
     expect(onDraftSaved).toHaveBeenCalled()
   })
 
+  it('keeps the modal open when survey due-date storage requires migration', async () => {
+    const onClose = vi.fn()
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      json: async () => ({
+        error: 'Survey due dates are unavailable until migration 080 is applied.',
+        code: 'SURVEY_DUE_MIGRATION_REQUIRED',
+        migration_required: true,
+      }),
+    })))
+
+    render(
+      <SurveyCreationModal
+        isOpen
+        classroomId="classroom-1"
+        onClose={onClose}
+      />
+    )
+
+    expect(await screen.findByText('Survey due dates are unavailable until migration 080 is applied.')).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
   it('keeps newer title edits when an older autosave response refreshes the parent survey', async () => {
     const initialSurvey = makeSurvey()
     let resolveFirstPatch: ((response: unknown) => void) | null = null

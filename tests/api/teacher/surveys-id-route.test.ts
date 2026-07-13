@@ -19,6 +19,11 @@ vi.mock('@/lib/auth', () => ({
 
 vi.mock('@/lib/server/surveys', () => ({
   assertTeacherOwnsSurvey: mockAssertTeacherOwnsSurvey,
+  SURVEY_DUE_MIGRATION_REQUIRED: {
+    error: 'Survey due dates are unavailable until migration 080 is applied.',
+    code: 'SURVEY_DUE_MIGRATION_REQUIRED',
+    migration_required: true,
+  },
   isMissingSurveyDueColumnsError: (error: any) => {
     const combined = [error?.message, error?.details, error?.hint]
       .map((value) => String(value || '').toLowerCase())
@@ -102,25 +107,17 @@ describe('PATCH /api/teacher/surveys/[id]', () => {
     }))
   })
 
-  it('retries survey updates without due fields when the due columns are not migrated yet', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  it('requires migration instead of dropping due fields during survey updates', async () => {
     const update = vi.fn((payload: Record<string, unknown>) => ({
       eq: vi.fn(() => ({
         select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue(
-            update.mock.calls.length === 1
-              ? {
-                  data: null,
-                  error: {
-                    code: 'PGRST204',
-                    message: "Could not find the 'due_at' column of 'surveys' in the schema cache",
-                  },
-                }
-              : {
-                  data: makeSurvey(payload),
-                  error: null,
-                },
-          ),
+          single: vi.fn().mockResolvedValue({
+            data: null,
+            error: {
+              code: 'PGRST204',
+              message: "Could not find the 'due_at' column of 'surveys' in the schema cache",
+            },
+          }),
         })),
       })),
     }))
@@ -144,21 +141,17 @@ describe('PATCH /api/teacher/surveys/[id]', () => {
     )
     const data = await response.json()
 
-    expect(response.status).toBe(200)
-    expect(update).toHaveBeenCalledTimes(2)
+    expect(response.status).toBe(503)
+    expect(update).toHaveBeenCalledTimes(1)
     expect(update.mock.calls[0][0]).toEqual({
       title: 'Updated check-in',
       due_at: '2026-01-02T20:30:00.000Z',
       due_policy: 'hard',
     })
-    expect(update.mock.calls[1][0]).toEqual({
-      title: 'Updated check-in',
+    expect(data).toEqual({
+      error: 'Survey due dates are unavailable until migration 080 is applied.',
+      code: 'SURVEY_DUE_MIGRATION_REQUIRED',
+      migration_required: true,
     })
-    expect(data.survey).toEqual(expect.objectContaining({
-      title: 'Updated check-in',
-      due_at: null,
-      due_policy: 'soft',
-    }))
-    warnSpy.mockRestore()
   })
 })

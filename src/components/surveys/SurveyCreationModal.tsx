@@ -7,12 +7,12 @@ import {
   ClassworkContentModalShell,
   ClassworkModalSaveStatus,
   ClassworkModalSplitAction,
-  ClassworkModalSurveyDueFields,
   ClassworkModalTopLine,
 } from '@/components/classwork/ClassworkContentModal'
+import { ClassworkDueFields } from '@/components/classwork/ClassworkDueFields'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
-import { useClassworkAutosave } from '@/hooks/useClassworkAutosave'
+import { useAutosaveQueue } from '@/hooks/useAutosaveQueue'
 import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import {
   DEFAULT_SCHEDULE_TIME,
@@ -170,7 +170,7 @@ export function SurveyCreationModal({
     reset: resetAutosave,
     schedule: scheduleAutosave,
     flush: flushAutosave,
-  } = useClassworkAutosave<SurveySettingsValues>({
+  } = useAutosaveQueue<SurveySettingsValues>({
     disabled: creatingDraft || isReadOnly || !currentSurvey,
     isEqual: areSurveySettingsEqual,
     onSave: saveSurveySettings,
@@ -278,14 +278,13 @@ export function SurveyCreationModal({
         onSurveyUpdated?.(createdSurvey)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to create survey')
-        onClose()
       } finally {
         setCreatingDraft(false)
       }
     }
 
     void createSurveyDraft()
-  }, [classroomId, creatingDraft, currentSurvey, isCreateMode, isOpen, isReadOnly, onClose, onDraftSaved, onSurveyUpdated, resetAutosave])
+  }, [classroomId, creatingDraft, currentSurvey, isCreateMode, isOpen, isReadOnly, onDraftSaved, onSurveyUpdated, resetAutosave])
 
   function updateValues(next: Partial<SurveySettingsValues>) {
     const values = buildValues(next)
@@ -456,7 +455,7 @@ export function SurveyCreationModal({
               void flushAutosave()
             }}
             meta={(
-              <ClassworkModalSurveyDueFields
+              <ClassworkDueFields
                 dueDate={dueDate}
                 dueTime={dueTime}
                 disabled={creatingDraft || isReadOnly}
