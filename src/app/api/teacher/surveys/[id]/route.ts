@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { canActivateSurvey, hasSurveyOpened } from '@/lib/surveys'
-import { assertTeacherOwnsSurvey } from '@/lib/server/surveys'
+import {
+  assertTeacherOwnsSurvey,
+  isMissingSurveyDueColumnsError,
+  SURVEY_DUE_MIGRATION_REQUIRED,
+} from '@/lib/server/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
-import type { SurveyStatus } from '@/types'
+import type { SurveyDuePolicy, SurveyStatus } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -41,12 +45,14 @@ export const PATCH = withErrorHandler('PatchTeacherSurvey', async (request, cont
   const user = await requireRole('teacher')
   const { id } = await context.params
   const body = await request.json()
-  const { title, status, show_results, dynamic_responses, opens_at } = body as {
+  const { title, status, show_results, dynamic_responses, opens_at, due_at, due_policy } = body as {
     title?: string
     status?: SurveyStatus
     show_results?: boolean
     dynamic_responses?: boolean
     opens_at?: string | null
+    due_at?: string | null
+    due_policy?: SurveyDuePolicy
   }
 
   const access = await assertTeacherOwnsSurvey(user.id, id, { checkArchived: true })
@@ -69,13 +75,35 @@ export const PATCH = withErrorHandler('PatchTeacherSurvey', async (request, cont
     }
   }
 
+  let parsedDueAt: string | null | undefined
+  if (due_at !== undefined) {
+    if (due_at === null) {
+      parsedDueAt = null
+    } else {
+      const parsed = new Date(due_at)
+      if (Number.isNaN(parsed.getTime())) {
+        return NextResponse.json({ error: 'Invalid due date' }, { status: 400 })
+      }
+      parsedDueAt = parsed.toISOString()
+    }
+  }
+
+  if (due_policy !== undefined) {
+    const validDuePolicies: SurveyDuePolicy[] = ['soft', 'hard']
+    if (!validDuePolicies.includes(due_policy)) {
+      return NextResponse.json({ error: 'Invalid due policy' }, { status: 400 })
+    }
+  }
+
+  const isStatusChange = status !== undefined && status !== existing.status
+
   if (status !== undefined) {
     const validStatuses: SurveyStatus[] = ['draft', 'active', 'closed']
     if (!validStatuses.includes(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
 
-    if (existing.status === 'active' && status === 'draft' && hasSurveyOpened(existing)) {
+    if (isStatusChange && existing.status === 'active' && status === 'draft' && hasSurveyOpened(existing)) {
       return NextResponse.json(
         { error: 'Cannot revert a survey that has already opened to draft' },
         { status: 400 }
@@ -87,7 +115,7 @@ export const PATCH = withErrorHandler('PatchTeacherSurvey', async (request, cont
       active: ['closed', 'draft'],
       closed: ['active'],
     }
-    if (!validTransitions[existing.status].includes(status)) {
+    if (isStatusChange && !validTransitions[existing.status].includes(status)) {
       return NextResponse.json(
         { error: `Cannot transition from ${existing.status} to ${status}` },
         { status: 400 }
@@ -123,11 +151,13 @@ export const PATCH = withErrorHandler('PatchTeacherSurvey', async (request, cont
   if (show_results !== undefined) updates.show_results = show_results
   if (dynamic_responses !== undefined) updates.dynamic_responses = dynamic_responses
   if (opens_at !== undefined) updates.opens_at = parsedOpensAt
+  if (due_at !== undefined) updates.due_at = parsedDueAt
+  if (due_policy !== undefined) updates.due_policy = due_policy
 
-  if (status === 'active') {
+  if (status === 'active' && existing.status !== 'active') {
     updates.opens_at = parsedOpensAt ?? new Date().toISOString()
   }
-  if (status === 'draft') {
+  if (status === 'draft' && existing.status !== 'draft') {
     updates.opens_at = null
   }
 
@@ -141,6 +171,10 @@ export const PATCH = withErrorHandler('PatchTeacherSurvey', async (request, cont
     .eq('id', id)
     .select()
     .single()
+
+  if (error && isMissingSurveyDueColumnsError(error)) {
+    return NextResponse.json(SURVEY_DUE_MIGRATION_REQUIRED, { status: 503 })
+  }
 
   if (error || !survey) {
     console.error('Error updating survey:', error)

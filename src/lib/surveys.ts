@@ -1,4 +1,4 @@
-import { isVisibleAtNow } from '@/lib/scheduling'
+import { isScheduleIsoInFuture, isVisibleAtNow } from '@/lib/scheduling'
 import type {
   StudentSurveyStatus,
   Survey,
@@ -32,6 +32,15 @@ export function getSurveyStatusBadgeClass(status: SurveyStatus): string {
   return classes[status]
 }
 
+export function isSurveyScheduled(
+  survey: Pick<Survey, 'status' | 'opens_at'>,
+  now: Date = new Date()
+): boolean {
+  return survey.status === 'active'
+    && !!survey.opens_at
+    && isScheduleIsoInFuture(survey.opens_at, now)
+}
+
 export function isSurveyVisibleToStudents(
   survey: Pick<Survey, 'status' | 'opens_at'>,
   now: Date = new Date()
@@ -48,7 +57,7 @@ export function hasSurveyOpened(
 }
 
 export function canStudentRespondToSurvey(
-  survey: Pick<Survey, 'status' | 'opens_at' | 'dynamic_responses'>,
+  survey: Pick<Survey, 'status' | 'opens_at' | 'dynamic_responses' | 'due_at' | 'due_policy'>,
   hasResponded: boolean,
   now: Date = new Date()
 ): boolean {
@@ -68,7 +77,7 @@ export function canStudentViewSurveyResults(
 }
 
 export function getStudentSurveyStatus(
-  survey: Pick<Survey, 'status' | 'opens_at' | 'show_results' | 'dynamic_responses'>,
+  survey: Pick<Survey, 'status' | 'opens_at' | 'show_results' | 'dynamic_responses' | 'due_at' | 'due_policy'>,
   hasResponded: boolean,
   now: Date = new Date()
 ): StudentSurveyStatus {

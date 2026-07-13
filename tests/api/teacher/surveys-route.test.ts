@@ -832,4 +832,86 @@ describe('POST /api/teacher/surveys', () => {
       }),
     })
   })
+
+  it('requires migration instead of dropping due fields during survey creation', async () => {
+    const insert = vi.fn((payload: Record<string, unknown>) => ({
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: null,
+          error: {
+            code: 'PGRST204',
+            message: "Could not find the 'due_at' column of 'surveys' in the schema cache",
+          },
+        }),
+      })),
+    }))
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: { position: 1 }, error: null }),
+                })),
+              })),
+            })),
+          })),
+        }
+      }
+      if (table === 'classwork_materials') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: { position: 2 }, error: null }),
+                })),
+              })),
+            })),
+          })),
+        }
+      }
+      if (table === 'surveys') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                })),
+              })),
+            })),
+          })),
+          insert,
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/surveys', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          title: 'Weekly check-in',
+          due_at: '2026-01-02T20:30:00.000Z',
+          due_policy: 'soft',
+        }),
+      }),
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(503)
+    expect(insert).toHaveBeenCalledTimes(1)
+    expect(insert.mock.calls[0][0]).toEqual(expect.objectContaining({
+      due_at: '2026-01-02T20:30:00.000Z',
+      due_policy: 'soft',
+    }))
+    expect(data).toEqual({
+      error: 'Survey due dates are unavailable until migration 080 is applied.',
+      code: 'SURVEY_DUE_MIGRATION_REQUIRED',
+      migration_required: true,
+    })
+  })
 })

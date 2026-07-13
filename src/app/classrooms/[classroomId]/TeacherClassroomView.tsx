@@ -38,15 +38,16 @@ import {
   Trash2,
   Unlock,
 } from 'lucide-react'
-import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, Input, SplitButton, Tooltip, useAppMessage, useOverlayMessage, type SplitButtonOption } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
+import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
+import { TeacherMaterialModal } from '@/components/materials/TeacherMaterialModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { SortableSurveyCard } from '@/components/surveys/SortableSurveyCard'
 import { SurveyCreationModal } from '@/components/surveys/SurveyCreationModal'
-import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
 import { TeacherSurveyResultsPane } from '@/components/surveys/TeacherSurveyResultsPane'
 import {
   TeacherAssignmentStudentTable,
@@ -66,7 +67,6 @@ import {
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
-import { RichTextEditor } from '@/components/editor'
 import {
   ACTIONBAR_ICON_BUTTON_CLASSNAME,
 } from '@/components/PageLayout'
@@ -89,6 +89,7 @@ import {
   type AssignmentWorkspaceMode,
 } from '@/lib/assignment-grading-layout'
 import { buildOrderedClassworkItems } from '@/lib/classwork-order'
+import { isSurveyScheduled } from '@/lib/surveys'
 import type {
   Classroom,
   Assignment,
@@ -114,6 +115,13 @@ import { fetchClassDaysForClassroom } from '@/lib/class-days-client'
 import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { safeSessionGetJson, safeSessionSetJson } from '@/lib/client-storage'
+import {
+  DEFAULT_SCHEDULE_TIME,
+  combineScheduleDateTimeToIso,
+  getTodayInSchedulingTimezone,
+  isScheduleIsoInFuture,
+  parseScheduleIsoToParts,
+} from '@/lib/scheduling'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
@@ -148,8 +156,6 @@ type UpdateSearchParamsFn = (
 ) => void
 
 export type AssignmentViewMode = 'summary' | 'assignment'
-
-const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
 
 const ASSIGNMENT_SPLIT_PANE_VIEW_LABELS: Record<AssignmentSplitPaneView, string> = {
   'students-grading': 'Students + grading',
@@ -235,6 +241,7 @@ function TeacherMaterialCard({
   onDelete: () => void
 }) {
   const showEditActions = editMode && !isReadOnly
+  const isScheduledMaterial = !!material.released_at && isScheduleIsoInFuture(material.released_at)
   const {
     attributes,
     listeners,
@@ -322,6 +329,10 @@ function TeacherMaterialCard({
               <span className="inline-flex items-center rounded-badge bg-surface-3 px-2.5 py-1 text-xs font-semibold text-text-muted">
                 Draft
               </span>
+            ) : isScheduledMaterial ? (
+              <span className="inline-flex items-center rounded-badge bg-warning-bg px-2.5 py-1 text-xs font-semibold text-warning">
+                Scheduled
+              </span>
             ) : (
               <span className="inline-flex items-center rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-primary">
                 Posted
@@ -349,141 +360,6 @@ function TeacherMaterialCard({
         )}
       </div>
     </TeacherWorkItemCardFrame>
-  )
-}
-
-function TeacherMaterialDialog({
-  classroom,
-  material,
-  isOpen,
-  onClose,
-  onSaved,
-  onRequestDelete,
-}: {
-  classroom: Classroom
-  material: ClassworkMaterial | null
-  isOpen: boolean
-  onClose: () => void
-  onSaved: (material: ClassworkMaterial) => void
-  onRequestDelete: (material: ClassworkMaterial) => void
-}) {
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const { showMessage } = useAppMessage()
-  const isReadOnly = !!classroom.archived_at
-  const isDraft = material?.is_draft ?? true
-
-  useEffect(() => {
-    if (!isOpen) return
-    setTitle(material?.title || '')
-    setContent(material?.content || EMPTY_DOC)
-    setError(null)
-  }, [isOpen, material])
-
-  async function saveMaterial(nextDraft: boolean) {
-    const cleanTitle = title.trim()
-    if (!cleanTitle) {
-      setError('Title is required')
-      return
-    }
-
-    setSaving(true)
-    setError(null)
-    try {
-      const response = await fetch(
-        material
-          ? `/api/teacher/classrooms/${classroom.id}/materials/${material.id}`
-          : `/api/teacher/classrooms/${classroom.id}/materials`,
-        {
-          method: material ? 'PATCH' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: cleanTitle, content, is_draft: nextDraft }),
-        },
-      )
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || 'Failed to save material')
-      onSaved(data.material as ClassworkMaterial)
-      showMessage({ text: nextDraft ? 'Material saved as draft.' : 'Material posted.', tone: 'success' })
-      onClose()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save material')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <ContentDialog
-      isOpen={isOpen}
-      onClose={saving ? () => {} : onClose}
-      title={material ? 'Material' : 'New Material'}
-      subtitle="Ungraded classwork"
-      maxWidth="max-w-4xl"
-      showFooterClose={false}
-    >
-      <div className="space-y-4">
-        <FormField label="Title">
-          <Input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            disabled={saving || isReadOnly}
-            placeholder="Reading, link, handout..."
-          />
-        </FormField>
-
-        <FormField label="Content">
-          <RichTextEditor
-            content={content}
-            onChange={setContent}
-            editable={!saving && !isReadOnly}
-            placeholder="Add links, notes, readings, or instructions..."
-          />
-        </FormField>
-
-        {error && (
-          <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-            {error}
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            {material && !isReadOnly ? (
-              <Button
-                type="button"
-                variant="danger"
-                onClick={() => onRequestDelete(material)}
-                disabled={saving}
-              >
-                Delete
-              </Button>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => saveMaterial(true)}
-              disabled={saving || isReadOnly}
-            >
-              {saving ? 'Saving...' : 'Save Draft'}
-            </Button>
-            <Button
-              type="button"
-              onClick={() => saveMaterial(false)}
-              disabled={saving || isReadOnly}
-            >
-              {saving ? 'Saving...' : isDraft ? 'Post Material' : 'Save'}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </ContentDialog>
   )
 }
 
@@ -624,12 +500,14 @@ export function TeacherClassroomView({
   const [pendingSurveyDelete, setPendingSurveyDelete] = useState<SurveyWithStats | null>(null)
   const [isDeletingSurvey, setIsDeletingSurvey] = useState(false)
   const [surveyActionBusy, setSurveyActionBusy] = useState(false)
+  const [surveyScheduleDate, setSurveyScheduleDate] = useState('')
+  const [surveyScheduleTime, setSurveyScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
+  const [isSurveyScheduleOpen, setIsSurveyScheduleOpen] = useState(false)
   const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
   const [surveyModalId, setSurveyModalId] = useState<string | null>(null)
   const [createdSurveyEditorIntent, setCreatedSurveyEditorIntent] = useState<{
     surveyId: string
-    editMode: 'edit' | 'markdown'
-    focusTitle?: boolean
+    editMode: 'edit' | 'markdown' | 'preview'
   } | null>(null)
   const [isReordering, setIsReordering] = useState(false)
   const [assignmentEditMode, setAssignmentEditMode] = useState(false)
@@ -816,21 +694,33 @@ export function TeacherClassroomView({
         ? current.map((item) => (item.id === material.id ? material : item))
         : [material, ...current]
     })
-    setEditMaterial(null)
-    setIsMaterialModalOpen(false)
   }, [classroom.id])
 
-  const handleSurveySaved = useCallback((
-    survey: Survey,
-    options?: { initialEditMode?: 'edit' | 'markdown'; focusTitle?: boolean },
-  ) => {
+  const openNewMaterialDialog = useCallback(() => {
+    if (isReadOnly) return
+    setEditMaterial(null)
+    setIsMaterialModalOpen(true)
+  }, [isReadOnly])
+
+  const handleSurveyDraftSaved = useCallback((survey: Survey) => {
     invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
     invalidateCachedJSON(`student-surveys:${classroom.id}`)
     setSurveys((current) => {
       const withStats = survey as SurveyWithStats
       const exists = current.some((item) => item.id === survey.id)
       return exists
-        ? current.map((item) => (item.id === survey.id ? { ...item, ...withStats } : item))
+        ? current.map((item) => (
+            item.id === survey.id
+              ? {
+                  ...item,
+                  ...withStats,
+                  stats: {
+                    ...item.stats,
+                    ...(withStats.stats ?? {}),
+                  },
+                }
+              : item
+          ))
         : [
             ...current,
             {
@@ -839,22 +729,7 @@ export function TeacherClassroomView({
             },
           ]
     })
-    setCreatedSurveyEditorIntent({
-      surveyId: survey.id,
-      editMode: options?.initialEditMode ?? 'edit',
-      focusTitle: options?.focusTitle,
-    })
-    setSurveyModalId(survey.id)
-    writeCookie(`teacherAssignmentsSelection:${classroom.id}`, 'summary')
-    setSelection({ mode: 'summary' })
-    updateSearchParams?.((params) => {
-      params.set('tab', 'assignments')
-      params.delete('assignmentId')
-      params.delete('surveyId')
-      params.delete('assignmentStudentId')
-    }, { replace: true })
-    void loadAssignments({ preserveContent: true })
-  }, [classroom.id, loadAssignments, updateSearchParams])
+  }, [classroom.id])
 
   const handleSurveyQuestionCountChanged = useCallback((surveyId: string, questionsCount: number) => {
     invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
@@ -1847,9 +1722,10 @@ export function TeacherClassroomView({
     if (!selectedSurveyId) return null
     return currentSurveys.find((survey) => survey.id === selectedSurveyId) ?? null
   }, [currentSurveys, selectedSurveyId])
+  const selectedSurveyIsScheduled = selectedSurvey ? isSurveyScheduled(selectedSurvey) : false
 
   const patchSelectedSurvey = useCallback(async (update: Record<string, unknown>) => {
-    if (!selectedSurveyId) return
+    if (!selectedSurveyId) return false
     setSurveyActionBusy(true)
     setError('')
     try {
@@ -1867,12 +1743,26 @@ export function TeacherClassroomView({
       )
       invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
       invalidateCachedJSON(`student-surveys:${classroom.id}`)
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update survey')
+      return false
     } finally {
       setSurveyActionBusy(false)
     }
   }, [classroom.id, selectedSurveyId])
+
+  const openSurveyScheduleDialog = useCallback((survey: SurveyWithStats) => {
+    if (survey.opens_at && isScheduleIsoInFuture(survey.opens_at)) {
+      const scheduled = parseScheduleIsoToParts(survey.opens_at)
+      setSurveyScheduleDate(scheduled.date)
+      setSurveyScheduleTime(scheduled.time)
+    } else {
+      setSurveyScheduleDate(getTodayInSchedulingTimezone())
+      setSurveyScheduleTime(DEFAULT_SCHEDULE_TIME)
+    }
+    setIsSurveyScheduleOpen(true)
+  }, [])
 
   const {
     scrollRef: classPaneScrollRef,
@@ -2415,7 +2305,9 @@ export function TeacherClassroomView({
         content={
           selectedSurvey.status === 'draft' && selectedSurvey.stats.questions_count === 0
             ? 'Add a question before opening the poll'
-            : selectedSurvey.status === 'active'
+            : selectedSurveyIsScheduled
+              ? 'Open poll now'
+              : selectedSurvey.status === 'active'
               ? 'Close poll'
               : 'Open poll'
         }
@@ -2424,32 +2316,53 @@ export function TeacherClassroomView({
           <SplitButton
             label={
               <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                {selectedSurvey.status === 'active' ? (
+                {selectedSurvey.status === 'active' && !selectedSurveyIsScheduled ? (
                   <Unlock className="h-4 w-4" aria-hidden="true" />
                 ) : (
                   <Lock className="h-4 w-4" aria-hidden="true" />
                 )}
-                <span>{selectedSurvey.status === 'active' ? 'Close poll' : 'Open poll'}</span>
+                <span>
+                  {selectedSurveyIsScheduled
+                    ? 'Open now'
+                    : selectedSurvey.status === 'active'
+                      ? 'Close poll'
+                      : 'Open poll'}
+                </span>
               </span>
             }
             onPrimaryClick={() => {
-              void patchSelectedSurvey({
-                status: selectedSurvey.status === 'active' ? 'closed' : 'active',
-              })
+              void patchSelectedSurvey(
+                selectedSurveyIsScheduled
+                  ? { opens_at: null }
+                  : { status: selectedSurvey.status === 'active' ? 'closed' : 'active' }
+              )
             }}
             options={[
               {
                 id: 'open-poll',
                 label: 'Open poll',
-                checked: selectedSurvey.status === 'active',
+                checked: selectedSurvey.status === 'active' && !selectedSurveyIsScheduled,
                 onSelect: () => {
-                  void patchSelectedSurvey({ status: 'active' })
+                  void patchSelectedSurvey({ status: 'active', opens_at: null })
                 },
                 disabled:
                   isReadOnly ||
                   surveyActionBusy ||
                   isDeletingSurvey ||
-                  selectedSurvey.status === 'active' ||
+                  (selectedSurvey.status === 'active' && !selectedSurveyIsScheduled) ||
+                  selectedSurvey.stats.questions_count === 0,
+              },
+              {
+                id: 'schedule-open',
+                label: 'Schedule open...',
+                checked: selectedSurveyIsScheduled,
+                onSelect: () => {
+                  openSurveyScheduleDialog(selectedSurvey)
+                },
+                disabled:
+                  isReadOnly ||
+                  surveyActionBusy ||
+                  isDeletingSurvey ||
                   selectedSurvey.stats.questions_count === 0,
               },
               {
@@ -2510,8 +2423,12 @@ export function TeacherClassroomView({
             toggleAriaLabel="More survey actions"
             menuPlacement="down"
             primaryButtonProps={{
-              'aria-label': selectedSurvey.status === 'active' ? 'Close poll' : 'Open poll',
-              'aria-pressed': selectedSurvey.status === 'active',
+              'aria-label': selectedSurveyIsScheduled
+                ? 'Open now'
+                : selectedSurvey.status === 'active'
+                  ? 'Close poll'
+                  : 'Open poll',
+              'aria-pressed': selectedSurvey.status === 'active' && !selectedSurveyIsScheduled,
               disabled:
                 isReadOnly ||
                 surveyActionBusy ||
@@ -2536,10 +2453,7 @@ export function TeacherClassroomView({
       id: 'material',
       label: 'Material',
       icon: <Paperclip className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => {
-        setEditMaterial(null)
-        setIsMaterialModalOpen(true)
-      },
+      onSelect: openNewMaterialDialog,
       disabled: isReadOnly,
     },
     {
@@ -2774,6 +2688,47 @@ export function TeacherClassroomView({
         }}
       />
 
+      <DialogPanel
+        isOpen={isSurveyScheduleOpen}
+        onClose={() => {
+          if (surveyActionBusy) return
+          setIsSurveyScheduleOpen(false)
+        }}
+        maxWidth="max-w-sm"
+        className="p-4"
+        ariaLabelledBy="survey-schedule-open-title"
+      >
+        <h3 id="survey-schedule-open-title" className="mb-2 text-sm font-semibold text-text-default">
+          Schedule Survey
+        </h3>
+        <ScheduleDateTimePicker
+          date={surveyScheduleDate}
+          time={surveyScheduleTime}
+          minDate={getTodayInSchedulingTimezone()}
+          isFutureValid={
+            !!surveyScheduleDate &&
+            isScheduleIsoInFuture(combineScheduleDateTimeToIso(surveyScheduleDate, surveyScheduleTime))
+          }
+          onDateChange={setSurveyScheduleDate}
+          onTimeChange={setSurveyScheduleTime}
+          onCancel={() => setIsSurveyScheduleOpen(false)}
+          onConfirm={() => {
+            void patchSelectedSurvey({
+              ...(selectedSurvey?.status === 'active' ? {} : { status: 'active' }),
+              opens_at: combineScheduleDateTimeToIso(surveyScheduleDate, surveyScheduleTime),
+            }).then((updated) => {
+              if (updated) setIsSurveyScheduleOpen(false)
+            })
+          }}
+          confirmLabel={surveyActionBusy ? 'Scheduling...' : 'Schedule'}
+          dateLabel="Open date"
+          timeLabel="Open time"
+          showHeader={false}
+          showTimezoneLabel={false}
+          className="border-0 bg-transparent p-0 shadow-none"
+        />
+      </DialogPanel>
+
 
       <ConfirmDialog
         isOpen={!!gradeSelectedConfirmTarget}
@@ -2833,7 +2788,7 @@ export function TeacherClassroomView({
         }}
       />
 
-      <TeacherMaterialDialog
+      <TeacherMaterialModal
         classroom={classroom}
         material={editMaterial}
         isOpen={isMaterialModalOpen}
@@ -2842,64 +2797,41 @@ export function TeacherClassroomView({
           setEditMaterial(null)
         }}
         onSaved={handleMaterialSaved}
-        onRequestDelete={setPendingMaterialDelete}
       />
 
       <SurveyCreationModal
-        isOpen={isSurveyCreateModalOpen}
+        isOpen={isSurveyCreateModalOpen || !!surveyModalId}
         classroomId={classroom.id}
-        onClose={() => setIsSurveyCreateModalOpen(false)}
-        onSuccess={(survey) => {
-          setIsSurveyCreateModalOpen(false)
-          handleSurveySaved(survey, { initialEditMode: 'edit' })
+        surveyId={surveyModalId}
+        survey={surveyModalId ? currentSurveys.find((survey) => survey.id === surveyModalId) ?? null : null}
+        isReadOnly={isReadOnly}
+        initialEditMode={
+          surveyModalId && createdSurveyEditorIntent?.surveyId === surveyModalId
+            ? createdSurveyEditorIntent.editMode
+            : undefined
+        }
+        onClose={() => {
+          if (surveyModalId) {
+            closeSurveyModal()
+          } else {
+            setIsSurveyCreateModalOpen(false)
+          }
+          setCreatedSurveyEditorIntent(null)
+        }}
+        onDraftSaved={handleSurveyDraftSaved}
+        onSurveyUpdated={handleSurveyDraftSaved}
+        onQuestionCountChanged={handleSurveyQuestionCountChanged}
+        onSurveyDeleted={(deletedSurveyId) => {
+          setSurveys((current) => current.filter((survey) => survey.id !== deletedSurveyId))
+          invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+          invalidateCachedJSON(`student-surveys:${classroom.id}`)
+          if (surveyModalId) {
+            closeSurveyModal({ replace: true })
+          } else {
+            setIsSurveyCreateModalOpen(false)
+          }
         }}
       />
-
-      <DialogPanel
-        isOpen={!!surveyModalId}
-        onClose={() => closeSurveyModal()}
-        ariaLabelledBy="survey-workspace-dialog-title"
-        maxWidth="max-w-6xl"
-        className="h-[85vh] overflow-hidden p-0"
-      >
-        <h2 id="survey-workspace-dialog-title" className="sr-only">
-          Survey
-        </h2>
-        {surveyModalId ? (
-          <TeacherSurveyWorkspace
-            classroomId={classroom.id}
-            surveyId={surveyModalId}
-            isReadOnly={isReadOnly}
-            initialEditMode={
-              createdSurveyEditorIntent?.surveyId === surveyModalId
-                ? createdSurveyEditorIntent.editMode
-                : undefined
-            }
-            autoEditTitle={
-              createdSurveyEditorIntent?.surveyId === surveyModalId &&
-              createdSurveyEditorIntent.focusTitle === true
-            }
-            onInitialEditModeConsumed={() => setCreatedSurveyEditorIntent(null)}
-            onBack={() => closeSurveyModal()}
-            onSurveyUpdated={(updatedSurvey) => {
-              setSurveys((current) =>
-                current.map((survey) =>
-                  survey.id === updatedSurvey.id ? { ...survey, ...updatedSurvey } : survey
-                )
-              )
-              invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
-              invalidateCachedJSON(`student-surveys:${classroom.id}`)
-            }}
-            onQuestionCountChanged={handleSurveyQuestionCountChanged}
-            onSurveyDeleted={(surveyId) => {
-              setSurveys((current) => current.filter((survey) => survey.id !== surveyId))
-              invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
-              invalidateCachedJSON(`student-surveys:${classroom.id}`)
-              closeSurveyModal({ replace: true })
-            }}
-          />
-        ) : null}
-      </DialogPanel>
 
     </>
   )

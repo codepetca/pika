@@ -70,15 +70,13 @@ describe('AssignmentModal', () => {
       expect(screen.getByRole('button', { name: 'Close assignment modal' })).toBeInTheDocument()
     })
 
-    it('renders a markdown-only instructions editor with formatting buttons and a preview modal', async () => {
-      const onClose = vi.fn()
-
+    it('renders a markdown-only instructions editor with formatting buttons', () => {
       render(
         <AssignmentModal
           isOpen={true}
           classroomId="classroom-1"
           assignment={baseAssignment}
-          onClose={onClose}
+          onClose={vi.fn()}
           onSuccess={vi.fn()}
         />
       )
@@ -95,7 +93,7 @@ describe('AssignmentModal', () => {
       expect(screen.getByRole('button', { name: 'Bullet list' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Link' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Inline code' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Preview' })).not.toBeInTheDocument()
 
       const instructions = screen.getByPlaceholderText('Assignment instructions') as HTMLTextAreaElement
       instructions.focus()
@@ -114,23 +112,6 @@ describe('AssignmentModal', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Redo' }))
 
       expect(instructions).toHaveValue('**Original** instructions')
-
-      fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
-
-      const previewDialog = await screen.findByRole('dialog', { name: 'Instructions' })
-      expect(within(previewDialog).getByText((_content, element) => (
-        element?.tagName.toLowerCase() === 'p' && element.textContent === 'Original instructions'
-      ))).toBeInTheDocument()
-      expect(within(previewDialog).queryByText('Original title')).not.toBeInTheDocument()
-      expect(within(previewDialog).queryByText('Close')).not.toBeInTheDocument()
-
-      fireEvent.keyDown(window, { key: 'Escape' })
-
-      await waitFor(() => {
-        expect(screen.queryByRole('dialog', { name: 'Instructions' })).not.toBeInTheDocument()
-      })
-      expect(screen.getByRole('dialog', { name: 'Edit Draft' })).toBeInTheDocument()
-      expect(onClose).not.toHaveBeenCalled()
     })
 
     it('keeps markdown instruction tools visible when the user preference is off', async () => {
@@ -152,7 +133,7 @@ describe('AssignmentModal', () => {
         expect(screen.getByRole('button', { name: 'Heading' })).toBeInTheDocument()
       })
       expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Preview' })).not.toBeInTheDocument()
       expect(screen.getByPlaceholderText('Assignment instructions')).toHaveValue('Original instructions')
     })
 
@@ -206,7 +187,40 @@ describe('AssignmentModal', () => {
       let resolveFirstSave: (value: unknown) => void = () => {}
       fetchMock.mockImplementationOnce(() => new Promise((resolve) => {
         resolveFirstSave = resolve
-      }))
+      })).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          assignment: {
+            ...baseAssignment,
+            submission_requirements: [
+              {
+                id: 'requirement-link',
+                assignment_id: baseAssignment.id,
+                type: 'link',
+                label: 'Link',
+                instructions: '',
+                required: true,
+                position: 0,
+                validation_policy_json: {},
+                created_at: '2025-01-01T00:00:00.000Z',
+                updated_at: '2025-01-01T00:00:00.000Z',
+              },
+              {
+                id: 'requirement-repo',
+                assignment_id: baseAssignment.id,
+                type: 'repo',
+                label: 'Repo link',
+                instructions: '',
+                required: true,
+                position: 1,
+                validation_policy_json: {},
+                created_at: '2025-01-01T00:00:00.000Z',
+                updated_at: '2025-01-01T00:00:00.000Z',
+              },
+            ],
+          },
+        }),
+      })
 
       render(
         <AssignmentModal
@@ -229,6 +243,9 @@ describe('AssignmentModal', () => {
 
       fireEvent.click(requirementsGroup.getByRole('button', { name: 'Choose submission type' }))
       fireEvent.click(screen.getByRole('menuitem', { name: 'Repo' }))
+      fireEvent.blur(requirementsGroup.getByDisplayValue('Repo link'))
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
 
       await act(async () => {
         resolveFirstSave({
@@ -252,11 +269,18 @@ describe('AssignmentModal', () => {
           }),
         })
         await Promise.resolve()
+        await Promise.resolve()
       })
 
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      const secondRequest = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))
+      expect(secondRequest.submission_requirements).toEqual(expect.arrayContaining([
+        expect.objectContaining({ type: 'link' }),
+        expect.objectContaining({ type: 'repo_link' }),
+      ]))
       expect(requirementsGroup.getByDisplayValue('Link')).toBeInTheDocument()
       expect(requirementsGroup.getByDisplayValue('Repo link')).toBeInTheDocument()
-      expect(screen.getByText('Unsaved')).toBeInTheDocument()
+      expect(screen.getByText('Saved')).toBeInTheDocument()
     })
 
     it('confirms before removing an existing required submission', () => {

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET as GET_SURVEY } from '@/app/api/student/surveys/[id]/route'
 import { GET as GET_SURVEY_RESULTS } from '@/app/api/student/surveys/[id]/results/route'
+import { POST as POST_SURVEY_RESPONSE } from '@/app/api/student/surveys/[id]/respond/route'
 
 const mockSupabaseClient = { from: vi.fn() }
 const mockSurveyState = vi.hoisted(() => ({
@@ -11,6 +12,8 @@ const mockSurveyState = vi.hoisted(() => ({
     title: 'Game Jam Links',
     status: 'active',
     opens_at: null,
+    due_at: null,
+    due_policy: 'soft',
     show_results: true,
     dynamic_responses: true,
     position: 0,
@@ -105,6 +108,8 @@ describe('GET /api/student/surveys/[id]', () => {
       ...mockSurveyState.survey,
       status: 'active',
       opens_at: null,
+      due_at: null,
+      due_policy: 'soft',
       show_results: true,
       dynamic_responses: true,
     }
@@ -193,6 +198,8 @@ describe('GET /api/student/surveys/[id]/results', () => {
       ...mockSurveyState.survey,
       status: 'active',
       opens_at: null,
+      due_at: null,
+      due_policy: 'soft',
       show_results: true,
       dynamic_responses: true,
     }
@@ -556,5 +563,56 @@ describe('GET /api/student/surveys/[id]/results', () => {
       { table: 'survey_responses', from: 1000, to: 1999 },
       { table: 'survey_responses', from: 0, to: 999 },
     ])
+  })
+})
+
+describe('POST /api/student/surveys/[id]/respond', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSurveyState.survey = {
+      ...mockSurveyState.survey,
+      status: 'active',
+      opens_at: null,
+      due_at: '2020-01-01T14:00:00.000Z',
+      due_policy: 'hard',
+      show_results: true,
+      dynamic_responses: true,
+    }
+  })
+
+  it('uses response-editing settings instead of legacy hard due policy', async () => {
+    mockSurveyState.survey = {
+      ...mockSurveyState.survey,
+      dynamic_responses: false,
+    }
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table !== 'survey_responses') {
+        throw new Error(`Unexpected table: ${table}`)
+      }
+
+      const query: any = {
+        eq: vi.fn(() => query),
+        limit: vi.fn().mockResolvedValue({ data: [{ id: 'response-1' }], error: null }),
+      }
+      return {
+        select: vi.fn((columns: string) => {
+          expect(columns).toBe('id')
+          return query
+        }),
+      }
+    })
+
+    const response = await POST_SURVEY_RESPONSE(
+      new NextRequest('http://localhost:3000/api/student/surveys/survey-1/respond', {
+        method: 'POST',
+        body: JSON.stringify({ responses: { 'question-1': 0 } }),
+      }),
+      { params: Promise.resolve({ id: 'survey-1' }) },
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data).toEqual({ error: 'You have already responded to this survey' })
+    expect(mockSupabaseClient.from).toHaveBeenCalledTimes(1)
   })
 })
