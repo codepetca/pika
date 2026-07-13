@@ -40,9 +40,9 @@ const DETAIL: CourseBlueprintDetail = {
       course_blueprint_id: 'blueprint-1',
       title: 'Kickoff reflection',
       instructions_markdown: 'Write a short reflection.',
-      default_due_days: 5,
+      default_due_days: -2,
       default_due_time: '23:59',
-      points_possible: 10,
+      points_possible: 10.5,
       gradebook_weight: 15,
       include_in_final: true,
       is_draft: true,
@@ -101,7 +101,7 @@ const DETAIL: CourseBlueprintDetail = {
         source_format: 'markdown',
       },
       documents: [],
-      points_possible: 50,
+      points_possible: 50.5,
       gradebook_weight: 30,
       include_in_final: false,
       position: 1,
@@ -134,11 +134,15 @@ describe('course blueprint package', () => {
     expect(parsed.blueprint.planned_site_published).toBe(true)
     expect(parsed.blueprint.planned_site_config.quizzes).toBe(false)
     expect(parsed.assignments).toHaveLength(1)
-    expect(parsed.assignments[0]).toEqual(expect.objectContaining({ gradebook_weight: 15 }))
+    expect(parsed.assignments[0]).toEqual(expect.objectContaining({
+      default_due_days: -2,
+      points_possible: 10.5,
+      gradebook_weight: 15,
+    }))
     expect(parsed.assessments).toHaveLength(1)
     expect(parsed.assessments[0].assessment_type).toBe('test')
     expect(parsed.assessments[0]).toEqual(expect.objectContaining({
-      points_possible: 50,
+      points_possible: 50.5,
       gradebook_weight: 30,
       include_in_final: false,
     }))
@@ -158,8 +162,13 @@ describe('course blueprint package', () => {
     expect(parsed.blueprint.title).toBe('Computer Science 11')
     expect(parsed.blueprint.planned_site_slug).toBe('computer-science-11')
     expect(parsed.assignments).toHaveLength(1)
+    expect(parsed.assignments[0]).toEqual(expect.objectContaining({
+      default_due_days: -2,
+      points_possible: 10.5,
+    }))
     expect(parsed.assessments).toHaveLength(1)
     expect(parsed.assessments[0].assessment_type).toBe('test')
+    expect(parsed.assessments[0].points_possible).toBe(50.5)
     expect(parsed.lesson_templates).toHaveLength(1)
   })
 

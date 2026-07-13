@@ -51,7 +51,15 @@ function extractGradingFields(document: string) {
   const errors: string[] = []
   const contentLines: string[] = []
 
-  for (const line of document.split('\n')) {
+  const lines = document.split('\n')
+  const questionsHeaderIndex = lines.findIndex((line) => line.trim().toLowerCase() === '## questions')
+
+  for (const [index, line] of lines.entries()) {
+    if (questionsHeaderIndex >= 0 && index >= questionsHeaderIndex) {
+      contentLines.push(line)
+      continue
+    }
+
     const fieldMatch = line.match(/^(Points Possible|Gradebook Weight|Include In Final):\s*(.*)$/i)
     if (!fieldMatch) {
       contentLines.push(line)
@@ -75,9 +83,9 @@ function extractGradingFields(document: string) {
   if (
     pointsPossible !== undefined &&
     pointsPossible !== null &&
-    (!Number.isInteger(pointsPossible) || pointsPossible < 0)
+    (!Number.isFinite(pointsPossible) || pointsPossible < 0)
   ) {
-    errors.push('Points Possible must be a non-negative integer or none')
+    errors.push('Points Possible must be a non-negative number or none')
   }
   if (
     gradebookWeight !== undefined &&

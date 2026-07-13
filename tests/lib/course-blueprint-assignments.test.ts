@@ -85,4 +85,28 @@ describe('course blueprint assignment markdown', () => {
 
     expect(parsed.errors).toContain('Assignment "Assignment" has invalid Gradebook Weight')
   })
+
+  it('round-trips fractional points and due dates before the classroom start', () => {
+    const markdown = courseBlueprintAssignmentsToMarkdown([
+      {
+        title: 'Diagnostic',
+        instructions_markdown: 'Complete before the first class.',
+        default_due_days: -2,
+        default_due_time: '08:30',
+        points_possible: 12.5,
+        gradebook_weight: 10,
+        include_in_final: true,
+        is_draft: true,
+        position: 0,
+      },
+    ])
+
+    const parsed = markdownToCourseBlueprintAssignments(markdown, [])
+
+    expect(parsed.errors).toEqual([])
+    expect(parsed.assignments[0]).toEqual(expect.objectContaining({
+      default_due_days: -2,
+      points_possible: 12.5,
+    }))
+  })
 })

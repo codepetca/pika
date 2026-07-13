@@ -33,9 +33,12 @@ vi.mock('@/lib/limited-markdown', () => ({
 
 function seedSourceSupabase(overrides?: {
   testQuestionsError?: any
-  assessmentDraftError?: any
-  classroom?: Record<string, any>
-  assignments?: Array<Record<string, any>>
+    assessmentDraftError?: any
+    classroom?: Record<string, any>
+    assignments?: Array<Record<string, any>>
+    tests?: Array<Record<string, any>>
+    testQuestions?: Array<Record<string, any>>
+    assessmentDrafts?: Array<Record<string, any>>
 }) {
   mockSupabase = makeSupabaseFromQueues({
     classrooms: [
@@ -51,7 +54,10 @@ function seedSourceSupabase(overrides?: {
       makeQueryBuilder({ data: overrides?.assignments || [], error: null }),
     ],
     tests: [
-      makeQueryBuilder({ data: [{ id: 't-1', title: 'Test 1', status: 'active', show_results: true, position: 0 }], error: null }),
+      makeQueryBuilder({
+        data: overrides?.tests || [{ id: 't-1', title: 'Test 1', status: 'active', show_results: true, position: 0 }],
+        error: null,
+      }),
     ],
     lesson_plans: [
       makeQueryBuilder({ data: [], error: null }),
@@ -61,13 +67,20 @@ function seedSourceSupabase(overrides?: {
     ],
     test_questions: [
       makeQueryBuilder({
-        data: overrides?.testQuestionsError ? null : [{ id: 'tq-1', prompt: 'Q1' }],
+        data: overrides?.testQuestionsError
+          ? null
+          : overrides?.testQuestions || [{ id: 'tq-1', test_id: 't-1', prompt: 'Q1' }],
         error: overrides?.testQuestionsError ?? null,
       }),
     ],
     assessment_drafts: [
       makeQueryBuilder({
-        data: overrides?.assessmentDraftError ? null : { content: { title: 'Test 1', questions: [] } },
+        data: overrides?.assessmentDraftError
+          ? null
+          : overrides?.assessmentDrafts || [{
+            assessment_id: 't-1',
+            content: { title: 'Test 1', questions: [] },
+          }],
         error: overrides?.assessmentDraftError ?? null,
       }),
     ],
@@ -143,5 +156,33 @@ describe('classroom blueprint source loader', () => {
         is_draft: true,
       }),
     ])
+  })
+
+  it('includes draft tests in the reusable blueprint source', async () => {
+    seedSourceSupabase({
+      tests: [
+        { id: 't-1', title: 'Published test', status: 'active', show_results: false, position: 0 },
+        { id: 't-2', title: 'Draft test', status: 'draft', show_results: false, position: 1 },
+      ],
+      testQuestions: [
+        { id: 'tq-1', test_id: 't-1', prompt: 'Published question' },
+        { id: 'tq-2', test_id: 't-2', prompt: 'Draft question' },
+      ],
+      assessmentDrafts: [
+        { assessment_id: 't-1', content: { title: 'Published test', questions: [] } },
+        { assessment_id: 't-2', content: { title: 'Draft test', questions: [] } },
+      ],
+    })
+
+    const result = await loadClassroomBlueprintSource('teacher-1', 'c-1')
+
+    expect(result).toEqual(expect.objectContaining({ ok: true }))
+    if (!result.ok) throw new Error('Expected classroom source to load')
+    expect(result.source.tests).toEqual([
+      expect.objectContaining({ title: 'Published test' }),
+      expect.objectContaining({ title: 'Draft test' }),
+    ])
+    expect(mockSupabase.from.mock.calls.filter(([table]: [string]) => table === 'test_questions')).toHaveLength(1)
+    expect(mockSupabase.from.mock.calls.filter(([table]: [string]) => table === 'assessment_drafts')).toHaveLength(1)
   })
 })

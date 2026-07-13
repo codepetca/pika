@@ -13,8 +13,6 @@ import type {
   TestDocument,
 } from '@/types'
 
-type SupabaseClient = ReturnType<typeof getServiceRoleClient>
-
 export type ClassroomBlueprintSource = {
   classroom: Classroom
   resources: ClassroomResources | null
@@ -74,27 +72,6 @@ function getReusableAssignmentTiming(classroomStartDate: string | null, dueAt: s
   }
 }
 
-async function loadAssessmentDraftContent(
-  supabase: SupabaseClient,
-  assessmentType: 'test',
-  classroomId: string,
-  assessmentId: string
-) {
-  const { data, error } = await supabase
-    .from('assessment_drafts')
-    .select('content')
-    .eq('classroom_id', classroomId)
-    .eq('assessment_type', assessmentType)
-    .eq('assessment_id', assessmentId)
-    .maybeSingle()
-
-  if (error) {
-    throw new Error(`Failed to load ${assessmentType} draft content`)
-  }
-
-  return (data?.content as Record<string, unknown> | null) ?? null
-}
-
 export async function loadClassroomBlueprintSource(
   teacherId: string,
   classroomId: string,
@@ -152,36 +129,57 @@ export async function loadClassroomBlueprintSource(
   const resources = (resourcesResult.data || null) as ClassroomResources | null
   const resourcesMarkdown = resources?.content ? tiptapToMarkdown(resources.content).markdown : ''
 
-  let testQuestions: Array<Record<string, any>>
+  const testRows = (testsResult.data || []) as Array<Record<string, any>>
+  const testIds = testRows.map((test) => String(test.id))
+  let questionRows: Array<Record<string, any>> = []
+  let draftRows: Array<Record<string, any>> = []
 
-  try {
-    testQuestions = await Promise.all(
-      ((testsResult.data || []) as Array<Record<string, any>>).map(async (test) => {
-        const { data: questions, error } = await supabase
-          .from('test_questions')
-          .select('*')
-          .eq('test_id', test.id)
-          .order('position', { ascending: true })
+  if (testIds.length > 0) {
+    const [questionsResult, draftsResult] = await Promise.all([
+      supabase
+        .from('test_questions')
+        .select('*')
+        .in('test_id', testIds)
+        .order('position', { ascending: true }),
+      supabase
+        .from('assessment_drafts')
+        .select('assessment_id, content')
+        .eq('classroom_id', classroomId)
+        .eq('assessment_type', 'test')
+        .in('assessment_id', testIds),
+    ])
 
-        if (error) {
-          throw new Error('Failed to load test questions')
-        }
+    if (questionsResult.error || draftsResult.error) {
+      console.error(
+        'Error loading classroom blueprint assessment content:',
+        questionsResult.error || draftsResult.error
+      )
+      return { ok: false, status: 500, error: 'Failed to load classroom content' }
+    }
 
-        const draftContent = await loadAssessmentDraftContent(supabase, 'test', classroomId, test.id)
-        return {
-          ...test,
-          content: draftContent ?? {
-            title: test.title,
-            show_results: !!test.show_results,
-            questions: questions || [],
-          },
-        }
-      })
-    )
-  } catch (error) {
-    console.error('Error loading classroom blueprint assessment content:', error)
-    return { ok: false, status: 500, error: 'Failed to load classroom content' }
+    questionRows = (questionsResult.data || []) as Array<Record<string, any>>
+    draftRows = (draftsResult.data || []) as Array<Record<string, any>>
   }
+
+  const questionsByTestId = new Map<string, Array<Record<string, any>>>()
+  for (const question of questionRows) {
+    const testId = String(question.test_id || '')
+    const questions = questionsByTestId.get(testId) || []
+    questions.push(question)
+    questionsByTestId.set(testId, questions)
+  }
+  const draftsByTestId = new Map<string, TestDraftContent>()
+  for (const draft of draftRows) {
+    draftsByTestId.set(String(draft.assessment_id), draft.content as TestDraftContent)
+  }
+  const tests: Array<Record<string, any> & { content: TestDraftContent }> = testRows.map((test) => ({
+    ...test,
+    content: draftsByTestId.get(String(test.id)) ?? {
+      title: test.title,
+      show_results: !!test.show_results,
+      questions: (questionsByTestId.get(String(test.id)) || []) as TestDraftContent['questions'],
+    },
+  }))
 
   return {
     ok: true,
@@ -200,9 +198,7 @@ export async function loadClassroomBlueprintSource(
         position: assignment.position ?? 0,
       })),
       quizzes: [],
-      tests: testQuestions
-        .filter((test) => test.status !== 'draft')
-        .map((test) => ({
+      tests: tests.map((test) => ({
           assessment_type: 'test' as const,
           title: test.title,
           content: test.content,

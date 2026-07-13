@@ -10,19 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-16 — Legacy quiz markdown fixture clarity
-
-**Completed:**
-- Updated `tests/lib/quiz-markdown.test.ts` so the suite explicitly describes legacy quiz markdown compatibility.
-- Replaced arbitrary `Intro Quiz` fixture titles with `Legacy Check-in` while preserving the intentional `# Quiz` legacy markdown format.
-- Left production markdown helpers, schema, API payloads, and runtime behavior unchanged.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/lib/quiz-markdown.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
 ## 2026-06-16 — Test AI gold-set fixture wording
 
 **Completed:**
@@ -846,3 +833,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - Pika audit
+
+## 2026-07-13 — Blueprint architecture stabilization
+
+**Completed:**
+- Split published classroom syllabus loading from the teacher-authoring blueprint extractor, with explicit public projections that exclude classroom ownership and draft assessment content.
+- Kept draft tests in reusable blueprints and batched test-question/draft loading to remove the per-test query loop.
+- Preserved fractional assignment/test points and negative relative due offsets through Markdown, course-package bundle, and tar round trips.
+- Scoped blueprint grading metadata parsing to the test header so matching prompt content is not stripped or interpreted as configuration.
+- Updated migration 080 to use the runtime-compatible `numeric(6,2)` point scale and verified that 080 remains the next migration after `origin/main`.
+
+**Validation:**
+- `pnpm test` (311 files, 2,790 tests)
+- `npx tsc --noEmit`
+- `pnpm lint`
+- Pika audit
+- `git diff --check`

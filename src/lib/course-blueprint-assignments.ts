@@ -112,7 +112,7 @@ export function markdownToCourseBlueprintAssignments(
     const defaultDueDays = Number.isInteger(current.default_due_days)
       ? Number(current.default_due_days)
       : NaN
-    if (!Number.isFinite(defaultDueDays) || defaultDueDays < 0) {
+    if (!Number.isFinite(defaultDueDays)) {
       errors.push(`Assignment "${title}" has invalid Due Days`)
       current = null
       instructionLines = []

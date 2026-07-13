@@ -66,6 +66,42 @@ describe('courseBlueprintAssessmentsToMarkdown', () => {
     }))
   })
 
+  it('round-trips fractional points without treating question content as grading metadata', () => {
+    const markdown = courseBlueprintAssessmentsToMarkdown([
+      {
+        assessment_type: 'test',
+        title: 'Unit test',
+        content: {
+          title: 'Unit test',
+          show_results: false,
+          questions: [{
+            id: '22222222-2222-4222-8222-222222222222',
+            question_type: 'open_response',
+            question_text: 'Explain this label:\nPoints Possible: 99',
+            options: [],
+            correct_option: null,
+            answer_key: 'It is ordinary prompt content.',
+            sample_solution: null,
+            points: 5,
+            response_max_chars: 5000,
+            response_monospace: false,
+          }],
+        },
+        documents: [],
+        points_possible: 40.5,
+        gradebook_weight: 35,
+        include_in_final: true,
+        position: 0,
+      },
+    ], 'test')
+
+    const parsed = markdownToCourseBlueprintAssessments(markdown, [], 'test')
+
+    expect(parsed.errors).toEqual([])
+    expect(parsed.assessments[0]?.points_possible).toBe(40.5)
+    expect(parsed.assessments[0]?.content.questions[0]?.question_text).toContain('Points Possible: 99')
+  })
+
   it('rejects invalid assessment grading configuration', () => {
     const parsed = markdownToCourseBlueprintAssessments(
       'Title: Unit test\nShow Results: false\nPoints Possible: -1\nGradebook Weight: 0\nInclude In Final: maybe\n\n## Questions',
@@ -74,7 +110,7 @@ describe('courseBlueprintAssessmentsToMarkdown', () => {
     )
 
     expect(parsed.errors).toEqual(expect.arrayContaining([
-      'Test 1: Points Possible must be a non-negative integer or none',
+      'Test 1: Points Possible must be a non-negative number or none',
       'Test 1: Gradebook Weight must be an integer from 1 to 999',
       'Test 1: Include In Final must be true or false',
     ]))

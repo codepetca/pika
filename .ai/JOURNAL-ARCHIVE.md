@@ -11262,3 +11262,16 @@
 - `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/course-blueprint-package-docs.test.ts`
 - `pnpm lint`
 - `pnpm test`
+
+## 2026-06-16 — Legacy quiz markdown fixture clarity
+
+**Completed:**
+- Updated `tests/lib/quiz-markdown.test.ts` so the suite explicitly describes legacy quiz markdown compatibility.
+- Replaced arbitrary `Intro Quiz` fixture titles with `Legacy Check-in` while preserving the intentional `# Quiz` legacy markdown format.
+- Left production markdown helpers, schema, API payloads, and runtime behavior unchanged.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/lib/quiz-markdown.test.ts`
+- `pnpm lint`
+- `pnpm test`
