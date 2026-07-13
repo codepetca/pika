@@ -212,6 +212,7 @@ describe('atomic blueprint operation contracts', () => {
       },
       themeColor: 'cyan',
       manifestVersion: '3',
+      operationId,
     })
 
     expect(result).toEqual(expect.objectContaining({ ok: true }))
@@ -231,6 +232,27 @@ describe('atomic blueprint operation contracts', () => {
     }))
   })
 
+  it('derives the same generated class code for repeated operation IDs', () => {
+    const args = {
+      detail: blueprintDetail(),
+      input: {
+        blueprintId: '20000000-0000-4000-8000-000000000020',
+        title: 'New semester',
+        start_date: '2026-09-08',
+        end_date: '2026-09-09',
+      },
+      themeColor: 'cyan' as const,
+      manifestVersion: '3',
+      operationId,
+    }
+    const first = buildInstantiateBlueprintWritePlan(args)
+    const second = buildInstantiateBlueprintWritePlan(args)
+
+    expect(first.ok && first.plan.classroom.class_code).toBe(
+      second.ok && second.plan.classroom.class_code,
+    )
+  })
+
   it('rejects missing or ambiguous classroom calendar modes before any RPC call', () => {
     const detail = blueprintDetail()
     expect(buildInstantiateBlueprintWritePlan({
@@ -238,6 +260,7 @@ describe('atomic blueprint operation contracts', () => {
       input: { blueprintId: detail.id, title: 'Missing dates' },
       themeColor: 'blue',
       manifestVersion: '3',
+      operationId,
     })).toEqual(expect.objectContaining({ ok: false, status: 400 }))
 
     expect(buildInstantiateBlueprintWritePlan({
@@ -252,6 +275,7 @@ describe('atomic blueprint operation contracts', () => {
       },
       themeColor: 'blue',
       manifestVersion: '3',
+      operationId,
     })).toEqual(expect.objectContaining({ ok: false, status: 400 }))
   })
 })

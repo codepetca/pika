@@ -17,6 +17,7 @@ import {
 import {
   DEFAULT_PLANNED_COURSE_SITE_CONFIG,
 } from '@/lib/course-site-publishing'
+import { getDefaultClassroomThemeColor } from '@/lib/classroom-theme'
 import { makeQueryBuilder, makeSupabaseFromQueues } from '../../support/supabase'
 
 let mockSupabase: any
@@ -956,7 +957,6 @@ describe('course-blueprints server helpers', () => {
       })],
       classrooms: [
         makeQueryBuilder({ data: [], error: null }),
-        makeQueryBuilder({ data: [], error: null }),
         makeQueryBuilder({
           data: { id: classroomId, teacher_id: 'teacher-1', title: 'CS Fall', start_date: '2026-09-08' },
           error: null,
@@ -1016,6 +1016,7 @@ describe('course-blueprints server helpers', () => {
         p_plan: expect.objectContaining({
           classroom: expect.objectContaining({
             title: 'CS Fall',
+            theme_color: getDefaultClassroomThemeColor(`teacher-1:${operationId}`),
             start_date: '2026-09-08',
             end_date: '2027-01-29',
           }),

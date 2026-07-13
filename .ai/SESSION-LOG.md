@@ -844,10 +844,11 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added stable classroom and blueprint revision snapshots, including child-table triggers, final read checks, and transaction-time source locks to reject mixed-version write plans.
 - Preserved assignment submission requirements during classroom capture and kept new classroom assignments/tests unpublished for teacher review.
 - Added strict Zod write-plan/RPC response contracts, structured operation metrics, caller idempotency keys, failure metadata, and migration-required fail-closed behavior.
+- Made generated class codes and default themes deterministic from the operation ID so retries rebuild an identical write plan.
 - Added ephemeral Supabase contract checks for malformed plans, child-write rollback, stale capture rejection, and successful replay; documented rollout, rollback, recovery, retention, privacy, and observability.
 
 **Validation:**
-- `pnpm test` (314 files, 2,807 tests)
+- `pnpm test` (314 files, 2,808 tests)
 - `pnpm build`
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`

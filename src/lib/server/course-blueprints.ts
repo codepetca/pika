@@ -14,7 +14,7 @@ import {
   DEFAULT_PLANNED_COURSE_SITE_CONFIG,
   normalizePlannedCourseSiteConfig,
 } from '@/lib/course-site-publishing'
-import { getLeastUsedClassroomThemeColor, normalizeClassroomThemeColor } from '@/lib/classroom-theme'
+import { getDefaultClassroomThemeColor, normalizeClassroomThemeColor } from '@/lib/classroom-theme'
 import type {
   CourseBlueprint,
   CourseBlueprintAssignment,
@@ -767,29 +767,17 @@ export async function createClassroomFromBlueprint(
   }
 
   const supabase = getSupabase()
-  const activeClassroomThemeColors = await (async () => {
-    if (input.themeColor) return []
-    const { data, error } = await supabase
-      .from('classrooms')
-      .select('theme_color')
-      .eq('teacher_id', teacherId)
-      .is('archived_at', null)
-    if (error) return []
-    return Array.isArray(data) ? data.map((classroom: any) => classroom.theme_color) : []
-  })()
-  const themeColor = input.themeColor || getLeastUsedClassroomThemeColor(
-    activeClassroomThemeColors,
-    `${teacherId}:${input.title}`,
-  )
+  const operationId = resolveBlueprintOperationId(options.operationId)
+  const themeColor = input.themeColor || getDefaultClassroomThemeColor(`${teacherId}:${operationId}`)
   const planResult = buildInstantiateBlueprintWritePlan({
     detail: detailResult.detail,
     input,
     themeColor,
     manifestVersion: COURSE_BLUEPRINT_PACKAGE_VERSION,
+    operationId,
   })
   if (!planResult.ok) return planResult
 
-  const operationId = resolveBlueprintOperationId(options.operationId)
   const operation = await instantiateCourseBlueprintAtomic({
     supabase,
     operationId,
