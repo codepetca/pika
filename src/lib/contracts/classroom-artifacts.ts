@@ -8,6 +8,7 @@ export const CLASSROOM_ARCHIVE_FORMAT = 'pika.classroom-archive' as const
 export const CLASSROOM_ARCHIVE_VERSION = 1 as const
 export const GRADEX_EXTRACT_FORMAT = 'pika.gradex-classroom-extract' as const
 export const GRADEX_EXTRACT_VERSION = 1 as const
+export const GRADEX_EXTRACT_MAX_RETENTION_DAYS = 90 as const
 
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/)
 const relativeArchivePathSchema = z.string().min(1).refine(
@@ -200,9 +201,14 @@ const gradexExtractManifestBaseSchema = z.object({
   source_archive_ref: sha256Schema,
   classroom_ref: sha256Schema,
   generated_at: z.string().datetime({ offset: true }),
+  compression: z.literal('tar+gzip'),
+  content_sha256: sha256Schema,
   pseudonymization: z.literal('hmac-sha256-per-extract'),
+  timestamp_offsets_from: z.literal('source-archive-created-at'),
   privacy_policy_version: z.literal(1),
   direct_identifiers_removed: z.literal(true),
+  direct_identifier_findings: z.literal(0),
+  privacy_scanner_version: z.literal(1),
   storage_objects_included: z.literal(false),
   delete_after: z.string().datetime({ offset: true }),
   resources: z.array(resourceFileSchema),
@@ -215,6 +221,16 @@ export const gradexExtractManifestSchema = gradexExtractManifestBaseSchema.super
       context.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Gradex extract deletion must be after generation',
+        path: ['delete_after'],
+      })
+    }
+    if (
+      Date.parse(manifest.delete_after) - Date.parse(manifest.generated_at) >
+      GRADEX_EXTRACT_MAX_RETENTION_DAYS * 24 * 60 * 60 * 1000
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Gradex extract retention exceeds the version 1 maximum',
         path: ['delete_after'],
       })
     }
@@ -343,7 +359,9 @@ export const CLASSROOM_ARTIFACT_PRIVACY_CONTRACT = {
 export const GRADEX_DEIDENTIFICATION_CONTRACT = {
   identifier_fields: 'hmac_sha256_per_extract',
   identifier_scope: 'single_extract',
+  database_identifier_fields: 'replace_id_and_id_suffix_fields_with_scoped_ref_fields',
   forbidden_output_fields: [
+    'id',
     'email',
     'first_name',
     'last_name',
@@ -358,6 +376,13 @@ export const GRADEX_DEIDENTIFICATION_CONTRACT = {
     'returned_by',
     'url',
     'storage_path',
+    'snapshot_path',
+    'repo_url',
+    'selected_repo_url',
+    'repo_owner',
+    'repo_name',
+    'github_login',
+    'github_username',
   ],
   free_text: 'redact_known_and_detected_identifiers',
   timestamps: 'relative_offsets_only',

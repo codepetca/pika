@@ -203,15 +203,27 @@ Gradex uses a separate derived artifact, never the restore archive directly. Ver
 the explicitly allowlisted assignment/test authoring, submission, grading, feedback, and AI-run
 resources in `GRADEX_RESOURCE_TABLES`.
 
+`src/lib/server/classroom-gradex-extract.ts` implements the pure artifact boundary. It accepts only a
+strictly verified classroom archive, applies explicit per-table projections, replaces relational ids
+with per-extract HMAC references, rewrites structured timestamps as millisecond offsets from the
+source archive creation time, and emits a deterministic tar+gzip bundle with resource and content
+checksums. Its independent verifier repeats canonical serialization, checksum, pseudonym shape,
+relationship, and direct-identifier checks.
+
 The extract excludes rosters, enrollment, journals, attendance, report cards, focus telemetry,
 attempt histories, raw artifacts, storage objects, URLs, and storage paths. All database ids and user
 references are HMAC-SHA-256 pseudonyms scoped to one extract. Free text must pass known-identity and
 pattern-based redaction. Timestamps become relative offsets. Release is blocked unless the direct
 identifier scanner reports zero findings.
 
-Every Gradex manifest has a finite `delete_after` timestamp. Regeneration writes a new immutable
+Every Gradex manifest has a finite `delete_after` timestamp capped at 90 days in version 1.
+Regeneration writes a new immutable
 extract and schedules the superseded object for deletion. A Gradex extract cannot restore a
 classroom and must never be accepted by a restore endpoint.
+
+The transformer is not yet a runtime pipeline. There is no teacher/API trigger, durable Gradex
+operation metadata, private upload/finalization path, deletion worker, or production canary. Those
+must be implemented before any extract is generated from production data.
 
 ## Observability
 

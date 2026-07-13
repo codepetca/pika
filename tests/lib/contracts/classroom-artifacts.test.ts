@@ -287,9 +287,14 @@ describe('classroom artifact contracts', () => {
       source_archive_ref: sha256,
       classroom_ref: 'c'.repeat(64),
       generated_at: '2026-07-13T12:00:00.000Z',
+      compression: 'tar+gzip',
+      content_sha256: sha256,
       pseudonymization: 'hmac-sha256-per-extract',
+      timestamp_offsets_from: 'source-archive-created-at',
       privacy_policy_version: 1,
       direct_identifiers_removed: true,
+      direct_identifier_findings: 0,
+      privacy_scanner_version: 1,
       storage_objects_included: false,
       delete_after: '2026-10-11T12:00:00.000Z',
       resources,
@@ -304,6 +309,10 @@ describe('classroom artifact contracts', () => {
     expect(gradexExtractManifestSchema.safeParse({
       ...manifest,
       delete_after: '2026-07-12T12:00:00.000Z',
+    }).success).toBe(false)
+    expect(gradexExtractManifestSchema.safeParse({
+      ...manifest,
+      delete_after: '2026-10-12T12:00:00.000Z',
     }).success).toBe(false)
   })
 

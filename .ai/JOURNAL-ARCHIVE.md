@@ -11471,3 +11471,20 @@
 - Gradient-only follow-up: `pnpm lint`
 - Gradient-only follow-up: `pnpm build`
 - Gradient-only visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms` and `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms/ddb6fbe4-66b3-46cf-9efa-21cb4f2a5218`; computed-style check confirmed card/header borders are neutral while gradients remain.
+
+## 2026-06-13 — API auth-boundary negative coverage
+
+**Completed:**
+- Continued the systems/UI audit program with the API authorization-boundary slice.
+- Added negative teacher ownership and student enrollment coverage for legacy `GET /api/teacher/class-days`.
+- Added matching negative coverage for canonical `GET /api/classrooms/[classroomId]/class-days`.
+- Added teacher-side `GET /api/student/tests/[id]/history` coverage for non-owned tests and students outside the test classroom.
+- Confirmed the existing routes already block these paths before downstream class-day/history data reads; no production route changes were needed.
+
+**Validation:**
+- `pnpm vitest run tests/api/teacher/class-days.test.ts tests/api/classrooms-class-days.test.ts tests/api/student/tests-history.test.ts` (18 tests)
+- `git diff --check`
+- `pnpm lint`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm build`
+- `pnpm vitest run --sequence.concurrent=false` (303 files / 2690 tests)
