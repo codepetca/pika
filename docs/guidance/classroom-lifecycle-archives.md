@@ -221,9 +221,16 @@ Regeneration writes a new immutable
 extract and schedules the superseded object for deletion. A Gradex extract cannot restore a
 classroom and must never be accepted by a restore endpoint.
 
-The transformer is not yet a runtime pipeline. There is no teacher/API trigger, durable Gradex
-operation metadata, private upload/finalization path, deletion worker, or production canary. Those
-must be implemented before any extract is generated from production data.
+The transformer alone is not a runtime pipeline. It exposes no teacher/API trigger, private upload,
+deletion worker, or production canary. Those runtime controls must exist before any extract is
+generated from production data.
+
+Migration `084_gradex_extract_operations.sql` adds the durable database half of that pipeline:
+service-role-only idempotent begin/finalize/fail RPCs, immutable verified extract metadata, and a
+separate lease-based cleanup ledger with bounded retry. It still exposes no teacher/API trigger and
+does not upload or delete any object by itself. The runtime coordinator must read back and verify the
+private object before finalization; the cleanup worker must delete the object before recording its
+lease as complete.
 
 ## Observability
 

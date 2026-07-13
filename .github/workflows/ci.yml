@@ -45,6 +45,9 @@ jobs:
       - name: Verify resumable archive restore round trip
         run: bash scripts/check-classroom-archive-restore-database.sh
 
+      - name: Verify Gradex extract operations and retention cleanup
+        run: bash scripts/check-classroom-gradex-database.sh
+
       - name: Audit classroom ownership graph and primary keys
         run: pnpm exec tsx scripts/check-classroom-resource-schema.ts
         env:
