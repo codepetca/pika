@@ -10,36 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-23 — Announcements action surface
-
-**Completed:**
-- Continued the bounded architecture/UI improvement goal with the final legacy classroom action-surface caller.
-- Replaced the Announcements tab's custom split-button floating action with the shared teacher work-surface action cluster: a standalone New primary action plus a quiet icon menu.
-- Removed the unused `floatingAction` and `floatingActionStatus` compatibility path from `TeacherWorkSurfaceActionBar`.
-- Preserved existing Announcements behavior: the primary action still starts a new announcement, the action menu still exposes Announcement, and composer/editor Post/Schedule split buttons remain unchanged.
-- Updated focused Announcements component coverage and wrapped teacher renders in `TooltipProvider` to match the app shell used by the shared icon menu.
-
-**UI verification:**
-- Teacher desktop light: default, open menu
-- Teacher mobile light: default, open menu
-- Teacher desktop dark: default, open menu
-- Student: n/a; changed surface is teacher-only
-- Composite widget checklist reviewed: yes
-- Keyboard behavior covered by shared menu handling: yes
-- Semantic state covered by tests: yes
-- Remaining manual follow-up: none
-
-**Validation:**
-- `pnpm test tests/components/AnnouncementsMarkdown.test.tsx tests/components/TeacherWorkSurfaceActionBar.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm e2e:auth`
-- Playwright screenshots: `/tmp/pika-announcements-action-desktop-light-default.png`, `/tmp/pika-announcements-action-desktop-light-menu.png`, `/tmp/pika-announcements-action-mobile-light-default.png`, `/tmp/pika-announcements-action-mobile-light-menu.png`, `/tmp/pika-announcements-action-desktop-dark-default.png`, `/tmp/pika-announcements-action-desktop-dark-menu.png`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-06-23 — Student assignments cached JSON
 
 **Completed:**
@@ -337,6 +307,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - No application runtime path, database migration, database row, storage object, dependency, or production environment changed.
 
 **Validation:**
+
+## 2026-07-13 — Enforce architecture dependency boundaries
+
+**Completed:**
+- Added a TypeScript import-graph analyzer for runtime-aware imports, re-exports, dynamic imports, and CommonJS `require`, with independent traversal from every `'use client'` entry.
+- Enforced dependency direction between domain, UI, presentation, API, server-only, and shared type layers; blocked browser reachability to server modules, Supabase runtime clients, Next.js server APIs, and Node built-ins.
+- Added a deletion-only baseline for four existing client paths that reach `src/lib/server/assessment-drafts.ts` through assessment markdown helpers. New violations and obsolete baseline entries fail the check.
+- Replaced the duplicated browser Supabase parser with the shared analyzer, documented the boundaries, and added `pnpm check:architecture` to CI.
+- No runtime product behavior, database migrations, dependencies, or production data changed.
+
+**Validation:**
+- `pnpm run check:architecture` (556 modules; 4 deletion-only allowances)
 - `pnpm test`
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
