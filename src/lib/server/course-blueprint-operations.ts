@@ -495,11 +495,12 @@ function buildDueAt(startDate: string, defaultDueDays: number, defaultDueTime: s
   return fromZonedTime(localDue, 'America/Toronto').toISOString()
 }
 
-function generateClassCode(): string {
+function generateClassCode(operationId: string): string {
   const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const digest = createHash('sha256').update(operationId).digest()
   return Array.from(
     { length: 6 },
-    () => characters.charAt(Math.floor(Math.random() * characters.length)),
+    (_, index) => characters.charAt(digest[index] % characters.length),
   ).join('')
 }
 
@@ -508,13 +509,14 @@ export function buildInstantiateBlueprintWritePlan(args: {
   input: CreateClassroomFromBlueprintInput
   themeColor: (typeof CLASSROOM_THEME_COLORS)[number]
   manifestVersion: string
+  operationId: string
 }):
   | { ok: true; plan: InstantiateBlueprintWritePlan }
   | { ok: false; status: 400; error: string } {
   const calendar = buildClassroomCalendar(args.input)
   if (!calendar.ok) return calendar
 
-  const classCode = args.input.classCode?.trim() || generateClassCode()
+  const classCode = args.input.classCode?.trim() || generateClassCode(args.operationId)
   const classDays = calendar.classDayDates.map((date) => ({ date }))
   const lessonTemplates = [...args.detail.lesson_templates]
     .sort((left, right) => left.position - right.position)
