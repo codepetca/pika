@@ -204,13 +204,18 @@ if (isMissingAssessmentDraftsError(error)) { /* graceful fallback */ }
 Search for `TODO(cleanup-0XX)` comments to find shims scheduled for removal.
 
 ### Request Validation (Zod)
-Use Zod schemas from `@/lib/validations/` for request body/query validation:
+Treat request bodies, route params, and query values as untrusted. Parse them once at the route boundary with a named, feature-owned Zod schema from `@/lib/validations/`, then pass only the parsed value into server/application code:
 
 ```ts
-import { z } from 'zod'
-const schema = z.object({ email: z.string().email(), password: z.string().min(8) })
-const body = schema.parse(await request.json())  // throws ZodError on invalid
+import { updateCourseBlueprintSchema } from '@/lib/validations/course-blueprints'
+
+const body = updateCourseBlueprintSchema.parse(await request.json())
+const result = await updateCourseBlueprint(user.id, blueprintId, body)
 ```
+
+Do not cast `request.json()` to a trusted type or repeat field-by-field validation in a route. `withErrorHandler` converts a thrown `ZodError` into a `400` response. Shared primitives may live in narrowly scoped validation modules, but feature contracts should not accumulate in broad role-based files.
+
+The architecture test prevents new body-reading routes without `*Schema.parse(...)` or `*Schema.safeParse(...)`. Its baseline records existing migration debt and must only shrink as routes are converted. See [`docs/guidance/api-boundary-validation.md`](../guidance/api-boundary-validation.md) for contract ownership, non-JSON boundaries, and baseline maintenance.
 
 ### Email-Based Role Detection (YRDSB-Specific)
 Role detection in `isTeacherEmail()` (`src/lib/auth.ts`) uses a **YRDSB-specific heuristic**:

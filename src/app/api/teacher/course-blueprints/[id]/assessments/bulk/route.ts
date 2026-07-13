@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { syncCourseBlueprintAssessments } from '@/lib/server/course-blueprints'
+import { courseBlueprintAssessmentsBulkSchema } from '@/lib/validations/course-blueprints'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -9,10 +10,7 @@ export const revalidate = 0
 export const POST = withErrorHandler('PostTeacherCourseBlueprintAssessmentsBulk', async (request, context) => {
   const user = await requireRole('teacher')
   const { id } = await context.params
-  const body = await request.json()
-  if (!Array.isArray(body.assessments)) {
-    return NextResponse.json({ error: 'assessments array is required' }, { status: 400 })
-  }
+  const body = courseBlueprintAssessmentsBulkSchema.parse(await request.json())
 
   const result = await syncCourseBlueprintAssessments(user.id, id, body.assessments, {
     replaceTypes:
