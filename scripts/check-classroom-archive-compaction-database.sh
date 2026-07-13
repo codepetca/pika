@@ -35,13 +35,14 @@ values
     clock_timestamp()
   );
 
-insert into public.assignments (id, classroom_id, title, description, created_by)
+insert into public.assignments (id, classroom_id, title, description, due_at, created_by)
 values
   (
     '22000000-0000-4000-8000-000000000021',
     '21000000-0000-4000-8000-000000000021',
     'Rollback assignment',
     'Must survive a failed compaction',
+    clock_timestamp() + interval '1 day',
     '11000000-0000-4000-8000-000000000021'
   ),
   (
@@ -49,6 +50,7 @@ values
     '21000000-0000-4000-8000-000000000022',
     'Cold assignment',
     'Must be removed only after verification',
+    clock_timestamp() + interval '1 day',
     '11000000-0000-4000-8000-000000000021'
   );
 
