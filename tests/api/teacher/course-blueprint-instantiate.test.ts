@@ -11,6 +11,8 @@ vi.mock('@/lib/server/course-blueprints', () => ({
 }))
 
 describe('POST /api/teacher/course-blueprints/[id]/instantiate', () => {
+  const operationId = '10000000-0000-4000-8000-000000000001'
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -21,10 +23,13 @@ describe('POST /api/teacher/course-blueprints/[id]/instantiate', () => {
       ok: true,
       classroom: { id: 'c-1', title: 'Semester Classroom' },
       lesson_mapping: { applied_lesson_templates: 2, overflow_lesson_templates: ['Overflow lesson'] },
+      operation_id: operationId,
+      replayed: false,
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/course-blueprints/b-1/instantiate', {
       method: 'POST',
+      headers: { 'Idempotency-Key': operationId },
       body: JSON.stringify({
         title: 'Semester Classroom',
         themeColor: 'cyan',
@@ -41,10 +46,12 @@ describe('POST /api/teacher/course-blueprints/[id]/instantiate', () => {
         title: 'Semester Classroom',
         blueprintId: 'b-1',
         themeColor: 'cyan',
-      })
+      }),
+      { operationId },
     )
 
     const data = await response.json()
     expect(data.lesson_mapping.applied_lesson_templates).toBe(2)
+    expect(data.operation_id).toBe(operationId)
   })
 })

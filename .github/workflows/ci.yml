@@ -7,6 +7,29 @@ on:
     branches: [main, production]
 
 jobs:
+  blueprint-database-contract:
+    name: Blueprint Database Contract
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.103.0
+
+      - name: Start ephemeral database and replay migrations
+        run: supabase db start
+
+      - name: Verify atomic blueprint rollback and replay
+        run: bash scripts/check-atomic-blueprint-operations.sh
+
+      - name: Stop ephemeral database
+        if: always()
+        run: supabase stop --no-backup
+
   test-and-build:
     name: Test & Build
     runs-on: ubuntu-latest

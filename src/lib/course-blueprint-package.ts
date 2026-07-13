@@ -24,6 +24,8 @@ import {
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
 
+export const COURSE_BLUEPRINT_PACKAGE_VERSION = '3' as const
+
 export const COURSE_BLUEPRINT_PACKAGE_FILE_NAMES = [
   'course-overview.md',
   'course-outline.md',
@@ -79,7 +81,7 @@ export type CourseBlueprintImportResult = {
 
 export function buildCoursePackageManifest(blueprint: CourseBlueprint): CoursePackageManifest {
   return {
-    version: '3',
+    version: COURSE_BLUEPRINT_PACKAGE_VERSION,
     exported_at: new Date().toISOString(),
     title: blueprint.title,
     subject: blueprint.subject,

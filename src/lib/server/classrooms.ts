@@ -25,6 +25,7 @@ export function hydrateClassroomRecord(row: Record<string, any>): Classroom {
   return {
     ...(row as Classroom),
     theme_color: normalizeClassroomThemeColor(row.theme_color),
+    blueprint_source_revision: Number(row.blueprint_source_revision ?? 1),
     source_blueprint_id: row.source_blueprint_id ?? null,
     source_blueprint_origin: row.source_blueprint_origin ?? null,
     actual_site_slug: row.actual_site_slug ?? null,

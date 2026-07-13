@@ -83,6 +83,7 @@ export interface Classroom {
   start_date: string | null // YYYY-MM-DD, inclusive
   end_date: string | null // YYYY-MM-DD, inclusive
   lesson_plan_visibility: LessonPlanVisibility
+  blueprint_source_revision: number
   source_blueprint_id: string | null
   source_blueprint_origin: ClassroomBlueprintOrigin | null
   actual_site_slug: string | null
@@ -676,6 +677,7 @@ export interface ClassroomResources {
 export interface CourseBlueprint {
   id: string
   teacher_id: string
+  content_revision: number
   title: string
   subject: string
   grade_level: string

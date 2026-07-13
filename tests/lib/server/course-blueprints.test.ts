@@ -20,7 +20,6 @@ import {
 import { makeQueryBuilder, makeSupabaseFromQueues } from '../../support/supabase'
 
 let mockSupabase: any
-const mockGenerateClassDaysForClassroom = vi.fn()
 const mockAssertTeacherCanMutateClassroom = vi.fn()
 const mockLoadClassroomBlueprintSource = vi.fn()
 
@@ -36,14 +35,9 @@ vi.mock('@/lib/server/classroom-blueprint-source', () => ({
   loadClassroomBlueprintSource: (...args: any[]) => mockLoadClassroomBlueprintSource(...args),
 }))
 
-vi.mock('@/lib/server/class-days', () => ({
-  generateClassDaysForClassroom: (...args: any[]) => mockGenerateClassDaysForClassroom(...args),
-}))
-
 describe('course-blueprints server helpers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGenerateClassDaysForClassroom.mockReset()
     mockAssertTeacherCanMutateClassroom.mockReset()
     mockLoadClassroomBlueprintSource.mockReset()
   })
@@ -420,6 +414,7 @@ describe('course-blueprints server helpers', () => {
           },
           error: null,
         }),
+        makeQueryBuilder({ data: { content_revision: 1 }, error: null }),
       ],
       course_blueprint_assignments: [
         makeQueryBuilder({ data: [{ id: 'a-1', title: 'Essay', position: 0 }], error: null }),
@@ -471,7 +466,35 @@ describe('course-blueprints server helpers', () => {
     expect(deleteBuilder.delete).toHaveBeenCalled()
   })
 
-  it('rolls back a blueprint import when a later sync step fails', async () => {
+  it('rejects a mixed-revision blueprint detail snapshot', async () => {
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [
+        makeQueryBuilder({
+          data: {
+            id: 'b-1',
+            teacher_id: 'teacher-1',
+            content_revision: 3,
+            title: 'Blueprint 1',
+          },
+          error: null,
+        }),
+        makeQueryBuilder({ data: { content_revision: 4 }, error: null }),
+      ],
+      course_blueprint_assignments: [makeQueryBuilder({ data: [], error: null })],
+      course_blueprint_assessments: [makeQueryBuilder({ data: [], error: null })],
+      course_blueprint_lesson_templates: [makeQueryBuilder({ data: [], error: null })],
+      classrooms: [makeQueryBuilder({ data: [], error: null })],
+    })
+
+    await expect(getCourseBlueprintDetail('teacher-1', 'b-1')).resolves.toEqual({
+      detail: null,
+      error: 'Course blueprint changed while loading; review and retry',
+      status: 409,
+    })
+  })
+
+  it('fails a blueprint import without issuing compensating deletes', async () => {
+    const operationId = '10000000-0000-4000-8000-000000000010'
     const deleteBuilder = makeQueryBuilder({ data: null, error: null })
     mockSupabase = makeSupabaseFromQueues({
       course_blueprints: [
@@ -497,6 +520,18 @@ describe('course-blueprints server helpers', () => {
         makeQueryBuilder({ data: null, error: { message: 'assignment sync failed' } }),
       ],
     })
+    mockSupabase.rpc = vi.fn().mockResolvedValue({
+      data: {
+        ok: false,
+        status: 500,
+        operation_id: operationId,
+        operation_type: 'import',
+        error_code: 'create_blueprint_assignments_failed',
+        error: 'Atomic blueprint creation failed',
+        retryable: true,
+      },
+      error: null,
+    })
 
     const result = await importCourseBlueprintBundle('teacher-1', {
       manifest: {
@@ -517,14 +552,21 @@ describe('course-blueprints server helpers', () => {
         'tests.md': '',
         'lesson-plans.md': '',
       },
-    } as any)
+    } as any, { operationId })
 
     expect(result).toEqual(expect.objectContaining({ ok: false, status: 500 }))
-    expect(deleteBuilder.delete).toHaveBeenCalled()
+    expect(mockSupabase.rpc).toHaveBeenCalledWith(
+      'create_course_blueprint_atomic',
+      expect.objectContaining({
+        p_operation_id: operationId,
+        p_operation_type: 'import',
+      }),
+    )
+    expect(deleteBuilder.delete).not.toHaveBeenCalled()
   })
 
-  it('rolls back classroom creation when blueprint cloning fails', async () => {
-    mockGenerateClassDaysForClassroom.mockResolvedValue({ ok: true })
+  it('fails classroom instantiation without issuing compensating deletes', async () => {
+    const operationId = '10000000-0000-4000-8000-000000000011'
     const deleteBuilder = makeQueryBuilder({ data: null, error: null })
     mockSupabase = makeSupabaseFromQueues({
       course_blueprints: [
@@ -539,6 +581,7 @@ describe('course-blueprints server helpers', () => {
           },
           error: null,
         }),
+        makeQueryBuilder({ data: { content_revision: 1 }, error: null }),
       ],
       course_blueprint_assignments: [
         makeQueryBuilder({ data: [], error: null }),
@@ -584,13 +627,30 @@ describe('course-blueprints server helpers', () => {
         makeQueryBuilder({ data: null, error: { message: 'resource clone failed' } }),
       ],
     })
+    mockSupabase.rpc = vi.fn().mockResolvedValue({
+      data: {
+        ok: false,
+        status: 500,
+        operation_id: operationId,
+        operation_type: 'instantiate',
+        error_code: 'create_classroom_resources_failed',
+        error: 'Atomic blueprint instantiation failed',
+        retryable: true,
+      },
+      error: null,
+    })
 
     await expect(createClassroomFromBlueprint('teacher-1', {
       blueprintId: 'b-1',
       title: 'Semester 1',
-    } as any)).rejects.toThrow('Failed to clone blueprint resources')
+      start_date: '2026-09-01',
+      end_date: '2027-01-29',
+    } as any, { operationId })).resolves.toEqual(expect.objectContaining({
+      ok: false,
+      error_code: 'create_classroom_resources_failed',
+    }))
 
-    expect(deleteBuilder.delete).toHaveBeenCalled()
+    expect(deleteBuilder.delete).not.toHaveBeenCalled()
   })
 
   it('creates a new blueprint from classroom content and links the classroom to it', async () => {
@@ -604,6 +664,7 @@ describe('course-blueprints server helpers', () => {
         classroom: {
           id: 'c-1',
           title: 'Semester Classroom',
+          blueprint_source_revision: 7,
           course_overview_markdown: 'Overview',
           course_outline_markdown: 'Outline',
         },
@@ -741,38 +802,77 @@ describe('course-blueprints server helpers', () => {
       ],
     })
 
-    const result = await createCourseBlueprintFromClassroom('teacher-1', 'c-1', { title: 'Reusable Draft' })
+    const operationId = '10000000-0000-4000-8000-000000000012'
+    const blueprintId = '20000000-0000-4000-8000-000000000012'
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [
+        makeQueryBuilder({
+          data: {
+            id: blueprintId,
+            teacher_id: 'teacher-1',
+            content_revision: 4,
+            title: 'Reusable Draft',
+            overview_markdown: 'Overview',
+            outline_markdown: 'Outline',
+            resources_markdown: 'Resources',
+            planned_site_config: DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+          },
+          error: null,
+        }),
+        makeQueryBuilder({ data: { content_revision: 4 }, error: null }),
+      ],
+      course_blueprint_assignments: [makeQueryBuilder({ data: [], error: null })],
+      course_blueprint_assessments: [makeQueryBuilder({ data: [], error: null })],
+      course_blueprint_lesson_templates: [makeQueryBuilder({ data: [], error: null })],
+      classrooms: [makeQueryBuilder({ data: [{ id: 'c-1', title: 'Semester Classroom' }], error: null })],
+    })
+    mockSupabase.rpc = vi.fn().mockResolvedValue({
+      data: {
+        ok: true,
+        status: 201,
+        operation_id: operationId,
+        operation_type: 'capture',
+        replayed: false,
+        blueprint_id: blueprintId,
+        source_revision: 7,
+        result_content_revision: 4,
+        counts: { assignments: 1, assessments: 1, lesson_templates: 1 },
+      },
+      error: null,
+    })
+
+    const result = await createCourseBlueprintFromClassroom(
+      'teacher-1',
+      'c-1',
+      { title: 'Reusable Draft' },
+      { operationId },
+    )
     expect(result).toEqual(
       expect.objectContaining({
         ok: true,
-        blueprint: expect.objectContaining({ id: 'b-1', title: 'Reusable Draft' }),
+        blueprint: expect.objectContaining({ id: blueprintId, title: 'Reusable Draft' }),
+        operation_id: operationId,
       })
     )
-    expect(assignmentInsertBuilder.insert).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ title: 'Essay', is_draft: true })])
-    )
-    expect(assessmentInsertBuilder.insert).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ title: 'Unit Test' })])
-    )
-    expect(assessmentInsertBuilder.insert).not.toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ title: 'Quiz 1' })])
-    )
-    expect(lessonInsertBuilder.insert).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ title: 'Lesson 1' })])
-    )
-    expect(classroomUpdateBuilder.update).toHaveBeenCalledWith(
+    expect(mockSupabase.rpc).toHaveBeenCalledWith(
+      'create_course_blueprint_atomic',
       expect.objectContaining({
-        source_blueprint_id: 'b-1',
-        source_blueprint_origin: expect.objectContaining({
-          blueprint_id: 'b-1',
-          blueprint_title: 'Reusable Draft',
+        p_operation_id: operationId,
+        p_operation_type: 'capture',
+        p_source_classroom_id: 'c-1',
+        p_expected_source_revision: 7,
+        p_plan: expect.objectContaining({
+          assignments: [expect.objectContaining({ title: 'Essay', is_draft: true })],
+          assessments: [expect.objectContaining({ title: 'Unit Test' })],
+          lesson_templates: [expect.objectContaining({ title: 'Lesson 1' })],
         }),
-      })
+      }),
     )
   })
 
-  it('creates a teacher-ready classroom with reusable content kept unpublished', async () => {
-    mockGenerateClassDaysForClassroom.mockResolvedValue({ ok: true })
+  it('creates a teacher-ready classroom through one atomic write plan', async () => {
+    const operationId = '10000000-0000-4000-8000-000000000013'
+    const classroomId = '30000000-0000-4000-8000-000000000013'
     const assignmentInsert = makeQueryBuilder({
       data: [{ id: 'new-a-1', title: 'Essay', position: 0 }],
       error: null,
@@ -785,17 +885,20 @@ describe('course-blueprints server helpers', () => {
     const lessonUpsert = makeQueryBuilder({ data: null, error: null })
 
     mockSupabase = makeSupabaseFromQueues({
-      course_blueprints: [makeQueryBuilder({
-        data: {
-          id: 'b-1',
-          teacher_id: 'teacher-1',
-          title: 'Reusable CS',
-          overview_markdown: 'Course overview',
-          outline_markdown: 'Course outline',
-          resources_markdown: 'Course resources',
-        },
-        error: null,
-      })],
+      course_blueprints: [
+        makeQueryBuilder({
+          data: {
+            id: 'b-1',
+            teacher_id: 'teacher-1',
+            title: 'Reusable CS',
+            overview_markdown: 'Course overview',
+            outline_markdown: 'Course outline',
+            resources_markdown: 'Course resources',
+          },
+          error: null,
+        }),
+        makeQueryBuilder({ data: { content_revision: 1 }, error: null }),
+      ],
       course_blueprint_assignments: [makeQueryBuilder({
         data: [{
           id: 'ba-1',
@@ -854,14 +957,8 @@ describe('course-blueprints server helpers', () => {
       classrooms: [
         makeQueryBuilder({ data: [], error: null }),
         makeQueryBuilder({ data: [], error: null }),
-        makeQueryBuilder({ data: null, error: null }),
-        makeQueryBuilder({ data: [], error: null }),
         makeQueryBuilder({
-          data: { id: 'new-c-1', teacher_id: 'teacher-1', title: 'CS Fall', start_date: null },
-          error: null,
-        }),
-        makeQueryBuilder({
-          data: { id: 'new-c-1', teacher_id: 'teacher-1', title: 'CS Fall', start_date: '2026-09-08' },
+          data: { id: classroomId, teacher_id: 'teacher-1', title: 'CS Fall', start_date: '2026-09-08' },
           error: null,
         }),
       ],
@@ -874,46 +971,70 @@ describe('course-blueprints server helpers', () => {
       class_days: [makeQueryBuilder({ data: [{ date: '2026-09-08' }], error: null })],
       lesson_plans: [lessonUpsert],
     })
+    mockSupabase.rpc = vi.fn().mockResolvedValue({
+      data: {
+        ok: true,
+        status: 201,
+        operation_id: operationId,
+        operation_type: 'instantiate',
+        replayed: false,
+        classroom_id: classroomId,
+        source_revision: 1,
+        counts: {
+          assignments: 1,
+          assessments: 1,
+          lesson_templates: 1,
+          class_days: 99,
+          submission_requirements: 1,
+          questions: 1,
+        },
+        lesson_mapping: {
+          applied_lesson_templates: 1,
+          overflow_lesson_templates: [],
+        },
+      },
+      error: null,
+    })
 
     const result = await createClassroomFromBlueprint('teacher-1', {
       blueprintId: 'b-1',
       title: 'CS Fall',
       start_date: '2026-09-08',
       end_date: '2027-01-29',
-    } as any)
+    } as any, { operationId })
 
     expect(result).toEqual(expect.objectContaining({
       ok: true,
-      classroom: expect.objectContaining({ id: 'new-c-1', title: 'CS Fall' }),
+      classroom: expect.objectContaining({ id: classroomId, title: 'CS Fall' }),
       lesson_mapping: { applied_lesson_templates: 1, overflow_lesson_templates: [] },
+      operation_id: operationId,
     }))
-    expect(assignmentInsert.insert).toHaveBeenCalledWith([expect.objectContaining({
-      title: 'Essay',
-      due_at: '2026-09-23T03:30:00.000Z',
-      is_draft: true,
-      released_at: null,
-      scheduled_release_at: null,
-      gradebook_weight: 25,
-    })])
-    expect(requirementInsert.insert).toHaveBeenCalledWith([
-      expect.objectContaining({ assignment_id: 'new-a-1', label: 'Published essay' }),
-    ])
-    expect(testInsert.insert).toHaveBeenCalledWith(expect.objectContaining({
-      title: 'Unit Test',
-      status: 'draft',
-      released_at: null,
-      scheduled_release_at: null,
-      points_possible: 40,
-      gradebook_weight: 35,
-      include_in_final: false,
-    }))
-    expect(questionInsert.insert).toHaveBeenCalledWith([
-      expect.objectContaining({ question_text: 'Explain recursion.', points: 5 }),
-    ])
-    expect(resourceUpsert.upsert).toHaveBeenCalled()
-    expect(lessonUpsert.upsert).toHaveBeenCalledWith(
-      [expect.objectContaining({ date: '2026-09-08' })],
-      { onConflict: 'classroom_id,date' }
+    expect(mockSupabase.rpc).toHaveBeenCalledWith(
+      'instantiate_course_blueprint_atomic',
+      expect.objectContaining({
+        p_operation_id: operationId,
+        p_plan: expect.objectContaining({
+          classroom: expect.objectContaining({
+            title: 'CS Fall',
+            start_date: '2026-09-08',
+            end_date: '2027-01-29',
+          }),
+          assignments: [expect.objectContaining({
+            title: 'Essay',
+            due_at: '2026-09-23T03:30:00.000Z',
+            gradebook_weight: 25,
+            submission_requirements: [expect.objectContaining({ label: 'Published essay' })],
+          })],
+          tests: [expect.objectContaining({
+            title: 'Unit Test',
+            points_possible: 40,
+            gradebook_weight: 35,
+            include_in_final: false,
+            questions: [expect.objectContaining({ question_text: 'Explain recursion.', points: 5 })],
+          })],
+          lesson_plans: [expect.objectContaining({ date: '2026-09-08' })],
+        }),
+      }),
     )
     expect(mockSupabase.from).not.toHaveBeenCalledWith('classroom_enrollments')
     expect(mockSupabase.from).not.toHaveBeenCalledWith('assignment_docs')
@@ -922,7 +1043,8 @@ describe('course-blueprints server helpers', () => {
     expect(mockSupabase.from).not.toHaveBeenCalledWith('announcements')
   })
 
-  it('rolls back blueprint promotion when classroom linking fails', async () => {
+  it('records classroom-link failure without a best-effort blueprint delete', async () => {
+    const operationId = '10000000-0000-4000-8000-000000000014'
     mockAssertTeacherCanMutateClassroom.mockResolvedValue({
       ok: true,
       classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
@@ -933,6 +1055,7 @@ describe('course-blueprints server helpers', () => {
         classroom: {
           id: 'c-1',
           title: 'Semester Classroom',
+          blueprint_source_revision: 9,
           course_overview_markdown: '',
           course_outline_markdown: '',
         },
@@ -996,9 +1119,30 @@ describe('course-blueprints server helpers', () => {
         makeQueryBuilder({ data: null, error: { message: 'link failed' } }),
       ],
     })
+    mockSupabase.rpc = vi.fn().mockResolvedValue({
+      data: {
+        ok: false,
+        status: 409,
+        operation_id: operationId,
+        operation_type: 'capture',
+        error_code: 'source_classroom_changed',
+        error: 'Source classroom changed before the blueprint could be saved',
+        retryable: true,
+      },
+      error: null,
+    })
 
-    const result = await createCourseBlueprintFromClassroom('teacher-1', 'c-1', { title: 'Reusable Draft' })
-    expect(result).toEqual(expect.objectContaining({ ok: false, status: 500 }))
-    expect(deleteBuilder.delete).toHaveBeenCalled()
+    const result = await createCourseBlueprintFromClassroom(
+      'teacher-1',
+      'c-1',
+      { title: 'Reusable Draft' },
+      { operationId },
+    )
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      status: 409,
+      error_code: 'source_classroom_changed',
+    }))
+    expect(deleteBuilder.delete).not.toHaveBeenCalled()
   })
 })
