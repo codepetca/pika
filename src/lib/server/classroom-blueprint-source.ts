@@ -113,10 +113,14 @@ export async function loadClassroomBlueprintSource(
     announcementsResult,
   ] = await Promise.all([
     supabase.from('classroom_resources').select('*').eq('classroom_id', classroomId).maybeSingle(),
-    supabase.from('assignments').select('*').eq('classroom_id', classroomId).order('position', { ascending: true }),
-    supabase.from('tests').select('*').eq('classroom_id', classroomId).order('position', { ascending: true }),
-    supabase.from('lesson_plans').select('*').eq('classroom_id', classroomId).order('date', { ascending: true }),
-    supabase.from('announcements').select('*').eq('classroom_id', classroomId).order('created_at', { ascending: false }),
+    supabase.from('assignments').select('*').eq('classroom_id', classroomId)
+      .order('position', { ascending: true }).order('id', { ascending: true }),
+    supabase.from('tests').select('*').eq('classroom_id', classroomId)
+      .order('position', { ascending: true }).order('id', { ascending: true }),
+    supabase.from('lesson_plans').select('*').eq('classroom_id', classroomId)
+      .order('date', { ascending: true }).order('id', { ascending: true }),
+    supabase.from('announcements').select('*').eq('classroom_id', classroomId)
+      .order('created_at', { ascending: false }).order('id', { ascending: true }),
   ])
 
   if (
@@ -150,6 +154,7 @@ export async function loadClassroomBlueprintSource(
       .select('*')
       .in('assignment_id', assignmentIds)
       .order('position', { ascending: true })
+      .order('id', { ascending: true })
 
     if (error) {
       console.error('Error loading classroom blueprint assignment requirements:', error)
@@ -176,7 +181,8 @@ export async function loadClassroomBlueprintSource(
         .from('test_questions')
         .select('*')
         .in('test_id', testIds)
-        .order('position', { ascending: true }),
+        .order('position', { ascending: true })
+        .order('id', { ascending: true }),
       supabase
         .from('assessment_drafts')
         .select('assessment_id, content')

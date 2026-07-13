@@ -144,23 +144,27 @@ export async function getCourseBlueprintDetail(
       .from('course_blueprint_assignments')
       .select('*')
       .eq('course_blueprint_id', blueprintId)
-      .order('position', { ascending: true }),
+      .order('position', { ascending: true })
+      .order('id', { ascending: true }),
     supabase
       .from('course_blueprint_assessments')
       .select('*')
       .eq('course_blueprint_id', blueprintId)
-      .order('position', { ascending: true }),
+      .order('position', { ascending: true })
+      .order('id', { ascending: true }),
     supabase
       .from('course_blueprint_lesson_templates')
       .select('*')
       .eq('course_blueprint_id', blueprintId)
-      .order('position', { ascending: true }),
+      .order('position', { ascending: true })
+      .order('id', { ascending: true }),
     supabase
       .from('classrooms')
       .select('id,title,class_code,theme_color,term_label,actual_site_slug,actual_site_published,archived_at,created_at,updated_at')
       .eq('teacher_id', teacherId)
       .eq('source_blueprint_id', blueprintId)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: true }),
   ])
 
   if (assignmentsResult.error || assessmentsResult.error || lessonsResult.error || linkedClassroomsResult.error) {
