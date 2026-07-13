@@ -1,13 +1,13 @@
 {
   "meta": {
     "project": "pika",
-    "lastUpdated": "2026-05-21",
-    "phase": "Infrastructure — AI Effectiveness Layer",
+    "lastUpdated": "2026-07-13",
+    "phase": "Classroom Archives",
     "DO_NOT_DELETE_FEATURES": "APPEND-ONLY. Never delete entries.",
     "deletionPolicy": "PROHIBITED",
-    "totalFeatures": 12,
+    "totalFeatures": 13,
     "passing": 12,
-    "failing": 0
+    "failing": 1
   },
   "features": [
     {
@@ -138,6 +138,16 @@
       "blockedBy": [],
       "addedDate": "2026-05-21",
       "completedDate": "2026-05-21"
+    },
+    {
+      "id": "epic-classroom-lifecycle-archives",
+      "phase": "Classroom Archives",
+      "description": "Reversible hot/cold classroom archives with managed storage and deidentified Gradex extracts",
+      "passes": false,
+      "verification": "Contract/DB audit, restore equality canary, cold recovery drill, production verification",
+      "issueRefs": [],
+      "blockedBy": [],
+      "addedDate": "2026-07-13"
     }
   ]
 }

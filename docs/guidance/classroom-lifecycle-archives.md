@@ -1,0 +1,206 @@
+# Classroom Lifecycle And Archive Contract
+
+This document defines the target contract for classroom lifecycle, reusable course blueprints,
+recoverable archives, managed storage, and Gradex analytics extracts. The executable source of
+truth is in:
+
+- `src/lib/contracts/classroom-lifecycle.ts`
+- `src/lib/contracts/classroom-data.ts`
+- `src/lib/contracts/classroom-artifacts.ts`
+
+This contract does not enable cold archiving. Current production behavior remains unchanged:
+`classrooms.archived_at` makes a classroom read-only while all relational data stays hot.
+
+## Artifact Boundaries
+
+The three artifacts solve different problems and must not be substituted for each other.
+
+| Artifact | Purpose | Student data | Restorable | Storage |
+|---|---|---:|---:|---|
+| Course package | Seed a reusable teacher-owned blueprint | No | No | Teacher-private download/import |
+| Classroom archive | Recover the complete classroom | Yes | Yes | Private `classroom-archives` bucket |
+| Gradex extract | Improve and evaluate grading behavior | Deidentified subset | No | Private `gradex-analytics-extracts` bucket |
+
+The existing `.course-package.tar` manifest remains version 2. It includes teacher-authored course
+content, assignment and assessment templates, lesson templates, grading configuration, submission
+requirement templates, and planned-site configuration. It excludes rosters, students, submissions,
+grades, attendance, journals, telemetry, join credentials, runtime publication state, and storage
+objects. A course package is never evidence that classroom data is recoverable.
+
+## Lifecycle States
+
+- `active`: normal teacher and student access. Current representation: `archived_at is null`.
+- `archived_hot`: read-only, but relational rows and referenced source objects remain in place.
+  Current representation: `archived_at is not null`.
+- `archived_cold`: a tombstone and verified archive metadata remain hot; classroom-owned rows have
+  been removed after a verified private archive was created. This state is not implemented yet.
+
+Only adjacent transitions are valid:
+
+```text
+active <-> archived_hot <-> archived_cold
+```
+
+There is no direct `active -> archived_cold` or `archived_cold -> active` transition. Purging is an
+explicit irreversible retention operation, not a classroom lifecycle state. Cold compaction and
+restore require evidence containing an immutable operation id, archive checksum, verification time,
+manifest validation, resource checksum/count validation, storage-object validation, and actor-snapshot
+validation. Restore completion additionally requires schema-adapter validation, actor reconciliation,
+restored row/object counts, and referential-integrity validation.
+
+Archiving must not automatically compact a classroom during initial rollout. Automatic compaction
+can be considered only after export-only and restore canaries meet production thresholds and the
+teacher has a visible recovery path.
+
+## Complete Archive Format
+
+The canonical archive is a gzip-compressed tar bundle with manifest format
+`pika.classroom-archive`, version 1. The manifest is strict and contains:
+
+- archive, classroom, and owning-teacher ids
+- source application commit and source schema migration
+- creation time, privacy policy version, and retention policy
+- one `data/<table>.ndjson` descriptor for every classroom-owned relational table, including tables
+  with zero rows
+- `actors.ndjson` identity-reconciliation snapshots
+- one descriptor for every copied storage object
+- byte counts, row counts, and SHA-256 checksums
+- a deterministic content checksum over sorted file descriptors
+
+Relational files use UTF-8 NDJSON. Each row uses canonical JSON with recursively sorted object keys,
+and rows sort by their primary-key tuple before serialization. The manifest content checksum hashes
+the canonical, path-sorted sequence of each file path, byte count, and file SHA-256. Changing this
+serialization requires an archive-format version or an adapter that preserves version 1 verification.
+
+The resource inventory currently contains 42 tables. `CLASSROOM_RELATIONAL_RESOURCES` defines the
+selection path, all restore dependencies, privacy classes, and Gradex disposition for each table.
+Rows export and restore parent-first; destructive cleanup runs in exact reverse order.
+
+Shared account tables are not classroom-owned and must not be restored from an archive. Actor
+snapshots may contain the user id, role, email, and student profile identity fields needed for
+reconciliation. They must never contain password hashes, sessions, verification codes, WorkOS ids,
+tokens, or secrets. Missing actors fail restore preflight; restore must not silently create accounts
+or partially remap ownership.
+
+### Schema Drift Gate
+
+Any migration that adds, removes, or changes a classroom-descendant foreign key must update:
+
+1. `CLASSROOM_RELATIONAL_RESOURCES`
+2. privacy classification and Gradex disposition
+3. archive export and restore adapters when the serialized shape changes
+4. manifest version only when backward-compatible adapters cannot preserve the version 1 contract
+5. focused archive, restore, and schema-audit tests
+
+The read-only audit command compares PostgreSQL catalog relationships with the checked-in graph:
+
+```bash
+CLASSROOM_SCHEMA_AUDIT_DATABASE_URL="$DATABASE_URL" \
+  pnpm exec tsx scripts/check-classroom-resource-schema.ts
+```
+
+It fails for untracked or stale tables, missing restore dependencies, and invalid selection keys.
+Run it in database-backed CI after migrations are applied to the ephemeral database.
+
+## Managed Storage
+
+The archive copies only objects referenced by the classroom. Bucket-wide prefix copying is unsafe
+because current source paths are user-oriented and can contain data from multiple classrooms.
+
+| Source bucket | Current visibility | Discovery rule |
+|---|---|---|
+| `assignment-artifacts` | Private | `assignment_submission_artifacts.storage_path` |
+| `submission-images` | Public | Storage URLs embedded in classroom-owned content fields |
+| `test-documents` | Public | Upload URLs and `snapshot_path` values in `tests.documents` |
+
+Archive copies live under `objects/<source-bucket>/...` and record original bucket/path, archived
+path, content type, byte count, and checksum. Source objects must not be deleted until the archive
+copy is downloaded or streamed back, checksummed, and represented in the verified manifest.
+
+Archive and Gradex destination buckets are private. Signed URLs are short-lived delivery
+mechanisms, not persisted archive references. A restored classroom must use restored managed-object
+paths rather than stale signed URLs.
+
+## Restore And Recovery
+
+Restore is idempotent and fail-closed:
+
+1. Lock the classroom tombstone with an operation id; reject concurrent lifecycle operations.
+2. Download the immutable archive and verify its outer checksum.
+3. Strictly parse the manifest and select an adapter chain from source to target schema.
+4. Verify every resource checksum, byte count, row count, and storage object.
+5. Resolve all archived actor references to existing accounts. Stop on unresolved or ambiguous ids.
+6. Copy objects into an operation-scoped temporary prefix.
+7. Restore rows parent-first in one database transaction, preserving ids and rejecting conflicts.
+8. Verify restored counts and referential integrity before committing the transaction.
+9. Promote managed-object references and transition to `archived_hot` only after all checks pass.
+10. Keep the original archive immutable after restore.
+
+On failure, roll back relational writes, remove operation-scoped temporary objects, retain the cold
+tombstone and original archive, and store a retryable error code. Never mark the classroom hot or
+active after a partial restore.
+
+## Cold Compaction
+
+Cold compaction starts only from `archived_hot`, where mutation is already blocked:
+
+1. Create an idempotent archive operation and capture a consistent relational snapshot.
+2. Discover and copy referenced storage objects.
+3. Write the archive, read it back, and verify the strict manifest, checksums, bytes, and counts.
+4. Persist immutable archive metadata and verification evidence.
+5. Remove classroom-owned rows child-first in one transaction while retaining the tombstone.
+6. Transition to `archived_cold` only after the transaction commits.
+7. Delete now-redundant source objects as retryable cleanup; a cleanup failure does not invalidate
+   the verified archive.
+
+If any pre-deletion check fails, leave the classroom `archived_hot` and keep all hot data intact.
+
+## Gradex Extract
+
+Gradex uses a separate derived artifact, never the restore archive directly. Version 1 includes only
+the explicitly allowlisted assignment/test authoring, submission, grading, feedback, and AI-run
+resources in `GRADEX_RESOURCE_TABLES`.
+
+The extract excludes rosters, enrollment, journals, attendance, report cards, focus telemetry,
+attempt histories, raw artifacts, storage objects, URLs, and storage paths. All database ids and user
+references are HMAC-SHA-256 pseudonyms scoped to one extract. Free text must pass known-identity and
+pattern-based redaction. Timestamps become relative offsets. Release is blocked unless the direct
+identifier scanner reports zero findings.
+
+Every Gradex manifest has a finite `delete_after` timestamp. Regeneration writes a new immutable
+extract and schedules the superseded object for deletion. A Gradex extract cannot restore a
+classroom and must never be accepted by a restore endpoint.
+
+## Observability
+
+Every archive, restore, compaction, cleanup, Gradex generation, and purge operation needs durable
+operation metadata:
+
+- operation id, classroom id, actor id, operation type, and idempotency key
+- source/target lifecycle states and schema versions
+- started/completed timestamps, retry count, and stable error code
+- row counts and bytes by resource, object count/bytes by bucket, compression ratio, and checksum
+- unresolved actor count, adapter chain, verification result, and cleanup status
+
+Logs and metrics must not contain student names, email, raw work, grades, archive URLs, signed URLs,
+or object contents. Alerts should cover verification failures, partial cleanup, unresolved actors,
+restore rollback, and archives without a successful read-back check.
+
+## Backward-Compatible Rollout And Production Verification
+
+1. **Contract only:** land schemas, inventory, tests, and catalog audit. No runtime behavior changes.
+2. **Inventory mode:** run read-only row/object sizing for archived classrooms and compare catalog
+   relationships with the contract. No writes.
+3. **Export only:** create private archives for selected archived classrooms but retain all hot data.
+   Compare counts/checksums and measure compression.
+4. **Restore canary:** restore a teacher-approved archive into an isolated canary target, compare all
+   rows/objects, then remove the canary. The original classroom remains hot and untouched.
+5. **Opt-in cold compaction:** compact selected classrooms only after verified archive and restore
+   evidence exists. Monitor recovery and storage cleanup.
+6. **Default cold policy:** consider automatic compaction after archiving only after sustained canary
+   success, documented recovery drills, retention approval, and a teacher-visible restore workflow.
+7. **Legacy retirement:** remove old archive representations only after production counts show no
+   remaining readers/writers and every retained archive has a tested adapter.
+
+Production database access for inventory and verification is read-only unless a human explicitly
+approves a named canary operation. Migrations are applied by humans.
