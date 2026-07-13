@@ -89,6 +89,20 @@ tests/                             # Vitest unit + API suites
 - Use `TableRow`, `TableInsert`, and `TableUpdate` from `@/types/database` for persisted payloads instead of generic records or local copies of table shapes.
 - After changing a migration, start the local Supabase stack through the documented human workflow and run `pnpm run db:types:generate`. CI replays migrations in an ephemeral database and runs `pnpm run db:types:check` to reject drift.
 
+### Enforced Module Boundaries
+- Run `pnpm check:architecture` before committing changes that move code across layers.
+- `src/lib/` cannot depend on presentation or App Router modules (`src/ui`, `src/components`,
+  `src/hooks`, or `src/app`).
+- `src/ui/` cannot depend on feature presentation, App Router, or server-only modules.
+- API routes cannot depend on presentation modules, and components/hooks cannot directly depend
+  on API routes or `src/lib/server/`.
+- Runtime code in `src/types/` may only depend on other type modules. Type-only imports remain
+  allowed so contracts can reference domain types without creating a runtime edge.
+- Modules reachable from a `'use client'` entry cannot reach `src/lib/server/`, API routes,
+  Supabase runtime clients, Next.js server APIs, `server-only`, or Node built-ins.
+- `scripts/architecture-baseline.json` records known client/server debt. It is deletion-only: CI
+  fails for new violations and for stale entries after debt is removed.
+
 ### UI/Theming (Required)
 - **All UI must use semantic design tokens** — NOT raw color or `dark:` classes in app code.
 - `dark:` classes are **PROHIBITED in all app code** outside `src/ui/` primitives.
