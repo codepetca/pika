@@ -12,7 +12,11 @@ describe('Gradex extract operations migration', () => {
     expect(migration).toContain('create table public.classroom_gradex_extracts')
     expect(migration).toContain('create table public.classroom_gradex_extract_cleanup')
     expect(migration).toContain('Verified Gradex extract metadata is immutable')
-    expect(migration).toContain("status in ('pending', 'processing', 'failed', 'deleted')")
+    expect(migration).toContain("status in ('staged', 'pending', 'processing', 'failed', 'deleted')")
+    expect(migration).toContain(
+      'operation_id uuid primary key references public.classroom_archive_operations (id)',
+    )
+    expect(migration).toContain("status = 'staged'")
   })
 
   it('enforces bounded retention, idempotency, concurrency, and strict evidence', () => {
@@ -24,6 +28,9 @@ describe('Gradex extract operations migration', () => {
     expect(migration).toContain("jsonb_typeof(p_verification->required.key) <> 'boolean'")
     expect(migration).toContain("v_verified_at > v_now + interval '5 minutes'")
     expect(migration).toContain('p_compressed_byte_size > 52428800')
+    expect(migration.indexOf("v_operation.status = 'completed'")).toBeLessThan(
+      migration.indexOf('if p_delete_after <= v_now then'),
+    )
   })
 
   it('binds source archives to the authenticated teacher and requested classroom', () => {
@@ -36,7 +43,7 @@ describe('Gradex extract operations migration', () => {
     expect(migration).toContain('for update skip locked')
     expect(migration).toContain('lease_expires_at')
     expect(migration).toContain('power(2, least(attempt_count, 10))')
-    expect(migration).toContain('status = \'processing\' and lease_token = p_lease_token')
+    expect(migration).toMatch(/status = 'processing'\s+and lease_token = p_lease_token/)
     expect(migration).toContain('p_lease_token is null')
   })
 

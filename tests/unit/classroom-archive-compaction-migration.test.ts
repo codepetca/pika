@@ -38,6 +38,8 @@ describe('atomic classroom archive compaction migration', () => {
     expect(migration).toContain("'idempotency_conflict'")
     expect(migration).toContain("'compaction_already_in_progress'")
     expect(migration).toContain("'classroom_archive_not_verified'")
+    expect(migration).toContain("'classroom_archive_retention_not_compactable'")
+    expect(migration).toContain("'classroom_archive_resource_contract_invalid'")
     expect(migration).toContain(
       'grant execute on function public.complete_classroom_archive_compaction(uuid, uuid, jsonb) to service_role;',
     )
@@ -52,9 +54,22 @@ describe('atomic classroom archive compaction migration', () => {
     expect(migration).toContain("p_verification->>'read_back_verified'")
     expect(migration).toContain("p_verification->>'artifact_checksum_verified'")
     expect(migration).toContain("p_verification->>'source_object_cleanup_staged'")
+    expect(migration).toContain("p_verification->>'schema_adapter_verified'")
+    expect(migration).toContain("p_verification->>'actor_references_resolved'")
     expect(migration).toContain('Compaction source-object cleanup count differs')
     expect(migration).toContain('Compaction source-object cleanup bytes differ')
     expect(migration).toContain("set status = 'pending'")
+  })
+
+  it('returns a complete snapshot contract on retry and rejects missing resource keys', () => {
+    expect(migration).toContain("'storage_bucket', v_operation.storage_bucket")
+    expect(migration).toContain("'storage_path', v_operation.storage_path")
+    expect(migration).toContain("'artifact_sha256', v_operation.artifact_sha256")
+    expect(migration).toContain("'content_sha256', v_operation.content_sha256")
+    expect(migration).toContain('jsonb_object_keys(v_archive.resource_counts)')
+    expect(migration).toContain(
+      'if not (v_operation.resource_counts ? v_resource.table_name) then',
+    )
   })
 
   it('checks every owned row before deleting child-first in one transaction', () => {
@@ -89,6 +104,15 @@ describe('atomic classroom archive compaction migration', () => {
     expect(migration).toContain(
       'delete from public.classroom_archive_source_object_cleanup where operation_id = p_operation_id;',
     )
+  })
+
+  it('atomically fences completed operations from expiry cleanup', () => {
+    const cleanupFunction = migration.match(
+      /create or replace function public\.cleanup_expired_classroom_archive_snapshots[\s\S]*?\n\$\$;/,
+    )?.[0]
+    expect(cleanupFunction).toContain('with expired as (')
+    expect(cleanupFunction).toContain("where status <> 'completed'")
+    expect(cleanupFunction).toContain('returning id')
   })
 
   it('runs rollback coverage and restores from the real compaction transition in CI', () => {

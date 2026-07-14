@@ -149,20 +149,21 @@ as $$
 declare
   v_operation_ids uuid[];
 begin
+  with expired as (
+    update public.classroom_archive_operations
+    set
+      status = 'failed',
+      error_code = 'archive_snapshot_expired',
+      retryable = false,
+      source_object_cleanup_staged_at = null,
+      updated_at = clock_timestamp()
+    where status <> 'completed'
+      and snapshot_expires_at <= now()
+    returning id
+  )
   select coalesce(array_agg(id), array[]::uuid[])
   into v_operation_ids
-  from public.classroom_archive_operations
-  where status <> 'completed'
-    and snapshot_expires_at <= now();
-
-  update public.classroom_archive_operations
-  set
-    status = 'failed',
-    error_code = 'archive_snapshot_expired',
-    retryable = false,
-    source_object_cleanup_staged_at = null,
-    updated_at = clock_timestamp()
-  where id = any(v_operation_ids);
+  from expired;
 
   delete from public.classroom_archive_snapshot_resources
   where operation_id = any(v_operation_ids);
@@ -443,6 +444,7 @@ declare
   v_total_bytes bigint;
   v_summed_count bigint := 0;
   v_summed_bytes bigint := 0;
+  v_contract_resource_count bigint;
 begin
   if p_operation_id is null
     or p_teacher_id is null
@@ -498,6 +500,19 @@ begin
         'retryable', false
       );
     end if;
+    if v_operation.retention is distinct from jsonb_build_object(
+      'mode', 'teacher_managed',
+      'delete_after', null
+    ) then
+      return jsonb_build_object(
+        'ok', false,
+        'status', 409,
+        'operation_id', p_operation_id,
+        'error_code', 'classroom_archive_retention_not_compactable',
+        'error', 'Only teacher-managed archives can be compacted',
+        'retryable', false
+      );
+    end if;
     if v_operation.snapshot_expires_at > v_now then
       update public.classroom_archive_operations
       set
@@ -517,7 +532,11 @@ begin
         'replayed', true,
         'snapshot_expires_at', v_operation.snapshot_expires_at,
         'resource_counts', v_operation.resource_counts,
-        'storage_object_counts', v_operation.storage_object_counts
+        'storage_object_counts', v_operation.storage_object_counts,
+        'storage_bucket', v_operation.storage_bucket,
+        'storage_path', v_operation.storage_path,
+        'artifact_sha256', v_operation.artifact_sha256,
+        'content_sha256', v_operation.content_sha256
       );
     end if;
   end if;
@@ -552,6 +571,65 @@ begin
       'operation_id', p_operation_id,
       'error_code', 'classroom_archive_not_verified',
       'error', 'Classroom archive verification is incomplete',
+      'retryable', false
+    );
+  end if;
+
+  if v_archive.retention is distinct from jsonb_build_object(
+    'mode', 'teacher_managed',
+    'delete_after', null
+  ) then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'operation_id', p_operation_id,
+      'error_code', 'classroom_archive_retention_not_compactable',
+      'error', 'Only teacher-managed archives can be compacted',
+      'retryable', false
+    );
+  end if;
+
+  if v_archive.resource_counts is null
+    or jsonb_typeof(v_archive.resource_counts) <> 'object'
+  then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'operation_id', p_operation_id,
+      'error_code', 'classroom_archive_resource_contract_invalid',
+      'error', 'Classroom archive resource counts are not compactable',
+      'retryable', false
+    );
+  end if;
+  select count(*)::bigint into v_contract_resource_count
+  from public.classroom_archive_resource_contract;
+  if (select count(*)::bigint from jsonb_object_keys(v_archive.resource_counts))
+      <> v_contract_resource_count
+    or exists (
+      select 1
+      from public.classroom_archive_resource_contract contract
+      where not (v_archive.resource_counts ? contract.table_name)
+        or jsonb_typeof(v_archive.resource_counts->contract.table_name) <> 'number'
+        or case
+          when (v_archive.resource_counts->>contract.table_name) ~ '^\d+$'
+            then (v_archive.resource_counts->>contract.table_name)::numeric > 2147483647
+          else true
+        end
+    )
+    or exists (
+      select 1
+      from jsonb_object_keys(v_archive.resource_counts) as resource_keys(resource_key)
+      left join public.classroom_archive_resource_contract contract
+        on contract.table_name = resource_keys.resource_key
+      where contract.table_name is null
+    )
+  then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'operation_id', p_operation_id,
+      'error_code', 'classroom_archive_resource_contract_invalid',
+      'error', 'Classroom archive resource counts do not match the resource contract',
       'retryable', false
     );
   end if;
@@ -749,6 +827,7 @@ declare
   v_staged_count bigint;
   v_staged_bytes bigint;
   v_staged_by_bucket jsonb;
+  v_contract_resource_count bigint;
   v_evidence_time timestamptz;
   v_final_verification jsonb;
   v_now timestamptz := clock_timestamp();
@@ -806,6 +885,8 @@ begin
       'resource_counts_verified',
       'storage_objects_verified',
       'actor_snapshots_verified',
+      'schema_adapter_verified',
+      'actor_references_resolved',
       'source_object_cleanup_staged'
     ])
     or p_verification - 'operation_id'
@@ -820,6 +901,8 @@ begin
       - 'resource_counts_verified'
       - 'storage_objects_verified'
       - 'actor_snapshots_verified'
+      - 'schema_adapter_verified'
+      - 'actor_references_resolved'
       - 'source_object_cleanup_staged' <> '{}'::jsonb
     or jsonb_typeof(p_verification->'operation_id') <> 'string'
     or jsonb_typeof(p_verification->'archive_id') <> 'string'
@@ -836,6 +919,8 @@ begin
         'resource_counts_verified',
         'storage_objects_verified',
         'actor_snapshots_verified',
+        'schema_adapter_verified',
+        'actor_references_resolved',
         'source_object_cleanup_staged'
       ]) required_boolean(key)
       where jsonb_typeof(p_verification->required_boolean.key) <> 'boolean'
@@ -851,6 +936,8 @@ begin
     or coalesce((p_verification->>'resource_counts_verified')::boolean, false) is not true
     or coalesce((p_verification->>'storage_objects_verified')::boolean, false) is not true
     or coalesce((p_verification->>'actor_snapshots_verified')::boolean, false) is not true
+    or coalesce((p_verification->>'schema_adapter_verified')::boolean, false) is not true
+    or coalesce((p_verification->>'actor_references_resolved')::boolean, false) is not true
     or coalesce((p_verification->>'source_object_cleanup_staged')::boolean, false) is not true
     or v_operation.source_object_cleanup_staged_at is null
   then
@@ -881,6 +968,39 @@ begin
   then
     raise exception 'Verified classroom archive changed during compaction'
       using errcode = '40001';
+  end if;
+
+  if v_operation.resource_counts is null
+    or jsonb_typeof(v_operation.resource_counts) <> 'object'
+  then
+    raise exception 'Compaction resource contract is invalid'
+      using errcode = '22023';
+  end if;
+  select count(*)::bigint into v_contract_resource_count
+  from public.classroom_archive_resource_contract;
+  if (select count(*)::bigint from jsonb_object_keys(v_operation.resource_counts))
+      <> v_contract_resource_count
+    or exists (
+      select 1
+      from public.classroom_archive_resource_contract contract
+      where not (v_operation.resource_counts ? contract.table_name)
+        or jsonb_typeof(v_operation.resource_counts->contract.table_name) <> 'number'
+        or case
+          when (v_operation.resource_counts->>contract.table_name) ~ '^\d+$'
+            then (v_operation.resource_counts->>contract.table_name)::numeric > 2147483647
+          else true
+        end
+    )
+    or exists (
+      select 1
+      from jsonb_object_keys(v_operation.resource_counts) as resource_keys(resource_key)
+      left join public.classroom_archive_resource_contract contract
+        on contract.table_name = resource_keys.resource_key
+      where contract.table_name is null
+    )
+  then
+    raise exception 'Compaction resource contract is invalid'
+      using errcode = '22023';
   end if;
 
   select
@@ -967,6 +1087,10 @@ begin
     from public.classroom_archive_resource_contract
     order by export_position
   loop
+    if not (v_operation.resource_counts ? v_resource.table_name) then
+      raise exception 'Compaction resource contract is missing %', v_resource.table_name
+        using errcode = '22023';
+    end if;
     v_expected_count := (v_operation.resource_counts->>v_resource.table_name)::integer;
     execute format(
       'select count(*)::integer from public.%I source
@@ -1019,6 +1143,10 @@ begin
     from public.classroom_archive_resource_contract
     order by export_position desc
   loop
+    if not (v_operation.resource_counts ? v_resource.table_name) then
+      raise exception 'Compaction resource contract is missing %', v_resource.table_name
+        using errcode = '22023';
+    end if;
     v_expected_count := (v_operation.resource_counts->>v_resource.table_name)::integer;
     execute format(
       'delete from public.%I target

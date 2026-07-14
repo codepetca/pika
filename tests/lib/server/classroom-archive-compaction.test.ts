@@ -24,6 +24,14 @@ function emptyResources() {
 
 function fixture(options: { classroomId?: string; objectCount?: number } = {}) {
   const classroomId = options.classroomId ?? CLASSROOM_ID
+  const storageObjects = Array.from({ length: options.objectCount ?? 1 }, (_, index) => ({
+    bucket: index % 2 === 0
+      ? 'assignment-artifacts' as const
+      : 'submission-images' as const,
+    sourcePath: `student/assignment/object-${index}.txt`,
+    contentType: 'text/plain',
+    bytes: Buffer.from(`object-${index}`),
+  }))
   return buildClassroomArchiveBundle({
     archiveId: ARCHIVE_ID,
     classroomId,
@@ -41,7 +49,18 @@ function fixture(options: { classroomId?: string; objectCount?: number } = {}) {
         teacher_id: TEACHER_ID,
         title: 'Cold compaction fixture',
         archived_at: '2026-07-13T12:00:00.000Z',
+        archive_references: storageObjects
+          .filter((object) => object.bucket === 'submission-images')
+          .map((object) =>
+            `https://project.supabase.co/storage/v1/object/public/${object.bucket}/${object.sourcePath}`
+          ),
       }],
+      assignment_submission_artifacts: storageObjects
+        .filter((object) => object.bucket === 'assignment-artifacts')
+        .map((object, index) => ({
+          id: `10000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+          storage_path: object.sourcePath,
+        })),
     },
     actors: [{
       id: TEACHER_ID,
@@ -49,14 +68,7 @@ function fixture(options: { classroomId?: string; objectCount?: number } = {}) {
       role: 'teacher',
       profile: null,
     }],
-    storageObjects: Array.from({ length: options.objectCount ?? 1 }, (_, index) => ({
-      bucket: index % 2 === 0
-        ? 'assignment-artifacts' as const
-        : 'submission-images' as const,
-      sourcePath: `student/assignment/object-${index}.txt`,
-      contentType: 'text/plain',
-      bytes: Buffer.from(`object-${index}`),
-    })),
+    storageObjects,
   })
 }
 
@@ -109,6 +121,7 @@ function createSupabaseMock(options: {
   completeError?: { code?: string; message?: string }
   mismatchedCompleteVerification?: boolean
   completeFailure?: boolean
+  unresolvedActor?: boolean
 } = {}) {
   const bundle = fixture({
     classroomId: options.wrongManifestIdentity ? OTHER_CLASSROOM_ID : CLASSROOM_ID,
@@ -161,6 +174,8 @@ function createSupabaseMock(options: {
             resource_counts_verified: true,
             storage_objects_verified: true,
             actor_snapshots_verified: true,
+            schema_adapter_verified: true,
+            actor_references_resolved: true,
             source_object_cleanup_staged: true,
             source_revision_verified: true,
             resource_ownership_verified: true,
@@ -274,10 +289,24 @@ function createSupabaseMock(options: {
     }),
   }))
 
+  const from = vi.fn((table: string) => {
+    if (table !== 'users') throw new Error(`Unexpected table: ${table}`)
+    return {
+      select: vi.fn(() => ({
+        in: vi.fn(async () => ({
+          data: options.unresolvedActor
+            ? []
+            : [{ id: TEACHER_ID, email: 'teacher@example.test', role: 'teacher' }],
+          error: null,
+        })),
+      })),
+    }
+  })
+
   return {
     bundle,
     calls,
-    client: { rpc, storage: { from: storageFrom } } as any,
+    client: { rpc, from, storage: { from: storageFrom } } as any,
     rpc,
     staged,
     storageFrom,
@@ -291,6 +320,7 @@ function operationArgs(mock: ReturnType<typeof createSupabaseMock>) {
     teacherId: TEACHER_ID,
     classroomId: CLASSROOM_ID,
     archiveId: ARCHIVE_ID,
+    supabaseUrl: 'https://project.supabase.co',
   }
 }
 
@@ -379,9 +409,27 @@ describe('classroom archive cold-compaction coordinator', () => {
           operation_id: OPERATION_ID,
           archive_id: ARCHIVE_ID,
           read_back_verified: true,
+          schema_adapter_verified: true,
+          actor_references_resolved: true,
           source_object_cleanup_staged: true,
         }),
       }),
+    )
+  })
+
+  it('refuses compaction when current actors cannot satisfy a restore preflight', async () => {
+    const mock = createSupabaseMock({ unresolvedActor: true })
+
+    const result = await compactClassroomArchive(operationArgs(mock))
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      error_code: 'archive_compaction_restore_preflight_failed',
+      retryable: false,
+    }))
+    expect(mock.rpc).not.toHaveBeenCalledWith(
+      'stage_classroom_archive_compaction_objects',
+      expect.anything(),
     )
   })
 

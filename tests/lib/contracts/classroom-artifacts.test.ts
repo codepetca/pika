@@ -117,7 +117,7 @@ describe('classroom data inventory', () => {
     expect(purgeOrder).toEqual([...exportOrder].reverse())
   })
 
-  it('keeps Gradex limited to deidentified grading evidence', () => {
+  it('keeps Gradex limited to structured privacy-safe grading evidence', () => {
     expect(GRADEX_RESOURCE_TABLES).toEqual([
       'assignment_ai_grading_run_items',
       'assignment_ai_grading_runs',
@@ -291,10 +291,11 @@ describe('classroom artifact contracts', () => {
       content_sha256: sha256,
       pseudonymization: 'hmac-sha256-per-extract',
       timestamp_offsets_from: 'source-archive-created-at',
-      privacy_policy_version: 1,
+      privacy_policy_version: 2,
       direct_identifiers_removed: true,
       direct_identifier_findings: 0,
-      privacy_scanner_version: 1,
+      privacy_scanner_version: 2,
+      free_text_included: false,
       storage_objects_included: false,
       delete_after: '2026-10-11T12:00:00.000Z',
       resources,
@@ -316,13 +317,15 @@ describe('classroom artifact contracts', () => {
     }).success).toBe(false)
   })
 
-  it('requires identifiers, links, paths, and free text to be deidentified before Gradex export', () => {
+  it('requires identifiers, links, paths, and free text to be excluded or transformed before Gradex export', () => {
     expect(GRADEX_DEIDENTIFICATION_CONTRACT.identifier_fields).toBe('hmac_sha256_per_extract')
     expect(GRADEX_DEIDENTIFICATION_CONTRACT.forbidden_output_fields).toEqual(
       expect.arrayContaining(['email', 'student_number', 'url', 'storage_path']),
     )
-    expect(GRADEX_DEIDENTIFICATION_CONTRACT.free_text).toBe('redact_known_and_detected_identifiers')
-    expect(GRADEX_DEIDENTIFICATION_CONTRACT.release_gate).toBe('zero_detected_direct_identifiers')
+    expect(GRADEX_DEIDENTIFICATION_CONTRACT.free_text).toBe('excluded_until_independent_dlp')
+    expect(GRADEX_DEIDENTIFICATION_CONTRACT.release_gate).toBe(
+      'structured_only_zero_detected_direct_identifiers',
+    )
   })
 
   it('requires all verification and identity checks before restore is ready', () => {

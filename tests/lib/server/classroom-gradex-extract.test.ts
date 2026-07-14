@@ -61,7 +61,7 @@ function sourceArchive() {
         attrs: { url: 'https://student.example.test/private' },
         content: [{
           type: 'text',
-          text: `Alex Student wrote this. ${STUDENT_ID} @alex_student`,
+      text: `Élodie Student wrote this. ${STUDENT_ID} @alex_student`,
         }],
       }],
     },
@@ -71,13 +71,13 @@ function sourceArchive() {
     score_completion: 8,
     score_thinking: 7,
     score_workflow: 9,
-    feedback: 'Good work, Alex Student.',
+    feedback: 'Good work, Élodie Student.',
     teacher_feedback_draft: null,
     teacher_feedback_draft_updated_at: null,
     feedback_returned_at: '2026-07-11T12:00:00.000Z',
-    ai_feedback_suggestion: 'Ask Alex Student for one more example.',
+    ai_feedback_suggestion: 'Ask Élodie Student for one more example.',
     ai_feedback_suggested_at: '2026-07-10T12:00:00.000Z',
-    ai_feedback_model: 'gpt-test',
+    ai_feedback_model: 'Élodie (@alex_student)',
     teacher_cleared_at: null,
     graded_at: '2026-07-10T12:00:00.000Z',
     graded_by: TEACHER_ID,
@@ -100,6 +100,7 @@ function sourceArchive() {
       source: 'link',
       url: 'https://private.example.test/reference',
       snapshot_path: 'teacher/private.html',
+      synced_at: '2026-07-01T12:00:00.000Z',
       content: 'Reference for alex.student@example.test',
     }],
     position: 0,
@@ -132,7 +133,7 @@ function sourceArchive() {
     question_id: QUESTION_ID,
     student_id: STUDENT_ID,
     selected_option: null,
-    response_text: 'My email is alex.student@example.test and my name is Alex Student.',
+    response_text: 'My email is alex.student@example.test and my name is Élodie Student.',
     score: 8,
     feedback: 'Clear explanation.',
     graded_at: '2026-07-10T12:00:00.000Z',
@@ -171,7 +172,7 @@ function sourceArchive() {
           id: 'b0000000-0000-4000-8000-000000000001',
           user_id: STUDENT_ID,
           student_number: '123456789',
-          first_name: 'Alex',
+          first_name: 'Élodie',
           last_name: 'Student',
           created_at: '2026-01-01T12:00:00.000Z',
         },
@@ -212,7 +213,7 @@ function rewriteExtractResource(
 }
 
 describe('classroom Gradex extract', () => {
-  it('creates a strict deidentified artifact while preserving grading relationships', () => {
+  it('creates a strict structured privacy-safe artifact while preserving grading relationships', () => {
     const built = buildExtract()
     const verified = verifyGradexExtractBundle(built.extract)
     expect(verified.ok).toBe(true)
@@ -221,8 +222,11 @@ describe('classroom Gradex extract', () => {
     expect(verified.manifest.resources.map((resource) => resource.table).sort())
       .toEqual(GRADEX_RESOURCE_TABLES)
     expect(verified.manifest).toEqual(expect.objectContaining({
+      privacy_policy_version: 2,
       direct_identifiers_removed: true,
       direct_identifier_findings: 0,
+      privacy_scanner_version: 2,
+      free_text_included: false,
       storage_objects_included: false,
       timestamp_offsets_from: 'source-archive-created-at',
     }))
@@ -237,6 +241,12 @@ describe('classroom Gradex extract', () => {
     expect(response.question_ref).toBe(question.row_ref)
     expect(response.actor_ref).toBe(doc.actor_ref)
     expect(doc.graded_offset_ms).toBe(-3 * 24 * 60 * 60 * 1000)
+    expect(doc).not.toHaveProperty('content')
+    expect(doc).not.toHaveProperty('feedback')
+    expect(test).not.toHaveProperty('title')
+    expect(test).not.toHaveProperty('documents')
+    expect(question).not.toHaveProperty('question_text')
+    expect(response).not.toHaveProperty('response_text')
 
     const serialized = JSON.stringify(verified.resources)
     for (const forbidden of [
@@ -245,7 +255,7 @@ describe('classroom Gradex extract', () => {
       CLASSROOM_ID,
       ASSIGNMENT_ID,
       'alex.student@example.test',
-      'Alex Student',
+      'Élodie Student',
       'https://',
       'student_id',
       'teacher_id',
@@ -256,7 +266,7 @@ describe('classroom Gradex extract', () => {
       expect(serialized).not.toContain(forbidden)
     }
     expect(serialized).toContain('[redacted-identity]')
-    expect(serialized).toContain('[email redacted]')
+    expect(serialized).toContain('[handle redacted]')
   })
 
   it('is deterministic for one extract and unlinkable across extract ids', () => {

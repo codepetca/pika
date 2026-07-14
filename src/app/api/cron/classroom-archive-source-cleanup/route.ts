@@ -4,6 +4,7 @@ import {
   CLASSROOM_ARCHIVE_SOURCE_CLEANUP_DEFAULT_LEASE_SECONDS,
   isClassroomArchiveSourceCleanupTriggerEnabled,
   resolveClassroomArchiveSourceCleanupLeaseToken,
+  resolveClassroomArchiveSourceCleanupOperationId,
   runClassroomArchiveSourceCleanup,
 } from '@/lib/server/classroom-archive-source-cleanup'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -44,9 +45,23 @@ async function handle(request: NextRequest) {
     }, { status: 503 })
   }
 
+  const configuredOperationId = process.env.CLASSROOM_ARCHIVE_SOURCE_CLEANUP_OPERATION_ID
+  if (!configuredOperationId) {
+    return NextResponse.json({
+      ok: false,
+      status: 503,
+      lease_token: leaseToken,
+      error_code: 'classroom_archive_source_cleanup_operation_not_configured',
+      error: 'Classroom archive source cleanup operation is not configured',
+      retryable: true,
+    }, { status: 503 })
+  }
+  const operationId = resolveClassroomArchiveSourceCleanupOperationId(configuredOperationId)
+
   const result = await runClassroomArchiveSourceCleanup({
     supabase: getServiceRoleClient(),
     leaseToken,
+    operationId,
     limit: CLEANUP_CANARY_LIMIT,
     leaseSeconds: CLASSROOM_ARCHIVE_SOURCE_CLEANUP_DEFAULT_LEASE_SECONDS,
   })

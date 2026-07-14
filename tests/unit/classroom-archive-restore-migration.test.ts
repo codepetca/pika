@@ -28,6 +28,7 @@ describe('resumable classroom archive restore migration', () => {
   })
 
   it('gates capacity and atomically verifies every resource before removing the tombstone', () => {
+    expect(migration).toContain('perform public.cleanup_expired_classroom_archive_snapshots();')
     expect(migration).toContain('pg_database_size(current_database())')
     expect(migration).toContain('v_archive.uncompressed_byte_size * 2')
     expect(migration).toContain('jsonb_populate_recordset')
@@ -47,6 +48,15 @@ describe('resumable classroom archive restore migration', () => {
     expect(completeFunction?.indexOf('delete from public.classroom_cold_tombstones')).toBeGreaterThan(
       completeFunction?.lastIndexOf("status = 'completed'") ?? Number.MAX_SAFE_INTEGER,
     )
+  })
+
+  it('atomically claims expired staging without overwriting completed operations', () => {
+    const cleanupFunction = migration.match(
+      /create or replace function public\.cleanup_expired_classroom_archive_snapshots[\s\S]*?\n\$\$;/,
+    )?.[0]
+    expect(cleanupFunction).toContain('with expired as (')
+    expect(cleanupFunction).toContain("where status <> 'completed'")
+    expect(cleanupFunction).toContain('returning id')
   })
 
   it('exposes restore state and RPCs only to the service role', () => {

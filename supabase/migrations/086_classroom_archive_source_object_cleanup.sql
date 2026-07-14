@@ -1,5 +1,12 @@
 -- Lease-based deletion of source objects after an atomic classroom compaction.
--- This migration defines no app route, schedule, or production caller.
+-- Rows remain ineligible until a separate ownership verifier records exclusive ownership.
+
+alter table public.classroom_archive_source_object_cleanup
+  add column if not exists ownership_verified boolean not null default false;
+
+create unique index if not exists uq_classroom_archive_source_cleanup_owned_object
+  on public.classroom_archive_source_object_cleanup (storage_bucket, storage_path)
+  where ownership_verified is true and status <> 'deleted';
 
 alter table public.classroom_archive_source_object_cleanup
   drop constraint if exists classroom_archive_source_object_cleanup_status_check;
@@ -58,6 +65,7 @@ create index idx_classroom_archive_source_object_cleanup_due
 
 create or replace function public.claim_due_classroom_archive_source_object_cleanup(
   p_lease_token uuid,
+  p_operation_id uuid,
   p_limit integer default 25,
   p_lease_seconds integer default 300
 )
@@ -76,6 +84,7 @@ set search_path = public
 as $$
 begin
   if p_lease_token is null
+    or p_operation_id is null
     or p_limit is null
     or p_limit < 1
     or p_limit > 100
@@ -104,6 +113,8 @@ begin
       on tombstone.classroom_id = cleanup.classroom_id
       and tombstone.archive_id = cleanup.archive_id
     where cleanup.next_attempt_at <= clock_timestamp()
+      and cleanup.operation_id = p_operation_id
+      and cleanup.ownership_verified is true
       and (
         cleanup.status in ('pending', 'failed')
         or (
@@ -140,6 +151,60 @@ begin
     claimed.expected_byte_size,
     claimed.attempt_count
   from claimed;
+end;
+$$;
+
+create or replace function public.renew_classroom_archive_source_object_cleanup_lease(
+  p_operation_id uuid,
+  p_storage_bucket text,
+  p_storage_path text,
+  p_lease_token uuid,
+  p_lease_seconds integer default 300
+)
+returns boolean
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_updated boolean;
+begin
+  if p_operation_id is null
+    or p_lease_token is null
+    or p_storage_bucket not in (
+      'assignment-artifacts',
+      'submission-images',
+      'test-documents'
+    )
+    or p_storage_path is null
+    or p_storage_path = ''
+    or p_storage_path like '/%'
+    or strpos(p_storage_path, E'\\') > 0
+    or exists (
+      select 1
+      from regexp_split_to_table(p_storage_path, '/') as path_segment(value)
+      where path_segment.value in ('', '.', '..')
+    )
+    or p_lease_seconds is null
+    or p_lease_seconds < 30
+    or p_lease_seconds > 1800
+  then
+    raise exception 'Invalid classroom archive source cleanup lease renewal'
+      using errcode = '22023';
+  end if;
+
+  update public.classroom_archive_source_object_cleanup
+  set
+    lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_seconds),
+    updated_at = clock_timestamp()
+  where operation_id = p_operation_id
+    and storage_bucket = p_storage_bucket
+    and storage_path = p_storage_path
+    and ownership_verified is true
+    and status = 'processing'
+    and lease_token = p_lease_token
+    and lease_expires_at > clock_timestamp();
+  v_updated := found;
+  return v_updated;
 end;
 $$;
 
@@ -263,21 +328,25 @@ revoke all on table public.classroom_archive_source_object_cleanup
   from public, anon, authenticated;
 grant select on table public.classroom_archive_source_object_cleanup to service_role;
 
-revoke all on function public.claim_due_classroom_archive_source_object_cleanup(uuid, integer, integer)
+revoke all on function public.claim_due_classroom_archive_source_object_cleanup(uuid, uuid, integer, integer)
+  from public, anon, authenticated;
+revoke all on function public.renew_classroom_archive_source_object_cleanup_lease(uuid, text, text, uuid, integer)
   from public, anon, authenticated;
 revoke all on function public.complete_classroom_archive_source_object_cleanup(uuid, text, text, uuid)
   from public, anon, authenticated;
 revoke all on function public.fail_classroom_archive_source_object_cleanup(uuid, text, text, uuid, text)
   from public, anon, authenticated;
 
-grant execute on function public.claim_due_classroom_archive_source_object_cleanup(uuid, integer, integer)
+grant execute on function public.claim_due_classroom_archive_source_object_cleanup(uuid, uuid, integer, integer)
+  to service_role;
+grant execute on function public.renew_classroom_archive_source_object_cleanup_lease(uuid, text, text, uuid, integer)
   to service_role;
 grant execute on function public.complete_classroom_archive_source_object_cleanup(uuid, text, text, uuid)
   to service_role;
 grant execute on function public.fail_classroom_archive_source_object_cleanup(uuid, text, text, uuid, text)
   to service_role;
 
-comment on function public.claim_due_classroom_archive_source_object_cleanup(uuid, integer, integer) is
-  'Leases source-object deletions only after the matching compaction and cold tombstone commit.';
+comment on function public.claim_due_classroom_archive_source_object_cleanup(uuid, uuid, integer, integer) is
+  'Leases source-object deletion for one approved operation after compaction, tombstone, and exclusive ownership verification.';
 comment on function public.complete_classroom_archive_source_object_cleanup(uuid, text, text, uuid) is
   'Records exact-key source-object absence for the current unexpired cleanup lease.';

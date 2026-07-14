@@ -12,7 +12,7 @@ export const classroomDataPrivacyClassSchema = z.enum([
 
 export type ClassroomDataPrivacyClass = z.infer<typeof classroomDataPrivacyClassSchema>
 
-export const gradexDispositionSchema = z.enum(['exclude', 'include_deidentified'])
+export const gradexDispositionSchema = z.enum(['exclude', 'include_structured'])
 export type GradexDisposition = z.infer<typeof gradexDispositionSchema>
 
 const rootScopeSchema = z.object({
@@ -202,16 +202,16 @@ export const CLASSROOM_RELATIONAL_RESOURCES: ClassroomResource[] = [
   resource('announcements', 'classrooms', 'classroom_id', ['teacher_content']),
   resource('announcement_reads', 'announcements', 'announcement_id', ['student_identity', 'operations']),
   resource('assessment_drafts', 'classrooms', 'classroom_id', ['teacher_content', 'operations']),
-  resource('assignments', 'classrooms', 'classroom_id', ['teacher_content'], 'include_deidentified'),
-  resource('assignment_ai_grading_runs', 'assignments', 'assignment_id', ['grades_and_feedback', 'operations'], 'include_deidentified'),
-  resource('assignment_ai_grading_run_items', 'assignment_ai_grading_runs', 'run_id', ['student_identity', 'grades_and_feedback', 'operations'], 'include_deidentified', ['assignment_docs', 'assignments']),
-  resource('assignment_docs', 'assignments', 'assignment_id', ['student_identity', 'student_work', 'grades_and_feedback'], 'include_deidentified'),
+  resource('assignments', 'classrooms', 'classroom_id', ['teacher_content'], 'include_structured'),
+  resource('assignment_ai_grading_runs', 'assignments', 'assignment_id', ['grades_and_feedback', 'operations'], 'include_structured'),
+  resource('assignment_ai_grading_run_items', 'assignment_ai_grading_runs', 'run_id', ['student_identity', 'grades_and_feedback', 'operations'], 'include_structured', ['assignment_docs', 'assignments']),
+  resource('assignment_docs', 'assignments', 'assignment_id', ['student_identity', 'student_work', 'grades_and_feedback'], 'include_structured'),
   resource('assignment_doc_history', 'assignment_docs', 'assignment_doc_id', ['student_work', 'operations']),
-  resource('assignment_feedback_entries', 'assignments', 'assignment_id', ['student_identity', 'grades_and_feedback'], 'include_deidentified'),
-  resource('assignment_repo_review_runs', 'assignments', 'assignment_id', ['grades_and_feedback', 'operations'], 'include_deidentified'),
-  resource('assignment_repo_review_results', 'assignment_repo_review_runs', 'run_id', ['student_identity', 'grades_and_feedback', 'operations'], 'include_deidentified', ['assignments']),
+  resource('assignment_feedback_entries', 'assignments', 'assignment_id', ['student_identity', 'grades_and_feedback'], 'include_structured'),
+  resource('assignment_repo_review_runs', 'assignments', 'assignment_id', ['grades_and_feedback', 'operations'], 'include_structured'),
+  resource('assignment_repo_review_results', 'assignment_repo_review_runs', 'run_id', ['student_identity', 'grades_and_feedback', 'operations'], 'include_structured', ['assignments']),
   resource('assignment_repo_targets', 'assignments', 'assignment_id', ['student_identity', 'external_reference']),
-  resource('assignment_submission_requirements', 'assignments', 'assignment_id', ['teacher_content'], 'include_deidentified'),
+  resource('assignment_submission_requirements', 'assignments', 'assignment_id', ['teacher_content'], 'include_structured'),
   resource('assignment_submission_artifacts', 'assignment_docs', 'assignment_doc_id', ['student_identity', 'student_work', 'external_reference'], 'exclude', ['assignment_submission_requirements']),
   resource('class_days', 'classrooms', 'classroom_id', ['teacher_content', 'operations']),
   resource('classroom_enrollments', 'classrooms', 'classroom_id', ['student_identity']),
@@ -231,21 +231,21 @@ export const CLASSROOM_RELATIONAL_RESOURCES: ClassroomResource[] = [
   resource('surveys', 'classrooms', 'classroom_id', ['teacher_content']),
   resource('survey_questions', 'surveys', 'survey_id', ['teacher_content']),
   resource('survey_responses', 'surveys', 'survey_id', ['student_identity', 'student_work'], 'exclude', ['survey_questions']),
-  resource('tests', 'classrooms', 'classroom_id', ['teacher_content'], 'include_deidentified'),
-  resource('test_ai_grading_runs', 'tests', 'test_id', ['grades_and_feedback', 'operations'], 'include_deidentified'),
-  resource('test_ai_grading_run_items', 'test_ai_grading_runs', 'run_id', ['student_identity', 'grades_and_feedback', 'operations'], 'include_deidentified', ['test_questions', 'test_responses', 'tests']),
+  resource('tests', 'classrooms', 'classroom_id', ['teacher_content'], 'include_structured'),
+  resource('test_ai_grading_runs', 'tests', 'test_id', ['grades_and_feedback', 'operations'], 'include_structured'),
+  resource('test_ai_grading_run_items', 'test_ai_grading_runs', 'run_id', ['student_identity', 'grades_and_feedback', 'operations'], 'include_structured', ['test_questions', 'test_responses', 'tests']),
   resource('test_attempts', 'tests', 'test_id', ['student_identity', 'student_work', 'grades_and_feedback', 'operations']),
   resource('test_attempt_history', 'test_attempts', 'test_attempt_id', ['student_identity', 'student_work', 'grades_and_feedback', 'operations']),
   resource('test_focus_events', 'tests', 'test_id', ['student_identity', 'behavioral_telemetry']),
-  resource('test_questions', 'tests', 'test_id', ['teacher_content'], 'include_deidentified'),
-  resource('test_responses', 'tests', 'test_id', ['student_identity', 'student_work', 'grades_and_feedback'], 'include_deidentified', ['test_questions']),
+  resource('test_questions', 'tests', 'test_id', ['teacher_content'], 'include_structured'),
+  resource('test_responses', 'tests', 'test_id', ['student_identity', 'student_work', 'grades_and_feedback'], 'include_structured', ['test_questions']),
   resource('test_student_availability', 'tests', 'test_id', ['student_identity', 'operations']),
 ]
 
 classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)
 
 export const GRADEX_RESOURCE_TABLES = CLASSROOM_RELATIONAL_RESOURCES
-  .filter((resource) => resource.gradex === 'include_deidentified')
+  .filter((resource) => resource.gradex === 'include_structured')
   .map((resource) => resource.table)
   .sort()
 

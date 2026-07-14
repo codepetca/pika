@@ -60,7 +60,7 @@ function verificationEvidence() {
     source_archive_manifest_verified: true,
     resource_checksums_verified: true,
     resource_counts_verified: true,
-    deidentification_verified: true,
+    structured_privacy_verified: true,
     pseudonym_relationships_verified: true,
     storage_objects_excluded: true,
     read_back_verified: true,
@@ -347,7 +347,7 @@ describe('classroom Gradex runtime coordinator', () => {
     )
     expect(result.verification).toEqual(expect.objectContaining({
       read_back_verified: true,
-      deidentification_verified: true,
+      structured_privacy_verified: true,
       direct_identifier_findings: 0,
     }))
     expect(mock.calls.indexOf(`download:${CLASSROOM_GRADEX_EXTRACT_BUCKET}/${EXTRACT_PATH}`))

@@ -32,6 +32,9 @@ describe('classroom archive source-object cleanup migration', () => {
     )
     expect(migration).toContain("operation.operation_type = 'compact'")
     expect(migration).toContain("operation.status = 'completed'")
+    expect(migration).toContain('cleanup.operation_id = p_operation_id')
+    expect(migration).toContain('cleanup.ownership_verified is true')
+    expect(migration).toContain('uq_classroom_archive_source_cleanup_owned_object')
     expect(migration).toContain(
       'join public.classroom_cold_tombstones tombstone',
     )
@@ -54,6 +57,9 @@ describe('classroom archive source-object cleanup migration', () => {
     expect(migration).toContain("status = 'processing'")
     expect(migration).toContain('lease_token = p_lease_token')
     expect(migration).toContain('lease_expires_at > clock_timestamp()')
+    expect(migration).toContain(
+      'public.renew_classroom_archive_source_object_cleanup_lease(',
+    )
     expect(migration).toContain('p_storage_bucket is null')
     expect(migration).toContain("p_error_code !~ '^[a-z0-9_]{3,80}$'")
   })
@@ -66,7 +72,10 @@ describe('classroom archive source-object cleanup migration', () => {
       'grant select on table public.classroom_archive_source_object_cleanup to service_role;',
     )
     expect(migration).toMatch(
-      /grant execute on function public\.claim_due_classroom_archive_source_object_cleanup\(uuid, integer, integer\)\s+to service_role;/,
+      /grant execute on function public\.claim_due_classroom_archive_source_object_cleanup\(uuid, uuid, integer, integer\)\s+to service_role;/,
+    )
+    expect(migration).toMatch(
+      /grant execute on function public\.renew_classroom_archive_source_object_cleanup_lease\(uuid, text, text, uuid, integer\)\s+to service_role;/,
     )
     expect(migration).toMatch(
       /grant execute on function public\.complete_classroom_archive_source_object_cleanup\(uuid, text, text, uuid\)\s+to service_role;/,

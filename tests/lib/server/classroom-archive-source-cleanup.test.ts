@@ -5,12 +5,12 @@ import {
   isClassroomArchiveSourceCleanupEnabled,
   isClassroomArchiveSourceCleanupTriggerEnabled,
   resolveClassroomArchiveSourceCleanupLeaseToken,
+  resolveClassroomArchiveSourceCleanupOperationId,
   runClassroomArchiveSourceCleanup,
 } from '@/lib/server/classroom-archive-source-cleanup'
 
 const LEASE_TOKEN = '10000000-0000-4000-8000-000000000001'
 const OPERATION_ID = '20000000-0000-4000-8000-000000000001'
-const OPERATION_TWO_ID = '20000000-0000-4000-8000-000000000002'
 const ARCHIVE_ID = '30000000-0000-4000-8000-000000000001'
 const CLASSROOM_ID = '40000000-0000-4000-8000-000000000001'
 const PATH = 'teacher/classroom/submission.txt'
@@ -52,6 +52,7 @@ function createSupabaseMock(options: {
   claimError?: { code?: string; message?: string }
   completeResult?: boolean
   failResult?: boolean
+  renewResult?: boolean
   initiallyMissing?: string[]
   objectBytes?: Record<string, Uint8Array>
   removeErrorPaths?: string[]
@@ -79,6 +80,9 @@ function createSupabaseMock(options: {
     }
     if (name === 'complete_classroom_archive_source_object_cleanup') {
       return { data: options.completeResult ?? true, error: null }
+    }
+    if (name === 'renew_classroom_archive_source_object_cleanup_lease') {
+      return { data: options.renewResult ?? true, error: null }
     }
     if (name === 'fail_classroom_archive_source_object_cleanup') {
       return { data: options.failResult ?? true, error: null }
@@ -160,6 +164,7 @@ function run(
   return runClassroomArchiveSourceCleanup({
     supabase: mock.client,
     leaseToken: LEASE_TOKEN,
+    operationId: OPERATION_ID,
     limit: overrides.limit,
     leaseSeconds: overrides.leaseSeconds,
   })
@@ -187,6 +192,8 @@ describe('classroom archive source-object cleanup', () => {
       /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/,
     )
     expect(() => resolveClassroomArchiveSourceCleanupLeaseToken('not-a-uuid')).toThrow()
+    expect(resolveClassroomArchiveSourceCleanupOperationId(OPERATION_ID)).toBe(OPERATION_ID)
+    expect(() => resolveClassroomArchiveSourceCleanupOperationId('not-a-uuid')).toThrow()
     const result = await run(mock)
 
     expect(result).toEqual(expect.objectContaining({
@@ -212,6 +219,7 @@ describe('classroom archive source-object cleanup', () => {
       'claim_due_classroom_archive_source_object_cleanup',
       {
         p_lease_token: LEASE_TOKEN,
+        p_operation_id: OPERATION_ID,
         p_limit: CLASSROOM_ARCHIVE_SOURCE_CLEANUP_MAX_CLAIMS,
         p_lease_seconds: 300,
       },
@@ -219,6 +227,7 @@ describe('classroom archive source-object cleanup', () => {
     expect(mock.calls).toEqual([
       'rpc:claim_due_classroom_archive_source_object_cleanup',
       `download:${PATH}`,
+      'rpc:renew_classroom_archive_source_object_cleanup_lease',
       `remove:${PATH}`,
       `download:${PATH}`,
       'rpc:complete_classroom_archive_source_object_cleanup',
@@ -363,9 +372,21 @@ describe('classroom archive source-object cleanup', () => {
     )
   })
 
+  it('does not remove an object when its lease cannot be renewed immediately before deletion', async () => {
+    const mock = createSupabaseMock({ renewResult: false })
+    const result = await run(mock)
+
+    expect(result.ok && result.results[0]).toEqual(expect.objectContaining({
+      status: 'failed',
+      error_code: 'archive_source_cleanup_lease_renewal_failed',
+      retry_recorded: true,
+    }))
+    expect(mock.remove).not.toHaveBeenCalled()
+  })
+
   it('contains one failed object and continues independent claims', async () => {
     const mock = createSupabaseMock({
-      claims: [claim(), claim(OPERATION_TWO_ID, PATH_TWO)],
+      claims: [claim(), claim(OPERATION_ID, PATH_TWO)],
       objectBytes: { [PATH]: Buffer.from('wrong') },
     })
     const result = await run(mock, { limit: 2 })
@@ -385,7 +406,7 @@ describe('classroom archive source-object cleanup', () => {
     })
     const duplicate = createSupabaseMock({ claims: [claim(), claim()] })
     const oversized = createSupabaseMock({
-      claims: [claim(), claim(OPERATION_TWO_ID, PATH_TWO)],
+      claims: [claim(), claim(OPERATION_ID, PATH_TWO)],
     })
 
     for (const [mock, overrides] of [
