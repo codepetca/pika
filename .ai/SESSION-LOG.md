@@ -10,24 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-23 — Teacher classroom cached JSON
-
-**Completed:**
-- Continued the bounded architecture/UI improvement goal with a small client read-cache consistency slice in the teacher classroom assignments view.
-- Replaced the assignments, materials, and surveys summary GET loaders with `fetchCachedJSON`, preserving cache keys, 20s TTLs, error messages, survey fallback, and stale classroom/request guards.
-- Left selected-assignment detail loading on `fetchJSONWithCache` because its short TTL and refresh-counter key are intentional.
-- Kept the slice non-visual: no layout, copy, or interaction changes.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm vitest run tests/components/TeacherClassroomView.test.tsx`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-06-24 — Teacher lesson calendar cached JSON
 
 **Completed:**
@@ -709,4 +691,27 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm check:architecture` (592 modules / 0 allowances)
 - Pika pre-commit audit
 - `bash scripts/verify-env.sh`
+- `git diff --check`
+
+## 2026-07-14 — Manual test grading workflow boundary
+
+**Risk profile:** async-grading
+
+**Model recommendation:** GPT-5 Codex - grading request compatibility and persistence extraction require exact cross-layer behavior analysis.
+
+**Completed:**
+- Replaced the handwritten manual test-grade decoder with a feature-owned Zod contract while preserving score coercion, rounding, trim behavior, clear semantics, AI audit metadata, and duplicate rejection.
+- Extracted teacher access, enrollment/question validation, existing-response preservation, grade row construction, and the legacy AI-column retry into `@/lib/server/test-grades`.
+- Kept the existing non-transactional persistence sequence unchanged for this behavior-preserving expand slice; atomic test grading remains a separately reviewed follow-up.
+- Made malformed JSON and JSON `null` fail deterministically with 400 responses instead of accidental internal errors.
+- Removed the route from the deletion-only API Zod baseline and added regressions for access arguments, archive protection, query failures, question scope, score caps, clear fields, timestamps, and failed compatibility retries.
+- Completed two independent review/fix rounds with no remaining findings. No UI, database schema, migration, dependency, or production changes.
+
+**Validation:**
+- Focused grading contract, route, and API architecture suites (3 files / 33 tests)
+- `pnpm test` (351 files / 3,186 tests)
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm check:architecture` (594 modules / 0 allowances)
+- Pika pre-commit audit
 - `git diff --check`
