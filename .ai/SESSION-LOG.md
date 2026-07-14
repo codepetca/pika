@@ -10,22 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-05 — Test draft route simplification
-
-**Completed:**
-- Weekly Pika simplification selected the teacher test draft API route as the hotspot because it duplicated assessment draft creation/repair logic already available in `ensureAssessmentDraft`.
-- Removed the route-local `ensureTestDraft` helper from `src/app/api/teacher/tests/[id]/draft/route.ts` and routed GET/PATCH through the shared assessment draft helper.
-- Updated `tests/api/teacher/tests-draft-route.test.ts` to cover the shared helper path while preserving document validation and save behavior.
-- Opened draft PR #834: https://github.com/codepetca/pika/pull/834
-- Risk profile: workspace-state, because test draft preservation and repair are stateful editor concerns.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `./node_modules/.bin/vitest run tests/api/teacher/tests-draft-route.test.ts`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `./node_modules/.bin/vitest run`
-- `pnpm test` was attempted but blocked before Vitest by pnpm ignored build-script approval (`@parcel/watcher`, `esbuild`, `unrs-resolver`).
-
 ## 2026-06-23 — Teacher classroom cached JSON
 
 **Completed:**
@@ -698,4 +682,31 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm lint`
 - `pnpm check:architecture` (589 modules / 0 allowances)
+- `git diff --check`
+
+## 2026-07-14 — Atomic assignment grading and feedback expand release
+
+**Risk profile:** async-grading
+
+**Model recommendation:** GPT-5 Codex - transactional grading, concurrent roster changes, runtime response contracts, and rolling database deployment require cross-layer invariant analysis.
+
+**Completed:**
+- Added expand-only migration 087 with service-role atomic RPCs for manual and AI grades, AI run/item completion, repository review completion, and single/batch feedback returns.
+- Added optimistic document revisions, assignment/classroom locking, replay-safe terminal operations, final-score validation, and all-or-none grade/result persistence.
+- Routed native AI, Gradex, repository review, and teacher feedback flows through typed server boundaries; feedback returns now submit the browser-observed document revision.
+- Added Zod contracts for assignment identifiers, grading and return payloads, and successful Gradex runtime responses; malformed successful responses fail before grade persistence.
+- Added a live database/concurrency harness, migration contract tests, route/service tests, and completed teacher/student desktop/mobile visual verification.
+- Documented the migration-first expand deployment and the separately numbered contract migration required only after all old application instances are drained.
+- Completed repeated independent database and TypeScript reviews with no remaining findings. No production database or Storage changes were made.
+
+**Validation:**
+- `pnpm test` (350 files / 3,159 tests)
+- Atomic assignment database/concurrency harness
+- `pnpm build`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm db:types:check`
+- `pnpm check:architecture` (592 modules / 0 allowances)
+- Pika pre-commit audit
+- `bash scripts/verify-env.sh`
 - `git diff --check`

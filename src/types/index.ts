@@ -409,6 +409,7 @@ export interface AssignmentAiGradingRunItem {
   assignment_id: string
   student_id: string
   assignment_doc_id: string | null
+  assignment_doc_updated_at: string | null
   queue_position: number
   status: AssignmentAiGradingItemStatus
   skip_reason: AssignmentAiGradingSkipReason | null

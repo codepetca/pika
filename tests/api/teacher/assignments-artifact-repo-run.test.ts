@@ -12,7 +12,7 @@ const {
   mockAssertTeacherCanMutateAssignment,
   mockLoadClassroomAiSanitizationContext,
 } = vi.hoisted(() => ({
-  mockSupabaseClient: { from: vi.fn() },
+  mockSupabaseClient: { from: vi.fn(), rpc: vi.fn() },
   mockAnalyzeRepoReviewAssignment: vi.fn(),
   mockGradeRepoReviewFeedback: vi.fn(),
   mockExtractRepoArtifactsFromContent: vi.fn(),
@@ -68,7 +68,7 @@ function installRepoRunTables(opts: {
 }) {
   const insertedRuns: unknown[] = []
   const insertedResults: unknown[] = []
-  const upsertedDocs: unknown[] = []
+  const aiGradeCalls: Array<Record<string, unknown>> = []
   const runUpdates: unknown[] = []
 
   mockSupabaseClient.from.mockImplementation((table: string) => {
@@ -97,10 +97,6 @@ function installRepoRunTables(opts: {
             in: vi.fn(async () => ({ data: opts.docs ?? [], error: null })),
           })),
         })),
-        upsert: vi.fn(async (rows: unknown[]) => {
-          upsertedDocs.push(...rows)
-          return { error: null }
-        }),
       }
     }
 
@@ -131,28 +127,48 @@ function installRepoRunTables(opts: {
       }
     }
 
-    if (table === 'assignment_repo_review_results') {
-      return {
-        insert: vi.fn(async (rows: unknown[]) => {
-          insertedResults.push(...rows)
-          return { error: null }
-        }),
-      }
-    }
-
     throw new Error(`Unexpected table: ${table}`)
   })
 
-  return { insertedRuns, insertedResults, upsertedDocs, runUpdates }
+  mockSupabaseClient.rpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
+    if (fn !== 'complete_assignment_repo_review_run_atomic') {
+      throw new Error(`Unexpected RPC: ${fn}`)
+    }
+    aiGradeCalls.push(args)
+    insertedResults.push(...(args.p_result_rows as unknown[]))
+    const rows = args.p_grade_rows as Array<Record<string, unknown>>
+    const results = args.p_result_rows as Array<Record<string, unknown>>
+    return {
+      data: {
+        docs: rows.map((row, index) => ({
+          id: `doc-${index + 1}`,
+          assignment_id: results[index].assignment_id,
+          student_id: row.student_id,
+          updated_at: args.p_now,
+          score_completion: row.score_completion,
+          score_thinking: row.score_thinking,
+          score_workflow: row.score_workflow,
+          teacher_feedback_draft: null,
+          teacher_feedback_draft_updated_at: null,
+          graded_at: null,
+          graded_by: null,
+        })),
+      },
+      error: null,
+    }
+  })
+
+  return { insertedRuns, insertedResults, aiGradeCalls, runUpdates }
 }
 
 describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSupabaseClient.from.mockReset()
+    mockSupabaseClient.rpc.mockReset()
     mockExtractRepoArtifactsFromContent.mockReturnValue([])
     mockAssertTeacherCanMutateAssignment.mockResolvedValue({
-      id: 'assignment-1',
+      id: 'a0000000-0000-4000-8000-000000000001',
       classroom_id: 'classroom-1',
       title: 'Repo review',
       due_at: '2026-04-20T03:59:00.000Z',
@@ -166,20 +182,20 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
 
   it('rejects missing and oversized student id batches before touching Supabase', async () => {
     const emptyResponse = await POST(
-      new NextRequest('http://localhost/api/teacher/assignments/assignment-1/artifact-repo/run', {
+      new NextRequest('http://localhost/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/artifact-repo/run', {
         method: 'POST',
         body: JSON.stringify({ student_ids: [] }),
       }),
-      { params: { id: 'assignment-1' } },
+      { params: { id: 'a0000000-0000-4000-8000-000000000001' } },
     )
     expect(emptyResponse.status).toBe(400)
 
     const largeResponse = await POST(
-      new NextRequest('http://localhost/api/teacher/assignments/assignment-1/artifact-repo/run', {
+      new NextRequest('http://localhost/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/artifact-repo/run', {
         method: 'POST',
         body: JSON.stringify({ student_ids: Array.from({ length: 101 }, (_, index) => `student-${index}`) }),
       }),
-      { params: { id: 'assignment-1' } },
+      { params: { id: 'a0000000-0000-4000-8000-000000000001' } },
     )
     expect(largeResponse.status).toBe(400)
     expect(mockSupabaseClient.from).not.toHaveBeenCalled()
@@ -192,16 +208,16 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
       validationMessage: 'No repo artifact has been submitted yet.',
     })
     installRepoRunTables({
-      enrollments: [{ student_id: 'student-1', users: { email: 's1@example.com' } }],
-      docs: [{ student_id: 'student-1', repo_url: null, github_username: null }],
+      enrollments: [{ student_id: 'b0000000-0000-4000-8000-000000000001', users: { email: 's1@example.com' } }],
+      docs: [{ student_id: 'b0000000-0000-4000-8000-000000000001', repo_url: null, github_username: null }],
     })
 
     const response = await POST(
-      new NextRequest('http://localhost/api/teacher/assignments/assignment-1/artifact-repo/run', {
+      new NextRequest('http://localhost/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/artifact-repo/run', {
         method: 'POST',
-        body: JSON.stringify({ student_ids: ['student-1'] }),
+        body: JSON.stringify({ student_ids: ['b0000000-0000-4000-8000-000000000001'] }),
       }),
-      { params: { id: 'assignment-1' } },
+      { params: { id: 'a0000000-0000-4000-8000-000000000001' } },
     )
     const data = await response.json()
 
@@ -214,7 +230,7 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
     expect(mockValidatePublicGitHubRepo).not.toHaveBeenCalled()
   })
 
-  it('groups valid repos, saves run results, and upserts draft grades', async () => {
+  it('groups valid repos, saves run results, and atomically saves draft grades', async () => {
     const candidateRepo = {
       type: 'repo',
       url: 'https://github.com/codepetca/pika',
@@ -239,10 +255,10 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
     })
     mockAnalyzeRepoReviewAssignment.mockResolvedValue({
       sourceRef: 'main',
-      warnings: [{ code: 'note', message: 'Low commit count', student_id: 'student-1' }],
+      warnings: [{ code: 'note', message: 'Low commit count', student_id: 'b0000000-0000-4000-8000-000000000001' }],
       confidence: 0.9,
       students: [{
-        studentId: 'student-1',
+        studentId: 'b0000000-0000-4000-8000-000000000001',
         githubLogin: 'student-login',
         commitCount: 4,
         activeDays: 2,
@@ -267,25 +283,26 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
       confidence: 0.8,
     })
     const harness = installRepoRunTables({
-      enrollments: [{ student_id: 'student-1', users: { email: 's1@example.com' } }],
-      profiles: [{ user_id: 'student-1', first_name: 'Sam', last_name: 'Lee' }],
+      enrollments: [{ student_id: 'b0000000-0000-4000-8000-000000000001', users: { email: 's1@example.com' } }],
+      profiles: [{ user_id: 'b0000000-0000-4000-8000-000000000001', first_name: 'Sam', last_name: 'Lee' }],
       docs: [{
         id: 'doc-1',
-        student_id: 'student-1',
+        student_id: 'b0000000-0000-4000-8000-000000000001',
         content: { type: 'doc', content: [] },
         repo_url: 'https://github.com/codepetca/pika',
         github_username: 'student-login',
         is_submitted: true,
         submitted_at: '2026-04-02T12:00:00.000Z',
+        updated_at: '2026-04-02T12:05:00.000Z',
       }],
     })
 
     const response = await POST(
-      new NextRequest('http://localhost/api/teacher/assignments/assignment-1/artifact-repo/run', {
+      new NextRequest('http://localhost/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/artifact-repo/run', {
         method: 'POST',
-        body: JSON.stringify({ student_ids: ['student-1'] }),
+        body: JSON.stringify({ student_ids: ['b0000000-0000-4000-8000-000000000001'] }),
       }),
-      { params: { id: 'assignment-1' } },
+      { params: { id: 'a0000000-0000-4000-8000-000000000001' } },
     )
     const data = await response.json()
 
@@ -295,8 +312,8 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
       candidateRepos: [candidateRepo],
     }))
     expect(mockSaveAssignmentRepoTarget).toHaveBeenCalledWith(expect.objectContaining({
-      assignmentId: 'assignment-1',
-      studentId: 'student-1',
+      assignmentId: 'a0000000-0000-4000-8000-000000000001',
+      studentId: 'b0000000-0000-4000-8000-000000000001',
       selectionMode: 'auto',
       validationStatus: 'valid',
       repoOwner: 'codepetca',
@@ -322,8 +339,8 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
     expect(harness.insertedResults).toEqual([
       expect.objectContaining({
         run_id: 'run-1',
-        assignment_id: 'assignment-1',
-        student_id: 'student-1',
+        assignment_id: 'a0000000-0000-4000-8000-000000000001',
+        student_id: 'b0000000-0000-4000-8000-000000000001',
         github_login: 'student-login',
         draft_score_completion: 8,
         draft_score_thinking: 7,
@@ -331,23 +348,25 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
         draft_feedback: 'Solid repo activity.',
       }),
     ])
-    expect(harness.upsertedDocs).toEqual([
+    expect(harness.aiGradeCalls).toEqual([
       expect.objectContaining({
-        assignment_id: 'assignment-1',
-        student_id: 'student-1',
-        score_completion: 8,
-        score_thinking: 7,
-        score_workflow: 9,
-        ai_feedback_suggestion: 'Solid repo activity.',
-        ai_feedback_model: 'repo-review-v2',
+        p_run_id: 'run-1',
+        p_teacher_id: 'teacher-1',
+        p_source_ref: 'main',
+        p_model: 'repo-review-v2',
+        p_grade_rows: [expect.objectContaining({
+          student_id: 'b0000000-0000-4000-8000-000000000001',
+          expected_doc_updated_at: '2026-04-02T12:05:00.000Z',
+          score_completion: 8,
+          score_thinking: 7,
+          score_workflow: 9,
+          apply_teacher_feedback_draft: false,
+          mark_graded: false,
+          ai_feedback_suggestion: 'Solid repo activity.',
+          ai_feedback_model: 'repo-review-v2',
+        })],
       }),
     ])
-    expect(harness.runUpdates).toEqual([
-      expect.objectContaining({
-        status: 'completed',
-        source_ref: 'main',
-        model: 'repo-review-v2',
-      }),
-    ])
+    expect(harness.runUpdates).toEqual([])
   })
 })

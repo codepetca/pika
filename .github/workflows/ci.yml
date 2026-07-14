@@ -39,6 +39,9 @@ jobs:
       - name: Check generated database types
         run: pnpm run db:types:check
 
+      - name: Verify atomic assignment feedback returns
+        run: bash scripts/check-atomic-assignment-feedback-returns.sh
+
       - name: Verify atomic blueprint rollback and replay
         run: bash scripts/check-atomic-blueprint-operations.sh
 

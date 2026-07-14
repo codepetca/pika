@@ -222,9 +222,11 @@ function mockFetchByStudent(
       const body = JSON.parse(String(init?.body || '{}')) as {
         student_id: string
         feedback: string
+        expected_doc_updated_at: string | null
       }
       const config = studentMap[body.student_id]
       const baseDoc = makeStudentWork(body.student_id, config || { graded: false }).doc
+      expect(body.expected_doc_updated_at).toBe(baseDoc.updated_at)
       const returnedAt = '2026-02-20T14:05:00Z'
 
       return Promise.resolve({
@@ -410,6 +412,165 @@ describe('TeacherStudentWorkPanel', () => {
     })
     expect(screen.getByText('Comments Sent')).toBeInTheDocument()
     expect(screen.getByText('Use stronger evidence in the second paragraph.')).toBeInTheDocument()
+  })
+
+  it('cancels pending grade autosave before sending a comment', async () => {
+    mockFetchByStudent({
+      'student-1': { graded: false },
+    })
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    const baseFetch = fetchMock.getMockImplementation()!
+    const feedbackResponse = createDeferred<any>()
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/feedback-return')) return feedbackResponse.promise
+      return baseFetch(input, init)
+    })
+
+    const user = userEvent.setup()
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    const draft = await screen.findByPlaceholderText('Teacher comment draft')
+    await user.type(draft, 'Feedback that should only be sent once.')
+    await user.click(screen.getByRole('button', { name: 'Send comment' }))
+
+    expect(screen.getByLabelText('Completion score')).toBeDisabled()
+    expect(screen.getByLabelText('Thinking score')).toBeDisabled()
+    expect(screen.getByLabelText('Workflow score')).toBeDisabled()
+    expect(draft).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Draft' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Final' })).toBeDisabled()
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1100))
+    })
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/grade'))).toHaveLength(0)
+
+    const returnedAt = '2026-02-20T14:05:00Z'
+    feedbackResponse.resolve({
+      ok: true,
+      json: async () => ({
+        doc: {
+          ...makeStudentWork('student-1', { graded: false }).doc,
+          feedback: 'Feedback that should only be sent once.',
+          teacher_feedback_draft: null,
+          teacher_feedback_draft_updated_at: null,
+          feedback_returned_at: returnedAt,
+        },
+        entry: {
+          id: 'feedback-return-pending-save',
+          assignment_id: 'assignment-1',
+          student_id: 'student-1',
+          entry_kind: 'teacher_feedback',
+          author_type: 'teacher',
+          body: 'Feedback that should only be sent once.',
+          returned_at: returnedAt,
+          created_at: returnedAt,
+          created_by: 'teacher-1',
+        },
+      }),
+    })
+
+    await waitFor(() => expect(draft).toHaveValue(''))
+  })
+
+  it('cancels a pending autosave when grading mutations are disabled externally', async () => {
+    mockFetchByStudent({
+      'student-1': { graded: false },
+    })
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    const user = userEvent.setup()
+    const { rerender } = render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    const draft = await screen.findByPlaceholderText('Teacher comment draft')
+    await user.type(draft, 'Do not persist while the parent is returning work.')
+    rerender(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+        mutationsDisabled
+      />,
+    )
+
+    expect(draft).toBeDisabled()
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1100))
+    })
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/grade'))).toHaveLength(0)
+  })
+
+  it('disables TeacherWorkInspector comment sending while grade autosave is in flight', async () => {
+    mockFetchByStudent({
+      'student-1': { graded: false },
+    })
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    const baseFetch = fetchMock.getMockImplementation()!
+    const gradeResponse = createDeferred<any>()
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/grade')) return gradeResponse.promise
+      return baseFetch(input, init)
+    })
+
+    const user = userEvent.setup()
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    const draft = await screen.findByPlaceholderText('Teacher comment draft')
+    await user.type(draft, 'Wait for this autosave.')
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1100))
+    })
+    const sendButton = screen.getByRole('button', { name: 'Send comment' })
+    expect(sendButton).toBeDisabled()
+
+    gradeResponse.resolve({
+      ok: true,
+      json: async () => ({
+        doc: {
+          ...makeStudentWork('student-1', { graded: false }).doc,
+          teacher_feedback_draft: 'Wait for this autosave.',
+          teacher_feedback_draft_updated_at: '2026-02-20T14:00:00Z',
+        },
+      }),
+    })
+
+    await waitFor(() => expect(sendButton).toBeEnabled())
   })
 
   it('renders structured artifacts when the written response is empty', async () => {
@@ -1077,7 +1238,10 @@ describe('TeacherStudentWorkPanel', () => {
     )
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/teacher/assignments/assignment-1/students/student-2')
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/teacher/assignments/assignment-1/students/student-2',
+        undefined,
+      )
     })
 
     expect(await screen.findByTestId('history-list')).toBeInTheDocument()
@@ -1590,7 +1754,10 @@ describe('TeacherStudentWorkPanel', () => {
     )
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/teacher/assignments/assignment-1/students/student-2')
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/teacher/assignments/assignment-1/students/student-2',
+        undefined,
+      )
     })
 
     expect(screen.getByText(/Work for student-1/)).toBeInTheDocument()

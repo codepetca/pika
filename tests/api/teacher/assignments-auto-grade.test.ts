@@ -81,7 +81,7 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
     vi.clearAllMocks()
     delete process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED
     assertTeacherCanMutateAssignment.mockResolvedValue({
-      id: 'assignment-1',
+      id: 'a0000000-0000-4000-8000-000000000001',
       classroom_id: 'classroom-1',
       title: 'Portfolio Site',
       instructions_markdown: 'Build and submit your portfolio site.',
@@ -103,7 +103,7 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
       kind: 'created',
       run: {
         id: 'run-1',
-        assignment_id: 'assignment-1',
+        assignment_id: 'a0000000-0000-4000-8000-000000000001',
         status: 'queued',
         model: 'gpt-5-nano',
         requested_count: 2,
@@ -125,7 +125,7 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
 
   it('grades a single legacy stringified assignment doc synchronously', async () => {
     mockAutoGradeTables({
-      enrolledIds: ['student-1'],
+      enrolledIds: ['b0000000-0000-4000-8000-000000000001'],
       assignmentDocsTable: {
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
@@ -133,7 +133,7 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
               maybeSingle: vi.fn().mockResolvedValue({
                 data: {
                   id: 'doc-1',
-                  student_id: 'student-1',
+                  student_id: 'b0000000-0000-4000-8000-000000000001',
                   content: JSON.stringify({
                     type: 'doc',
                     content: [
@@ -159,14 +159,14 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
       },
     })
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/auto-grade', {
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
       method: 'POST',
       body: JSON.stringify({
-        student_ids: ['student-1'],
+        student_ids: ['b0000000-0000-4000-8000-000000000001'],
       }),
     })
 
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
     const data = await response.json()
 
     expect(response.status).toBe(200)
@@ -178,16 +178,16 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
     expect(gradeAssignmentDocWithAi).toHaveBeenCalledTimes(1)
     expect(gradeAssignmentDocWithAi).toHaveBeenCalledWith(
       expect.objectContaining({
-        assignment: expect.objectContaining({ id: 'assignment-1', title: 'Portfolio Site' }),
+        assignment: expect.objectContaining({ id: 'a0000000-0000-4000-8000-000000000001', title: 'Portfolio Site' }),
         assignmentDoc: expect.objectContaining({
           id: 'doc-1',
-          student_id: 'student-1',
+          student_id: 'b0000000-0000-4000-8000-000000000001',
           feedback: 'Earlier feedback',
         }),
         gradedBy: 'teacher-1',
         telemetry: expect.objectContaining({
           operation: 'single_grade',
-          studentId: 'student-1',
+          studentId: 'b0000000-0000-4000-8000-000000000001',
         }),
       }),
     )
@@ -196,17 +196,17 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
   it('uses a background run for a single student when Gradex assignment grading is enabled', async () => {
     process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED = 'true'
     mockAutoGradeTables({
-      enrolledIds: ['student-1'],
+      enrolledIds: ['b0000000-0000-4000-8000-000000000001'],
     })
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/auto-grade', {
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
       method: 'POST',
       body: JSON.stringify({
-        student_ids: ['student-1'],
+        student_ids: ['b0000000-0000-4000-8000-000000000001'],
       }),
     })
 
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
     const data = await response.json()
 
     expect(response.status).toBe(202)
@@ -218,16 +218,16 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
       }),
     })
     expect(createOrResumeAssignmentAiGradingRun).toHaveBeenCalledWith({
-      assignmentId: 'assignment-1',
+      assignmentId: 'a0000000-0000-4000-8000-000000000001',
       teacherId: 'teacher-1',
-      studentIds: ['student-1'],
+      studentIds: ['b0000000-0000-4000-8000-000000000001'],
     })
     expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
   })
 
   it('marks legacy stringified empty docs as missing without calling the grader', async () => {
     mockAutoGradeTables({
-      enrolledIds: ['student-1'],
+      enrolledIds: ['b0000000-0000-4000-8000-000000000001'],
       assignmentDocsTable: {
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
@@ -235,10 +235,11 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
               maybeSingle: vi.fn().mockResolvedValue({
                 data: {
                   id: 'doc-1',
-                  student_id: 'student-1',
+                  student_id: 'b0000000-0000-4000-8000-000000000001',
                   content: JSON.stringify({ type: 'doc', content: [] }),
                   feedback: null,
                   authenticity_score: 42,
+                  updated_at: '2026-04-21T12:00:00.000Z',
                 },
                 error: null,
               }),
@@ -248,14 +249,14 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
       },
     })
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/auto-grade', {
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
       method: 'POST',
       body: JSON.stringify({
-        student_ids: ['student-1'],
+        student_ids: ['b0000000-0000-4000-8000-000000000001'],
       }),
     })
 
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
     const data = await response.json()
 
     expect(response.status).toBe(200)
@@ -267,14 +268,19 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
     expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
     expect(markAssignmentDocMissingGrade).toHaveBeenCalledWith({
       supabase: mockSupabaseClient,
-      assignmentId: 'assignment-1',
-      studentId: 'student-1',
+      assignmentId: 'a0000000-0000-4000-8000-000000000001',
+      studentId: 'b0000000-0000-4000-8000-000000000001',
+      teacherId: 'teacher-1',
       gradedBy: 'teacher-1',
+      expectedDocUpdatedAt: '2026-04-21T12:00:00.000Z',
     })
   })
 
   it('chunks enrollment validation filters for more than 50 selected students', async () => {
-    const studentIds = Array.from({ length: 51 }, (_, index) => `student-${index + 1}`)
+    const studentIds = Array.from(
+      { length: 51 },
+      (_, index) => `b0000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    )
     const inCalls: string[][] = []
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
@@ -297,26 +303,26 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
       throw new Error(`Unexpected table: ${table}`)
     })
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/auto-grade', {
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
       method: 'POST',
       body: JSON.stringify({
         student_ids: studentIds,
       }),
     })
 
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
     const data = await response.json()
 
     expect(response.status).toBe(202)
     expect(data.mode).toBe('background')
     expect(inCalls).toHaveLength(2)
     expect(inCalls[0]).toHaveLength(50)
-    expect(inCalls[1]).toEqual(['student-51'])
+    expect(inCalls[1]).toEqual(['b0000000-0000-4000-8000-000000000051'])
   })
 
   it('creates a missing grade when no assignment doc exists', async () => {
     mockAutoGradeTables({
-      enrolledIds: ['student-1'],
+      enrolledIds: ['b0000000-0000-4000-8000-000000000001'],
       assignmentDocsTable: {
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
@@ -331,14 +337,14 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
       },
     })
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/auto-grade', {
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
       method: 'POST',
       body: JSON.stringify({
-        student_ids: ['student-1'],
+        student_ids: ['b0000000-0000-4000-8000-000000000001'],
       }),
     })
 
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
     const data = await response.json()
 
     expect(response.status).toBe(200)
@@ -350,25 +356,27 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
     expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
     expect(markAssignmentDocMissingGrade).toHaveBeenCalledWith({
       supabase: mockSupabaseClient,
-      assignmentId: 'assignment-1',
-      studentId: 'student-1',
+      assignmentId: 'a0000000-0000-4000-8000-000000000001',
+      studentId: 'b0000000-0000-4000-8000-000000000001',
+      teacherId: 'teacher-1',
       gradedBy: 'teacher-1',
+      expectedDocUpdatedAt: null,
     })
   })
 
   it('starts a resumable batch run for multi-student requests', async () => {
     mockAutoGradeTables({
-      enrolledIds: ['student-1', 'student-2'],
+      enrolledIds: ['b0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000002'],
     })
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/auto-grade', {
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
       method: 'POST',
       body: JSON.stringify({
-        student_ids: ['student-1', 'student-2'],
+        student_ids: ['b0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000002'],
       }),
     })
 
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
     const data = await response.json()
 
     expect(response.status).toBe(202)
@@ -376,14 +384,14 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
       mode: 'background',
       run: expect.objectContaining({
         id: 'run-1',
-        assignment_id: 'assignment-1',
+        assignment_id: 'a0000000-0000-4000-8000-000000000001',
         requested_count: 2,
       }),
     })
     expect(createOrResumeAssignmentAiGradingRun).toHaveBeenCalledWith({
-      assignmentId: 'assignment-1',
+      assignmentId: 'a0000000-0000-4000-8000-000000000001',
       teacherId: 'teacher-1',
-      studentIds: ['student-1', 'student-2'],
+      studentIds: ['b0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000002'],
     })
   })
 
@@ -392,14 +400,14 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
       enrolledIds: [],
     })
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/auto-grade', {
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
       method: 'POST',
       body: JSON.stringify({
-        student_ids: ['student-404'],
+        student_ids: ['b0000000-0000-4000-8000-000000000404'],
       }),
     })
 
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
     const data = await response.json()
 
     expect(response.status).toBe(400)
@@ -412,17 +420,17 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
 
   it('rejects batch auto-grade when any requested student is not enrolled', async () => {
     mockAutoGradeTables({
-      enrolledIds: ['student-1'],
+      enrolledIds: ['b0000000-0000-4000-8000-000000000001'],
     })
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/auto-grade', {
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
       method: 'POST',
       body: JSON.stringify({
-        student_ids: ['student-1', 'student-404'],
+        student_ids: ['b0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000404'],
       }),
     })
 
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
     const data = await response.json()
 
     expect(response.status).toBe(400)
@@ -438,7 +446,7 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
       kind: 'conflict',
       run: {
         id: 'run-2',
-        assignment_id: 'assignment-1',
+        assignment_id: 'a0000000-0000-4000-8000-000000000001',
         status: 'running',
         model: 'gpt-5-nano',
         requested_count: 3,
@@ -457,17 +465,17 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
       },
     })
     mockAutoGradeTables({
-      enrolledIds: ['student-1', 'student-2'],
+      enrolledIds: ['b0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000002'],
     })
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/auto-grade', {
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
       method: 'POST',
       body: JSON.stringify({
-        student_ids: ['student-1', 'student-2'],
+        student_ids: ['b0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000002'],
       }),
     })
 
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
     const data = await response.json()
 
     expect(response.status).toBe(409)

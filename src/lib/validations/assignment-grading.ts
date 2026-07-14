@@ -24,6 +24,8 @@ const assignmentGradeFieldsSchema = z.object({
 const selectedAssignmentGradeFieldsSchema = assignmentGradeFieldsSchema.extend({
   apply_target: z.unknown().optional(),
 })
+const timestampSchema = z.string().datetime({ offset: true })
+const uuidSchema = z.string().uuid()
 
 function normalizeRequestObject(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -113,23 +115,44 @@ export const saveAssignmentGradeSchema = z.preprocess(
   normalizeRequestObject,
   assignmentGradeFieldsSchema.extend({
     student_id: z.unknown().optional(),
+    expected_doc_updated_at: z.unknown().optional(),
   }),
 ).transform((body, ctx) => {
   if (!body.student_id || typeof body.student_id !== 'string') {
     addIssue(ctx, 'student_id is required')
     return z.NEVER
   }
+  if (!uuidSchema.safeParse(body.student_id).success) {
+    addIssue(ctx, 'student_id must be a valid UUID')
+    return z.NEVER
+  }
 
   const grade = parseGradeFields(body, ctx)
   if (!grade) return z.NEVER
 
-  return { studentId: body.student_id, grade }
+  const rawExpectedDocUpdatedAt = body.expected_doc_updated_at
+  if (
+    rawExpectedDocUpdatedAt !== undefined
+    && rawExpectedDocUpdatedAt !== null
+    && !timestampSchema.safeParse(rawExpectedDocUpdatedAt).success
+  ) {
+    addIssue(ctx, 'expected_doc_updated_at must be an ISO timestamp or null')
+    return z.NEVER
+  }
+  const expectedDocUpdatedAt = rawExpectedDocUpdatedAt as string | null | undefined
+
+  return {
+    studentId: body.student_id,
+    ...(expectedDocUpdatedAt === undefined ? {} : { expectedDocUpdatedAt }),
+    grade,
+  }
 })
 
 export const saveSelectedAssignmentGradesSchema = z.preprocess(
   normalizeRequestObject,
   selectedAssignmentGradeFieldsSchema.extend({
     student_ids: z.unknown().optional(),
+    expected_doc_updated_at_by_student: z.unknown().optional(),
   }),
 ).transform((body, ctx) => {
   const studentIds = normalizeStudentIds(body.student_ids)
@@ -141,9 +164,54 @@ export const saveSelectedAssignmentGradesSchema = z.preprocess(
     addIssue(ctx, 'Cannot grade more than 100 students at once')
     return z.NEVER
   }
+  if (studentIds.some((studentId) => !uuidSchema.safeParse(studentId).success)) {
+    addIssue(ctx, 'student_ids must contain valid UUIDs')
+    return z.NEVER
+  }
 
   const grade = parseGradeFields(body, ctx)
   if (!grade) return z.NEVER
 
-  return { studentIds, grade }
+  const rawExpected = body.expected_doc_updated_at_by_student
+  const expectedDocUpdatedAtByStudent: Record<string, string | null> = {}
+  if (rawExpected !== undefined) {
+    if (!rawExpected || typeof rawExpected !== 'object' || Array.isArray(rawExpected)) {
+      addIssue(ctx, 'expected_doc_updated_at_by_student must be an object')
+      return z.NEVER
+    }
+
+    for (const studentId of studentIds) {
+      if (!Object.prototype.hasOwnProperty.call(rawExpected, studentId)) continue
+      const value = (rawExpected as Record<string, unknown>)[studentId]
+      if (value !== null && !timestampSchema.safeParse(value).success) {
+        addIssue(ctx, 'expected document revisions must be ISO timestamps or null')
+        return z.NEVER
+      }
+      expectedDocUpdatedAtByStudent[studentId] = value as string | null
+    }
+  }
+
+  return {
+    studentIds,
+    ...(rawExpected === undefined ? {} : { expectedDocUpdatedAtByStudent }),
+    grade,
+  }
+})
+
+const assignmentGradeDocSchema = z.object({
+  id: z.string().min(1),
+  assignment_id: z.string().min(1),
+  student_id: z.string().min(1),
+  updated_at: timestampSchema,
+  score_completion: z.number().int().min(0).max(10).nullable(),
+  score_thinking: z.number().int().min(0).max(10).nullable(),
+  score_workflow: z.number().int().min(0).max(10).nullable(),
+  teacher_feedback_draft: z.string().nullable(),
+  teacher_feedback_draft_updated_at: timestampSchema.nullable(),
+  graded_at: timestampSchema.nullable(),
+  graded_by: z.string().nullable(),
+}).passthrough()
+
+export const assignmentGradeSaveResultSchema = z.object({
+  docs: z.array(assignmentGradeDocSchema),
 })

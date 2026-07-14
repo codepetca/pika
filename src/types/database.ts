@@ -264,6 +264,16 @@ type FunctionOverrides = {
     'create_assignment_ai_grading_run_atomic',
     TableOverrides['assignment_ai_grading_runs']['Row']
   >
+  finalize_assignment_ai_grading_item_atomic: FunctionContract<
+    'finalize_assignment_ai_grading_item_atomic',
+    Json,
+    Replace<GeneratedFunctions['finalize_assignment_ai_grading_item_atomic']['Args'], {
+      p_ai_feedback_model: string | null
+      p_ai_feedback_suggestion: string | null
+      p_graded_by: string | null
+      p_skip_reason: string | null
+    }>
+  >
   create_course_blueprint_atomic: FunctionContract<
     'create_course_blueprint_atomic',
     Json,
@@ -287,6 +297,33 @@ type FunctionOverrides = {
   remove_classroom_roster_entries_atomic: FunctionContract<
     'remove_classroom_roster_entries_atomic',
     RosterRemovalCounts
+  >
+  return_assignment_feedback_atomic: FunctionContract<
+    'return_assignment_feedback_atomic',
+    Json,
+    Replace<GeneratedFunctions['return_assignment_feedback_atomic']['Args'], {
+      p_expected_doc_updated_at: string | null
+      p_feedback: string | null
+    }>
+  >
+  save_assignment_grades_atomic: FunctionContract<
+    'save_assignment_grades_atomic',
+    Json,
+    Replace<GeneratedFunctions['save_assignment_grades_atomic']['Args'], {
+      p_score_completion: number | null
+      p_score_thinking: number | null
+      p_score_workflow: number | null
+    }>
+  >
+  save_assignment_ai_grade_atomic: FunctionContract<
+    'save_assignment_ai_grade_atomic',
+    Json,
+    Replace<GeneratedFunctions['save_assignment_ai_grade_atomic']['Args'], {
+      p_ai_feedback_model: string | null
+      p_ai_feedback_suggestion: string | null
+      p_expected_doc_updated_at: string | null
+      p_graded_by: string | null
+    }>
   >
   return_test_attempts_atomic: FunctionContract<
     'return_test_attempts_atomic',

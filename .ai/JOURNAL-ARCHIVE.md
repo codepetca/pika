@@ -13528,3 +13528,19 @@
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-07-05 — Test draft route simplification
+
+**Completed:**
+- Weekly Pika simplification selected the teacher test draft API route as the hotspot because it duplicated assessment draft creation/repair logic already available in `ensureAssessmentDraft`.
+- Removed the route-local `ensureTestDraft` helper from `src/app/api/teacher/tests/[id]/draft/route.ts` and routed GET/PATCH through the shared assessment draft helper.
+- Updated `tests/api/teacher/tests-draft-route.test.ts` to cover the shared helper path while preserving document validation and save behavior.
+- Opened draft PR #834: https://github.com/codepetca/pika/pull/834
+- Risk profile: workspace-state, because test draft preservation and repair are stateful editor concerns.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `./node_modules/.bin/vitest run tests/api/teacher/tests-draft-route.test.ts`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `./node_modules/.bin/vitest run`
+- `pnpm test` was attempted but blocked before Vitest by pnpm ignored build-script approval (`@parcel/watcher`, `esbuild`, `unrs-resolver`).

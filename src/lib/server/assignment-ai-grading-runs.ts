@@ -7,9 +7,14 @@ import {
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
 import { analyzeAuthenticity } from '@/lib/authenticity'
+import { apiErrors } from '@/lib/api-handler'
 import { limitedMarkdownToPlainText } from '@/lib/limited-markdown'
 import type { AiSanitizationContext } from '@/lib/ai-sanitization'
 import { loadClassroomAiSanitizationContext } from '@/lib/server/ai-sanitization'
+import {
+  finalizeAssignmentAiGradingItemAtomic,
+  saveAssignmentAiGradeAtomic,
+} from '@/lib/server/assignment-grades'
 import {
   loadAssignmentSubmissionArtifactsForDoc,
   loadAssignmentSubmissionArtifactsForDocs,
@@ -60,10 +65,16 @@ type GradeAssignmentDocWithAiOptions = {
     content: unknown
     feedback: string | null
     authenticity_score: number | null
+    updated_at: string
   }
+  expectedDocUpdatedAt?: string
   gradedBy?: string | null
   requestTimeoutMs?: number
   sanitizationContext?: AiSanitizationContext | null
+  runItem?: {
+    id: string
+    attemptCount: number
+  }
   telemetry?: {
     operation?: string
     requestedStrategy?: string | null
@@ -304,27 +315,28 @@ export async function markAssignmentDocMissingGrade(opts: {
   supabase: ServiceRoleSupabase
   assignmentId: string
   studentId: string
+  teacherId: string
   gradedBy?: string | null
+  expectedDocUpdatedAt: string | null
 }): Promise<void> {
   const now = new Date().toISOString()
-  const { error } = await opts.supabase
-    .from('assignment_docs')
-    .upsert({
-      assignment_id: opts.assignmentId,
-      student_id: opts.studentId,
-      score_completion: 0,
-      score_thinking: 0,
-      score_workflow: 0,
-      teacher_feedback_draft: MISSING_ASSIGNMENT_GRADE_FEEDBACK,
-      teacher_feedback_draft_updated_at: now,
-      ai_feedback_suggestion: null,
-      ai_feedback_suggested_at: null,
-      ai_feedback_model: null,
-      graded_at: now,
-      graded_by: opts.gradedBy ?? 'teacher',
-    }, { onConflict: 'assignment_id,student_id' })
-
-  if (error) {
+  try {
+    await saveAssignmentAiGradeAtomic({
+      supabase: opts.supabase,
+      assignmentId: opts.assignmentId,
+      studentId: opts.studentId,
+      teacherId: opts.teacherId,
+      expectedDocUpdatedAt: opts.expectedDocUpdatedAt,
+      scoreCompletion: 0,
+      scoreThinking: 0,
+      scoreWorkflow: 0,
+      feedback: MISSING_ASSIGNMENT_GRADE_FEEDBACK,
+      aiFeedbackSuggestion: null,
+      aiFeedbackModel: null,
+      gradedBy: opts.gradedBy,
+      now,
+    })
+  } catch {
     throw new Error(`Failed to save missing grade for student ${opts.studentId}`)
   }
 }
@@ -333,21 +345,46 @@ export async function gradeAssignmentDocWithAi({
   supabase,
   assignment,
   assignmentDoc,
+  expectedDocUpdatedAt,
   gradedBy,
   requestTimeoutMs,
   sanitizationContext,
   telemetry,
+  runItem,
 }: GradeAssignmentDocWithAiOptions): Promise<void> {
   const studentWork = parseContentField(assignmentDoc.content)
   const submissionArtifacts = submissionArtifactsToAssignmentArtifacts(
     await loadAssignmentSubmissionArtifactsForDoc(supabase, assignmentDoc.id)
   )
   if (!hasGradableAssignmentSubmission(studentWork, submissionArtifacts)) {
+    if (runItem) {
+      await finalizeAssignmentAiGradingItemAtomic({
+        supabase,
+        itemId: runItem.id,
+        teacherId: gradedBy ?? assignment.created_by,
+        grade: {
+          scoreCompletion: 0,
+          scoreThinking: 0,
+          scoreWorkflow: 0,
+          feedback: MISSING_ASSIGNMENT_GRADE_FEEDBACK,
+          aiFeedbackSuggestion: null,
+          aiFeedbackModel: null,
+          gradedBy,
+        },
+        attemptCount: runItem.attemptCount,
+        itemStatus: 'skipped',
+        skipReason: 'empty_doc',
+      })
+      return
+    }
+
     await markAssignmentDocMissingGrade({
       supabase,
       assignmentId: assignment.id,
       studentId: assignmentDoc.student_id,
+      teacherId: gradedBy ?? assignment.created_by,
       gradedBy,
+      expectedDocUpdatedAt: assignmentDoc.updated_at,
     })
     return
   }
@@ -376,24 +413,40 @@ export async function gradeAssignmentDocWithAi({
   })
 
   const now = new Date().toISOString()
-  const { error: updateError } = await supabase
-    .from('assignment_docs')
-    .update({
-      score_completion: result.score_completion,
-      score_thinking: result.score_thinking,
-      score_workflow: result.score_workflow,
-      teacher_feedback_draft: result.feedback,
-      teacher_feedback_draft_updated_at: now,
-      ai_feedback_suggestion: result.feedback,
-      ai_feedback_suggested_at: now,
-      ai_feedback_model: result.model,
-      graded_at: now,
-      graded_by: gradedBy ?? 'teacher',
+  if (runItem) {
+    await finalizeAssignmentAiGradingItemAtomic({
+      supabase,
+      itemId: runItem.id,
+      teacherId: gradedBy ?? assignment.created_by,
+      grade: {
+        scoreCompletion: result.score_completion,
+        scoreThinking: result.score_thinking,
+        scoreWorkflow: result.score_workflow,
+        feedback: result.feedback,
+        aiFeedbackSuggestion: result.feedback,
+        aiFeedbackModel: result.model,
+        gradedBy,
+      },
+      attemptCount: runItem.attemptCount,
+      itemStatus: 'completed',
+      now,
     })
-    .eq('id', assignmentDoc.id)
-
-  if (updateError) {
-    throw new Error(`Failed to save AI grade for student ${assignmentDoc.student_id}`)
+  } else {
+    await saveAssignmentAiGradeAtomic({
+      supabase,
+      assignmentId: assignment.id,
+      studentId: assignmentDoc.student_id,
+      teacherId: gradedBy ?? assignment.created_by,
+      expectedDocUpdatedAt: expectedDocUpdatedAt ?? assignmentDoc.updated_at,
+      scoreCompletion: result.score_completion,
+      scoreThinking: result.score_thinking,
+      scoreWorkflow: result.score_workflow,
+      feedback: result.feedback,
+      aiFeedbackSuggestion: result.feedback,
+      aiFeedbackModel: result.model,
+      gradedBy,
+      now,
+    })
   }
 
   if (assignmentDoc.authenticity_score == null) {
@@ -552,6 +605,7 @@ async function updateRunItem(
     .from('assignment_ai_grading_run_items')
     .update(payload)
     .eq('id', itemId)
+    .in('status', ['queued', 'processing'])
 
   if (error) {
     throw new Error('Failed to update assignment AI grading run item')
@@ -571,11 +625,23 @@ async function processAssignmentAiRunItem(opts: {
 
   async function markMissingGradeAndSkip(skipReason: 'missing_doc' | 'empty_doc'): Promise<void> {
     try {
-      await markAssignmentDocMissingGrade({
+      await finalizeAssignmentAiGradingItemAtomic({
         supabase,
-        assignmentId: run.assignment_id,
-        studentId: item.student_id,
-        gradedBy: run.triggered_by,
+        itemId: item.id,
+        teacherId: run.triggered_by,
+        grade: {
+          scoreCompletion: 0,
+          scoreThinking: 0,
+          scoreWorkflow: 0,
+          feedback: MISSING_ASSIGNMENT_GRADE_FEEDBACK,
+          aiFeedbackSuggestion: null,
+          aiFeedbackModel: null,
+          gradedBy: run.triggered_by,
+        },
+        attemptCount,
+        itemStatus: 'skipped',
+        skipReason,
+        now,
       })
     } catch (error) {
       await updateRunItem(supabase, item.id, {
@@ -592,14 +658,6 @@ async function processAssignmentAiRunItem(opts: {
       return
     }
 
-    await updateRunItem(supabase, item.id, {
-      status: 'skipped',
-      skip_reason: skipReason,
-      attempt_count: attemptCount,
-      last_error_code: null,
-      last_error_message: null,
-      completed_at: now,
-    })
   }
 
   if (!item.assignment_doc_id) {
@@ -615,7 +673,7 @@ async function processAssignmentAiRunItem(opts: {
 
   const { data: assignmentDoc, error: assignmentDocError } = await supabase
     .from('assignment_docs')
-    .select('id, student_id, content, feedback, authenticity_score')
+    .select('id, student_id, content, feedback, authenticity_score, updated_at')
     .eq('id', item.assignment_doc_id)
     .maybeSingle()
 
@@ -649,6 +707,7 @@ async function processAssignmentAiRunItem(opts: {
       supabase,
       assignment,
       assignmentDoc,
+      expectedDocUpdatedAt: item.assignment_doc_updated_at ?? assignmentDoc.updated_at,
       gradedBy: run.triggered_by,
       requestTimeoutMs: ASSIGNMENT_AI_GRADING_REQUEST_TIMEOUT_MS,
       sanitizationContext,
@@ -660,14 +719,10 @@ async function processAssignmentAiRunItem(opts: {
         studentId: item.student_id,
         attempt: attemptCount,
       },
-    })
-
-    await updateRunItem(supabase, item.id, {
-      status: 'completed',
-      attempt_count: attemptCount,
-      last_error_code: null,
-      last_error_message: null,
-      completed_at: now,
+      runItem: {
+        id: item.id,
+        attemptCount,
+      },
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'AI grading failed'
@@ -740,7 +795,7 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
 
   const { data: docs, error: docsError } = await supabase
     .from('assignment_docs')
-    .select('id, student_id, content')
+    .select('id, student_id, content, updated_at')
     .eq('assignment_id', opts.assignmentId)
     .in('student_id', normalizedStudentIds)
 
@@ -749,7 +804,7 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
   }
 
   const docByStudentId = new Map(
-    ((docs as Array<{ id: string; student_id: string; content: unknown }> | null) ?? []).map((doc) => [doc.student_id, doc]),
+    ((docs as Array<{ id: string; student_id: string; content: unknown; updated_at: string }> | null) ?? []).map((doc) => [doc.student_id, doc]),
   )
   const docIds = Array.from(docByStudentId.values()).map((doc) => doc.id)
   const rawSubmissionArtifacts = await loadAssignmentSubmissionArtifactsForDocs(supabase, docIds)
@@ -771,6 +826,8 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
       return {
         student_id: studentId,
         assignment_doc_id: null,
+        assignment_doc_updated_at: null,
+        assignment_doc_revision_provided: true,
         queue_position: index,
         status: 'skipped',
         skip_reason: 'missing_doc',
@@ -792,6 +849,8 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
       return {
         student_id: studentId,
         assignment_doc_id: doc.id,
+        assignment_doc_updated_at: doc.updated_at,
+        assignment_doc_revision_provided: true,
         queue_position: index,
         status: 'skipped',
         skip_reason: 'empty_doc',
@@ -808,6 +867,8 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
     return {
       student_id: studentId,
       assignment_doc_id: doc.id,
+      assignment_doc_updated_at: doc.updated_at,
+      assignment_doc_revision_provided: true,
       queue_position: index,
       status: 'queued',
       skip_reason: null,
@@ -845,6 +906,9 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
         }
         return { kind: 'conflict', run: summary }
       }
+    }
+    if ((runError as SupabaseSchemaError | null | undefined)?.code === '40001') {
+      throw apiErrors.conflict('Assignment changed while AI grading started; reload and retry')
     }
     if (isAssignmentAiGradingCreateRpcError(runError)) {
       throw new Error('Assignment AI grading run transaction is unavailable. Apply migration 055.')
@@ -919,12 +983,28 @@ export async function tickAssignmentAiGradingRun(opts: {
 
     const assignment = await loadAssignmentForRun(supabase, claimedRun.assignment_id)
     const allItems = await fetchAssignmentAiGradingRunItems(supabase, claimedRun.id)
+    const sourceReadyItems: AssignmentAiGradingRunItem[] = []
+    for (const item of allItems) {
+      const isPending = item.status === 'queued' || item.status === 'processing'
+      if (isPending && item.assignment_doc_id && !item.assignment_doc_updated_at) {
+        await updateRunItem(supabase, item.id, {
+          status: 'failed',
+          attempt_count: item.attempt_count + 1,
+          last_error_code: 'source_revision_unavailable',
+          last_error_message: 'AI grading source revision is unavailable; start a new grading run',
+          completed_at: new Date().toISOString(),
+        })
+        continue
+      }
+      sourceReadyItems.push(item)
+    }
+
     if (isGradexAssignmentRun(claimedRun)) {
       await submitOrPollGradexAssignmentRun({
         supabase,
         assignment,
         run: claimedRun,
-        items: allItems,
+        items: sourceReadyItems,
       })
 
       return {
@@ -934,7 +1014,7 @@ export async function tickAssignmentAiGradingRun(opts: {
     }
 
     const now = Date.now()
-    const dueItems = allItems
+    const dueItems = sourceReadyItems
       .filter((item) => {
         if (item.status !== 'queued' && item.status !== 'processing') return false
         if (!item.next_retry_at) return true

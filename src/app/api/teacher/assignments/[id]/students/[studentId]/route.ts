@@ -115,9 +115,10 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
 
   const { data: latestRepoReviewResult } = await supabase
     .from('assignment_repo_review_results')
-    .select('*')
+    .select('*, assignment_repo_review_runs!inner(status)')
     .eq('assignment_id', assignmentId)
     .eq('student_id', studentId)
+    .eq('assignment_repo_review_runs.status', 'completed')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -148,7 +149,13 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
     feedback_entries: feedbackEntries,
     repo_target: {
       ...repoSelection,
-      latest_result: latestRepoReviewResult || null,
+      latest_result: latestRepoReviewResult
+        ? Object.fromEntries(
+            Object.entries(latestRepoReviewResult).filter(
+              ([key]) => key !== 'assignment_repo_review_runs',
+            ),
+          )
+        : null,
     },
   })
 })
