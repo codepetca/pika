@@ -134,8 +134,9 @@ Test password-based flows:
   isolation.
 - Teacher recovery-list tests prove tombstone queries are teacher-scoped, response rows are
   Zod-validated, missing migrations preserve the hot-archive response, unexpected failures fail
-  closed, restore remains disabled without all server gates, and the UI retains one idempotency key
-  across request or refresh retries until the restored state is confirmed.
+  closed, tombstone changes around the hot query trigger a bounded stable-read retry, restore remains
+  disabled without all server gates, and the UI retains one idempotency key across request or refresh
+  retries until the restored state is confirmed.
 - Cold-compaction coordinator tests prove disabled-by-default teacher/archive canary gates, immutable
   artifact and manifest verification, exact database-to-archive inventory equality, bounded and
   idempotent cleanup staging, atomic-finalization ordering, completed replay, and fail-closed handling

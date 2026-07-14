@@ -5,7 +5,7 @@ import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { createClassroomSchema } from '@/lib/validations/teacher'
 import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
-import { listTeacherColdClassroomArchives } from '@/lib/server/classroom-archive-recovery-list'
+import { listTeacherArchivedClassrooms } from '@/lib/server/classroom-archive-recovery-list'
 import { getLeastUsedClassroomThemeColor } from '@/lib/classroom-theme'
 
 export const dynamic = 'force-dynamic'
@@ -29,29 +29,17 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
   const archivedParam = searchParams.get('archived')
 
   if (archivedParam === 'true') {
-    const [hotResult, coldResult] = await Promise.all([
-      supabase
-        .from('classrooms')
-        .select('*')
-        .eq('teacher_id', user.id)
-        .not('archived_at', 'is', null)
-        .order('archived_at', { ascending: false }),
-      listTeacherColdClassroomArchives({ supabase, teacherId: user.id }),
-    ])
-
-    if (hotResult.error) {
-      console.error('Error fetching archived classrooms:', hotResult.error)
-      throw new ApiError(500, 'Failed to fetch classrooms')
-    }
-    if (!coldResult.ok) {
-      console.error('Error fetching cold classroom archives:', coldResult.error_code)
-      throw new ApiError(500, 'Failed to fetch classroom archives')
+    const archived = await listTeacherArchivedClassrooms({ supabase, teacherId: user.id })
+    if (!archived.ok) {
+      console.error('Error fetching archived classroom state:', archived.error_code)
+      const status = archived.error_code === 'classroom_archive_state_unstable' ? 503 : 500
+      throw new ApiError(status, 'Failed to fetch classroom archives')
     }
 
     return NextResponse.json({
-      classrooms: hydrateClassroomRecords((hotResult.data || []) as Record<string, any>[]),
-      cold_archives: coldResult.cold_archives,
-      cold_archive_restore_enabled: coldResult.cold_archive_restore_enabled,
+      classrooms: hydrateClassroomRecords(archived.hot_classrooms as Record<string, any>[]),
+      cold_archives: archived.cold_archives,
+      cold_archive_restore_enabled: archived.cold_archive_restore_enabled,
     })
   }
 
