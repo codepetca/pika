@@ -5,6 +5,7 @@ import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { createClassroomSchema } from '@/lib/validations/teacher'
 import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
+import { listTeacherColdClassroomArchives } from '@/lib/server/classroom-archive-recovery-list'
 import { getLeastUsedClassroomThemeColor } from '@/lib/classroom-theme'
 
 export const dynamic = 'force-dynamic'
@@ -27,24 +28,34 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
   const { searchParams } = new URL(request.url)
   const archivedParam = searchParams.get('archived')
 
-  let classrooms
-  let error
-
   if (archivedParam === 'true') {
-    const result = await supabase
-      .from('classrooms')
-      .select('*')
-      .eq('teacher_id', user.id)
-      .not('archived_at', 'is', null)
-      .order('archived_at', { ascending: false })
-    classrooms = result.data
-    error = result.error
-  } else {
-    const result = await listActiveTeacherClassrooms(supabase, user.id)
-    classrooms = result.data
-    error = result.error
+    const [hotResult, coldResult] = await Promise.all([
+      supabase
+        .from('classrooms')
+        .select('*')
+        .eq('teacher_id', user.id)
+        .not('archived_at', 'is', null)
+        .order('archived_at', { ascending: false }),
+      listTeacherColdClassroomArchives({ supabase, teacherId: user.id }),
+    ])
+
+    if (hotResult.error) {
+      console.error('Error fetching archived classrooms:', hotResult.error)
+      throw new ApiError(500, 'Failed to fetch classrooms')
+    }
+    if (!coldResult.ok) {
+      console.error('Error fetching cold classroom archives:', coldResult.error_code)
+      throw new ApiError(500, 'Failed to fetch classroom archives')
+    }
+
+    return NextResponse.json({
+      classrooms: hydrateClassroomRecords((hotResult.data || []) as Record<string, any>[]),
+      cold_archives: coldResult.cold_archives,
+      cold_archive_restore_enabled: coldResult.cold_archive_restore_enabled,
+    })
   }
 
+  const { data: classrooms, error } = await listActiveTeacherClassrooms(supabase, user.id)
   if (error) {
     console.error('Error fetching classrooms:', error)
     throw new ApiError(500, 'Failed to fetch classrooms')

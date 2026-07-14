@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, POST } from '@/app/api/teacher/classrooms/route'
 import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
+import { listTeacherColdClassroomArchives } from '@/lib/server/classroom-archive-recovery-list'
 import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({
@@ -23,6 +24,9 @@ vi.mock('@/lib/server/classroom-order', () => ({
   listActiveTeacherClassrooms: vi.fn(),
   getNextTeacherClassroomPosition: vi.fn(),
 }))
+vi.mock('@/lib/server/classroom-archive-recovery-list', () => ({
+  listTeacherColdClassroomArchives: vi.fn(),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -32,6 +36,12 @@ describe('GET /api/teacher/classrooms', () => {
     ;(listActiveTeacherClassrooms as any).mockResolvedValue({
       data: [{ id: 'classroom-1', title: 'Math 101' }],
       error: null,
+    })
+    vi.mocked(listTeacherColdClassroomArchives).mockResolvedValue({
+      ok: true,
+      cold_archives: [],
+      cold_archive_restore_enabled: false,
+      migration_ready: true,
     })
   })
 
@@ -66,6 +76,18 @@ describe('GET /api/teacher/classrooms', () => {
       })),
     }))
     ;(mockSupabaseClient.from as any) = mockFrom
+    vi.mocked(listTeacherColdClassroomArchives).mockResolvedValueOnce({
+      ok: true,
+      cold_archives: [{
+        classroom_id: '00000000-0000-4000-8000-000000000001',
+        archive_id: '00000000-0000-4000-8000-000000000002',
+        title: 'Stored history classroom',
+        archived_at: '2026-07-01T12:00:00.000Z',
+        compacted_at: '2026-07-10T12:00:00.000Z',
+      }],
+      cold_archive_restore_enabled: true,
+      migration_ready: true,
+    })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/classrooms?archived=true')
     const response = await GET(request)
@@ -73,6 +95,37 @@ describe('GET /api/teacher/classrooms', () => {
 
     expect(response.status).toBe(200)
     expect(data.classrooms).toHaveLength(1)
+    expect(data.cold_archives).toHaveLength(1)
+    expect(data.cold_archive_restore_enabled).toBe(true)
+    expect(listTeacherColdClassroomArchives).toHaveBeenCalledWith({
+      supabase: mockSupabaseClient,
+      teacherId: 'teacher-1',
+    })
+  })
+
+  it('fails closed when cold archive recovery state cannot be loaded', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          not: vi.fn(() => ({
+            order: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        })),
+      })),
+    }))
+    vi.mocked(listTeacherColdClassroomArchives).mockResolvedValueOnce({
+      ok: false,
+      error_code: 'cold_archive_list_failed',
+    })
+
+    const response = await GET(new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms?archived=true',
+    ))
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual(expect.objectContaining({
+      error: 'Failed to fetch classroom archives',
+    }))
   })
 })
 

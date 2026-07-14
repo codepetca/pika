@@ -10,33 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-22 — Teacher test results normalization
-
-**Completed:**
-- Continued the bounded architecture/UI improvement goal with a behavior-preserving legacy contract cleanup slice.
-- Moved teacher test results payload normalization from `TeacherTestsTab` into `readTeacherTestResultsFromPayload` in `src/lib/test-api-contract.ts`.
-- Kept current `test` payload keys preferred while retaining the legacy `quiz` fallback for compatibility.
-- Exported typed teacher grading student/question result shapes from the contract helper and kept UI state, fetch ownership, grading actions, and rendering in `TeacherTestsTab`.
-- Added contract tests for current-key preference, legacy fallback, active run/error passthrough, question summary mapping, and unknown-status filtering.
-- Strengthened the parent `TeacherTestsTab` legacy fallback regression to prove the normalized results request still loads without the generic results error.
-
-**Compatibility checklist:**
-- What widened: no API payload, query, or schema widened; only client-side normalization moved to a helper.
-- Fallback: legacy `quiz` detail key remains supported through `readTestFromPayload`.
-- Migration dependency: none; no schema or server contract changed.
-- Intended payload regression: `tests/lib/test-api-contract.test.ts` covers current `test` preference and legacy `quiz` fallback.
-- Legacy aliases still alive: `quiz`/`quizzes` response aliases and fallback readers remain intentionally alive.
-- Visible behavior intended to change: none.
-
-**Validation:**
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm test tests/lib/test-api-contract.test.ts tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-06-22 — Cached API JSON helper
 
 **Completed:**
@@ -745,4 +718,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `bash -n scripts/check-classroom-archive-recovery-drill.sh`
 - Local full-stack drill intentionally not run because the existing local Supabase instance predates migrations 082-086; migrations were not applied or reset
+- `git diff --check`
+
+## 2026-07-13 — Teacher cold-archive recovery surface
+
+**Completed:**
+- Extended the teacher Archived API response with teacher-scoped, Zod-validated cold tombstone summaries while preserving the existing response when migration 083 is absent and failing closed on unexpected query or contract errors.
+- Added a distinct Stored archive row to the teacher classroom index; cold submissions, grades, and files remain inaccessible until the existing gated restore operation returns the classroom to `archived_hot`.
+- Reused the existing restore route and required server feature gate, exact teacher allowlist, and database budget before enabling the control. The client keeps one UUID idempotency key through request and list-refresh failures and discards it only after refreshed state is confirmed.
+- Added server, API, client, and component coverage for teacher scoping, rollout fallback, strict response validation, enabled/disabled controls, successful restore, and idempotent retries.
+- Visually verified teacher desktop/mobile in light/dark plus disabled, confirm, processing, error, and restored-hot states; student desktop/mobile remained unchanged. No production database, migration, row, object, environment, or schedule was read or modified.
+
+**Validation:**
+- Full Vitest suite (338 files / 3,009 tests)
+- Focused recovery list/API/client/component suites (5 files / 35 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika pre-commit audit
+- Local-only Playwright matrix with no overflow; intentional restore failure reused the same idempotency key on retry
 - `git diff --check`

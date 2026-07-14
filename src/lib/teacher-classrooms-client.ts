@@ -1,8 +1,14 @@
 import type { Classroom } from '@/types'
+import {
+  teacherArchivedClassroomRecoverySchema,
+  type ClassroomColdArchiveSummary,
+} from '@/lib/contracts/classroom-lifecycle'
 import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
 
 type TeacherClassroomsResponse = {
   classrooms?: Classroom[]
+  cold_archives?: unknown
+  cold_archive_restore_enabled?: unknown
 }
 
 type TeacherClassroomsOptions = {
@@ -11,6 +17,12 @@ type TeacherClassroomsOptions = {
 
 export const TEACHER_CLASSROOMS_CACHE_PREFIX = 'teacher-classrooms:'
 const TEACHER_CLASSROOMS_CACHE_TTL_MS = 20_000
+
+export type TeacherArchivedClassroomState = {
+  classrooms: Classroom[]
+  coldArchives: ClassroomColdArchiveSummary[]
+  coldArchiveRestoreEnabled: boolean
+}
 
 function getTeacherClassroomsListSegment(options: TeacherClassroomsOptions = {}) {
   return options.archived ? 'archived-list' : 'active-list'
@@ -36,20 +48,38 @@ async function fetchTeacherClassroomsFromApi(options: TeacherClassroomsOptions =
   return data
 }
 
-export async function fetchTeacherClassrooms(options: TeacherClassroomsOptions = {}): Promise<Classroom[]> {
+async function fetchTeacherClassroomsResponse(
+  options: TeacherClassroomsOptions = {},
+): Promise<TeacherClassroomsResponse> {
   const cacheKey = await getTeacherClassroomsCacheKey(options)
   if (!cacheKey) {
-    const data = await fetchTeacherClassroomsFromApi(options)
-    return data.classrooms || []
+    return fetchTeacherClassroomsFromApi(options)
   }
 
-  const data = await fetchJSONWithCache<TeacherClassroomsResponse>(
+  return fetchJSONWithCache<TeacherClassroomsResponse>(
     cacheKey,
     () => fetchTeacherClassroomsFromApi(options),
     TEACHER_CLASSROOMS_CACHE_TTL_MS,
   )
+}
+
+export async function fetchTeacherClassrooms(options: TeacherClassroomsOptions = {}): Promise<Classroom[]> {
+  const data = await fetchTeacherClassroomsResponse(options)
 
   return data.classrooms || []
+}
+
+export async function fetchTeacherArchivedClassroomState(): Promise<TeacherArchivedClassroomState> {
+  const data = await fetchTeacherClassroomsResponse({ archived: true })
+  const recovery = teacherArchivedClassroomRecoverySchema.parse({
+    cold_archives: data.cold_archives ?? [],
+    cold_archive_restore_enabled: data.cold_archive_restore_enabled ?? false,
+  })
+  return {
+    classrooms: data.classrooms || [],
+    coldArchives: recovery.cold_archives,
+    coldArchiveRestoreEnabled: recovery.cold_archive_restore_enabled,
+  }
 }
 
 export function invalidateTeacherClassrooms() {

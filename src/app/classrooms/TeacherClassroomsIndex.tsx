@@ -21,6 +21,7 @@ import {
 import { useRouter, usePathname } from 'next/navigation'
 import { Archive, CircleDot, LoaderCircle, Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
+import { ColdClassroomArchiveRow } from '@/components/ColdClassroomArchiveRow'
 import { FloatingActionCluster } from '@/components/FloatingActionCluster'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
 import { Button, ConfirmDialog, SegmentedControl } from '@/ui'
@@ -28,7 +29,12 @@ import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import type { Classroom } from '@/types'
-import { fetchTeacherClassrooms, invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
+import type { ClassroomColdArchiveSummary } from '@/lib/contracts/classroom-lifecycle'
+import {
+  fetchTeacherArchivedClassroomState,
+  fetchTeacherClassrooms,
+  invalidateTeacherClassrooms,
+} from '@/lib/teacher-classrooms-client'
 import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
 
 interface Props {
@@ -38,15 +44,19 @@ interface Props {
 type ViewMode = 'active' | 'archived'
 
 type PendingAction =
-  | { mode: 'archive' | 'restore' | 'delete'; classroom: Classroom }
+  | { mode: 'archive' | 'restore-hot' | 'delete'; classroom: Classroom }
+  | { mode: 'restore-cold'; archive: ClassroomColdArchiveSummary }
   | null
 
 export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const lastPathRef = useRef(pathname)
+  const coldRestoreOperationIdsRef = useRef(new Map<string, string>())
   const [activeClassrooms, setActiveClassrooms] = useState<Classroom[]>(initialClassrooms)
   const [archivedClassrooms, setArchivedClassrooms] = useState<Classroom[]>([])
+  const [coldArchives, setColdArchives] = useState<ClassroomColdArchiveSummary[]>([])
+  const [coldArchiveRestoreEnabled, setColdArchiveRestoreEnabled] = useState(false)
   const [view, setView] = useState<ViewMode>('active')
   const [showCreate, setShowCreate] = useState(false)
   const [isEditingClassrooms, setIsEditingClassrooms] = useState(false)
@@ -77,6 +87,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   }, [archivedClassrooms])
 
   const visibleClassrooms = view === 'active' ? activeClassrooms : sortedArchived
+  const hasArchivedItems = sortedArchived.length > 0 || coldArchives.length > 0
   const draggingClassroom = useMemo(
     () => activeClassrooms.find((classroom) => classroom.id === draggingClassroomId) ?? null,
     [activeClassrooms, draggingClassroomId]
@@ -86,10 +97,14 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     setIsLoadingArchived(true)
     setError('')
     try {
-      const classrooms = await fetchTeacherClassrooms({ archived: true })
-      setArchivedClassrooms(classrooms)
+      const state = await fetchTeacherArchivedClassroomState()
+      setArchivedClassrooms(state.classrooms)
+      setColdArchives(state.coldArchives)
+      setColdArchiveRestoreEnabled(state.coldArchiveRestoreEnabled)
+      return true
     } catch (err: any) {
       setError(err.message || 'Failed to load archived classrooms')
+      return false
     } finally {
       setIsLoadingArchived(false)
     }
@@ -218,7 +233,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     }
   }
 
-  async function restoreClassroom(classroom: Classroom) {
+  async function restoreHotClassroom(classroom: Classroom) {
     setIsProcessing(true)
     setError('')
     try {
@@ -237,6 +252,44 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       setActiveClassrooms((prev) => [updated, ...prev.filter((c) => c.id !== classroom.id)])
     } catch (err: any) {
       setError(err.message || 'Failed to restore classroom')
+    } finally {
+      setIsProcessing(false)
+      setPendingAction(null)
+    }
+  }
+
+  function openColdRestore(archive: ClassroomColdArchiveSummary) {
+    if (!coldRestoreOperationIdsRef.current.has(archive.archive_id)) {
+      coldRestoreOperationIdsRef.current.set(archive.archive_id, crypto.randomUUID())
+    }
+    setPendingAction({ mode: 'restore-cold', archive })
+  }
+
+  async function restoreColdArchive(archive: ClassroomColdArchiveSummary) {
+    const operationId = coldRestoreOperationIdsRef.current.get(archive.archive_id)
+    if (!operationId) return
+
+    setIsProcessing(true)
+    setError('')
+    try {
+      const res = await fetch(
+        `/api/teacher/classrooms/${archive.classroom_id}/archives/${archive.archive_id}/restore`,
+        {
+          method: 'POST',
+          headers: { 'Idempotency-Key': operationId },
+        },
+      )
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to restore stored classroom')
+      }
+      invalidateTeacherClassrooms()
+      const refreshed = await loadArchived()
+      if (refreshed) {
+        coldRestoreOperationIdsRef.current.delete(archive.archive_id)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to restore stored classroom')
     } finally {
       setIsProcessing(false)
       setPendingAction(null)
@@ -264,41 +317,50 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
   async function handleConfirmAction() {
     if (!pendingAction) return
-    const { classroom, mode } = pendingAction
+    const { mode } = pendingAction
 
     if (mode === 'archive') {
-      await archiveClassroom(classroom)
+      await archiveClassroom(pendingAction.classroom)
       return
     }
 
-    if (mode === 'restore') {
-      await restoreClassroom(classroom)
+    if (mode === 'restore-hot') {
+      await restoreHotClassroom(pendingAction.classroom)
       return
     }
 
-    await deleteClassroom(classroom)
+    if (mode === 'restore-cold') {
+      await restoreColdArchive(pendingAction.archive)
+      return
+    }
+
+    await deleteClassroom(pendingAction.classroom)
   }
 
   const dialogTitle = pendingAction
     ? pendingAction.mode === 'archive'
       ? `Archive ${pendingAction.classroom.title}?`
-      : pendingAction.mode === 'restore'
+      : pendingAction.mode === 'restore-hot'
         ? `Restore ${pendingAction.classroom.title}?`
-        : `Delete ${pendingAction.classroom.title}?`
+        : pendingAction.mode === 'restore-cold'
+          ? `Restore ${pendingAction.archive.title}?`
+          : `Delete ${pendingAction.classroom.title}?`
     : ''
 
   const dialogDescription = pendingAction
     ? pendingAction.mode === 'archive'
       ? 'Students will lose access until the classroom is restored.'
-      : pendingAction.mode === 'restore'
+      : pendingAction.mode === 'restore-hot'
         ? 'Students will regain access to this classroom.'
-        : 'This permanently deletes the classroom and all related data.'
+        : pendingAction.mode === 'restore-cold'
+          ? 'The classroom will return to Archived with its submissions and files available.'
+          : 'This permanently deletes the classroom and all related data.'
     : undefined
 
   const dialogConfirmLabel = pendingAction
     ? pendingAction.mode === 'archive'
       ? 'Archive'
-      : pendingAction.mode === 'restore'
+      : pendingAction.mode === 'restore-hot' || pendingAction.mode === 'restore-cold'
         ? 'Restore'
         : 'Delete'
     : 'Confirm'
@@ -328,7 +390,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
           <div className="flex justify-center py-12">
             <Spinner size="lg" />
           </div>
-        ) : visibleClassrooms.length === 0 ? (
+        ) : (view === 'active' ? visibleClassrooms.length === 0 : !hasArchivedItems) ? (
           view === 'active' ? (
             /* Empty active: center the CTA on screen */
             <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100dvh - 12rem)' }}>
@@ -398,65 +460,77 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                 </DragOverlay>
               </DndContext>
             ) : (
-              sortedArchived.map((c) => {
-                const theme = getClassroomThemeDefinition(c.theme_color)
-                return (
-                <div
-                  key={c.id}
-                  data-classroom-theme-color={theme.value}
-                  style={getClassroomThemeStyle(theme.value)}
-                  className="classroom-theme classroom-theme-card classroom-theme-card-interactive flex flex-col gap-3 overflow-hidden rounded-card border border-border bg-surface px-5 py-4 shadow-elevated lg:grid lg:grid-cols-[minmax(0,1fr),auto] lg:items-center lg:gap-5"
-                >
-                  <button
-                    type="button"
-                    data-testid="classroom-card"
-                    onClick={() => openClassroom(c)}
-                    disabled={openingClassroomId !== null}
-                    aria-busy={openingClassroomId === c.id}
-                    className={[
-                      '-m-1.5 min-w-0 rounded-control p-1.5 text-left',
-                      openingClassroomId === c.id ? 'cursor-wait' : '',
-                    ].join(' ')}
-                  >
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <div className="min-w-0 truncate text-base font-semibold text-text-default">{c.title}</div>
-                      {c.term_label && (
-                        <div className="text-sm text-text-muted">{c.term_label}</div>
-                      )}
-                    </div>
-                    <div className="mt-1 text-sm text-text-muted">
-                      Code: <span className="font-mono tracking-[0.18em]">{c.class_code}</span>
-                    </div>
-                    {openingClassroomId === c.id && (
-                      <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-                        <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                        Opening classroom...
+              <>
+                {sortedArchived.map((c) => {
+                  const theme = getClassroomThemeDefinition(c.theme_color)
+                  return (
+                    <div
+                      key={c.id}
+                      data-classroom-theme-color={theme.value}
+                      style={getClassroomThemeStyle(theme.value)}
+                      className="classroom-theme classroom-theme-card classroom-theme-card-interactive flex flex-col gap-3 overflow-hidden rounded-card border border-border bg-surface px-5 py-4 shadow-elevated lg:grid lg:grid-cols-[minmax(0,1fr),auto] lg:items-center lg:gap-5"
+                    >
+                      <button
+                        type="button"
+                        data-testid="classroom-card"
+                        onClick={() => openClassroom(c)}
+                        disabled={openingClassroomId !== null}
+                        aria-busy={openingClassroomId === c.id}
+                        className={[
+                          '-m-1.5 min-w-0 rounded-control p-1.5 text-left',
+                          openingClassroomId === c.id ? 'cursor-wait' : '',
+                        ].join(' ')}
+                      >
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <div className="min-w-0 truncate text-base font-semibold text-text-default">{c.title}</div>
+                          {c.term_label && (
+                            <div className="text-sm text-text-muted">{c.term_label}</div>
+                          )}
+                        </div>
+                        <div className="mt-1 text-sm text-text-muted">
+                          Code: <span className="font-mono tracking-[0.18em]">{c.class_code}</span>
+                        </div>
+                        {openingClassroomId === c.id && (
+                          <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+                            <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                            Opening classroom...
+                          </div>
+                        )}
+                      </button>
+                      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                        <Button
+                          type="button"
+                          variant="surface"
+                          size="xs"
+                          onClick={() => setPendingAction({ mode: 'restore-hot', classroom: c })}
+                          disabled={openingClassroomId !== null}
+                        >
+                          Restore
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => setPendingAction({ mode: 'delete', classroom: c })}
+                          className="text-danger hover:bg-danger-bg"
+                          disabled={openingClassroomId !== null}
+                        >
+                          Delete
+                        </Button>
                       </div>
-                    )}
-                  </button>
-                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                    <Button
-                      type="button"
-                      variant="surface"
-                      size="xs"
-                      onClick={() => setPendingAction({ mode: 'restore', classroom: c })}
-                      disabled={openingClassroomId !== null}
-                    >
-                      Restore
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => setPendingAction({ mode: 'delete', classroom: c })}
-                      className="text-danger hover:bg-danger-bg"
-                      disabled={openingClassroomId !== null}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              )})
+                    </div>
+                  )
+                })}
+                {coldArchives.map((archive) => (
+                  <ColdClassroomArchiveRow
+                    key={archive.archive_id}
+                    archive={archive}
+                    restoreEnabled={coldArchiveRestoreEnabled}
+                    disabled={isProcessing || openingClassroomId !== null}
+                    onRestore={() => openColdRestore(archive)}
+                  />
+                ))}
+              </>
             )}
           </div>
         )}

@@ -11691,3 +11691,30 @@
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-06-22 — Teacher test results normalization
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with a behavior-preserving legacy contract cleanup slice.
+- Moved teacher test results payload normalization from `TeacherTestsTab` into `readTeacherTestResultsFromPayload` in `src/lib/test-api-contract.ts`.
+- Kept current `test` payload keys preferred while retaining the legacy `quiz` fallback for compatibility.
+- Exported typed teacher grading student/question result shapes from the contract helper and kept UI state, fetch ownership, grading actions, and rendering in `TeacherTestsTab`.
+- Added contract tests for current-key preference, legacy fallback, active run/error passthrough, question summary mapping, and unknown-status filtering.
+- Strengthened the parent `TeacherTestsTab` legacy fallback regression to prove the normalized results request still loads without the generic results error.
+
+**Compatibility checklist:**
+- What widened: no API payload, query, or schema widened; only client-side normalization moved to a helper.
+- Fallback: legacy `quiz` detail key remains supported through `readTestFromPayload`.
+- Migration dependency: none; no schema or server contract changed.
+- Intended payload regression: `tests/lib/test-api-contract.test.ts` covers current `test` preference and legacy `quiz` fallback.
+- Legacy aliases still alive: `quiz`/`quizzes` response aliases and fallback readers remain intentionally alive.
+- Visible behavior intended to change: none.
+
+**Validation:**
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm test tests/lib/test-api-contract.test.ts tests/components/TeacherTestsTab.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`
