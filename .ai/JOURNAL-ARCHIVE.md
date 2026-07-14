@@ -13544,3 +13544,21 @@
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `./node_modules/.bin/vitest run`
 - `pnpm test` was attempted but blocked before Vitest by pnpm ignored build-script approval (`@parcel/watcher`, `esbuild`, `unrs-resolver`).
+
+## 2026-06-23 — Teacher classroom cached JSON
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with a small client read-cache consistency slice in the teacher classroom assignments view.
+- Replaced the assignments, materials, and surveys summary GET loaders with `fetchCachedJSON`, preserving cache keys, 20s TTLs, error messages, survey fallback, and stale classroom/request guards.
+- Left selected-assignment detail loading on `fetchJSONWithCache` because its short TTL and refresh-counter key are intentional.
+- Kept the slice non-visual: no layout, copy, or interaction changes.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm vitest run tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`
