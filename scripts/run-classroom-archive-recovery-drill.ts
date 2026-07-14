@@ -10,6 +10,7 @@ import {
 import { compactClassroomArchive } from '@/lib/server/classroom-archive-compaction'
 import { exportClassroomArchive } from '@/lib/server/classroom-archive-operations'
 import { restoreClassroomArchive } from '@/lib/server/classroom-archive-restore-operations'
+import { classroomArchiveRestoreObjectPath } from '@/lib/server/classroom-archive-restore'
 import { runClassroomArchiveSourceCleanup } from '@/lib/server/classroom-archive-source-cleanup'
 import { getServiceRoleClient } from '@/lib/supabase'
 
@@ -273,8 +274,13 @@ async function runRecoveryDrill() {
   const sourceObjectPath = `recovery-drill/${ids.classrooms}/evidence.png`
   const sourceObjectBytes = Buffer.from('pika synthetic classroom archive recovery evidence')
   const sourceObjectSha256 = sha256Bytes(sourceObjectBytes)
-  const restoredObjectPath =
-    `restores/${ids.classrooms}/${ids.restoreOperation}/${sourceObjectSha256}`
+  const restoredObjectPath = classroomArchiveRestoreObjectPath({
+    classroomId: ids.classrooms,
+    operationId: ids.restoreOperation,
+    sha256: sourceObjectSha256,
+    sourcePath: sourceObjectPath,
+    contentType: 'image/png',
+  })
   let archiveObjectPath =
     `${ids.teacher}/${ids.classrooms}/${ids.exportOperation}/classroom-v1.tar.gz`
   let completed = false

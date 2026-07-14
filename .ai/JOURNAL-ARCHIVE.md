@@ -11772,3 +11772,24 @@
 - `pnpm lint`
 - `git diff --check`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
+
+## 2026-06-22 — Paged Supabase test helper
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with a test mock simplification slice.
+- Extracted the duplicated paged Supabase table/query-log mock from teacher attendance and export CSV API tests into `tests/support/paged-supabase.ts`.
+- Updated both route suites to use `createPagedQueryLog` and `mockPagedTable` from the shared support helper.
+- Kept production code, route behavior, mock behavior, and assertions unchanged.
+
+**Test mock checklist:**
+- Production code changed: no
+- Test behavior changed: no intended behavior change; affected tests still cover pagination, chunking, and query scoping
+- Helper scope: paged `select().in().order().range()` mocks only
+- Broad migration attempted: no; only identical local duplicates were consolidated
+
+**Validation:**
+- `pnpm test tests/api/teacher/attendance.test.ts tests/api/teacher/export-csv.test.ts`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
