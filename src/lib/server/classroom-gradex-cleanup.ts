@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { CLASSROOM_GRADEX_EXTRACT_BUCKET } from '@/lib/server/classroom-gradex-operations'
+import { missingStorageObjectEvidence } from '@/lib/server/storage-object-evidence'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 export const CLASSROOM_GRADEX_CLEANUP_MAX_CLAIMS = 10
@@ -19,7 +20,7 @@ const claimSchema = z.object({
     !uuidSchema.safeParse(segments[0]).success ||
     !uuidSchema.safeParse(segments[1]).success ||
     segments[2] !== claim.extract_id ||
-    segments[3] !== 'gradex-v1.tar.gz'
+    segments[3] !== 'gradex-v2.tar.gz'
   ) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
@@ -30,6 +31,7 @@ const claimSchema = z.object({
 })
 const runOptionsSchema = z.object({
   leaseToken: uuidSchema,
+  operationId: uuidSchema,
   limit: z.number().int().min(1).max(CLASSROOM_GRADEX_CLEANUP_MAX_CLAIMS).optional(),
   leaseSeconds: z.number().int().min(30).max(1800).optional(),
 }).strict()
@@ -66,13 +68,6 @@ export type ClassroomGradexCleanupResult =
       retryable: boolean
     }
 
-type StorageErrorShape = {
-  status?: unknown
-  statusCode?: unknown
-  code?: unknown
-  error?: unknown
-}
-
 export function isClassroomGradexCleanupEnabled(): boolean {
   return process.env.CLASSROOM_GRADEX_CLEANUP_ENABLED?.trim().toLowerCase() === 'true'
 }
@@ -87,35 +82,44 @@ export function resolveClassroomGradexCleanupLeaseToken(
   return value ? uuidSchema.parse(value.trim()) : randomUUID()
 }
 
+export function resolveClassroomGradexCleanupOperationId(value: string): string {
+  return uuidSchema.parse(value.trim())
+}
+
 function isMissingCleanupRpc(error: { code?: string; message?: string } | null | undefined) {
   if (!error) return false
   const message = (error.message || '').toLowerCase()
   return error.code === '42883' || error.code === 'PGRST202' || (
     message.includes('claim_due_classroom_gradex_extract_cleanup') ||
+    message.includes('renew_classroom_gradex_extract_cleanup_lease') ||
     message.includes('complete_classroom_gradex_extract_cleanup') ||
     message.includes('fail_classroom_gradex_extract_cleanup')
   )
 }
 
-function isAuthoritativeMissingObject(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const value = error as StorageErrorShape
-  const codes = [value.statusCode, value.code, value.error]
-    .filter((code): code is string | number => (
-      typeof code === 'string' || typeof code === 'number'
-    ))
-    .map((code) => String(code).toLowerCase())
-  if (codes.includes('nosuchkey')) return true
-  const status = typeof value.status === 'number' ? value.status : Number(value.status)
-  return status === 404 && codes.includes('not_found')
+async function isAuthoritativeMissingObject(
+  supabase: SupabaseClient,
+  error: unknown,
+): Promise<boolean> {
+  const evidence = missingStorageObjectEvidence(error)
+  if (evidence === 'object') return true
+  if (evidence !== 'generic') return false
+  try {
+    const bucketResponse = await supabase.storage.getBucket(CLASSROOM_GRADEX_EXTRACT_BUCKET)
+    return !bucketResponse.error
+      && bucketResponse.data?.id === CLASSROOM_GRADEX_EXTRACT_BUCKET
+  } catch {
+    return false
+  }
 }
 
-function validateClaims(data: unknown, limit: number): CleanupClaim[] | null {
+function validateClaims(data: unknown, limit: number, operationId: string): CleanupClaim[] | null {
   const parsed = z.array(claimSchema).safeParse(data)
   if (!parsed.success || parsed.data.length > limit) return null
   const extractIds = new Set<string>()
   const storagePaths = new Set<string>()
   for (const claim of parsed.data) {
+    if (claim.extract_id !== operationId) return null
     if (extractIds.has(claim.extract_id) || storagePaths.has(claim.storage_path)) return null
     extractIds.add(claim.extract_id)
     storagePaths.add(claim.storage_path)
@@ -162,7 +166,34 @@ async function processCleanupClaim(args: {
   supabase: SupabaseClient
   claim: CleanupClaim
   leaseToken: string
+  leaseSeconds: number
 }): Promise<ClassroomGradexCleanupItemResult> {
+  try {
+    const renewal = await args.supabase.rpc('renew_classroom_gradex_extract_cleanup_lease', {
+      p_extract_id: args.claim.extract_id,
+      p_lease_token: args.leaseToken,
+      p_lease_seconds: args.leaseSeconds,
+    })
+    const renewed = !renewal.error && booleanRpcSchema.safeParse(renewal.data)
+    if (!renewed || !renewed.success || !renewed.data) {
+      return {
+        extract_id: args.claim.extract_id,
+        attempt_count: args.claim.attempt_count,
+        status: 'failed',
+        error_code: 'gradex_cleanup_lease_lost',
+        retry_recorded: false,
+      }
+    }
+  } catch {
+    return {
+      extract_id: args.claim.extract_id,
+      attempt_count: args.claim.attempt_count,
+      status: 'failed',
+      error_code: 'gradex_cleanup_lease_lost',
+      retry_recorded: false,
+    }
+  }
+
   const bucket = args.supabase.storage.from(CLASSROOM_GRADEX_EXTRACT_BUCKET)
   let removeFailed = false
   try {
@@ -177,9 +208,12 @@ async function processCleanupClaim(args: {
   try {
     const verification = await bucket.download(args.claim.storage_path)
     present = Boolean(verification.data)
-    absent = !verification.data && isAuthoritativeMissingObject(verification.error)
+    absent = !verification.data && await isAuthoritativeMissingObject(
+      args.supabase,
+      verification.error,
+    )
   } catch (error) {
-    absent = isAuthoritativeMissingObject(error)
+    absent = await isAuthoritativeMissingObject(args.supabase, error)
   }
 
   if (!absent) {
@@ -230,6 +264,7 @@ async function processCleanupClaimSafely(args: {
   supabase: SupabaseClient
   claim: CleanupClaim
   leaseToken: string
+  leaseSeconds: number
 }): Promise<ClassroomGradexCleanupItemResult> {
   try {
     return await processCleanupClaim(args)
@@ -263,16 +298,19 @@ function emitCleanupMetric(result: ClassroomGradexCleanupResult, startedAt: numb
 export async function runClassroomGradexCleanup(args: {
   supabase: SupabaseClient
   leaseToken: string
+  operationId: string
   limit?: number
   leaseSeconds?: number
 }): Promise<ClassroomGradexCleanupResult> {
   const startedAt = Date.now()
   const options = runOptionsSchema.parse({
     leaseToken: args.leaseToken,
+    operationId: args.operationId,
     limit: args.limit,
     leaseSeconds: args.leaseSeconds,
   })
   const leaseToken = options.leaseToken
+  const operationId = options.operationId
   const limit = options.limit ?? CLASSROOM_GRADEX_CLEANUP_MAX_CLAIMS
   const leaseSeconds = options.leaseSeconds ?? CLASSROOM_GRADEX_CLEANUP_DEFAULT_LEASE_SECONDS
 
@@ -292,6 +330,7 @@ export async function runClassroomGradexCleanup(args: {
   try {
     const response = await args.supabase.rpc('claim_due_classroom_gradex_extract_cleanup', {
       p_lease_token: leaseToken,
+      p_operation_id: operationId,
       p_limit: limit,
       p_lease_seconds: leaseSeconds,
     })
@@ -313,7 +352,7 @@ export async function runClassroomGradexCleanup(args: {
       return result
     }
 
-    const claims = validateClaims(response.data, limit)
+    const claims = validateClaims(response.data, limit, operationId)
     if (!claims) {
       const result: ClassroomGradexCleanupResult = {
         ok: false,
@@ -333,6 +372,7 @@ export async function runClassroomGradexCleanup(args: {
         supabase: args.supabase,
         claim,
         leaseToken,
+        leaseSeconds,
       }))
     }
     const deleted = results.filter((item) => item.status === 'deleted').length

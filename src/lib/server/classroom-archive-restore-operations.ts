@@ -4,6 +4,7 @@ import {
   CLASSROOM_RELATIONAL_RESOURCES,
   getClassroomResourceOrder,
 } from '@/lib/contracts/classroom-data'
+import { classroomArchiveRestoreVerificationSchema } from '@/lib/contracts/classroom-lifecycle'
 import {
   canonicalJsonStringify,
   decodeClassroomArchiveData,
@@ -98,10 +99,6 @@ const restoreFinalizeEvidenceSchema = z.object({
   adapter_chain: z.array(z.string().min(1)),
 }).strict()
 
-const restoreVerificationSchema = restoreFinalizeEvidenceSchema.extend({
-  referential_integrity_verified: z.literal(true),
-}).strict()
-
 const completeRestoreSchema = z.union([
   operationFailureSchema,
   z.object({
@@ -112,7 +109,7 @@ const completeRestoreSchema = z.union([
     operation_status: z.literal('completed'),
     replayed: z.boolean(),
     resource_counts: resourceCountsSchema,
-    verification: restoreVerificationSchema,
+    verification: classroomArchiveRestoreVerificationSchema,
   }).strict(),
 ])
 
@@ -127,7 +124,7 @@ export type ClassroomArchiveRestoreResult =
       archive_id: string
       replayed: boolean
       resource_counts: Record<string, number>
-      verification: z.infer<typeof restoreVerificationSchema>
+      verification: z.infer<typeof classroomArchiveRestoreVerificationSchema>
     }
   | OperationFailure
 
@@ -204,12 +201,14 @@ function hashRestoreRequest(args: {
   archiveId: string
   classroomId: string
   targetSchemaMigration: string
+  storageObjects: Array<Record<string, unknown>>
 }): string {
   return createHash('sha256').update(canonicalJsonStringify({
     operation: 'classroom_archive_restore',
     archive_id: args.archiveId,
     classroom_id: args.classroomId,
     target_schema_migration: args.targetSchemaMigration,
+    storage_objects: args.storageObjects,
   })).digest('hex')
 }
 
@@ -458,6 +457,15 @@ export async function restoreClassroomArchive(args: {
       supabaseUrl: args.supabaseUrl,
     })
     const resourceCounts = exactResourceCounts(plan)
+    const storageObjects = plan.storageObjects.map((object) => ({
+      storage_bucket: object.bucket,
+      storage_path: object.restorePath,
+      expected_sha256: object.sha256,
+      expected_byte_size: object.bytes.byteLength,
+    })).sort((left, right) => (
+      left.storage_bucket.localeCompare(right.storage_bucket)
+      || left.storage_path.localeCompare(right.storage_path)
+    ))
     if (canonicalJsonStringify(resourceCounts) !== canonicalJsonStringify(metadata.resource_counts)) {
       throw new ClassroomArchiveRestoreError(
         'classroom_archive_resource_count_mismatch',
@@ -475,10 +483,12 @@ export async function restoreClassroomArchive(args: {
         archiveId: args.archiveId,
         classroomId: args.classroomId,
         targetSchemaMigration: plan.targetSchemaMigration,
+        storageObjects,
       }),
       p_target_schema_migration: plan.targetSchemaMigration,
       p_adapter_chain: plan.adapterChain,
       p_resource_counts: resourceCounts,
+      p_storage_objects: storageObjects,
       p_database_budget_bytes: args.databaseBudgetBytes,
     })
     if (beginResponse.error) {
@@ -515,7 +525,7 @@ export async function restoreClassroomArchive(args: {
         archive_id: begin.archive_id,
         replayed: true,
         resource_counts: begin.resource_counts,
-        verification: restoreVerificationSchema.parse(begin.verification),
+        verification: classroomArchiveRestoreVerificationSchema.parse(begin.verification),
       }
       emitRestoreMetric(result, startedAt)
       return result
@@ -523,6 +533,28 @@ export async function restoreClassroomArchive(args: {
     operationStarted = true
 
     for (const object of plan.storageObjects) {
+      const uploadIntentResponse = await args.supabase.rpc(
+        'stage_classroom_archive_object_upload',
+        {
+          p_operation_id: args.operationId,
+          p_teacher_id: args.teacherId,
+          p_storage_bucket: object.bucket,
+          p_storage_path: object.restorePath,
+          p_expected_sha256: object.sha256,
+          p_expected_byte_size: object.bytes.byteLength,
+        },
+      )
+      const uploadIntent = !uploadIntentResponse.error
+        ? z.boolean().safeParse(uploadIntentResponse.data)
+        : null
+      if (!uploadIntent || !uploadIntent.success || !uploadIntent.data) {
+        throw new ClassroomArchiveRestoreError(
+          'classroom_archive_restore_object_intent_failed',
+          'Classroom archive restore object upload could not be staged',
+          503,
+          true,
+        )
+      }
       await uploadAndVerifyRestoreObject({ supabase: args.supabase, object })
     }
     for (const table of getClassroomResourceOrder('restore')) {

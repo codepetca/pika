@@ -130,6 +130,9 @@ function createSupabaseMock(options: {
         error: null,
       }
     }
+    if (name === 'stage_classroom_archive_object_upload') {
+      return { data: true, error: null }
+    }
     if (name === 'complete_classroom_archive_restore') {
       if (options.completeMalformed) {
         return { data: { ok: true, status: 201 }, error: null }
@@ -259,13 +262,14 @@ describe('classroom archive restore coordinator', () => {
     expect(result).toEqual(expect.objectContaining({ ok: true, status: 201, replayed: false }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
       'begin_classroom_archive_restore',
+      'stage_classroom_archive_object_upload',
       'stage_classroom_archive_restore_rows',
       'stage_classroom_archive_restore_rows',
       'stage_classroom_archive_restore_rows',
       'stage_classroom_archive_restore_rows',
       'complete_classroom_archive_restore',
     ])
-    expect(mock.rpc.mock.calls[5][1].p_verification).not.toHaveProperty(
+    expect(mock.rpc.mock.calls[6][1].p_verification).not.toHaveProperty(
       'referential_integrity_verified',
     )
     expect(result.ok && result.verification.referential_integrity_verified).toBe(true)
@@ -331,6 +335,7 @@ describe('classroom archive restore coordinator', () => {
     }))
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
       'begin_classroom_archive_restore',
+      'stage_classroom_archive_object_upload',
       'stage_classroom_archive_restore_rows',
       'fail_classroom_archive_restore',
     ])

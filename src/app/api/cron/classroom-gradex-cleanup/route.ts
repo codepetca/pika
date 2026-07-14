@@ -4,6 +4,7 @@ import {
   CLASSROOM_GRADEX_CLEANUP_DEFAULT_LEASE_SECONDS,
   isClassroomGradexCleanupTriggerEnabled,
   resolveClassroomGradexCleanupLeaseToken,
+  resolveClassroomGradexCleanupOperationId,
   runClassroomGradexCleanup,
 } from '@/lib/server/classroom-gradex-cleanup'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -44,9 +45,23 @@ async function handle(request: NextRequest) {
     }, { status: 503 })
   }
 
+  const configuredOperationId = process.env.CLASSROOM_GRADEX_CLEANUP_OPERATION_ID
+  if (!configuredOperationId) {
+    return NextResponse.json({
+      ok: false,
+      status: 503,
+      lease_token: leaseToken,
+      error_code: 'classroom_gradex_cleanup_operation_not_configured',
+      error: 'Classroom Gradex cleanup operation is not configured',
+      retryable: true,
+    }, { status: 503 })
+  }
+  const operationId = resolveClassroomGradexCleanupOperationId(configuredOperationId)
+
   const result = await runClassroomGradexCleanup({
     supabase: getServiceRoleClient(),
     leaseToken,
+    operationId,
     limit: CLEANUP_CANARY_LIMIT,
     leaseSeconds: CLASSROOM_GRADEX_CLEANUP_DEFAULT_LEASE_SECONDS,
   })

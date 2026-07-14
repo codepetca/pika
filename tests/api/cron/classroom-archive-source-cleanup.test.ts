@@ -26,7 +26,6 @@ import { GET, POST } from '@/app/api/cron/classroom-archive-source-cleanup/route
 
 const LEASE_TOKEN = '10000000-0000-4000-8000-000000000001'
 const OPERATION_ID = '20000000-0000-4000-8000-000000000001'
-const OBJECT_REF = 'a'.repeat(64)
 const supabase = { client: true }
 
 function request(method: 'GET' | 'POST' = 'GET', token = 'secret') {
@@ -112,103 +111,25 @@ describe('classroom archive source cleanup cron route', () => {
   })
 
   it.each(['GET', 'POST'] as const)(
-    'runs a one-claim cleanup canary through %s',
+    'keeps destructive cleanup unavailable through %s until ownership fencing exists',
     async (method) => {
       const response = method === 'GET'
         ? await GET(request(method))
         : await POST(request(method))
 
-      expect(response.status).toBe(200)
-      await expect(response.json()).resolves.toEqual(successfulResult())
-      expect(mocks.runCleanup).toHaveBeenCalledWith({
-        supabase,
-        leaseToken: LEASE_TOKEN,
-        operationId: OPERATION_ID,
-        limit: 1,
-        leaseSeconds: 300,
+      expect(response.status).toBe(503)
+      await expect(response.json()).resolves.toEqual({
+        ok: false,
+        status: 503,
+        lease_token: LEASE_TOKEN,
+        error_code: 'classroom_archive_source_cleanup_ownership_verifier_required',
+        error: 'Classroom archive source cleanup ownership verification is not implemented',
+        retryable: false,
       })
+      expect(mocks.getServiceRoleClient).not.toHaveBeenCalled()
+      expect(mocks.runCleanup).not.toHaveBeenCalled()
     },
   )
-
-  it('fails closed when no exact cleanup operation is configured', async () => {
-    vi.stubEnv('CLASSROOM_ARCHIVE_SOURCE_CLEANUP_OPERATION_ID', '')
-
-    const response = await GET(request())
-
-    expect(response.status).toBe(503)
-    await expect(response.json()).resolves.toEqual(expect.objectContaining({
-      error_code: 'classroom_archive_source_cleanup_operation_not_configured',
-    }))
-    expect(mocks.runCleanup).not.toHaveBeenCalled()
-  })
-
-  it('propagates a disabled worker result and status', async () => {
-    const result = {
-      ok: false,
-      status: 503,
-      lease_token: LEASE_TOKEN,
-      error_code: 'classroom_archive_source_cleanup_not_enabled',
-      error: 'Classroom archive source cleanup is not enabled',
-      retryable: true,
-    }
-    mocks.runCleanup.mockResolvedValue(result)
-
-    const response = await GET(request())
-
-    expect(response.status).toBe(503)
-    await expect(response.json()).resolves.toEqual(result)
-  })
-
-  it('reports a durably recorded item retry as a healthy invocation', async () => {
-    const result = successfulResult({
-      claimed: 1,
-      failed: 1,
-      results: [{
-        object_ref: OBJECT_REF,
-        attempt_count: 1,
-        status: 'failed',
-        error_code: 'archive_source_object_read_failed',
-        retry_recorded: true,
-      }],
-    })
-    mocks.runCleanup.mockResolvedValue(result)
-
-    const response = await GET(request())
-
-    expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toEqual(result)
-  })
-
-  it('returns 503 when any claim lacks durable retry evidence', async () => {
-    const batch = successfulResult({
-      claimed: 1,
-      failed: 1,
-      retry_recording_failed: 1,
-      results: [{
-        object_ref: OBJECT_REF,
-        attempt_count: 1,
-        status: 'failed',
-        error_code: 'archive_source_cleanup_completion_rejected',
-        retry_recorded: false,
-      }],
-    })
-    mocks.runCleanup.mockResolvedValue(batch)
-
-    const response = await GET(request())
-    const body = await response.json()
-
-    expect(response.status).toBe(503)
-    expect(body).toEqual({
-      ok: false,
-      status: 503,
-      error_code: 'archive_source_cleanup_batch_unhealthy',
-      error: 'Classroom archive source cleanup completed without durable evidence for every claim',
-      retryable: true,
-      batch,
-    })
-    expect(JSON.stringify(body)).not.toContain('storage_path')
-    expect(JSON.stringify(body)).not.toContain('expected_sha256')
-  })
 
   it('is not registered for automatic invocation in Vercel', () => {
     const config = JSON.parse(readFileSync('vercel.json', 'utf8'))

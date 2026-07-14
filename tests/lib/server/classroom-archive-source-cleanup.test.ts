@@ -255,16 +255,16 @@ describe('classroom archive source-object cleanup', () => {
     )
   })
 
-  it('accepts the Supabase local Storage wrapped 400 as authoritative absence', async () => {
+  it('does not treat a wrapped Storage 400 as authoritative absence', async () => {
     const mock = createSupabaseMock({ useLocalNotFoundShape: true })
     const result = await run(mock)
 
-    expect(result).toEqual(expect.objectContaining({ deleted: 1, failed: 0 }))
+    expect(result).toEqual(expect.objectContaining({ deleted: 0, failed: 1 }))
     expect(mock.rpc).toHaveBeenCalledWith(
-      'complete_classroom_archive_source_object_cleanup',
+      'fail_classroom_archive_source_object_cleanup',
       expect.objectContaining({ p_storage_path: PATH }),
     )
-    expect(mock.getBucket).toHaveBeenCalledWith('assignment-artifacts')
+    expect(mock.getBucket).not.toHaveBeenCalled()
   })
 
   it('does not treat an unwrapped generic 400 as object absence', async () => {

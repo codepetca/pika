@@ -50,24 +50,68 @@ describe('resumable classroom archive restore migration', () => {
     )
   })
 
-  it('atomically claims expired staging without overwriting completed operations', () => {
+  it('serializes simultaneous first use of one restore idempotency key', () => {
+    expect(migration).toContain(
+      'perform pg_advisory_xact_lock(hashtextextended(p_operation_id::text, 0));',
+    )
+  })
+
+  it('atomically expires only live or retryable staging without overwriting terminal evidence', () => {
     const cleanupFunction = migration.match(
       /create or replace function public\.cleanup_expired_classroom_archive_snapshots[\s\S]*?\n\$\$;/,
     )?.[0]
     expect(cleanupFunction).toContain('with expired as (')
-    expect(cleanupFunction).toContain("where status <> 'completed'")
+    expect(cleanupFunction).toContain("status = 'snapshot_ready'")
+    expect(cleanupFunction).toContain("status = 'failed' and retryable is true")
     expect(cleanupFunction).toContain('returning id')
   })
 
+  it('makes restore expiry terminal while retaining cleanup authority for stale workers', () => {
+    const stageFunction = migration.match(
+      /create or replace function public\.stage_classroom_archive_restore_rows[\s\S]*?\n\$\$;/,
+    )?.[0]
+    const failFunction = migration.match(
+      /create or replace function public\.fail_classroom_archive_restore[\s\S]*?\n\$\$;/,
+    )?.[0]
+
+    expect(stageFunction).toContain(
+      "v_operation.status = 'snapshot_ready' and v_operation.snapshot_expires_at <= now()",
+    )
+    expect(stageFunction).toContain("error_code = 'archive_snapshot_expired'")
+    expect(stageFunction).toContain("'retryable', false")
+    expect(failFunction).toContain(
+      "v_operation.status = 'failed' and v_operation.retryable is false",
+    )
+    expect(failFunction).toContain(
+      "return v_operation.error_code = 'archive_snapshot_expired';",
+    )
+  })
+
   it('exposes restore state and RPCs only to the service role', () => {
+    expect(migration).toContain('public.classroom_archive_object_upload_cleanup')
+    expect(migration).toContain('stage_classroom_archive_object_upload(uuid, uuid, text, text, text, bigint)')
+    expect(migration).toContain(
+      'delete from public.classroom_archive_object_upload_cleanup',
+    )
     expect(migration).toContain(
       'revoke all on table public.classroom_archive_restore_staging from public, anon, authenticated;',
     )
     expect(migration).toContain(
-      'revoke all on function public.begin_classroom_archive_restore(uuid, uuid, uuid, uuid, text, text, jsonb, jsonb, bigint) from public, anon, authenticated;',
+      'revoke all on function public.begin_classroom_archive_restore(uuid, uuid, uuid, uuid, text, text, jsonb, jsonb, jsonb, bigint) from public, anon, authenticated;',
     )
     expect(migration).toContain(
       'grant execute on function public.complete_classroom_archive_restore(uuid, uuid, jsonb) to service_role;',
     )
+  })
+
+  it('proves the staged storage inventory and leases orphan cleanup through the database', () => {
+    expect(migration).toContain('create table if not exists public.classroom_archive_restore_expected_objects')
+    expect(migration).toContain('Restore object upload set differs from expected descriptors')
+    expect(migration).toContain("split_part(p_storage_path, '/', 3) <> p_operation_id::text")
+    expect(migration).toContain("<> v_storage_object->>'expected_sha256'")
+    expect(migration).toContain('Restore object upload inventory differs from the archive')
+    expect(migration).toContain('Restore object upload inventory differs for bucket %')
+    expect(migration).toContain('claim_due_classroom_archive_object_upload_cleanup')
+    expect(migration).toContain('lease_expires_at > clock_timestamp()')
   })
 })

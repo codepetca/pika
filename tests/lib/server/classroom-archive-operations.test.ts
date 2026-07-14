@@ -221,6 +221,7 @@ describe('classroom archive export coordinator', () => {
     expect(result.compressed_byte_size).toBeGreaterThan(0)
     expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
       'begin_classroom_archive_export',
+      'stage_classroom_archive_object_upload',
       'complete_classroom_archive_export',
     ])
     expect([...mock.stored.keys()]).toEqual([

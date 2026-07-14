@@ -706,18 +706,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 ## 2026-07-14 — Archive stack review findings fixed
 
 **Completed:**
-- Fixed export idempotency races, locale-dependent canonical ordering, restore loser cleanup, atomic snapshot expiry, expired staging cleanup, complete retry contracts, retention enforcement, and exact resource-map validation.
-- Required compaction to prove the current restore adapter and actor reconciliation before relational deletion. Source Storage cleanup now requires an exact operation canary, an unexpired renewed lease, and explicit exclusive ownership evidence that defaults false.
-- Replaced the Gradex deidentification claim with a structured privacy policy: unconstrained free text is excluded, remaining strings use Unicode-aware identity scanning, synced test documents project correctly, completed replay survives retention expiry, and cleanup intent exists before upload.
-- Updated the local recovery drill and lifecycle guidance for ownership-gated source retention. Added a default-off daily cron path for expired archive staging. No production database, migration, row, object, environment, deployment, or schedule was modified.
+- Ran repeated independent SQL, runtime, Gradex, and cross-layer review loops and fixed every actionable finding.
+- Hardened export/restore upload cleanup, exact restore object descriptors, actor-role reconciliation, transactional compaction dry runs, canonical paths, expiry/retry state transitions, and fail-closed source cleanup.
+- Tightened Gradex v2 with strict per-table Zod contracts, required relationships and projected fields, safe analytic enum preservation, Unicode-aware identifier scanning, pseudonymized unknown tokens, exact cleanup canaries, and retention fences.
+- Updated database contract drills, lifecycle guidance, cron integration, and environment documentation. No production database, migration, row, object, environment, deployment, or schedule was read or modified.
 
 **Validation:**
-- Full `bash scripts/verify-env.sh --tests`
-- Focused archive and Gradex suite (20 files / 183 tests)
+- Fresh local Supabase reset through migrations 001–086
+- Archive export, restore, compaction, and Gradex database contract scripts
+- Full Vitest suite (339 files / 3,037 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm build`
 - Pika pre-commit audit
-- Shell syntax checks for archive/restore/Gradex database contracts
-- Local migration reset/replay intentionally not run; CI ephemeral Supabase remains the execution authority
 - `git diff --check`

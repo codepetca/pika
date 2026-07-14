@@ -19,6 +19,9 @@ const STUDENT_ID = '20000000-0000-4000-8000-000000000001'
 const CLASSROOM_ID = '30000000-0000-4000-8000-000000000001'
 const ASSIGNMENT_ID = '40000000-0000-4000-8000-000000000001'
 const ASSIGNMENT_DOC_ID = '50000000-0000-4000-8000-000000000001'
+const ASSIGNMENT_RUN_ID = '51000000-0000-4000-8000-000000000001'
+const ASSIGNMENT_RUN_ITEM_ID = '52000000-0000-4000-8000-000000000001'
+const FEEDBACK_ENTRY_ID = '53000000-0000-4000-8000-000000000001'
 const TEST_ID = '60000000-0000-4000-8000-000000000001'
 const QUESTION_ID = '70000000-0000-4000-8000-000000000001'
 const RESPONSE_ID = '80000000-0000-4000-8000-000000000001'
@@ -77,7 +80,7 @@ function sourceArchive() {
     feedback_returned_at: '2026-07-11T12:00:00.000Z',
     ai_feedback_suggestion: 'Ask Élodie Student for one more example.',
     ai_feedback_suggested_at: '2026-07-10T12:00:00.000Z',
-    ai_feedback_model: 'Élodie (@alex_student)',
+    ai_feedback_model: 'E\u0301lodie @用户',
     teacher_cleared_at: null,
     graded_at: '2026-07-10T12:00:00.000Z',
     graded_by: TEACHER_ID,
@@ -85,6 +88,55 @@ function sourceArchive() {
     authenticity_score: 0.9,
     created_at: '2026-07-02T12:00:00.000Z',
     updated_at: '2026-07-11T12:00:00.000Z',
+  }]
+  resources.assignment_ai_grading_runs = [{
+    id: ASSIGNMENT_RUN_ID,
+    assignment_id: ASSIGNMENT_ID,
+    status: 'completed_with_errors',
+    triggered_by: TEACHER_ID,
+    model: null,
+    gradex_status: 'completed_with_errors',
+    requested_student_ids_json: [STUDENT_ID],
+    requested_count: 1,
+    gradable_count: 1,
+    processed_count: 1,
+    completed_count: 0,
+    skipped_missing_count: 1,
+    skipped_empty_count: 0,
+    failed_count: 0,
+    gradex_submitted_at: '2026-07-09T12:00:00.000Z',
+    gradex_last_polled_at: '2026-07-10T12:00:00.000Z',
+    started_at: '2026-07-09T12:00:00.000Z',
+    completed_at: '2026-07-10T12:00:00.000Z',
+    created_at: '2026-07-09T12:00:00.000Z',
+    updated_at: '2026-07-10T12:00:00.000Z',
+  }]
+  resources.assignment_ai_grading_run_items = [{
+    id: ASSIGNMENT_RUN_ITEM_ID,
+    run_id: ASSIGNMENT_RUN_ID,
+    assignment_id: ASSIGNMENT_ID,
+    student_id: STUDENT_ID,
+    assignment_doc_id: ASSIGNMENT_DOC_ID,
+    queue_position: 0,
+    status: 'processing',
+    skip_reason: 'missing_doc',
+    attempt_count: 1,
+    last_error_code: null,
+    next_retry_at: null,
+    started_at: '2026-07-09T12:00:00.000Z',
+    completed_at: null,
+    created_at: '2026-07-09T12:00:00.000Z',
+    updated_at: '2026-07-10T12:00:00.000Z',
+  }]
+  resources.assignment_feedback_entries = [{
+    id: FEEDBACK_ENTRY_ID,
+    assignment_id: ASSIGNMENT_ID,
+    student_id: STUDENT_ID,
+    created_by: TEACHER_ID,
+    entry_kind: 'teacher_feedback',
+    author_type: 'teacher',
+    returned_at: '2026-07-11T12:00:00.000Z',
+    created_at: '2026-07-11T12:00:00.000Z',
   }]
   resources.tests = [{
     id: TEST_ID,
@@ -140,7 +192,7 @@ function sourceArchive() {
     graded_by: TEACHER_ID,
     ai_grading_basis: 'teacher_key',
     ai_reference_answers: ['A complete explanation.'],
-    ai_model: 'gpt-test',
+    ai_model: 'alex_student',
     submitted_at: '2026-07-09T12:00:00.000Z',
     created_at: '2026-07-09T12:00:00.000Z',
     updated_at: '2026-07-10T12:00:00.000Z',
@@ -236,11 +288,27 @@ describe('classroom Gradex extract', () => {
     const test = verified.resources.tests[0]
     const question = verified.resources.test_questions[0]
     const response = verified.resources.test_responses[0]
+    const gradingRun = verified.resources.assignment_ai_grading_runs[0]
+    const gradingItem = verified.resources.assignment_ai_grading_run_items[0]
+    const feedbackEntry = verified.resources.assignment_feedback_entries[0]
     expect(doc.assignment_ref).toBe(assignment.row_ref)
     expect(response.test_ref).toBe(test.row_ref)
     expect(response.question_ref).toBe(question.row_ref)
     expect(response.actor_ref).toBe(doc.actor_ref)
     expect(doc.graded_offset_ms).toBe(-3 * 24 * 60 * 60 * 1000)
+    expect(doc.ai_feedback_model).toBe('redacted')
+    expect(gradingRun).toEqual(expect.objectContaining({
+      status: 'completed_with_errors',
+      gradex_status: 'completed_with_errors',
+    }))
+    expect(gradingItem).toEqual(expect.objectContaining({
+      status: 'processing',
+      skip_reason: 'missing_doc',
+    }))
+    expect(feedbackEntry.entry_kind).toBe('teacher_feedback')
+    expect(test).toEqual(expect.objectContaining({ assessment_type: 'test', status: 'closed' }))
+    expect(question.question_type).toBe('open_response')
+    expect(response.ai_grading_basis).toBe('teacher_key')
     expect(doc).not.toHaveProperty('content')
     expect(doc).not.toHaveProperty('feedback')
     expect(test).not.toHaveProperty('title')
@@ -256,6 +324,9 @@ describe('classroom Gradex extract', () => {
       ASSIGNMENT_ID,
       'alex.student@example.test',
       'Élodie Student',
+      'E\u0301lodie',
+      '@用户',
+      'alex_student',
       'https://',
       'student_id',
       'teacher_id',
@@ -265,8 +336,6 @@ describe('classroom Gradex extract', () => {
     ]) {
       expect(serialized).not.toContain(forbidden)
     }
-    expect(serialized).toContain('[redacted-identity]')
-    expect(serialized).toContain('[handle redacted]')
   })
 
   it('is deterministic for one extract and unlinkable across extract ids', () => {
@@ -318,8 +387,60 @@ describe('classroom Gradex extract', () => {
     )
     expect(verifyGradexExtractBundle(withEmail)).toEqual(expect.objectContaining({
       ok: false,
-      error: expect.stringContaining('privacy scan failed'),
+      error: expect.stringContaining('Invalid Gradex projected row'),
     }))
+
+    const withRawToken = rewriteExtractResource(
+      built.extract,
+      'test_responses',
+      (row) => { row.ai_model = 'alex_student' },
+    )
+    expect(verifyGradexExtractBundle(withRawToken)).toEqual(expect.objectContaining({
+      ok: false,
+      error: expect.stringContaining('Invalid Gradex projected row'),
+    }))
+
+    const withMissingRequiredRef = rewriteExtractResource(
+      built.extract,
+      'test_responses',
+      (row) => { row.question_ref = null },
+    )
+    expect(verifyGradexExtractBundle(withMissingRequiredRef)).toEqual(expect.objectContaining({
+      ok: false,
+      error: expect.stringContaining('Invalid Gradex projected row'),
+    }))
+
+    const withMissingAnalyticField = rewriteExtractResource(
+      built.extract,
+      'assignment_ai_grading_runs',
+      (row) => { delete row.status },
+    )
+    expect(verifyGradexExtractBundle(withMissingAnalyticField)).toEqual(expect.objectContaining({
+      ok: false,
+      error: expect.stringContaining('Invalid Gradex projected row'),
+    }))
+
+    const withMissingTimestamp = rewriteExtractResource(
+      built.extract,
+      'assignment_ai_grading_runs',
+      (row) => { delete row.created_offset_ms },
+    )
+    expect(verifyGradexExtractBundle(withMissingTimestamp)).toEqual(expect.objectContaining({
+      ok: false,
+      error: expect.stringContaining('Invalid Gradex projected row'),
+    }))
+
+    for (const table of ['assignments', 'tests']) {
+      const withMissingRootAuthor = rewriteExtractResource(
+        built.extract,
+        table,
+        (row) => { row.author_ref = null },
+      )
+      expect(verifyGradexExtractBundle(withMissingRootAuthor)).toEqual(expect.objectContaining({
+        ok: false,
+        error: expect.stringContaining('Invalid Gradex projected row'),
+      }))
+    }
 
     const withDanglingQuestion = rewriteExtractResource(
       built.extract,

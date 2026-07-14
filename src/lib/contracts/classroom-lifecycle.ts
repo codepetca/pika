@@ -49,12 +49,17 @@ export const classroomArchiveCompactionVerificationSchema =
   }).strict()
 
 export const classroomArchiveRestoreVerificationSchema =
-  classroomArchiveReadBackVerificationSchema.extend({
-    schema_adapter_verified: z.literal(true),
-    actor_references_resolved: z.literal(true),
-    restored_resource_counts_verified: z.literal(true),
+  z.object({
+    archive_checksum_verified: z.literal(true),
+    manifest_verified: z.literal(true),
+    resource_checksums_verified: z.literal(true),
+    resource_counts_verified: z.literal(true),
+    storage_objects_verified: z.literal(true),
+    actor_snapshots_verified: z.literal(true),
+    schema_adapter_available: z.literal(true),
     restored_storage_objects_verified: z.literal(true),
     referential_integrity_verified: z.literal(true),
+    adapter_chain: z.array(z.string().min(1)),
   }).strict()
 
 const activeToHotSchema = z.object({

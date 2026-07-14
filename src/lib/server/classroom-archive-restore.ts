@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import {
   classroomArchiveRestorePreflightSchema,
@@ -100,8 +101,13 @@ function restoreObjectPath(args: {
   classroomId: string
   operationId: string
   sha256: string
+  sourcePath: string
+  contentType: string | null
 }): string {
-  return `restores/${uuidSchema.parse(args.classroomId)}/${uuidSchema.parse(args.operationId)}/${args.sha256}`
+  const objectIdentity = createHash('sha256')
+    .update(`${args.sourcePath}\0${args.contentType ?? '<null>'}`)
+    .digest('hex')
+  return `restores/${uuidSchema.parse(args.classroomId)}/${uuidSchema.parse(args.operationId)}/${objectIdentity}-${args.sha256}`
 }
 
 function encodeStoragePath(path: string): string {
@@ -258,11 +264,7 @@ export function buildClassroomArchiveRestorePlan(args: {
   )
   const unresolvedActorIds = archivedActors.flatMap((actor) => {
     const current = currentActorsById.get(actor.id)
-    return current &&
-      current.email.toLowerCase() === actor.email.toLowerCase() &&
-      current.role === actor.role
-      ? []
-      : [actor.id]
+    return current?.role === actor.role ? [] : [actor.id]
   })
 
   const storageObjects = manifest.storage_objects.map((object) => {
@@ -275,6 +277,8 @@ export function buildClassroomArchiveRestorePlan(args: {
         classroomId: manifest.classroom_id,
         operationId,
         sha256: object.sha256,
+        sourcePath: object.source_path,
+        contentType: object.content_type,
       }),
       archivePath: object.archive_path,
       contentType: object.content_type,

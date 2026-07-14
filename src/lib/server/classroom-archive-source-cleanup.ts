@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { missingStorageObjectEvidence } from '@/lib/server/storage-object-evidence'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 export const CLASSROOM_ARCHIVE_SOURCE_CLEANUP_MAX_CLAIMS = 10
@@ -72,15 +73,6 @@ export type ClassroomArchiveSourceCleanupResult =
       retryable: boolean
     }
 
-type StorageErrorShape = {
-  name?: unknown
-  status?: unknown
-  statusCode?: unknown
-  code?: unknown
-  error?: unknown
-  originalError?: unknown
-}
-
 type ObjectReadResult =
   | { status: 'present'; bytes: Uint8Array }
   | { status: 'absent' }
@@ -115,47 +107,6 @@ function isMissingCleanupRpc(error: { code?: string; message?: string } | null |
     || message.includes('complete_classroom_archive_source_object_cleanup')
     || message.includes('fail_classroom_archive_source_object_cleanup')
   )
-}
-
-function missingObjectEvidence(
-  error: unknown,
-  inspectNested = true,
-): 'object' | 'generic' | null {
-  if (!error || typeof error !== 'object') return null
-  const value = error as StorageErrorShape
-  const codes = [value.statusCode, value.code, value.error]
-    .filter((code): code is string | number => (
-      typeof code === 'string' || typeof code === 'number'
-    ))
-    .map((code) => String(code).toLowerCase())
-  if (codes.includes('nosuchbucket')) return null
-  if (codes.includes('nosuchkey')) return 'object'
-  const status = [value.status, value.statusCode]
-    .map((candidate) => typeof candidate === 'number' ? candidate : Number(candidate))
-    .find((candidate) => Number.isFinite(candidate))
-  if (status === 404 && (
-    codes.length === 0 || codes.includes('404') || codes.includes('not_found')
-  )) {
-    return 'generic'
-  }
-  if (
-    inspectNested
-    && value.name === 'StorageUnknownError'
-    && value.originalError
-    && typeof value.originalError === 'object'
-  ) {
-    const originalError = value.originalError as StorageErrorShape
-    const originalStatus = typeof originalError.status === 'number'
-      ? originalError.status
-      : Number(originalError.status)
-    // storage-js treats a local Storage 400/404 response as a missing object.
-    // Confirming the bucket separately below distinguishes that from a missing bucket.
-    if (originalStatus === 400 || originalStatus === 404) return 'generic'
-  }
-  if (inspectNested && value.originalError !== error) {
-    return missingObjectEvidence(value.originalError, false)
-  }
-  return null
 }
 
 function validateClaims(
@@ -215,7 +166,7 @@ async function readObject(
         return { status: 'uncertain' }
       }
     }
-    const evidence = missingObjectEvidence(response.error)
+    const evidence = missingStorageObjectEvidence(response.error)
     if (evidence === 'object') return { status: 'absent' }
     if (evidence === 'generic') {
       const bucketResponse = await supabase.storage.getBucket(bucketName)
@@ -225,7 +176,7 @@ async function readObject(
     }
     return { status: 'uncertain' }
   } catch (error) {
-    const evidence = missingObjectEvidence(error)
+    const evidence = missingStorageObjectEvidence(error)
     if (evidence === 'object') return { status: 'absent' }
     if (evidence === 'generic') {
       try {

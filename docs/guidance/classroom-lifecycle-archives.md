@@ -33,18 +33,19 @@ settings default off. There is no route, UI, schedule, or production caller, so 
 cannot compact a classroom.
 
 Migration `086_classroom_archive_source_object_cleanup.sql` and
-`src/lib/server/classroom-archive-source-cleanup.ts` implement the separate deletion boundary. The
-worker requires `CLASSROOM_ARCHIVE_SOURCE_CLEANUP_ENABLED=true`, leases at most 10 rows from completed
+`src/lib/server/classroom-archive-source-cleanup.ts` define the separate deletion boundary. The
+runtime is hard-disabled until a transactional ownership verifier and path reservation fence exist;
+environment flags alone cannot enable source deletion. Once that prerequisite is implemented, the
+worker will lease at most 10 rows from completed
 compactions with matching cold tombstones, reads each exact source key, and verifies its complete
 bytes against the archived SHA-256 and byte count before removal. It completes a lease only after an
 exact-key read authoritatively reports absence. Mismatches, missing buckets, uncertain reads,
 unconfirmed deletion, and stale leases fail closed with durable retry evidence.
 
-`/api/cron/classroom-archive-source-cleanup` is the manual deletion canary. It additionally requires
-`CRON_SECRET` and `CLASSROOM_ARCHIVE_SOURCE_CLEANUP_TRIGGER_ENABLED=true`, claims at most one object,
-and returns `503` when any failed claim lacks durable retry evidence. GET and POST share the same
-contract. The route is absent from `vercel.json`, has no UI caller, and both gates default off;
-automatic scheduling requires separate approval after a named recovery canary succeeds.
+`/api/cron/classroom-archive-source-cleanup` is reserved for a future manual deletion canary, but it
+currently always returns `503` even when its environment flags are set. The route is absent from
+`vercel.json` and has no UI caller. It must not be enabled until the transactional ownership verifier
+and path reservation fence are implemented and reviewed.
 
 The export endpoint accepts an optional UUID `Idempotency-Key` and an optional strict retention policy.
 It also requires `CLASSROOM_ARCHIVE_EXPORT_ENABLED=true` and the teacher UUID in the server-only
@@ -265,11 +266,12 @@ match immutable archive metadata. A completed replay does not reread Storage. An
 response is never reported as success because the database transaction may already have committed.
 The pending cleanup rows are deliberately left for a separate lease-based deletion worker. Migration
 086 requires an exact operation canary and `ownership_verified = true`; no runtime in this phase sets
-that evidence, so source-object deletion remains fail-closed while relational compaction is usable.
+that evidence, and the worker gate is hard-disabled, so source-object deletion remains fail-closed
+while relational compaction is usable.
 
 ## Gradex Extract
 
-Gradex uses a separate derived artifact, never the restore archive directly. Version 1 includes only
+Gradex uses a separate derived artifact, never the restore archive directly. Version 2 includes only
 the explicitly allowlisted assignment/test authoring, submission, grading, feedback, and AI-run
 resources in `GRADEX_RESOURCE_TABLES`.
 
@@ -288,7 +290,7 @@ relative offsets. Release is blocked unless the structured-field scanner reports
 identifier findings. This is a structured privacy policy, not a claim that arbitrary text has been
 deidentified.
 
-Every Gradex manifest has a finite `delete_after` timestamp capped at 90 days in version 1.
+Every Gradex manifest has a finite `delete_after` timestamp capped at 90 days in version 2.
 Regeneration writes a new immutable
 extract and schedules the superseded object for deletion. A Gradex extract cannot restore a
 classroom and must never be accepted by a restore endpoint.
@@ -325,7 +327,7 @@ human migration, environment, archive, retention, and invocation approval.
 `src/lib/server/classroom-gradex-cleanup.ts` implements the server-only retention worker. It requires
 `CLASSROOM_GRADEX_CLEANUP_ENABLED=true`, claims at most 10 migration 084 leases per invocation, and
 accepts only the private Gradex bucket plus the canonical
-`<teacher>/<classroom>/<extract>/gradex-v1.tar.gz` path whose extract segment matches the claim. For
+`<teacher>/<classroom>/<extract>/gradex-v2.tar.gz` path whose extract segment matches the claim. For
 each independent claim it requests deletion, reads the exact path again, and completes the current
 lease only after Storage authoritatively reports that key absent. A present object, uncertain
 read-back, rejected completion, or unexpected client failure never records deletion; the worker
@@ -334,11 +336,19 @@ error codes, never paths or classroom content.
 
 `/api/cron/classroom-gradex-cleanup` is the manual cleanup canary boundary. It requires
 `CRON_SECRET`, `CLASSROOM_GRADEX_CLEANUP_TRIGGER_ENABLED=true`, and the worker's independent
-`CLASSROOM_GRADEX_CLEANUP_ENABLED=true` gate. Each invocation claims at most one object, reports a
+`CLASSROOM_GRADEX_CLEANUP_ENABLED=true` gate, plus an exact
+`CLASSROOM_GRADEX_CLEANUP_OPERATION_ID`. Each invocation claims at most one object, reports a
 durably recorded item retry as a healthy invocation, and returns `503` if retry evidence is
 incomplete. GET and POST have the same contract. The route is not listed in `vercel.json`, has no UI
 caller, and both cleanup gates default off; adding deployment scheduling requires separate approval
 after migration 084 and a named manual canary have been verified.
+
+Export and restore uploads use a separate durable intent ledger. When
+`CLASSROOM_ARCHIVE_OBJECT_CLEANUP_ENABLED=true`, the authenticated daily history cron claims a
+bounded batch of objects belonging only to terminal, non-retryable operations. It renews each
+database lease before deleting the exact canonical path, proves the key is absent, and only then
+completes the ledger row. Enabling this worker also expires stale operation snapshots before claims,
+so crash-abandoned uploads do not depend on a second feature gate. This gate defaults off.
 
 ## Observability
 

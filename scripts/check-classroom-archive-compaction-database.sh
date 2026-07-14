@@ -101,6 +101,12 @@ declare
   v_counts jsonb;
   v_verification jsonb;
   v_claim_count integer;
+  v_resource record;
+  v_rows jsonb;
+  v_actors jsonb := '[
+    {"actor_id":"11000000-0000-4000-8000-000000000021","role":"teacher"},
+    {"actor_id":"11000000-0000-4000-8000-000000000022","role":"student"}
+  ]'::jsonb;
 begin
   v_result := public.begin_classroom_archive_export(
     v_rollback_archive_id,
@@ -115,6 +121,18 @@ begin
     raise exception 'Rollback archive begin failed: %', v_result;
   end if;
   v_counts := v_result->'resource_counts';
+  if not public.stage_classroom_archive_object_upload(
+    v_rollback_archive_id, v_teacher_id, 'classroom-archives',
+    format(
+      '%s/%s/%s/classroom-v1.tar.gz',
+      v_teacher_id,
+      v_rollback_classroom_id,
+      v_rollback_archive_id
+    ),
+    repeat('a', 64), 1024
+  ) then
+    raise exception 'Rollback archive upload intent was rejected';
+  end if;
   v_result := public.complete_classroom_archive_export(
     v_rollback_archive_id,
     v_teacher_id,
@@ -161,6 +179,26 @@ begin
   then
     raise exception 'Rollback compaction begin failed: %', v_result;
   end if;
+  for v_resource in
+    select table_name, primary_key_columns[1] as primary_key_column
+    from public.classroom_archive_resource_contract
+    order by export_position
+  loop
+    execute format(
+      'select coalesce(jsonb_agg(to_jsonb(source) order by source.%I), ''[]''::jsonb)
+       from public.%I source
+       where public.resolve_classroom_archive_resource_classroom_id(%L, source.%I) = $1',
+      v_resource.primary_key_column,
+      v_resource.table_name,
+      v_resource.table_name,
+      v_resource.primary_key_column
+    ) into v_rows using v_rollback_classroom_id;
+    if jsonb_array_length(v_rows) > 0 then
+      perform public.stage_classroom_archive_restore_rows(
+        v_rollback_compaction_id, v_teacher_id, v_resource.table_name, v_rows
+      );
+    end if;
+  end loop;
   v_result := public.begin_classroom_archive_compaction(
     v_rollback_compaction_id,
     v_teacher_id,
@@ -236,6 +274,7 @@ begin
     perform public.complete_classroom_archive_compaction(
       v_rollback_compaction_id,
       v_teacher_id,
+      v_actors,
       jsonb_set(v_verification, '{read_back_verified}', 'false'::jsonb)
     );
     raise exception 'Incomplete compaction verification was accepted';
@@ -258,11 +297,25 @@ begin
     perform public.complete_classroom_archive_compaction(
       v_rollback_compaction_id,
       v_teacher_id,
+      jsonb_set(v_actors, '{0,role}', '"student"'::jsonb),
       v_verification
     );
-    raise exception 'Forced compaction rollback did not fail';
-  exception when raise_exception then
-    if sqlerrm <> 'forced compaction rollback' then raise; end if;
+    raise exception 'Changed actor role was accepted for compaction';
+  exception when serialization_failure then null;
+  end;
+
+  begin
+    perform public.complete_classroom_archive_compaction(
+      v_rollback_compaction_id,
+      v_teacher_id,
+      v_actors,
+      v_verification
+    );
+    raise exception 'Compaction trigger preflight did not fail';
+  exception when check_violation then
+    if sqlerrm <> 'Compaction database foreign keys or triggers reject staged rows' then
+      raise;
+    end if;
   end;
   if not exists (select 1 from public.classrooms where id = v_rollback_classroom_id)
     or not exists (
@@ -313,6 +366,13 @@ begin
     '{"mode":"teacher_managed","delete_after":null}'::jsonb
   );
   v_counts := v_result->'resource_counts';
+  if not public.stage_classroom_archive_object_upload(
+    v_success_archive_id, v_teacher_id, 'classroom-archives',
+    format('%s/%s/%s/classroom-v1.tar.gz', v_teacher_id, v_success_classroom_id, v_success_archive_id),
+    repeat('3', 64), 1024
+  ) then
+    raise exception 'Successful archive upload intent was rejected';
+  end if;
   v_result := public.complete_classroom_archive_export(
     v_success_archive_id,
     v_teacher_id,
@@ -351,6 +411,26 @@ begin
   if coalesce((v_result->>'ok')::boolean, false) is not true then
     raise exception 'Successful compaction begin failed: %', v_result;
   end if;
+  for v_resource in
+    select table_name, primary_key_columns[1] as primary_key_column
+    from public.classroom_archive_resource_contract
+    order by export_position
+  loop
+    execute format(
+      'select coalesce(jsonb_agg(to_jsonb(source) order by source.%I), ''[]''::jsonb)
+       from public.%I source
+       where public.resolve_classroom_archive_resource_classroom_id(%L, source.%I) = $1',
+      v_resource.primary_key_column,
+      v_resource.table_name,
+      v_resource.table_name,
+      v_resource.primary_key_column
+    ) into v_rows using v_success_classroom_id;
+    if jsonb_array_length(v_rows) > 0 then
+      perform public.stage_classroom_archive_restore_rows(
+        v_success_compaction_id, v_teacher_id, v_resource.table_name, v_rows
+      );
+    end if;
+  end loop;
   perform public.stage_classroom_archive_compaction_objects(
     v_success_compaction_id,
     v_teacher_id,
@@ -391,6 +471,7 @@ begin
   v_result := public.complete_classroom_archive_compaction(
     v_success_compaction_id,
     v_teacher_id,
+    v_actors,
     v_verification
   );
   if coalesce((v_result->>'ok')::boolean, false) is not true
@@ -420,6 +501,7 @@ begin
   v_result := public.complete_classroom_archive_compaction(
     v_success_compaction_id,
     v_teacher_id,
+    v_actors,
     v_verification
   );
   if (v_result->>'status')::integer <> 200
@@ -626,7 +708,7 @@ begin
     'EXECUTE'
   ) or has_function_privilege(
     'authenticated',
-    'public.complete_classroom_archive_compaction(uuid,uuid,jsonb)',
+    'public.complete_classroom_archive_compaction(uuid,uuid,jsonb,jsonb)',
     'EXECUTE'
   ) then
     raise exception 'Authenticated role can execute classroom compaction RPCs';

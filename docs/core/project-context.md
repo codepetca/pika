@@ -108,10 +108,14 @@ Classroom archive rollout controls are optional and disabled by default. Cold co
 coordinator is server-only and has no route or schedule; migration application and a named canary
 still require explicit human approval.
 
-Source-object deletion is separately disabled by default. A manual canary requires `CRON_SECRET`,
-`CLASSROOM_ARCHIVE_SOURCE_CLEANUP_TRIGGER_ENABLED=true`, and the worker's independent
-`CLASSROOM_ARCHIVE_SOURCE_CLEANUP_ENABLED=true` gate. The route claims at most one object and is not
-scheduled in `vercel.json`.
+Source-object deletion is separately hard-disabled. Its reserved manual route always returns `503`
+because transactional ownership verification and path reservation are not implemented. Environment
+flags cannot enable it, and it is not scheduled in `vercel.json`.
+
+Abandoned export/restore upload cleanup is independently disabled by default with
+`CLASSROOM_ARCHIVE_OBJECT_CLEANUP_ENABLED=false`. When enabled, the authenticated daily history cron
+first expires stale snapshots, then uses database leases to delete only objects authorized by
+terminal, non-retryable operations.
 
 Legacy anon/service keys are supported but publishable/secret are preferred.
 

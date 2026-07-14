@@ -56,9 +56,30 @@ describe('verified classroom archive migration', () => {
     )
   })
 
+  it('records an exact upload intent before export finalization', () => {
+    expect(migration).toContain('create table if not exists public.classroom_archive_object_upload_cleanup')
+    expect(migration).toContain('create or replace function public.stage_classroom_archive_object_upload')
+    expect(migration).toContain("p_storage_path <> format(")
+    expect(migration).toContain("'%s/%s/%s/classroom-v1.tar.gz'")
+    expect(migration).toContain('Classroom archive upload intent is missing during finalization')
+    expect(migration).toContain("set status = 'pending'")
+  })
+
   it('serializes simultaneous first use of one export idempotency key', () => {
     expect(migration).toContain(
       'perform pg_advisory_xact_lock(hashtextextended(p_operation_id::text, 0));',
+    )
+  })
+
+  it('preserves terminal expiry and failure state during finalize and cleanup races', () => {
+    expect(migration).toContain(
+      "'retryable', coalesce(v_operation.retryable, false)",
+    )
+    expect(migration).toContain(
+      "and (status <> 'failed' or retryable is true);",
+    )
+    expect(migration).toContain(
+      "or (status = 'failed' and retryable is true)",
     )
   })
 })

@@ -24,7 +24,22 @@ import {
 const MAX_UNCOMPRESSED_EXTRACT_BYTES = 512 * 1024 * 1024
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/)
 const uuidSchema = z.string().uuid()
-const genericHandlePattern = /(?<![\p{L}\p{N}_])@[A-Za-z0-9_]{2,39}\b/gu
+const genericHandlePattern = /(?<![\p{L}\p{N}_])@[\p{L}\p{N}_][\p{L}\p{N}_.-]{1,63}(?![\p{L}\p{N}_])/gu
+const defaultIgnorablePattern = /\p{Default_Ignorable_Code_Point}+/gu
+const structuredTokenPattern = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,159}$/
+const structuredTokenSchema = z.string().regex(structuredTokenPattern)
+const safeAnalyticTokens = new Set([
+  'active', 'ai', 'cancelled', 'canceled', 'closed', 'comment', 'completed',
+  'completed_with_errors', 'draft', 'empty_doc', 'failed', 'generated_reference',
+  'grading_feedback', 'image', 'in_progress', 'link', 'missing', 'missing_doc',
+  'multiple_choice', 'open', 'open_response', 'pending', 'processing', 'published',
+  'queued', 'quiz', 'ready', 'redacted', 'repo_link', 'running', 'skipped',
+  'student', 'system', 'teacher', 'teacher_feedback', 'teacher_key', 'test', 'v1',
+])
+const sanitizedTokenSchema = structuredTokenSchema.refine(
+  (value) => safeAnalyticTokens.has(value) || sha256Schema.safeParse(value).success,
+  'Gradex token must be an allowlisted analytic value or pseudonym',
+)
 const forbiddenKeys = new Set<string>([
   ...GRADEX_DEIDENTIFICATION_CONTRACT.forbidden_output_fields,
   'github_login',
@@ -50,7 +65,7 @@ const PROJECTION_SPECS: Record<string, ProjectionSpec> = {
   assignments: {
     entity: 'assignment',
     refs: [
-      ['created_by', 'author_ref', 'actor'],
+      ['created_by', 'author_ref', 'actor', true],
     ],
     copy: [
       'position', 'is_draft', 'track_authenticity', 'points_possible',
@@ -147,7 +162,7 @@ const PROJECTION_SPECS: Record<string, ProjectionSpec> = {
   },
   tests: {
     entity: 'test',
-    refs: [['created_by', 'author_ref', 'actor']],
+    refs: [['created_by', 'author_ref', 'actor', true]],
     copy: [
       'assessment_type', 'status', 'show_results', 'position', 'points_possible',
       'include_in_final', 'gradebook_weight',
@@ -204,6 +219,147 @@ const PROJECTION_SPECS: Record<string, ProjectionSpec> = {
   },
 }
 
+const integerSchema = z.number().int()
+const numberSchema = z.number().finite()
+const nullableIntegerSchema = integerSchema.nullable()
+const nullableNumberSchema = numberSchema.nullable()
+const nullableTokenSchema = sanitizedTokenSchema.nullable()
+
+const COPY_FIELD_SCHEMAS: Record<string, Readonly<Record<string, z.ZodTypeAny>>> = {
+  assignments: {
+    position: integerSchema,
+    is_draft: z.boolean(),
+    track_authenticity: z.boolean(),
+    points_possible: nullableNumberSchema,
+    include_in_final: z.boolean(),
+    gradebook_weight: numberSchema,
+  },
+  assignment_ai_grading_runs: {
+    status: sanitizedTokenSchema,
+    model: nullableTokenSchema,
+    gradex_status: nullableTokenSchema,
+    requested_count: integerSchema,
+    gradable_count: integerSchema,
+    processed_count: integerSchema,
+    completed_count: integerSchema,
+    skipped_missing_count: integerSchema,
+    skipped_empty_count: integerSchema,
+    failed_count: integerSchema,
+  },
+  assignment_ai_grading_run_items: {
+    queue_position: integerSchema,
+    status: sanitizedTokenSchema,
+    skip_reason: nullableTokenSchema,
+    attempt_count: integerSchema,
+    last_error_code: nullableTokenSchema,
+  },
+  assignment_docs: {
+    is_submitted: z.boolean(),
+    score_completion: nullableNumberSchema,
+    score_thinking: nullableNumberSchema,
+    score_workflow: nullableNumberSchema,
+    ai_feedback_model: nullableTokenSchema,
+    authenticity_score: nullableNumberSchema,
+  },
+  assignment_feedback_entries: {
+    entry_kind: sanitizedTokenSchema,
+    author_type: sanitizedTokenSchema,
+  },
+  assignment_repo_review_runs: {
+    status: sanitizedTokenSchema,
+    metrics_version: sanitizedTokenSchema,
+    prompt_version: sanitizedTokenSchema,
+    model: nullableTokenSchema,
+  },
+  assignment_repo_review_results: {
+    commit_count: integerSchema,
+    active_days: integerSchema,
+    session_count: integerSchema,
+    burst_ratio: numberSchema,
+    weighted_contribution: numberSchema,
+    relative_contribution_share: numberSchema,
+    spread_score: numberSchema,
+    iteration_score: numberSchema,
+    draft_score_completion: nullableNumberSchema,
+    draft_score_thinking: nullableNumberSchema,
+    draft_score_workflow: nullableNumberSchema,
+    confidence: numberSchema,
+  },
+  assignment_submission_requirements: {
+    type: sanitizedTokenSchema,
+    required: z.boolean(),
+    position: integerSchema,
+  },
+  tests: {
+    assessment_type: sanitizedTokenSchema,
+    status: sanitizedTokenSchema,
+    show_results: z.boolean(),
+    position: integerSchema,
+    points_possible: nullableNumberSchema,
+    include_in_final: z.boolean(),
+    gradebook_weight: numberSchema,
+  },
+  test_ai_grading_runs: {
+    status: sanitizedTokenSchema,
+    model: nullableTokenSchema,
+    requested_count: integerSchema,
+    eligible_student_count: integerSchema,
+    queued_response_count: integerSchema,
+    processed_count: integerSchema,
+    completed_count: integerSchema,
+    skipped_unanswered_count: integerSchema,
+    skipped_already_graded_count: integerSchema,
+    failed_count: integerSchema,
+  },
+  test_ai_grading_run_items: {
+    queue_position: integerSchema,
+    status: sanitizedTokenSchema,
+    attempt_count: integerSchema,
+    last_error_code: nullableTokenSchema,
+  },
+  test_questions: {
+    question_type: sanitizedTokenSchema,
+    points: numberSchema,
+    response_max_chars: nullableIntegerSchema,
+    response_monospace: z.boolean(),
+    position: integerSchema,
+  },
+  test_responses: {
+    score: nullableNumberSchema,
+    ai_grading_basis: nullableTokenSchema,
+    ai_model: nullableTokenSchema,
+  },
+}
+
+function projectedRowSchema(table: string): z.ZodType<JsonObject> {
+  const spec = PROJECTION_SPECS[table]
+  const copySchemas = COPY_FIELD_SCHEMAS[table]
+  if (!spec || !copySchemas) throw new Error(`No Gradex row schema exists for ${table}`)
+  if (
+    Object.keys(copySchemas).length !== spec.copy.length ||
+    spec.copy.some((field) => !Object.hasOwn(copySchemas, field))
+  ) {
+    throw new Error(`Gradex row schema does not match the projection for ${table}`)
+  }
+
+  const shape: Record<string, z.ZodTypeAny> = { row_ref: sha256Schema }
+  for (const [, target, , required] of spec.refs) {
+    shape[target] = required ? sha256Schema : sha256Schema.nullable()
+  }
+  for (const field of spec.copy) shape[field] = copySchemas[field]
+  for (const field of spec.timestamps) {
+    shape[`${field.endsWith('_at') ? field.slice(0, -3) : field}_offset_ms`] = nullableNumberSchema
+  }
+  for (const target of Object.values(spec.actorArrays || {})) {
+    shape[target] = z.array(sha256Schema)
+  }
+  return z.object(shape).strict()
+}
+
+const PROJECTED_ROW_SCHEMAS = Object.fromEntries(
+  Object.keys(PROJECTION_SPECS).map((table) => [table, projectedRowSchema(table)]),
+) as Record<string, z.ZodType<JsonObject>>
+
 const RELATION_TARGETS: Record<string, Readonly<Record<string, string>>> = {
   assignment_ai_grading_runs: { assignment_ref: 'assignments' },
   assignment_ai_grading_run_items: {
@@ -254,6 +410,10 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+function normalizePrivacyText(value: string): string {
+  return value.normalize('NFKC').replace(defaultIgnorablePattern, '')
+}
+
 function knownIdentityPattern(value: string): RegExp {
   return new RegExp(
     `(?<![\\p{L}\\p{N}_])${escapeRegExp(value)}(?![\\p{L}\\p{N}_])`,
@@ -267,19 +427,23 @@ function identityTerms(actors: Array<{
 }>): string[] {
   const values = new Set<string>()
   for (const actor of actors) {
-    values.add(actor.email.trim())
+    values.add(normalizePrivacyText(actor.email.trim()))
     if (!actor.profile) continue
-    const fullName = `${actor.profile.first_name} ${actor.profile.last_name}`.trim()
+    const firstName = normalizePrivacyText(actor.profile.first_name.trim())
+    const lastName = normalizePrivacyText(actor.profile.last_name.trim())
+    const fullName = `${firstName} ${lastName}`.trim()
     if (fullName.length >= 4) values.add(fullName)
-    if (actor.profile.first_name.trim().length >= 2) values.add(actor.profile.first_name.trim())
-    if (actor.profile.last_name.trim().length >= 2) values.add(actor.profile.last_name.trim())
-    if (actor.profile.student_number?.trim()) values.add(actor.profile.student_number.trim())
+    if (firstName.length >= 2) values.add(firstName)
+    if (lastName.length >= 2) values.add(lastName)
+    if (actor.profile.student_number?.trim()) {
+      values.add(normalizePrivacyText(actor.profile.student_number.trim()))
+    }
   }
   return [...values].filter(Boolean).sort((left, right) => right.length - left.length)
 }
 
 function redactString(value: string, knownTerms: string[]): string {
-  let output = redactDirectIdentifiers(value)
+  let output = redactDirectIdentifiers(normalizePrivacyText(value))
     .replace(genericHandlePattern, '[handle redacted]')
   for (const term of knownTerms) {
     output = output.replace(knownIdentityPattern(term), '[redacted-identity]')
@@ -287,14 +451,33 @@ function redactString(value: string, knownTerms: string[]): string {
   return output
 }
 
-function sanitizeValue(value: unknown, knownTerms: string[]): unknown {
-  if (typeof value === 'string') return redactString(value, knownTerms)
-  if (Array.isArray(value)) return value.map((item) => sanitizeValue(item, knownTerms))
+function sanitizeValue(
+  value: unknown,
+  knownTerms: string[],
+  pseudonymize: (scope: string, value: string) => string,
+  scope: string,
+): unknown {
+  if (typeof value === 'string') {
+    const normalized = normalizePrivacyText(value)
+    const redacted = redactString(normalized, knownTerms)
+    if (redacted !== normalized || !structuredTokenPattern.test(redacted)) return 'redacted'
+    return safeAnalyticTokens.has(redacted)
+      ? redacted
+      : pseudonymize(`token:${scope}`, redacted)
+  }
+  if (Array.isArray(value)) {
+    return value.map((item, index) => sanitizeValue(
+      item,
+      knownTerms,
+      pseudonymize,
+      `${scope}[${index}]`,
+    ))
+  }
   if (!isJsonObject(value)) return value
 
   return Object.fromEntries(Object.entries(value).flatMap(([key, item]) => {
     if (key === 'id' || key.endsWith('_id') || forbiddenKeys.has(key)) return []
-    return [[key, sanitizeValue(item, knownTerms)]]
+    return [[key, sanitizeValue(item, knownTerms, pseudonymize, `${scope}.${key}`)]]
   }))
 }
 
@@ -326,7 +509,7 @@ function createPseudonymizer(secret: string, extractId: string) {
     throw new Error('Gradex extract HMAC secret must contain at least 32 bytes')
   }
   const key = createHmac('sha256', secret)
-    .update(`pika-gradex-v1\0${uuidSchema.parse(extractId)}`)
+    .update(`pika-gradex-v2\0${uuidSchema.parse(extractId)}`)
     .digest()
   return (scope: string, value: string) => createHmac('sha256', key)
     .update(`${scope}\0${value}`)
@@ -352,18 +535,25 @@ function projectRow(args: {
     output[target] = value ? args.pseudonymize(scope, value) : null
   }
   for (const field of spec.copy) {
-    if (args.row[field] !== undefined) {
-      output[field] = sanitizeValue(args.row[field], args.knownTerms)
+    if (args.row[field] === undefined) {
+      throw new Error(`Gradex source field ${args.table}.${field} is missing`)
     }
+    output[field] = sanitizeValue(
+      args.row[field],
+      args.knownTerms,
+      args.pseudonymize,
+      `${args.table}.${field}`,
+    )
   }
   for (const field of spec.timestamps) {
-    if (args.row[field] !== undefined) {
-      output[offsetFieldName(field)] = timestampOffsetMs(
-        args.row[field],
-        args.originMs,
-        `${args.table}.${field}`,
-      )
+    if (args.row[field] === undefined) {
+      throw new Error(`Gradex source timestamp ${args.table}.${field} is missing`)
     }
+    output[offsetFieldName(field)] = timestampOffsetMs(
+      args.row[field],
+      args.originMs,
+      `${args.table}.${field}`,
+    )
   }
   for (const [source, target] of Object.entries(spec.actorArrays || {})) {
     const value = args.row[source]
@@ -379,7 +569,7 @@ function encodeRows(rows: JsonObject[], table: string): Buffer {
   const ordered = [...rows].sort((left, right) => {
     const leftRef = sha256Schema.parse(left.row_ref)
     const rightRef = sha256Schema.parse(right.row_ref)
-    return leftRef.localeCompare(rightRef)
+    return Buffer.compare(Buffer.from(leftRef, 'utf8'), Buffer.from(rightRef, 'utf8'))
   })
   const refs = ordered.map((row) => sha256Schema.parse(row.row_ref))
   if (new Set(refs).size !== refs.length) {
@@ -395,11 +585,12 @@ function directIdentifierFindings(
   knownTerms: string[] = [],
 ): string[] {
   if (typeof value === 'string') {
+    const normalized = normalizePrivacyText(value)
     const findings: string[] = []
-    if (redactDirectIdentifiers(value) !== value) findings.push(`${path}:direct-identifier`)
-    if (genericHandlePattern.test(value)) findings.push(`${path}:handle`)
+    if (redactDirectIdentifiers(normalized) !== normalized) findings.push(`${path}:direct-identifier`)
+    if (genericHandlePattern.test(normalized)) findings.push(`${path}:handle`)
     genericHandlePattern.lastIndex = 0
-    if (knownTerms.some((term) => knownIdentityPattern(term).test(value))) {
+    if (knownTerms.some((term) => knownIdentityPattern(term).test(normalized))) {
       findings.push(`${path}:known-identity`)
     }
     return findings
@@ -418,19 +609,11 @@ function directIdentifierFindings(
   })
 }
 
-function validatePseudonymFields(row: JsonObject, table: string) {
-  for (const [key, value] of Object.entries(row)) {
-    if (key.endsWith('_ref') && value !== null) {
-      sha256Schema.parse(value)
-    }
-    if (key.endsWith('_refs')) {
-      z.array(sha256Schema).parse(value)
-    }
-  }
+function validateProjectedRow(row: JsonObject, table: string): JsonObject {
   try {
-    sha256Schema.parse(row.row_ref)
+    return PROJECTED_ROW_SCHEMAS[table].parse(row)
   } catch {
-    throw new Error(`Invalid Gradex row reference for ${table}`)
+    throw new Error(`Invalid Gradex projected row for ${table}`)
   }
 }
 
@@ -487,13 +670,13 @@ export function buildGradexExtractFromClassroomArchive(input: {
   const projectedResources: Record<string, JsonObject[]> = {}
 
   for (const table of GRADEX_RESOURCE_TABLES) {
-    const rows = (decoded.resources[table] || []).map((row) => projectRow({
+    const rows = (decoded.resources[table] || []).map((row) => validateProjectedRow(projectRow({
       table,
       row,
       originMs,
       knownTerms,
       pseudonymize,
-    }))
+    }), table))
     const findings = directIdentifierFindings(rows, '$', knownTerms)
     if (findings.length > 0) {
       throw new Error(`Gradex privacy scan failed for ${table}: ${findings[0]}`)
@@ -534,7 +717,9 @@ export function buildGradexExtractFromClassroomArchive(input: {
   const manifestBytes = Buffer.from(`${canonicalJsonStringify(manifest)}\n`, 'utf8')
   const tar = encodeTar([
     { path: 'manifest.json', bytes: manifestBytes },
-    ...entries.sort((left, right) => left.path.localeCompare(right.path)),
+    ...entries.sort((left, right) => (
+      Buffer.compare(Buffer.from(left.path, 'utf8'), Buffer.from(right.path, 'utf8'))
+    )),
   ])
   const extract = gzipSync(tar, { level: 9 })
   return {
@@ -569,8 +754,7 @@ export function verifyGradexExtractBundle(input: Uint8Array): VerifiedGradexExtr
       }
       const rows = parseAndValidateNdjson(bytes).map((row) => {
         if (!isJsonObject(row)) throw new Error(`Gradex row must be an object: ${descriptor.table}`)
-        validatePseudonymFields(row, descriptor.table)
-        return row
+        return validateProjectedRow(row, descriptor.table)
       })
       if (rows.length !== descriptor.row_count) {
         return { ok: false, error: `Gradex resource row count mismatch: ${descriptor.table}` }
@@ -578,7 +762,9 @@ export function verifyGradexExtractBundle(input: Uint8Array): VerifiedGradexExtr
       const refs = rows.map((row) => row.row_ref as string)
       if (
         new Set(refs).size !== refs.length ||
-        refs.some((ref, index) => index > 0 && refs[index - 1].localeCompare(ref) >= 0)
+        refs.some((ref, index) => index > 0 && (
+          Buffer.compare(Buffer.from(refs[index - 1], 'utf8'), Buffer.from(ref, 'utf8')) >= 0
+        ))
       ) {
         return { ok: false, error: `Gradex resource ordering mismatch: ${descriptor.table}` }
       }

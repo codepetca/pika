@@ -24,6 +24,7 @@ declare
   v_superseding_id constant uuid := '24000000-0000-4000-8000-000000000013';
   v_lease_one constant uuid := '25000000-0000-4000-8000-000000000011';
   v_lease_two constant uuid := '25000000-0000-4000-8000-000000000012';
+  v_lease_three constant uuid := '25000000-0000-4000-8000-000000000013';
   v_delete_after timestamptz := clock_timestamp() + interval '30 days';
   v_counts jsonb;
   v_verification jsonb;
@@ -223,6 +224,27 @@ begin
     raise exception 'Conflicting Gradex finalization replay was accepted: %', v_result;
   end if;
 
+  update public.classroom_gradex_extract_cleanup
+  set delete_after = clock_timestamp() - interval '1 second'
+  where operation_id = v_extract_id;
+  v_result := public.begin_classroom_gradex_extract(
+    v_extract_id, v_teacher_id, v_classroom_id, v_archive_id,
+    repeat('d', 64), v_delete_after
+  );
+  if v_result->>'error_code' <> 'gradex_extract_gone' then
+    raise exception 'Expired Gradex begin replay was accepted: %', v_result;
+  end if;
+  v_result := public.complete_classroom_gradex_extract(
+    v_extract_id, v_teacher_id, repeat('7', 64), repeat('6', 64), 100, 200,
+    v_counts, v_verification
+  );
+  if v_result->>'error_code' <> 'gradex_extract_gone' then
+    raise exception 'Expired Gradex finalization replay was accepted: %', v_result;
+  end if;
+  update public.classroom_gradex_extract_cleanup
+  set delete_after = v_delete_after
+  where operation_id = v_extract_id;
+
   v_result := public.begin_classroom_gradex_extract(
     v_superseding_id, v_teacher_id, v_classroom_id, v_archive_id,
     repeat('8', 64), v_delete_after
@@ -267,17 +289,37 @@ begin
   end;
 
   begin
-    perform public.claim_due_classroom_gradex_extract_cleanup(null, 25, 300);
+    perform public.claim_due_classroom_gradex_extract_cleanup(null, v_extract_id, 25, 300);
     raise exception 'Null Gradex cleanup lease was accepted';
   exception when invalid_parameter_value then null;
   end;
   select * into v_claim
-  from public.claim_due_classroom_gradex_extract_cleanup(v_lease_one, 25, 300);
+  from public.claim_due_classroom_gradex_extract_cleanup(
+    v_lease_one, v_extract_id, 25, 300
+  );
   if v_claim.extract_id <> v_extract_id or v_claim.attempt_count <> 1 then
     raise exception 'Due Gradex cleanup was not claimed';
   end if;
+  update public.classroom_gradex_extract_cleanup
+  set lease_expires_at = clock_timestamp() - interval '1 second'
+  where extract_id = v_extract_id;
+  if public.renew_classroom_gradex_extract_cleanup_lease(v_extract_id, v_lease_one, 300)
+    or public.complete_classroom_gradex_extract_cleanup(v_extract_id, v_lease_one)
+    or public.fail_classroom_gradex_extract_cleanup(
+      v_extract_id, v_lease_one, 'expired_lease_failure'
+    )
+  then
+    raise exception 'Expired Gradex cleanup lease was accepted';
+  end if;
+  select * into v_claim
+  from public.claim_due_classroom_gradex_extract_cleanup(
+    v_lease_two, v_extract_id, 25, 300
+  );
+  if v_claim.extract_id <> v_extract_id or v_claim.attempt_count <> 2 then
+    raise exception 'Expired Gradex cleanup was not reclaimed';
+  end if;
   if not public.fail_classroom_gradex_extract_cleanup(
-    v_extract_id, v_lease_one, 'storage_delete_failed'
+    v_extract_id, v_lease_two, 'storage_delete_failed'
   ) then
     raise exception 'Gradex cleanup failure was not recorded';
   end if;
@@ -285,14 +327,16 @@ begin
   set next_attempt_at = clock_timestamp() - interval '1 second'
   where extract_id = v_extract_id;
   select * into v_claim
-  from public.claim_due_classroom_gradex_extract_cleanup(v_lease_two, 25, 300);
-  if v_claim.extract_id <> v_extract_id or v_claim.attempt_count <> 2 then
+  from public.claim_due_classroom_gradex_extract_cleanup(
+    v_lease_three, v_extract_id, 25, 300
+  );
+  if v_claim.extract_id <> v_extract_id or v_claim.attempt_count <> 3 then
     raise exception 'Failed Gradex cleanup was not reclaimed';
   end if;
-  if public.complete_classroom_gradex_extract_cleanup(v_extract_id, v_lease_one) then
+  if public.complete_classroom_gradex_extract_cleanup(v_extract_id, v_lease_two) then
     raise exception 'Stale Gradex cleanup lease was accepted';
   end if;
-  if not public.complete_classroom_gradex_extract_cleanup(v_extract_id, v_lease_two) then
+  if not public.complete_classroom_gradex_extract_cleanup(v_extract_id, v_lease_three) then
     raise exception 'Gradex cleanup completion failed';
   end if;
   if not exists (

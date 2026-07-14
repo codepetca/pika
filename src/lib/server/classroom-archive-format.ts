@@ -62,6 +62,11 @@ function compareCanonicalStrings(left: string, right: string): number {
   return Buffer.compare(Buffer.from(left, 'utf8'), Buffer.from(right, 'utf8'))
 }
 
+// The original v1 writer used host-locale ordering; verification retains that recovery adapter.
+function compareLegacyV1Strings(left: string, right: string): number {
+  return left.localeCompare(right)
+}
+
 export type BuiltClassroomArchiveBundle = {
   archive: Uint8Array
   artifactSha256: string
@@ -82,15 +87,26 @@ export type DecodedClassroomArchiveData = {
   actors: Array<ReturnType<typeof classroomArchiveActorSnapshotSchema.parse>>
 }
 
-export function canonicalizeJson(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonicalizeJson)
+function canonicalizeJsonWith(
+  value: unknown,
+  compare: (left: string, right: string) => number,
+): unknown {
+  if (Array.isArray(value)) return value.map((item) => canonicalizeJsonWith(item, compare))
   if (!value || typeof value !== 'object') return value
 
   return Object.fromEntries(
     Object.entries(value as JsonObject)
-      .sort(([left], [right]) => compareCanonicalStrings(left, right))
-      .map(([key, item]) => [key, canonicalizeJson(item)]),
+      .sort(([left], [right]) => compare(left, right))
+      .map(([key, item]) => [key, canonicalizeJsonWith(item, compare)]),
   )
+}
+
+export function canonicalizeJson(value: unknown): unknown {
+  return canonicalizeJsonWith(value, compareCanonicalStrings)
+}
+
+function legacyV1CanonicalJsonStringify(value: unknown): string {
+  return JSON.stringify(canonicalizeJsonWith(value, compareLegacyV1Strings))
 }
 
 export function canonicalJsonStringify(value: unknown): string {
@@ -164,19 +180,37 @@ function archiveObjectPath(bucket: ManagedSourceBucket, sourcePath: string): str
   return `objects/${bucket}/${sourceHash}`
 }
 
-export function contentChecksum(
+function contentChecksumWith(
   files: Array<{ path: string; byte_size: number; sha256: string }>,
+  compare: (left: string, right: string) => number,
+  stringify: (value: unknown) => string,
 ): string {
   const canonicalDescriptors = [...files]
-    .sort((left, right) => compareCanonicalStrings(left.path, right.path))
+    .sort((left, right) => compare(left.path, right.path))
     .map((file) => ({
       path: file.path,
       byte_size: file.byte_size,
       sha256: file.sha256,
     }))
   return createHash('sha256')
-    .update(canonicalJsonStringify(canonicalDescriptors))
+    .update(stringify(canonicalDescriptors))
     .digest('hex')
+}
+
+export function contentChecksum(
+  files: Array<{ path: string; byte_size: number; sha256: string }>,
+): string {
+  return contentChecksumWith(files, compareCanonicalStrings, canonicalJsonStringify)
+}
+
+function legacyV1ContentChecksum(
+  files: Array<{ path: string; byte_size: number; sha256: string }>,
+): string {
+  return contentChecksumWith(
+    files,
+    compareLegacyV1Strings,
+    legacyV1CanonicalJsonStringify,
+  )
 }
 
 function writeTarString(target: Uint8Array, offset: number, length: number, value: string) {
@@ -299,7 +333,10 @@ export function parseAndValidateNdjson(
   const lines = text.slice(0, -1).split('\n')
   return lines.map((line) => {
     const value = JSON.parse(line)
-    if (canonicalJsonStringify(value) !== line) {
+    if (
+      canonicalJsonStringify(value) !== line &&
+      legacyV1CanonicalJsonStringify(value) !== line
+    ) {
       throw new Error('NDJSON resource is not canonically serialized')
     }
     validate?.(value)
@@ -485,7 +522,7 @@ export function verifyClassroomArchiveBundle(
       }
     }
 
-    const actualContentChecksum = contentChecksum([
+    const contentDescriptors = [
       ...manifest.resources,
       manifest.actors,
       ...manifest.storage_objects.map((object) => ({
@@ -493,8 +530,10 @@ export function verifyClassroomArchiveBundle(
         byte_size: object.byte_size,
         sha256: object.sha256,
       })),
-    ])
-    if (actualContentChecksum !== manifest.content_sha256) {
+    ]
+    const contentChecksumMatches = contentChecksum(contentDescriptors) === manifest.content_sha256 ||
+      legacyV1ContentChecksum(contentDescriptors) === manifest.content_sha256
+    if (!contentChecksumMatches) {
       return { ok: false, error: 'Archive content checksum mismatch' }
     }
     return { ok: true, manifest, files }
@@ -528,9 +567,13 @@ export function decodeClassroomArchiveData(
     if (new Set(keys).size !== keys.length) {
       throw new Error(`Classroom archive resource has duplicate primary keys: ${resource.table}`)
     }
-    if (keys.some((key, index) => (
-      index > 0 && compareCanonicalStrings(keys[index - 1], key) >= 0
-    ))) {
+    const currentOrderValid = keys.every((key, index) => (
+      index === 0 || compareCanonicalStrings(keys[index - 1], key) < 0
+    ))
+    const legacyOrderValid = keys.every((key, index) => (
+      index === 0 || compareLegacyV1Strings(keys[index - 1], key) < 0
+    ))
+    if (!currentOrderValid && !legacyOrderValid) {
       throw new Error(`Classroom archive resource is not in primary-key order: ${resource.table}`)
     }
     resources[resource.table] = parsedRows
@@ -546,9 +589,13 @@ export function decodeClassroomArchiveData(
   if (new Set(actorIds).size !== actorIds.length) {
     throw new Error('Classroom archive has duplicate actor snapshots')
   }
-  if (actorIds.some((id, index) => (
-    index > 0 && compareCanonicalStrings(actorIds[index - 1], id) >= 0
-  ))) {
+  const currentActorOrderValid = actorIds.every((id, index) => (
+    index === 0 || compareCanonicalStrings(actorIds[index - 1], id) < 0
+  ))
+  const legacyActorOrderValid = actorIds.every((id, index) => (
+    index === 0 || compareLegacyV1Strings(actorIds[index - 1], id) < 0
+  ))
+  if (!currentActorOrderValid && !legacyActorOrderValid) {
     throw new Error('Classroom archive actor snapshots are not in actor-id order')
   }
 

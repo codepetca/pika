@@ -57,6 +57,15 @@ create index if not exists idx_classroom_archive_source_object_cleanup_due
 
 alter table public.classroom_archive_source_object_cleanup enable row level security;
 
+create table if not exists public.classroom_cold_archive_actors (
+  classroom_id uuid not null references public.classroom_cold_tombstones (classroom_id) on delete cascade,
+  actor_id uuid not null references public.users (id) on delete restrict,
+  actor_role text not null check (actor_role in ('student', 'teacher')),
+  primary key (classroom_id, actor_id)
+);
+
+alter table public.classroom_cold_archive_actors enable row level security;
+
 -- Compaction owns the revision lock, so trigger-side revision churn is unnecessary while deleting.
 create or replace function public.bump_classroom_archive_revision_from_resource()
 returns trigger
@@ -132,10 +141,12 @@ begin
   where id = p_operation_id
     and teacher_id = p_teacher_id
     and operation_type = 'compact'
-    and status <> 'completed';
+    and status <> 'completed'
+    and (status <> 'failed' or retryable is true);
   v_updated := found;
   if v_updated and not p_retryable then
     delete from public.classroom_archive_source_object_cleanup where operation_id = p_operation_id;
+    delete from public.classroom_archive_restore_staging where operation_id = p_operation_id;
   end if;
   return v_updated;
 end;
@@ -157,7 +168,10 @@ begin
       retryable = false,
       source_object_cleanup_staged_at = null,
       updated_at = clock_timestamp()
-    where status <> 'completed'
+    where (
+        status = 'snapshot_ready'
+        or (status = 'failed' and retryable is true)
+      )
       and snapshot_expires_at <= now()
     returning id
   )
@@ -171,6 +185,9 @@ begin
   where operation_id = any(v_operation_ids);
   delete from public.classroom_archive_restore_staging
   where operation_id = any(v_operation_ids);
+  update public.classroom_archive_object_upload_cleanup
+  set status = 'pending', next_attempt_at = clock_timestamp(), updated_at = clock_timestamp()
+  where operation_id = any(v_operation_ids) and status = 'staged';
   delete from public.classroom_archive_source_object_cleanup
   where operation_id = any(v_operation_ids);
   return cardinality(v_operation_ids);
@@ -455,6 +472,8 @@ begin
     raise exception 'Invalid classroom archive compaction request'
       using errcode = '22023';
   end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(p_operation_id::text, 0));
 
   select * into v_operation
   from public.classroom_archive_operations
@@ -773,6 +792,8 @@ begin
   else
     delete from public.classroom_archive_source_object_cleanup
     where operation_id = p_operation_id;
+    delete from public.classroom_archive_restore_staging
+    where operation_id = p_operation_id;
     update public.classroom_archive_operations
     set
       status = 'snapshot_ready',
@@ -807,6 +828,7 @@ $$;
 create or replace function public.complete_classroom_archive_compaction(
   p_operation_id uuid,
   p_teacher_id uuid,
+  p_actors jsonb,
   p_verification jsonb
 )
 returns jsonb
@@ -830,6 +852,13 @@ declare
   v_contract_resource_count bigint;
   v_evidence_time timestamptz;
   v_final_verification jsonb;
+  v_actor_column text;
+  v_actor jsonb;
+  v_actor_count bigint;
+  v_unresolved_actor_count bigint;
+  v_staged_rows jsonb;
+  v_column_list text;
+  v_temp_table text;
   v_now timestamptz := clock_timestamp();
 begin
   select * into v_operation
@@ -868,6 +897,58 @@ begin
       'error_code', 'compaction_not_ready',
       'error', 'Compaction operation is not ready', 'retryable', false
     );
+  end if;
+
+  if p_actors is null
+    or jsonb_typeof(p_actors) <> 'array'
+    or jsonb_array_length(p_actors) > 10000
+  then
+    raise exception 'Compaction actor descriptors are invalid'
+      using errcode = '22023';
+  end if;
+  for v_actor in select value from jsonb_array_elements(p_actors)
+  loop
+    if jsonb_typeof(v_actor) <> 'object'
+      or v_actor - 'actor_id' - 'role' <> '{}'::jsonb
+      or jsonb_typeof(v_actor->'actor_id') <> 'string'
+      or coalesce(v_actor->>'actor_id', '')
+        !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
+      or jsonb_typeof(v_actor->'role') <> 'string'
+      or v_actor->>'role' not in ('student', 'teacher')
+    then
+      raise exception 'Compaction actor descriptor is invalid'
+        using errcode = '22023';
+    end if;
+  end loop;
+  select count(*) into v_actor_count
+  from (
+    select value->>'actor_id'
+    from jsonb_array_elements(p_actors)
+    group by value->>'actor_id'
+  ) unique_actors;
+  if v_actor_count <> jsonb_array_length(p_actors) then
+    raise exception 'Compaction actor descriptors contain duplicates'
+      using errcode = '22023';
+  end if;
+
+  -- Hold matching user rows until the cold transition commits so roles cannot drift
+  -- between the runtime restore preflight and relational deletion.
+  perform users.id
+  from public.users users
+  join jsonb_to_recordset(p_actors) expected(actor_id uuid, role text)
+    on expected.actor_id = users.id
+   and expected.role = users.role
+  for update of users;
+  if exists (
+    select 1
+    from jsonb_to_recordset(p_actors) expected(actor_id uuid, role text)
+    left join public.users users
+      on users.id = expected.actor_id
+     and users.role = expected.role
+    where users.id is null
+  ) then
+    raise exception 'Compaction actor roles changed after restore preflight'
+      using errcode = '40001';
   end if;
 
   if p_verification is null
@@ -969,6 +1050,13 @@ begin
     raise exception 'Verified classroom archive changed during compaction'
       using errcode = '40001';
   end if;
+  if v_operation.retention is distinct from jsonb_build_object(
+    'mode', 'teacher_managed',
+    'delete_after', null
+  ) then
+    raise exception 'Compaction retention is not teacher-managed'
+      using errcode = '22023';
+  end if;
 
   if v_operation.resource_counts is null
     or jsonb_typeof(v_operation.resource_counts) <> 'object'
@@ -976,6 +1064,61 @@ begin
     raise exception 'Compaction resource contract is invalid'
       using errcode = '22023';
   end if;
+
+  for v_resource in
+    select table_name
+    from public.classroom_archive_resource_contract
+    order by export_position
+  loop
+    v_expected_count := (v_operation.resource_counts->>v_resource.table_name)::integer;
+    select count(*) into v_current_count
+    from public.classroom_archive_restore_staging
+    where operation_id = p_operation_id
+      and table_name = v_resource.table_name;
+    if v_current_count <> v_expected_count then
+      raise exception 'Compaction database restore preflight count differs for %', v_resource.table_name
+        using errcode = '40001';
+    end if;
+    if v_current_count > 0 then
+      select jsonb_agg(row_data order by row_id)
+      into v_staged_rows
+      from public.classroom_archive_restore_staging
+      where operation_id = p_operation_id
+        and table_name = v_resource.table_name;
+      select string_agg(format('%I', attribute.attname), ', ' order by attribute.attnum)
+      into v_column_list
+      from pg_attribute attribute
+      join pg_class relation on relation.oid = attribute.attrelid
+      join pg_namespace relation_namespace on relation_namespace.oid = relation.relnamespace
+      where relation_namespace.nspname = 'public'
+        and relation.relname = v_resource.table_name
+        and attribute.attnum > 0
+        and not attribute.attisdropped
+        and attribute.attgenerated = '';
+      v_temp_table := 'pika_compaction_' || md5(
+        p_operation_id::text || ':' || v_resource.table_name
+      );
+      execute format(
+        'create temp table %I (like public.%I including all) on commit drop',
+        v_temp_table,
+        v_resource.table_name
+      );
+      begin
+        execute format(
+          'insert into pg_temp.%I (%s) overriding system value
+           select %s
+           from jsonb_populate_recordset(null::public.%I, $1) typed_row',
+          v_temp_table,
+          v_column_list,
+          v_column_list,
+          v_resource.table_name
+        ) using v_staged_rows;
+      exception when others then
+        raise exception 'Compaction database constraints reject %', v_resource.table_name
+          using errcode = '23514';
+      end;
+    end if;
+  end loop;
   select count(*)::bigint into v_contract_resource_count
   from public.classroom_archive_resource_contract;
   if (select count(*)::bigint from jsonb_object_keys(v_operation.resource_counts))
@@ -1068,6 +1211,8 @@ begin
     where id = p_operation_id;
     delete from public.classroom_archive_source_object_cleanup
     where operation_id = p_operation_id;
+    delete from public.classroom_archive_restore_staging
+    where operation_id = p_operation_id;
     return jsonb_build_object(
       'ok', false, 'status', 409, 'operation_id', p_operation_id,
       'error_code', 'classroom_archive_source_changed',
@@ -1110,6 +1255,8 @@ begin
       where id = p_operation_id;
       delete from public.classroom_archive_source_object_cleanup
       where operation_id = p_operation_id;
+      delete from public.classroom_archive_restore_staging
+      where operation_id = p_operation_id;
       return jsonb_build_object(
         'ok', false, 'status', 409, 'operation_id', p_operation_id,
         'error_code', 'classroom_compaction_source_count_changed',
@@ -1118,6 +1265,62 @@ begin
       );
     end if;
   end loop;
+
+  -- Exercise the real delete/restore path inside a rolled-back subtransaction so
+  -- current foreign keys and triggers are proven before permanent hot-row deletion.
+  begin
+    perform set_config('pika.classroom_archive_compaction', 'on', true);
+    for v_resource in
+      select table_name, primary_key_columns[1] as primary_key_column
+      from public.classroom_archive_resource_contract
+      order by export_position desc
+    loop
+      v_expected_count := (v_operation.resource_counts->>v_resource.table_name)::integer;
+      execute format(
+        'delete from public.%I target
+         where public.resolve_classroom_archive_resource_classroom_id(%L, target.%I) = $1',
+        v_resource.table_name,
+        v_resource.table_name,
+        v_resource.primary_key_column
+      ) using v_operation.classroom_id;
+      get diagnostics v_deleted_count = row_count;
+      if v_deleted_count <> v_expected_count then
+        raise exception 'Compaction dry-run deletion count differs for %', v_resource.table_name;
+      end if;
+    end loop;
+
+    perform set_config('pika.classroom_archive_restore', 'on', true);
+    perform set_config(
+      'pika.classroom_archive_source_revision',
+      v_operation.source_revision::text,
+      true
+    );
+    for v_resource in
+      select table_name
+      from public.classroom_archive_resource_contract
+      order by export_position
+    loop
+      select coalesce(jsonb_agg(row_data order by row_id), '[]'::jsonb)
+      into v_staged_rows
+      from public.classroom_archive_restore_staging
+      where operation_id = p_operation_id
+        and table_name = v_resource.table_name;
+      if jsonb_array_length(v_staged_rows) > 0 then
+        execute format(
+          'insert into public.%I
+           select * from jsonb_populate_recordset(null::public.%I, $1)',
+          v_resource.table_name,
+          v_resource.table_name
+        ) using v_staged_rows;
+      end if;
+    end loop;
+    raise exception 'Compaction database dry run completed' using errcode = 'PZ001';
+  exception
+    when sqlstate 'PZ001' then null;
+    when others then
+      raise exception 'Compaction database foreign keys or triggers reject staged rows'
+        using errcode = '23514';
+  end;
 
   insert into public.classroom_cold_tombstones (
     classroom_id,
@@ -1136,6 +1339,59 @@ begin
     v_now,
     v_operation.source_revision
   );
+
+  for v_resource in
+    select table_name, actor_columns
+    from public.classroom_archive_resource_contract
+    order by export_position
+  loop
+    foreach v_actor_column in array v_resource.actor_columns
+    loop
+      execute format(
+        'insert into public.classroom_cold_archive_actors (classroom_id, actor_id, actor_role)
+         select distinct $1, users.id, expected.role
+         from public.classroom_archive_restore_staging staged
+         join public.users users on users.id = nullif(staged.row_data->>%L, '''')::uuid
+         join jsonb_to_recordset($3) expected(actor_id uuid, role text)
+           on expected.actor_id = users.id
+          and expected.role = users.role
+         where staged.operation_id = $2
+           and staged.table_name = %L
+           and staged.row_data->>%L is not null
+         on conflict do nothing',
+        v_actor_column,
+        v_resource.table_name,
+        v_actor_column
+      ) using v_operation.classroom_id, p_operation_id, p_actors;
+      execute format(
+        'select count(*)
+         from public.classroom_archive_restore_staging staged
+         where staged.operation_id = $1
+           and staged.table_name = %L
+           and nullif(staged.row_data->>%L, '''') is not null
+           and not exists (
+             select 1 from public.classroom_cold_archive_actors actor
+             where actor.classroom_id = $2
+               and actor.actor_id = nullif(staged.row_data->>%L, '''')::uuid
+           )',
+        v_resource.table_name,
+        v_actor_column,
+        v_actor_column
+      ) into v_unresolved_actor_count using p_operation_id, v_operation.classroom_id;
+      if v_unresolved_actor_count > 0 then
+        raise exception 'Compaction actor reconciliation changed for %.%',
+          v_resource.table_name, v_actor_column
+          using errcode = '40001';
+      end if;
+    end loop;
+  end loop;
+  select count(*) into v_actor_count
+  from public.classroom_cold_archive_actors
+  where classroom_id = v_operation.classroom_id;
+  if v_actor_count <> jsonb_array_length(p_actors) then
+    raise exception 'Compaction actor descriptors do not exactly match staged references'
+      using errcode = '40001';
+  end if;
 
   perform set_config('pika.classroom_archive_compaction', 'on', true);
   for v_resource in
@@ -1190,6 +1446,7 @@ begin
     completed_at = v_now,
     updated_at = v_now
   where id = p_operation_id;
+  delete from public.classroom_archive_restore_staging where operation_id = p_operation_id;
 
   return jsonb_build_object(
     'ok', true,
@@ -1206,21 +1463,23 @@ end;
 $$;
 
 revoke all on table public.classroom_archive_source_object_cleanup from public, anon, authenticated;
+revoke all on table public.classroom_cold_archive_actors from public, anon, authenticated;
 grant select on table public.classroom_archive_source_object_cleanup to service_role;
+grant select on table public.classroom_cold_archive_actors to service_role;
 
 revoke all on function public.begin_classroom_archive_compaction(uuid, uuid, uuid, uuid, text) from public, anon, authenticated;
 revoke all on function public.stage_classroom_archive_compaction_objects(uuid, uuid, jsonb) from public, anon, authenticated;
-revoke all on function public.complete_classroom_archive_compaction(uuid, uuid, jsonb) from public, anon, authenticated;
+revoke all on function public.complete_classroom_archive_compaction(uuid, uuid, jsonb, jsonb) from public, anon, authenticated;
 revoke all on function public.fail_classroom_archive_compaction(uuid, uuid, text, boolean) from public, anon, authenticated;
 
 grant execute on function public.begin_classroom_archive_compaction(uuid, uuid, uuid, uuid, text) to service_role;
 grant execute on function public.stage_classroom_archive_compaction_objects(uuid, uuid, jsonb) to service_role;
-grant execute on function public.complete_classroom_archive_compaction(uuid, uuid, jsonb) to service_role;
+grant execute on function public.complete_classroom_archive_compaction(uuid, uuid, jsonb, jsonb) to service_role;
 grant execute on function public.fail_classroom_archive_compaction(uuid, uuid, text, boolean) to service_role;
 
 comment on table public.classroom_archive_source_object_cleanup is
   'Durable, private cleanup ledger staged from a verified archive before hot rows are compacted.';
 comment on function public.begin_classroom_archive_compaction(uuid, uuid, uuid, uuid, text) is
   'Starts an idempotent archived-hot compaction lease without deleting classroom data.';
-comment on function public.complete_classroom_archive_compaction(uuid, uuid, jsonb) is
+comment on function public.complete_classroom_archive_compaction(uuid, uuid, jsonb, jsonb) is
   'Atomically verifies exact hot ownership, creates the cold tombstone, and deletes rows child-first.';

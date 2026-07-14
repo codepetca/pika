@@ -1,13 +1,17 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { classroomArchiveCompactionVerificationSchema } from '@/lib/contracts/classroom-lifecycle'
+import { getClassroomResourceOrder } from '@/lib/contracts/classroom-data'
 import {
   canonicalJsonStringify,
   decodeClassroomArchiveData,
   sha256Bytes,
   verifyClassroomArchiveBundle,
 } from '@/lib/server/classroom-archive-format'
-import { buildClassroomArchiveRestorePlan } from '@/lib/server/classroom-archive-restore'
+import {
+  buildClassroomArchiveRestorePlan,
+  type ClassroomArchiveRestorePlan,
+} from '@/lib/server/classroom-archive-restore'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 const CLASSROOM_ARCHIVE_BUCKET = 'classroom-archives' as const
@@ -94,6 +98,14 @@ const stageSuccessSchema = z.object({
   operation_status: z.literal('snapshot_ready'),
   staged_object_count: z.number().int().nonnegative(),
   staged_object_bytes: z.number().int().nonnegative(),
+}).strict()
+const stageRowSuccessSchema = z.object({
+  ok: z.literal(true),
+  status: z.literal(202),
+  operation_id: uuidSchema,
+  table_name: z.string().min(1),
+  staged_count: z.number().int().nonnegative(),
+  expected_count: z.number().int().nonnegative(),
 }).strict()
 
 const beginOperationResultSchema = z.union([
@@ -424,8 +436,9 @@ async function downloadAndVerifyArchive(args: {
     }
     currentActors.push(...(response.data || []) as typeof currentActors)
   }
+  let restorePlan: ClassroomArchiveRestorePlan
   try {
-    buildClassroomArchiveRestorePlan({
+    restorePlan = buildClassroomArchiveRestorePlan({
       verified,
       artifactChecksumVerified: true,
       operationId: args.operationId,
@@ -441,6 +454,7 @@ async function downloadAndVerifyArchive(args: {
     )
   }
   return {
+    restorePlan,
     cleanupObjects: verified.manifest.storage_objects.map((object): CleanupObject => ({
       storage_bucket: object.bucket,
       storage_path: object.source_path,
@@ -448,6 +462,53 @@ async function downloadAndVerifyArchive(args: {
       byte_size: object.byte_size,
     })),
     storage,
+  }
+}
+
+function rowBatches(rows: ClassroomArchiveRestorePlan['resources'][string]) {
+  const batches: typeof rows[] = []
+  let batch: typeof rows = []
+  for (const row of rows) {
+    const next = [...batch, row]
+    if (batch.length > 0 && Buffer.byteLength(canonicalJsonStringify(next), 'utf8') > 900 * 1024) {
+      batches.push(batch)
+      batch = [row]
+    } else {
+      batch = next
+    }
+    if (batch.length === 250) {
+      batches.push(batch)
+      batch = []
+    }
+  }
+  if (batch.length > 0) batches.push(batch)
+  return batches
+}
+
+async function stageRestorePreflight(args: {
+  supabase: SupabaseClient
+  operationId: string
+  teacherId: string
+  plan: ClassroomArchiveRestorePlan
+}) {
+  for (const table of getClassroomResourceOrder('restore')) {
+    for (const rows of rowBatches(args.plan.resources[table] || [])) {
+      const response = await args.supabase.rpc('stage_classroom_archive_restore_rows', {
+        p_operation_id: args.operationId,
+        p_teacher_id: args.teacherId,
+        p_table_name: table,
+        p_rows: rows,
+      })
+      const parsed = !response.error ? stageRowSuccessSchema.safeParse(response.data) : null
+      if (!parsed || !parsed.success) {
+        throw new ClassroomArchiveCompactionError(
+          'archive_compaction_database_preflight_failed',
+          'Classroom archive failed database restore preflight',
+          409,
+          false,
+        )
+      }
+    }
   }
 }
 
@@ -683,6 +744,12 @@ export async function compactClassroomArchive(args: {
       operationId,
       supabaseUrl: args.supabaseUrl,
     })
+    await stageRestorePreflight({
+      supabase: args.supabase,
+      operationId,
+      teacherId,
+      plan: verified.restorePlan,
+    })
     await stageCleanupObjects({
       supabase: args.supabase,
       operationId,
@@ -711,6 +778,9 @@ export async function compactClassroomArchive(args: {
     const completeResponse = await args.supabase.rpc('complete_classroom_archive_compaction', {
       p_operation_id: operationId,
       p_teacher_id: teacherId,
+      p_actors: verified.restorePlan.actors
+        .map((actor) => ({ actor_id: actor.id, role: actor.role }))
+        .sort((left, right) => left.actor_id < right.actor_id ? -1 : left.actor_id > right.actor_id ? 1 : 0),
       p_verification: verification,
     })
     if (completeResponse.error) {
