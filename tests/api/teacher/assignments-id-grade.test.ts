@@ -12,6 +12,41 @@ describe('POST /api/teacher/assignments/[id]/grade', () => {
     vi.clearAllMocks()
   })
 
+  it('authenticates before parsing the request body', async () => {
+    const { requireRole } = await import('@/lib/auth')
+    const error = new Error('Not authenticated')
+    error.name = 'AuthenticationError'
+    vi.mocked(requireRole).mockRejectedValueOnce(error)
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/grade', {
+      method: 'POST',
+      body: '{',
+    })
+    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+
+    expect(response.status).toBe(401)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it('rejects a missing student id before accessing the database', async () => {
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/grade', {
+      method: 'POST',
+      body: JSON.stringify({
+        score_completion: 6,
+        score_thinking: 7,
+        score_workflow: 8,
+        feedback: 'Feedback',
+      }),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const body = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(body.error).toBe('student_id is required')
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
   it('upserts a grade (including 0) even when no submission doc exists', async () => {
     const mockFrom = vi.fn((table: string) => {
       if (table === 'assignments') {

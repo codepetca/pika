@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { apiErrors, withErrorHandler } from '@/lib/api-handler'
+import { withErrorHandler } from '@/lib/api-handler'
 import {
   assertStudentsEnrolledForAssignmentGrade,
   loadTeacherOwnedAssignmentForGrade,
-  normalizeAssignmentGradeStudentIds,
-  parseAssignmentGradePayload,
   upsertAssignmentGradeRows,
 } from '@/lib/server/assignment-grades'
+import { saveSelectedAssignmentGradesSchema } from '@/lib/validations/assignment-grading'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -17,25 +16,7 @@ export const revalidate = 0
 export const POST = withErrorHandler('PostTeacherAssignmentGradeSelected', async (request, context) => {
   const user = await requireRole('teacher')
   const { id } = await context.params
-  const body = await request.json()
-  const studentIds = normalizeAssignmentGradeStudentIds(body?.student_ids)
-
-  if (studentIds.length === 0) {
-    throw apiErrors.badRequest('student_ids array is required')
-  }
-
-  if (studentIds.length > 100) {
-    throw apiErrors.badRequest('Cannot grade more than 100 students at once')
-  }
-
-  const grade = parseAssignmentGradePayload({
-    score_completion: body?.score_completion,
-    score_thinking: body?.score_thinking,
-    score_workflow: body?.score_workflow,
-    feedback: body?.feedback,
-    save_mode: body?.save_mode,
-    apply_target: body?.apply_target,
-  })
+  const { studentIds, grade } = saveSelectedAssignmentGradesSchema.parse(await request.json())
   const supabase = getServiceRoleClient()
   const assignment = await loadTeacherOwnedAssignmentForGrade({
     supabase,

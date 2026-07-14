@@ -13509,3 +13509,22 @@
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-06-23 — Announcements cached JSON
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with a client read-cache consistency slice for announcements.
+- Replaced teacher and student announcement manual cached GET fetchers with the shared `fetchCachedJSON` helper.
+- Preserved existing cache keys, 20s TTLs, request-id stale response guards, and mutation cache invalidation.
+- Added a focused teacher announcement remount regression to prove the cache key is reused.
+- Kept the slice non-visual: no layout, copy, or interaction changes.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/AnnouncementsMarkdown.test.tsx tests/unit/request-cache.test.ts`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`

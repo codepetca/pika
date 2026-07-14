@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { apiErrors, withErrorHandler } from '@/lib/api-handler'
+import { withErrorHandler } from '@/lib/api-handler'
 import {
   assertStudentsEnrolledForAssignmentGrade,
   loadTeacherOwnedAssignmentForGrade,
-  parseAssignmentGradePayload,
   upsertAssignmentGradeRows,
 } from '@/lib/server/assignment-grades'
+import { saveAssignmentGradeSchema } from '@/lib/validations/assignment-grading'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -16,28 +16,9 @@ export const revalidate = 0
 export const POST = withErrorHandler('PostTeacherAssignmentGrade', async (request, context) => {
   const user = await requireRole('teacher')
   const { id } = await context.params
-  const body = await request.json()
-  const {
-    student_id,
-    score_completion,
-    score_thinking,
-    score_workflow,
-    feedback,
-    save_mode,
-  } = body
-
-  if (!student_id || typeof student_id !== 'string') {
-    throw apiErrors.badRequest('student_id is required')
-  }
+  const { studentId, grade } = saveAssignmentGradeSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
-  const grade = parseAssignmentGradePayload({
-    score_completion,
-    score_thinking,
-    score_workflow,
-    feedback,
-    save_mode,
-  })
   const assignment = await loadTeacherOwnedAssignmentForGrade({
     supabase,
     assignmentId: id,
@@ -46,14 +27,14 @@ export const POST = withErrorHandler('PostTeacherAssignmentGrade', async (reques
   await assertStudentsEnrolledForAssignmentGrade({
     supabase,
     classroomId: assignment.classroom_id,
-    studentIds: [student_id],
+    studentIds: [studentId],
   })
 
   // Upsert supports grading students even when no submission/doc exists yet.
   const { data: docs, error: upsertError } = await upsertAssignmentGradeRows({
     supabase,
     assignmentId: id,
-    studentIds: [student_id],
+    studentIds: [studentId],
     grade,
   })
   const doc = Array.isArray(docs) ? docs[0] : null

@@ -14,8 +14,6 @@
   "src/app/api/teacher/assignments/[id]/artifact-repo/run/route.ts",
   "src/app/api/teacher/assignments/[id]/auto-grade/route.ts",
   "src/app/api/teacher/assignments/[id]/feedback-return/route.ts",
-  "src/app/api/teacher/assignments/[id]/grade-selected/route.ts",
-  "src/app/api/teacher/assignments/[id]/grade/route.ts",
   "src/app/api/teacher/assignments/[id]/release/route.ts",
   "src/app/api/teacher/assignments/[id]/repo-targets/[studentId]/route.ts",
   "src/app/api/teacher/assignments/[id]/return/route.ts",
