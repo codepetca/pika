@@ -8,6 +8,24 @@ export const classroomLifecycleStateSchema = z.enum([
 
 export type ClassroomLifecycleState = z.infer<typeof classroomLifecycleStateSchema>
 
+export const classroomColdArchiveSummarySchema = z.object({
+  classroom_id: z.string().uuid(),
+  archive_id: z.string().uuid(),
+  title: z.string().min(1),
+  archived_at: z.string().datetime({ offset: true }),
+  compacted_at: z.string().datetime({ offset: true }),
+}).strict()
+
+export const teacherArchivedClassroomRecoverySchema = z.object({
+  cold_archives: z.array(classroomColdArchiveSummarySchema),
+  cold_archive_restore_enabled: z.boolean(),
+}).strict()
+
+export type ClassroomColdArchiveSummary = z.infer<typeof classroomColdArchiveSummarySchema>
+export type TeacherArchivedClassroomRecovery = z.infer<
+  typeof teacherArchivedClassroomRecoverySchema
+>
+
 export const classroomArchiveReadBackVerificationSchema = z.object({
   operation_id: z.string().uuid(),
   archive_id: z.string().uuid(),

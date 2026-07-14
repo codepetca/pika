@@ -1,5 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchTeacherClassrooms, invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
+import {
+  fetchTeacherArchivedClassroomState,
+  fetchTeacherClassrooms,
+  invalidateTeacherClassrooms,
+} from '@/lib/teacher-classrooms-client'
+
+const coldArchive = {
+  classroom_id: '00000000-0000-4000-8000-000000000001',
+  archive_id: '00000000-0000-4000-8000-000000000002',
+  title: 'Stored history classroom',
+  archived_at: '2026-07-01T12:00:00.000Z',
+  compacted_at: '2026-07-10T12:00:00.000Z',
+}
 
 function jsonResponse(body: unknown, ok = true): Response {
   return {
@@ -54,5 +66,37 @@ describe('teacher classrooms client', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/teacher/classrooms')
     expect(fetchMock).toHaveBeenNthCalledWith(3, '/api/auth/me', { cache: 'no-store' })
     expect(fetchMock).toHaveBeenNthCalledWith(4, '/api/teacher/classrooms')
+  })
+
+  it('validates and maps the archived classroom recovery response', async () => {
+    const archivedClassroom = { id: 'archived-class' }
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ user: { id: 'teacher-1' } }))
+      .mockResolvedValueOnce(jsonResponse({
+        classrooms: [archivedClassroom],
+        cold_archives: [coldArchive],
+        cold_archive_restore_enabled: true,
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchTeacherArchivedClassroomState()).resolves.toEqual({
+      classrooms: [archivedClassroom],
+      coldArchives: [coldArchive],
+      coldArchiveRestoreEnabled: true,
+    })
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/teacher/classrooms?archived=true')
+  })
+
+  it('rejects an invalid cold archive response at the client boundary', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ user: { id: 'teacher-1' } }))
+      .mockResolvedValueOnce(jsonResponse({
+        classrooms: [],
+        cold_archives: [{ ...coldArchive, archive_id: 'not-a-uuid' }],
+        cold_archive_restore_enabled: true,
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchTeacherArchivedClassroomState()).rejects.toThrow()
   })
 })

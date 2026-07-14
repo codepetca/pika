@@ -204,6 +204,29 @@ On failure, roll back relational writes, remove operation-scoped temporary objec
 tombstone and original archive, and store a retryable error code. Never mark the classroom hot or
 active after a partial restore.
 
+### Teacher Recovery Surface
+
+The teacher Archived view combines two representations without pretending they have the same access
+semantics:
+
+- `archived_hot` classrooms remain ordinary classroom rows and retain the existing open, restore,
+  and delete controls.
+- `archived_cold` classrooms are listed from teacher-scoped `classroom_cold_tombstones` metadata as
+  **Stored archive** rows. Their submissions, grades, and files are not queryable through the normal
+  classroom routes until the archive is restored to `archived_hot`.
+
+`GET /api/teacher/classrooms?archived=true` returns both lists. The cold list is validated against
+the shared classroom-lifecycle Zod contract. During a backward-compatible rollout, a missing
+`classroom_cold_tombstones` migration returns an empty cold list and leaves the existing hot archive
+response usable; unexpected query or contract failures fail closed.
+
+The stored-row Restore control is enabled only when the existing server restore gate, exact teacher
+allowlist, and database budget are all configured. The browser creates one UUID idempotency key per
+archive restore attempt and retains it after a failed request or failed list refresh. It discards the
+key only after the restore succeeds and the refreshed archive state is confirmed. Listing a stored
+archive never downloads its object, expands archive contents, compacts another classroom, or purges
+data.
+
 ## Cold Compaction
 
 Cold compaction starts only from `archived_hot`, where mutation is already blocked:
