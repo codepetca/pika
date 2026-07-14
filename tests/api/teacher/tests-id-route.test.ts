@@ -41,7 +41,6 @@ vi.mock('@/lib/server/assessment-drafts', () => ({
   isMissingAssessmentDraftsError: vi.fn(() => false),
   syncTestQuestionsFromDraft: vi.fn(async () => ({ ok: true })),
   updateAssessmentDraft: vi.fn(async () => ({ draft: null, error: null })),
-  validateTestDraftContent: vi.fn((content: unknown) => ({ valid: true, value: content })),
 }))
 
 const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }

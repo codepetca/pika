@@ -5,13 +5,13 @@ import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { tiptapToMarkdown } from '@/lib/limited-markdown'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsClassroom, hydrateClassroomRecord } from '@/lib/server/classrooms'
-import type { TestDraftContent } from '@/lib/server/assessment-drafts'
 import type {
   Announcement,
   AssignmentSubmissionRequirement,
   Classroom,
   ClassroomResources,
   TestDocument,
+  TestDraftContent,
 } from '@/types'
 
 export type ClassroomBlueprintSource = {

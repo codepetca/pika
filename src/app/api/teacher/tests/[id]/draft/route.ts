@@ -8,10 +8,10 @@ import {
   buildTestDraftContentFromRows,
   ensureAssessmentDraft,
   updateAssessmentDraft,
-  validateTestDraftContent,
-  type TestDraftContent,
 } from '@/lib/server/assessment-drafts'
+import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import { withErrorHandler } from '@/lib/api-handler'
+import type { TestDraftContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0

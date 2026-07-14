@@ -11,10 +11,12 @@ import {
   syncQuizQuestionsFromDraft,
   syncTestQuestionsFromDraft,
   updateAssessmentDraft,
+} from '@/lib/server/assessment-drafts'
+import {
   validateAssessmentDraftContent,
   validateQuizDraftContent,
   validateTestDraftContent,
-} from '@/lib/server/assessment-drafts'
+} from '@/lib/validations/assessment-drafts'
 
 const QUIZ_ID_1 = '11111111-1111-4111-8111-111111111111'
 const QUIZ_ID_2 = '22222222-2222-4222-8222-222222222222'

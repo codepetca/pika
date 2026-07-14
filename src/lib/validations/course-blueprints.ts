@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { CLASSROOM_THEME_COLORS } from '@/lib/classroom-theme'
-import { validateTestDraftContent } from '@/lib/server/assessment-drafts'
+import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import { validateTestDocumentsPayload } from '@/lib/test-documents'
 import {
   courseSiteSlugSchema,

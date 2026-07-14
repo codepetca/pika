@@ -10,12 +10,12 @@ import {
   isMissingAssessmentDraftsError,
   syncTestQuestionsFromDraft,
   updateAssessmentDraft,
-  validateTestDraftContent,
-  type TestDraftContent,
 } from '@/lib/server/assessment-drafts'
+import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import { withErrorHandler } from '@/lib/api-handler'
 import { withLegacyQuizKey } from '@/lib/test-api-contract'
 import type { TableRow } from '@/types/database'
+import type { TestDraftContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0

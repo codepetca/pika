@@ -17,8 +17,8 @@ import type {
   CourseBlueprintDetail,
   CreateClassroomFromBlueprintInput,
   Semester,
+  TestDraftContent,
 } from '@/types'
-import type { TestDraftContent } from '@/lib/server/assessment-drafts'
 import { parseDatabaseJson } from '@/lib/validations/database-json'
 import type { Database } from '@/types/database'
 
