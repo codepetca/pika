@@ -12,16 +12,15 @@ import {
   buildTestDraftContentFromRows,
   createAssessmentDraft,
   isMissingAssessmentDraftsError,
-  validateTestDraftContent,
-  type TestDraftContent,
 } from '@/lib/server/assessment-drafts'
+import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import {
   getEffectiveStudentTestAccess,
   isMissingTestStudentAvailabilityError,
 } from '@/lib/server/tests'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
-import type { TestStudentAvailabilityState } from '@/types'
+import type { TestDraftContent, TestStudentAvailabilityState } from '@/types'
 import { chunkValues, loadChunkedRows } from '@/lib/server/query-chunks'
 import { withLegacyQuizKey, withLegacyQuizListKey } from '@/lib/test-api-contract'
 

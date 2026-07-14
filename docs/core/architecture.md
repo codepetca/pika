@@ -193,7 +193,8 @@ Before changing remaining `quiz` / `quizzes` names, load
 [`docs/guidance/legacy-quiz-contract-cleanup.md`](../guidance/legacy-quiz-contract-cleanup.md).
 
 - **Test status**: `getStudentTestStatus()` from `@/lib/tests` — uses `returned_at` field
-- **Draft editing**: unified `assessment_drafts` table + JSON Patch via `@/lib/server/assessment-drafts`
+- **Draft validation**: browser-safe draft contracts live in `@/lib/validations/assessment-drafts`
+- **Draft persistence**: unified `assessment_drafts` table + JSON Patch via `@/lib/server/assessment-drafts`
 - **Scheduling**: `combineScheduleDateTimeToIso()` / `isScheduleIsoInFuture()` from `@/lib/scheduling`
 - **AI grading** (tests only): `src/lib/ai-test-grading.ts` — reference answer SHA-256 cached per question
 

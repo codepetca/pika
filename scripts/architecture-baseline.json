@@ -1,20 +1,3 @@
 {
-  "allowedViolations": [
-    {
-      "id": "browser-server:src/app/classrooms/[classroomId]/ClassroomPageClient.tsx->src/lib/server/assessment-drafts.ts",
-      "reason": "Legacy assessment markdown helpers import draft types from a server module. Remove after extracting the pure draft contract."
-    },
-    {
-      "id": "browser-server:src/app/classrooms/[classroomId]/TeacherTestsTab.tsx->src/lib/server/assessment-drafts.ts",
-      "reason": "Legacy assessment markdown helpers import draft types from a server module. Remove after extracting the pure draft contract."
-    },
-    {
-      "id": "browser-server:src/app/teacher/blueprints/page.tsx->src/lib/server/assessment-drafts.ts",
-      "reason": "Legacy assessment markdown helpers import draft types from a server module. Remove after extracting the pure draft contract."
-    },
-    {
-      "id": "browser-server:src/components/TestDetailPanel.tsx->src/lib/server/assessment-drafts.ts",
-      "reason": "Legacy assessment markdown helpers import draft types from a server module. Remove after extracting the pure draft contract."
-    }
-  ]
+  "allowedViolations": []
 }

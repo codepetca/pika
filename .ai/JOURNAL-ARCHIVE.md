@@ -13491,3 +13491,21 @@
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-06-23 — Student calendar cached JSON
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with another client read-cache consistency slice.
+- Replaced `StudentLessonCalendarTab`'s manual cached GET fetchers with the shared `fetchCachedJSON` helper for lesson plans, assignments, and announcements.
+- Preserved existing cache keys, 20s TTLs, request-id/classroom stale response guard, and per-resource fallback behavior.
+- Kept the slice non-visual: no layout, copy, or interaction changes.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/StudentLessonCalendarTab.test.tsx tests/unit/request-cache.test.ts`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`

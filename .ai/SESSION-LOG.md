@@ -10,24 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-23 — Student calendar cached JSON
-
-**Completed:**
-- Continued the bounded architecture/UI improvement goal with another client read-cache consistency slice.
-- Replaced `StudentLessonCalendarTab`'s manual cached GET fetchers with the shared `fetchCachedJSON` helper for lesson plans, assignments, and announcements.
-- Preserved existing cache keys, 20s TTLs, request-id/classroom stale response guard, and per-resource fallback behavior.
-- Kept the slice non-visual: no layout, copy, or interaction changes.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/components/StudentLessonCalendarTab.test.tsx tests/unit/request-cache.test.ts`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-06-23 — Announcements cached JSON
 
 **Completed:**
@@ -686,4 +668,30 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm check:architecture`
 - `pnpm build`
+- `git diff --check`
+
+## 2026-07-14 — Assessment draft validation boundary
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - cross-module boundary extraction benefits from repository-wide import analysis and behavior-parity verification.
+
+**Completed:**
+- Moved browser-safe assessment draft validation into the feature-owned `@/lib/validations/assessment-drafts` module while keeping persistence and database synchronization in `@/lib/server/assessment-drafts`.
+- Split browser, blueprint, route, and server imports so pure modules no longer reach through the server boundary for validation contracts or draft types.
+- Removed all four remaining deletion-only architecture allowances; the architecture check now covers 588 modules with zero allowances.
+- Removed stale route-test validator stubs so invalid draft payload tests exercise the real validation boundary.
+- Deleted the unused `syncAssessmentMetadataFromDraft` server export after CI coverage exposed that production performs the richer test metadata update directly in the route.
+- No behavior, UI, database schema, dependency, migration, or production changes.
+
+**Validation:**
+- Focused assessment draft, route, and architecture suites (4 files / 34 tests)
+- `pnpm test` (345 files / 3,081 tests)
+- `pnpm vitest run --coverage --maxWorkers=1` (server assessment drafts: 66.67% lines, 95% functions, 65.74% statements)
+- `pnpm build`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm check:architecture`
+- `node scripts/trim-session-log.mjs --check`
+- `node scripts/features.mjs validate`
 - `git diff --check`

@@ -16,6 +16,7 @@ import {
 } from '@/lib/course-site-publishing'
 import { getDefaultClassroomThemeColor, normalizeClassroomThemeColor } from '@/lib/classroom-theme'
 import type {
+  AssessmentDraftContent,
   CourseBlueprint,
   CourseBlueprintAssignment,
   CourseBlueprintAssessment,
@@ -24,8 +25,8 @@ import type {
   CreateClassroomFromBlueprintInput,
   LinkedBlueprintClassroom,
   TestDocument,
+  TestDraftContent,
 } from '@/types'
-import type { AssessmentDraftContent, TestDraftContent } from '@/lib/server/assessment-drafts'
 import { normalizeAssignmentSubmissionRequirementDrafts } from '@/lib/assignment-submission-requirements'
 import {
   buildCreateBlueprintWritePlan,

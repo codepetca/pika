@@ -1,6 +1,5 @@
 import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
-import type { TestDraftContent } from '@/lib/server/assessment-drafts'
-import type { TestDocument } from '@/types'
+import type { TestDocument, TestDraftContent } from '@/types'
 
 export interface CourseBlueprintAssessmentMarkdownRecord {
   id?: string

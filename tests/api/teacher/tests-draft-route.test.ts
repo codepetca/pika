@@ -42,7 +42,6 @@ vi.mock('@/lib/server/assessment-drafts', () => ({
   })),
   ensureAssessmentDraft: vi.fn(),
   updateAssessmentDraft: vi.fn(),
-  validateTestDraftContent: vi.fn((content: any) => ({ valid: true, value: content })),
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
@@ -202,6 +201,33 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
         userId: 'teacher-1',
       })
     )
+  })
+
+  it('validates draft content through the route-owned validation boundary', async () => {
+    vi.mocked(buildNextDraftContent).mockImplementationOnce(
+      ((_currentContent, payload, validate) => {
+        const validation = validate(payload.content)
+        return validation.valid
+          ? { ok: true, content: validation.value }
+          : { ok: false, status: 400, error: validation.error }
+      }) as typeof buildNextDraftContent
+    )
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/draft', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          version: 3,
+          content: { title: '  ', show_results: true, questions: [] },
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('Title is required')
+    expect(updateAssessmentDraft).not.toHaveBeenCalled()
   })
 
   it('returns 400 and blocks save when documents payload is invalid', async () => {
