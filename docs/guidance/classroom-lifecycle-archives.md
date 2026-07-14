@@ -220,6 +220,12 @@ the shared classroom-lifecycle Zod contract. During a backward-compatible rollou
 `classroom_cold_tombstones` migration returns an empty cold list and leaves the existing hot archive
 response usable; unexpected query or contract failures fail closed.
 
+Hot rows and cold tombstones cannot be combined from unrelated database snapshots. The server reads
+the teacher's tombstones, then hot archived rows, then tombstones again. If the tombstone snapshot
+changed around the hot query, it retries the complete read once; a second change returns a retryable
+`503` instead of exposing a duplicate or temporarily omitting a classroom during compaction or
+restore.
+
 The stored-row Restore control is enabled only when the existing server restore gate, exact teacher
 allowlist, and database budget are all configured. The browser creates one UUID idempotency key per
 archive restore attempt and retains it after a failed request or failed list refresh. It discards the

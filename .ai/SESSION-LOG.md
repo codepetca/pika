@@ -10,36 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-22 — Cached API JSON helper
-
-**Completed:**
-- Continued the bounded architecture/UI improvement goal with a typed client API/cache helper slice.
-- Added `fetchJSON` and `fetchCachedJSON` to `src/lib/request-cache.ts` so repeated client reads can share JSON parsing, API error payload handling, and cache TTL wiring.
-- Migrated `useTeacherTestList`, `useGradebookData`, and `StudentNotificationsProvider` from inline cached fetcher lambdas to the typed helper.
-- Kept `fetchJSONWithCache` intact for existing custom fetcher callers and left API payload shape unchanged.
-- Added request-cache coverage for successful JSON parsing, API error precedence, fallback errors for non-JSON failures, and cached helper reuse.
-- Updated hook/component tests for the new helper call shape without changing visible UI behavior.
-- Addressed independent review by preserving JSON parse rejection for successful malformed responses and adding `init` passthrough coverage.
-
-**Cache/helper checklist:**
-- API schema or payload changed: no
-- Cache key semantics changed: no
-- TTL behavior changed: no; callers keep existing `0`, `60_000`, and notification TTL values
-- Error behavior changed: no; `{ error: string }` payloads still win over fallback messages
-- Successful malformed JSON behavior changed: no; successful parse failures still reject instead of caching `null`
-- Existing custom fetcher support: retained through `fetchJSONWithCache`
-- Visible behavior intended to change: none
-
-**Validation:**
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm test tests/unit/request-cache.test.ts tests/hooks/useTeacherTestList.test.ts tests/hooks/useGradebookData.test.ts tests/components/StudentNotificationsProvider.test.tsx`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-06-22 — Teacher classroom access helper reuse
 
 **Completed:**
@@ -738,3 +708,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Pika pre-commit audit
 - Local-only Playwright matrix with no overflow; intentional restore failure reused the same idempotency key on retry
 - `git diff --check`
+
+## 2026-07-13 — Archive recovery PR review consistency fix
+
+**Completed:**
+- Re-reviewed the local full-stack recovery drill and teacher cold-archive recovery PRs before merge; the drill had no findings.
+- Fixed the teacher archive read model so independent PostgREST snapshots cannot combine a pre-transition hot row with a post-transition tombstone, or omit both sides during restore.
+- Added a bounded stable-read protocol that brackets the hot query with validated tombstone snapshots, retries the complete read once on lifecycle movement, and returns `503` if state does not stabilize.
+- Preserved the missing-migration hot-only fallback, teacher scoping, restore gates, and existing client response contract. No production database, migration, row, object, environment, or schedule was read or modified.
+
+**Validation:**
+- Focused archived-state server/API suites (2 files / 20 tests)
+- Full Vitest suite (338 files / 3,015 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika pre-commit audit
+- `git diff --check`
+- CI pending after push
