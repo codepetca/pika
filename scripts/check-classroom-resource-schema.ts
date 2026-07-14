@@ -4,6 +4,11 @@ import {
   type ClassroomSchemaPrimaryKey,
   type ClassroomSchemaRelationship,
 } from '../src/lib/contracts/classroom-data'
+import {
+  hostedSupabasePsqlEnvironment,
+  localSupabasePsqlEnvironment,
+  type PsqlConnectionEnvironment,
+} from '../src/lib/server/supabase-target'
 
 const schemaQuery = `
 with relationships as (
@@ -59,12 +64,44 @@ if (!databaseUrl) {
   process.stderr.write('CLASSROOM_SCHEMA_AUDIT_DATABASE_URL is required.\n')
   process.exit(2)
 }
+const expectedProjectRef = process.env.CLASSROOM_SCHEMA_AUDIT_EXPECTED_PROJECT_REF
+const localMode = process.env.CLASSROOM_SCHEMA_AUDIT_LOCAL === 'true'
+if ((expectedProjectRef ? 1 : 0) + (localMode ? 1 : 0) !== 1) {
+  process.stderr.write(
+    'Set exactly one of CLASSROOM_SCHEMA_AUDIT_EXPECTED_PROJECT_REF or CLASSROOM_SCHEMA_AUDIT_LOCAL=true.\n',
+  )
+  process.exit(2)
+}
+let connectionEnvironment: PsqlConnectionEnvironment
+try {
+  connectionEnvironment = expectedProjectRef
+    ? hostedSupabasePsqlEnvironment(databaseUrl, expectedProjectRef)
+    : localSupabasePsqlEnvironment(databaseUrl)
+} catch {
+  process.stderr.write('Classroom resource schema target validation failed.\n')
+  process.exit(2)
+}
+const childProcessEnvironment: NodeJS.ProcessEnv = {}
+for (const name of ['PATH', 'HOME', 'TMPDIR', 'LANG', 'LC_ALL'] as const) {
+  const value = process.env[name]
+  if (value !== undefined) childProcessEnvironment[name] = value
+}
 
-const output = execFileSync(
-  'psql',
-  ['--dbname', databaseUrl, '-X', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', schemaQuery],
-  { encoding: 'utf8' },
-)
+let output: string
+try {
+  output = execFileSync(
+    'psql',
+    ['-X', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', schemaQuery],
+    {
+      encoding: 'utf8',
+      env: { ...childProcessEnvironment, ...connectionEnvironment },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  )
+} catch {
+  process.stderr.write('Classroom resource schema query failed for the validated target.\n')
+  process.exit(1)
+}
 const schema = JSON.parse(output.trim()) as {
   relationships: ClassroomSchemaRelationship[]
   primary_keys: ClassroomSchemaPrimaryKey[]
@@ -77,5 +114,6 @@ if (!audit.ok) {
 }
 
 process.stdout.write(
-  `Classroom resource schema contract passes (${schema.relationships.length} foreign-key relationships).\n`,
+  `Classroom resource schema contract passes (${schema.relationships.length} foreign-key relationships)` +
+  `${expectedProjectRef ? ` for project ${expectedProjectRef}` : ''}.\n`,
 )

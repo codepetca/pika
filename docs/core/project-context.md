@@ -87,6 +87,18 @@ service-role JWT and an exact destructive-operation acknowledgement, and rejects
 It creates and removes only a uniquely identified synthetic fixture. It must never be pointed at a
 hosted or production project.
 
+The production archive inventory is read-only and requires an exact expected project ref:
+
+```bash
+pnpm verify:classroom-archive-inventory -- \
+  --expected-project-ref "$(cat supabase/.temp/project-ref)"
+```
+
+It validates deployed archive/Gradex contracts and exposed PostgREST relationships, then reports
+privacy-safe row and managed-object sizing for hot archived classrooms. The direct database catalog
+audit documented in `docs/guidance/classroom-lifecycle-archives.md` remains separately required. The
+inventory does not create an archive or modify database or Storage state.
+
 ---
 
 ## Environment Variables (required)

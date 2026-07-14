@@ -140,9 +140,14 @@ Any migration that adds, removes, or changes a classroom-descendant foreign key 
 The read-only audit command compares PostgreSQL catalog relationships with the checked-in graph:
 
 ```bash
+CLASSROOM_SCHEMA_AUDIT_EXPECTED_PROJECT_REF="$(cat supabase/.temp/project-ref)" \
 CLASSROOM_SCHEMA_AUDIT_DATABASE_URL="$DATABASE_URL" \
   pnpm exec tsx scripts/check-classroom-resource-schema.ts
 ```
+
+For a hosted audit, the command rejects local, mismatched, non-TLS, and unrelated database URLs.
+Use a direct `db.<project-ref>.supabase.co` URL or a Supabase pooler URL whose username is
+`postgres.<project-ref>`, and require `sslmode=require`, `verify-ca`, or `verify-full`.
 
 It fails for untracked or stale tables, missing restore dependencies, and invalid selection keys.
 Run it in database-backed CI after migrations are applied to the ephemeral database.
@@ -388,6 +393,39 @@ restore rollback, and archives without a successful read-back check.
 Production database access for inventory and verification is read-only unless a human explicitly
 approves a named canary operation. Migrations are applied by humans.
 
+Run the production inventory only after verifying the linked project. The command validates the
+expected project ref against `NEXT_PUBLIC_SUPABASE_URL`, compares the deployed 42-resource archive
+and 13-resource Gradex contracts with the checked-in definitions, audits exposed PostgREST
+primary/foreign key metadata, brackets each classroom read with its archive revision, and reports privacy-safe
+aggregate labels instead of classroom ids or content:
+
+```bash
+supabase projects list
+pnpm verify:classroom-archive-inventory -- \
+  --expected-project-ref "$(cat supabase/.temp/project-ref)"
+supabase inspect db db-stats --linked
+```
+
+The PostgREST schema check is privilege- and schema-cache-dependent, so it is not the authoritative
+catalog completeness check. Production verification must also run the direct `pg_constraint` and
+`pg_attribute` audit with a read-only database connection:
+
+```bash
+CLASSROOM_SCHEMA_AUDIT_DATABASE_URL="$DATABASE_URL" \
+CLASSROOM_SCHEMA_AUDIT_EXPECTED_PROJECT_REF="$(cat supabase/.temp/project-ref)" \
+  pnpm exec tsx scripts/check-classroom-resource-schema.ts
+```
+
+`serialized_relational_bytes` is the canonical NDJSON payload size before tar/gzip compression. It
+is useful for comparing classrooms and estimating archive input, but it is not PostgreSQL disk usage
+and does not include indexes, tuple overhead, TOAST overhead, or reclaimable space. The Supabase
+database stats command reports database-wide physical usage separately. Managed-object bytes come
+from read-only Storage metadata. `estimated_uncompressed_archive_bytes` adds those object bytes to
+the relational payload only when every referenced object size is known; otherwise it is `null`.
+The final gzip size remains unknown until an export canary runs. A missing referenced object is
+reported directly and prevents a claim that all source objects are present;
+inventory alone does not claim that an export will succeed.
+
 ### Non-Production Recovery Rehearsal
 
 `pnpm verify:classroom-archive-recovery` exercises the complete runtime path against an already
@@ -437,6 +475,7 @@ Run the database-backed contract in an ephemeral Supabase instance:
 ```bash
 supabase db start
 bash scripts/check-classroom-archive-database.sh
+CLASSROOM_SCHEMA_AUDIT_LOCAL=true \
 CLASSROOM_SCHEMA_AUDIT_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres \
   pnpm exec tsx scripts/check-classroom-resource-schema.ts
 supabase stop --no-backup
