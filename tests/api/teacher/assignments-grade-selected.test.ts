@@ -67,6 +67,22 @@ describe('POST /api/teacher/assignments/[id]/grade-selected', () => {
     vi.clearAllMocks()
   })
 
+  it('authenticates before parsing the request body', async () => {
+    const { requireRole } = await import('@/lib/auth')
+    const error = new Error('Not authenticated')
+    error.name = 'AuthenticationError'
+    vi.mocked(requireRole).mockRejectedValueOnce(error)
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/grade-selected', {
+      method: 'POST',
+      body: '{',
+    })
+    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+
+    expect(response.status).toBe(401)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
   it('returns 400 when student_ids is missing', async () => {
     const response = await POST(makeRequest({
       score_completion: 7,

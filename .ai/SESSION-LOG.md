@@ -10,25 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-23 — Announcements cached JSON
-
-**Completed:**
-- Continued the bounded architecture/UI improvement goal with a client read-cache consistency slice for announcements.
-- Replaced teacher and student announcement manual cached GET fetchers with the shared `fetchCachedJSON` helper.
-- Preserved existing cache keys, 20s TTLs, request-id stale response guards, and mutation cache invalidation.
-- Added a focused teacher announcement remount regression to prove the cache key is reused.
-- Kept the slice non-visual: no layout, copy, or interaction changes.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm test tests/components/AnnouncementsMarkdown.test.tsx tests/unit/request-cache.test.ts`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-07-05 — Test draft route simplification
 
 **Completed:**
@@ -694,4 +675,27 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm check:architecture`
 - `node scripts/trim-session-log.mjs --check`
 - `node scripts/features.mjs validate`
+- `git diff --check`
+
+## 2026-07-14 — Assignment grading request boundary
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - feature-boundary extraction requires repository-wide dependency analysis and exact API contract preservation.
+
+**Completed:**
+- Moved single-student and selected-student assignment grading request normalization into the feature-owned `@/lib/validations/assignment-grading` Zod contract.
+- Kept assignment ownership, enrollment checks, and grade persistence in `@/lib/server/assignment-grades`; both routes now consume parsed contract values.
+- Preserved legacy validation messages, ordering, score coercion, draft blanks, selected-ID filtering/deduplication, authentication-before-parse behavior, and the batch-only `apply_target` contract.
+- Removed both grading routes from the deletion-only API Zod baseline, reducing existing migration debt from 62 routes to 60.
+- Completed two independent review/fix rounds with no remaining findings.
+- No UI, database schema, migration, dependency, or production changes.
+
+**Validation:**
+- Focused grading, API handler, and architecture suites (6 files / 33 tests)
+- `pnpm vitest run --coverage --maxWorkers=1` (346 files / 3,098 tests; assignment grading validation: 96.36% lines, 100% functions)
+- `pnpm build`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm check:architecture` (589 modules / 0 allowances)
 - `git diff --check`
