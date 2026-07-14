@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getServiceRoleClient: vi.fn(),
   isTriggerEnabled: vi.fn(),
   resolveLeaseToken: vi.fn(),
+  resolveOperationId: vi.fn(),
   runCleanup: vi.fn(),
 }))
 
@@ -17,6 +18,7 @@ vi.mock('@/lib/server/classroom-gradex-cleanup', () => ({
   CLASSROOM_GRADEX_CLEANUP_DEFAULT_LEASE_SECONDS: 300,
   isClassroomGradexCleanupTriggerEnabled: mocks.isTriggerEnabled,
   resolveClassroomGradexCleanupLeaseToken: mocks.resolveLeaseToken,
+  resolveClassroomGradexCleanupOperationId: mocks.resolveOperationId,
   runClassroomGradexCleanup: mocks.runCleanup,
 }))
 
@@ -52,9 +54,11 @@ describe('classroom Gradex cleanup cron route', () => {
     vi.clearAllMocks()
     vi.unstubAllEnvs()
     vi.stubEnv('CRON_SECRET', 'secret')
+    vi.stubEnv('CLASSROOM_GRADEX_CLEANUP_OPERATION_ID', EXTRACT_ID)
     mocks.getServiceRoleClient.mockReturnValue(supabase)
     mocks.isTriggerEnabled.mockReturnValue(true)
     mocks.resolveLeaseToken.mockReturnValue(LEASE_TOKEN)
+    mocks.resolveOperationId.mockReturnValue(EXTRACT_ID)
     mocks.runCleanup.mockResolvedValue(successfulResult())
   })
 
@@ -123,6 +127,7 @@ describe('classroom Gradex cleanup cron route', () => {
     expect(mocks.runCleanup).toHaveBeenCalledWith({
       supabase,
       leaseToken: LEASE_TOKEN,
+      operationId: EXTRACT_ID,
       limit: 1,
       leaseSeconds: 300,
     })
@@ -135,9 +140,23 @@ describe('classroom Gradex cleanup cron route', () => {
     expect(mocks.runCleanup).toHaveBeenCalledWith({
       supabase,
       leaseToken: LEASE_TOKEN,
+      operationId: EXTRACT_ID,
       limit: 1,
       leaseSeconds: 300,
     })
+  })
+
+  it('fails closed when no exact cleanup operation is configured', async () => {
+    vi.stubEnv('CLASSROOM_GRADEX_CLEANUP_OPERATION_ID', '')
+
+    const response = await GET(request())
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual(expect.objectContaining({
+      error_code: 'classroom_gradex_cleanup_operation_not_configured',
+    }))
+    expect(mocks.resolveOperationId).not.toHaveBeenCalled()
+    expect(mocks.runCleanup).not.toHaveBeenCalled()
   })
 
   it('propagates a fatal worker result and status', async () => {

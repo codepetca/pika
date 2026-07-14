@@ -44,6 +44,8 @@ describe('Gradex extract operations migration', () => {
     expect(migration).toContain('lease_expires_at')
     expect(migration).toContain('power(2, least(attempt_count, 10))')
     expect(migration).toMatch(/status = 'processing'\s+and lease_token = p_lease_token/)
+    expect(migration).toContain('and lease_expires_at > clock_timestamp()')
+    expect(migration).toContain('cleanup.operation_id = p_operation_id')
     expect(migration).toContain('p_lease_token is null')
   })
 
@@ -52,7 +54,8 @@ describe('Gradex extract operations migration', () => {
       'begin_classroom_gradex_extract(uuid, uuid, uuid, uuid, text, timestamptz)',
       'complete_classroom_gradex_extract(uuid, uuid, text, text, bigint, bigint, jsonb, jsonb)',
       'fail_classroom_gradex_extract(uuid, uuid, text, boolean)',
-      'claim_due_classroom_gradex_extract_cleanup(uuid, integer, integer)',
+      'claim_due_classroom_gradex_extract_cleanup(uuid, uuid, integer, integer)',
+      'renew_classroom_gradex_extract_cleanup_lease(uuid, uuid, integer)',
       'complete_classroom_gradex_extract_cleanup(uuid, uuid)',
       'fail_classroom_gradex_extract_cleanup(uuid, uuid, text)',
     ]) {

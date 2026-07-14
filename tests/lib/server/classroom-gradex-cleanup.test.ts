@@ -4,6 +4,7 @@ import {
   isClassroomGradexCleanupEnabled,
   isClassroomGradexCleanupTriggerEnabled,
   resolveClassroomGradexCleanupLeaseToken,
+  resolveClassroomGradexCleanupOperationId,
   runClassroomGradexCleanup,
 } from '@/lib/server/classroom-gradex-cleanup'
 
@@ -12,8 +13,8 @@ const TEACHER_ID = '20000000-0000-4000-8000-000000000001'
 const CLASSROOM_ID = '30000000-0000-4000-8000-000000000001'
 const EXTRACT_ID = '40000000-0000-4000-8000-000000000001'
 const EXTRACT_TWO_ID = '40000000-0000-4000-8000-000000000002'
-const PATH = `${TEACHER_ID}/${CLASSROOM_ID}/${EXTRACT_ID}/gradex-v1.tar.gz`
-const PATH_TWO = `${TEACHER_ID}/${CLASSROOM_ID}/${EXTRACT_TWO_ID}/gradex-v1.tar.gz`
+const PATH = `${TEACHER_ID}/${CLASSROOM_ID}/${EXTRACT_ID}/gradex-v2.tar.gz`
+const PATH_TWO = `${TEACHER_ID}/${CLASSROOM_ID}/${EXTRACT_TWO_ID}/gradex-v2.tar.gz`
 
 type Claim = {
   extract_id: string
@@ -36,12 +37,14 @@ function createSupabaseMock(options: {
   claimError?: { code?: string; message?: string }
   completeResult?: boolean
   failResult?: boolean
+  renewResult?: boolean
   initiallyMissing?: string[]
   removeErrorPaths?: string[]
   removeThrowPaths?: string[]
   retainedPaths?: string[]
   verificationErrorPaths?: string[]
   verificationNoSuchBucketPaths?: string[]
+  verificationLocalMissingPaths?: string[]
   storageFromThrows?: boolean
 } = {}) {
   const claims = options.claims ?? [claim()]
@@ -55,6 +58,9 @@ function createSupabaseMock(options: {
       return options.claimError
         ? { data: null, error: options.claimError }
         : { data: claims, error: null }
+    }
+    if (name === 'renew_classroom_gradex_extract_cleanup_lease') {
+      return { data: options.renewResult ?? true, error: null }
     }
     if (name === 'complete_classroom_gradex_extract_cleanup') {
       return { data: options.completeResult ?? true, error: null }
@@ -83,6 +89,15 @@ function createSupabaseMock(options: {
         error: { status: 404, statusCode: 'NoSuchBucket', message: 'Bucket not found' },
       }
     }
+    if (options.verificationLocalMissingPaths?.includes(path)) {
+      return {
+        data: null,
+        error: {
+          name: 'StorageUnknownError',
+          originalError: { status: 400 },
+        },
+      }
+    }
     if (options.verificationErrorPaths?.includes(path)) {
       return {
         data: null,
@@ -102,7 +117,16 @@ function createSupabaseMock(options: {
 
   return {
     calls,
-    client: { rpc, storage: { from: storageFrom } } as any,
+    client: {
+      rpc,
+      storage: {
+        from: storageFrom,
+        getBucket: vi.fn(async () => ({
+          data: { id: 'gradex-analytics-extracts' },
+          error: null,
+        })),
+      },
+    } as any,
     download,
     present,
     remove,
@@ -113,12 +137,14 @@ function createSupabaseMock(options: {
 
 function run(mock: ReturnType<typeof createSupabaseMock>, overrides: {
   leaseToken?: string
+  operationId?: string
   limit?: number
   leaseSeconds?: number
 } = {}) {
   return runClassroomGradexCleanup({
     supabase: mock.client,
     leaseToken: overrides.leaseToken ?? LEASE_TOKEN,
+    operationId: overrides.operationId ?? EXTRACT_ID,
     limit: overrides.limit,
     leaseSeconds: overrides.leaseSeconds,
   })
@@ -141,6 +167,8 @@ describe('classroom Gradex cleanup coordinator', () => {
     vi.stubEnv('CLASSROOM_GRADEX_CLEANUP_TRIGGER_ENABLED', ' TRUE ')
     expect(isClassroomGradexCleanupTriggerEnabled()).toBe(true)
     expect(resolveClassroomGradexCleanupLeaseToken(LEASE_TOKEN)).toBe(LEASE_TOKEN)
+    expect(resolveClassroomGradexCleanupOperationId(EXTRACT_ID)).toBe(EXTRACT_ID)
+    expect(() => resolveClassroomGradexCleanupOperationId('not-a-uuid')).toThrow()
     expect(() => resolveClassroomGradexCleanupLeaseToken('not-a-uuid')).toThrow()
 
     const result = await run(mock)
@@ -165,11 +193,13 @@ describe('classroom Gradex cleanup coordinator', () => {
     }))
     expect(mock.rpc).toHaveBeenNthCalledWith(1, 'claim_due_classroom_gradex_extract_cleanup', {
       p_lease_token: LEASE_TOKEN,
+      p_operation_id: EXTRACT_ID,
       p_limit: CLASSROOM_GRADEX_CLEANUP_MAX_CLAIMS,
       p_lease_seconds: 300,
     })
     expect(mock.calls).toEqual([
       'rpc:claim_due_classroom_gradex_extract_cleanup',
+      'rpc:renew_classroom_gradex_extract_cleanup_lease',
       `remove:${PATH}`,
       `download:${PATH}`,
       'rpc:complete_classroom_gradex_extract_cleanup',
@@ -194,6 +224,19 @@ describe('classroom Gradex cleanup coordinator', () => {
       results: [],
     }))
     expect(mock.storageFrom).not.toHaveBeenCalled()
+  })
+
+  it('does not touch Storage after the database lease is lost', async () => {
+    const mock = createSupabaseMock({ renewResult: false })
+    const result = await run(mock)
+
+    expect(result).toEqual(expect.objectContaining({ ok: true, deleted: 0, failed: 1 }))
+    expect(mock.remove).not.toHaveBeenCalled()
+    expect(mock.download).not.toHaveBeenCalled()
+    expect(result.ok && result.results[0]).toEqual(expect.objectContaining({
+      error_code: 'gradex_cleanup_lease_lost',
+      retry_recorded: false,
+    }))
   })
 
   it('completes idempotently when the object is already absent', async () => {
@@ -279,6 +322,19 @@ describe('classroom Gradex cleanup coordinator', () => {
     expect(result).toEqual(expect.objectContaining({ deleted: 1, failed: 0 }))
   })
 
+  it('does not treat the local Storage nested 400 shape as proof of absence', async () => {
+    const mock = createSupabaseMock({
+      initiallyMissing: [PATH],
+      removeErrorPaths: [PATH],
+      verificationLocalMissingPaths: [PATH],
+    })
+
+    const result = await run(mock)
+
+    expect(result).toEqual(expect.objectContaining({ deleted: 0, failed: 1 }))
+    expect(mock.client.storage.getBucket).not.toHaveBeenCalled()
+  })
+
   it('does not mutate the ledger after a stale or rejected completion', async () => {
     const mock = createSupabaseMock({ completeResult: false })
     const result = await run(mock)
@@ -308,34 +364,29 @@ describe('classroom Gradex cleanup coordinator', () => {
     }))
   })
 
-  it('continues independent claims after one deletion fails', async () => {
+  it('rejects a claim for any operation other than the configured canary', async () => {
     const mock = createSupabaseMock({
-      claims: [claim(), claim(EXTRACT_TWO_ID, PATH_TWO)],
-      removeErrorPaths: [PATH],
+      claims: [claim(EXTRACT_TWO_ID, PATH_TWO)],
     })
-    const result = await run(mock, { limit: 2 })
+    const result = await run(mock)
 
-    expect(result).toEqual(expect.objectContaining({ claimed: 2, deleted: 1, failed: 1 }))
-    expect(mock.present.has(PATH)).toBe(true)
-    expect(mock.present.has(PATH_TWO)).toBe(false)
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      error_code: 'gradex_cleanup_claim_contract_invalid',
+    }))
+    expect(mock.storageFrom).not.toHaveBeenCalled()
   })
 
-  it('contains unexpected client exceptions to each claim', async () => {
+  it('contains unexpected client exceptions to the configured claim', async () => {
     const mock = createSupabaseMock({
-      claims: [claim(), claim(EXTRACT_TWO_ID, PATH_TWO)],
       storageFromThrows: true,
     })
-    const result = await run(mock, { limit: 2 })
+    const result = await run(mock)
 
-    expect(result).toEqual(expect.objectContaining({ claimed: 2, deleted: 0, failed: 2 }))
+    expect(result).toEqual(expect.objectContaining({ claimed: 1, deleted: 0, failed: 1 }))
     expect(result.ok && result.results).toEqual([
       expect.objectContaining({
         extract_id: EXTRACT_ID,
-        error_code: 'gradex_cleanup_unexpected_failure',
-        retry_recorded: true,
-      }),
-      expect.objectContaining({
-        extract_id: EXTRACT_TWO_ID,
         error_code: 'gradex_cleanup_unexpected_failure',
         retry_recorded: true,
       }),
@@ -343,7 +394,7 @@ describe('classroom Gradex cleanup coordinator', () => {
   })
 
   it('rejects malformed, duplicate, or oversized claim results before storage access', async () => {
-    const wrongPath = `${TEACHER_ID}/${CLASSROOM_ID}/${EXTRACT_TWO_ID}/gradex-v1.tar.gz`
+    const wrongPath = `${TEACHER_ID}/${CLASSROOM_ID}/${EXTRACT_TWO_ID}/gradex-v2.tar.gz`
     for (const claims of [
       [claim(EXTRACT_ID, wrongPath)],
       [claim(), claim(EXTRACT_ID, PATH)],

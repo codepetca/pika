@@ -21,7 +21,7 @@ const GENERATED_AT = '2026-07-14T12:00:00.000Z'
 const DELETE_AFTER = '2026-08-13T12:00:00.000Z'
 const HMAC_SECRET = 'test-only-classroom-gradex-hmac-secret-over-32-bytes'
 const ARCHIVE_PATH = `${TEACHER_ID}/${CLASSROOM_ID}/${ARCHIVE_ID}/classroom-v1.tar.gz`
-const EXTRACT_PATH = `${TEACHER_ID}/${CLASSROOM_ID}/${OPERATION_ID}/gradex-v1.tar.gz`
+const EXTRACT_PATH = `${TEACHER_ID}/${CLASSROOM_ID}/${OPERATION_ID}/gradex-v2.tar.gz`
 
 function sourceArchive() {
   const resources = Object.fromEntries(

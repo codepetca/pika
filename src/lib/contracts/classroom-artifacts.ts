@@ -7,7 +7,7 @@ import {
 export const CLASSROOM_ARCHIVE_FORMAT = 'pika.classroom-archive' as const
 export const CLASSROOM_ARCHIVE_VERSION = 1 as const
 export const GRADEX_EXTRACT_FORMAT = 'pika.gradex-classroom-extract' as const
-export const GRADEX_EXTRACT_VERSION = 1 as const
+export const GRADEX_EXTRACT_VERSION = 2 as const
 export const GRADEX_EXTRACT_MAX_RETENTION_DAYS = 90 as const
 
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/)
@@ -231,7 +231,7 @@ export const gradexExtractManifestSchema = gradexExtractManifestBaseSchema.super
     ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Gradex extract retention exceeds the version 1 maximum',
+        message: 'Gradex extract retention exceeds the version 2 maximum',
         path: ['delete_after'],
       })
     }
@@ -332,7 +332,7 @@ export const CLASSROOM_STORAGE_CONTRACT = {
     {
       bucket: 'gradex-analytics-extracts',
       visibility: 'private',
-      object_template: '{teacher_id}/{classroom_id}/{extract_id}/gradex-v1.tar.gz',
+      object_template: '{teacher_id}/{classroom_id}/{extract_id}/gradex-v2.tar.gz',
     },
   ],
 } as const

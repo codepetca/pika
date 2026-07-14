@@ -3,9 +3,20 @@ import { NextRequest } from 'next/server'
 import { GET, POST } from '@/app/api/cron/cleanup-history/route'
 
 const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
+const cleanupMocks = vi.hoisted(() => ({
+  enabled: vi.fn(() => false),
+  leaseToken: vi.fn(() => '00000000-0000-4000-8000-000000000001'),
+  run: vi.fn(),
+}))
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
+}))
+
+vi.mock('@/lib/server/classroom-archive-object-cleanup', () => ({
+  isClassroomArchiveObjectCleanupEnabled: cleanupMocks.enabled,
+  resolveClassroomArchiveObjectCleanupLeaseToken: cleanupMocks.leaseToken,
+  runClassroomArchiveObjectCleanup: cleanupMocks.run,
 }))
 
 type QueryLog = {
@@ -184,6 +195,7 @@ describe('cron cleanup-history route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.unstubAllEnvs()
+    cleanupMocks.enabled.mockReturnValue(false)
     mockSupabaseClient.rpc.mockResolvedValue({ data: 0, error: null })
   })
 
@@ -255,6 +267,63 @@ describe('cron cleanup-history route', () => {
     expect(response.status).toBe(500)
     await expect(response.json()).resolves.toEqual({
       error: 'Failed to clean classroom archive staging',
+    })
+  })
+
+  it('expires stale operations before claiming abandoned uploads', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    cleanupMocks.enabled.mockReturnValue(true)
+    cleanupMocks.run.mockResolvedValue({
+      ok: true,
+      status: 200,
+      lease_token: '00000000-0000-4000-8000-000000000001',
+      claimed: 1,
+      deleted: 1,
+      failed: 0,
+      retry_recording_failed: 0,
+      results: [],
+    })
+    mockSupabaseClient.rpc.mockResolvedValue({ data: 2, error: null })
+    const mock = createCleanupMock({ classrooms: [] })
+    ;(mockSupabaseClient.from as any) = mock.from
+
+    const response = await GET(cronRequest())
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      status: 'ok',
+      deleted: 0,
+      archive_staging_cleaned: 2,
+      archive_object_cleanup: { claimed: 1, deleted: 1, failed: 0 },
+    })
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'cleanup_expired_classroom_archive_snapshots',
+    )
+    expect(cleanupMocks.run).toHaveBeenCalledWith(expect.objectContaining({
+      supabase: mockSupabaseClient,
+    }))
+  })
+
+  it('fails when abandoned-upload retry evidence is not durable', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    cleanupMocks.enabled.mockReturnValue(true)
+    cleanupMocks.run.mockResolvedValue({
+      ok: true,
+      status: 200,
+      lease_token: '00000000-0000-4000-8000-000000000001',
+      claimed: 1,
+      deleted: 0,
+      failed: 1,
+      retry_recording_failed: 1,
+      results: [],
+    })
+    mockSupabaseClient.rpc.mockResolvedValue({ data: 1, error: null })
+
+    const response = await GET(cronRequest())
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({
+      error: 'Failed to clean classroom archive objects',
     })
   })
 

@@ -208,7 +208,7 @@ function classroomGradexStoragePath(args: {
   teacherId: string
   classroomId: string
 }) {
-  return `${args.teacherId}/${args.classroomId}/${args.operationId}/gradex-v1.tar.gz`
+  return `${args.teacherId}/${args.classroomId}/${args.operationId}/gradex-v2.tar.gz`
 }
 
 function assertOperationIdentity(args: {
@@ -406,16 +406,17 @@ async function recordGradexFailure(args: {
   operationId: string
   teacherId: string
   error: ClassroomGradexExtractError
-}) {
+}): Promise<boolean> {
   try {
-    await args.supabase.rpc('fail_classroom_gradex_extract', {
+    const response = await args.supabase.rpc('fail_classroom_gradex_extract', {
       p_operation_id: args.operationId,
       p_teacher_id: args.teacherId,
       p_error_code: args.error.code,
       p_retryable: args.error.retryable,
     })
+    return !response.error && response.data === true
   } catch {
-    // The operation result remains safe even when failure telemetry is temporarily unavailable.
+    return false
   }
 }
 
@@ -708,7 +709,18 @@ export async function createClassroomGradexExtract(args: {
       deleteAfter,
     })
     if (!parsedComplete.data.ok) {
-      if (!parsedComplete.data.retryable && uploadedByThisAttempt) {
+      const failureRecorded = await recordGradexFailure({
+        supabase: args.supabase,
+        operationId,
+        teacherId,
+        error: new ClassroomGradexExtractError(
+          parsedComplete.data.error_code,
+          parsedComplete.data.error,
+          parsedComplete.data.status,
+          parsedComplete.data.retryable,
+        ),
+      })
+      if (!parsedComplete.data.retryable && uploadedByThisAttempt && failureRecorded) {
         await removeGradexObject({ supabase: args.supabase, operationId, storagePath })
       }
       emitGradexMetric(parsedComplete.data, startedAt)
@@ -745,20 +757,21 @@ export async function createClassroomGradexExtract(args: {
           500,
           false,
         )
-    if (
-      !gradexError.retryable &&
-      uploadedByThisAttempt &&
-      storagePath &&
-      !finalizationMayHaveCommitted
-    ) {
-      await removeGradexObject({ supabase: args.supabase, operationId, storagePath })
-    }
-    await recordGradexFailure({
+    const failureRecorded = await recordGradexFailure({
       supabase: args.supabase,
       operationId,
       teacherId,
       error: gradexError,
     })
+    if (
+      !gradexError.retryable &&
+      uploadedByThisAttempt &&
+      storagePath &&
+      !finalizationMayHaveCommitted &&
+      failureRecorded
+    ) {
+      await removeGradexObject({ supabase: args.supabase, operationId, storagePath })
+    }
     const result: ClassroomGradexExtractResult = {
       ok: false,
       status: gradexError.status,

@@ -55,11 +55,14 @@ declare
   v_classroom_id constant uuid := '20000000-0000-4000-8000-000000000001';
   v_stale_operation_id constant uuid := '40000000-0000-4000-8000-000000000001';
   v_success_operation_id constant uuid := '40000000-0000-4000-8000-000000000002';
+  v_cleanup_lease_one constant uuid := '41000000-0000-4000-8000-000000000001';
+  v_cleanup_lease_two constant uuid := '41000000-0000-4000-8000-000000000002';
   v_result jsonb;
   v_replay jsonb;
   v_counts jsonb;
   v_revision bigint;
   v_trigger_count integer;
+  v_claim record;
 begin
   if (select count(*) from public.classroom_archive_resource_contract) <> 42 then
     raise exception 'Expected 42 database archive resources';
@@ -195,6 +198,13 @@ begin
     raise exception 'Classroom descendant mutation did not advance the archive revision';
   end if;
 
+  if not public.stage_classroom_archive_object_upload(
+    v_stale_operation_id, v_teacher_id, 'classroom-archives',
+    format('%s/%s/%s/classroom-v1.tar.gz', v_teacher_id, v_classroom_id, v_stale_operation_id),
+    repeat('b', 64), 100
+  ) then
+    raise exception 'Stale archive upload intent was rejected';
+  end if;
   v_result := public.complete_classroom_archive_export(
     v_stale_operation_id,
     v_teacher_id,
@@ -216,6 +226,43 @@ begin
     where operation_id = v_stale_operation_id
   ) then
     raise exception 'Terminal stale snapshot was not cleaned up';
+  end if;
+  select * into v_claim
+  from public.claim_due_classroom_archive_object_upload_cleanup(
+    v_cleanup_lease_one, 25, 300
+  );
+  if v_claim.operation_id <> v_stale_operation_id or v_claim.attempt_count <> 1 then
+    raise exception 'Terminal export upload cleanup was not claimed';
+  end if;
+  update public.classroom_archive_object_upload_cleanup
+  set lease_expires_at = clock_timestamp() - interval '1 second'
+  where operation_id = v_stale_operation_id;
+  if public.renew_classroom_archive_object_upload_cleanup_lease(
+      v_stale_operation_id, v_claim.storage_bucket, v_claim.storage_path,
+      v_cleanup_lease_one, 300
+    )
+    or public.complete_classroom_archive_object_upload_cleanup(
+      v_stale_operation_id, v_claim.storage_bucket, v_claim.storage_path,
+      v_cleanup_lease_one
+    )
+    or public.fail_classroom_archive_object_upload_cleanup(
+      v_stale_operation_id, v_claim.storage_bucket, v_claim.storage_path,
+      v_cleanup_lease_one, 'expired_cleanup_lease'
+    )
+  then
+    raise exception 'Expired archive object cleanup lease was accepted';
+  end if;
+  select * into v_claim
+  from public.claim_due_classroom_archive_object_upload_cleanup(
+    v_cleanup_lease_two, 25, 300
+  );
+  if v_claim.operation_id <> v_stale_operation_id or v_claim.attempt_count <> 2
+    or not public.complete_classroom_archive_object_upload_cleanup(
+      v_stale_operation_id, v_claim.storage_bucket, v_claim.storage_path,
+      v_cleanup_lease_two
+    )
+  then
+    raise exception 'Expired archive object cleanup was not safely reclaimed';
   end if;
   v_replay := public.begin_classroom_archive_export(
     v_stale_operation_id,
@@ -245,6 +292,23 @@ begin
     raise exception 'Second archive snapshot failed: %', v_result;
   end if;
   v_counts := v_result->'resource_counts';
+  if public.stage_classroom_archive_object_upload(
+    v_success_operation_id,
+    v_teacher_id,
+    'classroom-archives',
+    'noncanonical/classroom-v1.tar.gz',
+    repeat('e', 64),
+    101
+  ) then
+    raise exception 'Noncanonical archive upload intent was accepted';
+  end if;
+  if not public.stage_classroom_archive_object_upload(
+    v_success_operation_id, v_teacher_id, 'classroom-archives',
+    format('%s/%s/%s/classroom-v1.tar.gz', v_teacher_id, v_classroom_id, v_success_operation_id),
+    repeat('e', 64), 101
+  ) then
+    raise exception 'Successful archive upload intent was rejected';
+  end if;
   v_result := public.complete_classroom_archive_export(
     v_success_operation_id,
     v_teacher_id,

@@ -40,8 +40,22 @@ create table if not exists public.classroom_archive_restore_staging (
 create index if not exists idx_classroom_archive_restore_staging_operation_table
   on public.classroom_archive_restore_staging (operation_id, table_name, row_id);
 
+create table if not exists public.classroom_archive_restore_expected_objects (
+  operation_id uuid not null references public.classroom_archive_operations (id) on delete cascade,
+  storage_bucket text not null check (storage_bucket in (
+    'assignment-artifacts', 'submission-images', 'test-documents'
+  )),
+  storage_path text not null check (
+    storage_path <> '' and storage_path not like '/%' and strpos(storage_path, E'\\') = 0
+  ),
+  expected_sha256 text not null check (expected_sha256 ~ '^[a-f0-9]{64}$'),
+  expected_byte_size bigint not null check (expected_byte_size >= 0),
+  primary key (operation_id, storage_bucket, storage_path)
+);
+
 alter table public.classroom_cold_tombstones enable row level security;
 alter table public.classroom_archive_restore_staging enable row level security;
+alter table public.classroom_archive_restore_expected_objects enable row level security;
 
 -- Preserve archived values while the atomic restore transaction replays normal insert triggers.
 create or replace function public.bump_classroom_blueprint_source_revision()
@@ -239,6 +253,7 @@ create or replace function public.begin_classroom_archive_restore(
   p_target_schema_migration text,
   p_adapter_chain jsonb,
   p_resource_counts jsonb,
+  p_storage_objects jsonb,
   p_database_budget_bytes bigint
 )
 returns jsonb
@@ -256,6 +271,10 @@ declare
   v_resource_count_key_count integer;
   v_count_key text;
   v_count_value jsonb;
+  v_storage_object jsonb;
+  v_expected_object_count bigint;
+  v_expected_object_bytes bigint;
+  v_expected_by_bucket jsonb;
 begin
   if p_request_sha256 !~ '^[a-f0-9]{64}$'
     or p_target_schema_migration !~ '^\d{3}(?:_[a-z0-9_]+)?$'
@@ -267,6 +286,9 @@ begin
     )
     or p_resource_counts is null
     or jsonb_typeof(p_resource_counts) <> 'object'
+    or p_storage_objects is null
+    or jsonb_typeof(p_storage_objects) <> 'array'
+    or jsonb_array_length(p_storage_objects) > 10000
     or p_database_budget_bytes <= 0
   then
     raise exception 'Invalid classroom archive restore request'
@@ -302,7 +324,51 @@ begin
     raise exception 'Restore must contain exactly one classroom root'
       using errcode = '22023';
   end if;
+  for v_storage_object in select value from jsonb_array_elements(p_storage_objects)
+  loop
+    if jsonb_typeof(v_storage_object) <> 'object'
+      or v_storage_object - 'storage_bucket' - 'storage_path'
+        - 'expected_sha256' - 'expected_byte_size' <> '{}'::jsonb
+      or v_storage_object->>'storage_bucket' not in (
+        'assignment-artifacts', 'submission-images', 'test-documents'
+      )
+      or coalesce(v_storage_object->>'storage_path', '') = ''
+      or v_storage_object->>'storage_path' like '/%'
+      or strpos(v_storage_object->>'storage_path', E'\\') > 0
+      or array_length(string_to_array(v_storage_object->>'storage_path', '/'), 1) <> 4
+      or split_part(v_storage_object->>'storage_path', '/', 1) <> 'restores'
+      or split_part(v_storage_object->>'storage_path', '/', 2) <> p_classroom_id::text
+      or split_part(v_storage_object->>'storage_path', '/', 3) <> p_operation_id::text
+      or split_part(v_storage_object->>'storage_path', '/', 4)
+        !~ '^[a-f0-9]{64}-[a-f0-9]{64}$'
+      or split_part(split_part(v_storage_object->>'storage_path', '/', 4), '-', 2)
+        <> v_storage_object->>'expected_sha256'
+      or exists (
+        select 1
+        from regexp_split_to_table(v_storage_object->>'storage_path', '/') segment(value)
+        where segment.value in ('', '.', '..')
+      )
+      or coalesce(v_storage_object->>'expected_sha256', '') !~ '^[a-f0-9]{64}$'
+      or jsonb_typeof(v_storage_object->'expected_byte_size') <> 'number'
+      or (v_storage_object->>'expected_byte_size') !~ '^\d+$'
+    then
+      raise exception 'Invalid classroom archive restore storage descriptor'
+        using errcode = '22023';
+    end if;
+  end loop;
+  if (
+    select count(*)
+    from (
+      select value->>'storage_bucket', value->>'storage_path'
+      from jsonb_array_elements(p_storage_objects)
+      group by value->>'storage_bucket', value->>'storage_path'
+    ) unique_objects
+  ) <> jsonb_array_length(p_storage_objects) then
+    raise exception 'Duplicate classroom archive restore storage descriptor'
+      using errcode = '22023';
+  end if;
 
+  perform pg_advisory_xact_lock(hashtextextended(p_operation_id::text, 0));
   perform public.cleanup_expired_classroom_archive_snapshots();
 
   select * into v_operation
@@ -319,6 +385,23 @@ begin
       or v_operation.target_schema_migration <> p_target_schema_migration
       or v_operation.adapter_chain <> p_adapter_chain
       or v_operation.resource_counts <> p_resource_counts
+      or exists (
+        (select storage_bucket, storage_path, expected_sha256, expected_byte_size
+         from public.classroom_archive_restore_expected_objects
+         where operation_id = p_operation_id
+         except
+         select value->>'storage_bucket', value->>'storage_path',
+           value->>'expected_sha256', (value->>'expected_byte_size')::bigint
+         from jsonb_array_elements(p_storage_objects))
+        union all
+        (select value->>'storage_bucket', value->>'storage_path',
+           value->>'expected_sha256', (value->>'expected_byte_size')::bigint
+         from jsonb_array_elements(p_storage_objects)
+         except
+         select storage_bucket, storage_path, expected_sha256, expected_byte_size
+         from public.classroom_archive_restore_expected_objects
+         where operation_id = p_operation_id)
+      )
     then
       return jsonb_build_object(
         'ok', false,
@@ -369,6 +452,31 @@ begin
       'error', 'Classroom archive not found',
       'retryable', false
     );
+  end if;
+  select
+    count(*)::bigint,
+    coalesce(sum((value->>'expected_byte_size')::bigint), 0)::bigint
+  into v_expected_object_count, v_expected_object_bytes
+  from jsonb_array_elements(p_storage_objects);
+  select coalesce(jsonb_object_agg(
+    storage_bucket,
+    jsonb_build_object('count', object_count, 'bytes', object_bytes)
+    order by storage_bucket
+  ), '{}'::jsonb)
+  into v_expected_by_bucket
+  from (
+    select value->>'storage_bucket' as storage_bucket,
+      count(*)::bigint as object_count,
+      sum((value->>'expected_byte_size')::bigint)::bigint as object_bytes
+    from jsonb_array_elements(p_storage_objects)
+    group by value->>'storage_bucket'
+  ) expected;
+  if v_expected_object_count <> (v_archive.storage_object_counts->>'total_count')::bigint
+    or v_expected_object_bytes <> (v_archive.storage_object_counts->>'total_bytes')::bigint
+    or v_expected_by_bucket <> v_archive.storage_object_counts->'by_bucket'
+  then
+    raise exception 'Restore storage descriptors do not match archive metadata'
+      using errcode = '22023';
   end if;
 
   select * into v_tombstone
@@ -493,6 +601,12 @@ begin
       v_now,
       v_now + interval '24 hours'
     );
+    insert into public.classroom_archive_restore_expected_objects (
+      operation_id, storage_bucket, storage_path, expected_sha256, expected_byte_size
+    )
+    select p_operation_id, value->>'storage_bucket', value->>'storage_path',
+      value->>'expected_sha256', (value->>'expected_byte_size')::bigint
+    from jsonb_array_elements(p_storage_objects);
   else
     update public.classroom_archive_operations
     set
@@ -520,6 +634,121 @@ begin
 end;
 $$;
 
+create or replace function public.stage_classroom_archive_object_upload(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_storage_bucket text,
+  p_storage_path text,
+  p_expected_sha256 text,
+  p_expected_byte_size bigint
+)
+returns boolean
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_operation public.classroom_archive_operations;
+  v_upload public.classroom_archive_object_upload_cleanup;
+begin
+  if p_storage_bucket not in (
+      'classroom-archives',
+      'assignment-artifacts',
+      'submission-images',
+      'test-documents'
+    )
+    or p_storage_path is null
+    or p_storage_path = ''
+    or p_storage_path like '/%'
+    or strpos(p_storage_path, E'\\') > 0
+    or exists (
+      select 1
+      from regexp_split_to_table(p_storage_path, '/') as path_segment(value)
+      where path_segment.value in ('', '.', '..')
+    )
+    or p_expected_sha256 is null
+    or p_expected_sha256 !~ '^[a-f0-9]{64}$'
+    or p_expected_byte_size is null
+    or p_expected_byte_size < 0
+  then
+    raise exception 'Invalid classroom archive restore object upload intent'
+      using errcode = '22023';
+  end if;
+
+  select * into v_operation
+  from public.classroom_archive_operations
+  where id = p_operation_id
+    and teacher_id = p_teacher_id
+    and operation_type in ('export', 'restore')
+  for update;
+  if v_operation.id is null
+    or v_operation.status <> 'snapshot_ready'
+    or v_operation.snapshot_expires_at <= now()
+  then
+    return false;
+  end if;
+  if (v_operation.operation_type = 'export' and p_storage_bucket <> 'classroom-archives')
+    or (
+      v_operation.operation_type = 'restore'
+      and p_storage_bucket not in ('assignment-artifacts', 'submission-images', 'test-documents')
+    )
+  then
+    return false;
+  end if;
+  if v_operation.operation_type = 'export' and p_storage_path <> format(
+    '%s/%s/%s/classroom-v1.tar.gz',
+    v_operation.teacher_id,
+    v_operation.classroom_id,
+    v_operation.archive_id
+  ) then
+    return false;
+  end if;
+  if v_operation.operation_type = 'restore' and (
+    array_length(string_to_array(p_storage_path, '/'), 1) <> 4
+    or split_part(p_storage_path, '/', 1) <> 'restores'
+    or split_part(p_storage_path, '/', 2) <> v_operation.classroom_id::text
+    or split_part(p_storage_path, '/', 3) <> p_operation_id::text
+    or split_part(p_storage_path, '/', 4) !~ '^[a-f0-9]{64}-[a-f0-9]{64}$'
+  ) then
+    return false;
+  end if;
+  if v_operation.operation_type = 'restore' and not exists (
+    select 1
+    from public.classroom_archive_restore_expected_objects expected
+    where expected.operation_id = p_operation_id
+      and expected.storage_bucket = p_storage_bucket
+      and expected.storage_path = p_storage_path
+      and expected.expected_sha256 = p_expected_sha256
+      and expected.expected_byte_size = p_expected_byte_size
+  ) then
+    return false;
+  end if;
+
+  insert into public.classroom_archive_object_upload_cleanup (
+    operation_id,
+    storage_bucket,
+    storage_path,
+    expected_sha256,
+    expected_byte_size
+  ) values (
+    p_operation_id,
+    p_storage_bucket,
+    p_storage_path,
+    p_expected_sha256,
+    p_expected_byte_size
+  )
+  on conflict (operation_id, storage_bucket, storage_path) do nothing;
+
+  select * into v_upload
+  from public.classroom_archive_object_upload_cleanup
+  where operation_id = p_operation_id
+    and storage_bucket = p_storage_bucket
+    and storage_path = p_storage_path;
+  return v_upload.expected_sha256 = p_expected_sha256
+    and v_upload.expected_byte_size = p_expected_byte_size
+    and v_upload.status = 'staged';
+end;
+$$;
+
 create or replace function public.stage_classroom_archive_restore_rows(
   p_operation_id uuid,
   p_teacher_id uuid,
@@ -543,6 +772,7 @@ declare
   v_actor_column text;
   v_actor_id uuid;
   v_existing jsonb;
+  v_typed_row jsonb;
 begin
   if p_rows is null
     or jsonb_typeof(p_rows) <> 'array'
@@ -560,7 +790,7 @@ begin
   for update;
   if v_operation.id is null
     or v_operation.teacher_id <> p_teacher_id
-    or v_operation.operation_type <> 'restore'
+    or v_operation.operation_type not in ('restore', 'compact')
   then
     return jsonb_build_object(
       'ok', false,
@@ -571,14 +801,35 @@ begin
       'retryable', false
     );
   end if;
-  if v_operation.status <> 'snapshot_ready' or v_operation.snapshot_expires_at <= now() then
+  if v_operation.status = 'snapshot_ready' and v_operation.snapshot_expires_at <= now() then
+    update public.classroom_archive_operations
+    set
+      status = 'failed',
+      error_code = 'archive_snapshot_expired',
+      retryable = false,
+      updated_at = clock_timestamp()
+    where id = p_operation_id;
+    delete from public.classroom_archive_restore_staging where operation_id = p_operation_id;
+    update public.classroom_archive_object_upload_cleanup
+    set status = 'pending', next_attempt_at = clock_timestamp(), updated_at = clock_timestamp()
+    where operation_id = p_operation_id and status = 'staged';
     return jsonb_build_object(
       'ok', false,
       'status', 409,
       'operation_id', p_operation_id,
-      'error_code', 'restore_staging_not_ready',
+      'error_code', 'archive_snapshot_expired',
+      'error', 'Restore staging expired',
+      'retryable', false
+    );
+  end if;
+  if v_operation.status <> 'snapshot_ready' then
+    return jsonb_build_object(
+      'ok', false,
+      'status', 409,
+      'operation_id', p_operation_id,
+      'error_code', coalesce(v_operation.error_code, 'restore_staging_not_ready'),
       'error', 'Restore staging is not available',
-      'retryable', v_operation.status <> 'completed'
+      'retryable', coalesce(v_operation.retryable, false)
     );
   end if;
 
@@ -617,6 +868,15 @@ begin
       raise exception 'Restore row columns do not match current schema for %', p_table_name
         using errcode = '22023';
     end if;
+    begin
+      execute format(
+        'select to_jsonb(typed_row) from jsonb_populate_record(null::public.%I, $1) typed_row',
+        p_table_name
+      ) into v_typed_row using v_row;
+    exception when others then
+      raise exception 'Restore row types do not match current schema for %', p_table_name
+        using errcode = '22023';
+    end;
 
     begin
       v_row_id := nullif(v_row->>v_contract.primary_key_columns[1], '')::uuid;
@@ -718,10 +978,14 @@ set search_path = public
 as $$
 declare
   v_operation public.classroom_archive_operations;
+  v_archive public.classroom_archives;
   v_tombstone public.classroom_cold_tombstones;
   v_resource record;
+  v_bucket record;
   v_expected_count integer;
   v_staged_count integer;
+  v_staged_object_count bigint;
+  v_staged_object_bytes bigint;
   v_conflict_count integer;
   v_restored_count integer;
   v_rows jsonb;
@@ -791,6 +1055,75 @@ begin
     raise exception 'Classroom archive restore verification evidence is incomplete'
       using errcode = '22023';
   end if;
+
+  select * into v_archive
+  from public.classroom_archives
+  where id = v_operation.archive_id
+    and teacher_id = v_operation.teacher_id;
+  if v_archive.id is null
+    or jsonb_typeof(v_archive.storage_object_counts) <> 'object'
+    or jsonb_typeof(v_archive.storage_object_counts->'by_bucket') <> 'object'
+    or coalesce(v_archive.storage_object_counts->>'total_count', '') !~ '^[0-9]+$'
+    or coalesce(v_archive.storage_object_counts->>'total_bytes', '') !~ '^[0-9]+$'
+  then
+    raise exception 'Classroom archive storage inventory is invalid'
+      using errcode = '22023';
+  end if;
+
+  select count(*), coalesce(sum(expected_byte_size), 0)
+  into v_staged_object_count, v_staged_object_bytes
+  from public.classroom_archive_object_upload_cleanup
+  where operation_id = p_operation_id and status = 'staged';
+  if v_staged_object_count <> (v_archive.storage_object_counts->>'total_count')::bigint
+    or v_staged_object_bytes <> (v_archive.storage_object_counts->>'total_bytes')::bigint
+  then
+    raise exception 'Restore object upload inventory differs from the archive'
+      using errcode = '22023';
+  end if;
+  if exists (
+    (select storage_bucket, storage_path, expected_sha256, expected_byte_size
+     from public.classroom_archive_restore_expected_objects
+     where operation_id = p_operation_id
+     except
+     select storage_bucket, storage_path, expected_sha256, expected_byte_size
+     from public.classroom_archive_object_upload_cleanup
+     where operation_id = p_operation_id and status = 'staged')
+    union all
+    (select storage_bucket, storage_path, expected_sha256, expected_byte_size
+     from public.classroom_archive_object_upload_cleanup
+     where operation_id = p_operation_id and status = 'staged'
+     except
+     select storage_bucket, storage_path, expected_sha256, expected_byte_size
+     from public.classroom_archive_restore_expected_objects
+     where operation_id = p_operation_id)
+  ) then
+    raise exception 'Restore object upload set differs from expected descriptors'
+      using errcode = '22023';
+  end if;
+  for v_bucket in
+    select key as storage_bucket, value as counts
+    from jsonb_each(v_archive.storage_object_counts->'by_bucket')
+  loop
+    if jsonb_typeof(v_bucket.counts) <> 'object'
+      or coalesce(v_bucket.counts->>'count', '') !~ '^[0-9]+$'
+      or coalesce(v_bucket.counts->>'bytes', '') !~ '^[0-9]+$'
+    then
+      raise exception 'Classroom archive bucket inventory is invalid'
+        using errcode = '22023';
+    end if;
+    select count(*), coalesce(sum(expected_byte_size), 0)
+    into v_staged_object_count, v_staged_object_bytes
+    from public.classroom_archive_object_upload_cleanup
+    where operation_id = p_operation_id
+      and storage_bucket = v_bucket.storage_bucket
+      and status = 'staged';
+    if v_staged_object_count <> (v_bucket.counts->>'count')::bigint
+      or v_staged_object_bytes <> (v_bucket.counts->>'bytes')::bigint
+    then
+      raise exception 'Restore object upload inventory differs for bucket %', v_bucket.storage_bucket
+        using errcode = '22023';
+    end if;
+  end loop;
 
   select * into v_tombstone
   from public.classroom_cold_tombstones
@@ -891,6 +1224,8 @@ begin
     updated_at = v_now
   where id = p_operation_id;
   delete from public.classroom_archive_restore_staging where operation_id = p_operation_id;
+  delete from public.classroom_archive_object_upload_cleanup
+  where operation_id = p_operation_id;
   delete from public.classroom_cold_tombstones where classroom_id = v_operation.classroom_id;
 
   return jsonb_build_object(
@@ -917,27 +1252,53 @@ language plpgsql
 set search_path = public
 as $$
 declare
-  v_updated boolean;
+  v_operation public.classroom_archive_operations;
 begin
   if p_error_code !~ '^[a-z0-9_]+$' then
     raise exception 'Invalid classroom archive restore error code'
       using errcode = '22023';
   end if;
+  select * into v_operation
+  from public.classroom_archive_operations
+  where id = p_operation_id
+    and teacher_id = p_teacher_id
+    and operation_type = 'restore'
+  for update;
+  if v_operation.id is null or v_operation.status = 'completed' then
+    return false;
+  end if;
+  if v_operation.status = 'failed' and v_operation.retryable is false then
+    return v_operation.error_code = 'archive_snapshot_expired';
+  end if;
+  if v_operation.snapshot_expires_at <= now() then
+    update public.classroom_archive_operations
+    set
+      status = 'failed',
+      error_code = 'archive_snapshot_expired',
+      retryable = false,
+      updated_at = clock_timestamp()
+    where id = p_operation_id;
+    delete from public.classroom_archive_restore_staging where operation_id = p_operation_id;
+    update public.classroom_archive_object_upload_cleanup
+    set status = 'pending', next_attempt_at = clock_timestamp(), updated_at = clock_timestamp()
+    where operation_id = p_operation_id and status = 'staged';
+    return true;
+  end if;
+
   update public.classroom_archive_operations
   set
     status = 'failed',
     error_code = p_error_code,
     retryable = p_retryable,
     updated_at = clock_timestamp()
-  where id = p_operation_id
-    and teacher_id = p_teacher_id
-    and operation_type = 'restore'
-    and status <> 'completed';
-  v_updated := found;
-  if v_updated and not p_retryable then
+  where id = p_operation_id;
+  if not p_retryable then
     delete from public.classroom_archive_restore_staging where operation_id = p_operation_id;
+    update public.classroom_archive_object_upload_cleanup
+    set status = 'pending', next_attempt_at = clock_timestamp(), updated_at = clock_timestamp()
+    where operation_id = p_operation_id and status = 'staged';
   end if;
-  return v_updated;
+  return true;
 end;
 $$;
 
@@ -956,7 +1317,10 @@ begin
       error_code = 'archive_snapshot_expired',
       retryable = false,
       updated_at = clock_timestamp()
-    where status <> 'completed'
+    where (
+        status = 'snapshot_ready'
+        or (status = 'failed' and retryable is true)
+      )
       and snapshot_expires_at <= now()
     returning id
   )
@@ -970,26 +1334,189 @@ begin
   where operation_id = any(v_operation_ids);
   delete from public.classroom_archive_restore_staging
   where operation_id = any(v_operation_ids);
+  update public.classroom_archive_object_upload_cleanup
+  set status = 'pending', next_attempt_at = clock_timestamp(), updated_at = clock_timestamp()
+  where operation_id = any(v_operation_ids) and status = 'staged';
   return cardinality(v_operation_ids);
+end;
+$$;
+
+create or replace function public.claim_due_classroom_archive_object_upload_cleanup(
+  p_lease_token uuid,
+  p_limit integer default 25,
+  p_lease_seconds integer default 300
+)
+returns table (
+  operation_id uuid,
+  storage_bucket text,
+  storage_path text,
+  attempt_count integer
+)
+language plpgsql
+set search_path = public
+as $$
+begin
+  if p_lease_token is null
+    or p_limit is null or p_limit < 1 or p_limit > 100
+    or p_lease_seconds is null or p_lease_seconds < 30 or p_lease_seconds > 1800
+  then
+    raise exception 'Invalid classroom archive object cleanup claim'
+      using errcode = '22023';
+  end if;
+  return query
+  with candidates as (
+    select cleanup.operation_id, cleanup.storage_bucket, cleanup.storage_path
+    from public.classroom_archive_object_upload_cleanup cleanup
+    join public.classroom_archive_operations operation on operation.id = cleanup.operation_id
+    where operation.status = 'failed'
+      and operation.retryable is false
+      and cleanup.next_attempt_at <= clock_timestamp()
+      and (
+        cleanup.status in ('pending', 'failed')
+        or (cleanup.status = 'processing' and cleanup.lease_expires_at <= clock_timestamp())
+      )
+    order by cleanup.next_attempt_at, cleanup.created_at
+    for update of cleanup skip locked
+    limit p_limit
+  ), claimed as (
+    update public.classroom_archive_object_upload_cleanup cleanup
+    set status = 'processing', attempt_count = cleanup.attempt_count + 1,
+        lease_token = p_lease_token,
+        lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_seconds),
+        last_error_code = null, updated_at = clock_timestamp()
+    from candidates
+    where cleanup.operation_id = candidates.operation_id
+      and cleanup.storage_bucket = candidates.storage_bucket
+      and cleanup.storage_path = candidates.storage_path
+    returning cleanup.operation_id, cleanup.storage_bucket, cleanup.storage_path,
+      cleanup.attempt_count
+  )
+  select * from claimed;
+end;
+$$;
+
+create or replace function public.renew_classroom_archive_object_upload_cleanup_lease(
+  p_operation_id uuid,
+  p_storage_bucket text,
+  p_storage_path text,
+  p_lease_token uuid,
+  p_lease_seconds integer default 300
+)
+returns boolean
+language plpgsql
+set search_path = public
+as $$
+declare v_updated boolean;
+begin
+  if p_lease_token is null or p_lease_seconds < 30 or p_lease_seconds > 1800 then
+    raise exception 'Invalid classroom archive object cleanup renewal'
+      using errcode = '22023';
+  end if;
+  update public.classroom_archive_object_upload_cleanup
+  set lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_seconds),
+      updated_at = clock_timestamp()
+  where operation_id = p_operation_id
+    and storage_bucket = p_storage_bucket
+    and storage_path = p_storage_path
+    and status = 'processing'
+    and lease_token = p_lease_token
+    and lease_expires_at > clock_timestamp();
+  v_updated := found;
+  return v_updated;
+end;
+$$;
+
+create or replace function public.complete_classroom_archive_object_upload_cleanup(
+  p_operation_id uuid,
+  p_storage_bucket text,
+  p_storage_path text,
+  p_lease_token uuid
+)
+returns boolean
+language plpgsql
+set search_path = public
+as $$
+declare v_updated boolean;
+begin
+  update public.classroom_archive_object_upload_cleanup
+  set status = 'deleted', lease_token = null, lease_expires_at = null,
+      last_error_code = null, deleted_at = clock_timestamp(), updated_at = clock_timestamp()
+  where operation_id = p_operation_id
+    and storage_bucket = p_storage_bucket
+    and storage_path = p_storage_path
+    and status = 'processing'
+    and lease_token = p_lease_token
+    and lease_expires_at > clock_timestamp();
+  v_updated := found;
+  return v_updated;
+end;
+$$;
+
+create or replace function public.fail_classroom_archive_object_upload_cleanup(
+  p_operation_id uuid,
+  p_storage_bucket text,
+  p_storage_path text,
+  p_lease_token uuid,
+  p_error_code text
+)
+returns boolean
+language plpgsql
+set search_path = public
+as $$
+declare v_updated boolean;
+begin
+  if p_error_code is null or p_error_code !~ '^[a-z0-9_]{3,80}$' then
+    raise exception 'Invalid classroom archive object cleanup failure'
+      using errcode = '22023';
+  end if;
+  update public.classroom_archive_object_upload_cleanup
+  set status = 'failed', lease_token = null, lease_expires_at = null,
+      last_error_code = p_error_code,
+      next_attempt_at = clock_timestamp() + make_interval(
+        mins => least(1440, greatest(1, power(2, least(attempt_count, 10))::integer))
+      ),
+      updated_at = clock_timestamp()
+  where operation_id = p_operation_id
+    and storage_bucket = p_storage_bucket
+    and storage_path = p_storage_path
+    and status = 'processing'
+    and lease_token = p_lease_token
+    and lease_expires_at > clock_timestamp();
+  v_updated := found;
+  return v_updated;
 end;
 $$;
 
 revoke all on table public.classroom_cold_tombstones from public, anon, authenticated;
 revoke all on table public.classroom_archive_restore_staging from public, anon, authenticated;
+revoke all on table public.classroom_archive_restore_expected_objects from public, anon, authenticated;
 grant select on table public.classroom_cold_tombstones to service_role;
 grant select on table public.classroom_archive_restore_staging to service_role;
+grant select, insert on table public.classroom_archive_restore_expected_objects to service_role;
 
-revoke all on function public.begin_classroom_archive_restore(uuid, uuid, uuid, uuid, text, text, jsonb, jsonb, bigint) from public, anon, authenticated;
+revoke all on function public.begin_classroom_archive_restore(uuid, uuid, uuid, uuid, text, text, jsonb, jsonb, jsonb, bigint) from public, anon, authenticated;
 revoke all on function public.stage_classroom_archive_restore_rows(uuid, uuid, text, jsonb) from public, anon, authenticated;
+revoke all on function public.stage_classroom_archive_object_upload(uuid, uuid, text, text, text, bigint) from public, anon, authenticated;
 revoke all on function public.complete_classroom_archive_restore(uuid, uuid, jsonb) from public, anon, authenticated;
 revoke all on function public.fail_classroom_archive_restore(uuid, uuid, text, boolean) from public, anon, authenticated;
+revoke all on function public.claim_due_classroom_archive_object_upload_cleanup(uuid, integer, integer) from public, anon, authenticated;
+revoke all on function public.renew_classroom_archive_object_upload_cleanup_lease(uuid, text, text, uuid, integer) from public, anon, authenticated;
+revoke all on function public.complete_classroom_archive_object_upload_cleanup(uuid, text, text, uuid) from public, anon, authenticated;
+revoke all on function public.fail_classroom_archive_object_upload_cleanup(uuid, text, text, uuid, text) from public, anon, authenticated;
 
-grant execute on function public.begin_classroom_archive_restore(uuid, uuid, uuid, uuid, text, text, jsonb, jsonb, bigint) to service_role;
+grant execute on function public.begin_classroom_archive_restore(uuid, uuid, uuid, uuid, text, text, jsonb, jsonb, jsonb, bigint) to service_role;
 grant execute on function public.stage_classroom_archive_restore_rows(uuid, uuid, text, jsonb) to service_role;
+grant execute on function public.stage_classroom_archive_object_upload(uuid, uuid, text, text, text, bigint) to service_role;
 grant execute on function public.complete_classroom_archive_restore(uuid, uuid, jsonb) to service_role;
 grant execute on function public.fail_classroom_archive_restore(uuid, uuid, text, boolean) to service_role;
+grant execute on function public.claim_due_classroom_archive_object_upload_cleanup(uuid, integer, integer) to service_role;
+grant execute on function public.renew_classroom_archive_object_upload_cleanup_lease(uuid, text, text, uuid, integer) to service_role;
+grant execute on function public.complete_classroom_archive_object_upload_cleanup(uuid, text, text, uuid) to service_role;
+grant execute on function public.fail_classroom_archive_object_upload_cleanup(uuid, text, text, uuid, text) to service_role;
 
 comment on table public.classroom_cold_tombstones is
   'Minimal durable identity for a verified cold classroom; intentionally has no classroom foreign key.';
 comment on table public.classroom_archive_restore_staging is
   'Short-lived, bounded row staging for resumable classroom archive restore.';
+comment on table public.classroom_archive_object_upload_cleanup is
+  'Durable upload intents for export and restore objects; successful finalization clears them and terminal failures authorize bounded cleanup.';

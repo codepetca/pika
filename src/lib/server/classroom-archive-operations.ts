@@ -600,6 +600,28 @@ export async function exportClassroomArchive(args: {
       classroomId: args.classroomId,
       archiveId: snapshot.archive_id,
     })
+    const uploadIntentResponse = await args.supabase.rpc(
+      'stage_classroom_archive_object_upload',
+      {
+        p_operation_id: args.operationId,
+        p_teacher_id: args.teacherId,
+        p_storage_bucket: CLASSROOM_ARCHIVE_BUCKET,
+        p_storage_path: storagePath,
+        p_expected_sha256: bundle.artifactSha256,
+        p_expected_byte_size: bundle.archive.byteLength,
+      },
+    )
+    const uploadIntent = !uploadIntentResponse.error
+      ? z.boolean().safeParse(uploadIntentResponse.data)
+      : null
+    if (!uploadIntent || !uploadIntent.success || !uploadIntent.data) {
+      throw new ClassroomArchiveExportError(
+        'archive_upload_intent_failed',
+        'Classroom archive upload could not be staged',
+        503,
+        true,
+      )
+    }
     const stored = await uploadAndReadBackArchive({
       supabase: args.supabase,
       storagePath,

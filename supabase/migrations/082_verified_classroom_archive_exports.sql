@@ -307,6 +307,37 @@ create index if not exists idx_classroom_archive_operations_classroom_created
 create index if not exists idx_classroom_archive_operations_status_expiry
   on public.classroom_archive_operations (status, snapshot_expires_at);
 
+create table if not exists public.classroom_archive_object_upload_cleanup (
+  operation_id uuid not null references public.classroom_archive_operations (id) on delete cascade,
+  storage_bucket text not null check (storage_bucket in (
+    'classroom-archives', 'assignment-artifacts', 'submission-images', 'test-documents'
+  )),
+  storage_path text not null check (
+    storage_path <> '' and storage_path not like '/%' and strpos(storage_path, E'\\') = 0
+  ),
+  expected_sha256 text not null check (expected_sha256 ~ '^[a-f0-9]{64}$'),
+  expected_byte_size bigint not null check (expected_byte_size >= 0),
+  status text not null default 'staged'
+    check (status in ('staged', 'pending', 'processing', 'failed', 'deleted')),
+  attempt_count integer not null default 0 check (attempt_count >= 0),
+  next_attempt_at timestamptz not null default clock_timestamp(),
+  lease_token uuid,
+  lease_expires_at timestamptz,
+  last_error_code text,
+  deleted_at timestamptz,
+  created_at timestamptz not null default clock_timestamp(),
+  updated_at timestamptz not null default clock_timestamp(),
+  primary key (operation_id, storage_bucket, storage_path),
+  check (
+    (status = 'processing' and lease_token is not null and lease_expires_at is not null)
+    or (status <> 'processing' and lease_token is null and lease_expires_at is null)
+  ),
+  check ((status = 'deleted') = (deleted_at is not null))
+);
+
+create index idx_classroom_archive_object_upload_cleanup_due
+  on public.classroom_archive_object_upload_cleanup (status, next_attempt_at);
+
 create table if not exists public.classroom_archive_snapshot_resources (
   operation_id uuid not null references public.classroom_archive_operations (id) on delete cascade,
   table_name text not null references public.classroom_archive_resource_contract (table_name),
@@ -357,6 +388,7 @@ alter table public.classroom_archive_revisions enable row level security;
 alter table public.classroom_archive_operations enable row level security;
 alter table public.classroom_archive_snapshot_resources enable row level security;
 alter table public.classroom_archive_snapshot_actors enable row level security;
+alter table public.classroom_archive_object_upload_cleanup enable row level security;
 alter table public.classroom_archives enable row level security;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -770,6 +802,82 @@ begin
 end;
 $$;
 
+create or replace function public.stage_classroom_archive_object_upload(
+  p_operation_id uuid,
+  p_teacher_id uuid,
+  p_storage_bucket text,
+  p_storage_path text,
+  p_expected_sha256 text,
+  p_expected_byte_size bigint
+)
+returns boolean
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_operation public.classroom_archive_operations;
+  v_upload public.classroom_archive_object_upload_cleanup;
+begin
+  if p_storage_bucket is null
+    or p_storage_bucket not in (
+      'classroom-archives', 'assignment-artifacts', 'submission-images', 'test-documents'
+    )
+    or p_storage_path is null
+    or p_storage_path = ''
+    or p_storage_path like '/%'
+    or strpos(p_storage_path, E'\\') > 0
+    or exists (
+      select 1 from regexp_split_to_table(p_storage_path, '/') path_segment(value)
+      where path_segment.value in ('', '.', '..')
+    )
+    or p_expected_sha256 is null
+    or p_expected_sha256 !~ '^[a-f0-9]{64}$'
+    or p_expected_byte_size is null
+    or p_expected_byte_size < 0
+  then
+    raise exception 'Invalid classroom archive object upload intent'
+      using errcode = '22023';
+  end if;
+
+  select * into v_operation
+  from public.classroom_archive_operations
+  where id = p_operation_id
+    and teacher_id = p_teacher_id
+    and operation_type = 'export'
+  for update;
+  if v_operation.id is null
+    or v_operation.status <> 'snapshot_ready'
+    or v_operation.snapshot_expires_at <= now()
+    or p_storage_bucket <> 'classroom-archives'
+    or p_storage_path <> format(
+      '%s/%s/%s/classroom-v1.tar.gz',
+      v_operation.teacher_id,
+      v_operation.classroom_id,
+      v_operation.archive_id
+    )
+  then
+    return false;
+  end if;
+  if p_storage_bucket <> 'classroom-archives' then return false; end if;
+
+  insert into public.classroom_archive_object_upload_cleanup (
+    operation_id, storage_bucket, storage_path, expected_sha256, expected_byte_size
+  ) values (
+    p_operation_id, p_storage_bucket, p_storage_path, p_expected_sha256, p_expected_byte_size
+  )
+  on conflict (operation_id, storage_bucket, storage_path) do nothing;
+
+  select * into v_upload
+  from public.classroom_archive_object_upload_cleanup
+  where operation_id = p_operation_id
+    and storage_bucket = p_storage_bucket
+    and storage_path = p_storage_path;
+  return v_upload.expected_sha256 = p_expected_sha256
+    and v_upload.expected_byte_size = p_expected_byte_size
+    and v_upload.status = 'staged';
+end;
+$$;
+
 create or replace function public.complete_classroom_archive_export(
   p_operation_id uuid,
   p_teacher_id uuid,
@@ -835,9 +943,9 @@ begin
       'ok', false,
       'status', 409,
       'operation_id', p_operation_id,
-      'error_code', 'archive_snapshot_not_ready',
+      'error_code', coalesce(v_operation.error_code, 'archive_snapshot_not_ready'),
       'error', 'Archive snapshot is not ready',
-      'retryable', true
+      'retryable', coalesce(v_operation.retryable, false)
     );
   end if;
   if v_operation.snapshot_expires_at <= v_verified_at then
@@ -846,6 +954,9 @@ begin
     where id = p_operation_id;
     delete from public.classroom_archive_snapshot_resources where operation_id = p_operation_id;
     delete from public.classroom_archive_snapshot_actors where operation_id = p_operation_id;
+    update public.classroom_archive_object_upload_cleanup
+    set status = 'pending', next_attempt_at = v_verified_at, updated_at = v_verified_at
+    where operation_id = p_operation_id and status = 'staged';
     return jsonb_build_object(
       'ok', false,
       'status', 409,
@@ -899,6 +1010,9 @@ begin
     where id = p_operation_id;
     delete from public.classroom_archive_snapshot_resources where operation_id = p_operation_id;
     delete from public.classroom_archive_snapshot_actors where operation_id = p_operation_id;
+    update public.classroom_archive_object_upload_cleanup
+    set status = 'pending', next_attempt_at = v_verified_at, updated_at = v_verified_at
+    where operation_id = p_operation_id and status = 'staged';
     return jsonb_build_object(
       'ok', false,
       'status', 409,
@@ -981,6 +1095,19 @@ begin
   )
   on conflict (id) do nothing;
 
+  if not exists (
+    select 1 from public.classroom_archive_object_upload_cleanup upload
+    where upload.operation_id = p_operation_id
+      and upload.storage_bucket = p_storage_bucket
+      and upload.storage_path = p_storage_path
+      and upload.expected_sha256 = p_artifact_sha256
+      and upload.expected_byte_size = p_compressed_byte_size
+      and upload.status = 'staged'
+  ) then
+    raise exception 'Classroom archive upload intent is missing during finalization'
+      using errcode = '40001';
+  end if;
+
   update public.classroom_archive_operations
   set
     status = 'completed',
@@ -1001,6 +1128,7 @@ begin
 
   delete from public.classroom_archive_snapshot_resources where operation_id = p_operation_id;
   delete from public.classroom_archive_snapshot_actors where operation_id = p_operation_id;
+  delete from public.classroom_archive_object_upload_cleanup where operation_id = p_operation_id;
 
   return jsonb_build_object(
     'ok', true,
@@ -1048,12 +1176,16 @@ begin
     updated_at = clock_timestamp()
   where id = p_operation_id
     and teacher_id = p_teacher_id
-    and status <> 'completed';
+    and status <> 'completed'
+    and (status <> 'failed' or retryable is true);
   v_updated := found;
 
   if v_updated and not p_retryable then
     delete from public.classroom_archive_snapshot_resources where operation_id = p_operation_id;
     delete from public.classroom_archive_snapshot_actors where operation_id = p_operation_id;
+    update public.classroom_archive_object_upload_cleanup
+    set status = 'pending', next_attempt_at = clock_timestamp(), updated_at = clock_timestamp()
+    where operation_id = p_operation_id and status = 'staged';
   end if;
   return v_updated;
 end;
@@ -1074,7 +1206,10 @@ begin
       error_code = 'archive_snapshot_expired',
       retryable = false,
       updated_at = clock_timestamp()
-    where status <> 'completed'
+    where (
+        status = 'snapshot_ready'
+        or (status = 'failed' and retryable is true)
+      )
       and snapshot_expires_at <= now()
     returning id
   )
@@ -1086,6 +1221,9 @@ begin
   where operation_id = any(v_operation_ids);
   delete from public.classroom_archive_snapshot_actors
   where operation_id = any(v_operation_ids);
+  update public.classroom_archive_object_upload_cleanup
+  set status = 'pending', next_attempt_at = clock_timestamp(), updated_at = clock_timestamp()
+  where operation_id = any(v_operation_ids) and status = 'staged';
 
   return coalesce(array_length(v_operation_ids, 1), 0);
 end;
@@ -1113,6 +1251,7 @@ revoke all on table public.classroom_archive_revisions from public, anon, authen
 revoke all on table public.classroom_archive_operations from public, anon, authenticated;
 revoke all on table public.classroom_archive_snapshot_resources from public, anon, authenticated;
 revoke all on table public.classroom_archive_snapshot_actors from public, anon, authenticated;
+revoke all on table public.classroom_archive_object_upload_cleanup from public, anon, authenticated;
 revoke all on table public.classroom_archives from public, anon, authenticated;
 
 grant select on table public.classroom_archive_resource_contract to service_role;
@@ -1120,18 +1259,21 @@ grant select on table public.classroom_archive_revisions to service_role;
 grant select on table public.classroom_archive_operations to service_role;
 grant select on table public.classroom_archive_snapshot_resources to service_role;
 grant select on table public.classroom_archive_snapshot_actors to service_role;
+grant select, insert, update, delete on table public.classroom_archive_object_upload_cleanup to service_role;
 grant select on table public.classroom_archives to service_role;
 
 revoke all on function public.resolve_classroom_archive_resource_classroom_id(text, uuid) from public, anon, authenticated;
 revoke all on function public.bump_classroom_archive_revision_from_classroom() from public, anon, authenticated;
 revoke all on function public.bump_classroom_archive_revision_from_resource() from public, anon, authenticated;
 revoke all on function public.begin_classroom_archive_export(uuid, uuid, uuid, text, text, text, jsonb) from public, anon, authenticated;
+revoke all on function public.stage_classroom_archive_object_upload(uuid, uuid, text, text, text, bigint) from public, anon, authenticated;
 revoke all on function public.complete_classroom_archive_export(uuid, uuid, text, text, text, text, bigint, bigint, jsonb, jsonb, jsonb) from public, anon, authenticated;
 revoke all on function public.fail_classroom_archive_export(uuid, uuid, text, boolean) from public, anon, authenticated;
 revoke all on function public.cleanup_expired_classroom_archive_snapshots() from public, anon, authenticated;
 revoke all on function public.reject_classroom_archive_metadata_update() from public, anon, authenticated;
 
 grant execute on function public.begin_classroom_archive_export(uuid, uuid, uuid, text, text, text, jsonb) to service_role;
+grant execute on function public.stage_classroom_archive_object_upload(uuid, uuid, text, text, text, bigint) to service_role;
 grant execute on function public.complete_classroom_archive_export(uuid, uuid, text, text, text, text, bigint, bigint, jsonb, jsonb, jsonb) to service_role;
 grant execute on function public.fail_classroom_archive_export(uuid, uuid, text, boolean) to service_role;
 grant execute on function public.cleanup_expired_classroom_archive_snapshots() to service_role;

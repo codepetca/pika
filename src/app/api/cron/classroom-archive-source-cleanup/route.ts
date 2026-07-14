@@ -14,6 +14,7 @@ export const revalidate = 0
 export const maxDuration = 60
 
 const CLEANUP_CANARY_LIMIT = 1
+const OWNERSHIP_VERIFIER_IMPLEMENTED = false
 
 function getCronAuthHeader(request: NextRequest): string | null {
   return request.headers.get('authorization') ?? request.headers.get('Authorization')
@@ -42,6 +43,17 @@ async function handle(request: NextRequest) {
       error_code: 'classroom_archive_source_cleanup_trigger_not_enabled',
       error: 'Classroom archive source cleanup trigger is not enabled',
       retryable: true,
+    }, { status: 503 })
+  }
+
+  if (!OWNERSHIP_VERIFIER_IMPLEMENTED) {
+    return NextResponse.json({
+      ok: false,
+      status: 503,
+      lease_token: leaseToken,
+      error_code: 'classroom_archive_source_cleanup_ownership_verifier_required',
+      error: 'Classroom archive source cleanup ownership verification is not implemented',
+      retryable: false,
     }, { status: 503 })
   }
 

@@ -27,12 +27,16 @@ const archiveVerification = {
 }
 
 const restoreVerification = {
-  ...archiveReadBackVerification,
-  schema_adapter_verified: true,
-  actor_references_resolved: true,
-  restored_resource_counts_verified: true,
+  archive_checksum_verified: true,
+  manifest_verified: true,
+  resource_checksums_verified: true,
+  resource_counts_verified: true,
+  storage_objects_verified: true,
+  actor_snapshots_verified: true,
+  schema_adapter_available: true,
   restored_storage_objects_verified: true,
   referential_integrity_verified: true,
+  adapter_chain: ['082_verified_classroom_archive_exports'],
 }
 
 describe('classroom lifecycle contract', () => {

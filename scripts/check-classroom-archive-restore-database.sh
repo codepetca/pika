@@ -117,6 +117,13 @@ begin
     ) using v_archive_id;
   end loop;
 
+  if not public.stage_classroom_archive_object_upload(
+    v_archive_id, v_teacher_id, 'classroom-archives',
+    format('%s/%s/%s/classroom-v1.tar.gz', v_teacher_id, v_classroom_id, v_archive_id),
+    repeat('b', 64), 1024
+  ) then
+    raise exception 'Archive upload intent was rejected';
+  end if;
   v_result := public.complete_classroom_archive_export(
     v_archive_id,
     v_teacher_id,
@@ -127,7 +134,7 @@ begin
     1024,
     4096,
     v_counts,
-    '{"total_count":0,"total_bytes":0,"by_bucket":{}}'::jsonb,
+    '{"total_count":1,"total_bytes":10,"by_bucket":{"assignment-artifacts":{"count":1,"bytes":10}}}'::jsonb,
     '{
       "read_back_verified": true,
       "artifact_checksum_verified": true,
@@ -158,10 +165,35 @@ begin
   then
     raise exception 'Restore round trip compaction begin failed: %', v_result;
   end if;
+  for v_resource in
+    select table_name, primary_key_columns[1] as primary_key_column
+    from public.classroom_archive_resource_contract
+    order by export_position
+  loop
+    execute format(
+      'select coalesce(jsonb_agg(to_jsonb(source) order by source.%I), ''[]''::jsonb)
+       from public.%I source
+       where public.resolve_classroom_archive_resource_classroom_id(%L, source.%I) = $1',
+      v_resource.primary_key_column,
+      v_resource.table_name,
+      v_resource.table_name,
+      v_resource.primary_key_column
+    ) into v_rows using v_classroom_id;
+    if jsonb_array_length(v_rows) > 0 then
+      perform public.stage_classroom_archive_restore_rows(
+        v_compaction_id, v_teacher_id, v_resource.table_name, v_rows
+      );
+    end if;
+  end loop;
   v_result := public.stage_classroom_archive_compaction_objects(
     v_compaction_id,
     v_teacher_id,
-    '[]'::jsonb
+    jsonb_build_array(jsonb_build_object(
+      'storage_bucket', 'assignment-artifacts',
+      'storage_path', 'source/object.bin',
+      'sha256', repeat('c', 64),
+      'byte_size', 10
+    ))
   );
   if coalesce((v_result->>'ok')::boolean, false) is not true then
     raise exception 'Restore round trip cleanup staging failed: %', v_result;
@@ -169,6 +201,10 @@ begin
   v_result := public.complete_classroom_archive_compaction(
     v_compaction_id,
     v_teacher_id,
+    '[
+      {"actor_id":"11000000-0000-4000-8000-000000000001","role":"teacher"},
+      {"actor_id":"11000000-0000-4000-8000-000000000002","role":"student"}
+    ]'::jsonb,
     jsonb_build_object(
       'operation_id', v_compaction_id,
       'archive_id', v_archive_id,
@@ -196,6 +232,34 @@ begin
     raise exception 'Classroom was not removed for cold restore canary';
   end if;
 
+  begin
+    perform public.begin_classroom_archive_restore(
+      v_capacity_id,
+      v_teacher_id,
+      v_classroom_id,
+      v_archive_id,
+      repeat('d', 64),
+      '083_resumable_classroom_archive_restore',
+      '["classroom-archive-v1-082-to-083"]'::jsonb,
+      v_counts,
+      jsonb_build_array(jsonb_build_object(
+        'storage_bucket', 'assignment-artifacts',
+        'storage_path', format(
+          'restores/%s/%s/%s-%s',
+          v_classroom_id,
+          v_capacity_id,
+          repeat('a', 64),
+          repeat('b', 64)
+        ),
+        'expected_sha256', repeat('c', 64),
+        'expected_byte_size', 10
+      )),
+      2147483648
+    );
+    raise exception 'Restore path accepted a checksum-mismatched suffix';
+  exception when invalid_parameter_value then null;
+  end;
+
   v_result := public.begin_classroom_archive_restore(
     v_capacity_id,
     v_teacher_id,
@@ -205,6 +269,12 @@ begin
     '083_resumable_classroom_archive_restore',
     '["classroom-archive-v1-082-to-083"]'::jsonb,
     v_counts,
+    jsonb_build_array(jsonb_build_object(
+      'storage_bucket', 'assignment-artifacts',
+      'storage_path', format('restores/%s/%s/%s-%s', v_classroom_id, v_capacity_id, repeat('a', 64), repeat('c', 64)),
+      'expected_sha256', repeat('c', 64),
+      'expected_byte_size', 10
+    )),
     1
   );
   if v_result->>'error_code' <> 'insufficient_database_headroom' then
@@ -223,6 +293,12 @@ begin
     '083_resumable_classroom_archive_restore',
     '["classroom-archive-v1-082-to-083"]'::jsonb,
     v_counts,
+    jsonb_build_array(jsonb_build_object(
+      'storage_bucket', 'assignment-artifacts',
+      'storage_path', format('restores/%s/%s/%s-%s', v_classroom_id, v_restore_id, repeat('a', 64), repeat('c', 64)),
+      'expected_sha256', repeat('c', 64),
+      'expected_byte_size', 10
+    )),
     2147483648
   );
   if coalesce((v_result->>'ok')::boolean, false) is not true
@@ -240,6 +316,12 @@ begin
     '083_resumable_classroom_archive_restore',
     '["classroom-archive-v1-082-to-083"]'::jsonb,
     v_counts,
+    jsonb_build_array(jsonb_build_object(
+      'storage_bucket', 'assignment-artifacts',
+      'storage_path', format('restores/%s/%s/%s-%s', v_classroom_id, v_concurrent_id, repeat('a', 64), repeat('c', 64)),
+      'expected_sha256', repeat('c', 64),
+      'expected_byte_size', 10
+    )),
     2147483648
   );
   if v_result->>'error_code' <> 'restore_already_in_progress' then
@@ -258,6 +340,12 @@ begin
     '083_resumable_classroom_archive_restore',
     '["classroom-archive-v1-082-to-083"]'::jsonb,
     v_counts,
+    jsonb_build_array(jsonb_build_object(
+      'storage_bucket', 'assignment-artifacts',
+      'storage_path', format('restores/%s/%s/%s-%s', v_classroom_id, v_concurrent_id, repeat('a', 64), repeat('c', 64)),
+      'expected_sha256', repeat('c', 64),
+      'expected_byte_size', 10
+    )),
     2147483648
   );
   if coalesce((v_result->>'ok')::boolean, false) is not true
@@ -274,7 +362,10 @@ begin
     raise exception 'Replacement restore operation could not be closed';
   end if;
   update public.classroom_archive_operations
-  set snapshot_expires_at = clock_timestamp() + interval '24 hours'
+  set status = 'snapshot_ready',
+      error_code = null,
+      retryable = null,
+      snapshot_expires_at = clock_timestamp() + interval '24 hours'
   where id = v_restore_id;
 
   select jsonb_agg(row_data order by row_id) into v_rows
@@ -284,7 +375,7 @@ begin
       v_restore_id,
       v_teacher_id,
       'classrooms',
-      jsonb_build_array((v_rows->0) - 'title')
+      jsonb_build_array((v_rows->0) - 'id')
     );
     raise exception 'Restore row with stale schema unexpectedly staged';
   exception when sqlstate '22023' then null;
@@ -349,6 +440,39 @@ begin
   end;
   if exists (select 1 from public.classrooms where id = v_classroom_id) then
     raise exception 'Rejected restore left relational rows behind';
+  end if;
+
+  if public.stage_classroom_archive_object_upload(
+    v_restore_id,
+    v_teacher_id,
+    'assignment-artifacts',
+    format(
+      'restores/%s/%s/%s-%s',
+      v_classroom_id,
+      v_restore_id,
+      repeat('b', 64),
+      repeat('c', 64)
+    ),
+    repeat('c', 64),
+    10
+  ) then
+    raise exception 'Same-size restore object substitution was accepted';
+  end if;
+  if not public.stage_classroom_archive_object_upload(
+    v_restore_id,
+    v_teacher_id,
+    'assignment-artifacts',
+    format(
+      'restores/%s/%s/%s-%s',
+      v_classroom_id,
+      v_restore_id,
+      repeat('a', 64),
+      repeat('c', 64)
+    ),
+    repeat('c', 64),
+    10
+  ) then
+    raise exception 'Expected restore object intent was rejected';
   end if;
 
   v_result := public.complete_classroom_archive_restore(
@@ -435,14 +559,14 @@ do $security$
 begin
   if has_function_privilege(
     'authenticated',
-    'public.begin_classroom_archive_restore(uuid,uuid,uuid,uuid,text,text,jsonb,jsonb,bigint)',
+    'public.begin_classroom_archive_restore(uuid,uuid,uuid,uuid,text,text,jsonb,jsonb,jsonb,bigint)',
     'EXECUTE'
   ) then
     raise exception 'Authenticated role can execute restore begin RPC';
   end if;
   if not has_function_privilege(
     'service_role',
-    'public.begin_classroom_archive_restore(uuid,uuid,uuid,uuid,text,text,jsonb,jsonb,bigint)',
+    'public.begin_classroom_archive_restore(uuid,uuid,uuid,uuid,text,text,jsonb,jsonb,jsonb,bigint)',
     'EXECUTE'
   ) then
     raise exception 'Service role cannot execute restore begin RPC';

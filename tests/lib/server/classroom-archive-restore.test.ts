@@ -169,6 +169,18 @@ describe('classroom archive restore planning', () => {
     })).toThrow(`Archive restore has unresolved actors: ${STUDENT_ID}`)
   })
 
+  it('fails closed when a stable actor id now has a different authorization role', () => {
+    expect(() => buildClassroomArchiveRestorePlan({
+      verified: verifiedFixture(),
+      artifactChecksumVerified: true,
+      operationId: OPERATION_ID,
+      currentActors: currentActors.map((actor) => actor.id === STUDENT_ID
+        ? { ...actor, role: 'teacher' as const }
+        : actor),
+      supabaseUrl: 'https://project.supabase.co',
+    })).toThrow(`Archive restore has unresolved actors: ${STUDENT_ID}`)
+  })
+
   it('fails closed when no source-to-target adapter exists', () => {
     const verified = verifiedFixture()
     verified.manifest.source.schema_migration = '081_unknown_archive_schema'

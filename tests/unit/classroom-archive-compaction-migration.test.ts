@@ -36,12 +36,16 @@ describe('atomic classroom archive compaction migration', () => {
     expect(migration).toContain('public.fail_classroom_archive_compaction(')
     expect(migration).toContain("operation_type <> 'compact'")
     expect(migration).toContain("'idempotency_conflict'")
+    expect(migration).toContain(
+      'pg_advisory_xact_lock(hashtextextended(p_operation_id::text, 0))',
+    )
     expect(migration).toContain("'compaction_already_in_progress'")
     expect(migration).toContain("'classroom_archive_not_verified'")
     expect(migration).toContain("'classroom_archive_retention_not_compactable'")
+    expect(migration).toContain('Compaction retention is not teacher-managed')
     expect(migration).toContain("'classroom_archive_resource_contract_invalid'")
     expect(migration).toContain(
-      'grant execute on function public.complete_classroom_archive_compaction(uuid, uuid, jsonb) to service_role;',
+      'grant execute on function public.complete_classroom_archive_compaction(uuid, uuid, jsonb, jsonb) to service_role;',
     )
   })
 
@@ -59,6 +63,12 @@ describe('atomic classroom archive compaction migration', () => {
     expect(migration).toContain('Compaction source-object cleanup count differs')
     expect(migration).toContain('Compaction source-object cleanup bytes differ')
     expect(migration).toContain("set status = 'pending'")
+    expect(migration).toContain('actor_role text not null')
+    expect(migration).toContain('Compaction actor roles changed after restore preflight')
+    expect(migration).toContain('for update of users')
+    expect(migration).toContain(
+      'Compaction actor descriptors do not exactly match staged references',
+    )
   })
 
   it('returns a complete snapshot contract on retry and rejects missing resource keys', () => {
@@ -81,6 +91,10 @@ describe('atomic classroom archive compaction migration', () => {
     expect(completeFunction).toContain('order by export_position desc')
     expect(completeFunction).toContain('Classroom compaction source count differs for %')
     expect(completeFunction).toContain("set_config('pika.classroom_archive_compaction', 'on', true)")
+    expect(completeFunction).toContain("set_config('pika.classroom_archive_restore', 'on', true)")
+    expect(completeFunction).toContain(
+      'Compaction database foreign keys or triggers reject staged rows',
+    )
     expect(completeFunction).toContain('insert into public.classroom_cold_tombstones')
     expect(completeFunction).toContain("status = 'completed'")
 
@@ -90,9 +104,13 @@ describe('atomic classroom archive compaction migration', () => {
     const tombstone = completeFunction?.indexOf(
       'insert into public.classroom_cold_tombstones',
     ) ?? -1
-    const reverseDelete = completeFunction?.indexOf('order by export_position desc') ?? -1
+    const dryRun = completeFunction?.indexOf(
+      'Compaction database foreign keys or triggers reject staged rows',
+    ) ?? -1
+    const reverseDelete = completeFunction?.lastIndexOf('order by export_position desc') ?? -1
     const completed = completeFunction?.lastIndexOf("status = 'completed'") ?? -1
     expect(tombstone).toBeGreaterThan(preflightCount)
+    expect(tombstone).toBeGreaterThan(dryRun)
     expect(reverseDelete).toBeGreaterThan(tombstone)
     expect(completed).toBeGreaterThan(reverseDelete)
   })
@@ -106,12 +124,13 @@ describe('atomic classroom archive compaction migration', () => {
     )
   })
 
-  it('atomically fences completed operations from expiry cleanup', () => {
+  it('atomically expires only live or retryable operations', () => {
     const cleanupFunction = migration.match(
       /create or replace function public\.cleanup_expired_classroom_archive_snapshots[\s\S]*?\n\$\$;/,
     )?.[0]
     expect(cleanupFunction).toContain('with expired as (')
-    expect(cleanupFunction).toContain("where status <> 'completed'")
+    expect(cleanupFunction).toContain("status = 'snapshot_ready'")
+    expect(cleanupFunction).toContain("status = 'failed' and retryable is true")
     expect(cleanupFunction).toContain('returning id')
   })
 

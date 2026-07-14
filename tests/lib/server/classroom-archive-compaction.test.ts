@@ -239,6 +239,20 @@ function createSupabaseMock(options: {
         error: null,
       }
     }
+    if (name === 'stage_classroom_archive_restore_rows') {
+      const rows = args.p_rows as Array<Record<string, unknown>>
+      return {
+        data: {
+          ok: true,
+          status: 202,
+          operation_id: OPERATION_ID,
+          table_name: args.p_table_name,
+          staged_count: rows.length,
+          expected_count: rows.length,
+        },
+        error: null,
+      }
+    }
     if (name === 'complete_classroom_archive_compaction') {
       if (options.completeError) return { data: null, error: options.completeError }
       if (options.malformedComplete) return { data: { ok: true, status: 201 }, error: null }
@@ -405,6 +419,7 @@ describe('classroom archive cold-compaction coordinator', () => {
     expect(mock.rpc).toHaveBeenCalledWith(
       'complete_classroom_archive_compaction',
       expect.objectContaining({
+        p_actors: [{ actor_id: TEACHER_ID, role: 'teacher' }],
         p_verification: expect.objectContaining({
           operation_id: OPERATION_ID,
           archive_id: ARCHIVE_ID,
