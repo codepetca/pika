@@ -10,23 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-24 — Teacher lesson calendar cached JSON
-
-**Completed:**
-- Continued the bounded architecture/UI improvement goal with another client read-cache consistency slice.
-- Replaced `TeacherLessonCalendarTab`'s manual cached assignment and announcement GET fetchers with `fetchCachedJSON`.
-- Preserved existing cache keys, 20s TTLs, stale classroom guards, assignment-update invalidation, and non-visual behavior.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm vitest run tests/components/TeacherLessonCalendarTab.test.tsx tests/unit/request-cache.test.ts`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-06-24 — Student log history cached JSON
 
 **Completed:**
@@ -713,5 +696,35 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit --pretty false`
 - `pnpm lint`
 - `pnpm check:architecture` (594 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-14 — Atomic student test attempt expand phase
+
+**Risk profile:** async-grading
+
+**Model recommendation:** GPT-5 Codex - student autosave, final submission, lifecycle locks, and rolling database deployment require cross-writer concurrency analysis.
+
+**Completed:**
+- Added expand-only migration 088 with service-role RPCs that atomically save partial attempts and atomically commit final responses with the owning submitted attempt.
+- Serialized submit/save against test close, per-student availability changes, question mutations, classroom archival, enrollment removal, and single/bulk attempt deletion through a consistent parent lock order.
+- Preserved placeholder-response behavior, automatic multiple-choice scoring, open-response grading state, normalized legacy response payloads, and best-effort versioned history after database commit.
+- Routed student autosave and final submit through feature-owned Zod and server boundaries; removed both routes from the API Zod migration baseline.
+- Added forward-compatible 409 handling for the later strict question-immutability contract without enforcing it in migration 088, so old app instances remain compatible during migration-first rollout.
+- Added an ephemeral database harness covering privileges, partial/final saves, validation rollback, forced post-insert rollback, double submit, availability/close/delete/autosave races, cascade deletion, and coherent final state.
+- Completed repeated independent SQL and TypeScript review/fix rounds with no remaining findings. No migration or production state was applied or changed.
+
+**Deployment obligation:**
+- Apply migration 088 before deploying this app version.
+- After deploying and draining all old app instances, add a separately numbered contract migration for semantic question immutability; do not add that enforcement to migration 088.
+
+**Validation:**
+- Focused student attempt/submit, validation, question compatibility, and architecture suites (8 files / 79 tests)
+- `pnpm test`
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (596 modules / 0 allowances)
+- `bash -n` and `shellcheck` for the database harness
 - Pika pre-commit audit
 - `git diff --check`

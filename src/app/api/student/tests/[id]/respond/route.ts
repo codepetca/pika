@@ -1,234 +1,38 @@
 import { NextResponse } from 'next/server'
-import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import {
-  assertStudentCanAccessTest,
-  getEffectiveStudentTestAccess,
-  getTestStudentAvailabilityState,
-} from '@/lib/server/tests'
-import {
-  buildTestAttemptHistoryMetrics,
-  normalizeTestResponses,
-  validateTestResponsesAgainstQuestions,
-  type TestResponses,
-} from '@/lib/test-attempts'
-import { hasAnyMeaningfulTestResponse, hasMeaningfulTestResponse } from '@/lib/test-responses'
-import { insertVersionedBaselineHistory } from '@/lib/server/versioned-history'
 import { withErrorHandler } from '@/lib/api-handler'
+import { submitStudentTestAttempt } from '@/lib/server/test-submissions'
+import { submitTestResponsesSchema } from '@/lib/validations/test-submissions'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-const HISTORY_SELECT_FIELDS =
-  'id, test_attempt_id, patch, snapshot, word_count, char_count, paste_word_count, keystroke_count, trigger, created_at'
 
 // POST /api/student/tests/[id]/respond - Submit all responses
 export const POST = withErrorHandler('PostStudentTestRespond', async (request, context) => {
   const user = await requireRole('student')
   const { id: testId } = await context.params
-  const body = await request.json()
-  const responses = normalizeTestResponses(body?.responses)
-
-  if (!body?.responses || typeof body.responses !== 'object' || Array.isArray(body.responses)) {
-    return NextResponse.json({ error: 'Responses are required' }, { status: 400 })
+  let rawBody: unknown
+  try {
+    rawBody = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const access = await assertStudentCanAccessTest(user.id, testId)
-  if (!access.ok) {
-    return NextResponse.json({ error: access.error }, { status: access.status })
+  const parsed = submitTestResponsesSchema.safeParse(rawBody)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? 'Invalid response payload' },
+      { status: 400 },
+    )
   }
-  const test = access.test
-  const supabase = getServiceRoleClient()
 
-  const availabilityResult = await getTestStudentAvailabilityState(supabase, testId, user.id)
-  if (availabilityResult.error && !availabilityResult.missingTable) {
-    console.error('Error fetching student test access for submit:', availabilityResult.error)
-    return NextResponse.json({ error: 'Failed to submit responses' }, { status: 500 })
-  }
-  const accessState = getEffectiveStudentTestAccess({
-    testStatus: test.status,
-    accessState: availabilityResult.state,
+  const result = await submitStudentTestAttempt({
+    studentId: user.id,
+    testId,
+    responses: parsed.data.responses,
   })
-
-  if (!accessState.can_start_or_continue) {
-    return NextResponse.json({ error: 'Test is not active' }, { status: 400 })
-  }
-
-  const { data: existingAttempt, error: attemptError } = await supabase
-    .from('test_attempts')
-    .select('id, responses, is_submitted, closed_for_grading_at')
-    .eq('test_id', testId)
-    .eq('student_id', user.id)
-    .maybeSingle()
-
-  if (attemptError && attemptError.code !== 'PGRST205') {
-    console.error('Error fetching test attempt:', attemptError)
-    return NextResponse.json({ error: 'Failed to submit responses' }, { status: 500 })
-  }
-
-  if (existingAttempt?.is_submitted) {
-    return NextResponse.json({ error: 'You have already responded to this test' }, { status: 400 })
-  }
-
-  if (existingAttempt?.closed_for_grading_at) {
-    return NextResponse.json({ error: 'This test is closed for grading' }, { status: 400 })
-  }
-
-  const { data: existingResponses, error: existingResponsesError } = await supabase
-    .from('test_responses')
-    .select('id, selected_option, response_text')
-    .eq('test_id', testId)
-    .eq('student_id', user.id)
-
-  if (existingResponsesError) {
-    console.error('Error fetching existing test responses:', existingResponsesError)
-    return NextResponse.json({ error: 'Failed to submit responses' }, { status: 500 })
-  }
-
-  if (hasAnyMeaningfulTestResponse(existingResponses)) {
-    return NextResponse.json({ error: 'You have already responded to this test' }, { status: 400 })
-  }
-
-  const { data: questions, error: questionsError } = await supabase
-    .from('test_questions')
-    .select('id, question_type, options, correct_option, points, response_max_chars')
-    .eq('test_id', testId)
-
-  if (questionsError || !questions) {
-    console.error('Error fetching test questions:', questionsError)
-    return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
-  }
-
-  const validation = validateTestResponsesAgainstQuestions(responses, questions, {
-    requireAllQuestions: true,
-  })
-  if (!validation.valid) {
-    return NextResponse.json({ error: validation.error }, { status: 400 })
-  }
-
-  const submittedAt = new Date().toISOString()
-  const responsesToInsert = (questions || []).map((question) => {
-    const response = responses[question.id]
-    if (!response) {
-      throw new Error(`Missing response for question ${question.id}`)
-    }
-
-    const points = Number(question.points ?? 1)
-    const questionType = question.question_type === 'open_response' ? 'open_response' : 'multiple_choice'
-    if (questionType === 'multiple_choice') {
-      const selectedOption = response.question_type === 'multiple_choice' ? response.selected_option : -1
-      const isCorrect = selectedOption === question.correct_option
-      return {
-        test_id: testId,
-        question_id: question.id,
-        student_id: user.id,
-        selected_option: selectedOption,
-        response_text: null,
-        score: isCorrect ? points : 0,
-        feedback: null,
-        graded_at: submittedAt,
-        graded_by: null,
-        submitted_at: submittedAt,
-      }
-    }
-
-    return {
-      test_id: testId,
-      question_id: question.id,
-      student_id: user.id,
-      selected_option: null,
-      response_text: response.question_type === 'open_response' ? response.response_text : '',
-      score: null,
-      feedback: null,
-      graded_at: null,
-      graded_by: null,
-      submitted_at: submittedAt,
-    }
-  })
-
-  const placeholderResponseIds = (existingResponses || [])
-    .filter((response) => !hasMeaningfulTestResponse(response))
-    .map((response) => response.id)
-    .filter((id): id is string => typeof id === 'string' && id.length > 0)
-
-  if (placeholderResponseIds.length > 0) {
-    const { error: deletePlaceholderError } = await supabase
-      .from('test_responses')
-      .delete()
-      .in('id', placeholderResponseIds)
-
-    if (deletePlaceholderError) {
-      console.error('Error clearing placeholder test responses:', deletePlaceholderError)
-      return NextResponse.json({ error: 'Failed to submit responses' }, { status: 500 })
-    }
-  }
-
-  const { error: insertError } = await supabase
-    .from('test_responses')
-    .insert(responsesToInsert)
-
-  if (insertError) {
-    if (insertError.code === '23505') {
-      return NextResponse.json({ error: 'You have already responded to this test' }, { status: 400 })
-    }
-    console.error('Error inserting test responses:', insertError)
-    return NextResponse.json({ error: 'Failed to submit responses' }, { status: 500 })
-  }
-
-  if (attemptError?.code !== 'PGRST205') {
-    const nextResponses = responses
-    const attemptUpdatePayload = {
-      responses: nextResponses,
-      is_submitted: true,
-      submitted_at: submittedAt,
-    }
-
-    let testAttemptId = existingAttempt?.id || null
-
-    if (testAttemptId) {
-      const { error: updateAttemptError } = await supabase
-        .from('test_attempts')
-        .update(attemptUpdatePayload)
-        .eq('id', testAttemptId)
-        .eq('is_submitted', false)
-
-      if (updateAttemptError) {
-        console.error('Error updating submitted test attempt:', updateAttemptError)
-      }
-    } else {
-      const { data: createdAttempt, error: createAttemptError } = await supabase
-        .from('test_attempts')
-        .insert({
-          test_id: testId,
-          student_id: user.id,
-          ...attemptUpdatePayload,
-        })
-        .select('id')
-        .single()
-
-      if (createAttemptError) {
-        console.error('Error creating submitted test attempt:', createAttemptError)
-      } else {
-        testAttemptId = createdAttempt?.id ?? null
-      }
-    }
-
-    if (testAttemptId) {
-      try {
-        await insertVersionedBaselineHistory<TestResponses>({
-          supabase,
-          table: 'test_attempt_history',
-          ownerColumn: 'test_attempt_id',
-          ownerId: testAttemptId,
-          content: nextResponses,
-          selectFields: HISTORY_SELECT_FIELDS,
-          trigger: 'submit',
-          buildMetrics: (currentResponses: TestResponses) =>
-            buildTestAttemptHistoryMetrics(currentResponses),
-        })
-      } catch (historyError) {
-        console.error('Error writing test attempt submit history:', historyError)
-      }
-    }
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status })
   }
 
   return NextResponse.json({ success: true }, { status: 201 })

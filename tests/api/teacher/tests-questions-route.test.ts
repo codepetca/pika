@@ -16,6 +16,7 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('@/lib/server/tests', () => ({
+  isLockedTestQuestionMutationError: vi.fn((error: { code?: string }) => error?.code === '55000'),
   assertTeacherOwnsTest: vi.fn(async () => ({
     ok: true,
     test: {
@@ -114,5 +115,43 @@ describe('POST /api/teacher/tests/[id]/questions', () => {
     expect(response.status).toBe(400)
     expect(data.error).toBe('Question text is required')
     expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it('returns 409 when student work locks the question set', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      })),
+      insert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: null,
+            error: { code: '55000', message: 'Test questions cannot be changed after student work exists' },
+          }),
+        })),
+      })),
+    }))
+
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/questions', {
+        method: 'POST',
+        body: JSON.stringify({
+          question_type: 'multiple_choice',
+          question_text: 'New question',
+          options: ['A', 'B'],
+          correct_option: 0,
+          points: 1,
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({
+      error: 'Test questions cannot be changed after student work exists',
+    })
   })
 })

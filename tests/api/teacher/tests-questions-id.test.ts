@@ -16,6 +16,7 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('@/lib/server/tests', () => ({
+  isLockedTestQuestionMutationError: vi.fn((error: { code?: string }) => error?.code === '55000'),
   assertTeacherOwnsTest: vi.fn(async () => ({
     ok: true,
     test: {
@@ -210,5 +211,52 @@ describe('PATCH /api/teacher/tests/[id]/questions/[qid]', () => {
       })
     )
     expect(data.question.question_text).toBe('')
+  })
+
+  it('returns 409 when student work locks question updates', async () => {
+    const updateSpy = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: null,
+            error: { code: '55000', message: 'Test questions cannot be changed after student work exists' },
+          }),
+        })),
+      })),
+    }))
+
+    ;(mockSupabaseClient.from as any) = vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({
+          data: {
+            id: 'question-1',
+            test_id: 'test-1',
+            question_type: 'multiple_choice',
+            question_text: 'Original',
+            options: ['A', 'B'],
+            correct_option: 0,
+            points: 1,
+            response_max_chars: 5000,
+            response_monospace: false,
+          },
+          error: null,
+        }),
+      })),
+      update: updateSpy,
+    }))
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/questions/question-1', {
+        method: 'PATCH',
+        body: JSON.stringify({ question_text: 'Changed' }),
+      }),
+      { params: Promise.resolve({ id: 'test-1', qid: 'question-1' }) },
+    )
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({
+      error: 'Test questions cannot be changed after student work exists',
+    })
   })
 })

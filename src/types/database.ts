@@ -325,6 +325,21 @@ type FunctionOverrides = {
       p_graded_by: string | null
     }>
   >
+  save_test_attempt_atomic: FunctionContract<
+    'save_test_attempt_atomic',
+    Json,
+    Replace<GeneratedFunctions['save_test_attempt_atomic']['Args'], {
+      p_responses: Json
+    }>
+  >
+  submit_test_attempt_atomic: FunctionContract<
+    'submit_test_attempt_atomic',
+    { attempt_id: string; submitted_at: string; inserted_responses: number },
+    Replace<GeneratedFunctions['submit_test_attempt_atomic']['Args'], {
+      p_responses: Json
+      p_submitted_at?: string
+    }>
+  >
   return_test_attempts_atomic: FunctionContract<
     'return_test_attempts_atomic',
     { returned_count: number; updated_count: number; inserted_count: number }
