@@ -157,6 +157,7 @@ export type Database = {
       assignment_ai_grading_run_items: {
         Row: {
           assignment_doc_id: string | null
+          assignment_doc_updated_at: string | null
           assignment_id: string
           attempt_count: number
           completed_at: string | null
@@ -175,6 +176,7 @@ export type Database = {
         }
         Insert: {
           assignment_doc_id?: string | null
+          assignment_doc_updated_at?: string | null
           assignment_id: string
           attempt_count?: number
           completed_at?: string | null
@@ -193,6 +195,7 @@ export type Database = {
         }
         Update: {
           assignment_doc_id?: string | null
+          assignment_doc_updated_at?: string | null
           assignment_id?: string
           attempt_count?: number
           completed_at?: string | null
@@ -4012,6 +4015,19 @@ export type Database = {
         Args: { p_closed_by: string; p_test_id: string }
         Returns: Json
       }
+      complete_assignment_repo_review_run_atomic: {
+        Args: {
+          p_grade_rows: Json
+          p_model: string
+          p_now: string
+          p_result_rows: Json
+          p_run_id: string
+          p_source_ref: string
+          p_teacher_id: string
+          p_warnings: Json
+        }
+        Returns: Json
+      }
       complete_classroom_archive_compaction: {
         Args: {
           p_actors: Json
@@ -4211,6 +4227,26 @@ export type Database = {
         }
         Returns: boolean
       }
+      finalize_assignment_ai_grading_item_atomic: {
+        Args: {
+          p_ai_feedback_model: string
+          p_ai_feedback_suggestion: string
+          p_apply_teacher_feedback_draft: boolean
+          p_attempt_count: number
+          p_feedback: string
+          p_graded_by: string
+          p_item_id: string
+          p_item_status: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_skip_reason: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       finalize_test_attempts_for_grading_atomic: {
         Args: {
           p_closed_by: string
@@ -4328,12 +4364,77 @@ export type Database = {
           skipped_count: number
         }[]
       }
+      return_assignment_docs_with_feedback_atomic: {
+        Args: {
+          p_assignment_id: string
+          p_now: string
+          p_student_ids: string[]
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      return_assignment_feedback_atomic: {
+        Args: {
+          p_assignment_id: string
+          p_expected_doc_updated_at: string
+          p_feedback: string
+          p_now: string
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       return_test_attempts_atomic: {
         Args: {
           p_returned_by: string
           p_student_ids: string[]
           p_submitted_at_by_student?: Json
           p_test_id: string
+        }
+        Returns: Json
+      }
+      save_assignment_ai_grade_atomic: {
+        Args: {
+          p_ai_feedback_model: string
+          p_ai_feedback_suggestion: string
+          p_apply_teacher_feedback_draft: boolean
+          p_assignment_id: string
+          p_expected_doc_updated_at: string
+          p_feedback: string
+          p_graded_by: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      save_assignment_ai_grades_atomic: {
+        Args: {
+          p_assignment_id: string
+          p_grade_rows: Json
+          p_now: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      save_assignment_grades_atomic: {
+        Args: {
+          p_apply_comments: boolean
+          p_apply_grade: boolean
+          p_assignment_id: string
+          p_expected_doc_updated_at_by_student: Json
+          p_feedback: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_student_ids: string[]
+          p_teacher_id: string
         }
         Returns: Json
       }

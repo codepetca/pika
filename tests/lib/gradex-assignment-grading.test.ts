@@ -151,6 +151,31 @@ describe('Gradex assignment grading processor', () => {
     ])
   })
 
+  it('rejects a malformed successful submission response before storing metadata', async () => {
+    const supabase = buildSupabase()
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () =>
+      jsonResponse(202, {
+        status: 'queued',
+        counts: { requested: 1, processed: 0, completed: 0, failed: 0, skipped: 0, pending: 1 },
+        provider: null,
+        model: null,
+        tier: null,
+        policy_version: null,
+        prompt_version: null,
+      })
+    ))
+
+    await expect(submitOrPollGradexAssignmentRun({
+      supabase: supabase.client,
+      assignment: assignment(),
+      run: run({ gradex_run_id: null }),
+      items: [item()],
+    })).rejects.toThrow()
+
+    expect(supabase.runUpdates).toEqual([])
+    expect(supabase.aiGradeCalls).toEqual([])
+  })
+
   it('polls a completed Gradex run and maps results into Pika grade fields', async () => {
     const supabase = buildSupabase()
     const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
@@ -176,7 +201,15 @@ describe('Gradex assignment grading processor', () => {
           external_submission_id: 'pika-submission-safe',
           external_student_id: 'pika-student-safe',
           error: null,
-          result: { provider: 'openai', model: 'gpt-5-nano', tier: 'tier_1', audit_id: 'audit-1' },
+          result: {
+            provider: 'openai',
+            model: 'gpt-5-nano',
+            tier: 'tier_1',
+            policy_version: 'gradex-routing-policy-v1',
+            prompt_version: 'gradex-essay-rubric-v1',
+            audit_id: 'audit-1',
+            token_usage: null,
+          },
         })
       }
       throw new Error(`Unexpected request: ${url}`)
@@ -209,29 +242,21 @@ describe('Gradex assignment grading processor', () => {
       items: [item({ status: 'processing' })],
     })
 
-    expect(supabase.docUpdates).toEqual([
+    expect(supabase.aiGradeCalls).toEqual([
       expect.objectContaining({
-        id: 'doc-1',
-        payload: expect.objectContaining({
-          score_completion: 8,
-          score_thinking: 7,
-          score_workflow: 9,
-          teacher_feedback_draft: 'Strength: clear work. Next step: add one example.',
-          ai_feedback_model: 'gradex:openai/gpt-5-nano/tier_1',
-          graded_by: 'teacher-1',
-        }),
+        p_item_id: 'item-1',
+        p_teacher_id: 'teacher-1',
+        p_score_completion: 8,
+        p_score_thinking: 7,
+        p_score_workflow: 9,
+        p_feedback: 'Strength: clear work. Next step: add one example.',
+        p_ai_feedback_model: 'gradex:openai/gpt-5-nano/tier_1',
+        p_graded_by: 'teacher-1',
+        p_item_status: 'completed',
+        p_attempt_count: 1,
       }),
     ])
-    expect(supabase.itemUpdates).toEqual([
-      expect.objectContaining({
-        id: 'item-1',
-        payload: expect.objectContaining({
-          status: 'completed',
-          attempt_count: 1,
-          last_error_code: null,
-        }),
-      }),
-    ])
+    expect(supabase.itemUpdates).toEqual([])
   })
 
   it('queues a retry instead of throwing when a Gradex submission request is retryable', async () => {
@@ -458,6 +483,7 @@ function item(overrides: Partial<any> = {}) {
     assignment_id: 'assignment-1',
     student_id: 'student-1',
     assignment_doc_id: 'doc-1',
+    assignment_doc_updated_at: '2026-06-01T12:00:00.000Z',
     queue_position: 0,
     status: 'queued',
     skip_reason: null,
@@ -476,13 +502,37 @@ function item(overrides: Partial<any> = {}) {
 function buildSupabase() {
   const runUpdates: Array<{ table: string; id: string; payload: Record<string, unknown> }> = []
   const itemUpdates: Array<{ table: string; id: string; payload: Record<string, unknown> }> = []
-  const docUpdates: Array<{ table: string; id: string; payload: Record<string, unknown> }> = []
+  const aiGradeCalls: Array<Record<string, unknown>> = []
 
   return {
     runUpdates,
     itemUpdates,
-    docUpdates,
+    aiGradeCalls,
     client: {
+      rpc: vi.fn(async (fn: string, args: Record<string, unknown>) => {
+        if (fn !== 'finalize_assignment_ai_grading_item_atomic') {
+          throw new Error(`Unexpected RPC: ${fn}`)
+        }
+        aiGradeCalls.push(args)
+        return {
+          data: {
+            docs: [{
+              id: 'doc-1',
+              assignment_id: 'assignment-1',
+              student_id: 'student-1',
+              updated_at: '2026-06-01T12:05:00.000Z',
+              score_completion: args.p_score_completion,
+              score_thinking: args.p_score_thinking,
+              score_workflow: args.p_score_workflow,
+              teacher_feedback_draft: args.p_feedback,
+              teacher_feedback_draft_updated_at: args.p_now,
+              graded_at: args.p_now,
+              graded_by: args.p_graded_by,
+            }],
+          },
+          error: null,
+        }
+      }),
       from(table: string) {
         if (table === 'assignment_docs') {
           return {
@@ -493,6 +543,7 @@ function buildSupabase() {
                     id: 'doc-1',
                     student_id: 'student-1',
                     content: { type: 'doc', content: [] },
+                    updated_at: '2026-06-01T12:00:00.000Z',
                     submitted_at: '2026-06-01T12:00:00.000Z',
                     authenticity_score: 88,
                     authenticity_flags: [],
@@ -500,12 +551,6 @@ function buildSupabase() {
                 ],
                 error: null,
               })),
-            })),
-            update: vi.fn((payload: Record<string, unknown>) => ({
-              eq: vi.fn(async (_field: string, id: string) => {
-                docUpdates.push({ table, id, payload })
-                return { error: null }
-              }),
             })),
           }
         }
@@ -524,10 +569,12 @@ function buildSupabase() {
         if (table === 'assignment_ai_grading_run_items') {
           return {
             update: vi.fn((payload: Record<string, unknown>) => ({
-              eq: vi.fn(async (_field: string, id: string) => {
-                itemUpdates.push({ table, id, payload })
-                return { error: null }
-              }),
+              eq: vi.fn((_field: string, id: string) => ({
+                in: vi.fn(async () => {
+                  itemUpdates.push({ table, id, payload })
+                  return { error: null }
+                }),
+              })),
             })),
           }
         }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { TEACHER_GRADE_UPDATED_EVENT, type TeacherGradeUpdatedEventDetail } from '@/lib/events'
+import { fetchJSON } from '@/lib/request-cache'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import type {
   AssignmentDoc,
@@ -254,16 +255,24 @@ export function useTeacherStudentWorkController({
   studentId,
   refreshKey = 0,
   onLoadingStateChange,
+  mutationsDisabled = false,
+  onGradePersistenceStateChange,
 }: {
   classroomId: string
   assignmentId: string
   studentId: string
   refreshKey?: number
   onLoadingStateChange?: (loading: boolean) => void
+  mutationsDisabled?: boolean
+  onGradePersistenceStateChange?: (state: {
+    hasPendingChanges: boolean
+    isSaving: boolean
+  }) => void
 }): TeacherStudentWorkController {
   const studentLoadRequestIdRef = useRef(0)
   const historyLoadRequestIdRef = useRef(0)
   const lastSavedGradeSnapshotRef = useRef('')
+  const gradeAutosaveTimeoutRef = useRef<number | null>(null)
   const draftAutosavedTimeoutRef = useRef<number | null>(null)
   const [data, setData] = useState<StudentWorkData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -480,11 +489,10 @@ export function useTeacherStudentWorkController({
       handleExitPreview()
 
       try {
-        const response = await fetch(`/api/teacher/assignments/${assignmentId}/students/${studentId}`)
-        const result = await response.json()
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to load student work')
-        }
+        const result = await fetchJSON<StudentWorkData>(
+          `/api/teacher/assignments/${assignmentId}/students/${studentId}`,
+          { errorMessage: 'Failed to load student work' },
+        )
         if (requestId !== studentLoadRequestIdRef.current) {
           return null
         }
@@ -518,13 +526,10 @@ export function useTeacherStudentWorkController({
 
     async function loadHistory() {
       try {
-        const response = await fetch(
+        const result = await fetchJSON<{ history?: AssignmentDocHistoryEntry[] }>(
           `/api/assignment-docs/${assignmentId}/history?student_id=${studentId}`,
+          { errorMessage: 'Failed to load history' },
         )
-        const result = await response.json()
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to load history')
-        }
         if (requestId !== historyLoadRequestIdRef.current) return
         setHistoryEntries(result.history || [])
       } catch (err: any) {
@@ -549,13 +554,16 @@ export function useTeacherStudentWorkController({
       if (draftAutosavedTimeoutRef.current) {
         window.clearTimeout(draftAutosavedTimeoutRef.current)
       }
+      if (gradeAutosaveTimeoutRef.current) {
+        window.clearTimeout(gradeAutosaveTimeoutRef.current)
+      }
       onLoadingStateChange?.(false)
     }
   }, [onLoadingStateChange])
 
   const persistGrade = useCallback(
     async (selectedSaveMode: GradeSaveMode, options?: { source?: 'autosave' | 'manual' }) => {
-      if (!data) return
+      if (!data || mutationsDisabled || feedbackReturning) return
 
       const parsedScores = parseGradeInputs({
         scoreCompletion,
@@ -652,6 +660,7 @@ export function useTeacherStudentWorkController({
             score_workflow: sw,
             feedback: feedbackDraft,
             save_mode: selectedSaveMode,
+            expected_doc_updated_at: previousDoc?.updated_at ?? null,
           }),
         })
         const result = await response.json()
@@ -680,6 +689,8 @@ export function useTeacherStudentWorkController({
       clearDraftAutosavedNotice,
       feedbackDraft,
       flashDraftAutosavedNotice,
+      feedbackReturning,
+      mutationsDisabled,
       scoreCompletion,
       scoreThinking,
       scoreWorkflow,
@@ -688,7 +699,7 @@ export function useTeacherStudentWorkController({
   )
 
   useEffect(() => {
-    if (!data || gradeSaving) return
+    if (!data || gradeSaving || feedbackReturning || mutationsDisabled) return
 
     const selectedSaveMode = gradeMode
     const nextSnapshot = buildGradeSnapshot({
@@ -715,13 +726,24 @@ export function useTeacherStudentWorkController({
     }
 
     const timeoutId = window.setTimeout(() => {
+      gradeAutosaveTimeoutRef.current = null
       void persistGrade(selectedSaveMode, { source: 'autosave' })
     }, GRADE_AUTOSAVE_DELAY_MS)
+    gradeAutosaveTimeoutRef.current = timeoutId
 
     return () => {
       window.clearTimeout(timeoutId)
+      if (gradeAutosaveTimeoutRef.current === timeoutId) {
+        gradeAutosaveTimeoutRef.current = null
+      }
     }
-  }, [data, feedbackDraft, gradeMode, gradeSaving, persistGrade, scoreCompletion, scoreThinking, scoreWorkflow])
+  }, [data, feedbackDraft, feedbackReturning, gradeMode, gradeSaving, mutationsDisabled, persistGrade, scoreCompletion, scoreThinking, scoreWorkflow])
+
+  useEffect(() => {
+    if (!mutationsDisabled || !gradeAutosaveTimeoutRef.current) return
+    window.clearTimeout(gradeAutosaveTimeoutRef.current)
+    gradeAutosaveTimeoutRef.current = null
+  }, [mutationsDisabled])
 
   const updateScoreCompletion = useCallback((value: string) => {
     setGradeError('')
@@ -749,14 +771,15 @@ export function useTeacherStudentWorkController({
 
   const handleSetGradeMode = useCallback(
     async (selectedSaveMode: GradeSaveMode) => {
+      if (gradeSaving || feedbackReturning || mutationsDisabled) return
       setGradeMode(selectedSaveMode)
       await persistGrade(selectedSaveMode, { source: 'manual' })
     },
-    [persistGrade],
+    [feedbackReturning, gradeSaving, mutationsDisabled, persistGrade],
   )
 
   const handleAutoGrade = useCallback(async () => {
-    if (!data) return
+    if (!data || gradeSaving || feedbackReturning || mutationsDisabled) return
 
     setAutoGrading(true)
     setGradeError('')
@@ -785,10 +808,10 @@ export function useTeacherStudentWorkController({
     } finally {
       setAutoGrading(false)
     }
-  }, [assignmentId, data, dispatchGradeUpdated, feedbackDraft, loadStudentWork, studentId])
+  }, [assignmentId, data, dispatchGradeUpdated, feedbackDraft, feedbackReturning, gradeSaving, loadStudentWork, mutationsDisabled, studentId])
 
   const handleReturnFeedback = useCallback(async () => {
-    if (!data) return
+    if (!data || gradeSaving || feedbackReturning || mutationsDisabled) return
 
     const trimmed = feedbackDraft.trim()
     if (!trimmed) {
@@ -796,6 +819,10 @@ export function useTeacherStudentWorkController({
       return
     }
 
+    if (gradeAutosaveTimeoutRef.current) {
+      window.clearTimeout(gradeAutosaveTimeoutRef.current)
+      gradeAutosaveTimeoutRef.current = null
+    }
     setFeedbackReturning(true)
     setGradeError('')
     try {
@@ -805,6 +832,7 @@ export function useTeacherStudentWorkController({
         body: JSON.stringify({
           student_id: studentId,
           feedback: trimmed,
+          expected_doc_updated_at: data.doc?.updated_at ?? null,
         }),
       })
       const result = await response.json()
@@ -831,6 +859,9 @@ export function useTeacherStudentWorkController({
     data,
     dispatchGradeUpdated,
     feedbackDraft,
+    feedbackReturning,
+    gradeSaving,
+    mutationsDisabled,
     populateGradeForm,
     studentId,
   ])
@@ -845,6 +876,27 @@ export function useTeacherStudentWorkController({
   }, [scoreCompletion, scoreThinking, scoreWorkflow])
 
   const totalPercent = useMemo(() => Math.round((totalScore / 30) * 100), [totalScore])
+  const hasPendingGradeChanges = useMemo(() => {
+    if (!data) return false
+    return buildGradeSnapshot({
+      scoreCompletion,
+      scoreThinking,
+      scoreWorkflow,
+      feedbackDraft,
+      mode: gradeMode,
+    }) !== lastSavedGradeSnapshotRef.current
+  }, [data, feedbackDraft, gradeMode, scoreCompletion, scoreThinking, scoreWorkflow])
+
+  useEffect(() => {
+    onGradePersistenceStateChange?.({
+      hasPendingChanges: hasPendingGradeChanges,
+      isSaving: gradeSaving || feedbackReturning || autoGrading,
+    })
+  }, [autoGrading, feedbackReturning, gradeSaving, hasPendingGradeChanges, onGradePersistenceStateChange])
+
+  useEffect(() => {
+    return () => onGradePersistenceStateChange?.({ hasPendingChanges: false, isSaving: false })
+  }, [onGradePersistenceStateChange])
 
   return {
     data,
