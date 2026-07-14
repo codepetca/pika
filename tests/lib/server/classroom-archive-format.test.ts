@@ -1,5 +1,5 @@
 import { gunzipSync } from 'node:zlib'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   buildClassroomArchiveBundle,
   canonicalJsonStringify,
@@ -68,6 +68,19 @@ describe('classroom archive format', () => {
     expect(canonicalJsonStringify({ z: 1, a: { y: 2, b: 3 }, items: [{ z: 4, a: 5 }] })).toBe(
       '{"a":{"b":3,"y":2},"items":[{"a":5,"z":4}],"z":1}',
     )
+  })
+
+  it('uses UTF-8 byte ordering without consulting the host locale', () => {
+    const localeCompare = vi.spyOn(String.prototype, 'localeCompare')
+      .mockImplementation(() => {
+        throw new Error('locale-dependent comparison is forbidden')
+      })
+
+    expect(canonicalJsonStringify({ 'é': 3, z: 1, 'ä': 2 })).toBe(
+      '{"z":1,"ä":2,"é":3}',
+    )
+    expect(() => buildFixture()).not.toThrow()
+    localeCompare.mockRestore()
   })
 
   it('builds deterministic gzip archives and sorts resource rows by primary key', () => {

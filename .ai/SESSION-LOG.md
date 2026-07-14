@@ -10,30 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-22 — Teacher classroom access helper reuse
-
-**Completed:**
-- Continued the bounded architecture/UI improvement goal with a Supabase route/query helper consolidation slice.
-- Extended `assertTeacherOwnsClassroom` to include classroom `title` and accept an optional existing service-role client, preserving the default helper call shape.
-- Reused the helper in read-only teacher routes that previously duplicated `classrooms.select('teacher_id')` ownership checks: attendance, export CSV, log summary, logs, and student history.
-- Kept each route's current response style, status codes, payloads, and downstream query shape unchanged.
-- Added helper-level coverage proving the shared classroom access helper returns `title` and reuses a provided Supabase client.
-
-**Route/query helper checklist:**
-- Schema or migration changed: no
-- Browser-side Supabase access changed: no
-- Authorization semantics changed: no; 404 not found and 403 forbidden still come from the same ownership predicate
-- Payload shape changed: no
-- Supabase query count changed: no intended extra queries; migrated routes pass their existing service client into the helper
-- Visible behavior intended to change: none
-
-**Validation:**
-- `pnpm test tests/unit/server-access.test.ts tests/api/teacher/attendance.test.ts tests/api/teacher/export-csv.test.ts tests/api/teacher/log-summary.test.ts tests/api/teacher/logs.test.ts tests/api/teacher/student-history.test.ts`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-
 ## 2026-06-22 — Paged Supabase test helper
 
 **Completed:**
@@ -726,3 +702,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Pika pre-commit audit
 - `git diff --check`
 - CI pending after push
+
+## 2026-07-14 — Archive stack review findings fixed
+
+**Completed:**
+- Fixed export idempotency races, locale-dependent canonical ordering, restore loser cleanup, atomic snapshot expiry, expired staging cleanup, complete retry contracts, retention enforcement, and exact resource-map validation.
+- Required compaction to prove the current restore adapter and actor reconciliation before relational deletion. Source Storage cleanup now requires an exact operation canary, an unexpired renewed lease, and explicit exclusive ownership evidence that defaults false.
+- Replaced the Gradex deidentification claim with a structured privacy policy: unconstrained free text is excluded, remaining strings use Unicode-aware identity scanning, synced test documents project correctly, completed replay survives retention expiry, and cleanup intent exists before upload.
+- Updated the local recovery drill and lifecycle guidance for ownership-gated source retention. Added a default-off daily cron path for expired archive staging. No production database, migration, row, object, environment, deployment, or schedule was modified.
+
+**Validation:**
+- Full `bash scripts/verify-env.sh --tests`
+- Focused archive and Gradex suite (20 files / 183 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika pre-commit audit
+- Shell syntax checks for archive/restore/Gradex database contracts
+- Local migration reset/replay intentionally not run; CI ephemeral Supabase remains the execution authority
+- `git diff --check`

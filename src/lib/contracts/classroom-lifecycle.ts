@@ -43,6 +43,8 @@ export const classroomArchiveReadBackVerificationSchema = z.object({
 
 export const classroomArchiveCompactionVerificationSchema =
   classroomArchiveReadBackVerificationSchema.extend({
+    schema_adapter_verified: z.literal(true),
+    actor_references_resolved: z.literal(true),
     source_object_cleanup_staged: z.literal(true),
   }).strict()
 

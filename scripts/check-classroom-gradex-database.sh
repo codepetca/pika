@@ -68,7 +68,7 @@ begin
     'source_archive_manifest_verified', true,
     'resource_checksums_verified', true,
     'resource_counts_verified', true,
-    'deidentification_verified', true,
+    'structured_privacy_verified', true,
     'pseudonym_relationships_verified', true,
     'storage_objects_excluded', true,
     'read_back_verified', true,
@@ -123,6 +123,15 @@ begin
   then
     raise exception 'Gradex begin failed: %', v_result;
   end if;
+  if not exists (
+    select 1 from public.classroom_gradex_extract_cleanup
+    where operation_id = v_extract_id
+      and extract_id is null
+      and status = 'staged'
+      and storage_path = v_result->>'storage_path'
+  ) then
+    raise exception 'Gradex cleanup intent was not persisted before upload';
+  end if;
 
   v_result := public.begin_classroom_gradex_extract(
     v_concurrent_id, v_teacher_id, v_classroom_id, v_archive_id,
@@ -141,7 +150,7 @@ begin
   begin
     perform public.complete_classroom_gradex_extract(
       v_extract_id, v_teacher_id, repeat('f', 64), repeat('1', 64), 100, 200,
-      v_counts, v_verification - 'deidentification_verified'
+      v_counts, v_verification - 'structured_privacy_verified'
     );
     raise exception 'Incomplete Gradex verification was accepted';
   exception when invalid_parameter_value then null;
@@ -151,7 +160,7 @@ begin
     perform public.complete_classroom_gradex_extract(
       v_extract_id, v_teacher_id, repeat('f', 64), repeat('1', 64), 100, 200,
       v_counts,
-      jsonb_set(v_verification, '{deidentification_verified}', '"true"'::jsonb)
+      jsonb_set(v_verification, '{structured_privacy_verified}', '"true"'::jsonb)
     );
     raise exception 'Stringified Gradex verification evidence was accepted';
   exception when invalid_parameter_value then null;
@@ -186,6 +195,14 @@ begin
       and delete_after = v_delete_after
   ) then
     raise exception 'Immutable Gradex metadata was not persisted';
+  end if;
+  if not exists (
+    select 1 from public.classroom_gradex_extract_cleanup
+    where operation_id = v_extract_id
+      and extract_id = v_extract_id
+      and status = 'pending'
+  ) then
+    raise exception 'Gradex cleanup intent was not finalized';
   end if;
 
   v_result := public.begin_classroom_gradex_extract(

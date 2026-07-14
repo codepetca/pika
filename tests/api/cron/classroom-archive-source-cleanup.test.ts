@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getServiceRoleClient: vi.fn(),
   isTriggerEnabled: vi.fn(),
   resolveLeaseToken: vi.fn(),
+  resolveOperationId: vi.fn(),
   runCleanup: vi.fn(),
 }))
 
@@ -17,12 +18,14 @@ vi.mock('@/lib/server/classroom-archive-source-cleanup', () => ({
   CLASSROOM_ARCHIVE_SOURCE_CLEANUP_DEFAULT_LEASE_SECONDS: 300,
   isClassroomArchiveSourceCleanupTriggerEnabled: mocks.isTriggerEnabled,
   resolveClassroomArchiveSourceCleanupLeaseToken: mocks.resolveLeaseToken,
+  resolveClassroomArchiveSourceCleanupOperationId: mocks.resolveOperationId,
   runClassroomArchiveSourceCleanup: mocks.runCleanup,
 }))
 
 import { GET, POST } from '@/app/api/cron/classroom-archive-source-cleanup/route'
 
 const LEASE_TOKEN = '10000000-0000-4000-8000-000000000001'
+const OPERATION_ID = '20000000-0000-4000-8000-000000000001'
 const OBJECT_REF = 'a'.repeat(64)
 const supabase = { client: true }
 
@@ -52,9 +55,11 @@ describe('classroom archive source cleanup cron route', () => {
     vi.clearAllMocks()
     vi.unstubAllEnvs()
     vi.stubEnv('CRON_SECRET', 'secret')
+    vi.stubEnv('CLASSROOM_ARCHIVE_SOURCE_CLEANUP_OPERATION_ID', OPERATION_ID)
     mocks.getServiceRoleClient.mockReturnValue(supabase)
     mocks.isTriggerEnabled.mockReturnValue(true)
     mocks.resolveLeaseToken.mockReturnValue(LEASE_TOKEN)
+    mocks.resolveOperationId.mockReturnValue(OPERATION_ID)
     mocks.runCleanup.mockResolvedValue(successfulResult())
   })
 
@@ -118,11 +123,24 @@ describe('classroom archive source cleanup cron route', () => {
       expect(mocks.runCleanup).toHaveBeenCalledWith({
         supabase,
         leaseToken: LEASE_TOKEN,
+        operationId: OPERATION_ID,
         limit: 1,
         leaseSeconds: 300,
       })
     },
   )
+
+  it('fails closed when no exact cleanup operation is configured', async () => {
+    vi.stubEnv('CLASSROOM_ARCHIVE_SOURCE_CLEANUP_OPERATION_ID', '')
+
+    const response = await GET(request())
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual(expect.objectContaining({
+      error_code: 'classroom_archive_source_cleanup_operation_not_configured',
+    }))
+    expect(mocks.runCleanup).not.toHaveBeenCalled()
+  })
 
   it('propagates a disabled worker result and status', async () => {
     const result = {
@@ -203,5 +221,6 @@ describe('classroom archive source cleanup cron route', () => {
     expect(environmentExample).toContain(
       'CLASSROOM_ARCHIVE_SOURCE_CLEANUP_TRIGGER_ENABLED=false',
     )
+    expect(environmentExample).toContain('CLASSROOM_ARCHIVE_SOURCE_CLEANUP_OPERATION_ID=')
   })
 })

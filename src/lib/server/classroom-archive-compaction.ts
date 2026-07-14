@@ -3,9 +3,11 @@ import { z } from 'zod'
 import { classroomArchiveCompactionVerificationSchema } from '@/lib/contracts/classroom-lifecycle'
 import {
   canonicalJsonStringify,
+  decodeClassroomArchiveData,
   sha256Bytes,
   verifyClassroomArchiveBundle,
 } from '@/lib/server/classroom-archive-format'
+import { buildClassroomArchiveRestorePlan } from '@/lib/server/classroom-archive-restore'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 const CLASSROOM_ARCHIVE_BUCKET = 'classroom-archives' as const
@@ -336,6 +338,8 @@ async function downloadAndVerifyArchive(args: {
   teacherId: string
   classroomId: string
   archiveId: string
+  operationId: string
+  supabaseUrl: string
 }) {
   let response
   try {
@@ -401,6 +405,41 @@ async function downloadAndVerifyArchive(args: {
   const resources = exactResourceCounts(verified.manifest)
   const storage = summarizeManifestStorage(verified.manifest)
   assertMatchingInventory(args.snapshot, { resources, storage })
+
+  const decoded = decodeClassroomArchiveData(verified)
+  const actorIds = decoded.actors.map((actor) => actor.id)
+  const currentActors: Array<{ id: string; email: string; role: 'student' | 'teacher' }> = []
+  for (let offset = 0; offset < actorIds.length; offset += 200) {
+    const response = await args.supabase
+      .from('users')
+      .select('id,email,role')
+      .in('id', actorIds.slice(offset, offset + 200))
+    if (response.error) {
+      throw new ClassroomArchiveCompactionError(
+        'archive_compaction_actor_reconciliation_failed',
+        'Classroom archive actors could not be reconciled before compaction',
+        503,
+        true,
+      )
+    }
+    currentActors.push(...(response.data || []) as typeof currentActors)
+  }
+  try {
+    buildClassroomArchiveRestorePlan({
+      verified,
+      artifactChecksumVerified: true,
+      operationId: args.operationId,
+      currentActors,
+      supabaseUrl: args.supabaseUrl,
+    })
+  } catch {
+    throw new ClassroomArchiveCompactionError(
+      'archive_compaction_restore_preflight_failed',
+      'Classroom archive cannot be restored with the current schema and actor mapping',
+      409,
+      false,
+    )
+  }
   return {
     cleanupObjects: verified.manifest.storage_objects.map((object): CleanupObject => ({
       storage_bucket: object.bucket,
@@ -557,6 +596,7 @@ export async function compactClassroomArchive(args: {
   teacherId: string
   classroomId: string
   archiveId: string
+  supabaseUrl: string
 }): Promise<ClassroomArchiveCompactionResult> {
   const startedAt = Date.now()
   const operationId = uuidSchema.parse(args.operationId)
@@ -640,6 +680,8 @@ export async function compactClassroomArchive(args: {
       teacherId,
       classroomId,
       archiveId,
+      operationId,
+      supabaseUrl: args.supabaseUrl,
     })
     await stageCleanupObjects({
       supabase: args.supabase,
@@ -662,6 +704,8 @@ export async function compactClassroomArchive(args: {
       resource_counts_verified: true,
       storage_objects_verified: true,
       actor_snapshots_verified: true,
+      schema_adapter_verified: true,
+      actor_references_resolved: true,
       source_object_cleanup_staged: true,
     })
     const completeResponse = await args.supabase.rpc('complete_classroom_archive_compaction', {

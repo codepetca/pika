@@ -55,4 +55,10 @@ describe('verified classroom archive migration', () => {
       'revoke all on function public.begin_classroom_archive_export(uuid, uuid, uuid, text, text, text, jsonb) from public, anon, authenticated;',
     )
   })
+
+  it('serializes simultaneous first use of one export idempotency key', () => {
+    expect(migration).toContain(
+      'perform pg_advisory_xact_lock(hashtextextended(p_operation_id::text, 0));',
+    )
+  })
 })

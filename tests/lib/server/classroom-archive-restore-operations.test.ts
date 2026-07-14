@@ -70,6 +70,7 @@ function createSupabaseMock(options: {
   beginError?: { code?: string; message?: string }
   completeMalformed?: boolean
   stageFailure?: boolean
+  failureRecorded?: boolean
 } = {}) {
   const bundle = fixture()
   const counts = Object.fromEntries(
@@ -149,6 +150,9 @@ function createSupabaseMock(options: {
         },
         error: null,
       }
+    }
+    if (name === 'fail_classroom_archive_restore') {
+      return { data: options.failureRecorded !== false, error: null }
     }
     return { data: true, error: null }
   })
@@ -356,5 +360,25 @@ describe('classroom archive restore coordinator', () => {
       'complete_classroom_archive_restore',
       'fail_classroom_archive_restore',
     ])
+  })
+
+  it('retains shared restore objects when the database did not authorize terminal cleanup', async () => {
+    const mock = createSupabaseMock({ stageFailure: true, failureRecorded: false })
+    const result = await restoreClassroomArchive({
+      supabase: mock.client,
+      operationId: OPERATION_ID,
+      archiveId: ARCHIVE_ID,
+      teacherId: TEACHER_ID,
+      classroomId: CLASSROOM_ID,
+      databaseBudgetBytes: 524288000,
+      supabaseUrl: 'https://project.supabase.co',
+    })
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      error_code: 'restore_staging_rejected',
+    }))
+    expect(mock.stored.size).toBe(1)
+    expect(mock.removed).toEqual([])
   })
 })

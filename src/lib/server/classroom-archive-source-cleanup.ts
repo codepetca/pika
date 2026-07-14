@@ -35,6 +35,7 @@ const claimSchema = z.object({
 }).strict()
 const runOptionsSchema = z.object({
   leaseToken: uuidSchema,
+  operationId: uuidSchema,
   limit: z.number().int().min(1).max(CLASSROOM_ARCHIVE_SOURCE_CLEANUP_MAX_CLAIMS).optional(),
   leaseSeconds: z.number().int().min(30).max(1800).optional(),
 }).strict()
@@ -101,11 +102,16 @@ export function resolveClassroomArchiveSourceCleanupLeaseToken(
   return value ? uuidSchema.parse(value.trim()) : randomUUID()
 }
 
+export function resolveClassroomArchiveSourceCleanupOperationId(value: string): string {
+  return uuidSchema.parse(value.trim())
+}
+
 function isMissingCleanupRpc(error: { code?: string; message?: string } | null | undefined) {
   if (!error) return false
   const message = (error.message || '').toLowerCase()
   return error.code === '42883' || error.code === 'PGRST202' || (
     message.includes('claim_due_classroom_archive_source_object_cleanup')
+    || message.includes('renew_classroom_archive_source_object_cleanup_lease')
     || message.includes('complete_classroom_archive_source_object_cleanup')
     || message.includes('fail_classroom_archive_source_object_cleanup')
   )
@@ -152,13 +158,18 @@ function missingObjectEvidence(
   return null
 }
 
-function validateClaims(data: unknown, limit: number): CleanupClaim[] | null {
+function validateClaims(
+  data: unknown,
+  limit: number,
+  operationId: string,
+): CleanupClaim[] | null {
   const parsed = z.array(claimSchema).safeParse(data)
   if (!parsed.success || parsed.data.length > limit) return null
 
   const claimIdentities = new Set<string>()
   const objectIdentities = new Set<string>()
   for (const claim of parsed.data) {
+    if (claim.operation_id !== operationId) return null
     const objectIdentity = `${claim.storage_bucket}\n${claim.storage_path}`
     const claimIdentity = `${claim.operation_id}\n${objectIdentity}`
     if (claimIdentities.has(claimIdentity) || objectIdentities.has(objectIdentity)) return null
@@ -166,6 +177,18 @@ function validateClaims(data: unknown, limit: number): CleanupClaim[] | null {
     objectIdentities.add(objectIdentity)
   }
   return parsed.data
+}
+
+function distinctValidClaims(data: unknown, operationId: string): CleanupClaim[] {
+  if (!Array.isArray(data)) return []
+  const claims = new Map<string, CleanupClaim>()
+  for (const candidate of data) {
+    const parsed = claimSchema.safeParse(candidate)
+    if (!parsed.success || parsed.data.operation_id !== operationId) continue
+    const key = `${parsed.data.operation_id}\n${parsed.data.storage_bucket}\n${parsed.data.storage_path}`
+    claims.set(key, parsed.data)
+  }
+  return [...claims.values()]
 }
 
 function objectRef(claim: CleanupClaim): string {
@@ -301,10 +324,36 @@ async function completeItem(args: {
   })
 }
 
+async function renewCleanupLease(args: {
+  supabase: SupabaseClient
+  claim: CleanupClaim
+  leaseToken: string
+  leaseSeconds: number
+}): Promise<boolean> {
+  try {
+    const response = await args.supabase.rpc(
+      'renew_classroom_archive_source_object_cleanup_lease',
+      {
+        p_operation_id: args.claim.operation_id,
+        p_storage_bucket: args.claim.storage_bucket,
+        p_storage_path: args.claim.storage_path,
+        p_lease_token: args.leaseToken,
+        p_lease_seconds: args.leaseSeconds,
+      },
+    )
+    if (response.error) return false
+    const parsed = booleanRpcSchema.safeParse(response.data)
+    return parsed.success && parsed.data
+  } catch {
+    return false
+  }
+}
+
 async function processCleanupClaim(args: {
   supabase: SupabaseClient
   claim: CleanupClaim
   leaseToken: string
+  leaseSeconds: number
 }): Promise<ClassroomArchiveSourceCleanupItemResult> {
   const bucket = args.supabase.storage.from(args.claim.storage_bucket)
   const beforeRemoval = await readObject(
@@ -324,6 +373,13 @@ async function processCleanupClaim(args: {
     || actualSha256 !== args.claim.expected_sha256
   ) {
     return failedItem({ ...args, errorCode: 'archive_source_object_mismatch' })
+  }
+
+  if (!await renewCleanupLease(args)) {
+    return failedItem({
+      ...args,
+      errorCode: 'archive_source_cleanup_lease_renewal_failed',
+    })
   }
 
   let removeFailed = false
@@ -358,6 +414,7 @@ async function processCleanupClaimSafely(args: {
   supabase: SupabaseClient
   claim: CleanupClaim
   leaseToken: string
+  leaseSeconds: number
 }): Promise<ClassroomArchiveSourceCleanupItemResult> {
   try {
     return await processCleanupClaim(args)
@@ -390,16 +447,19 @@ function emitCleanupMetric(result: ClassroomArchiveSourceCleanupResult, startedA
 export async function runClassroomArchiveSourceCleanup(args: {
   supabase: SupabaseClient
   leaseToken: string
+  operationId: string
   limit?: number
   leaseSeconds?: number
 }): Promise<ClassroomArchiveSourceCleanupResult> {
   const startedAt = Date.now()
   const options = runOptionsSchema.parse({
     leaseToken: args.leaseToken,
+    operationId: args.operationId,
     limit: args.limit,
     leaseSeconds: args.leaseSeconds,
   })
   const leaseToken = options.leaseToken
+  const operationId = options.operationId
   const limit = options.limit ?? CLASSROOM_ARCHIVE_SOURCE_CLEANUP_MAX_CLAIMS
   const leaseSeconds = options.leaseSeconds
     ?? CLASSROOM_ARCHIVE_SOURCE_CLEANUP_DEFAULT_LEASE_SECONDS
@@ -422,6 +482,7 @@ export async function runClassroomArchiveSourceCleanup(args: {
       'claim_due_classroom_archive_source_object_cleanup',
       {
         p_lease_token: leaseToken,
+        p_operation_id: operationId,
         p_limit: limit,
         p_lease_seconds: leaseSeconds,
       },
@@ -444,8 +505,16 @@ export async function runClassroomArchiveSourceCleanup(args: {
       return result
     }
 
-    const claims = validateClaims(response.data, limit)
+    const claims = validateClaims(response.data, limit, operationId)
     if (!claims) {
+      await Promise.all(distinctValidClaims(response.data, operationId).map((claim) =>
+        recordCleanupFailure({
+          supabase: args.supabase,
+          claim,
+          leaseToken,
+          errorCode: 'archive_source_cleanup_claim_contract_invalid',
+        })
+      ))
       const result: ClassroomArchiveSourceCleanupResult = {
         ok: false,
         status: 500,
@@ -464,6 +533,7 @@ export async function runClassroomArchiveSourceCleanup(args: {
         supabase: args.supabase,
         claim,
         leaseToken,
+        leaseSeconds,
       }))
     }
     const deleted = results.filter((item) => item.status === 'deleted').length

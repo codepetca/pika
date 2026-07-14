@@ -426,6 +426,8 @@ begin
       using errcode = '22023';
   end if;
 
+  perform pg_advisory_xact_lock(hashtextextended(p_operation_id::text, 0));
+
   select *
   into v_operation
   from public.classroom_archive_operations
@@ -1065,19 +1067,20 @@ as $$
 declare
   v_operation_ids uuid[];
 begin
+  with expired as (
+    update public.classroom_archive_operations
+    set
+      status = 'failed',
+      error_code = 'archive_snapshot_expired',
+      retryable = false,
+      updated_at = clock_timestamp()
+    where status <> 'completed'
+      and snapshot_expires_at <= now()
+    returning id
+  )
   select coalesce(array_agg(id), array[]::uuid[])
   into v_operation_ids
-  from public.classroom_archive_operations
-  where status <> 'completed'
-    and snapshot_expires_at <= now();
-
-  update public.classroom_archive_operations
-  set
-    status = 'failed',
-    error_code = 'archive_snapshot_expired',
-    retryable = false,
-    updated_at = clock_timestamp()
-  where id = any(v_operation_ids);
+  from expired;
 
   delete from public.classroom_archive_snapshot_resources
   where operation_id = any(v_operation_ids);

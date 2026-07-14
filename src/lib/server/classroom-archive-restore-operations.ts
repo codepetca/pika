@@ -363,13 +363,14 @@ async function recordRestoreFailure(args: {
   operationId: string
   teacherId: string
   error: ClassroomArchiveRestoreError
-}) {
-  await args.supabase.rpc('fail_classroom_archive_restore', {
+}): Promise<boolean> {
+  const response = await args.supabase.rpc('fail_classroom_archive_restore', {
     p_operation_id: args.operationId,
     p_teacher_id: args.teacherId,
     p_error_code: args.error.code,
     p_retryable: args.error.retryable,
   })
+  return !response.error && response.data === true
 }
 
 function emitRestoreMetric(result: ClassroomArchiveRestoreResult, startedAt: number) {
@@ -625,15 +626,15 @@ export async function restoreClassroomArchive(args: {
           500,
           false,
         )
-    if (operationStarted) {
-      await recordRestoreFailure({
+    const cleanupAuthorized = operationStarted
+      ? await recordRestoreFailure({
         supabase: args.supabase,
         operationId: args.operationId,
         teacherId: args.teacherId,
         error,
       })
-    }
-    if (!error.retryable && !finalizationAttempted && plan) {
+      : false
+    if (!error.retryable && !finalizationAttempted && plan && cleanupAuthorized) {
       const pathsByBucket = new Map<string, Set<string>>()
       for (const object of plan.storageObjects) {
         const paths = pathsByBucket.get(object.bucket) || new Set<string>()

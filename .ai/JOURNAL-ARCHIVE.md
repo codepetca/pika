@@ -11748,3 +11748,27 @@
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-06-22 — Teacher classroom access helper reuse
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with a Supabase route/query helper consolidation slice.
+- Extended `assertTeacherOwnsClassroom` to include classroom `title` and accept an optional existing service-role client, preserving the default helper call shape.
+- Reused the helper in read-only teacher routes that previously duplicated `classrooms.select('teacher_id')` ownership checks: attendance, export CSV, log summary, logs, and student history.
+- Kept each route's current response style, status codes, payloads, and downstream query shape unchanged.
+- Added helper-level coverage proving the shared classroom access helper returns `title` and reuses a provided Supabase client.
+
+**Route/query helper checklist:**
+- Schema or migration changed: no
+- Browser-side Supabase access changed: no
+- Authorization semantics changed: no; 404 not found and 403 forbidden still come from the same ownership predicate
+- Payload shape changed: no
+- Supabase query count changed: no intended extra queries; migrated routes pass their existing service client into the helper
+- Visible behavior intended to change: none
+
+**Validation:**
+- `pnpm test tests/unit/server-access.test.ts tests/api/teacher/attendance.test.ts tests/api/teacher/export-csv.test.ts tests/api/teacher/log-summary.test.ts tests/api/teacher/logs.test.ts tests/api/teacher/student-history.test.ts`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`

@@ -24,7 +24,7 @@ import {
 const MAX_UNCOMPRESSED_EXTRACT_BYTES = 512 * 1024 * 1024
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/)
 const uuidSchema = z.string().uuid()
-const genericHandlePattern = /(^|\s)@[A-Za-z0-9_]{2,39}\b/g
+const genericHandlePattern = /(?<![\p{L}\p{N}_])@[A-Za-z0-9_]{2,39}\b/gu
 const forbiddenKeys = new Set<string>([
   ...GRADEX_DEIDENTIFICATION_CONTRACT.forbidden_output_fields,
   'github_login',
@@ -53,9 +53,8 @@ const PROJECTION_SPECS: Record<string, ProjectionSpec> = {
       ['created_by', 'author_ref', 'actor'],
     ],
     copy: [
-      'title', 'description', 'instructions_markdown', 'rich_instructions', 'position',
-      'is_draft', 'track_authenticity', 'points_possible', 'include_in_final',
-      'gradebook_weight',
+      'position', 'is_draft', 'track_authenticity', 'points_possible',
+      'include_in_final', 'gradebook_weight',
     ],
     timestamps: ['due_at', 'released_at', 'created_at', 'updated_at'],
   },
@@ -86,7 +85,6 @@ const PROJECTION_SPECS: Record<string, ProjectionSpec> = {
     ],
     copy: [
       'queue_position', 'status', 'skip_reason', 'attempt_count', 'last_error_code',
-      'last_error_message',
     ],
     timestamps: ['next_retry_at', 'started_at', 'completed_at', 'created_at', 'updated_at'],
   },
@@ -98,9 +96,8 @@ const PROJECTION_SPECS: Record<string, ProjectionSpec> = {
       ['graded_by', 'grader_ref', 'actor'],
     ],
     copy: [
-      'content', 'is_submitted', 'score_completion', 'score_thinking', 'score_workflow',
-      'feedback', 'teacher_feedback_draft', 'ai_feedback_suggestion', 'ai_feedback_model',
-      'authenticity_score',
+      'is_submitted', 'score_completion', 'score_thinking', 'score_workflow',
+      'ai_feedback_model', 'authenticity_score',
     ],
     timestamps: [
       'submitted_at', 'viewed_at', 'teacher_feedback_draft_updated_at',
@@ -115,7 +112,7 @@ const PROJECTION_SPECS: Record<string, ProjectionSpec> = {
       ['student_id', 'actor_ref', 'actor', true],
       ['created_by', 'author_ref', 'actor'],
     ],
-    copy: ['entry_kind', 'author_type', 'body'],
+    copy: ['entry_kind', 'author_type'],
     timestamps: ['returned_at', 'created_at'],
   },
   assignment_repo_review_runs: {
@@ -137,23 +134,23 @@ const PROJECTION_SPECS: Record<string, ProjectionSpec> = {
     copy: [
       'commit_count', 'active_days', 'session_count', 'burst_ratio',
       'weighted_contribution', 'relative_contribution_share', 'spread_score',
-      'iteration_score', 'semantic_breakdown_json', 'draft_score_completion',
-      'draft_score_thinking', 'draft_score_workflow', 'draft_feedback', 'confidence',
+      'iteration_score', 'draft_score_completion', 'draft_score_thinking',
+      'draft_score_workflow', 'confidence',
     ],
     timestamps: ['created_at'],
   },
   assignment_submission_requirements: {
     entity: 'assignment_submission_requirement',
     refs: [['assignment_id', 'assignment_ref', 'assignment', true]],
-    copy: ['type', 'label', 'instructions', 'required', 'position', 'validation_policy_json'],
+    copy: ['type', 'required', 'position'],
     timestamps: ['created_at', 'updated_at'],
   },
   tests: {
     entity: 'test',
     refs: [['created_by', 'author_ref', 'actor']],
     copy: [
-      'title', 'assessment_type', 'status', 'show_results', 'documents', 'position',
-      'points_possible', 'include_in_final', 'gradebook_weight',
+      'assessment_type', 'status', 'show_results', 'position', 'points_possible',
+      'include_in_final', 'gradebook_weight',
     ],
     timestamps: ['opens_at', 'created_at', 'updated_at'],
   },
@@ -164,7 +161,7 @@ const PROJECTION_SPECS: Record<string, ProjectionSpec> = {
       ['triggered_by', 'actor_ref', 'actor', true],
     ],
     copy: [
-      'status', 'model', 'prompt_guideline_override', 'requested_count',
+      'status', 'model', 'requested_count',
       'eligible_student_count', 'queued_response_count', 'processed_count',
       'completed_count', 'skipped_unanswered_count', 'skipped_already_graded_count',
       'failed_count',
@@ -181,15 +178,14 @@ const PROJECTION_SPECS: Record<string, ProjectionSpec> = {
       ['question_id', 'question_ref', 'test_question', true],
       ['response_id', 'response_ref', 'test_response', true],
     ],
-    copy: ['queue_position', 'status', 'attempt_count', 'last_error_code', 'last_error_message'],
+    copy: ['queue_position', 'status', 'attempt_count', 'last_error_code'],
     timestamps: ['next_retry_at', 'started_at', 'completed_at', 'created_at', 'updated_at'],
   },
   test_questions: {
     entity: 'test_question',
     refs: [['test_id', 'test_ref', 'test', true]],
     copy: [
-      'question_type', 'question_text', 'options', 'correct_option', 'answer_key',
-      'sample_solution', 'points', 'response_max_chars', 'response_monospace', 'position',
+      'question_type', 'points', 'response_max_chars', 'response_monospace', 'position',
     ],
     timestamps: ['created_at', 'updated_at'],
   },
@@ -202,8 +198,7 @@ const PROJECTION_SPECS: Record<string, ProjectionSpec> = {
       ['graded_by', 'grader_ref', 'actor'],
     ],
     copy: [
-      'selected_option', 'response_text', 'score', 'feedback', 'ai_grading_basis',
-      'ai_reference_answers', 'ai_model',
+      'score', 'ai_grading_basis', 'ai_model',
     ],
     timestamps: ['graded_at', 'submitted_at', 'created_at', 'updated_at'],
   },
@@ -259,6 +254,13 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+function knownIdentityPattern(value: string): RegExp {
+  return new RegExp(
+    `(?<![\\p{L}\\p{N}_])${escapeRegExp(value)}(?![\\p{L}\\p{N}_])`,
+    'giu',
+  )
+}
+
 function identityTerms(actors: Array<{
   email: string
   profile: { student_number: string | null; first_name: string; last_name: string } | null
@@ -278,9 +280,9 @@ function identityTerms(actors: Array<{
 
 function redactString(value: string, knownTerms: string[]): string {
   let output = redactDirectIdentifiers(value)
-    .replace(genericHandlePattern, '$1[handle redacted]')
+    .replace(genericHandlePattern, '[handle redacted]')
   for (const term of knownTerms) {
-    output = output.replace(new RegExp(`\\b${escapeRegExp(term)}\\b`, 'gi'), '[redacted-identity]')
+    output = output.replace(knownIdentityPattern(term), '[redacted-identity]')
   }
   return output
 }
@@ -387,23 +389,32 @@ function encodeRows(rows: JsonObject[], table: string): Buffer {
   return Buffer.from(`${ordered.map(canonicalJsonStringify).join('\n')}\n`, 'utf8')
 }
 
-function directIdentifierFindings(value: unknown, path = '$'): string[] {
+function directIdentifierFindings(
+  value: unknown,
+  path = '$',
+  knownTerms: string[] = [],
+): string[] {
   if (typeof value === 'string') {
     const findings: string[] = []
     if (redactDirectIdentifiers(value) !== value) findings.push(`${path}:direct-identifier`)
     if (genericHandlePattern.test(value)) findings.push(`${path}:handle`)
     genericHandlePattern.lastIndex = 0
+    if (knownTerms.some((term) => knownIdentityPattern(term).test(value))) {
+      findings.push(`${path}:known-identity`)
+    }
     return findings
   }
   if (Array.isArray(value)) {
-    return value.flatMap((item, index) => directIdentifierFindings(item, `${path}[${index}]`))
+    return value.flatMap((item, index) => (
+      directIdentifierFindings(item, `${path}[${index}]`, knownTerms)
+    ))
   }
   if (!isJsonObject(value)) return []
   return Object.entries(value).flatMap(([key, item]) => {
     const keyFindings = key === 'id' || key.endsWith('_id') || key.endsWith('_at') || forbiddenKeys.has(key)
       ? [`${path}.${key}:forbidden-key`]
       : []
-    return [...keyFindings, ...directIdentifierFindings(item, `${path}.${key}`)]
+    return [...keyFindings, ...directIdentifierFindings(item, `${path}.${key}`, knownTerms)]
   })
 }
 
@@ -483,7 +494,7 @@ export function buildGradexExtractFromClassroomArchive(input: {
       knownTerms,
       pseudonymize,
     }))
-    const findings = directIdentifierFindings(rows)
+    const findings = directIdentifierFindings(rows, '$', knownTerms)
     if (findings.length > 0) {
       throw new Error(`Gradex privacy scan failed for ${table}: ${findings[0]}`)
     }
@@ -511,10 +522,11 @@ export function buildGradexExtractFromClassroomArchive(input: {
     content_sha256: contentChecksum(resources),
     pseudonymization: 'hmac-sha256-per-extract',
     timestamp_offsets_from: 'source-archive-created-at',
-    privacy_policy_version: 1,
+    privacy_policy_version: 2,
     direct_identifiers_removed: true,
     direct_identifier_findings: 0,
-    privacy_scanner_version: 1,
+    privacy_scanner_version: 2,
+    free_text_included: false,
     storage_objects_included: false,
     delete_after: deleteAfter,
     resources,

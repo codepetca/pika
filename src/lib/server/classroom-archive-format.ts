@@ -58,6 +58,10 @@ type BuildClassroomArchiveBundleInput = {
   storageObjects: ClassroomArchiveStorageObject[]
 }
 
+function compareCanonicalStrings(left: string, right: string): number {
+  return Buffer.compare(Buffer.from(left, 'utf8'), Buffer.from(right, 'utf8'))
+}
+
 export type BuiltClassroomArchiveBundle = {
   archive: Uint8Array
   artifactSha256: string
@@ -84,7 +88,7 @@ export function canonicalizeJson(value: unknown): unknown {
 
   return Object.fromEntries(
     Object.entries(value as JsonObject)
-      .sort(([left], [right]) => left.localeCompare(right))
+      .sort(([left], [right]) => compareCanonicalStrings(left, right))
       .map(([key, item]) => [key, canonicalizeJson(item)]),
   )
 }
@@ -118,7 +122,8 @@ function canonicalPrimaryKey(row: unknown, columns: string[], table: string): st
 
 function encodeNdjson(rows: unknown[], primaryKey: string[], table: string): Buffer {
   const orderedRows = [...rows].sort((left, right) =>
-    canonicalPrimaryKey(left, primaryKey, table).localeCompare(
+    compareCanonicalStrings(
+      canonicalPrimaryKey(left, primaryKey, table),
       canonicalPrimaryKey(right, primaryKey, table),
     ),
   )
@@ -132,7 +137,7 @@ function encodeActors(actors: unknown[]): Buffer {
     const leftId = isJsonObject(left) && typeof left.id === 'string' ? left.id : ''
     const rightId = isJsonObject(right) && typeof right.id === 'string' ? right.id : ''
     if (!leftId || !rightId) throw new Error('Classroom archive actors require an id')
-    return leftId.localeCompare(rightId)
+    return compareCanonicalStrings(leftId, rightId)
   })
   if (orderedActors.length === 0) return Buffer.alloc(0)
   return Buffer.from(`${orderedActors.map(canonicalJsonStringify).join('\n')}\n`, 'utf8')
@@ -163,7 +168,7 @@ export function contentChecksum(
   files: Array<{ path: string; byte_size: number; sha256: string }>,
 ): string {
   const canonicalDescriptors = [...files]
-    .sort((left, right) => left.path.localeCompare(right.path))
+    .sort((left, right) => compareCanonicalStrings(left.path, right.path))
     .map((file) => ({
       path: file.path,
       byte_size: file.byte_size,
@@ -347,7 +352,10 @@ export function buildClassroomArchiveBundle(
   entries.push({ path: actors.path, bytes: actorBytes })
 
   const storageObjects = [...input.storageObjects]
-    .sort((left, right) => `${left.bucket}/${left.sourcePath}`.localeCompare(`${right.bucket}/${right.sourcePath}`))
+    .sort((left, right) => compareCanonicalStrings(
+      `${left.bucket}/${left.sourcePath}`,
+      `${right.bucket}/${right.sourcePath}`,
+    ))
     .map((object) => {
       const sourcePath = normalizeRelativePath(object.sourcePath)
       if (!sourcePath) throw new Error(`Invalid source storage path: ${object.sourcePath}`)
@@ -401,7 +409,7 @@ export function buildClassroomArchiveBundle(
   const manifestBytes = Buffer.from(`${canonicalJsonStringify(manifest)}\n`, 'utf8')
   const tar = encodeTar([
     { path: 'manifest.json', bytes: manifestBytes },
-    ...entries.sort((left, right) => left.path.localeCompare(right.path)),
+    ...entries.sort((left, right) => compareCanonicalStrings(left.path, right.path)),
   ])
   const archive = gzipSync(tar, { level: 9 })
   return {
@@ -520,7 +528,9 @@ export function decodeClassroomArchiveData(
     if (new Set(keys).size !== keys.length) {
       throw new Error(`Classroom archive resource has duplicate primary keys: ${resource.table}`)
     }
-    if (keys.some((key, index) => index > 0 && keys[index - 1].localeCompare(key) >= 0)) {
+    if (keys.some((key, index) => (
+      index > 0 && compareCanonicalStrings(keys[index - 1], key) >= 0
+    ))) {
       throw new Error(`Classroom archive resource is not in primary-key order: ${resource.table}`)
     }
     resources[resource.table] = parsedRows
@@ -536,7 +546,9 @@ export function decodeClassroomArchiveData(
   if (new Set(actorIds).size !== actorIds.length) {
     throw new Error('Classroom archive has duplicate actor snapshots')
   }
-  if (actorIds.some((id, index) => index > 0 && actorIds[index - 1].localeCompare(id) >= 0)) {
+  if (actorIds.some((id, index) => (
+    index > 0 && compareCanonicalStrings(actorIds[index - 1], id) >= 0
+  ))) {
     throw new Error('Classroom archive actor snapshots are not in actor-id order')
   }
 
@@ -641,7 +653,8 @@ export function discoverClassroomStorageReferences(
     collectManagedUrls(test.documents, origin, push, TEST_DOCUMENT_BUCKETS, true)
   }
 
-  return [...references.values()].sort((left, right) =>
-    `${left.bucket}/${left.path}`.localeCompare(`${right.bucket}/${right.path}`),
-  )
+  return [...references.values()].sort((left, right) => compareCanonicalStrings(
+    `${left.bucket}/${left.path}`,
+    `${right.bucket}/${right.path}`,
+  ))
 }

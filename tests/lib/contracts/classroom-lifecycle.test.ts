@@ -21,6 +21,8 @@ const archiveReadBackVerification = {
 
 const archiveVerification = {
   ...archiveReadBackVerification,
+  schema_adapter_verified: true,
+  actor_references_resolved: true,
   source_object_cleanup_staged: true,
 }
 

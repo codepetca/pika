@@ -14,6 +14,12 @@ const CLEANUP_PAGE_SIZE = 1000
 
 type IdRow = { id: string }
 
+function isArchiveStagingCleanupEnabled(): boolean {
+  return process.env.CLASSROOM_ARCHIVE_STAGING_CLEANUP_ENABLED
+    ?.trim()
+    .toLowerCase() === 'true'
+}
+
 function getCronAuthHeader(request: NextRequest): string | null {
   return request.headers.get('authorization') ?? request.headers.get('Authorization')
 }
@@ -98,6 +104,22 @@ async function handle(request: NextRequest) {
   )
 
   const supabase = getServiceRoleClient()
+  let archiveStagingCleaned: number | undefined
+  if (isArchiveStagingCleanupEnabled()) {
+    const response = await supabase.rpc('cleanup_expired_classroom_archive_snapshots')
+    if (
+      response.error
+      || !Number.isSafeInteger(response.data)
+      || response.data < 0
+    ) {
+      console.error('Error cleaning expired classroom archive staging:', response.error)
+      return NextResponse.json(
+        { error: 'Failed to clean classroom archive staging' },
+        { status: 500 },
+      )
+    }
+    archiveStagingCleaned = response.data
+  }
 
   const { ids: classroomIds, error: classroomsError } = await loadExpiredClassroomIds(
     supabase,
@@ -113,7 +135,13 @@ async function handle(request: NextRequest) {
   }
 
   if (classroomIds.length === 0) {
-    return NextResponse.json({ status: 'ok', deleted: 0 })
+    return NextResponse.json({
+      status: 'ok',
+      deleted: 0,
+      ...(archiveStagingCleaned === undefined
+        ? {}
+        : { archive_staging_cleaned: archiveStagingCleaned }),
+    })
   }
 
   let deleted = 0
@@ -212,7 +240,13 @@ async function handle(request: NextRequest) {
   }
   deleted += testHistoryDeleted
 
-  return NextResponse.json({ status: 'ok', deleted })
+  return NextResponse.json({
+    status: 'ok',
+    deleted,
+    ...(archiveStagingCleaned === undefined
+      ? {}
+      : { archive_staging_cleaned: archiveStagingCleaned }),
+  })
 }
 
 export const GET = withErrorHandler('GetCronCleanupHistory', async (request: NextRequest) => {

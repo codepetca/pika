@@ -245,8 +245,10 @@ Cold compaction starts only from `archived_hot`, where mutation is already block
 6. Recheck the source revision and every ownership count, then remove classroom-owned rows
    child-first in the same transaction that creates the tombstone.
 7. Transition the staged cleanup rows to retryable `pending` work only after relational commit.
-8. Delete now-redundant source objects as retryable cleanup; a cleanup failure does not invalidate
-   the verified archive.
+8. Keep every source object ineligible by default. A separate ownership verifier must prove that one
+   archive operation exclusively owns a path before the cleanup worker may claim it.
+9. Delete ownership-verified source objects as retryable cleanup; a cleanup failure does not
+   invalidate the verified archive.
 
 If any pre-deletion check fails, leave the classroom `archived_hot` and keep all hot data intact.
 If the deletion transaction fails at any point, the tombstone, row deletions, operation completion,
@@ -256,11 +258,14 @@ cleanup inventory; a retryable failure retains it under the same idempotency key
 `src/lib/server/classroom-archive-compaction.ts` is the disabled-by-default runtime boundary for
 steps 1 and 5-7. It binds idempotency to the classroom/archive transition, requires exact teacher and
 archive canaries, accepts only the canonical private archive path, performs a fresh complete
-read-back, and derives cleanup rows only from the verified manifest. Cleanup descriptors are staged
+read-back, proves the current restore adapter and actor reconciliation can rebuild the classroom,
+and derives cleanup rows only from the verified manifest. Cleanup descriptors are staged
 in bounded batches and finalization is attempted only after the aggregate count and bytes exactly
 match immutable archive metadata. A completed replay does not reread Storage. An unknown completion
 response is never reported as success because the database transaction may already have committed.
-The pending cleanup rows are deliberately left for a separate lease-based deletion worker.
+The pending cleanup rows are deliberately left for a separate lease-based deletion worker. Migration
+086 requires an exact operation canary and `ownership_verified = true`; no runtime in this phase sets
+that evidence, so source-object deletion remains fail-closed while relational compaction is usable.
 
 ## Gradex Extract
 
@@ -276,26 +281,25 @@ checksums. Its independent verifier repeats canonical serialization, checksum, p
 relationship, and direct-identifier checks.
 
 The extract excludes rosters, enrollment, journals, attendance, report cards, focus telemetry,
-attempt histories, raw artifacts, storage objects, URLs, and storage paths. All database ids and user
-references are HMAC-SHA-256 pseudonyms scoped to one extract. Free text must pass known-identity and
-pattern-based redaction. Timestamps become relative offsets. Release is blocked unless the direct
-identifier scanner reports zero findings.
+attempt histories, raw artifacts, storage objects, URLs, storage paths, and unconstrained free text.
+All database ids and user references are HMAC-SHA-256 pseudonyms scoped to one extract. Remaining
+bounded structured strings pass Unicode-aware known-identity and handle redaction. Timestamps become
+relative offsets. Release is blocked unless the structured-field scanner reports zero direct
+identifier findings. This is a structured privacy policy, not a claim that arbitrary text has been
+deidentified.
 
 Every Gradex manifest has a finite `delete_after` timestamp capped at 90 days in version 1.
 Regeneration writes a new immutable
 extract and schedules the superseded object for deletion. A Gradex extract cannot restore a
 classroom and must never be accepted by a restore endpoint.
 
-The transformer alone is not a runtime pipeline. It exposes no teacher/API trigger, private upload,
-deletion worker, or production canary. Those runtime controls must exist before any extract is
-generated from production data.
-
 Migration `084_gradex_extract_operations.sql` adds the durable database half of that pipeline:
 service-role-only idempotent begin/finalize/fail RPCs, immutable verified extract metadata, and a
-separate lease-based cleanup ledger with bounded retry. It still exposes no teacher/API trigger and
-does not upload or delete any object by itself. The runtime coordinator must read back and verify the
-private object before finalization; the cleanup worker must delete the object before recording its
-lease as complete.
+separate lease-based cleanup ledger with bounded retry. Cleanup intent is written before upload, so
+an interrupted or failed generation still leaves a durable path to remove an unfinalized object. The
+migration does not upload or delete any object by itself. The runtime coordinator must read back and
+verify the private object before finalization; the cleanup worker must delete the object before
+recording its lease as complete.
 
 `src/lib/server/classroom-gradex-operations.ts` implements the gated generation coordinator. The
 coordinator itself requires `CLASSROOM_GRADEX_EXTRACT_ENABLED=true`, an exact teacher UUID in
@@ -378,9 +382,10 @@ approves a named canary operation. Migrations are applied by humans.
 
 `pnpm verify:classroom-archive-recovery` exercises the complete runtime path against an already
 started local Supabase stack. It creates a unique synthetic archived classroom with a submission and
-one private source object, then calls the real export, compaction, source cleanup, and restore
-coordinators. It verifies representative relational equality, restored object bytes, cold tombstone
-removal, immutable archive retention, completed-work replay, and fixture teardown.
+one private source object, then calls the real export, compaction, ownership-gated source cleanup,
+and restore coordinators. It verifies representative relational equality, restored object bytes,
+source-object retention while ownership is unverified, cold tombstone removal, immutable archive
+retention, completed-work replay, and fixture teardown.
 
 The command has no hosted-project mode. Before constructing a client it requires an exact local
 destructive-operation acknowledgement, an HTTP loopback Supabase origin, and the Supabase local-demo

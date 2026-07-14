@@ -228,6 +228,8 @@ begin
     'resource_counts_verified', true,
     'storage_objects_verified', true,
     'actor_snapshots_verified', true,
+    'schema_adapter_verified', true,
+    'actor_references_resolved', true,
     'source_object_cleanup_staged', true
   );
   begin
@@ -362,6 +364,7 @@ begin
   select count(*) into v_claim_count
   from public.claim_due_classroom_archive_source_object_cleanup(
     '26000000-0000-4000-8000-000000000030',
+    v_success_compaction_id,
     1,
     300
   );
@@ -381,6 +384,8 @@ begin
     'resource_counts_verified', true,
     'storage_objects_verified', true,
     'actor_snapshots_verified', true,
+    'schema_adapter_verified', true,
+    'actor_references_resolved', true,
     'source_object_cleanup_staged', true
   );
   v_result := public.complete_classroom_archive_compaction(
@@ -427,6 +432,10 @@ $contract$;
 
 reset role;
 
+update public.classroom_archive_source_object_cleanup
+set ownership_verified = true
+where operation_id = '25000000-0000-4000-8000-000000000022'::uuid;
+
 set local role service_role;
 
 do $cleanup_claim$
@@ -437,6 +446,7 @@ begin
   begin
     perform public.claim_due_classroom_archive_source_object_cleanup(
       '26000000-0000-4000-8000-000000000031',
+      '25000000-0000-4000-8000-000000000022',
       0,
       300
     );
@@ -447,6 +457,7 @@ begin
   select * into v_claim
   from public.claim_due_classroom_archive_source_object_cleanup(
     '26000000-0000-4000-8000-000000000031',
+    '25000000-0000-4000-8000-000000000022',
     1,
     300
   );
@@ -466,6 +477,7 @@ begin
   select count(*) into v_claim_count
   from public.claim_due_classroom_archive_source_object_cleanup(
     '26000000-0000-4000-8000-000000000032',
+    '25000000-0000-4000-8000-000000000022',
     1,
     300
   );
@@ -491,6 +503,7 @@ begin
   select * into v_claim
   from public.claim_due_classroom_archive_source_object_cleanup(
     '26000000-0000-4000-8000-000000000032',
+    '25000000-0000-4000-8000-000000000022',
     1,
     300
   );
@@ -517,6 +530,7 @@ begin
   select count(*) into v_claim_count
   from public.claim_due_classroom_archive_source_object_cleanup(
     '26000000-0000-4000-8000-000000000033',
+    '25000000-0000-4000-8000-000000000022',
     1,
     300
   );
@@ -541,6 +555,7 @@ begin
   select * into v_claim
   from public.claim_due_classroom_archive_source_object_cleanup(
     '26000000-0000-4000-8000-000000000033',
+    '25000000-0000-4000-8000-000000000022',
     1,
     300
   );
@@ -618,7 +633,7 @@ begin
   end if;
   if has_function_privilege(
     'authenticated',
-    'public.claim_due_classroom_archive_source_object_cleanup(uuid,integer,integer)',
+    'public.claim_due_classroom_archive_source_object_cleanup(uuid,uuid,integer,integer)',
     'EXECUTE'
   ) or has_function_privilege(
     'authenticated',
@@ -630,7 +645,7 @@ begin
     'EXECUTE'
   ) or has_function_privilege(
     'anon',
-    'public.claim_due_classroom_archive_source_object_cleanup(uuid,integer,integer)',
+    'public.claim_due_classroom_archive_source_object_cleanup(uuid,uuid,integer,integer)',
     'EXECUTE'
   ) then
     raise exception 'Authenticated role can execute source-object cleanup RPCs';

@@ -51,9 +51,13 @@ create index idx_classroom_gradex_extracts_classroom_generated
   on public.classroom_gradex_extracts (classroom_id, generated_at desc);
 
 create table public.classroom_gradex_extract_cleanup (
-  extract_id uuid primary key references public.classroom_gradex_extracts (id),
-  status text not null default 'pending'
-    check (status in ('pending', 'processing', 'failed', 'deleted')),
+  operation_id uuid primary key references public.classroom_archive_operations (id),
+  extract_id uuid unique references public.classroom_gradex_extracts (id),
+  storage_bucket text not null check (storage_bucket = 'gradex-analytics-extracts'),
+  storage_path text not null unique,
+  delete_after timestamptz not null,
+  status text not null default 'staged'
+    check (status in ('staged', 'pending', 'processing', 'failed', 'deleted')),
   attempt_count integer not null default 0 check (attempt_count >= 0),
   next_attempt_at timestamptz not null,
   lease_token uuid,
@@ -96,10 +100,7 @@ declare
   v_storage_path text;
   v_replayed boolean := false;
 begin
-  if p_request_sha256 !~ '^[a-f0-9]{64}$'
-    or p_delete_after <= v_now
-    or p_delete_after > v_now + interval '90 days'
-  then
+  if p_request_sha256 !~ '^[a-f0-9]{64}$' or p_delete_after is null then
     raise exception 'Invalid Gradex extract request' using errcode = '22023';
   end if;
 
@@ -153,6 +154,16 @@ begin
         'delete_after', v_extract.delete_after
       );
     end if;
+    if p_delete_after <= v_now then
+      return jsonb_build_object(
+        'ok', false,
+        'status', 410,
+        'operation_id', p_operation_id,
+        'error_code', 'gradex_retention_expired',
+        'error', 'Gradex extract retention expired before generation completed',
+        'retryable', false
+      );
+    end if;
     if v_operation.status = 'failed' and v_operation.retryable is false then
       return jsonb_build_object(
         'ok', false,
@@ -173,6 +184,12 @@ begin
         'retryable', false
       );
     end if;
+  end if;
+
+  if p_delete_after <= v_now
+    or p_delete_after > v_now + interval '90 days'
+  then
+    raise exception 'Invalid Gradex extract request' using errcode = '22023';
   end if;
 
   select * into v_archive
@@ -244,6 +261,32 @@ begin
     where id = p_operation_id
     returning * into v_operation;
   end if;
+
+  insert into public.classroom_gradex_extract_cleanup (
+    operation_id,
+    storage_bucket,
+    storage_path,
+    delete_after,
+    status,
+    next_attempt_at
+  ) values (
+    p_operation_id,
+    'gradex-analytics-extracts',
+    v_storage_path,
+    p_delete_after,
+    'staged',
+    v_operation.snapshot_expires_at
+  )
+  on conflict (operation_id) do update
+  set
+    status = 'staged',
+    next_attempt_at = excluded.next_attempt_at,
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = null,
+    deleted_at = null,
+    updated_at = v_now
+  where classroom_gradex_extract_cleanup.extract_id is null;
 
   return jsonb_build_object(
     'ok', true,
@@ -373,7 +416,7 @@ begin
       - 'source_archive_manifest_verified'
       - 'resource_checksums_verified'
       - 'resource_counts_verified'
-      - 'deidentification_verified'
+      - 'structured_privacy_verified'
       - 'pseudonym_relationships_verified'
       - 'storage_objects_excluded'
       - 'read_back_verified'
@@ -391,7 +434,7 @@ begin
         ('source_archive_manifest_verified'),
         ('resource_checksums_verified'),
         ('resource_counts_verified'),
-        ('deidentification_verified'),
+        ('structured_privacy_verified'),
         ('pseudonym_relationships_verified'),
         ('storage_objects_excluded'),
         ('read_back_verified'),
@@ -412,7 +455,7 @@ begin
     or coalesce((p_verification->>'source_archive_manifest_verified')::boolean, false) is not true
     or coalesce((p_verification->>'resource_checksums_verified')::boolean, false) is not true
     or coalesce((p_verification->>'resource_counts_verified')::boolean, false) is not true
-    or coalesce((p_verification->>'deidentification_verified')::boolean, false) is not true
+    or coalesce((p_verification->>'structured_privacy_verified')::boolean, false) is not true
     or coalesce((p_verification->>'pseudonym_relationships_verified')::boolean, false) is not true
     or coalesce((p_verification->>'storage_objects_excluded')::boolean, false) is not true
     or coalesce((p_verification->>'read_back_verified')::boolean, false) is not true
@@ -446,8 +489,22 @@ begin
     (v_operation.retention->>'delete_after')::timestamptz
   ) returning * into v_extract;
 
-  insert into public.classroom_gradex_extract_cleanup (extract_id, next_attempt_at)
-  values (v_extract.id, v_extract.delete_after);
+  update public.classroom_gradex_extract_cleanup
+  set
+    extract_id = v_extract.id,
+    status = 'pending',
+    next_attempt_at = v_extract.delete_after,
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = null,
+    deleted_at = null,
+    updated_at = v_now
+  where operation_id = p_operation_id
+    and extract_id is null;
+  if not found then
+    raise exception 'Gradex cleanup intent is missing during finalization'
+      using errcode = '40001';
+  end if;
   update public.classroom_gradex_extract_cleanup cleanup
   set next_attempt_at = least(cleanup.next_attempt_at, v_now),
       superseded_by_extract_id = v_extract.id,
@@ -506,6 +563,19 @@ begin
   where id = p_operation_id and teacher_id = p_teacher_id
     and operation_type = 'gradex_extract' and status <> 'completed';
   v_updated := found;
+  if v_updated and not p_retryable then
+    update public.classroom_gradex_extract_cleanup
+    set
+      status = 'pending',
+      next_attempt_at = clock_timestamp(),
+      lease_token = null,
+      lease_expires_at = null,
+      last_error_code = null,
+      updated_at = clock_timestamp()
+    where operation_id = p_operation_id
+      and extract_id is null
+      and status <> 'deleted';
+  end if;
   return v_updated;
 end;
 $$;
@@ -537,14 +607,14 @@ begin
   end if;
   return query
   with candidates as (
-    select cleanup.extract_id
+    select cleanup.operation_id
     from public.classroom_gradex_extract_cleanup cleanup
     where cleanup.next_attempt_at <= clock_timestamp()
       and (
-        cleanup.status in ('pending', 'failed')
+        cleanup.status in ('staged', 'pending', 'failed')
         or (cleanup.status = 'processing' and cleanup.lease_expires_at <= clock_timestamp())
       )
-    order by cleanup.next_attempt_at, cleanup.extract_id
+    order by cleanup.next_attempt_at, cleanup.operation_id
     for update skip locked
     limit p_limit
   ), claimed as (
@@ -554,12 +624,12 @@ begin
         lease_expires_at = clock_timestamp() + make_interval(secs => p_lease_seconds),
         last_error_code = null, updated_at = clock_timestamp()
     from candidates
-    where cleanup.extract_id = candidates.extract_id
-    returning cleanup.extract_id, cleanup.attempt_count
+    where cleanup.operation_id = candidates.operation_id
+    returning cleanup.operation_id, cleanup.storage_bucket, cleanup.storage_path,
+      cleanup.attempt_count
   )
-  select claimed.extract_id, extract.storage_bucket, extract.storage_path, claimed.attempt_count
-  from claimed
-  join public.classroom_gradex_extracts extract on extract.id = claimed.extract_id;
+  select claimed.operation_id, claimed.storage_bucket, claimed.storage_path, claimed.attempt_count
+  from claimed;
 end;
 $$;
 
@@ -577,7 +647,9 @@ begin
   set status = 'deleted', lease_token = null, lease_expires_at = null,
       deleted_at = clock_timestamp(), last_error_code = null,
       updated_at = clock_timestamp()
-  where extract_id = p_extract_id and status = 'processing' and lease_token = p_lease_token;
+  where operation_id = p_extract_id
+    and status = 'processing'
+    and lease_token = p_lease_token;
   v_updated := found;
   return v_updated;
 end;
@@ -604,7 +676,9 @@ begin
         mins => least(1440, greatest(1, power(2, least(attempt_count, 10))::integer))
       ),
       updated_at = clock_timestamp()
-  where extract_id = p_extract_id and status = 'processing' and lease_token = p_lease_token;
+  where operation_id = p_extract_id
+    and status = 'processing'
+    and lease_token = p_lease_token;
   v_updated := found;
   return v_updated;
 end;
@@ -646,6 +720,6 @@ grant execute on function public.complete_classroom_gradex_extract_cleanup(uuid,
 grant execute on function public.fail_classroom_gradex_extract_cleanup(uuid, uuid, text) to service_role;
 
 comment on table public.classroom_gradex_extracts is
-  'Immutable metadata for read-back-verified, deidentified Gradex classroom extracts.';
+  'Immutable metadata for read-back-verified, structured privacy-safe Gradex classroom extracts.';
 comment on table public.classroom_gradex_extract_cleanup is
   'Mutable lease and retry ledger for deleting retained Gradex extract objects.';
