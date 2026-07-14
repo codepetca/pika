@@ -97,7 +97,7 @@ function resolveAdapterChain(
   return { ids: [adapter.id], adapt: adapter.adapt }
 }
 
-function restoreObjectPath(args: {
+export function classroomArchiveRestoreObjectPath(args: {
   classroomId: string
   operationId: string
   sha256: string
@@ -273,7 +273,7 @@ export function buildClassroomArchiveRestorePlan(args: {
     return {
       bucket: object.bucket,
       sourcePath: object.source_path,
-      restorePath: restoreObjectPath({
+      restorePath: classroomArchiveRestoreObjectPath({
         classroomId: manifest.classroom_id,
         operationId,
         sha256: object.sha256,

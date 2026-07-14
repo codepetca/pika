@@ -10,27 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-22 — Paged Supabase test helper
-
-**Completed:**
-- Continued the bounded architecture/UI improvement goal with a test mock simplification slice.
-- Extracted the duplicated paged Supabase table/query-log mock from teacher attendance and export CSV API tests into `tests/support/paged-supabase.ts`.
-- Updated both route suites to use `createPagedQueryLog` and `mockPagedTable` from the shared support helper.
-- Kept production code, route behavior, mock behavior, and assertions unchanged.
-
-**Test mock checklist:**
-- Production code changed: no
-- Test behavior changed: no intended behavior change; affected tests still cover pagination, chunking, and query scoping
-- Helper scope: paged `select().in().order().range()` mocks only
-- Broad migration attempted: no; only identical local duplicates were consolidated
-
-**Validation:**
-- `pnpm test tests/api/teacher/attendance.test.ts tests/api/teacher/export-csv.test.ts`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-
 ## 2026-06-23 — Gradebook action surface
 
 **Completed:**
@@ -720,3 +699,16 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - Pika pre-commit audit
 - `git diff --check`
+
+## 2026-07-14 — Archive stack consolidation CI fix
+
+**Completed:**
+- Fast-forward merged reviewed archive PRs 852–866 into the final stack base without changing commit history.
+- Fixed the consolidated recovery drill after CI exposed a stale duplicate of the restore object-path algorithm; the drill now calls the production canonical path helper.
+- Kept PR 851 unmerged from `main` until its refreshed required checks pass. No production state was accessed or modified.
+
+**Validation:**
+- Local full archive recovery drill passed twice, including row equality, object equality, and idempotent replays
+- Focused restore unit suite (1 file / 9 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`

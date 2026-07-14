@@ -6,6 +6,7 @@ import {
 } from '@/lib/server/classroom-archive-format'
 import {
   buildClassroomArchiveRestorePlan,
+  classroomArchiveRestoreObjectPath,
   CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION,
 } from '@/lib/server/classroom-archive-restore'
 
@@ -111,6 +112,27 @@ function verifiedFixture() {
   if (!verified.ok) throw new Error(verified.error)
   return verified
 }
+
+describe('classroom archive restore object paths', () => {
+  it('binds the classroom, operation, source identity, content type, and checksum', () => {
+    const args = {
+      classroomId: CLASSROOM_ID,
+      operationId: OPERATION_ID,
+      sha256: 'a'.repeat(64),
+      sourcePath: 'student/evidence.png',
+      contentType: 'image/png',
+    }
+    const path = classroomArchiveRestoreObjectPath(args)
+
+    expect(path).toMatch(
+      new RegExp(`^restores/${CLASSROOM_ID}/${OPERATION_ID}/[a-f0-9]{64}-${'a'.repeat(64)}$`),
+    )
+    expect(classroomArchiveRestoreObjectPath({ ...args, sourcePath: 'student/other.png' }))
+      .not.toBe(path)
+    expect(classroomArchiveRestoreObjectPath({ ...args, contentType: 'image/jpeg' }))
+      .not.toBe(path)
+  })
+})
 
 const currentActors = [
   { id: TEACHER_ID, email: 'teacher@example.test', role: 'teacher' as const },
