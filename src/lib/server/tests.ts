@@ -16,6 +16,16 @@ function getPostgrestErrorText(error: PostgrestErrorLike): string {
   return `${message} ${details} ${hint}`.toLowerCase()
 }
 
+export function isLockedTestQuestionMutationError(
+  error: PostgrestErrorLike | null | undefined,
+): boolean {
+  return !!error
+    && error.code === '55000'
+    && getPostgrestErrorText(error).includes(
+      'test questions cannot be changed after student work exists',
+    )
+}
+
 export type TestAccessRecord = {
   id: string
   classroom_id: string

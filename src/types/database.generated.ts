@@ -4438,6 +4438,14 @@ export type Database = {
         }
         Returns: Json
       }
+      save_test_attempt_atomic: {
+        Args: {
+          p_responses: Json
+          p_student_id: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
       stage_classroom_archive_compaction_objects: {
         Args: { p_objects: Json; p_operation_id: string; p_teacher_id: string }
         Returns: Json
@@ -4459,6 +4467,15 @@ export type Database = {
           p_rows: Json
           p_table_name: string
           p_teacher_id: string
+        }
+        Returns: Json
+      }
+      submit_test_attempt_atomic: {
+        Args: {
+          p_responses: Json
+          p_student_id: string
+          p_submitted_at?: string
+          p_test_id: string
         }
         Returns: Json
       }

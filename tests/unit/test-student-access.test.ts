@@ -7,8 +7,22 @@ import {
   getTestStudentAvailabilityState,
   isMissingTestAttemptClosureColumnsError,
   isMissingTestStudentAvailabilityError,
+  isLockedTestQuestionMutationError,
   validateSelectedTestStudentEnrollment,
 } from '@/lib/server/tests'
+
+describe('isLockedTestQuestionMutationError', () => {
+  it('recognizes only the question immutability contract', () => {
+    expect(isLockedTestQuestionMutationError({
+      code: '55000',
+      message: 'Test questions cannot be changed after student work exists',
+    })).toBe(true)
+    expect(isLockedTestQuestionMutationError({
+      code: '55000',
+      message: 'Different prerequisite state',
+    })).toBe(false)
+  })
+})
 
 const mockSupabaseClient = vi.hoisted(() => ({ from: vi.fn() }))
 
