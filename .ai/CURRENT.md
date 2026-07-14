@@ -7,7 +7,7 @@ Read this at the start of every AI session. Use `.ai/SESSION-LOG.md` only for re
 - Product status: core classroom, assignment, quiz/test, and auth flows are live.
 - Maintenance focus: coverage expansion, API-route standardization, UI decomposition, and AI-guidance cleanup.
 - Feature inventory: `.ai/features.json` is the status authority for big epics; check it directly for current pass/fail state.
-- Classroom archives: migrations 082-086 cover export through cleanup. Restore is gated and idempotent. Compaction is server-only; source cleanup is hard-disabled pending ownership fencing. Abandoned uploads use separate, disabled-by-default leases. Production canaries remain.
+- Classroom archives: production migrations 082-086 are applied; read-only inventory passed for three hot archives. Direct PostgreSQL catalog audit and named canaries remain. Restore and compaction are gated; source cleanup is hard-disabled pending ownership fencing.
 
 ## Environment And Workflow Facts
 

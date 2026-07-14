@@ -16,6 +16,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "verify:classroom-archive-recovery": "bash scripts/check-classroom-archive-recovery-drill.sh",
+    "verify:classroom-archive-inventory": "tsx scripts/inventory-classroom-archives.ts",
     "db:types:generate": "bash scripts/supabase-types.sh generate",
     "db:types:check": "bash scripts/supabase-types.sh check",
     "check:architecture": "tsx scripts/check-architecture.ts",

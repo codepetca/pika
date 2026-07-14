@@ -13,7 +13,7 @@ export function getSupabaseClient() {
   return createClient<Database>(supabaseUrl, supabasePublishableKey)
 }
 
-export function getServiceRoleClient() {
+export function getServiceRoleClient(options: { fetch?: typeof fetch } = {}) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   const secretKey = process.env.SUPABASE_SECRET_KEY
@@ -30,6 +30,7 @@ export function getServiceRoleClient() {
     auth: {
       autoRefreshToken: false,
       persistSession: false
-    }
+    },
+    ...(options.fetch ? { global: { fetch: options.fetch } } : {}),
   })
 }

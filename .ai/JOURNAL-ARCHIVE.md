@@ -13473,3 +13473,21 @@
 - Playwright screenshots: `/tmp/pika-announcements-action-desktop-light-default.png`, `/tmp/pika-announcements-action-desktop-light-menu.png`, `/tmp/pika-announcements-action-mobile-light-default.png`, `/tmp/pika-announcements-action-mobile-light-menu.png`, `/tmp/pika-announcements-action-desktop-dark-default.png`, `/tmp/pika-announcements-action-desktop-dark-menu.png`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-06-23 — Student assignments cached JSON
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with a client read-cache consistency slice.
+- Replaced `StudentAssignmentsTab`'s three manual cached GET fetchers with the shared `fetchCachedJSON` helper for assignments, materials, and surveys.
+- Preserved existing cache keys, 20s TTLs, request-id stale response guard, classroom-change clearing, and optional survey fallback behavior.
+- Kept the slice non-visual: no layout, copy, or interaction changes.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/unit/request-cache.test.ts`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`

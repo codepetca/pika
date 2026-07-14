@@ -58,6 +58,7 @@ jobs:
         run: pnpm exec tsx scripts/check-classroom-resource-schema.ts
         env:
           CLASSROOM_SCHEMA_AUDIT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          CLASSROOM_SCHEMA_AUDIT_LOCAL: "true"
 
       - name: Rehearse full classroom archive recovery on local Supabase
         run: pnpm verify:classroom-archive-recovery
