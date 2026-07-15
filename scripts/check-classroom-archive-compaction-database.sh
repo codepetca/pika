@@ -69,6 +69,43 @@ values
     '{"type":"doc","content":[]}'::jsonb
   );
 
+insert into public.assignment_submission_requirements (
+  id,
+  assignment_id,
+  type,
+  label
+) values (
+  '27000000-0000-4000-8000-000000000022',
+  '22000000-0000-4000-8000-000000000022',
+  'image',
+  'Compaction evidence'
+);
+
+insert into public.assignment_submission_artifacts (
+  id,
+  assignment_doc_id,
+  requirement_id,
+  student_id,
+  type,
+  storage_path,
+  validation_status
+) values (
+  '28000000-0000-4000-8000-000000000022',
+  '23000000-0000-4000-8000-000000000022',
+  '27000000-0000-4000-8000-000000000022',
+  '11000000-0000-4000-8000-000000000022',
+  'image',
+  'teacher/classroom/success.txt',
+  'valid'
+);
+
+insert into storage.objects (bucket_id, name, metadata)
+values (
+  'assignment-artifacts',
+  'teacher/classroom/success.txt',
+  '{"size":10}'::jsonb
+);
+
 create function public.reject_test_classroom_archive_compaction()
 returns trigger
 language plpgsql
@@ -442,7 +479,7 @@ begin
     }]'::jsonb
   );
   select count(*) into v_claim_count
-  from public.claim_due_classroom_archive_source_object_cleanup(
+  from public.claim_due_classroom_archive_source_object_cleanup_v2(
     '26000000-0000-4000-8000-000000000030',
     v_success_compaction_id,
     1,
@@ -515,10 +552,164 @@ $contract$;
 reset role;
 
 update public.classroom_archive_source_object_cleanup
-set ownership_verified = true
+set status = 'processing',
+    lease_token = '26000000-0000-4000-8000-000000000030'::uuid,
+    lease_expires_at = clock_timestamp() + interval '5 minutes',
+    last_error_code = null
 where operation_id = '25000000-0000-4000-8000-000000000022'::uuid;
 
 set local role service_role;
+
+do $stale_lease_transition$
+begin
+  if public.complete_classroom_archive_source_object_cleanup(
+    '25000000-0000-4000-8000-000000000022'::uuid,
+    'assignment-artifacts',
+    'teacher/classroom/success.txt',
+    '26000000-0000-4000-8000-000000000030'::uuid
+  ) then
+    raise exception 'Pre-fence source cleanup lease completed without a reservation';
+  end if;
+end;
+$stale_lease_transition$;
+
+reset role;
+
+update public.classroom_archive_source_object_cleanup
+set status = 'pending',
+    lease_token = null,
+    lease_expires_at = null,
+    last_error_code = null
+where operation_id = '25000000-0000-4000-8000-000000000022'::uuid;
+
+do $stale_worker_delete$
+begin
+  perform set_config('storage.allow_delete_query', 'true', true);
+  begin
+    delete from storage.objects
+    where bucket_id = 'assignment-artifacts'
+      and name = 'teacher/classroom/success.txt';
+    raise exception 'Pre-fence source cleanup worker deleted without a reservation';
+  exception when object_not_in_prerequisite_state then null;
+  end;
+  if not exists (
+    select 1
+    from storage.objects
+    where bucket_id = 'assignment-artifacts'
+      and name = 'teacher/classroom/success.txt'
+  ) then
+    raise exception 'Blocked pre-fence deletion removed the source object';
+  end if;
+end;
+$stale_worker_delete$;
+
+do $cleanup_ownership_evidence$
+begin
+  begin
+    update public.classroom_archive_source_object_cleanup
+    set ownership_verified = true
+    where operation_id = '25000000-0000-4000-8000-000000000022'::uuid;
+    raise exception 'Boolean-only source ownership evidence was accepted';
+  exception when check_violation then null;
+  end;
+end;
+$cleanup_ownership_evidence$;
+
+set local role service_role;
+
+do $source_object_presence$
+declare
+  v_present jsonb;
+  v_absent jsonb;
+begin
+  v_present := public.get_classroom_archive_source_object_presence(
+    'assignment-artifacts',
+    'teacher/classroom/success.txt'
+  );
+  if coalesce((v_present->>'bucket_exists')::boolean, false) is not true
+    or coalesce((v_present->>'object_exists')::boolean, false) is not true
+  then
+    raise exception 'Exact source-object presence lookup missed an existing object: %', v_present;
+  end if;
+
+  v_absent := public.get_classroom_archive_source_object_presence(
+    'assignment-artifacts',
+    'teacher/classroom/absent.txt'
+  );
+  if coalesce((v_absent->>'bucket_exists')::boolean, false) is not true
+    or coalesce((v_absent->>'object_exists')::boolean, true) is not false
+  then
+    raise exception 'Exact source-object presence lookup invented an absent object: %', v_absent;
+  end if;
+
+  begin
+    perform public.get_classroom_archive_source_object_presence(
+      'assignment-artifacts',
+      '../outside'
+    );
+    raise exception 'Malformed source-object presence path was accepted';
+  exception when invalid_parameter_value then null;
+  end;
+end;
+$source_object_presence$;
+
+do $cleanup_reservation$
+declare
+  v_result jsonb;
+begin
+  v_result := public.verify_and_reserve_classroom_archive_source_objects(
+    '25000000-0000-4000-8000-000000000022'::uuid,
+    1
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true
+    or (v_result->>'verified')::integer <> 1
+    or (v_result->>'preserved')::integer <> 0
+  then
+    raise exception 'Source-object ownership reservation failed: %', v_result;
+  end if;
+  v_result := public.verify_and_reserve_classroom_archive_source_objects(
+    '25000000-0000-4000-8000-000000000022'::uuid,
+    1
+  );
+  if coalesce((v_result->>'replayed')::boolean, false) is not true then
+    raise exception 'Source-object ownership reservation did not replay: %', v_result;
+  end if;
+
+  begin
+    insert into public.assignment_submission_artifacts (
+      assignment_doc_id,
+      requirement_id,
+      student_id,
+      type,
+      storage_path
+    ) values (
+      '23000000-0000-4000-8000-000000000099',
+      '27000000-0000-4000-8000-000000000099',
+      '11000000-0000-4000-8000-000000000022',
+      'image',
+      'teacher/classroom/success.txt'
+    );
+    raise exception 'Reserved source path was attached to hot relational data';
+  exception when object_not_in_prerequisite_state then null;
+  end;
+
+  begin
+    update storage.objects
+    set metadata = '{"size":11}'::jsonb
+    where bucket_id = 'assignment-artifacts'
+      and name = 'teacher/classroom/success.txt';
+    raise exception 'Reserved source object was overwritten';
+  exception when object_not_in_prerequisite_state then null;
+  end;
+
+  begin
+    insert into storage.objects (bucket_id, name)
+    values ('assignment-artifacts', 'teacher/classroom/success.txt');
+    raise exception 'Reserved source object path was reused';
+  exception when object_not_in_prerequisite_state then null;
+  end;
+end;
+$cleanup_reservation$;
 
 do $cleanup_claim$
 declare
@@ -526,7 +717,7 @@ declare
   v_claim_count integer;
 begin
   begin
-    perform public.claim_due_classroom_archive_source_object_cleanup(
+    perform public.claim_due_classroom_archive_source_object_cleanup_v2(
       '26000000-0000-4000-8000-000000000031',
       '25000000-0000-4000-8000-000000000022',
       0,
@@ -537,7 +728,7 @@ begin
   end;
 
   select * into v_claim
-  from public.claim_due_classroom_archive_source_object_cleanup(
+  from public.claim_due_classroom_archive_source_object_cleanup_v2(
     '26000000-0000-4000-8000-000000000031',
     '25000000-0000-4000-8000-000000000022',
     1,
@@ -557,7 +748,7 @@ begin
   end if;
 
   select count(*) into v_claim_count
-  from public.claim_due_classroom_archive_source_object_cleanup(
+  from public.claim_due_classroom_archive_source_object_cleanup_v2(
     '26000000-0000-4000-8000-000000000032',
     '25000000-0000-4000-8000-000000000022',
     1,
@@ -583,7 +774,7 @@ declare
   v_claim_count integer;
 begin
   select * into v_claim
-  from public.claim_due_classroom_archive_source_object_cleanup(
+  from public.claim_due_classroom_archive_source_object_cleanup_v2(
     '26000000-0000-4000-8000-000000000032',
     '25000000-0000-4000-8000-000000000022',
     1,
@@ -610,7 +801,7 @@ begin
     raise exception 'Current source-object cleanup lease could not record failure';
   end if;
   select count(*) into v_claim_count
-  from public.claim_due_classroom_archive_source_object_cleanup(
+  from public.claim_due_classroom_archive_source_object_cleanup_v2(
     '26000000-0000-4000-8000-000000000033',
     '25000000-0000-4000-8000-000000000022',
     1,
@@ -635,7 +826,7 @@ declare
   v_claim record;
 begin
   select * into v_claim
-  from public.claim_due_classroom_archive_source_object_cleanup(
+  from public.claim_due_classroom_archive_source_object_cleanup_v2(
     '26000000-0000-4000-8000-000000000033',
     '25000000-0000-4000-8000-000000000022',
     1,
@@ -691,6 +882,18 @@ begin
   ) then
     raise exception 'Source-object cleanup completion did not preserve audit evidence';
   end if;
+  if not exists (
+    select 1
+    from public.classroom_archive_source_object_reservations reservation
+    where reservation.operation_id = v_claim.operation_id
+      and reservation.storage_bucket = v_claim.storage_bucket
+      and reservation.storage_path_sha256 =
+        public.classroom_archive_source_object_path_sha256(
+          v_claim.storage_bucket, v_claim.storage_path
+        )
+  ) then
+    raise exception 'Source-object cleanup completion released its permanent reservation';
+  end if;
 end;
 $cleanup_complete$;
 
@@ -715,7 +918,15 @@ begin
   end if;
   if has_function_privilege(
     'authenticated',
-    'public.claim_due_classroom_archive_source_object_cleanup(uuid,uuid,integer,integer)',
+    'public.verify_and_reserve_classroom_archive_source_objects(uuid,integer)',
+    'EXECUTE'
+  ) or has_function_privilege(
+    'authenticated',
+    'public.get_classroom_archive_source_object_presence(text,text)',
+    'EXECUTE'
+  ) or has_function_privilege(
+    'authenticated',
+    'public.claim_due_classroom_archive_source_object_cleanup_v2(uuid,uuid,integer,integer)',
     'EXECUTE'
   ) or has_function_privilege(
     'authenticated',
@@ -727,10 +938,17 @@ begin
     'EXECUTE'
   ) or has_function_privilege(
     'anon',
-    'public.claim_due_classroom_archive_source_object_cleanup(uuid,uuid,integer,integer)',
+    'public.claim_due_classroom_archive_source_object_cleanup_v2(uuid,uuid,integer,integer)',
     'EXECUTE'
   ) then
     raise exception 'Authenticated role can execute source-object cleanup RPCs';
+  end if;
+  if has_function_privilege(
+    'service_role',
+    'public.claim_due_classroom_archive_source_object_cleanup(uuid,uuid,integer,integer)',
+    'EXECUTE'
+  ) then
+    raise exception 'Service role can bypass the source-object ownership fence';
   end if;
   if has_table_privilege(
     'authenticated',
@@ -739,10 +957,278 @@ begin
   ) then
     raise exception 'Authenticated role can read source-object cleanup rows';
   end if;
+  if has_table_privilege(
+    'authenticated',
+    'public.classroom_archive_source_object_reservations',
+    'SELECT'
+  ) then
+    raise exception 'Authenticated role can read source-object reservations';
+  end if;
+  if has_table_privilege(
+    'service_role',
+    'public.classroom_archive_source_object_cleanup',
+    'UPDATE'
+  ) or has_table_privilege(
+    'service_role',
+    'public.classroom_archive_source_object_reservations',
+    'INSERT'
+  ) or has_table_privilege(
+    'service_role',
+    'public.classroom_archive_source_object_reservations',
+    'DELETE'
+  ) then
+    raise exception 'Service role can mutate source ownership evidence directly';
+  end if;
 end;
 $security$;
 
 rollback;
 SQL
+
+RACE_OPERATION_ID="25000000-0000-4000-8000-000000000029"
+RACE_STAGING_OPERATION_ID="25000000-0000-4000-8000-000000000028"
+RACE_ARCHIVE_ID="24000000-0000-4000-8000-000000000029"
+RACE_CLASSROOM_ID="21000000-0000-4000-8000-000000000029"
+RACE_PATH="teacher/classroom/concurrent-race.txt"
+RACE_STORAGE_PATH="zz-unreserved-canary-path.txt"
+RACE_STAGING_PATH="zzzz-concurrent-staging-path.txt"
+RACE_OUTPUT="$(mktemp)"
+
+cleanup_race_fixture() {
+  docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+    -v operation_id="$RACE_OPERATION_ID" \
+    -v staging_operation_id="$RACE_STAGING_OPERATION_ID" \
+    -v archive_id="$RACE_ARCHIVE_ID" \
+    -v classroom_id="$RACE_CLASSROOM_ID" \
+    -v storage_path="$RACE_PATH" \
+    -v storage_race_path="$RACE_STORAGE_PATH" \
+    -v staging_race_path="$RACE_STAGING_PATH" >/dev/null <<'SQL'
+delete from public.classroom_cold_tombstones where classroom_id = :'classroom_id'::uuid;
+delete from public.classroom_archive_source_object_cleanup
+where operation_id in (:'operation_id'::uuid, :'staging_operation_id'::uuid);
+delete from public.classroom_archives where id = :'archive_id'::uuid;
+delete from public.classroom_archive_operations where id = :'operation_id'::uuid;
+delete from public.classroom_archive_operations where id = :'staging_operation_id'::uuid;
+delete from public.classroom_archive_source_object_reservations
+where storage_bucket = 'assignment-artifacts'
+  and storage_path_sha256 in (
+    public.classroom_archive_source_object_path_sha256(
+      'assignment-artifacts', :'storage_path'
+    ),
+    public.classroom_archive_source_object_path_sha256(
+      'assignment-artifacts', :'storage_race_path'
+    ),
+    public.classroom_archive_source_object_path_sha256(
+      'assignment-artifacts', :'staging_race_path'
+    )
+  );
+SQL
+  rm -f "$RACE_OUTPUT"
+}
+trap cleanup_race_fixture EXIT
+cleanup_race_fixture
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  -v operation_id="$RACE_OPERATION_ID" \
+  -v staging_operation_id="$RACE_STAGING_OPERATION_ID" \
+  -v archive_id="$RACE_ARCHIVE_ID" \
+  -v classroom_id="$RACE_CLASSROOM_ID" \
+  -v storage_path="$RACE_PATH" \
+  -v storage_race_path="$RACE_STORAGE_PATH" \
+  -v staging_race_path="$RACE_STAGING_PATH" <<'SQL' >/dev/null
+insert into public.classroom_archive_operations (
+  id, teacher_id, classroom_id, operation_type, request_sha256, status,
+  source_revision, source_schema_migration, source_app_commit, retention,
+  archive_id, storage_bucket, storage_path, artifact_sha256, content_sha256,
+  compressed_byte_size, uncompressed_byte_size, verification,
+  snapshot_created_at, snapshot_expires_at, completed_at,
+  source_object_cleanup_staged_at
+) values (
+  :'operation_id'::uuid,
+  '11000000-0000-4000-8000-000000000029'::uuid,
+  :'classroom_id'::uuid,
+  'compact', repeat('1', 64), 'completed', 1, '096_race_fixture', 'fixture',
+  '{}'::jsonb, :'archive_id'::uuid, 'classroom-archives',
+  'race/archive.tar.gz', repeat('2', 64), repeat('3', 64), 1, 1,
+  '{}'::jsonb, clock_timestamp() - interval '2 minutes',
+  clock_timestamp() + interval '1 hour', clock_timestamp() - interval '1 minute',
+  clock_timestamp() - interval '1 minute'
+);
+insert into public.classroom_archive_operations (
+  id, teacher_id, classroom_id, operation_type, request_sha256, status,
+  source_revision, source_schema_migration, source_app_commit, retention,
+  archive_id, storage_bucket, storage_path, artifact_sha256, content_sha256,
+  compressed_byte_size, uncompressed_byte_size, verification,
+  snapshot_created_at, snapshot_expires_at
+) values (
+  :'staging_operation_id'::uuid,
+  '11000000-0000-4000-8000-000000000029'::uuid,
+  :'classroom_id'::uuid,
+  'compact', repeat('6', 64), 'snapshot_ready', 1, '096_race_fixture', 'fixture',
+  '{}'::jsonb, :'archive_id'::uuid, 'classroom-archives',
+  'race/staging-archive.tar.gz', repeat('7', 64), repeat('8', 64), 1, 1,
+  '{}'::jsonb, clock_timestamp() - interval '1 minute',
+  clock_timestamp() + interval '1 hour'
+);
+insert into public.classroom_archives (
+  id, operation_id, classroom_id, teacher_id, format, format_version,
+  source_revision, source_schema_migration, source_app_commit, storage_bucket,
+  storage_path, artifact_sha256, content_sha256, compressed_byte_size,
+  uncompressed_byte_size, resource_counts, storage_object_counts, verification,
+  retention, created_at, verified_at
+) values (
+  :'archive_id'::uuid, :'operation_id'::uuid, :'classroom_id'::uuid,
+  '11000000-0000-4000-8000-000000000029'::uuid,
+  'pika.classroom-archive', 1, 1, '096_race_fixture', 'fixture',
+  'classroom-archives', 'race/archive.tar.gz', repeat('2', 64), repeat('3', 64),
+  1, 1, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, '{}'::jsonb,
+  clock_timestamp() - interval '2 minutes', clock_timestamp() - interval '1 minute'
+);
+insert into public.classroom_cold_tombstones (
+  classroom_id, teacher_id, archive_id, title, archived_at, compacted_at,
+  source_revision
+) values (
+  :'classroom_id'::uuid,
+  '11000000-0000-4000-8000-000000000029'::uuid,
+  :'archive_id'::uuid, 'Race fixture', clock_timestamp() - interval '3 minutes',
+  clock_timestamp() - interval '1 minute', 1
+);
+insert into public.classroom_archive_source_object_cleanup (
+  operation_id, archive_id, classroom_id, storage_bucket, storage_path,
+  expected_sha256, expected_byte_size, status
+) values
+(
+  :'operation_id'::uuid, :'archive_id'::uuid, :'classroom_id'::uuid,
+  'assignment-artifacts', :'storage_path', repeat('4', 64), 1, 'pending'
+), (
+  :'operation_id'::uuid, :'archive_id'::uuid, :'classroom_id'::uuid,
+  'assignment-artifacts', :'storage_race_path', repeat('5', 64), 1, 'pending'
+), (
+  :'operation_id'::uuid, :'archive_id'::uuid, :'classroom_id'::uuid,
+  'assignment-artifacts', :'staging_race_path', repeat('9', 64), 1, 'pending'
+);
+SQL
+
+docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  -c "begin; set local role service_role; select public.verify_and_reserve_classroom_archive_source_objects('$RACE_OPERATION_ID'::uuid, 1); select pg_sleep(3); commit;" \
+  >"$RACE_OUTPUT" 2>&1 &
+RACE_VERIFIER_PID=$!
+
+for _ in {1..40}; do
+  LOCK_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+    "select count(*) from pg_locks locks join pg_stat_activity activity using (pid) where locks.locktype = 'advisory' and locks.granted and activity.query like '%verify_and_reserve_classroom_archive_source_objects%pg_sleep(3)%';")"
+  [[ "$LOCK_COUNT" -gt 0 ]] && break
+  sleep 0.1
+done
+if [[ "${LOCK_COUNT:-0}" -eq 0 ]]; then
+  wait "$RACE_VERIFIER_PID" || true
+  cat "$RACE_OUTPUT" >&2
+  echo "Verifier did not acquire the expected advisory lock." >&2
+  exit 1
+fi
+
+RACE_WRITE_OUTPUT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  -c "set statement_timeout = '10s'; insert into public.assignment_submission_artifacts (assignment_doc_id, requirement_id, student_id, type, storage_path) values ('23000000-0000-4000-8000-000000000029', '27000000-0000-4000-8000-000000000029', '11000000-0000-4000-8000-000000000029', 'image', '$RACE_PATH');" 2>&1)" && RACE_WRITE_STATUS=0 || RACE_WRITE_STATUS=$?
+wait "$RACE_VERIFIER_PID"
+
+RACE_BOUND_COUNTS="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+  "select (select count(*) from public.classroom_archive_source_object_reservations where operation_id = '$RACE_OPERATION_ID'::uuid), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_OPERATION_ID'::uuid and ownership_verified), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_OPERATION_ID'::uuid and not ownership_verified);")"
+
+if [[ "$RACE_WRITE_STATUS" -eq 0 ]] \
+  || [[ "$RACE_WRITE_OUTPUT" != *"Assignment artifact storage path is reserved"* ]]; then
+  printf '%s\n' "$RACE_WRITE_OUTPUT" >&2
+  echo "Concurrent hot reference write was not serialized behind the reservation." >&2
+  exit 1
+fi
+if [[ "$RACE_BOUND_COUNTS" != "1|1|2" ]]; then
+  echo "One-claim verification fenced more than one source path: $RACE_BOUND_COUNTS" >&2
+  exit 1
+fi
+
+RACE_CLAIM_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+  "select count(*) from public.claim_due_classroom_archive_source_object_cleanup_v2('26000000-0000-4000-8000-000000000039'::uuid, '$RACE_OPERATION_ID'::uuid, 1, 300);")"
+if [[ "$RACE_CLAIM_COUNT" != "1" ]]; then
+  echo "Relational race fixture could not claim its first bounded reservation." >&2
+  exit 1
+fi
+
+docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  -c "begin; set local role service_role; select public.verify_and_reserve_classroom_archive_source_objects('$RACE_OPERATION_ID'::uuid, 1); select pg_sleep(3); commit;" \
+  >"$RACE_OUTPUT" 2>&1 &
+RACE_VERIFIER_PID=$!
+
+LOCK_COUNT=0
+for _ in {1..40}; do
+  LOCK_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+    "select count(*) from pg_locks locks join pg_stat_activity activity using (pid) where locks.locktype = 'advisory' and locks.granted and activity.query like '%verify_and_reserve_classroom_archive_source_objects%pg_sleep(3)%';")"
+  [[ "$LOCK_COUNT" -gt 0 ]] && break
+  sleep 0.1
+done
+if [[ "$LOCK_COUNT" -eq 0 ]]; then
+  wait "$RACE_VERIFIER_PID" || true
+  cat "$RACE_OUTPUT" >&2
+  echo "Storage verifier did not acquire the expected advisory lock." >&2
+  exit 1
+fi
+
+RACE_STORAGE_OUTPUT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  -c "set statement_timeout = '10s'; insert into storage.objects (bucket_id, name) values ('assignment-artifacts', '$RACE_STORAGE_PATH');" 2>&1)" && RACE_STORAGE_STATUS=0 || RACE_STORAGE_STATUS=$?
+wait "$RACE_VERIFIER_PID"
+
+RACE_FINAL_COUNTS="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+  "select (select count(*) from public.classroom_archive_source_object_reservations where operation_id = '$RACE_OPERATION_ID'::uuid), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_OPERATION_ID'::uuid and ownership_verified), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_OPERATION_ID'::uuid and not ownership_verified);")"
+if [[ "$RACE_STORAGE_STATUS" -eq 0 ]] \
+  || [[ "$RACE_STORAGE_OUTPUT" != *"Storage path is reserved by a classroom archive"* ]]; then
+  printf '%s\n' "$RACE_STORAGE_OUTPUT" >&2
+  echo "Concurrent Storage write was not serialized behind the reservation." >&2
+  exit 1
+fi
+if [[ "$RACE_FINAL_COUNTS" != "2|2|1" ]]; then
+  echo "Bounded Storage-race verification produced unexpected evidence: $RACE_FINAL_COUNTS" >&2
+  exit 1
+fi
+
+RACE_SECOND_CLAIM_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+  "select count(*) from public.claim_due_classroom_archive_source_object_cleanup_v2('26000000-0000-4000-8000-000000000038'::uuid, '$RACE_OPERATION_ID'::uuid, 1, 300);")"
+if [[ "$RACE_SECOND_CLAIM_COUNT" != "1" ]]; then
+  echo "Storage race fixture could not claim its bounded reservation." >&2
+  exit 1
+fi
+
+docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  -c "begin; set local role service_role; select public.verify_and_reserve_classroom_archive_source_objects('$RACE_OPERATION_ID'::uuid, 1); select pg_sleep(3); commit;" \
+  >"$RACE_OUTPUT" 2>&1 &
+RACE_VERIFIER_PID=$!
+
+LOCK_COUNT=0
+for _ in {1..40}; do
+  LOCK_COUNT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+    "select count(*) from pg_locks locks join pg_stat_activity activity using (pid) where locks.locktype = 'advisory' and locks.granted and activity.query like '%verify_and_reserve_classroom_archive_source_objects%pg_sleep(3)%';")"
+  [[ "$LOCK_COUNT" -gt 0 ]] && break
+  sleep 0.1
+done
+if [[ "$LOCK_COUNT" -eq 0 ]]; then
+  wait "$RACE_VERIFIER_PID" || true
+  cat "$RACE_OUTPUT" >&2
+  echo "Staging verifier did not acquire the expected advisory lock." >&2
+  exit 1
+fi
+
+RACE_STAGING_OUTPUT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  -c "set statement_timeout = '10s'; select public.stage_classroom_archive_compaction_objects('$RACE_STAGING_OPERATION_ID'::uuid, '11000000-0000-4000-8000-000000000029'::uuid, jsonb_build_array(jsonb_build_object('storage_bucket', 'assignment-artifacts', 'storage_path', '$RACE_STAGING_PATH', 'sha256', repeat('a', 64), 'byte_size', 1)));" 2>&1)" && RACE_STAGING_STATUS=0 || RACE_STAGING_STATUS=$?
+wait "$RACE_VERIFIER_PID"
+
+RACE_STAGING_COUNTS="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
+  "select (select count(*) from public.classroom_archive_source_object_reservations where operation_id = '$RACE_OPERATION_ID'::uuid), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_OPERATION_ID'::uuid and ownership_verified), (select count(*) from public.classroom_archive_source_object_cleanup where operation_id = '$RACE_STAGING_OPERATION_ID'::uuid);")"
+if [[ "$RACE_STAGING_STATUS" -eq 0 ]] \
+  || [[ "$RACE_STAGING_OUTPUT" != *"Classroom archive source cleanup path is already reserved"* ]]; then
+  printf '%s\n' "$RACE_STAGING_OUTPUT" >&2
+  echo "Concurrent cleanup staging was not serialized behind the reservation." >&2
+  exit 1
+fi
+if [[ "$RACE_STAGING_COUNTS" != "3|3|0" ]]; then
+  echo "Concurrent staging race produced unexpected evidence: $RACE_STAGING_COUNTS" >&2
+  exit 1
+fi
 
 echo "Classroom archive compaction database contract passed."

@@ -13651,3 +13651,16 @@
 - `grep -rni staging` (only seed-data classroom title and journal archive remain)
 - `pnpm lint`
 - `pnpm exec tsc --noEmit`
+
+## 2026-07-11 — Collaborator-local env startup guidance
+
+**Completed:**
+- Aligned the remaining startup/env guidance drift so collaborator-owned `.env.local` files are explicitly valid outside the maintainer symlink setup.
+- Updated `AGENTS.md`, `.ai/CURRENT.md`, `.codex/prompts/session-start.md`, `.claude/commands/session-start.md`, and `docs/core/project-context.md` to describe the maintainer symlink as the default on that machine, while allowing collaborators to copy `.env.example`.
+- Replaced the `ai-startup-docs` invariant that enforced a universal symlink requirement with a dual-path check that requires both the maintainer shared-env path and collaborator-local setup guidance.
+- No product code, runtime behavior, migrations, or dependencies changed.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
+- `git diff --check`

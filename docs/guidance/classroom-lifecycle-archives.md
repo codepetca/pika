@@ -32,20 +32,32 @@ archive UUID must be explicitly allowlisted and `CLASSROOM_ARCHIVE_COMPACTION_EN
 settings default off. There is no route, UI, schedule, or production caller, so deployment alone
 cannot compact a classroom.
 
-Migration `086_classroom_archive_source_object_cleanup.sql` and
+Migrations `086_classroom_archive_source_object_cleanup.sql` and
+`096_classroom_archive_source_ownership_fence.sql`, together with
 `src/lib/server/classroom-archive-source-cleanup.ts` define the separate deletion boundary. The
-runtime is hard-disabled until a transactional ownership verifier and path reservation fence exist;
-environment flags alone cannot enable source deletion. Once that prerequisite is implemented, the
-worker will lease at most 10 rows from completed
+fence initially supports only `assignment-artifacts`, whose exact relational reference is
+`assignment_submission_artifacts.storage_path`. It atomically reserves only the bounded candidate
+set the worker can claim, stores only a SHA-256 path fingerprint, rejects future relational
+references and Storage writes to that permanent identity, and uses a versioned claim RPC that cannot
+be bypassed through migration 086's original claim function. Embedded
+`submission-images` and `test-documents` references remain ineligible and are preserved until they
+have an equivalent authoritative registry. The worker leases at most 10 rows from completed
 compactions with matching cold tombstones, reads each exact source key, and verifies its complete
 bytes against the archived SHA-256 and byte count before removal. It completes a lease only after an
-exact-key read authoritatively reports absence. Mismatches, missing buckets, uncertain reads,
-unconfirmed deletion, and stale leases fail closed with durable retry evidence.
+exact-key read or service-only exact `storage.objects` lookup authoritatively reports absence.
+Mismatches, missing buckets, uncertain reads, unconfirmed deletion, and stale leases fail closed with
+durable retry evidence.
 
-`/api/cron/classroom-archive-source-cleanup` is reserved for a future manual deletion canary, but it
-currently always returns `503` even when its environment flags are set. The route is absent from
-`vercel.json` and has no UI caller. It must not be enabled until the transactional ownership verifier
-and path reservation fence are implemented and reviewed.
+During rollout, migration 096 invalidates every processing lease created under migration 086 and
+requires timestamped evidence plus a matching reservation in renew, complete, and fail transitions.
+Storage deletes for inventoried but unreserved paths are blocked, and cleanup staging takes the same
+exact-path lock as verification. The migration refuses to apply if an earlier unfenced worker
+recorded any deleted row, because that history requires explicit operator reconciliation rather than
+an inferred backfill.
+
+`/api/cron/classroom-archive-source-cleanup` is a manual, one-operation deletion canary. Both cleanup
+gates and an exact compaction operation UUID are required, all settings default off, and the route is
+absent from `vercel.json` with no UI caller. Applying migration 096 does not schedule or invoke it.
 
 The export endpoint accepts an optional UUID `Idempotency-Key` and an optional strict retention policy.
 It also requires `CLASSROOM_ARCHIVE_EXPORT_ENABLED=true` and the teacher UUID in the server-only
@@ -251,8 +263,8 @@ Cold compaction starts only from `archived_hot`, where mutation is already block
 6. Recheck the source revision and every ownership count, then remove classroom-owned rows
    child-first in the same transaction that creates the tombstone.
 7. Transition the staged cleanup rows to retryable `pending` work only after relational commit.
-8. Keep every source object ineligible by default. A separate ownership verifier must prove that one
-   archive operation exclusively owns a path before the cleanup worker may claim it.
+8. Keep every source object ineligible by default. Migration 096 can verify and permanently reserve
+   only exact `assignment-artifacts` paths; embedded-reference buckets remain preserved.
 9. Delete ownership-verified source objects as retryable cleanup; a cleanup failure does not
    invalidate the verified archive.
 
@@ -270,9 +282,12 @@ in bounded batches and finalization is attempted only after the aggregate count 
 match immutable archive metadata. A completed replay does not reread Storage. An unknown completion
 response is never reported as success because the database transaction may already have committed.
 The pending cleanup rows are deliberately left for a separate lease-based deletion worker. Migration
-086 requires an exact operation canary and `ownership_verified = true`; no runtime in this phase sets
-that evidence, and the worker gate is hard-disabled, so source-object deletion remains fail-closed
-while relational compaction is usable.
+096 requires timestamped ownership evidence plus a matching permanent reservation, revokes the old
+unfenced claim capability, and exposes a service-role-only v2 claim. The runtime verifier sets that
+evidence only for the bounded assignment-artifact candidates the invocation may claim. Reservations
+retain the bucket and a SHA-256 path fingerprint rather than the raw path; deleting the operation
+clears its identifier but intentionally preserves the reuse fence. Both runtime gates and an exact
+operation canary remain required, so relational compaction does not automatically delete objects.
 
 ## Gradex Extract
 
@@ -431,9 +446,10 @@ inventory alone does not claim that an export will succeed.
 `pnpm verify:classroom-archive-recovery` exercises the complete runtime path against an already
 started local Supabase stack. It creates a unique synthetic archived classroom with a submission and
 one private source object, then calls the real export, compaction, ownership-gated source cleanup,
-and restore coordinators. It verifies representative relational equality, restored object bytes,
-source-object retention while ownership is unverified, cold tombstone removal, immutable archive
-retention, completed-work replay, and fixture teardown.
+and restore coordinators. It verifies representative relational equality, fenced source-object
+deletion, restoration of the deleted bytes from the immutable archive, cold tombstone removal,
+immutable archive retention, completed-work replay, fixture-row teardown, and removal of the
+operation identifier from the retained one-way path fence.
 
 The command has no hosted-project mode. Before constructing a client it requires an exact local
 destructive-operation acknowledgement, an HTTP loopback Supabase origin, and the Supabase local-demo
