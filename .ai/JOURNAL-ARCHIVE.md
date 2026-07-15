@@ -13623,3 +13623,18 @@
 **Validation:**
 - `pnpm test tests/unit/ai-startup-docs.test.ts` (26/26 passed)
 - `gh api repos/codepetca/pika/rulesets/{10460660,12273665}` confirmed new rules active
+
+## 2026-07-09 — Archive trimmed session-log entries instead of deleting
+
+**Completed:**
+- Fixed `scripts/trim-session-log.mjs` so entries it removes from `.ai/SESSION-LOG.md` are appended to the bottom of `.ai/JOURNAL-ARCHIVE.md` (preserving entry markdown and chronological order) instead of being permanently deleted, matching the header claim that full history lives in the archive.
+- Added `--archive <path>` and `--no-archive` flags; archiving is on by default and skipped when nothing is trimmed. A missing archive file is created with a minimal append-only header.
+- Documented the archiving behavior in the generated session-log header rules and script usage text.
+- Updated `tests/unit/trim-session-log.test.ts`: existing temp-path tests now pass explicit `--archive`/`--no-archive` (so they cannot write to the real archive), plus new coverage for appending to an existing archive, default-path archive creation, and no-op trims leaving the archive untouched.
+- Note: entries trimmed between ~2026-05-05 and 2026-06-14 predate this fix; they are gone from the archive but recoverable from `.ai/SESSION-LOG.md` git history.
+
+**Validation:**
+- `pnpm test tests/unit/trim-session-log.test.ts` (8/8 passed)
+- `pnpm test tests/unit/ai-startup-docs.test.ts`
+- `node scripts/trim-session-log.mjs --check`
+- `pnpm lint`

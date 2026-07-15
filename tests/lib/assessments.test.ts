@@ -2,8 +2,6 @@ import { describe, it, expect } from 'vitest'
 import {
   getAssessmentType,
   getStudentAssessmentStatus,
-  getQuizAssessmentType,
-  getStudentQuizStatus,
   getStudentTestStatus,
 } from '@/lib/assessments'
 
@@ -84,29 +82,7 @@ describe('getStudentAssessmentStatus', () => {
   })
 })
 
-describe('getStudentQuizStatus (thin wrapper)', () => {
-  it('delegates to getStudentAssessmentStatus — not_started when not responded', () => {
-    expect(getStudentQuizStatus({ status: 'active', show_results: false }, false)).toBe('not_started')
-  })
-
-  it('returns responded when responded but quiz is still active', () => {
-    expect(getStudentQuizStatus({ status: 'active', show_results: true }, true)).toBe('responded')
-  })
-
-  it('returns can_view_results when closed and show_results is true', () => {
-    expect(getStudentQuizStatus({ status: 'closed', show_results: true }, true)).toBe('can_view_results')
-  })
-
-  it('returns responded when closed but show_results is false', () => {
-    expect(getStudentQuizStatus({ status: 'closed', show_results: false }, true)).toBe('responded')
-  })
-})
-
-describe('getQuizAssessmentType', () => {
-  it('is a legacy alias for getAssessmentType', () => {
-    expect(getQuizAssessmentType).toBe(getAssessmentType)
-  })
-
+describe('getAssessmentType', () => {
   it('returns "test" when assessment_type is "test"', () => {
     expect(getAssessmentType({ assessment_type: 'test' })).toBe('test')
   })

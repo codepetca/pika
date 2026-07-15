@@ -11,9 +11,6 @@ import type {
   Student,
   Teacher,
   TiptapContent,
-  Quiz,
-  QuizQuestion,
-  QuizResponse,
   TestAssessment,
   TestAssessmentQuestion,
   TestAssessmentResponse,
@@ -267,38 +264,6 @@ export const createMockAssessmentResponse = (
   submitted_at: '2024-10-15T14:30:00Z',
   ...overrides,
 })
-
-/**
- * Create a mock quiz with default or custom values.
- * Kept for tests that cover legacy quiz-shaped compatibility behavior.
- */
-export const createMockQuiz = (overrides: Partial<Quiz> = {}): Quiz =>
-  createMockAssessment({
-    id: 'quiz-1',
-    title: 'Test Quiz',
-    assessment_type: 'quiz',
-    ...overrides,
-  }) as Quiz
-
-/**
- * Create a mock quiz question with default or custom values.
- * Kept for tests that cover legacy quiz-shaped compatibility behavior.
- */
-export const createMockQuizQuestion = (overrides: Partial<QuizQuestion> = {}): QuizQuestion =>
-  createMockAssessmentQuestion({
-    quiz_id: 'quiz-1',
-    ...overrides,
-  }) as QuizQuestion
-
-/**
- * Create a mock quiz response with default or custom values.
- * Kept for tests that cover legacy quiz-shaped compatibility behavior.
- */
-export const createMockQuizResponse = (overrides: Partial<QuizResponse> = {}): QuizResponse =>
-  createMockAssessmentResponse({
-    quiz_id: 'quiz-1',
-    ...overrides,
-  }) as QuizResponse
 
 /**
  * Create a mock test with default or custom values.
