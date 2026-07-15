@@ -25,6 +25,7 @@ interface TestQuestionInfo {
 
 type TestAnswerDetail = {
   response_id: string | null
+  response_revision: number | null
   question_type: 'multiple_choice' | 'open_response'
   selected_option: number | null
   response_text: string | null
@@ -221,6 +222,20 @@ function SplitScoreInput({
 const AUTOSAVE_DELAY_MS = 1200
 const GRADE_BOX_HEIGHT_PX = 36
 
+function buildGradeDrafts(payload: TestResultsPayload): Record<string, GradeDraft> {
+  const drafts: Record<string, GradeDraft> = {}
+  for (const student of payload.students || []) {
+    for (const answer of Object.values(student.answers || {})) {
+      if (answer.is_draft || !answer.response_id) continue
+      drafts[answer.response_id] = {
+        score: answer.score != null ? String(answer.score) : '',
+        feedback: answer.feedback || '',
+      }
+    }
+  }
+  return drafts
+}
+
 export function TestStudentGradingPanel({
   testId,
   selectedStudentId,
@@ -239,11 +254,13 @@ export function TestStudentGradingPanel({
   const [gradingError, setGradingError] = useState('')
   const [hasSavedSuccessfully, setHasSavedSuccessfully] = useState(false)
   const feedbackTextareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({})
+  const conflictRetryCountRef = useRef(0)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
+      // Bypass fetchJSONWithCache so every grading refresh includes the latest response revisions.
       const res = await fetch(`${apiBasePath}/${testId}/results`, { cache: 'no-store' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load test results')
@@ -251,20 +268,12 @@ export function TestStudentGradingPanel({
       const payload = normalizeTestResultsPayload(data as TestResultsResponsePayload)
       setResults(payload)
 
-      const nextDrafts: Record<string, GradeDraft> = {}
-      for (const student of payload.students || []) {
-        for (const answer of Object.values(student.answers || {})) {
-          if (answer.is_draft || !answer.response_id) continue
-          nextDrafts[answer.response_id] = {
-            score: answer.score != null ? String(answer.score) : '',
-            feedback: answer.feedback || '',
-          }
-        }
-      }
+      const nextDrafts = buildGradeDrafts(payload)
       setGradeDrafts(nextDrafts)
       setPersistedDrafts(nextDrafts)
       setHasSavedSuccessfully(false)
       setGradingError('')
+      conflictRetryCountRef.current = 0
     } catch (loadError: any) {
       setError(loadError.message || 'Failed to load test results')
     } finally {
@@ -284,6 +293,7 @@ export function TestStudentGradingPanel({
   const selectedGradableResponses = useMemo(() => {
     if (!selectedStudent || !results) return [] as Array<{
       responseId: string
+      responseRevision: number
       questionId: string
       maxPoints: number
       questionNumber: number
@@ -292,10 +302,17 @@ export function TestStudentGradingPanel({
 
     return results.questions.flatMap((question, index) => {
       const answer = selectedStudent.answers[question.id]
-      if (!answer || answer.is_draft || !answer.response_id) return []
+      if (
+        !answer ||
+        answer.is_draft ||
+        !answer.response_id ||
+        !Number.isSafeInteger(answer.response_revision) ||
+        Number(answer.response_revision) < 1
+      ) return []
 
       return [{
         responseId: answer.response_id,
+        responseRevision: Number(answer.response_revision),
         questionId: question.id,
         maxPoints: Number(question.points || 0),
         questionNumber: index + 1,
@@ -330,6 +347,7 @@ export function TestStudentGradingPanel({
   }, [dirtyResponses, gradeDrafts])
 
   function updateDraft(responseId: string, updates: Partial<GradeDraft>) {
+    conflictRetryCountRef.current = 0
     setGradingError('')
     setGradeDrafts((prev) => ({
       ...prev,
@@ -363,11 +381,19 @@ export function TestStudentGradingPanel({
     setSavingAll(true)
     try {
       const canonicalDraftsByResponseId = new Map<string, GradeDraft>()
-      const updatedAnswersByQuestionId = new Map<string, Pick<TestAnswerDetail, 'score' | 'feedback' | 'graded_at'>>()
+      const submittedDraftsByResponseId = new Map<string, GradeDraft>()
+      const updatedAnswersByQuestionId = new Map<
+        string,
+        Pick<TestAnswerDetail, 'score' | 'feedback' | 'graded_at' | 'response_revision'>
+      >()
       const gradesPayload: Array<Record<string, unknown>> = []
 
       for (const item of dirtyResponses) {
         const draft = gradeDrafts[item.responseId]
+        submittedDraftsByResponseId.set(item.responseId, {
+          score: draft?.score ?? '',
+          feedback: draft?.feedback ?? '',
+        })
         const score = parseScore(draft?.score)
         const normalizedFeedback = normalizeFeedback(draft?.feedback)
         if (score.kind === 'invalid') {
@@ -375,10 +401,26 @@ export function TestStudentGradingPanel({
         }
         const payload =
           score.kind === 'empty'
-            ? { question_id: item.questionId, clear_grade: true }
+            ? {
+                question_id: item.questionId,
+                response_id: item.responseId,
+                expected_response_revision: item.responseRevision,
+                clear_grade: true,
+              }
             : item.questionType === 'open_response'
-              ? { question_id: item.questionId, score: score.value, feedback: normalizedFeedback }
-              : { question_id: item.questionId, score: score.value }
+              ? {
+                  question_id: item.questionId,
+                  response_id: item.responseId,
+                  expected_response_revision: item.responseRevision,
+                  score: score.value,
+                  feedback: normalizedFeedback,
+                }
+              : {
+                  question_id: item.questionId,
+                  response_id: item.responseId,
+                  expected_response_revision: item.responseRevision,
+                  score: score.value,
+                }
 
         gradesPayload.push(payload)
 
@@ -402,6 +444,7 @@ export function TestStudentGradingPanel({
           score: savedScore,
           feedback: item.questionType === 'open_response' ? savedFeedback || null : null,
           graded_at: savedGradedAt,
+          response_revision: item.responseRevision,
         })
       }
 
@@ -411,13 +454,69 @@ export function TestStudentGradingPanel({
         body: JSON.stringify({ grades: gradesPayload }),
       })
       const data = await res.json()
+      if (!res.ok && res.status === 409) {
+        const shouldRetryAutomatically = conflictRetryCountRef.current === 0
+        conflictRetryCountRef.current += 1
+        // Bypass fetchJSONWithCache so conflict recovery receives the latest response revisions.
+        const refreshResponse = await fetch(`${apiBasePath}/${testId}/results`, { cache: 'no-store' })
+        const refreshData = await refreshResponse.json()
+        if (!refreshResponse.ok) {
+          throw new Error(refreshData.error || 'Failed to reload grades after a conflict')
+        }
+        const refreshedResults = normalizeTestResultsPayload(
+          refreshData as TestResultsResponsePayload,
+        )
+        const refreshedDrafts = buildGradeDrafts(refreshedResults)
+        setResults(refreshedResults)
+        setPersistedDrafts(refreshedDrafts)
+        setGradeDrafts((currentDrafts) => {
+          const next = { ...refreshedDrafts }
+          for (const [responseId, currentDraft] of Object.entries(currentDrafts)) {
+            if (
+              submittedDraftsByResponseId.has(responseId)
+              || !areDraftsEqual(currentDraft, persistedDrafts[responseId])
+            ) {
+              next[responseId] = currentDraft
+            }
+          }
+          return next
+        })
+        setHasSavedSuccessfully(false)
+        setGradingError(
+          shouldRetryAutomatically
+            ? ''
+            : 'Grades changed again. Your edits are preserved; review them and try saving again.',
+        )
+        return
+      }
       if (!res.ok) throw new Error(data.error || 'Failed to save grades')
+
+      const savedRevisionByResponseId = new Map<string, number>()
+      if (Array.isArray(data.responses)) {
+        for (const response of data.responses) {
+          const responseId = typeof response?.id === 'string' ? response.id : ''
+          const revision = response?.revision
+          if (responseId && Number.isSafeInteger(revision) && revision >= 1) {
+            savedRevisionByResponseId.set(responseId, revision)
+          }
+        }
+      }
+      for (const item of dirtyResponses) {
+        const savedRevision = savedRevisionByResponseId.get(item.responseId)
+        if (savedRevision === undefined) {
+          throw new Error('Failed to refresh saved response revisions')
+        }
+        const answerUpdate = updatedAnswersByQuestionId.get(item.questionId)
+        if (answerUpdate) answerUpdate.response_revision = savedRevision
+      }
 
       if (canonicalDraftsByResponseId.size > 0) {
         setGradeDrafts((prev) => {
           const next = { ...prev }
           for (const [responseId, draft] of canonicalDraftsByResponseId) {
-            next[responseId] = draft
+            if (areDraftsEqual(next[responseId], submittedDraftsByResponseId.get(responseId))) {
+              next[responseId] = draft
+            }
           }
           return next
         })
@@ -481,6 +580,7 @@ export function TestStudentGradingPanel({
           )
         )
       }
+      conflictRetryCountRef.current = 0
       setHasSavedSuccessfully(true)
     } catch (saveError: any) {
       setGradingError(saveError.message || 'Failed to save grades')
@@ -492,6 +592,7 @@ export function TestStudentGradingPanel({
     dirtyResponses,
     dirtyValidationError,
     gradeDrafts,
+    persistedDrafts,
     results,
     selectedStudent,
     testId,

@@ -40,9 +40,10 @@ const DETAIL: CourseBlueprintDetail = {
       course_blueprint_id: 'blueprint-1',
       title: 'Kickoff reflection',
       instructions_markdown: 'Write a short reflection.',
-      default_due_days: 5,
+      default_due_days: -2,
       default_due_time: '23:59',
-      points_possible: 10,
+      points_possible: 10.5,
+      gradebook_weight: 15,
       include_in_final: true,
       is_draft: true,
       position: 0,
@@ -68,6 +69,9 @@ const DETAIL: CourseBlueprintDetail = {
         ],
       },
       documents: [],
+      points_possible: null,
+      gradebook_weight: 10,
+      include_in_final: true,
       position: 0,
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z',
@@ -97,6 +101,9 @@ const DETAIL: CourseBlueprintDetail = {
         source_format: 'markdown',
       },
       documents: [],
+      points_possible: 50.5,
+      gradebook_weight: 30,
+      include_in_final: false,
       position: 1,
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z',
@@ -127,8 +134,18 @@ describe('course blueprint package', () => {
     expect(parsed.blueprint.planned_site_published).toBe(true)
     expect(parsed.blueprint.planned_site_config.quizzes).toBe(false)
     expect(parsed.assignments).toHaveLength(1)
+    expect(parsed.assignments[0]).toEqual(expect.objectContaining({
+      default_due_days: -2,
+      points_possible: 10.5,
+      gradebook_weight: 15,
+    }))
     expect(parsed.assessments).toHaveLength(1)
     expect(parsed.assessments[0].assessment_type).toBe('test')
+    expect(parsed.assessments[0]).toEqual(expect.objectContaining({
+      points_possible: 50.5,
+      gradebook_weight: 30,
+      include_in_final: false,
+    }))
     expect(parsed.lesson_templates).toHaveLength(1)
   })
 
@@ -140,14 +157,50 @@ describe('course blueprint package', () => {
 
     expect(decoded).not.toBeNull()
     expect(decoded?.manifest.title).toBe('Computer Science 11')
-    expect(decoded?.manifest.version).toBe('2')
+    expect(decoded?.manifest.version).toBe('3')
     expect(parsed.errors).toEqual([])
     expect(parsed.blueprint.title).toBe('Computer Science 11')
     expect(parsed.blueprint.planned_site_slug).toBe('computer-science-11')
     expect(parsed.assignments).toHaveLength(1)
+    expect(parsed.assignments[0]).toEqual(expect.objectContaining({
+      default_due_days: -2,
+      points_possible: 10.5,
+    }))
     expect(parsed.assessments).toHaveLength(1)
     expect(parsed.assessments[0].assessment_type).toBe('test')
+    expect(parsed.assessments[0].points_possible).toBe(50.5)
     expect(parsed.lesson_templates).toHaveLength(1)
+  })
+
+  it('keeps the version 3 quizzes site flag serialized but permanently disabled', () => {
+    const bundle = buildCourseBlueprintExportBundle({
+      ...DETAIL,
+      planned_site_config: {
+        ...DETAIL.planned_site_config,
+        quizzes: true,
+      },
+    })
+
+    expect(bundle.manifest.version).toBe('3')
+    expect(bundle.manifest.planned_site_config?.quizzes).toBe(false)
+
+    const archive = encodeCourseBlueprintPackageArchive(bundle)
+    const decoded = decodeCourseBlueprintPackageArchive(archive)
+    expect(decoded?.manifest.planned_site_config?.quizzes).toBe(false)
+
+    const legacyArchive = encodeCourseBlueprintPackageArchive({
+      ...bundle,
+      manifest: {
+        ...bundle.manifest,
+        planned_site_config: {
+          ...bundle.manifest.planned_site_config,
+          quizzes: true,
+        },
+      },
+    })
+    const parsed = parseCourseBlueprintImportArchive(legacyArchive)
+
+    expect(parsed.blueprint.planned_site_config.quizzes).toBe(false)
   })
 
   it('analyzes missing blueprint areas', () => {

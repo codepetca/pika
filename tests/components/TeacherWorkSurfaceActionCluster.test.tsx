@@ -51,4 +51,49 @@ describe('TeacherWorkSurfaceActionCluster', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Organize classwork' }))
     expect(toggleControls).toHaveBeenCalledTimes(1)
   })
+
+  it('supports radio-style checked menu items for mutually exclusive options', () => {
+    render(
+      <TeacherWorkSurfaceMenuButton
+        label="Display"
+        menuAriaLabel="Display options"
+        items={[
+          {
+            id: 'percent',
+            label: 'Show %',
+            checked: true,
+            checkedRole: 'menuitemradio',
+            onSelect: vi.fn(),
+          },
+          {
+            id: 'raw',
+            label: 'Show Raw',
+            checked: false,
+            checkedRole: 'menuitemradio',
+            onSelect: vi.fn(),
+          },
+          {
+            id: 'columns',
+            label: 'Column controls',
+            checked: false,
+            onSelect: vi.fn(),
+          },
+        ]}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Display' }))
+
+    expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('menuitemradio', { name: 'Show Raw' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Column controls' })).toHaveAttribute('aria-checked', 'false')
+
+    expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveFocus()
+    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    expect(screen.getByRole('menuitemradio', { name: 'Show Raw' })).toHaveFocus()
+    fireEvent.keyDown(window, { key: 'End' })
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Column controls' })).toHaveFocus()
+    fireEvent.keyDown(window, { key: 'Home' })
+    expect(screen.getByRole('menuitemradio', { name: 'Show %' })).toHaveFocus()
+  })
 })

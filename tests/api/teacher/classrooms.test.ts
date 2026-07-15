@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, POST } from '@/app/api/teacher/classrooms/route'
 import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
+import { listTeacherArchivedClassrooms } from '@/lib/server/classroom-archive-recovery-list'
 import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({
@@ -23,6 +24,9 @@ vi.mock('@/lib/server/classroom-order', () => ({
   listActiveTeacherClassrooms: vi.fn(),
   getNextTeacherClassroomPosition: vi.fn(),
 }))
+vi.mock('@/lib/server/classroom-archive-recovery-list', () => ({
+  listTeacherArchivedClassrooms: vi.fn(),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -32,6 +36,12 @@ describe('GET /api/teacher/classrooms', () => {
     ;(listActiveTeacherClassrooms as any).mockResolvedValue({
       data: [{ id: 'classroom-1', title: 'Math 101' }],
       error: null,
+    })
+    vi.mocked(listTeacherArchivedClassrooms).mockResolvedValue({
+      ok: true,
+      hot_classrooms: [],
+      cold_archives: [],
+      cold_archive_restore_enabled: false,
     })
   })
 
@@ -47,25 +57,18 @@ describe('GET /api/teacher/classrooms', () => {
   })
 
   it('should return archived classrooms when requested', async () => {
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          is: vi.fn(() => ({
-            order: vi.fn().mockResolvedValue({
-              data: [{ id: 'classroom-active', title: 'Math 101' }],
-              error: null,
-            }),
-          })),
-          not: vi.fn(() => ({
-            order: vi.fn().mockResolvedValue({
-              data: [{ id: 'classroom-archived', title: 'History 101' }],
-              error: null,
-            }),
-          })),
-        })),
-      })),
-    }))
-    ;(mockSupabaseClient.from as any) = mockFrom
+    vi.mocked(listTeacherArchivedClassrooms).mockResolvedValueOnce({
+      ok: true,
+      hot_classrooms: [{ id: 'classroom-archived', title: 'History 101' }],
+      cold_archives: [{
+        classroom_id: '00000000-0000-4000-8000-000000000001',
+        archive_id: '00000000-0000-4000-8000-000000000002',
+        title: 'Stored history classroom',
+        archived_at: '2026-07-01T12:00:00.000Z',
+        compacted_at: '2026-07-10T12:00:00.000Z',
+      }],
+      cold_archive_restore_enabled: true,
+    })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/classrooms?archived=true')
     const response = await GET(request)
@@ -73,6 +76,44 @@ describe('GET /api/teacher/classrooms', () => {
 
     expect(response.status).toBe(200)
     expect(data.classrooms).toHaveLength(1)
+    expect(data.cold_archives).toHaveLength(1)
+    expect(data.cold_archive_restore_enabled).toBe(true)
+    expect(listTeacherArchivedClassrooms).toHaveBeenCalledWith({
+      supabase: mockSupabaseClient,
+      teacherId: 'teacher-1',
+    })
+  })
+
+  it('fails closed when cold archive recovery state cannot be loaded', async () => {
+    vi.mocked(listTeacherArchivedClassrooms).mockResolvedValueOnce({
+      ok: false,
+      error_code: 'cold_archive_list_failed',
+    })
+
+    const response = await GET(new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms?archived=true',
+    ))
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual(expect.objectContaining({
+      error: 'Failed to fetch classroom archives',
+    }))
+  })
+
+  it('returns a retryable response when archived lifecycle state does not stabilize', async () => {
+    vi.mocked(listTeacherArchivedClassrooms).mockResolvedValueOnce({
+      ok: false,
+      error_code: 'classroom_archive_state_unstable',
+    })
+
+    const response = await GET(new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms?archived=true',
+    ))
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual(expect.objectContaining({
+      error: 'Failed to fetch classroom archives',
+    }))
   })
 })
 

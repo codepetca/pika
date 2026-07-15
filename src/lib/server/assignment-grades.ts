@@ -1,235 +1,308 @@
 import { ApiError, apiErrors } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
-
-export type AssignmentGradeSaveMode = 'draft' | 'graded'
-export type AssignmentGradeApplyTarget = 'grade' | 'comments' | 'grade-and-comments'
-
-export interface ParsedAssignmentGradePayload {
-  score_completion: number | null
-  score_thinking: number | null
-  score_workflow: number | null
-  feedback: string
-  save_mode: AssignmentGradeSaveMode
-  shouldMarkGraded: boolean
-  apply_target: AssignmentGradeApplyTarget
-}
-
-interface AssignmentGradeBody {
-  score_completion: unknown
-  score_thinking: unknown
-  score_workflow: unknown
-  feedback: unknown
-  save_mode?: unknown
-  apply_target?: unknown
-}
+import type { ParsedAssignmentGradePayload } from '@/lib/validations/assignment-grading'
+import { assignmentGradeSaveResultSchema } from '@/lib/validations/assignment-grading'
+import type { Json } from '@/types/database.generated'
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 
-function parseDraftScore(value: unknown): number | null | typeof Number.NaN {
-  if (value === '' || value === null || value === undefined) return null
-  const parsed = Number(value)
-  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 10) return Number.NaN
-  return parsed
-}
-
-export function normalizeAssignmentGradeStudentIds(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-
-  return Array.from(
-    new Set(value.filter((studentId): studentId is string => typeof studentId === 'string')),
-  )
-}
-
-function parseAssignmentGradeApplyTarget(value: unknown): AssignmentGradeApplyTarget {
-  if (value === undefined) return 'grade-and-comments'
-  if (value === 'grade' || value === 'comments' || value === 'grade-and-comments') return value
-  throw apiErrors.badRequest('apply_target must be "grade", "comments", or "grade-and-comments"')
-}
-
-export function parseAssignmentGradePayload(body: AssignmentGradeBody): ParsedAssignmentGradePayload {
-  const {
-    score_completion,
-    score_thinking,
-    score_workflow,
-    feedback,
-    save_mode,
-    apply_target,
-  } = body
-  const selectedApplyTarget = parseAssignmentGradeApplyTarget(apply_target)
-  const shouldApplyGrade = selectedApplyTarget === 'grade' || selectedApplyTarget === 'grade-and-comments'
-  const shouldApplyComments = selectedApplyTarget === 'comments' || selectedApplyTarget === 'grade-and-comments'
-
-  let parsedFeedback = ''
-  if (shouldApplyComments) {
-    if (typeof feedback !== 'string') {
-      throw apiErrors.badRequest('feedback must be a string')
+function toJson(value: unknown): Json {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') {
+    return value
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new ApiError(500, 'Assignment grading payload contains a non-finite number')
     }
-    parsedFeedback = feedback
+    return value
   }
-
-  if (save_mode !== undefined && save_mode !== 'draft' && save_mode !== 'graded') {
-    throw apiErrors.badRequest('save_mode must be "draft" or "graded"')
+  if (Array.isArray(value)) {
+    return value.map(toJson)
   }
-
-  const selectedSaveMode: AssignmentGradeSaveMode = save_mode === 'draft' ? 'draft' : 'graded'
-  const shouldMarkGraded = selectedSaveMode === 'graded'
-  const parseScore = (value: unknown) => shouldMarkGraded ? Number(value) : parseDraftScore(value)
-  const parsedScores = {
-    score_completion: shouldApplyGrade ? parseScore(score_completion) : null,
-    score_thinking: shouldApplyGrade ? parseScore(score_thinking) : null,
-    score_workflow: shouldApplyGrade ? parseScore(score_workflow) : null,
+  if (typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nested]) => [key, toJson(nested)]),
+    )
   }
-
-  if (shouldApplyGrade) {
-    for (const [name, value] of Object.entries(parsedScores)) {
-      if (shouldMarkGraded) {
-        if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 10) {
-          throw apiErrors.badRequest(`${name} must be an integer 0–10`)
-        }
-        continue
-      }
-
-      if (Number.isNaN(value)) {
-        throw apiErrors.badRequest(`${name} must be blank or an integer 0–10`)
-      }
-    }
-  }
-
-  return {
-    ...parsedScores,
-    feedback: parsedFeedback,
-    save_mode: selectedSaveMode,
-    shouldMarkGraded,
-    apply_target: selectedApplyTarget,
-  }
+  throw new ApiError(500, 'Assignment grading payload is not JSON serializable')
 }
 
-export async function loadTeacherOwnedAssignmentForGrade(opts: {
+export interface AssignmentAiGradeInput {
+  studentId: string
+  expectedDocUpdatedAt: string | null
+  scoreCompletion: number
+  scoreThinking: number
+  scoreWorkflow: number
+  feedback: string
+  applyTeacherFeedbackDraft?: boolean
+  markGraded?: boolean
+  aiFeedbackSuggestion: string | null
+  aiFeedbackModel: string | null
+  gradedBy?: string | null
+}
+
+function throwAssignmentGradeRpcError(error: { code?: string; message: string }, fallback: string): never {
+  if (error.code === '42501') {
+    throw new ApiError(403, error.message)
+  }
+  if (error.code === '40001') {
+    throw apiErrors.conflict('Assignment grade changed; reload and retry')
+  }
+  if (error.code === '22023') {
+    throw apiErrors.badRequest(error.message)
+  }
+  throw new ApiError(500, fallback)
+}
+
+export async function saveAssignmentGradesAtomic(opts: {
   supabase: SupabaseClient
   assignmentId: string
   teacherId: string
-}) {
-  const { supabase, assignmentId, teacherId } = opts
-  const { data: assignment, error: assignmentError } = await supabase
-    .from('assignments')
-    .select(`
-      *,
-      classrooms!inner (
-        teacher_id,
-        archived_at
-      )
-    `)
-    .eq('id', assignmentId)
-    .single()
-
-  if (assignmentError || !assignment) {
-    throw apiErrors.notFound('Assignment not found')
-  }
-
-  if (assignment.classrooms.teacher_id !== teacherId) {
-    throw new ApiError(403, 'Unauthorized')
-  }
-
-  if (assignment.classrooms.archived_at) {
-    throw new ApiError(403, 'Classroom is archived')
-  }
-
-  return assignment
-}
-
-export async function assertStudentsEnrolledForAssignmentGrade(opts: {
-  supabase: SupabaseClient
-  classroomId: string
   studentIds: string[]
+  expectedDocUpdatedAtByStudent: Record<string, string | null>
+  grade: ParsedAssignmentGradePayload
 }) {
-  const { supabase, classroomId, studentIds } = opts
+  const {
+    supabase,
+    assignmentId,
+    teacherId,
+    studentIds,
+    expectedDocUpdatedAtByStudent,
+    grade,
+  } = opts
+  const applyGrade = grade.apply_target === 'grade' || grade.apply_target === 'grade-and-comments'
+  const applyComments = grade.apply_target === 'comments' || grade.apply_target === 'grade-and-comments'
+  const resolvedExpectedDocUpdatedAtByStudent = { ...expectedDocUpdatedAtByStudent }
+  const missingRevisionStudentIds = studentIds.filter(
+    (studentId) => !Object.prototype.hasOwnProperty.call(resolvedExpectedDocUpdatedAtByStudent, studentId),
+  )
 
-  if (studentIds.length === 1) {
-    const { data: enrollment, error } = await supabase
-      .from('classroom_enrollments')
-      .select('id')
-      .eq('classroom_id', classroomId)
-      .eq('student_id', studentIds[0])
-      .maybeSingle()
-
-    if (error) {
-      throw new Error('Failed to validate student enrollment')
-    }
-    if (!enrollment) {
-      throw apiErrors.badRequest('Student is not enrolled in this classroom')
-    }
-    return
+  if (missingRevisionStudentIds.length > 0) {
+    throw apiErrors.conflict('Assignment grade revision is required; reload and retry')
   }
 
-  const { data: enrollments, error } = await supabase
-    .from('classroom_enrollments')
-    .select('student_id')
-    .eq('classroom_id', classroomId)
-    .in('student_id', studentIds)
+  const { data, error } = await supabase.rpc('save_assignment_grades_atomic', {
+    p_assignment_id: assignmentId,
+    p_student_ids: studentIds,
+    p_teacher_id: teacherId,
+    p_expected_doc_updated_at_by_student: resolvedExpectedDocUpdatedAtByStudent,
+    p_apply_grade: applyGrade,
+    p_score_completion: grade.score_completion,
+    p_score_thinking: grade.score_thinking,
+    p_score_workflow: grade.score_workflow,
+    p_mark_graded: grade.shouldMarkGraded,
+    p_apply_comments: applyComments,
+    p_feedback: grade.feedback,
+    p_now: new Date().toISOString(),
+  })
 
   if (error) {
-    throw new Error('Failed to validate student enrollment')
+    if (error.code === '42501') {
+      throw new ApiError(403, error.message)
+    }
+    if (error.code === '40001') {
+      throw apiErrors.conflict('Assignment grade changed; reload and retry')
+    }
+    if (error.code === '22023') {
+      throw apiErrors.badRequest(error.message)
+    }
+    throw new ApiError(500, 'Failed to save assignment grade')
   }
 
-  if (((enrollments as Array<{ student_id: string }> | null) ?? []).length !== studentIds.length) {
-    throw apiErrors.badRequest('Student is not enrolled in this classroom')
+  const parsed = assignmentGradeSaveResultSchema.safeParse(data)
+  if (!parsed.success || parsed.data.docs.length !== studentIds.length) {
+    throw new ApiError(500, 'Invalid assignment grade save result')
   }
+
+  return parsed.data.docs
 }
 
-export function buildAssignmentGradeRows(opts: {
-  assignmentId: string
-  studentIds: string[]
-  grade: ParsedAssignmentGradePayload
-  now: string
-}) {
-  const { assignmentId, studentIds, grade, now } = opts
-
-  const shouldApplyGrade = grade.apply_target === 'grade' || grade.apply_target === 'grade-and-comments'
-  const shouldApplyComments = grade.apply_target === 'comments' || grade.apply_target === 'grade-and-comments'
-
-  return studentIds.map((studentId) => {
-    const row: Record<string, string | number | null> = {
-      assignment_id: assignmentId,
-      student_id: studentId,
-    }
-
-    if (shouldApplyGrade) {
-      row.score_completion = grade.score_completion
-      row.score_thinking = grade.score_thinking
-      row.score_workflow = grade.score_workflow
-      row.graded_at = grade.shouldMarkGraded ? now : null
-      row.graded_by = grade.shouldMarkGraded ? 'teacher' : null
-    }
-
-    if (shouldApplyComments) {
-      row.teacher_feedback_draft = grade.feedback
-      row.teacher_feedback_draft_updated_at = now
-      row.ai_feedback_suggestion = null
-      row.ai_feedback_suggested_at = null
-      row.ai_feedback_model = null
-    }
-
-    return row
-  })
-}
-
-export async function upsertAssignmentGradeRows(opts: {
+export async function saveAssignmentAiGradeAtomic(opts: {
   supabase: SupabaseClient
   assignmentId: string
-  studentIds: string[]
-  grade: ParsedAssignmentGradePayload
+  studentId: string
+  teacherId: string
+  expectedDocUpdatedAt: string | null
+  scoreCompletion: number
+  scoreThinking: number
+  scoreWorkflow: number
+  feedback: string
+  applyTeacherFeedbackDraft?: boolean
+  markGraded?: boolean
+  aiFeedbackSuggestion: string | null
+  aiFeedbackModel: string | null
+  gradedBy?: string | null
+  now?: string
 }) {
-  const { supabase, assignmentId, studentIds, grade } = opts
-  const now = new Date().toISOString()
-  const rows = buildAssignmentGradeRows({
-    assignmentId,
-    studentIds,
-    grade,
-    now,
+  const { data, error } = await opts.supabase.rpc('save_assignment_ai_grade_atomic', {
+    p_assignment_id: opts.assignmentId,
+    p_student_id: opts.studentId,
+    p_teacher_id: opts.teacherId,
+    p_expected_doc_updated_at: opts.expectedDocUpdatedAt,
+    p_score_completion: opts.scoreCompletion,
+    p_score_thinking: opts.scoreThinking,
+    p_score_workflow: opts.scoreWorkflow,
+    p_feedback: opts.feedback,
+    p_apply_teacher_feedback_draft: opts.applyTeacherFeedbackDraft ?? true,
+    p_mark_graded: opts.markGraded ?? true,
+    p_ai_feedback_suggestion: opts.aiFeedbackSuggestion,
+    p_ai_feedback_model: opts.aiFeedbackModel,
+    p_graded_by: opts.gradedBy ?? null,
+    p_now: opts.now ?? new Date().toISOString(),
   })
 
-  return supabase
-    .from('assignment_docs')
-    .upsert(rows, { onConflict: 'assignment_id,student_id' })
-    .select()
+  if (error) {
+    if (error.code === '42501') {
+      throw new ApiError(403, error.message)
+    }
+    if (error.code === '40001') {
+      throw apiErrors.conflict('Assignment grade changed; reload and retry')
+    }
+    if (error.code === '22023') {
+      throw apiErrors.badRequest(error.message)
+    }
+    throw new ApiError(500, 'Failed to save AI assignment grade')
+  }
+
+  const parsed = assignmentGradeSaveResultSchema.safeParse(data)
+  if (!parsed.success || parsed.data.docs.length !== 1) {
+    throw new ApiError(500, 'Invalid AI assignment grade save result')
+  }
+
+  return parsed.data.docs[0]
+}
+
+export async function finalizeAssignmentAiGradingItemAtomic(opts: {
+  supabase: SupabaseClient
+  itemId: string
+  teacherId: string
+  grade: Omit<AssignmentAiGradeInput, 'studentId' | 'expectedDocUpdatedAt'>
+  attemptCount: number
+  itemStatus: 'completed' | 'skipped'
+  skipReason?: 'missing_doc' | 'empty_doc' | null
+  now?: string
+}) {
+  const { data, error } = await opts.supabase.rpc('finalize_assignment_ai_grading_item_atomic', {
+    p_item_id: opts.itemId,
+    p_teacher_id: opts.teacherId,
+    p_score_completion: opts.grade.scoreCompletion,
+    p_score_thinking: opts.grade.scoreThinking,
+    p_score_workflow: opts.grade.scoreWorkflow,
+    p_feedback: opts.grade.feedback,
+    p_apply_teacher_feedback_draft: opts.grade.applyTeacherFeedbackDraft ?? true,
+    p_mark_graded: opts.grade.markGraded ?? true,
+    p_ai_feedback_suggestion: opts.grade.aiFeedbackSuggestion,
+    p_ai_feedback_model: opts.grade.aiFeedbackModel,
+    p_graded_by: opts.grade.gradedBy ?? null,
+    p_attempt_count: opts.attemptCount,
+    p_item_status: opts.itemStatus,
+    p_skip_reason: opts.skipReason ?? null,
+    p_now: opts.now ?? new Date().toISOString(),
+  })
+
+  if (error) {
+    throwAssignmentGradeRpcError(error, 'Failed to finalize AI assignment grade')
+  }
+
+  const parsed = assignmentGradeSaveResultSchema.safeParse(data)
+  if (!parsed.success || parsed.data.docs.length !== 1) {
+    throw new ApiError(500, 'Invalid AI assignment grade finalization result')
+  }
+
+  return parsed.data.docs[0]
+}
+
+export async function saveAssignmentAiGradesAtomic(opts: {
+  supabase: SupabaseClient
+  assignmentId: string
+  teacherId: string
+  grades: AssignmentAiGradeInput[]
+  now?: string
+}) {
+  const now = opts.now ?? new Date().toISOString()
+  const { data, error } = await opts.supabase.rpc('save_assignment_ai_grades_atomic', {
+    p_assignment_id: opts.assignmentId,
+    p_teacher_id: opts.teacherId,
+    p_grade_rows: opts.grades.map((grade) => ({
+      student_id: grade.studentId,
+      expected_doc_updated_at: grade.expectedDocUpdatedAt,
+      score_completion: grade.scoreCompletion,
+      score_thinking: grade.scoreThinking,
+      score_workflow: grade.scoreWorkflow,
+      feedback: grade.feedback,
+      apply_teacher_feedback_draft: grade.applyTeacherFeedbackDraft ?? true,
+      mark_graded: grade.markGraded ?? true,
+      ai_feedback_suggestion: grade.aiFeedbackSuggestion,
+      ai_feedback_model: grade.aiFeedbackModel,
+      graded_by: grade.gradedBy ?? null,
+    })),
+    p_now: now,
+  })
+
+  if (error) {
+    if (error.code === '42501') {
+      throw new ApiError(403, error.message)
+    }
+    if (error.code === '40001') {
+      throw apiErrors.conflict('Assignment grade changed; reload and retry')
+    }
+    if (error.code === '22023') {
+      throw apiErrors.badRequest(error.message)
+    }
+    throw new ApiError(500, 'Failed to save AI assignment grades')
+  }
+
+  const parsed = assignmentGradeSaveResultSchema.safeParse(data)
+  if (!parsed.success || parsed.data.docs.length !== opts.grades.length) {
+    throw new ApiError(500, 'Invalid AI assignment grade batch result')
+  }
+
+  return parsed.data.docs
+}
+
+export async function completeAssignmentRepoReviewRunAtomic(opts: {
+  supabase: SupabaseClient
+  runId: string
+  teacherId: string
+  results: unknown[]
+  grades: AssignmentAiGradeInput[]
+  sourceRef: string
+  model: string
+  warnings: unknown
+  now?: string
+}) {
+  const now = opts.now ?? new Date().toISOString()
+  const { data, error } = await opts.supabase.rpc('complete_assignment_repo_review_run_atomic', {
+    p_run_id: opts.runId,
+    p_teacher_id: opts.teacherId,
+    p_result_rows: toJson(opts.results),
+    p_grade_rows: opts.grades.map((grade) => ({
+      student_id: grade.studentId,
+      expected_doc_updated_at: grade.expectedDocUpdatedAt,
+      score_completion: grade.scoreCompletion,
+      score_thinking: grade.scoreThinking,
+      score_workflow: grade.scoreWorkflow,
+      feedback: grade.feedback,
+      apply_teacher_feedback_draft: grade.applyTeacherFeedbackDraft ?? true,
+      mark_graded: grade.markGraded ?? true,
+      ai_feedback_suggestion: grade.aiFeedbackSuggestion,
+      ai_feedback_model: grade.aiFeedbackModel,
+      graded_by: grade.gradedBy ?? null,
+    })),
+    p_source_ref: opts.sourceRef,
+    p_model: opts.model,
+    p_warnings: toJson(opts.warnings),
+    p_now: now,
+  })
+
+  if (error) {
+    throwAssignmentGradeRpcError(error, 'Failed to complete assignment repo review')
+  }
+
+  const parsed = assignmentGradeSaveResultSchema.safeParse(data)
+  if (!parsed.success || parsed.data.docs.length !== opts.grades.length) {
+    throw new ApiError(500, 'Invalid assignment repo review completion result')
+  }
+
+  return parsed.data.docs
 }

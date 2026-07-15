@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { PATCH } from '@/app/api/teacher/tests/[id]/draft/route'
+import { GET, PATCH } from '@/app/api/teacher/tests/[id]/draft/route'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import {
   buildNextDraftContent,
-  getAssessmentDraftByType,
+  ensureAssessmentDraft,
   updateAssessmentDraft,
 } from '@/lib/server/assessment-drafts'
 
@@ -40,11 +40,8 @@ vi.mock('@/lib/server/assessment-drafts', () => ({
     show_results: false,
     questions: [],
   })),
-  createAssessmentDraft: vi.fn(),
-  getAssessmentDraftByType: vi.fn(),
-  isMissingAssessmentDraftsError: vi.fn(() => false),
+  ensureAssessmentDraft: vi.fn(),
   updateAssessmentDraft: vi.fn(),
-  validateTestDraftContent: vi.fn((content: any) => ({ valid: true, value: content })),
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
@@ -53,7 +50,8 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    vi.mocked(getAssessmentDraftByType).mockResolvedValue({
+    vi.mocked(ensureAssessmentDraft).mockResolvedValue({
+      ok: true,
       draft: {
         id: 'draft-1',
         assessment_type: 'test',
@@ -72,7 +70,6 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
         created_at: '2026-03-01T00:00:00.000Z',
         updated_at: '2026-03-01T00:00:00.000Z',
       },
-      error: null,
     } as any)
 
     vi.mocked(buildNextDraftContent).mockReturnValue({
@@ -107,6 +104,34 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
       },
       error: null,
     } as any)
+  })
+
+  it('loads the draft through the shared assessment draft helper', async () => {
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/draft'),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.draft.id).toBe('draft-1')
+    expect(ensureAssessmentDraft).toHaveBeenCalledWith(
+      mockSupabaseClient,
+      expect.objectContaining({
+        assessmentType: 'test',
+        assessment: expect.objectContaining({
+          id: 'test-1',
+          classroom_id: 'classroom-1',
+        }),
+        userId: 'teacher-1',
+        questionsTable: 'test_questions',
+        questionsForeignKey: 'test_id',
+        validateOptions: { allowEmptyQuestionText: true },
+      })
+    )
+    expect(assertTeacherOwnsTest).toHaveBeenCalledWith('teacher-1', 'test-1', {
+      checkArchived: true,
+    })
   })
 
   it('persists validated documents when provided', async () => {
@@ -168,6 +193,41 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
       })
     )
     expect(data.draft.content.title).toBe('Updated Test')
+    expect(ensureAssessmentDraft).toHaveBeenCalledWith(
+      mockSupabaseClient,
+      expect.objectContaining({
+        assessmentType: 'test',
+        assessment: expect.objectContaining({ id: 'test-1' }),
+        userId: 'teacher-1',
+      })
+    )
+  })
+
+  it('validates draft content through the route-owned validation boundary', async () => {
+    vi.mocked(buildNextDraftContent).mockImplementationOnce(
+      ((_currentContent, payload, validate) => {
+        const validation = validate(payload.content)
+        return validation.valid
+          ? { ok: true, content: validation.value }
+          : { ok: false, status: 400, error: validation.error }
+      }) as typeof buildNextDraftContent
+    )
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/draft', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          version: 3,
+          content: { title: '  ', show_results: true, questions: [] },
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('Title is required')
+    expect(updateAssessmentDraft).not.toHaveBeenCalled()
   })
 
   it('returns 400 and blocks save when documents payload is invalid', async () => {

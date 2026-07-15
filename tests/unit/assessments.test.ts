@@ -9,33 +9,21 @@ import {
   MAX_ASSESSMENT_OPTIONS,
   canActivateAssessment,
   canEditAssessmentQuestions,
-  getQuizStatusLabel,
   getAssessmentStatusBaseLabel,
   getAssessmentStatusLabel,
   getTeacherTestListDisplayStatus,
   getAssessmentStatusBadgeClass,
-  getQuizStatusBadgeClass,
   canStudentRespond,
   canStudentViewResults,
   canStudentViewTestResults,
-  getStudentQuizStatus,
   getStudentTestStatus,
-  canEditQuizQuestions,
   aggregateResults,
   validateAssessmentOptions,
-  validateQuizOptions,
-  canActivateQuiz,
   emptyAssessmentFocusSummary,
-  emptyQuizFocusSummary,
   getAssessmentExitCount,
-  getQuizExitCount,
   summarizeAssessmentFocusEvents,
-  summarizeQuizFocusEvents,
-  QUIZ_EXIT_BURST_WINDOW_MS,
-  MAX_QUIZ_OPTIONS,
 } from '@/lib/assessments'
 import {
-  createMockQuiz,
   createMockTest,
   createMockTestQuestion,
   createMockTestResponse,
@@ -57,21 +45,6 @@ describe('assessment utilities', () => {
 
     it('should return "Closed" for closed status', () => {
       expect(getAssessmentStatusBaseLabel('closed')).toBe('Closed')
-    })
-  })
-
-  describe('legacy quiz assessment aliases', () => {
-    it('keeps quiz-named exports wired to assessment-named helpers', () => {
-      expect(getQuizStatusLabel).toBe(getAssessmentStatusBaseLabel)
-      expect(getQuizStatusBadgeClass).toBe(getAssessmentStatusBadgeClass)
-      expect(canEditQuizQuestions).toBe(canEditAssessmentQuestions)
-      expect(validateQuizOptions).toBe(validateAssessmentOptions)
-      expect(canActivateQuiz).toBe(canActivateAssessment)
-      expect(emptyQuizFocusSummary).toBe(emptyAssessmentFocusSummary)
-      expect(getQuizExitCount).toBe(getAssessmentExitCount)
-      expect(summarizeQuizFocusEvents).toBe(summarizeAssessmentFocusEvents)
-      expect(MAX_QUIZ_OPTIONS).toBe(MAX_ASSESSMENT_OPTIONS)
-      expect(QUIZ_EXIT_BURST_WINDOW_MS).toBe(ASSESSMENT_EXIT_BURST_WINDOW_MS)
     })
   })
 
@@ -236,32 +209,6 @@ describe('assessment utilities', () => {
     it('should return false when test is not returned', () => {
       const test = createMockTest({ status: 'closed' })
       expect(canStudentViewTestResults(test, true, null)).toBe(false)
-    })
-  })
-
-  // ==========================================================================
-  // getStudentQuizStatus()
-  // ==========================================================================
-
-  describe('getStudentQuizStatus', () => {
-    it('should return "not_started" when student has not responded', () => {
-      const quiz = createMockQuiz({ status: 'active', show_results: true })
-      expect(getStudentQuizStatus(quiz, false)).toBe('not_started')
-    })
-
-    it('should return "can_view_results" when student has responded, results enabled, and quiz closed', () => {
-      const quiz = createMockQuiz({ status: 'closed', show_results: true })
-      expect(getStudentQuizStatus(quiz, true)).toBe('can_view_results')
-    })
-
-    it('should return "responded" when student has responded but quiz is still active', () => {
-      const quiz = createMockQuiz({ status: 'active', show_results: true })
-      expect(getStudentQuizStatus(quiz, true)).toBe('responded')
-    })
-
-    it('should return "responded" when student has responded but results are disabled', () => {
-      const quiz = createMockQuiz({ status: 'closed', show_results: false })
-      expect(getStudentQuizStatus(quiz, true)).toBe('responded')
     })
   })
 

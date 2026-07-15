@@ -1,49 +1,5 @@
-import { getServiceRoleClient } from '@/lib/supabase'
-import { ApiError, apiErrors } from '@/lib/api-handler'
-import type { Assignment } from '@/types'
-
-type AssignmentWithClassroom = Assignment & {
-  classrooms: {
-    id: string
-    title: string
-    teacher_id: string
-    archived_at: string | null
-  }
-}
-
-export async function assertTeacherOwnsAssignment(teacherId: string, assignmentId: string): Promise<AssignmentWithClassroom> {
-  const supabase = getServiceRoleClient()
-  const { data, error } = await supabase
-    .from('assignments')
-    .select(`
-      *,
-      classrooms!inner (
-        id,
-        title,
-        teacher_id,
-        archived_at
-      )
-    `)
-    .eq('id', assignmentId)
-    .single()
-
-  if (error || !data) {
-    throw apiErrors.notFound('Assignment not found')
-  }
-
-  if (data.classrooms.teacher_id !== teacherId) {
-    throw new ApiError(403, 'Unauthorized')
-  }
-
-  return data as AssignmentWithClassroom
-}
-
-export async function assertTeacherCanMutateAssignment(teacherId: string, assignmentId: string): Promise<AssignmentWithClassroom> {
-  const assignment = await assertTeacherOwnsAssignment(teacherId, assignmentId)
-
-  if (assignment.classrooms.archived_at) {
-    throw new ApiError(403, 'Classroom is archived')
-  }
-
-  return assignment
-}
+// Compatibility exports for repository-review callers. Ownership belongs to assignments.
+export {
+  assertTeacherCanMutateAssignment,
+  assertTeacherOwnsAssignment,
+} from '@/lib/server/assignments'

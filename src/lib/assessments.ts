@@ -1,8 +1,8 @@
 /**
  * Assessment utilities for status calculation, validation, and result aggregation.
  *
- * Legacy quiz-named exports remain because the database and compatibility
- * contracts still use quiz-shaped table fields during the Tests transition.
+ * Persisted legacy assessment discriminants remain supported without exporting
+ * a parallel quiz-named helper surface.
  */
 
 import type {
@@ -124,7 +124,7 @@ export function canStudentViewTestResults(
  * - Quiz-style: pass `show_results` on the assessment object — results visible when closed + show_results.
  * - Test-style: pass `opts.returnedAt` — results visible when closed + teacher has returned the work.
  *
- * Both wrappers below delegate here; call this directly when you have a mixed-type assessment.
+ * The test-specific wrapper below delegates here; call this directly for mixed-type assessments.
  */
 export function getStudentAssessmentStatus(
   assessment: Pick<TestAssessment, 'status'> & { show_results?: boolean | null },
@@ -137,17 +137,6 @@ export function getStudentAssessmentStatus(
     if (assessment.show_results) return 'can_view_results'
   }
   return 'responded'
-}
-
-/**
- * Get the student's status for a quiz.
- * Results become visible when the quiz is closed and show_results is enabled.
- */
-export function getStudentQuizStatus(
-  quiz: Pick<TestAssessment, 'show_results' | 'status'>,
-  hasResponded: boolean
-): StudentTestStatus {
-  return getStudentAssessmentStatus(quiz, hasResponded)
 }
 
 /**
@@ -332,15 +321,3 @@ export function summarizeAssessmentFocusEvents(events: FocusEventLike[]): TestFo
 
   return summary
 }
-
-export const getQuizStatusLabel = getAssessmentStatusBaseLabel
-export const getQuizStatusBadgeClass = getAssessmentStatusBadgeClass
-export const getQuizAssessmentType = getAssessmentType
-export const canEditQuizQuestions = canEditAssessmentQuestions
-export const MAX_QUIZ_OPTIONS = MAX_ASSESSMENT_OPTIONS
-export const validateQuizOptions = validateAssessmentOptions
-export const canActivateQuiz = canActivateAssessment
-export const QUIZ_EXIT_BURST_WINDOW_MS = ASSESSMENT_EXIT_BURST_WINDOW_MS
-export const getQuizExitCount = getAssessmentExitCount
-export const emptyQuizFocusSummary = emptyAssessmentFocusSummary
-export const summarizeQuizFocusEvents = summarizeAssessmentFocusEvents

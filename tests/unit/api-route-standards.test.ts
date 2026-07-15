@@ -3,9 +3,15 @@ import { relative, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const routeRoot = resolve(process.cwd(), 'src/app/api')
+const zodBoundaryBaselinePath = resolve(
+  process.cwd(),
+  'tests/architecture/api-zod-boundary-baseline.json'
+)
 const exportedHandlerPattern = /export\s+(?:async\s+function|const)\s+(GET|POST|PATCH|PUT|DELETE)\b/g
 const wrappedHandlerPattern = /export\s+const\s+(GET|POST|PATCH|PUT|DELETE)\s*=\s*withErrorHandler\b/g
 const aliasHandlerPattern = /export\s+const\s+(GET|POST|PATCH|PUT|DELETE)\s*=\s*(GET|POST|PATCH|PUT|DELETE)\b/g
+const requestBodyReaderPattern = /\b(?:request|req)\s*\.\s*(?:json|formData)\s*\(/
+const zodBoundaryPattern = /\b[A-Za-z_$][\w$]*Schema\s*\.\s*(?:parse|safeParse)\s*\(/
 
 function collectRouteFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -41,5 +47,21 @@ describe('API route standards', () => {
     })
 
     expect(violations).toEqual([])
+  })
+
+  it('does not add body-reading API routes without a Zod boundary schema', () => {
+    // This baseline is deletion-only migration debt, not a permanent exemption list.
+    const baseline = JSON.parse(readFileSync(zodBoundaryBaselinePath, 'utf8')) as string[]
+    const sortedBaseline = [...new Set(baseline)].sort()
+    const currentDebt = collectRouteFiles(routeRoot)
+      .filter((filePath) => {
+        const source = readFileSync(filePath, 'utf8')
+        return requestBodyReaderPattern.test(source) && !zodBoundaryPattern.test(source)
+      })
+      .map((filePath) => relative(process.cwd(), filePath))
+      .sort()
+
+    expect(baseline).toEqual(sortedBaseline)
+    expect(currentDebt).toEqual(sortedBaseline)
   })
 })

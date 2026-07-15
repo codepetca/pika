@@ -14,6 +14,7 @@ export interface CourseBlueprintAssignmentMarkdownRecord {
   default_due_days: number
   default_due_time: string
   points_possible: number | null
+  gradebook_weight?: number | null
   include_in_final: boolean
   is_draft: boolean
   position: number
@@ -37,6 +38,7 @@ export function courseBlueprintAssignmentsToMarkdown(
     if (assignment.points_possible !== null && assignment.points_possible !== undefined) {
       lines.push(`Points: ${assignment.points_possible}`)
     }
+    lines.push(`Gradebook Weight: ${assignment.gradebook_weight ?? 10}`)
     lines.push(`Include In Final: ${assignment.include_in_final ? 'true' : 'false'}`)
     lines.push('')
     if (assignment.instructions_markdown.trim()) {
@@ -110,7 +112,7 @@ export function markdownToCourseBlueprintAssignments(
     const defaultDueDays = Number.isInteger(current.default_due_days)
       ? Number(current.default_due_days)
       : NaN
-    if (!Number.isFinite(defaultDueDays) || defaultDueDays < 0) {
+    if (!Number.isFinite(defaultDueDays)) {
       errors.push(`Assignment "${title}" has invalid Due Days`)
       current = null
       instructionLines = []
@@ -126,6 +128,15 @@ export function markdownToCourseBlueprintAssignments(
     }
 
     const existing = existingByTitle.get(titleKey)
+    if (
+      current.gradebook_weight != null &&
+      (!Number.isInteger(current.gradebook_weight) || current.gradebook_weight < 1 || current.gradebook_weight > 999)
+    ) {
+      errors.push(`Assignment "${title}" has invalid Gradebook Weight`)
+      current = null
+      instructionLines = []
+      return
+    }
     seenTitles.add(titleKey)
 
     assignments.push({
@@ -139,6 +150,10 @@ export function markdownToCourseBlueprintAssignments(
         typeof current.points_possible === 'number' && Number.isFinite(current.points_possible)
           ? current.points_possible
           : null,
+      gradebook_weight:
+        typeof current.gradebook_weight === 'number' && Number.isInteger(current.gradebook_weight)
+          ? current.gradebook_weight
+          : existing?.gradebook_weight ?? 10,
       include_in_final: current.include_in_final !== false,
       is_draft: current.is_draft !== false,
       position: assignments.length,
@@ -232,6 +247,10 @@ export function markdownToCourseBlueprintAssignments(
       }
       if (key === 'points') {
         current.points_possible = Number(value)
+        continue
+      }
+      if (key === 'gradebook weight') {
+        current.gradebook_weight = Number(value)
         continue
       }
       if (key === 'include in final') {

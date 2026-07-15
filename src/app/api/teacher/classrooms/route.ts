@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
+import type { TableInsert } from '@/types/database'
 import { createClassroomSchema } from '@/lib/validations/teacher'
 import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
+import { listTeacherArchivedClassrooms } from '@/lib/server/classroom-archive-recovery-list'
 import { getLeastUsedClassroomThemeColor } from '@/lib/classroom-theme'
 
 export const dynamic = 'force-dynamic'
@@ -27,24 +29,22 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
   const { searchParams } = new URL(request.url)
   const archivedParam = searchParams.get('archived')
 
-  let classrooms
-  let error
-
   if (archivedParam === 'true') {
-    const result = await supabase
-      .from('classrooms')
-      .select('*')
-      .eq('teacher_id', user.id)
-      .not('archived_at', 'is', null)
-      .order('archived_at', { ascending: false })
-    classrooms = result.data
-    error = result.error
-  } else {
-    const result = await listActiveTeacherClassrooms(supabase, user.id)
-    classrooms = result.data
-    error = result.error
+    const archived = await listTeacherArchivedClassrooms({ supabase, teacherId: user.id })
+    if (!archived.ok) {
+      console.error('Error fetching archived classroom state:', archived.error_code)
+      const status = archived.error_code === 'classroom_archive_state_unstable' ? 503 : 500
+      throw new ApiError(status, 'Failed to fetch classroom archives')
+    }
+
+    return NextResponse.json({
+      classrooms: hydrateClassroomRecords(archived.hot_classrooms as Record<string, any>[]),
+      cold_archives: archived.cold_archives,
+      cold_archive_restore_enabled: archived.cold_archive_restore_enabled,
+    })
   }
 
+  const { data: classrooms, error } = await listActiveTeacherClassrooms(supabase, user.id)
   if (error) {
     console.error('Error fetching classrooms:', error)
     throw new ApiError(500, 'Failed to fetch classrooms')
@@ -69,7 +69,7 @@ export const POST = withErrorHandler('CreateClassroom', async (request: NextRequ
     (activeClassroomsResult?.data || []).map((classroom: any) => classroom.theme_color),
     `${user.id}:${title}`
   )
-  const insertBody: Record<string, any> = {
+  const insertBody: TableInsert<'classrooms'> = {
     teacher_id: user.id,
     title,
     class_code: finalClassCode,

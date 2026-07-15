@@ -1,5 +1,4 @@
 import { format } from 'date-fns'
-import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { courseBlueprintAssignmentsToMarkdown } from '@/lib/course-blueprint-assignments'
 import { courseBlueprintAssessmentsToMarkdown } from '@/lib/course-blueprint-assessments-markdown'
 import { courseBlueprintLessonTemplatesToMarkdown } from '@/lib/course-blueprint-lesson-templates'
@@ -10,8 +9,7 @@ import {
   normalizePlannedCourseSiteConfig,
   summarizeMergeText,
 } from '@/lib/course-site-publishing'
-import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
-import { markdownToTiptapContent, tiptapToMarkdown } from '@/lib/limited-markdown'
+import { markdownToTiptapContent } from '@/lib/limited-markdown'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { nowInToronto } from '@/lib/timezone'
 import {
@@ -22,8 +20,9 @@ import {
   syncCourseBlueprintLessonTemplates,
   updateCourseBlueprint,
 } from '@/lib/server/course-blueprints'
-import { assertTeacherOwnsClassroom, hydrateClassroomRecord } from '@/lib/server/classrooms'
+import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { loadClassroomBlueprintSource } from '@/lib/server/classroom-blueprint-source'
+import { loadPublishedClassroomSource } from '@/lib/server/published-classroom-source'
 import type {
   Announcement,
   BlueprintMergeSuggestion,
@@ -71,7 +70,16 @@ type WeightedPublishedCourseSiteGradingItem = PublishedCourseSiteGradingItem & {
 }
 
 export type PublishedActualCourseSiteData = {
-  classroom: Classroom
+  classroom: Pick<
+    Classroom,
+    | 'id'
+    | 'title'
+    | 'class_code'
+    | 'term_label'
+    | 'actual_site_config'
+    | 'course_overview_markdown'
+    | 'course_outline_markdown'
+  >
   resources: ClassroomResources | null
   resources_markdown: string
   assignments: Array<Record<string, any>>
@@ -326,7 +334,7 @@ export async function getPublishedActualCourseSite(
   const supabase = getSupabase()
   const { data: classroomRow, error } = await supabase
     .from('classrooms')
-    .select('*')
+    .select('id, title, class_code, term_label, actual_site_config, course_overview_markdown, course_outline_markdown')
     .eq('actual_site_slug', slug)
     .eq('actual_site_published', true)
     .single()
@@ -335,13 +343,21 @@ export async function getPublishedActualCourseSite(
     return { ok: false, status: 404, error: 'Actual course site not found' }
   }
 
-  const classroom = hydrateClassroomRecord(classroomRow as Record<string, any>)
-  const sourceResult = await loadClassroomBlueprintSource(classroom.teacher_id, classroom.id)
+  const classroom: PublishedActualCourseSiteData['classroom'] = {
+    id: String(classroomRow.id),
+    title: String(classroomRow.title || ''),
+    class_code: String(classroomRow.class_code || ''),
+    term_label: typeof classroomRow.term_label === 'string' ? classroomRow.term_label : null,
+    actual_site_config: normalizeActualCourseSiteConfig(classroomRow.actual_site_config),
+    course_overview_markdown: String(classroomRow.course_overview_markdown || ''),
+    course_outline_markdown: String(classroomRow.course_outline_markdown || ''),
+  }
+  const sourceResult = await loadPublishedClassroomSource(classroom.id)
   if (!sourceResult.ok) return sourceResult
 
   const nowIso = new Date().toISOString()
   const maxLessonDate = getMaxAllowedLessonDate(classroom.actual_site_config.lesson_plan_scope)
-  const assignments = sourceResult.source.assignments.filter((assignment) => !assignment.is_draft)
+  const assignments = sourceResult.source.assignments
   const quizzes: Array<Record<string, any>> = []
   const tests = sourceResult.source.tests
 
@@ -355,7 +371,7 @@ export async function getPublishedActualCourseSite(
       quizzes,
       tests,
       grading: buildCourseSiteGradingSummary(assignments, tests),
-      lesson_plans: sourceResult.source.lesson_templates.filter((lesson) => {
+      lesson_plans: sourceResult.source.lesson_plans.filter((lesson) => {
         if (!maxLessonDate) return true
         const match = lesson.title.match(/\((\d{4}-\d{2}-\d{2})\)$/)
         return !match || match[1] <= maxLessonDate

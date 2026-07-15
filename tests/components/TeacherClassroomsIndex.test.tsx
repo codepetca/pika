@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { TeacherClassroomsIndex } from '@/app/classrooms/TeacherClassroomsIndex'
-import { fetchTeacherClassrooms } from '@/lib/teacher-classrooms-client'
+import {
+  fetchTeacherArchivedClassroomState,
+  fetchTeacherClassrooms,
+} from '@/lib/teacher-classrooms-client'
 import { TooltipProvider } from '@/ui'
 import { createMockClassroom } from '../helpers/mocks'
 import type { Classroom } from '@/types'
@@ -14,9 +17,18 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/lib/teacher-classrooms-client', () => ({
+  fetchTeacherArchivedClassroomState: vi.fn(),
   fetchTeacherClassrooms: vi.fn(),
   invalidateTeacherClassrooms: vi.fn(),
 }))
+
+const coldArchive = {
+  classroom_id: '00000000-0000-4000-8000-000000000001',
+  archive_id: '00000000-0000-4000-8000-000000000002',
+  title: 'Stored history classroom',
+  archived_at: '2026-07-01T12:00:00.000Z',
+  compacted_at: '2026-07-10T12:00:00.000Z',
+}
 
 function renderTeacherClassroomsIndex(initialClassrooms: Classroom[]) {
   return render(
@@ -30,9 +42,15 @@ describe('TeacherClassroomsIndex', () => {
   let fetchMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
+    vi.clearAllMocks()
     fetchMock = vi.fn()
     push.mockReset()
     vi.mocked(fetchTeacherClassrooms).mockResolvedValue([])
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValue({
+      classrooms: [],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+    })
     vi.stubGlobal('fetch', fetchMock)
   })
 
@@ -71,9 +89,13 @@ describe('TeacherClassroomsIndex', () => {
   })
 
   it('never shows the create button in archived view', async () => {
-    vi.mocked(fetchTeacherClassrooms).mockResolvedValueOnce([
-      createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' }),
-    ])
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [
+        createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' }),
+      ],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+    })
 
     renderTeacherClassroomsIndex([])
 
@@ -81,7 +103,7 @@ describe('TeacherClassroomsIndex', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
 
     expect(await screen.findByRole('button', { name: /^Archived/ })).toBeInTheDocument()
-    expect(fetchTeacherClassrooms).toHaveBeenCalledWith({ archived: true })
+    expect(fetchTeacherArchivedClassroomState).toHaveBeenCalledOnce()
     expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
   })
 
@@ -143,9 +165,13 @@ describe('TeacherClassroomsIndex', () => {
   })
 
   it('returns to active view when edit mode is turned off from archived view', async () => {
-    vi.mocked(fetchTeacherClassrooms).mockResolvedValueOnce([
-      createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' }),
-    ])
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [
+        createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' }),
+      ],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+    })
 
     renderTeacherClassroomsIndex([])
 
@@ -221,5 +247,148 @@ describe('TeacherClassroomsIndex', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Math 101/ }))
 
     expect(screen.getByRole('button', { name: /^Science 101/ })).toBeDisabled()
+  })
+
+  it('shows stored classrooms while keeping restore disabled when recovery is not enabled', async () => {
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [],
+      coldArchives: [coldArchive],
+      coldArchiveRestoreEnabled: false,
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+
+    expect(await screen.findByText('Stored history classroom')).toBeInTheDocument()
+    expect(screen.getByText('Stored archive')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Restore' })).toBeDisabled()
+  })
+
+  it('restores a stored classroom with an idempotency key and refreshes the archived list', async () => {
+    const operationId = '00000000-0000-4000-8000-000000000003'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(operationId)
+    vi.mocked(fetchTeacherArchivedClassroomState)
+      .mockResolvedValueOnce({
+        classrooms: [],
+        coldArchives: [coldArchive],
+        coldArchiveRestoreEnabled: true,
+      })
+      .mockResolvedValueOnce({
+        classrooms: [createMockClassroom({
+          id: coldArchive.classroom_id,
+          title: coldArchive.title,
+          archived_at: coldArchive.archived_at,
+        })],
+        coldArchives: [],
+        coldArchiveRestoreEnabled: true,
+      })
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ok: true }),
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Restore' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      `/api/teacher/classrooms/${coldArchive.classroom_id}/archives/${coldArchive.archive_id}/restore`,
+      {
+        method: 'POST',
+        headers: { 'Idempotency-Key': operationId },
+      },
+    ))
+    await waitFor(() => expect(fetchTeacherArchivedClassroomState).toHaveBeenCalledTimes(2))
+    expect(await screen.findByText(coldArchive.title)).toBeInTheDocument()
+  })
+
+  it('reuses the same idempotency key when a stored restore is retried', async () => {
+    const operationId = '00000000-0000-4000-8000-000000000004'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(operationId)
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValue({
+      classrooms: [],
+      coldArchives: [coldArchive],
+      coldArchiveRestoreEnabled: true,
+    })
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Temporary restore failure' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ok: true }),
+      })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Restore' }))
+    expect(await screen.findByText('Temporary restore failure')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Restore' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(fetchMock.mock.calls[0]?.[1]).toEqual({
+      method: 'POST',
+      headers: { 'Idempotency-Key': operationId },
+    })
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual({
+      method: 'POST',
+      headers: { 'Idempotency-Key': operationId },
+    })
+    expect(crypto.randomUUID).toHaveBeenCalledOnce()
+  })
+
+  it('retains the idempotency key until the restored archive list refreshes', async () => {
+    const operationId = '00000000-0000-4000-8000-000000000005'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(operationId)
+    vi.mocked(fetchTeacherArchivedClassroomState)
+      .mockResolvedValueOnce({
+        classrooms: [],
+        coldArchives: [coldArchive],
+        coldArchiveRestoreEnabled: true,
+      })
+      .mockRejectedValueOnce(new Error('Failed to refresh archived classrooms'))
+      .mockResolvedValueOnce({
+        classrooms: [createMockClassroom({
+          id: coldArchive.classroom_id,
+          title: coldArchive.title,
+          archived_at: coldArchive.archived_at,
+        })],
+        coldArchives: [],
+        coldArchiveRestoreEnabled: true,
+      })
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true }),
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Restore' }))
+    expect(await screen.findByText('Failed to refresh archived classrooms')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Restore' }))
+
+    await waitFor(() => expect(fetchTeacherArchivedClassroomState).toHaveBeenCalledTimes(3))
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[0]?.[1]).toEqual({
+      method: 'POST',
+      headers: { 'Idempotency-Key': operationId },
+    })
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual({
+      method: 'POST',
+      headers: { 'Idempotency-Key': operationId },
+    })
+    expect(crypto.randomUUID).toHaveBeenCalledOnce()
   })
 })

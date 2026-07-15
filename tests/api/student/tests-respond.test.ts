@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/student/tests/[id]/respond/route'
-
-vi.mock('@/lib/supabase', () => ({
-  getServiceRoleClient: vi.fn(() => mockSupabaseClient),
-}))
+import { requireRole } from '@/lib/auth'
+import { submitStudentTestAttempt } from '@/lib/server/test-submissions'
+import { mockAuthenticationError } from '../setup'
 
 vi.mock('@/lib/auth', () => ({
   requireRole: vi.fn(async () => ({
@@ -14,303 +13,84 @@ vi.mock('@/lib/auth', () => ({
   })),
 }))
 
-vi.mock('@/lib/server/tests', async () => {
-  const actual = await vi.importActual<any>('@/lib/server/tests')
-  return {
-    ...actual,
-    assertStudentCanAccessTest: vi.fn(async () => ({
-      ok: true,
-      test: {
-        id: 'test-1',
-        classroom_id: 'classroom-1',
-        status: 'active',
-        title: 'Unit Test',
-        show_results: false,
-        position: 0,
-        created_by: 'teacher-1',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-01T00:00:00.000Z',
-        classrooms: {
-          id: 'classroom-1',
-          teacher_id: 'teacher-1',
-          archived_at: null,
-        },
-      },
-    })),
-  }
-})
+vi.mock('@/lib/server/test-submissions', () => ({
+  submitStudentTestAttempt: vi.fn(async () => ({ ok: true })),
+}))
 
-const mockSupabaseClient = { from: vi.fn() }
-
-function buildRequest(body: unknown) {
+function buildRequest(body: unknown, raw = false) {
   return new NextRequest('http://localhost:3000/api/student/tests/test-1/respond', {
     method: 'POST',
-    body: JSON.stringify(body),
+    body: raw ? String(body) : JSON.stringify(body),
   })
 }
+
+const routeContext = { params: Promise.resolve({ id: 'test-1' }) }
 
 describe('POST /api/student/tests/[id]/respond', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(submitStudentTestAttempt).mockResolvedValue({ ok: true })
   })
 
-  it('rejects submit when student already has a submitted attempt', async () => {
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'test_attempts') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            maybeSingle: vi.fn().mockResolvedValue({
-              data: { id: 'attempt-1', is_submitted: true, responses: { 'q-1': 1 } },
-              error: null,
-            }),
-          })),
-        }
-      }
-      if (table === 'test_responses') {
-        const query = {
-          eq: vi.fn().mockReturnThis(),
-          then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
-        }
-        return {
-          select: vi.fn(() => query),
-        }
-      }
-      if (table === 'test_questions') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [{ id: 'q-1', options: ['A', 'B'] }],
-              error: null,
-            }),
-          })),
-        }
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
+  it('authenticates before parsing the request body', async () => {
+    vi.mocked(requireRole).mockRejectedValueOnce(mockAuthenticationError())
 
-    const response = await POST(
-      buildRequest({ responses: { 'q-1': 1 } }),
-      { params: Promise.resolve({ id: 'test-1' }) }
-    )
-    const data = await response.json()
+    const response = await POST(buildRequest('{', true), routeContext)
+
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    expect(requireRole).toHaveBeenCalledWith('student')
+    expect(submitStudentTestAttempt).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['{', true, 'Invalid JSON body'],
+    [null, false, 'Responses are required'],
+    [{}, false, 'Responses are required'],
+    [{ responses: null }, false, 'Responses are required'],
+    [{ responses: [] }, false, 'Responses are required'],
+  ])('returns a deterministic 400 for invalid body %#', async (body, raw, expectedError) => {
+    const response = await POST(buildRequest(body, raw), routeContext)
 
     expect(response.status).toBe(400)
-    expect(data.error).toContain('already responded')
+    expect(await response.json()).toEqual({ error: expectedError })
+    expect(submitStudentTestAttempt).not.toHaveBeenCalled()
   })
 
-  it('submits responses and updates an existing test attempt', async () => {
-    const responsesInsert = vi.fn().mockResolvedValue({ error: null })
-    const attemptsUpdateQuery = {
-      eq: vi.fn(() => attemptsUpdateQuery),
-    }
-    const attemptsUpdate = vi.fn(() => attemptsUpdateQuery)
-    const historyInsert = vi.fn(() => ({
-      select: vi.fn(() => ({
-        single: vi.fn().mockResolvedValue({
-          data: { id: 'history-1', trigger: 'submit' },
-          error: null,
-        }),
-      })),
-    }))
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'test_attempts') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            maybeSingle: vi.fn().mockResolvedValue({
-              data: { id: 'attempt-1', is_submitted: false, responses: { 'q-1': 0 } },
-              error: null,
-            }),
-          })),
-          update: attemptsUpdate,
-        }
-      }
-      if (table === 'test_responses') {
-        const query = {
-          eq: vi.fn().mockReturnThis(),
-          then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
-        }
-        return {
-          select: vi.fn(() => query),
-          insert: responsesInsert,
-        }
-      }
-      if (table === 'test_questions') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [
-                { id: 'q-1', options: ['A', 'B'] },
-                { id: 'q-2', options: ['A', 'B'] },
-              ],
-              error: null,
-            }),
-          })),
-        }
-      }
-      if (table === 'test_attempt_history') {
-        return {
-          insert: historyInsert,
-        }
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
-    const response = await POST(
-      buildRequest({ responses: { 'q-1': 1, 'q-2': 0 } }),
-      { params: Promise.resolve({ id: 'test-1' }) }
-    )
-    const data = await response.json()
-
-    expect(response.status).toBe(201)
-    expect(data.success).toBe(true)
-    expect(responsesInsert).toHaveBeenCalledOnce()
-    expect(responsesInsert).toHaveBeenCalledWith(expect.any(Array))
-    expect(attemptsUpdate).toHaveBeenCalledOnce()
-    expect(attemptsUpdateQuery.eq).toHaveBeenCalledWith('id', 'attempt-1')
-    expect(attemptsUpdateQuery.eq).toHaveBeenCalledWith('is_submitted', false)
-    expect(historyInsert).toHaveBeenCalledOnce()
-  })
-
-  it('allows submit when only placeholder graded rows exist', async () => {
-    const responsesInsert = vi.fn().mockResolvedValue({ error: null })
-    const placeholderDeleteIn = vi.fn().mockResolvedValue({ error: null })
-    const placeholderDelete = vi.fn(() => ({
-      in: placeholderDeleteIn,
-    }))
-    const attemptsUpdateQuery = {
-      eq: vi.fn(() => attemptsUpdateQuery),
-    }
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'test_attempts') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            maybeSingle: vi.fn().mockResolvedValue({
-              data: { id: 'attempt-1', is_submitted: false, responses: {} },
-              error: null,
-            }),
-          })),
-          update: vi.fn(() => attemptsUpdateQuery),
-        }
-      }
-      if (table === 'test_responses') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            then: vi.fn((resolve: any) =>
-              resolve({
-                data: [{ id: 'placeholder-response-1', selected_option: null, response_text: '   ' }],
-                error: null,
-              })
-            ),
-          })),
-          delete: placeholderDelete,
-          insert: responsesInsert,
-        }
-      }
-      if (table === 'test_questions') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [{ id: 'q-1', question_type: 'open_response', options: [], points: 3, response_max_chars: 5000 }],
-              error: null,
-            }),
-          })),
-        }
-      }
-      if (table === 'test_attempt_history') {
-        return {
-          insert: vi.fn(() => ({
-            select: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'history-1', trigger: 'submit' },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
+  it('normalizes responses before invoking the atomic workflow', async () => {
     const response = await POST(
       buildRequest({
-        responses: { 'q-1': { question_type: 'open_response', response_text: 'My real answer' } },
+        responses: {
+          'q-2': 'Open answer\r\nsecond line',
+          'q-1': 1,
+          ignored: { selected_option: -1 },
+        },
       }),
-      { params: Promise.resolve({ id: 'test-1' }) }
+      routeContext,
     )
-    const data = await response.json()
 
     expect(response.status).toBe(201)
-    expect(data.success).toBe(true)
-    expect(placeholderDeleteIn).toHaveBeenCalledWith('id', ['placeholder-response-1'])
-    expect(responsesInsert).toHaveBeenCalledOnce()
-  })
-
-  it('returns already responded when final response insert hits a unique constraint', async () => {
-    const responsesInsert = vi.fn().mockResolvedValue({
-      error: {
-        code: '23505',
-        message: 'duplicate key value violates unique constraint',
+    expect(await response.json()).toEqual({ success: true })
+    expect(submitStudentTestAttempt).toHaveBeenCalledWith({
+      studentId: 'student-1',
+      testId: 'test-1',
+      responses: {
+        'q-1': { question_type: 'multiple_choice', selected_option: 1 },
+        'q-2': { question_type: 'open_response', response_text: 'Open answer\nsecond line' },
       },
     })
-    const attemptsUpdate = vi.fn(() => ({
-      eq: vi.fn().mockReturnThis(),
-    }))
+  })
 
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'test_attempts') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            maybeSingle: vi.fn().mockResolvedValue({
-              data: { id: 'attempt-1', is_submitted: false, responses: {} },
-              error: null,
-            }),
-          })),
-          update: attemptsUpdate,
-        }
-      }
-      if (table === 'test_responses') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            then: vi.fn((resolve: any) =>
-              resolve({
-                data: [],
-                error: null,
-              })
-            ),
-          })),
-          insert: responsesInsert,
-        }
-      }
-      if (table === 'test_questions') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [{ id: 'q-1', options: ['A', 'B'] }],
-              error: null,
-            }),
-          })),
-        }
-      }
-      throw new Error(`Unexpected table: ${table}`)
+  it('returns workflow errors without exposing database details', async () => {
+    vi.mocked(submitStudentTestAttempt).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      error: 'All questions must be answered',
     })
 
-    const response = await POST(
-      buildRequest({ responses: { 'q-1': 1 } }),
-      { params: Promise.resolve({ id: 'test-1' }) }
-    )
-    const data = await response.json()
+    const response = await POST(buildRequest({ responses: { 'q-1': 1 } }), routeContext)
 
     expect(response.status).toBe(400)
-    expect(data.error).toContain('already responded')
-    expect(responsesInsert).toHaveBeenCalledOnce()
-    expect(attemptsUpdate).not.toHaveBeenCalled()
+    expect(await response.json()).toEqual({ error: 'All questions must be answered' })
   })
 })

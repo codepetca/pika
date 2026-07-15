@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
+import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -33,24 +34,11 @@ export const GET = withErrorHandler('GetStudentHistory', async (request: NextReq
   }
 
   const supabase = getServiceRoleClient()
-
-  const { data: classroom, error: classroomError } = await supabase
-    .from('classrooms')
-    .select('teacher_id')
-    .eq('id', classroomId)
-    .single()
-
-  if (classroomError || !classroom) {
+  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId, { supabase })
+  if (!ownership.ok) {
     return NextResponse.json(
-      { error: 'Classroom not found' },
-      { status: 404 }
-    )
-  }
-
-  if (classroom.teacher_id !== user.id) {
-    return NextResponse.json(
-      { error: 'Forbidden' },
-      { status: 403 }
+      { error: ownership.error },
+      { status: ownership.status }
     )
   }
 

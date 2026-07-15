@@ -10,9 +10,8 @@ import {
   courseBlueprintLessonTemplatesToMarkdown,
   type CourseBlueprintLessonTemplateMarkdownRecord,
 } from '@/lib/course-blueprint-lesson-templates'
-import type { CourseBlueprintDetail } from '@/types'
+import type { CourseBlueprintDetail, TestDraftContent } from '@/types'
 import { analyzeCourseBlueprintCompleteness } from '@/lib/course-blueprint-package'
-import type { TestDraftContent } from '@/lib/server/assessment-drafts'
 import { DEFAULT_OPEN_RESPONSE_MAX_CHARS } from '@/lib/test-attempts'
 
 type SuggestTarget =

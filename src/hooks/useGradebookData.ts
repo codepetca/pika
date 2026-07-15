@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
-import { fetchJSONWithCache } from '@/lib/request-cache'
+import { fetchCachedJSON } from '@/lib/request-cache'
 import type { GradebookClassSummary, GradebookStudentDetail, GradebookStudentSummary } from '@/types'
 
 interface UseGradebookDataOptions {
@@ -99,17 +99,13 @@ export function useGradebookData({
       setGradebookStudentDetailError('')
       try {
         const cacheKey = `gradebook:${classroomId}:${selectedStudentId}`
-        const data = await fetchJSONWithCache(
+        const data = await fetchCachedJSON<{ selected_student?: GradebookStudentDetail | null }>(
           cacheKey,
-          async () => {
-            const response = await fetch(
-              `/api/teacher/gradebook?classroom_id=${classroomId}&student_id=${selectedStudentId}`
-            )
-            const json = await response.json()
-            if (!response.ok) throw new Error(json.error || 'Failed to load gradebook details')
-            return json
+          `/api/teacher/gradebook?classroom_id=${classroomId}&student_id=${selectedStudentId}`,
+          {
+            ttlMs: 60_000, // 60s TTL — gradebook details are stable within a session
+            errorMessage: 'Failed to load gradebook details',
           },
-          60_000, // 60s TTL — gradebook details are stable within a session
         )
 
         if (!cancelled) {

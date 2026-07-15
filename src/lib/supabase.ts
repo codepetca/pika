@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database'
 
 // Server-side client with secret key for admin operations
 export function getSupabaseClient() {
@@ -9,10 +10,10 @@ export function getSupabaseClient() {
     throw new Error('Missing Supabase environment variables')
   }
 
-  return createClient(supabaseUrl, supabasePublishableKey)
+  return createClient<Database>(supabaseUrl, supabasePublishableKey)
 }
 
-export function getServiceRoleClient() {
+export function getServiceRoleClient(options: { fetch?: typeof fetch } = {}) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   const secretKey = process.env.SUPABASE_SECRET_KEY
@@ -25,10 +26,11 @@ export function getServiceRoleClient() {
     throw new Error('Missing SUPABASE_SECRET_KEY')
   }
 
-  return createClient(supabaseUrl, secretKey, {
+  return createClient<Database>(supabaseUrl, secretKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false
-    }
+    },
+    ...(options.fetch ? { global: { fetch: options.fetch } } : {}),
   })
 }

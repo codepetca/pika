@@ -62,6 +62,48 @@ describe('classroom class-days route', () => {
     expect(data.class_days).toEqual([{ date: '2026-03-17' }])
   })
 
+  it('blocks teachers from reading class days for classrooms they do not own', async () => {
+    const { assertTeacherOwnsClassroom } = await import('@/lib/server/classrooms')
+    ;(assertTeacherOwnsClassroom as any).mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      error: 'Forbidden',
+    })
+    const { fetchClassDaysForClassroom } = await import('@/lib/server/class-days')
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/classrooms/classroom-2/class-days'),
+      { params: Promise.resolve({ classroomId: 'classroom-2' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(data.error).toBe('Forbidden')
+    expect(fetchClassDaysForClassroom).not.toHaveBeenCalled()
+  })
+
+  it('blocks students from reading class days for classrooms they cannot access', async () => {
+    const { requireAuth } = await import('@/lib/auth')
+    const { assertStudentCanAccessClassroom } = await import('@/lib/server/classrooms')
+    const { fetchClassDaysForClassroom } = await import('@/lib/server/class-days')
+    ;(requireAuth as any).mockResolvedValueOnce({ id: 'student-1', role: 'student' })
+    ;(assertStudentCanAccessClassroom as any).mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      error: 'Not enrolled in this classroom',
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/classrooms/classroom-2/class-days'),
+      { params: Promise.resolve({ classroomId: 'classroom-2' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(data.error).toBe('Not enrolled in this classroom')
+    expect(fetchClassDaysForClassroom).not.toHaveBeenCalled()
+  })
+
   it('generates initial class days for teachers', async () => {
     const response = await POST(
       new NextRequest('http://localhost:3000/api/classrooms/classroom-1/class-days', {

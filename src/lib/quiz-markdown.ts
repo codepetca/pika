@@ -1,5 +1,5 @@
 import { validateAssessmentOptions } from '@/lib/assessments'
-import type { AssessmentDraftContent, AssessmentDraftQuestion } from '@/lib/server/assessment-drafts'
+import type { AssessmentDraftContent, AssessmentDraftQuestion } from '@/types'
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -16,21 +16,15 @@ export interface AssessmentMarkdownSerializeInput {
   }>
 }
 
-export type QuizMarkdownSerializeInput = AssessmentMarkdownSerializeInput
-
 export interface AssessmentMarkdownParseOptions {
   defaultShowResults?: boolean
   existingQuestions?: Array<{ id: string }>
 }
 
-export type QuizMarkdownParseOptions = AssessmentMarkdownParseOptions
-
 export interface AssessmentMarkdownParseResult {
   draftContent: AssessmentDraftContent | null
   errors: string[]
 }
-
-export type QuizMarkdownParseResult = AssessmentMarkdownParseResult
 
 function normalizeLineEndings(markdown: string): string[] {
   return markdown.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')

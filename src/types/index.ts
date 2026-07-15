@@ -83,6 +83,7 @@ export interface Classroom {
   start_date: string | null // YYYY-MM-DD, inclusive
   end_date: string | null // YYYY-MM-DD, inclusive
   lesson_plan_visibility: LessonPlanVisibility
+  blueprint_source_revision: number
   source_blueprint_id: string | null
   source_blueprint_origin: ClassroomBlueprintOrigin | null
   actual_site_slug: string | null
@@ -408,6 +409,7 @@ export interface AssignmentAiGradingRunItem {
   assignment_id: string
   student_id: string
   assignment_doc_id: string | null
+  assignment_doc_updated_at: string | null
   queue_position: number
   status: AssignmentAiGradingItemStatus
   skip_reason: AssignmentAiGradingSkipReason | null
@@ -493,6 +495,8 @@ export interface TestAiGradingRunItem {
   student_id: string
   question_id: string
   response_id: string
+  response_revision: number
+  question_grading_snapshot: Record<string, unknown> | null
   queue_position: number
   status: TestAiGradingItemStatus
   attempt_count: number
@@ -676,6 +680,7 @@ export interface ClassroomResources {
 export interface CourseBlueprint {
   id: string
   teacher_id: string
+  content_revision: number
   title: string
   subject: string
   grade_level: string
@@ -708,6 +713,7 @@ export interface CourseBlueprintAssignment {
   default_due_days: number
   default_due_time: string
   points_possible: number | null
+  gradebook_weight: number
   include_in_final: boolean
   is_draft: boolean
   position: number
@@ -722,6 +728,9 @@ export interface CourseBlueprintAssessment {
   title: string
   content: Record<string, unknown>
   documents: TestDocument[]
+  points_possible: number | null
+  gradebook_weight: number
+  include_in_final: boolean
   position: number
   created_at: string
   updated_at: string
@@ -782,6 +791,43 @@ export type TestFocusEventType =
   | 'window_unmaximize_attempt'
 export type TestQuestionType = 'multiple_choice' | 'open_response'
 export type TestDocumentSource = 'link' | 'upload' | 'text'
+
+export type AssessmentDraftType = 'quiz' | 'test'
+
+export type AssessmentDraftQuestion = {
+  id: string
+  question_text: string
+  options: string[]
+}
+
+export type TestDraftQuestion = {
+  id: string
+  question_type: TestQuestionType
+  question_text: string
+  options: string[]
+  correct_option: number | null
+  answer_key: string | null
+  sample_solution: string | null
+  points: number
+  response_max_chars: number
+  response_monospace: boolean
+}
+
+export type AssessmentDraftContent = {
+  title: string
+  show_results: boolean
+  questions: AssessmentDraftQuestion[]
+  source_format?: 'markdown'
+  source_markdown?: string
+}
+
+export type TestDraftContent = {
+  title: string
+  show_results: boolean
+  questions: TestDraftQuestion[]
+  source_format?: 'markdown'
+  source_markdown?: string
+}
 
 export interface TestDocument {
   id: string
@@ -962,6 +1008,7 @@ export interface TestResponse {
   id: string
   test_id: string
   question_id: string
+  revision: number
   student_id: string
   selected_option: number | null
   response_text: string | null
@@ -972,6 +1019,8 @@ export interface TestResponse {
   ai_grading_basis: TestAiGradingBasis | null
   ai_reference_answers: string[] | null
   ai_model: string | null
+  ai_suggested_score: number | null
+  ai_suggested_feedback: string | null
   submitted_at: string
 }
 
@@ -1046,21 +1095,6 @@ export interface TestResultsAggregate {
   counts: number[] // count per option, same index
   total_responses: number
 }
-
-// Legacy quiz-facing aliases remain exported while database/API compatibility
-// fields still use quiz-shaped names during the Tests transition.
-export type QuizStatus = TestAssessmentStatus
-export type QuizAssessmentType = TestAssessmentType
-export type QuizFocusEventType = TestFocusEventType
-export interface QuizFocusSummary extends TestFocusSummary {}
-export interface Quiz extends TestAssessment {}
-export interface QuizQuestion extends TestAssessmentQuestion {}
-export interface QuizResponse extends TestAssessmentResponse {}
-export interface QuizWithQuestions extends TestAssessmentWithQuestions {}
-export interface QuizWithStats extends TestAssessmentWithStats {}
-export type StudentQuizStatus = StudentTestStatus
-export interface StudentQuizView extends StudentTestView {}
-export type QuizResultsAggregate = TestResultsAggregate
 
 // Log summary types
 export interface LogSummaryActionItem {

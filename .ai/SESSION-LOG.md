@@ -7,781 +7,785 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
 - Use `node scripts/trim-session-log.mjs --check` to verify the log is within the 60-entry cap.
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-09 — Legacy quiz TestDetailPanel internal rename pass
+## 2026-07-10 — Repo cleanup and /repo-tidy skill
 
 **Completed:**
-- Created `codex/legacy-quiz-test-detail-internals` from merged `origin/main`.
-- Renamed `TestDetailPanel` component-local runtime internals from legacy quiz names to test/assessment names:
-  resolved assessment object, update notifier, request scope `testId`, defaults ref, loaded-draft guard, and detail load callback.
-- Preserved public compatibility props (`quiz`, `onQuizUpdate`), API response fallback (`data.quiz`), legacy markdown helpers, inactive legacy quiz-mode UI fallbacks, and DB-shaped `quiz_id` fields.
-- Did not touch database schema, migrations, RPCs, storage paths, API payload contracts, or production compatibility response keys.
+- Deleted 101 stale remote branches (95 merged/closed-PR + 6 from closing stalled PRs) and ~140 local branches; pruned phantom `origin/pr/672` ref.
+- Removed 20 stale worktrees and 2 orphan directories; tagged 9 scratch-branch tips as `rescue/*` (local-only) before deleting.
+- Closed stalled PRs #298, #323, #328, #341, #568, #739. Rescued uncommitted work from an unattended worktree into PR #838.
+- Enabled `delete_branch_on_merge` on the repo so merged PR branches self-clean.
+- Added `scripts/repo-tidy.sh` (read-only hygiene report) plus `/repo-tidy` command in `.claude/commands/` and `.codex/prompts/`, and documented it in `docs/dev-workflow.md`.
 
 **Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2659 tests before edits)
-- `pnpm vitest run tests/components/TestDetailPanel.test.tsx tests/components/TeacherTestsTab.test.tsx`
-- `pnpm exec tsc --noEmit`
+- `bash scripts/repo-tidy.sh` (clean run against the tidied repo)
+- `pnpm test tests/unit/ai-startup-docs.test.ts` (26/26 passed)
 - `pnpm lint`
-- `node scripts/trim-session-log.mjs && node scripts/trim-session-log.mjs --check`
-- `pnpm test` (301 files / 2659 tests)
 
-## 2026-06-10 — Legacy quiz TestDetailPanel fixture cleanup pass
+## 2026-07-10 — Issue backlog triage + CONTRIBUTING "Finding work" section
 
 **Completed:**
-- Created `codex/legacy-quiz-test-fixtures` from merged `origin/main`.
-- Renamed pure `TestDetailPanel` component-test fixtures from legacy quiz-shaped local names to test/assessment names.
-- Updated fake test ids and route expectations in stale-load/autosave cases from `quiz-*` to `test-*` where they are not DB fields or API compatibility payload keys.
-- Preserved intentional compatibility coverage for legacy `quiz`/`onQuizUpdate` props, API `quiz` response fallbacks, DB-shaped `quiz_id` fields, and the same-id legacy `assessment_type: 'quiz'` race case.
-- Did not touch production runtime code, database schema, migrations, RPCs, storage paths, or API payload contracts.
+- Triaged 61 open issues → 46. Closed 10 delivered-by-merged-PR (#86/#87/#88/#99/#144/#418/#431/#460/#523/#417), 2 duplicates (#451→#152, #366→#362), 1 abandoned (#252), 2 out-of-direction Clerk auth (#434/#449).
+- Labeled all 46 survivors (0 unlabeled): 14 bug, 29 enhancement, 4 good-first-issue, 2 needs-triage (new label).
+- Added a "Finding something to work on" section to CONTRIBUTING.md pointing collaborators at label filters and noting big ideas (e.g. gamification #205) vs ad-hoc feature work.
 
 **Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2662 tests before edits)
-- `pnpm vitest run tests/components/TestDetailPanel.test.tsx`
-- `pnpm exec tsc --noEmit`
+- `gh issue list` label coverage check (0 unlabeled)
+
+## 2026-07-10 — Auto-label new issues with needs-triage
+
+**Completed:**
+- Added .github/workflows/triage-label.yml: on issue `opened`, adds `needs-triage` if the issue has zero labels (leaves template/pre-labeled issues alone).
+- Dependency-free (uses pre-installed gh CLI, no pinned actions) and least-privilege (`permissions: issues: write` only, over the repo's read-only default).
+
+**Validation:**
+- YAML parse check; workflow runs only on issue events (no CI impact to validate here)
+
+## 2026-07-11 — Teacher-ready blueprint classroom rollover
+
+**Completed:**
+- Preserved assignment due timing as Toronto-local offsets from the source classroom start date.
+- Made assignments and tests created from blueprints explicitly unpublished for teacher review.
+- Added a realistic blueprint-to-classroom acceptance regression covering resources, assignments, submission requirements, tests/questions, lesson plans, relative due dates, and excluded student records.
+- Added migration 080 and course-package v3 support to preserve assignment/test point scales, gradebook weights, and final-grade inclusion, including validation and backward-compatible defaults for older packages.
+- Documented the classroom rollover contract.
+
+**Validation:**
+- Blueprint-focused Vitest suite (36/36 passed)
 - `pnpm lint`
-- `pnpm test` (301 files / 2662 tests)
+- `pnpm build`
+- Pika audit
 
-## 2026-06-10 — Tests selected-student grading pane scrollbar fix
+## 2026-07-13 — Blueprint architecture stabilization
 
 **Completed:**
-- Created `codex/tests-selected-student-scrollbar` from `origin/main`.
-- Fixed the selected Tests grading inspector scroll container so it fills the right pane as a flex child and clips horizontal overflow.
-- Confirmed the issue was not in `TeacherWorkspaceSplit`; the gapped split pane width was correct, but the inspector's inner scroll node could size to content inside `TestWorkspacePaneFrame`.
-- Added a focused `TeacherTestsTab` assertion for the inspector scroll container sizing and overflow classes.
-- Kept the change scoped to the selected Tests grading pane layout; no FAB/action-cluster work was touched.
+- Split published classroom syllabus loading from the teacher-authoring blueprint extractor, with explicit public projections that exclude classroom ownership and draft assessment content.
+- Kept draft tests in reusable blueprints and batched test-question/draft loading to remove the per-test query loop.
+- Preserved fractional assignment/test points and negative relative due offsets through Markdown, course-package bundle, and tar round trips.
+- Scoped blueprint grading metadata parsing to the test header so matching prompt content is not stripped or interpreted as configuration.
+- Updated migration 080 to use the runtime-compatible `numeric(6,2)` point scale and verified that 080 remains the next migration after `origin/main`.
 
 **Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2662 tests before edits)
-- `pnpm exec tsc --noEmit`
+- `pnpm test` (311 files, 2,790 tests)
+- `npx tsc --noEmit`
 - `pnpm lint`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/TeacherWorkspaceSplit.test.tsx tests/components/TestStudentGradingPanel.test.tsx`
-- `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
-- `E2E_BASE_URL=http://localhost:3001 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests&testId=91d01b50-807d-43ac-a5db-018c9645ac94&testMode=grading&testStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
-- Playwright desktop forced-scroll check: right pane scroll node `rightDeltaPx: 0` while vertically overflowing (`scrollHeight 956`, `clientHeight 504`).
-
-## 2026-06-10 — Legacy quiz utility alias pass
-
-**Completed:**
-- Created `codex/legacy-quiz-utility-aliases` from merged `origin/main`.
-- Moved the primary assessment utility implementation from `src/lib/quizzes.ts` to `src/lib/assessments.ts`, leaving `src/lib/quizzes.ts` as a compatibility re-export shim.
-- Moved server assessment access helpers from `src/lib/server/quizzes.ts` to `src/lib/server/assessments.ts`, adding assessment-named exports while preserving quiz-named aliases.
-- Pointed active imports in test/markdown/draft helpers at `@/lib/assessments` and `@/lib/server/assessments`.
-- Added assessment-named mock factories and moved active Tests component tests to `createMockTest*` helpers while keeping legacy `createMockQuiz*` helpers for compatibility tests.
-- Renamed focused utility tests from quiz-named files to assessment-named files.
-- Did not touch production schema, migrations, API payload contracts, storage/RPC paths, or DB-shaped `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (includes `pnpm test`, 301 files / 2662 tests before edits)
-- `pnpm vitest run tests/lib/assessments.test.ts tests/unit/assessments.test.ts tests/unit/server-assessments.test.ts tests/unit/server-access.test.ts tests/components/StudentTestForm.test.tsx tests/components/TeacherTestsTab.test.tsx tests/lib/quiz-markdown.test.ts tests/unit/assessment-drafts.test.ts`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm vitest run tests/components/AssignmentModal.test.tsx` (reran after one unrelated full-suite timing failure)
-- `pnpm test` (301 files / 2662 tests)
-
-## 2026-06-12 — Startup orient-only mode and fast verify-env
-
-**Completed:**
-- Added `--orient-only` / `--read-only` support to `.codex/skills/pika-session-start/scripts/session_start.sh` so report-only and docs-only runs can load startup context without mutating `.env.local` or running `verify-env.sh`.
-- Changed `scripts/verify-env.sh` so the default path stops after environment and dependency checks; test execution now requires `--tests` or `--full`.
-- Updated startup guidance in `.ai/START-HERE.md`, `.codex/prompts/session-start.md`, `.claude/commands/session-start.md`, `AGENTS.md`, and the `pika-session-start` skill to document the read-only startup path and the new verify-env modes.
-- Extended `tests/unit/ai-startup-docs.test.ts` to lock the non-mutating orient-only behavior, the fast default `verify-env.sh` path, and the startup-doc references.
-
-**Validation:**
-- `pnpm install --frozen-lockfile`
-- `bash scripts/verify-env.sh --help`
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh --help`
-- `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only`
-- `bash scripts/verify-env.sh`
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- Pika audit
 - `git diff --check`
 
-## 2026-06-12 — Skill progression workflow hardening
+## 2026-07-13 — Atomic and observable blueprint round trips
 
 **Completed:**
-- Added a new UI acceptance brief guide so non-trivial UI work records the target surface, reference, roles, viewports, themes, states, primary signal, and out-of-scope treatments before coding.
-- Added schema rollout and component refactor checklists to make migration/query-shape PRs and large TSX extraction PRs declare rollout risk, fallback expectations, and shared-component boundaries up front.
-- Updated AI routing, session-start, issue-worker, agent-role, UI canon, and UI verification guidance so the acceptance brief plus role/viewport/theme/state verification matrix are part of the default workflow.
-- Added explicit specialist-skill trigger guidance for `product-design:get-context`, `pika-ui-verify`, `supabase:supabase-postgres-best-practices`, and `vercel:react-best-practices`.
+- Replaced compensating-delete package import, classroom capture, and classroom instantiation with single transactional RPC boundaries and a service-role-only idempotency/failure ledger.
+- Added stable classroom and blueprint revision snapshots, including child-table triggers, final read checks, and transaction-time source locks to reject mixed-version write plans.
+- Preserved assignment submission requirements during classroom capture and kept new classroom assignments/tests unpublished for teacher review.
+- Added strict Zod write-plan/RPC response contracts, structured operation metrics, caller idempotency keys, failure metadata, and migration-required fail-closed behavior.
+- Made generated class codes/default themes deterministic from the operation ID and added stable query tie-breakers so retries rebuild an identical write plan.
+- Added ephemeral Supabase contract checks for malformed plans, child-write rollback, stale capture rejection, and successful replay; documented rollout, rollback, recovery, retention, privacy, and observability.
 
 **Validation:**
-- Reviewed diffs for `docs/ai-instructions.md`, `.codex/prompts/session-start.md`, `docs/guides/ai-ui-testing.md`, `.codex/prompts/ui-verify.md`, `.codex/skills/pika-ui-verify/SKILL.md`, `docs/core/agents.md`, `docs/issue-worker.md`, and the new guidance docs.
-- `node scripts/trim-session-log.mjs`
+- `pnpm test` (314 files, 2,808 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- Pika audit
+- `bash -n scripts/check-atomic-blueprint-operations.sh`
+- `git diff --check`
+- Ephemeral Supabase migration/behavior check pending PR CI
+
+## 2026-07-13 — Canonical classroom lifecycle and archive contracts
+
+**Completed:**
+- Added strict Zod-derived contracts for active, hot-archived, and cold-archived lifecycle states, with separate verified evidence for compaction and completed restore.
+- Encoded the current 42-table classroom ownership graph, all restore dependencies, privacy classes, parent-first restore order, child-first cleanup order, and a deidentified Gradex allowlist.
+- Added strict version 1 classroom archive and Gradex extract manifests with canonical file paths, row/byte counts, SHA-256 checksums, retention metadata, actor snapshots, managed storage descriptors, and restore preflight gates.
+- Defined the existing course package as a reusable, student-free, non-recoverable artifact; defined private archive/Gradex destinations and referenced-only discovery for the three current source buckets.
+- Added a read-only PostgreSQL catalog audit that fails on untracked/stale classroom resources, missing restore dependencies, or invalid selection keys, plus recovery, observability, compatibility, and production-canary guidance.
+- Added the unfinished `epic-classroom-lifecycle-archives` entry to the append-only feature inventory so repository status reflects the remaining implementation and production verification work.
+- Removed a duplicated architectural-direction section from `.ai/CURRENT.md` to keep the required startup context below its 16,000-character budget after adding the epic.
+- No application runtime path, database migration, database row, storage object, dependency, or production environment changed.
+
+**Validation:**
+
+## 2026-07-13 — Enforce architecture dependency boundaries
+
+**Completed:**
+- Added a TypeScript import-graph analyzer for runtime-aware imports, re-exports, dynamic imports, and CommonJS `require`, with independent traversal from every `'use client'` entry.
+- Enforced dependency direction between domain, UI, presentation, API, server-only, and shared type layers; blocked browser reachability to server modules, Supabase runtime clients, Next.js server APIs, and Node built-ins.
+- Added a deletion-only baseline for four existing client paths that reach `src/lib/server/assessment-drafts.ts` through assessment markdown helpers. New violations and obsolete baseline entries fail the check.
+- Replaced the duplicated browser Supabase parser with the shared analyzer, documented the boundaries, and added `pnpm check:architecture` to CI.
+- No runtime product behavior, database migrations, dependencies, or production data changed.
+
+**Validation:**
+- `pnpm run check:architecture` (556 modules; 4 deletion-only allowances)
+- `pnpm test`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm exec vitest run tests/lib/contracts/classroom-lifecycle.test.ts tests/lib/contracts/classroom-artifacts.test.ts` (15 tests)
+- Read-only local catalog audit: `CLASSROOM_SCHEMA_AUDIT_DATABASE_URL=... pnpm exec tsx scripts/check-classroom-resource-schema.ts` (97 public foreign-key relationships)
+
+## 2026-07-13 — Verified export-only classroom archives
+
+**Completed:**
+- Added migration 082 and a fail-closed teacher API for private, immutable, deterministic classroom archive exports without deleting any hot row or source object.
+- Added idempotent snapshot/finalization RPCs, revision triggers for all 41 descendants, durable operation evidence, strict actor snapshots, 50 MB private archive/Gradex buckets, full upload read-back verification, and terminal/retry recovery behavior.
+- Added canonical tar+gzip and NDJSON serialization with strict manifest, row/byte/checksum, actor, storage-object, content, and outer-artifact verification.
+- Extended the 42-resource schema contract to audit actual primary keys and every direct actor foreign key; actor capture now uses only those explicit columns and rejects arbitrary user UUIDs in free text.
+- Restricted storage discovery by source context: assignment artifacts from relational paths, submission images from embedded content, and test documents only from `tests.documents`.
+- Added a server-only export enable flag plus teacher UUID allowlist, future-retention validation, structured privacy-safe metrics, database CI, recovery guidance, and adversarial regressions.
+- Kept the archive epic unfinished: restore, Gradex extract generation, cold compaction, cleanup automation, teacher UI, and production canaries remain pending.
+
+**Validation:**
+- `pnpm test` (320 files, 2,844 tests)
+- `pnpm lint`
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- Pika audit
+- Fresh isolated Supabase replay through migrations 080/081/082
+- Atomic blueprint database contract
+- Verified archive database contract, including stale-source, terminal replay, unrelated-UUID privacy, retention, grants, and immutable metadata checks
+- Classroom schema audit (102 public foreign-key relationships)
+- `bash -n scripts/check-classroom-archive-database.sh`
+- `git diff --check`
+
+## 2026-07-13 — Resumable and version-aware classroom archive restore
+
+**Completed:**
+- Added migration 083 with cold tombstones outside the classroom ownership graph, bounded idempotent JSONB staging, conservative database-capacity preflight, concurrent-operation rejection, service-role-only RPCs, and one atomic 42-resource finalization transaction.
+- Added strict archive decoding, source-to-target adapter selection, actor reconciliation, exact storage-reference matching, deterministic operation-scoped object paths, managed-reference rewriting, and outer/read-back checksum verification.
+- Added a separately gated teacher restore endpoint requiring an enable flag, teacher UUID allowlist, idempotency key, and explicit database-budget setting; applying the migration alone does not expose restore or enable compaction.
+- Preserved exact archived values by suppressing blueprint/archive touch triggers only inside the transaction-local restore context and restoring the archived revision explicitly; PostgreSQL records final referential-integrity evidence after inserts pass.
+- Added rollback-only database coverage for capacity refusal, schema drift, unresolved actors, concurrent restores, expired-operation replacement, idempotent staging/completion, exact JSONB row equality, revision preservation, tombstone cleanup, and browser-role denial.
+- Corrected restore concurrency so only unexpired snapshots block a replacement operation; expired operations can no longer strand a cold classroom while awaiting cleanup automation.
+- Kept the archive epic unfinished: cold compaction, separate deidentified Gradex extract generation, cleanup automation, teacher UI, and production canaries remain pending. No production database, migration, row, or storage object was modified.
+
+**Validation:**
+- `pnpm test` (324 files, 2,866 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika audit
+- Fresh isolated Supabase replay through migrations 080/081/082/083 with matching source/copy migration hashes
+- Verified export and restore database contracts executed as `service_role`
+- Post-review focused restore suite (4 files, 21 tests) and fresh rollback-only restore canary, including expired-operation replacement
+- Classroom schema audit (105 public foreign-key relationships)
+- Supabase lint: one existing migration-082 false positive for the function-local `classroom_archive_actor_ids` temporary table; both executable database contracts pass
+- `git diff --check`
+
+## 2026-07-13 — Deidentified Gradex artifact transformer
+
+**Completed:**
+- Added a server-only pure transformer that derives a deterministic Gradex tar+gzip artifact only from a strictly verified classroom archive.
+- Added explicit projections for every allowlisted assignment/test resource, per-extract HMAC relationship references, relative structured timestamps, shared direct-identifier redaction plus known-actor redaction, and exclusion of storage/external references.
+- Added independent verification for canonical manifests/NDJSON, resource/content checksums, HMAC shapes, projected relationships, exact resource inventory, and zero detected direct identifiers.
+- Capped version 1 extract retention at 90 days and documented that runtime operations, upload/finalization, deletion automation, and production canaries remain unfinished.
+
+**Validation:**
+- Focused Gradex, artifact-contract, and startup-policy suites (43 tests)
+- `pnpm test`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+
+## 2026-07-13 — Durable Gradex operations and cleanup contract
+
+**Completed:**
+- Added stacked migration 084 with a service-role-only Gradex resource allowlist, idempotent begin/finalize/fail operations, immutable verified extract metadata, and a separate mutable retention-cleanup ledger.
+- Serialized generation per immutable source archive, capped retention and file size, required exact resource counts and verification evidence, and scheduled older extracts immediately when superseded.
+- Added lease-based cleanup claiming, stale-lease rejection, exponential retry, and durable deletion evidence without deleting audit metadata.
+- Tightened final review invariants for typed verification evidence, bounded verification timestamps, conflicting finalization replays, failure metadata, and cleanup lease inputs.
+- Kept the database contract unreachable from browser roles and added no API, cron, upload, deletion, or production execution path.
+
+**Validation:**
+- Fresh isolated Supabase replay through migration 084
+- Expanded rollback-only service-role Gradex database contract
+- Focused migration, transformer, artifact-contract, and startup-policy suites (47 tests)
+- Full Vitest suite (326 files / 2,874 tests)
+- `bash -n scripts/check-classroom-gradex-database.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- Pika pre-commit audit
+
+## 2026-07-13 — Gated Gradex runtime coordinator
+
+**Completed:**
+- Added a server-only coordinator that verifies immutable classroom archives before building Gradex extracts, then performs private no-overwrite upload, full read-back, independent integrity/privacy verification, and exact durable finalization.
+- Added explicit enablement, teacher allowlisting, a minimum-strength HMAC secret, HMAC-key fingerprint request binding, deterministic operation paths, strict Zod RPC contracts, and privacy-safe metrics.
+- Added safe replay, concurrent-upload reuse, terminal cleanup, and transient-finalization retry behavior without exposing any API, cron, or production execution path.
+- Documented the runtime boundary and configuration while keeping deletion automation, cold compaction, teacher UI, and production canaries unfinished. No production database, migration, row, or storage object was modified.
+
+**Validation:**
+- Full Vitest suite (327 files / 2,889 tests)
+- Focused archive/Gradex/runtime suites (4 files / 36 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+
+## 2026-07-13 — Doubly gated Gradex teacher trigger
+
+**Completed:**
+- Added a teacher-authenticated Gradex generation route requiring an explicit UUID idempotency key and a future deletion timestamp bounded by the 90-day artifact contract.
+- Kept deployment fail-closed behind both the existing teacher coordinator allowlist and a separate exact source-archive canary flag/allowlist; no UI, cron, or automatic caller was added.
+- Delegated generation, immutable archive ownership, transformation, storage, read-back, privacy verification, and durable finalization to the existing coordinator and migration 084 boundaries.
+- Extended the rollback-only database contract and static migration guard to reject foreign-teacher and wrong-classroom archive requests without creating an operation.
+- Updated environment, lifecycle, test, and current-context documentation. No production database, migration, row, storage object, or environment setting was modified.
+
+**Validation:**
+- Full Vitest suite (328 files / 2,899 tests)
+- Focused trigger/coordinator/transformer/artifact/startup suites (5 files / 67 tests)
+- Focused route/coordinator/migration suite after ownership review (3 files / 29 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `bash -n scripts/check-classroom-gradex-database.sh`
+- Local executable database contract unavailable because the running Supabase container predates migration 082; migrations were not applied or modified
+- `git diff --check`
+
+## 2026-07-13 — Verified Gradex retention cleanup runtime
+
+**Completed:**
+- Added a server-only, disabled-by-default cleanup coordinator over migration 084's lease claim, completion, and retry RPCs without adding an HTTP route, cron entry, or automatic caller.
+- Bounded each invocation to 10 claims and strictly validated the private bucket, canonical teacher/classroom/extract path shape, extract id binding, claim uniqueness, attempts, and lease inputs with Zod.
+- Required exact post-delete read-back evidence: only authoritative object-key absence can complete the current lease; missing buckets, present objects, uncertain Storage results, stale leases, and malformed RPC responses fail closed.
+- Added durable per-claim retry recording, stale-lease non-mutation, independent failure containment, privacy-safe aggregate metrics, and idempotent already-absent handling.
+- Updated environment, lifecycle, test, and current-context documentation. No production database, migration, row, storage object, route, schedule, or environment setting was modified.
+
+**Validation:**
+- Full Vitest suite (329 files / 2,915 tests)
+- Focused cleanup/generation/transformer/artifact/migration/startup suites (6 files / 80 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+
+## 2026-07-13 — Manual Gradex cleanup canary trigger
+
+**Completed:**
+- Added a `CRON_SECRET`-authenticated GET/POST cleanup endpoint behind an independent disabled-by-default trigger gate while preserving the cleanup worker's separate gate.
+- Bounded the manual canary to one claim per invocation and delegated lease, storage deletion, exact read-back, completion, and retry behavior to the existing cleanup coordinator.
+- Kept durably recorded item retries healthy while returning `503` when any claim lacks durable retry evidence; responses expose no storage paths or content.
+- Added tests that lock the route out of `vercel.json`; no schedule, UI caller, migration, dependency, production database, row, storage object, or environment setting was changed.
+- Updated environment, lifecycle, test, and current-context documentation.
+
+**Validation:**
+- Full Vitest suite (330 files / 2,925 tests)
+- Focused trigger/cleanup/extract/operations/artifact/startup suites (6 files / 85 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-15 — Production classroom archive canary runner
+
+**Completed:**
+- Added a production-only prepare/execute/resume CLI bound to one hosted project, teacher,
+  archived-hot classroom, immutable mode-0600 plan, clean deployed commit, exact acknowledgement,
+  and deterministic export/compact/restore operation UUIDs.
+- Added exact pre/archive/restored-projection evidence across all 42 classroom resources and every
+  source object, full manifest and operation metadata auditing, original/restored object byte checks,
+  source-revision equality, pre/post database sizing, and a conservative restore safety margin.
+- Kept every source/Gradex cleanup gate disabled and proved cleanup rows, reservations, restore
+  staging, and upload-cleanup state remain untouched or empty after immediate restore.
+- Added crash recovery for cold state, transient state/archive reads, ambiguous coordinator results,
+  journal failure, and hot state after restore completion. Evidence files reject symlink traversal and
+  unsafe permissions.
+- Updated lifecycle/testing/operator documentation and current context. Production migrations 001-096,
+  read-only inventory, and hosted catalog audit were previously verified; no mutation canary ran in
+  this branch.
+- Completed repeated independent production-safety/data-integrity review and fix rounds.
+
+**Validation:**
+- Production canary contract suite (14 tests)
+- `pnpm vitest run` (363 files / 3,329 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm db:types:check`
+- `pnpm lint`
+- `pnpm check:architecture` (600 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-14 — Atomic test grading contracts
+
+**Completed:**
+- Moved manual, bulk-clear, unanswered, and AI test grading writes behind typed atomic database RPCs with optimistic response/item revisions, exact-cohort validation, deterministic lock ordering, leases, and signed AI provenance.
+- Added shared test-scoped advisory locking and an atomic test-deletion boundary so grading, finalization, and deletion serialize without deadlocks or partial writes.
+- Added bounded client conflict recovery that reloads canonical revisions while preserving the teacher's latest draft, plus Zod validation at changed API/server boundaries.
+- Hardened classroom archive restore context scoping and added database-backed CI coverage for both grading concurrency and archive restore contracts.
+- Added migrations `089` through `095`, generated Supabase types, rollout guidance, focused API/server/component/architecture tests, and multi-session database regression harnesses.
+
+**Validation:**
+- `pnpm exec supabase db reset --local`
+- `pnpm run db:types:check`
+- `bash scripts/check-atomic-test-grading.sh`
+- `bash scripts/check-classroom-archive-restore-database.sh`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm lint`
+- `pnpm vitest run` (359 files, 3,287 tests)
+- `pnpm build`
+- `git diff --check`
+
+## 2026-07-13 — Atomic classroom cold-compaction database contract
+
+**Completed:**
+- Added migration 085 with idempotent begin/stage/complete/fail compaction RPCs, exact archive/source/count verification, one child-first deletion transaction, and service-role-only access.
+- Added a durable source-object cleanup ledger whose rows remain ineligible `staged` work until relational deletion and tombstone creation commit atomically, then become retryable `pending` work.
+- Strengthened lifecycle Zod evidence with archive identity, both checksums, fresh read-back proof, and transition-specific compaction cleanup evidence.
+- Added forced rollback, concurrency, idempotency, traversal rejection, security, replay, and real hot-to-cold-to-hot database contracts in ephemeral CI; restore no longer manufactures its tombstone.
+- Kept rollout database-only: no route, runtime caller, UI, schedule, environment gate, production migration application, row, or Storage object was changed.
+
+**Validation:**
+- Full Vitest suite (331 files / 2,931 tests)
+- Focused lifecycle/migration/archive/restore/startup suites (6 files / 45 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `bash -n` for compaction and restore database contracts
+- Pika pre-commit audit
+- Local migration replay intentionally not run; GitHub's ephemeral Supabase database job is the execution authority
+- `git diff --check`
+
+## 2026-07-13 — Gated classroom cold-compaction runtime coordinator
+
+**Completed:**
+- Added a server-only compaction coordinator over migration 085 with independent enablement, exact teacher allowlisting, and exact immutable-archive allowlisting; no route, UI, cron, or automatic caller was added.
+- Required canonical private archive paths, outer checksum equality, strict manifest/read-back verification, exact teacher/classroom/archive identity, exact relational and storage inventories, and bounded idempotent source-object cleanup staging before atomic finalization.
+- Added fail-closed completion handling that validates durable evidence and counts, never reports an ambiguous committed response as success, records terminal versus retryable operation failures, and returns completed replays without rereading Storage.
+- Documented disabled-by-default configuration and the remaining lease-based source-object cleanup worker. No production database, migration, row, object, schedule, or environment setting was modified.
+
+**Validation:**
+- Full Vitest suite (332 files / 2,950 tests)
+- Focused compaction/archive/lifecycle/restore/startup suites (6 files / 68 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+
+## 2026-07-13 — Verified classroom source-object cleanup boundary
+
+**Completed:**
+- Added migration 086 with service-role-only, skip-locked claim/complete/fail RPCs over compaction source objects, explicit processing/failed/deleted states, bounded leases, expired-lease reclaim, exponential retry backoff, and immutable deletion evidence.
+- Restricted claims to completed compact operations with matching cold tombstones; stale, wrong, or expired leases cannot complete or fail work.
+- Added a disabled-by-default server worker that reads each exact key, verifies complete bytes against the archived SHA-256 and byte count before removal, and completes only after authoritative exact-key absence; missing buckets, mismatches, uncertain reads, and unconfirmed deletion fail closed.
+- Added strict Zod validation for RPC claims and runtime bounds, duplicate-object rejection, independent failure containment, and privacy-safe results/metrics with opaque object references.
+- Extended the ephemeral database contract for pre-compaction exclusion, active and expired leases, stale-token rejection, retry backoff, canonical inputs, completion evidence, and role security. No route, UI, schedule, production setting, database, row, or Storage object was changed.
+
+**Validation:**
+- Full Vitest suite (334 files / 2,968 tests)
+- Focused source cleanup runtime/migration suites (2 files / 18 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `bash -n scripts/check-classroom-archive-compaction-database.sh`
+- Pika pre-commit audit
+- Local migration replay intentionally not run; GitHub's ephemeral Supabase database job is the execution authority
+- `git diff --check`
+
+## 2026-07-13 — Manual classroom source cleanup canary
+
+**Completed:**
+- Added a `CRON_SECRET`-authenticated GET/POST canary route around the source-object cleanup worker with a separate disabled-by-default trigger gate.
+- Bounded every manual invocation to one lease and preserved the worker's independent enablement, checksum-before-remove, authoritative absence, stale-lease, and durable retry contracts.
+- Kept durably recorded item failures healthy while returning `503` when any claim lacks durable retry evidence; responses expose opaque object references but no storage paths, checksums, classroom ids, or content.
+- Locked the route out of `vercel.json` and documented both cleanup gates as disabled. No production setting, database, row, Storage object, UI caller, or schedule was changed.
+- Corrected stale lifecycle/test documentation that still described the source cleanup worker as unfinished.
+
+**Validation:**
+- Full Vitest suite (335 files / 2,977 tests)
+- Focused cleanup worker/trigger suites (2 files / 22 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
+
+## 2026-07-13 — Local full-stack classroom archive recovery rehearsal
+
+**Completed:**
+- Added a local-only recovery drill guard requiring an exact destructive-operation acknowledgement, an HTTP loopback Supabase origin, and the Supabase local-demo service-role JWT before client construction.
+- Added a synthetic full-stack rehearsal that invokes the real export, compaction, source-object cleanup, and restore coordinators against local Supabase REST and Storage.
+- The rehearsal verifies representative row equality, restored object bytes, cold tombstone removal, immutable archive retention, idempotent operation replays, and complete synthetic-fixture teardown.
+- Upgraded architecture CI from database-only startup to an ephemeral reduced Supabase stack and added the rehearsal after the existing rollback-only database contracts and ownership audit.
+- Full-stack runs exposed a cleanup boundary mismatch: Node Storage `download()` wraps local missing-key responses in `StorageUnknownError.originalError`; the current SDK/local stack reports status 400, while other deployments can report 404. The worker accepts only that named bounded wrapper and requires a successful exact bucket lookup before treating it as object absence; explicit `NoSuchKey` remains direct evidence, unwrapped generic 400s and missing buckets fail closed.
+- Kept the archive epic unfinished because no production canary or teacher-visible recovery flow has been approved. No production database, migration, row, object, or environment setting was modified.
+
+**Validation:**
+- Recovery target and source-cleanup suites (30 tests)
+- Full Vitest suite
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `bash -n scripts/check-classroom-archive-recovery-drill.sh`
+- Local full-stack drill intentionally not run because the existing local Supabase instance predates migrations 082-086; migrations were not applied or reset
+- `git diff --check`
+
+## 2026-07-13 — Teacher cold-archive recovery surface
+
+**Completed:**
+- Extended the teacher Archived API response with teacher-scoped, Zod-validated cold tombstone summaries while preserving the existing response when migration 083 is absent and failing closed on unexpected query or contract errors.
+- Added a distinct Stored archive row to the teacher classroom index; cold submissions, grades, and files remain inaccessible until the existing gated restore operation returns the classroom to `archived_hot`.
+- Reused the existing restore route and required server feature gate, exact teacher allowlist, and database budget before enabling the control. The client keeps one UUID idempotency key through request and list-refresh failures and discards it only after refreshed state is confirmed.
+- Added server, API, client, and component coverage for teacher scoping, rollout fallback, strict response validation, enabled/disabled controls, successful restore, and idempotent retries.
+- Visually verified teacher desktop/mobile in light/dark plus disabled, confirm, processing, error, and restored-hot states; student desktop/mobile remained unchanged. No production database, migration, row, object, environment, or schedule was read or modified.
+
+**Validation:**
+- Full Vitest suite (338 files / 3,009 tests)
+- Focused recovery list/API/client/component suites (5 files / 35 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika pre-commit audit
+- Local-only Playwright matrix with no overflow; intentional restore failure reused the same idempotency key on retry
+- `git diff --check`
+
+## 2026-07-13 — Archive recovery PR review consistency fix
+
+**Completed:**
+- Re-reviewed the local full-stack recovery drill and teacher cold-archive recovery PRs before merge; the drill had no findings.
+- Fixed the teacher archive read model so independent PostgREST snapshots cannot combine a pre-transition hot row with a post-transition tombstone, or omit both sides during restore.
+- Added a bounded stable-read protocol that brackets the hot query with validated tombstone snapshots, retries the complete read once on lifecycle movement, and returns `503` if state does not stabilize.
+- Preserved the missing-migration hot-only fallback, teacher scoping, restore gates, and existing client response contract. No production database, migration, row, object, environment, or schedule was read or modified.
+
+**Validation:**
+- Focused archived-state server/API suites (2 files / 20 tests)
+- Full Vitest suite (338 files / 3,015 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika pre-commit audit
+- `git diff --check`
+- CI pending after push
+
+## 2026-07-14 — Archive stack review findings fixed
+
+**Completed:**
+- Ran repeated independent SQL, runtime, Gradex, and cross-layer review loops and fixed every actionable finding.
+- Hardened export/restore upload cleanup, exact restore object descriptors, actor-role reconciliation, transactional compaction dry runs, canonical paths, expiry/retry state transitions, and fail-closed source cleanup.
+- Tightened Gradex v2 with strict per-table Zod contracts, required relationships and projected fields, safe analytic enum preservation, Unicode-aware identifier scanning, pseudonymized unknown tokens, exact cleanup canaries, and retention fences.
+- Updated database contract drills, lifecycle guidance, cron integration, and environment documentation. No production database, migration, row, object, environment, deployment, or schedule was read or modified.
+
+**Validation:**
+- Fresh local Supabase reset through migrations 001–086
+- Archive export, restore, compaction, and Gradex database contract scripts
+- Full Vitest suite (339 files / 3,037 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-14 — Archive stack consolidation CI fix
+
+**Completed:**
+- Fast-forward merged reviewed archive PRs 852–866 into the final stack base without changing commit history.
+- Fixed the consolidated recovery drill after CI exposed a stale duplicate of the restore object-path algorithm; the drill now calls the production canonical path helper.
+- Kept PR 851 unmerged from `main` until its refreshed required checks pass. No production state was accessed or modified.
+
+**Validation:**
+- Local full archive recovery drill passed twice, including row equality, object equality, and idempotent replays
+- Focused restore unit suite (1 file / 9 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+
+## 2026-07-13 — Phase 1 API boundary validation foundation
+
+**Risk profile:** runtime-platform
+
+**Model recommendation:** GPT-5 Codex - cross-cutting API contract and architecture-test work benefits from repository-wide reasoning and strict verification.
+
+**Completed:**
+- Moved course-blueprint request schemas out of the broad teacher validation module into a feature-owned `course-blueprints` contract module, with shared course-publishing primitives isolated separately.
+- Added full nested Zod validation to blueprint assignment, test, and lesson-template bulk mutation routes, reusing canonical test-draft and document validators.
+- Added route tests proving malformed nested payloads return `400` before mutation services run.
+- Added a deletion-only architecture baseline that blocks new body-reading API routes without a named Zod boundary and must shrink as existing routes migrate.
+- Documented boundary parsing, contract ownership, non-JSON decoder expectations, and baseline maintenance.
+- No database migrations, dependencies, UI changes, or production operations.
+
+**Validation:**
+- Focused blueprint and architecture suites: 21 tests passed
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm test` (312 files, 2,788 tests passed)
+- `pnpm build`
+- `git diff --check`
+
+## 2026-07-13 — Generated Supabase database contract
+
+**Completed:**
+- Generated and committed the public Supabase schema contract in `src/types/database.generated.ts`; added `src/types/database.ts` for application-owned JSON/status/RPC refinements and typed both central Supabase client factories.
+- Added `db:types:generate` / `db:types:check`, plus a CI `Database Contract` job that starts an ephemeral database, replays migrations, and rejects generated-type drift.
+- Replaced generic persisted payload records exposed by the typed client with `TableRow`, `TableInsert`, and `TableUpdate` contracts; extracted assessment draft contracts into shared domain types.
+- Fixed blueprint instantiation when `points_possible` is null by omitting it so PostgreSQL applies the assignment default; added a regression for null and explicit point values.
+- Added documentation for generated types, custom refinements, compatibility exceptions, and the migration workflow.
+- CI's clean replay exposed migration `080` from another worktree in the shared local stack; aligned the generated file to this branch's `001-079` history and made generation reject mismatched worktree/database migration histories.
+- No production access or local migration-application command was used. Local type generation/checking only read the already-running development stack; CI used its own ephemeral database.
+
+**Validation:**
+- `pnpm test` (311 files, 2785 tests passed)
+- `pnpm build`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm run lint`
+- `pnpm run db:types:check` preflight rejected the intentionally mismatched shared stack (`database=080`, worktree missing `080`)
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+
+## 2026-07-14 — Read-only production classroom archive inventory
+
+**Risk profile:** runtime-platform
+
+**Model recommendation:** GPT-5 Codex - production verification crosses Supabase target safety, archive graph consistency, privacy-safe reporting, and fail-closed storage evidence.
+
+**Completed:**
+- Added a target-bound, read-only inventory command that requires the exact hosted Supabase project ref, validates deployed archive and Gradex contract rows, audits exposed PostgREST relationship metadata, and traverses the canonical 42-resource graph with exact-count pagination.
+- Bound the separately required direct PostgreSQL catalog audit to the same expected project ref for direct or Supabase pooler DSNs and required TLS.
+- Hardened the catalog runner against libpq DSN overrides and credential disclosure by allowlisting one TLS parameter, passing validated fields through `PG*` environment variables, sanitizing failures, and requiring either a hosted project ref or explicit loopback-only local mode.
+- Bracketed each hot archived classroom read with archive revisions, resolved managed objects through exact Storage metadata reads, and emitted only aggregate labels, counts, and byte sizes; missing referenced objects fail the command.
+- Ran the inventory against production after migrations 080-086 were applied: three hot archives, 44,813 relational rows, 42.2 MiB canonical relational payload, 165 referenced objects / 25.9 MiB, and zero missing objects or archive/restore/Gradex/cleanup operation rows.
+- Kept the archive epic unfinished. PostgREST metadata cannot prove hidden or stale catalog relationships, so the direct read-only PostgreSQL catalog audit remains required; no export, restore, Gradex, compaction, cleanup, row mutation, or Storage mutation was performed.
+
+**Validation:**
+- Final production read-only inventory passed after all review fixes
+- Full Vitest suite (345 files / 3,080 tests)
+- Focused inventory, catalog-runner, and service-client suites (35 tests)
+- Local read-only PostgreSQL catalog audit (117 foreign-key relationships)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture`
+- `pnpm build`
+- `git diff --check`
+
+## 2026-07-14 — Assessment draft validation boundary
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - cross-module boundary extraction benefits from repository-wide import analysis and behavior-parity verification.
+
+**Completed:**
+- Moved browser-safe assessment draft validation into the feature-owned `@/lib/validations/assessment-drafts` module while keeping persistence and database synchronization in `@/lib/server/assessment-drafts`.
+- Split browser, blueprint, route, and server imports so pure modules no longer reach through the server boundary for validation contracts or draft types.
+- Removed all four remaining deletion-only architecture allowances; the architecture check now covers 588 modules with zero allowances.
+- Removed stale route-test validator stubs so invalid draft payload tests exercise the real validation boundary.
+- Deleted the unused `syncAssessmentMetadataFromDraft` server export after CI coverage exposed that production performs the richer test metadata update directly in the route.
+- No behavior, UI, database schema, dependency, migration, or production changes.
+
+**Validation:**
+- Focused assessment draft, route, and architecture suites (4 files / 34 tests)
+- `pnpm test` (345 files / 3,081 tests)
+- `pnpm vitest run --coverage --maxWorkers=1` (server assessment drafts: 66.67% lines, 95% functions, 65.74% statements)
+- `pnpm build`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm check:architecture`
 - `node scripts/trim-session-log.mjs --check`
+- `node scripts/features.mjs validate`
+- `git diff --check`
 
-## 2026-06-09 — Classwork action chooser pilot
+## 2026-07-14 — Assignment grading request boundary
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - feature-boundary extraction requires repository-wide dependency analysis and exact API contract preservation.
 
 **Completed:**
-- Added a reusable teacher work-surface action cluster with menu and icon-menu buttons for contextual FAB-style action areas.
-- Replaced the Classwork summary split button with `New Classwork` as a chooser for Assignment, Material, and Survey.
-- Moved `Edit list controls` and `Edit Markdown` behind a separate icon-only `Classwork options` pencil menu.
-- Renamed list management to `Organize classwork` and added `Done Organizing`.
-- Aligned Tests with the same action-cluster pattern: direct `New Test`, icon-only `Test options` pencil menu, `Organize tests`, and `Done Organizing`.
-- Updated the classroom list pencil control accessibility/tooltip language to `Organize classrooms`.
-- Removed subtitles from the Classwork/Test dropdown menus and switched the Assignment menu icon to the Classwork `ClipboardList` icon.
-- Switched the Material menu icon to Lucide `Paperclip`.
-- Deferred the organize-mode jiggle animation after visual review; no jiggle code ships in this PR.
-- Updated Classwork tests to exercise the new chooser/options menu semantics.
-- Fixed the PR CI failure in `StudentHistoryPage.test.tsx` by waiting for the async history-loading effect before asserting class-day and entry fetch calls.
-- Addressed review feedback by disabling the Classwork/Test options icon buttons in archived/read-only classrooms instead of opening dead disabled menus.
-- Replaced Classwork/Test options dropdowns with direct pencil organize toggles and moved Classwork markdown editing to a separate `Code` icon button shown only while organize mode is active and markdown editing is enabled.
-- Moved selected Assignment/Test edit actions out of their subshell dropdowns into direct pencil icon buttons beside the primary selected-item FABs.
-- Split the selected Assignment layout control out of the AI Grade split button into a standalone cycle button showing paired pane icons (`Menu`, `Percent`, `SquareMenu`).
-- Removed the visible number from the selected Assignment layout cycle button so it is icon-only.
+- Moved single-student and selected-student assignment grading request normalization into the feature-owned `@/lib/validations/assignment-grading` Zod contract.
+- Kept assignment ownership, enrollment checks, and grade persistence in `@/lib/server/assignment-grades`; both routes now consume parsed contract values.
+- Preserved legacy validation messages, ordering, score coercion, draft blanks, selected-ID filtering/deduplication, authentication-before-parse behavior, and the batch-only `apply_target` contract.
+- Removed both grading routes from the deletion-only API Zod baseline, reducing existing migration debt from 62 routes to 60.
+- Completed two independent review/fix rounds with no remaining findings.
+- No UI, database schema, migration, dependency, or production changes.
 
 **Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/components/TeacherWorkSurfaceActionCluster.test.tsx tests/components/TeacherClassroomView.test.tsx`
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx tests/components/SortableAssignmentCard.test.tsx tests/components/TeacherWorkItemPrimitives.test.tsx`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx tests/components/SortableAssignmentCard.test.tsx tests/components/TeacherWorkItemPrimitives.test.tsx`
-- `pnpm lint`
+- Focused grading, API handler, and architecture suites (6 files / 33 tests)
+- `pnpm vitest run --coverage --maxWorkers=1` (346 files / 3,098 tests; assignment grading validation: 96.36% lines, 100% functions)
 - `pnpm build`
-- `pnpm test tests/components/StudentHistoryPage.test.tsx`
-- `pnpm run test:coverage`
-- `npx tsc --noEmit`
+- `pnpm exec tsc --noEmit --pretty false`
 - `pnpm lint`
-- `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=placeholder-publishable-key SUPABASE_SECRET_KEY=placeholder-secret-key SESSION_SECRET=placeholder-session-secret-at-least-32-chars-long pnpm build`
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx`
-- `npx tsc --noEmit`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
-- `npx tsc --noEmit`
-- `pnpm lint`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments'`
-- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests'`
-- Playwright screenshot: active Classwork organize mode with pencil toggle selected and Markdown code button visible.
-- Playwright screenshots: teacher/student/mobile Classwork verify flow, Classwork pencil menu/organize mode, Tests pencil menu/organize mode, classroom list organize mode, and mobile Tests/classroom organize states.
-- Playwright screenshots confirmed compact no-subtitle Classwork and Tests dropdown menus.
-- Playwright screenshot confirmed the Classwork menu renders the Material paperclip icon.
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
-- `npx tsc --noEmit`
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3100 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=71f8b37f-831b-4e90-89f9-f04981a97d6a&assignmentStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
-- `E2E_BASE_URL=http://localhost:3100 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=tests&testId=91d01b50-807d-43ac-a5db-018c9645ac94&testMode=grading'`
-- Playwright screenshots confirmed selected Assignment/Test subshell action areas show a separate pencil edit button beside the primary split FAB on desktop and mobile.
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
-- `npx tsc --noEmit`
-- `pnpm lint`
-- `E2E_BASE_URL=http://localhost:3100 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/e80aa794-e2d6-4705-9da5-d08ab0fba861?tab=assignments&assignmentId=71f8b37f-831b-4e90-89f9-f04981a97d6a&assignmentStudentId=d8f8a040-c511-4da2-98a8-be5bca37e1a6'`
-- Playwright screenshots confirmed the selected Assignment layout cycle button renders the students+grading and content+grading icon pairs cleanly on desktop/mobile.
-- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx`
-- `npx tsc --noEmit`
-- `pnpm lint`
-- Playwright screenshot confirmed the selected Assignment layout cycle button has no visible number/index label.
-
-## 2026-06-12 — Assignment Layout Tooltip Copy
-
-- Changed the selected Assignment layout cycle tooltip to the concise copy `Toggle Layout`.
-- Left the accessible button label unchanged so screen reader users still hear the current layout context.
-- Verified with `bash scripts/verify-env.sh`, `pnpm exec tsc --noEmit --pretty false`, and `pnpm test tests/components/TeacherClassroomView.test.tsx`.
-- Playwright hover screenshot confirmed the tooltip renders exactly `Toggle Layout` and the previous dynamic `Layout: … Next: …` copy is gone.
-
-## 2026-06-12 — Action Cluster PR Rebase
-
-- Rebased `codex/action-cluster-classwork` onto `origin/main` and resolved the `TeacherTestsTab.test.tsx` helper import conflict by keeping `createMockTest` plus the branch's `Classroom` typing.
-- Verified the rebased branch with `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceActionCluster.test.tsx tests/components/TeacherTestsTab.test.tsx` and `pnpm exec tsc --noEmit --pretty false`.
-
-## 2026-06-13 — Weekly Simplification: Test Response Normalization
-
-- Selected the student test-taking response normalization path in `src/lib/test-attempts.ts` as the hotspot because it handled several legacy payload shapes with duplicated coercion branches used by both form and API routes.
-- Refactored the parser into explicit typed and legacy coercion helpers without changing behavior, and added unit coverage for fallback object shapes, CRLF normalization, and required non-blank open responses.
-- Verified with `bash scripts/verify-env.sh` and `pnpm test` (full Vitest suite: 302 files, 2671 tests).
-- PR: https://github.com/codepetca/pika/pull/779
-
-## 2026-06-12 — Legacy quiz API compatibility contract helper
-
-**Completed:**
-- Created `codex/legacy-quiz-contract-compat` from current `origin/main`.
-- Inventoried remaining `quiz` / `quizzes` references and separated persisted/database contracts from active Tests API compatibility aliases.
-- Added `src/lib/test-api-contract.ts` to centralize the active Tests API `{ test, quiz }` and `{ tests, quizzes }` compatibility payloads.
-- Updated student and teacher Tests API routes to use the shared compatibility helper without changing response shape.
-- Added canonical `assessment` success data to `src/lib/server/assessments.ts` while preserving the legacy `quiz` alias.
-- Trimmed redundant `docs/ai-instructions.md` wording after the rebased `origin/main` startup-doc changes exceeded the enforced default startup context budget.
-- Did not touch production schema, migrations, RPCs, storage paths, gradebook contracts, course blueprint contracts, or DB-shaped `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/lib/test-api-contract.test.ts tests/unit/server-access.test.ts tests/api/teacher/tests-route.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-results.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/api/student/tests-session-status.test.ts`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm vitest run tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts`
-- `pnpm test` (303 files / 2672 tests)
+- `pnpm check:architecture` (589 modules / 0 allowances)
 - `git diff --check`
 
-## 2026-06-13 — Legacy quiz client response readers
+## 2026-07-14 — Atomic assignment grading and feedback expand release
+
+**Risk profile:** async-grading
+
+**Model recommendation:** GPT-5 Codex - transactional grading, concurrent roster changes, runtime response contracts, and rolling database deployment require cross-layer invariant analysis.
 
 **Completed:**
-- Created `codex/legacy-quiz-client-readers` from current `origin/main`.
-- Added `readTestFromPayload` and `readTestsFromPayload` to `src/lib/test-api-contract.ts` so active client code reads current Tests API keys first and legacy quiz keys only as compatibility fallback.
-- Replaced scattered `data.test ?? data.quiz` and `data.tests || data.quizzes || []` reads in teacher/student Tests UI, test document sync flows, the teacher preview page, and the assessment URL-state e2e helper.
-- Expanded `tests/lib/test-api-contract.test.ts` to cover current-key preference, legacy fallback, and empty payload behavior.
-- Did not change server payloads, schema, migrations, RPCs, storage paths, gradebook contracts, course blueprint contracts, or DB-shaped `quiz_id` fields.
+- Added expand-only migration 087 with service-role atomic RPCs for manual and AI grades, AI run/item completion, repository review completion, and single/batch feedback returns.
+- Added optimistic document revisions, assignment/classroom locking, replay-safe terminal operations, final-score validation, and all-or-none grade/result persistence.
+- Routed native AI, Gradex, repository review, and teacher feedback flows through typed server boundaries; feedback returns now submit the browser-observed document revision.
+- Added Zod contracts for assignment identifiers, grading and return payloads, and successful Gradex runtime responses; malformed successful responses fail before grade persistence.
+- Added a live database/concurrency harness, migration contract tests, route/service tests, and completed teacher/student desktop/mobile visual verification.
+- Documented the migration-first expand deployment and the separately numbered contract migration required only after all old application instances are drained.
+- Completed repeated independent database and TypeScript reviews with no remaining findings. No production database or Storage changes were made.
 
 **Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/lib/test-api-contract.test.ts tests/components/TeacherTestsTab.test.tsx tests/components/StudentTestsTab.test.tsx tests/components/TestDetailPanel.test.tsx tests/components/StudentTestForm.test.tsx tests/components/StudentTestResults.test.tsx`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm test` (303 files / 2676 tests)
-- `git diff --check`
-
-## 2026-06-13 — Student Today stale classroom load guard
-
-**Completed:**
-- Reestablished the systems/UI audit goal and continued the active client freshness slice.
-- Guarded `StudentTodayTab` entry and lesson-plan async responses by request id and classroom id so late responses from a previous classroom cannot overwrite the current classroom view.
-- Passed the loaded classroom id through `onLessonPlanLoad` and made `ClassroomPageClient` ignore stale lesson-plan updates.
-- Added regression coverage for switching from classroom A to classroom B before classroom A's entries and lesson plan resolve.
-- Updated the adjacent `ClassroomPageClientAssignmentsEditMode` mock to use the new lesson-plan callback contract.
-- Addressed subagent PR review feedback by storing the Today sidebar lesson plan with its classroom id so classroom route changes synchronously hide stale previous-classroom plan content.
-- Added parent-level regression coverage for clearing the Student Today sidebar plan when the classroom route changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/StudentTodayTabHistory.test.tsx`
-- `pnpm vitest run tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
-- `pnpm vitest run tests/components/StudentTodayTabHistory.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test` (350 files / 3,159 tests)
+- Atomic assignment database/concurrency harness
 - `pnpm build`
-- `pnpm vitest run --sequence.concurrent=false` (303 files / 2673 tests)
-- Subagent PR review found one P2 stale sidebar display gap.
-- `pnpm vitest run tests/components/StudentTodayTabHistory.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx` (after review fix; 32 tests)
-- `git diff --check`
+- `pnpm exec tsc --noEmit --pretty false`
 - `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm build`
-- `pnpm vitest run --sequence.concurrent=false` (303 files / 2674 tests)
-
-## 2026-06-13 — Legacy quiz type contract cleanup
-
-**Completed:**
-- Inverted the shared assessment type definitions so active `TestAssessment*`, `StudentTest*`, and `TestFocus*` names are canonical in `src/types/index.ts`.
-- Kept legacy `Quiz*` type exports as compatibility aliases/interfaces for DB-shaped and older contract code.
-- Updated assessment utilities and server access helpers to consume canonical Test/Assessment type names while preserving legacy exports and response shapes.
-- Moved the active TeacherTestsTab component test from `QuizWithStats` to `TestAssessmentWithStats`.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm test tests/unit/assessments.test.ts tests/lib/assessments.test.ts tests/lib/test-api-contract.test.ts tests/components/TeacherTestsTab.test.tsx`
-- `pnpm test` (303 files / 2678 tests)
-- `git diff --check`
-
-## 2026-06-13 — Teacher lesson calendar stale classroom load guard
-
-**Completed:**
-- Continued the systems/UI audit client freshness track after PR #780.
-- Guarded teacher lesson calendar lesson-plan, assignment, announcement, and markdown async loads so late responses from a previous classroom cannot update the current classroom view.
-- Tagged loaded lesson plans, assignments, and announcements with the classroom id they belong to, so previously loaded classroom data is hidden while the next classroom loads.
-- Added regression coverage for both late stale responses after a classroom change and immediate hiding of previous-classroom data while the next classroom is pending.
-- Addressed subagent PR review feedback by clearing/reloading open markdown sidebar content when the classroom changes and blocking saves while markdown content is not associated with the current classroom.
-- Guarded late autosave PUT responses before they can retag or mutate visible lesson-plan state after the teacher switches classrooms.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/components/TeacherLessonCalendarTab.test.tsx`
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm build`
-- `pnpm vitest run --sequence.concurrent=false` (303 files / 2682 tests)
-- Subagent PR review found stale open-sidebar markdown and late autosave response gaps.
-- `pnpm vitest run tests/components/TeacherLessonCalendarTab.test.tsx` (after review fixes; 8 tests)
-- `git diff --check`
-- `pnpm lint`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm build`
-- `pnpm vitest run --sequence.concurrent=false` (303 files / 2684 tests)
-
-## 2026-06-13 — Legacy quiz server draft helper names
-
-**Completed:**
-- Added assessment-named primary draft helpers in `src/lib/server/assessment-drafts.ts`: `AssessmentDraftContent`, `AssessmentDraftQuestion`, `validateAssessmentDraftContent`, `buildAssessmentDraftContentFromRows`, and `syncAssessmentQuestionsFromDraft`.
-- Kept legacy `QuizDraft*`, `validateQuizDraftContent`, `buildQuizDraftContentFromRows`, and `syncQuizQuestionsFromDraft` exports as compatibility aliases.
-- Updated internal markdown/course-blueprint typing and assessment draft unit tests to prefer assessment-named helpers.
-- Did not change database tables, persisted `quiz_id` fields, route payload shapes, migrations, RPCs, or storage paths.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/assessment-drafts.test.ts tests/lib/quiz-markdown.test.ts tests/lib/server/course-blueprints.test.ts tests/lib/server/course-sites.test.ts`
-- `pnpm lint`
-- `git diff --check`
-
-## 2026-06-13 — Legacy quiz markdown helper aliases
-
-**Completed:**
-- Added assessment-named markdown helper exports in `src/lib/quiz-markdown.ts`: `assessmentToMarkdown`, `markdownToAssessment`, and `AssessmentMarkdown*` types.
-- Kept `quizToMarkdown`, `markdownToQuiz`, and `QuizMarkdown*` exports as compatibility aliases.
-- Updated active `TestDetailPanel` markdown editing code to import and call the assessment-named helpers.
-- Expanded markdown unit coverage for the new helper names and alias compatibility.
-- Did not change markdown format text, route payloads, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm test tests/lib/quiz-markdown.test.ts tests/components/TestDetailPanel.test.tsx tests/unit/assessment-drafts.test.ts`
-- `git diff --check`
-
-## 2026-06-13 — Legacy quiz assessment helper names
-
-**Completed:**
-- Added assessment-named primary helper exports in `src/lib/assessments.ts` for status labels/badges, assessment type resolution, option validation, activation checks, edit policy, and focus-summary aggregation.
-- Updated `src/lib/tests.ts` to re-export test helpers from the assessment-named helpers instead of quiz-named aliases.
-- Updated active internal callers in markdown parsing and assessment draft validation to import `validateAssessmentOptions`.
-- Kept all legacy quiz-named helper exports as compatibility aliases and added alias coverage.
-- Updated test activation validation copy from quiz wording to test wording.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/assessments.test.ts tests/lib/assessments.test.ts tests/lib/quiz-markdown.test.ts tests/unit/assessment-drafts.test.ts tests/components/TestDetailPanel.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-- `git diff --check`
-
-## 2026-06-13 — Legacy quiz grading payload reader
-
-**Completed:**
-- Normalized `TestStudentGradingPanel` results payloads into a canonical `test` field.
-- Used the shared Tests API reader so current `test` payloads are preferred while legacy `quiz` payloads still work as fallback.
-- Updated grading panel fixtures to use the current `test` key and added explicit legacy `quiz` fallback coverage.
-- Did not change API response shapes, route contracts, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/TestStudentGradingPanel.test.tsx tests/lib/test-api-contract.test.ts`
-- `pnpm lint`
-- `pnpm test`
-- `git diff --check`
-
-## 2026-06-13 — Student Tests payload type names
-
-**Completed:**
-- Renamed local `StudentTestsTab` response type aliases so current `test` and `tests` payload fields are primary.
-- Collapsed duplicated session-status test/quiz summary shapes into one current `StudentTestSessionStatusSummary`.
-- Kept legacy `quiz` and `quizzes` fields in the local types as documented compatibility fallbacks.
-- Did not change runtime behavior, API response shapes, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/StudentTestsTab.test.tsx tests/lib/test-api-contract.test.ts`
-- `pnpm lint`
-- `pnpm test`
-- `git diff --check`
-
-## 2026-06-14 — Teacher exam access lifecycle e2e
-
-**Completed:**
-- Added a focused Playwright teacher exam-mode flow covering draft test activation, opening all student access, closing all student access, and summary card open/closed access counts.
-- The spec creates a single open-response draft test through existing teacher API routes, selects a seeded classroom with enrolled students, drives lifecycle transitions through the teacher grading workspace UI, and deletes its test record in cleanup.
-- Risk profile: exam-mode.
-- Model recommendation: GPT-5 Codex - e2e coverage task with repo-specific Playwright and API setup.
-
-**Validation:**
+- `pnpm db:types:check`
+- `pnpm check:architecture` (592 modules / 0 allowances)
+- Pika pre-commit audit
 - `bash scripts/verify-env.sh`
-- `pnpm exec playwright test e2e/teacher-exam-mode.spec.ts --project=chromium-desktop`
-- `pnpm lint`
+- `git diff --check`
 
-## 2026-06-14 — Legacy quiz server access names
+## 2026-07-14 — Manual test grading workflow boundary
+
+**Risk profile:** async-grading
+
+**Model recommendation:** GPT-5 Codex - grading request compatibility and persistence extraction require exact cross-layer behavior analysis.
 
 **Completed:**
-- Exported the assessment access result type from `src/lib/server/assessments.ts` as `AssessmentAccessResult`.
-- Updated assessment access not-found errors from quiz wording to assessment wording.
-- Updated server access unit tests to exercise assessment-named helpers as the primary path.
-- Kept legacy `assertTeacherOwnsQuiz`, `assertStudentCanAccessQuiz`, and `quiz` result fields covered as compatibility aliases.
-- Did not change API response shapes, database tables, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
+- Replaced the handwritten manual test-grade decoder with a feature-owned Zod contract while preserving score coercion, rounding, trim behavior, clear semantics, AI audit metadata, and duplicate rejection.
+- Extracted teacher access, enrollment/question validation, existing-response preservation, grade row construction, and the legacy AI-column retry into `@/lib/server/test-grades`.
+- Kept the existing non-transactional persistence sequence unchanged for this behavior-preserving expand slice; atomic test grading remains a separately reviewed follow-up.
+- Made malformed JSON and JSON `null` fail deterministically with 400 responses instead of accidental internal errors.
+- Removed the route from the deletion-only API Zod baseline and added regressions for access arguments, archive protection, query failures, question scope, score caps, clear fields, timestamps, and failed compatibility retries.
+- Completed two independent review/fix rounds with no remaining findings. No UI, database schema, migration, dependency, or production changes.
 
 **Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/server-access.test.ts`
+- Focused grading contract, route, and API architecture suites (3 files / 33 tests)
+- `pnpm test` (351 files / 3,186 tests)
+- `pnpm exec tsc --noEmit --pretty false`
 - `pnpm lint`
+- `pnpm check:architecture` (594 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-14 — Atomic student test attempt expand phase
+
+**Risk profile:** async-grading
+
+**Model recommendation:** GPT-5 Codex - student autosave, final submission, lifecycle locks, and rolling database deployment require cross-writer concurrency analysis.
+
+**Completed:**
+- Added expand-only migration 088 with service-role RPCs that atomically save partial attempts and atomically commit final responses with the owning submitted attempt.
+- Serialized submit/save against test close, per-student availability changes, question mutations, classroom archival, enrollment removal, and single/bulk attempt deletion through a consistent parent lock order.
+- Preserved placeholder-response behavior, automatic multiple-choice scoring, open-response grading state, normalized legacy response payloads, and best-effort versioned history after database commit.
+- Routed student autosave and final submit through feature-owned Zod and server boundaries; removed both routes from the API Zod migration baseline.
+- Added forward-compatible 409 handling for the later strict question-immutability contract without enforcing it in migration 088, so old app instances remain compatible during migration-first rollout.
+- Added an ephemeral database harness covering privileges, partial/final saves, validation rollback, forced post-insert rollback, double submit, availability/close/delete/autosave races, cascade deletion, and coherent final state.
+- Completed repeated independent SQL and TypeScript review/fix rounds with no remaining findings. No migration or production state was applied or changed.
+
+**Deployment obligation:**
+- Apply migration 088 before deploying this app version.
+- After deploying and draining all old app instances, add a separately numbered contract migration for semantic question immutability; do not add that enforcement to migration 088.
+
+**Validation:**
+- Focused student attempt/submit, validation, question compatibility, and architecture suites (8 files / 79 tests)
 - `pnpm test`
-
-## 2026-06-13 — Student exam-mode transient focus e2e
-
-**Completed:**
-- Added a focused Playwright e2e case covering transient blur/focus restoration during an active student exam.
-- Verified the open-response draft stays visible, exam lock overlays do not appear, and focus telemetry records a zero-second away restoration.
-- Reused the existing exam-mode API setup and cleanup helpers; no schema, app logic, or seeded data changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec playwright test e2e/student-exam-mode.spec.ts -g "keeps a transient away restoration" --project=chromium-desktop`
-- `pnpm lint`
-
-## 2026-06-14 — Teacher Tests payload type names
-
-**Completed:**
-- Added current-key local response types in `TeacherTestsTab` for teacher test list and results payloads.
-- Kept legacy `quiz` and `quizzes` fields documented as compatibility fallbacks in those local types.
-- Updated `TeacherTestsTab` component fixtures so current `test` results and create payloads are the default.
-- Added explicit legacy `quiz` results-payload fallback coverage.
-- Did not change API response shapes, route contracts, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/TeacherTestsTab.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Assessment utility fixture naming
-
-**Completed:**
-- Updated generic assessment utility comments and local parameter names from quiz wording to assessment wording.
-- Switched generic `tests/unit/assessments.test.ts` cases to use test-shaped fixtures for response eligibility, result visibility, editing, activation, and aggregation.
-- Left explicit legacy quiz alias/status coverage on `createMockQuiz` where the test is intentionally about quiz compatibility.
-- Did not change API response shapes, route contracts, schema, migrations, RPCs, storage paths, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/assessments.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Production release sync
-
-**Completed:**
-- Merged latest `origin/main` into `production` through protected PR #795.
-- Verified required GitHub checks passed before merging.
-- Synced the local production worktree to `origin/production` at `f483bbcbdc055fef379b655d6162b03c5fee073e`.
-- Risk profile: runtime-platform.
-- Model recommendation: GPT-5 Codex - protected-branch release orchestration with CI and worktree synchronization.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `bash .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh`
-- `gh run watch 27520948663 --repo codepetca/pika --interval 15 --exit-status`
-- `gh pr merge 795 --repo codepetca/pika --merge --delete-branch`
-- `git -C /Users/stew/Repos/.worktrees/pika/production merge --ff-only origin/production`
-
-## 2026-06-14 — Draft hook assessment option names
-
-**Completed:**
-- Renamed the primary `useDraftMode` options from `quizId`/`quizTitle` to `assessmentId`/`assessmentTitle`.
-- Kept legacy `quizId`/`quizTitle` option aliases for compatibility and added focused test coverage for them.
-- Updated hook comments, examples, and tests to use assessment/test wording by default.
-- Left DB-shaped `quiz_id` question fields and draft route contracts unchanged.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/hooks/useDraftMode.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Assessment draft sync error wording
-
-**Completed:**
-- Renamed `syncAssessmentQuestionsFromDraft` failure messages from quiz-question wording to assessment-question wording.
-- Updated nearby generic assessment draft helper comments to avoid quiz/test route wording.
-- Updated the focused unit assertion for the renamed insert failure message.
-- Left compatibility exports, `AssessmentDraftType = 'quiz' | 'test'`, `quiz_questions`, `quiz_id`, route contracts, and persisted payload shapes unchanged.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/assessment-drafts.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Current test fixture wording cleanup
-
-**Completed:**
-- Renamed server assessment visibility unit-test descriptions and locals from quiz wording to assessment wording.
-- Updated `StudentTestResults` current-surface test fixtures to use `test-1` and `Test not found` while preserving the explicit legacy `quizId` alias test.
-- Updated the flagged-question helper file comment from test/quiz taking to test taking.
-- Did not change runtime behavior, schema, API payloads, compatibility aliases, or persisted `quiz_id` fields.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/unit/server-assessments.test.ts tests/components/StudentTestResults.test.tsx tests/lib/flag-questions.test.ts`
-- `pnpm lint`
-- `pnpm test` (first run hit an unrelated `StudentLessonCalendarTab.test.tsx` timeout; isolated rerun passed)
-- `pnpm test`
-
-## 2026-06-14 — Teacher work-surface docs test wording
-
-**Completed:**
-- Updated stable teacher work-surface guidance from assignments/quizzes/tests to assignments/tests.
-- Removed active teacher quiz authoring/state-machine references from the canon.
-- Updated the work-surface audit and stable guidance index to match the active Tests product surface.
-- Left the explicit legacy drift row for tests/quizzes shell paths because it documents drift to avoid copying.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/ui-guidance-docs.test.ts tests/unit/ai-startup-docs.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Individual test response fixture wording
-
-**Completed:**
-- Renamed `TestIndividualResponses` current-surface test helper and stale/current fixture ids from quiz wording to test wording.
-- Updated stale-response test descriptions to say selected test changes.
-- Preserved explicit legacy `quizId` alias coverage and left runtime compatibility props unchanged.
-- No schema, API payload, or production code changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/TestIndividualResponses.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Arbitrary quiz fixture wording cleanup
-
-**Completed:**
-- Renamed arbitrary announcement and lesson-calendar fixture copy from Quiz wording to Test wording.
-- Updated the generic dev-flow risk checklist example from quiz status to test status.
-- Left schema, API compatibility keys, gradebook category fields, and legacy alias coverage unchanged.
-- No production schema or runtime contract changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/api/teacher/announcements.test.ts tests/unit/announcements.test.ts tests/components/LessonCalendar.test.tsx tests/components/LessonDayCell.test.tsx`
-- `pnpm lint`
-- `pnpm test` (first run hit unrelated component timeout failures; failed files passed on isolated rerun)
-- `pnpm test`
-
-## 2026-06-14 — Student tests response fixture keys
-
-**Completed:**
-- Updated `StudentTestsTab` test fixtures to use current `tests`/`test` response keys by default.
-- Added explicit legacy `quiz`/`quizzes` response-key fallback coverage for the student tests component.
-- Left DB-shaped `quiz_id` question fields and legacy `student-quiz-action-footer` test id unchanged.
-- No production code, schema, or API contract changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/StudentTestsTab.test.tsx` (first run hit an unrelated exam-mode timeout after the new fallback test passed; rerun passed)
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-14 — Test detail response fixture keys
-
-**Completed:**
-- Updated `TestDetailPanel` test fixtures to use current `test` response keys by default.
-- Added explicit legacy `quiz` response-key fallback coverage for teacher test detail payloads.
-- Preserved legacy `quiz`/`onQuizUpdate` prop alias coverage and the stale same-id quiz assessment scenario.
-- No production code, schema, or API contract changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm test tests/components/TestDetailPanel.test.tsx`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-16 — Legacy quiz contract cleanup plan
-
-**Completed:**
-- Added `docs/guidance/legacy-quiz-contract-cleanup.md` to inventory remaining internal `quiz` / `quizzes` references by category.
-- Documented what can still be safely renamed versus what requires payload, gradebook, course package, or schema migration planning.
-- Added routing from `docs/ai-instructions.md` and the architecture assessments section so future passes load the cleanup guide.
-- No production schema, API payload, or runtime behavior changes.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/course-blueprint-package-docs.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-16 — Legacy quiz markdown fixture clarity
-
-**Completed:**
-- Updated `tests/lib/quiz-markdown.test.ts` so the suite explicitly describes legacy quiz markdown compatibility.
-- Replaced arbitrary `Intro Quiz` fixture titles with `Legacy Check-in` while preserving the intentional `# Quiz` legacy markdown format.
-- Left production markdown helpers, schema, API payloads, and runtime behavior unchanged.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/lib/quiz-markdown.test.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-16 — Test AI gold-set fixture wording
-
-**Completed:**
-- Renamed the active Test AI grading gold-set title from `Intro CS Concepts Quiz` to `Intro CS Concepts Test`.
-- Verified the old fixture wording is gone from scripts/tests/source docs.
-- Left AI grading logic, schema, API payloads, and runtime contracts unchanged.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm tsx scripts/measure-ai-grading-prompts.ts`
-- `pnpm lint`
-- `pnpm test`
-
-## 2026-06-19 — Skill progression map refresh
-
-**Completed:**
-- Reviewed recent merged PRs and review evidence to identify the next engineering skills worth deepening.
-- Anchored recommendations to the June 8-16, 2026 PR cluster around legacy quiz-to-test contract cleanup and classroom-switch race-condition fixes.
-- Found that the strongest recurring review signals were stale async state during classroom navigation and compatibility gaps during naming-contract migration.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only`
-- `gh pr list --repo codepetca/pika --state merged --limit 15 --json number,title,mergedAt,url`
-- `gh api graphql` review scan across recent merged PRs
-
-## 2026-06-19 — Dev-flow skill upgrades
-
-**Completed:**
-- Implemented the three skill improvements as repo guidance updates instead of a separate process layer.
-- Strengthened `docs/guidance/dev-flow-risk-checklists.md` with explicit route-owner identity, stale-response guards, and A-then-B regression expectations for workspace-state work.
-- Expanded `docs/guidance/schema-rollout-checklist.md` and `docs/guidance/legacy-quiz-contract-cleanup.md` to require explicit migration slices, new-contract-first readers, and listed surviving legacy aliases.
-- Expanded `docs/guidance/component-refactor-checklist.md` to require sliced refactors with grep/test exit criteria.
-- Wired the new checks into `.codex/prompts/session-start.md`, `.codex/prompts/audit.md`, and `.codex/prompts/tdd.md`.
-
-**Validation:**
-- `git diff -- docs/guidance/dev-flow-risk-checklists.md docs/guidance/schema-rollout-checklist.md docs/guidance/component-refactor-checklist.md docs/guidance/legacy-quiz-contract-cleanup.md .codex/prompts/session-start.md .codex/prompts/audit.md .codex/prompts/tdd.md`
-- `sed -n '1,220p' .codex/prompts/tdd.md`
-
-## 2026-06-09 — Classroom theme colors
-
-**Completed:**
-- Created `codex/classroom-theme-colors` in a dedicated worktree.
-- Added a `theme_color` classroom field with deterministic backfill/default migration and centralized palette helpers.
-- Threaded classroom theme colors through teacher, student, and blueprint classroom APIs.
-- Added color recognition affordances in teacher/student classroom lists, classroom dropdown/header, and teacher settings.
-- Added teacher settings controls for changing the classroom color.
-- Rebasing checkpoint: stashed the uncommitted implementation, rebased `codex/classroom-theme-colors` onto `origin/main`, restored the stash without conflicts, and confirmed `079_classroom_theme_color.sql` remains the next migration after `origin/main`'s `078`.
-- Repeat rebase checkpoint: fetched `origin/main`; branch was already up to date, stash restored without conflicts, and `079_classroom_theme_color.sql` still follows `origin/main`'s `078` with no duplicate migration prefix.
-- Pre-PR self-review fix: kept the student classroom list query tolerant of the pre-migration schema but shaped the JSON response to avoid returning every classroom column.
-- Design revision after PR review: removed dot/swatch marker elements, themed the classroom appbar through the header surface/bottom rule, and kept classroom list recognition on existing card borders.
-- Final PR update: rebased the revised design commit onto the latest `origin/main`; migration `079_classroom_theme_color.sql` remained correctly sequenced.
-- Palette variant update: extended each classroom color to paired light/dark accents, kept the stored value as one palette key, and used CSS theme variables so the appbar/list/settings treatment adapts by mode.
-- Default color update: new classrooms and blueprint-instantiated classrooms now choose the least-used active teacher classroom color before repeating.
-- Performance follow-up: narrowed student and teacher classroom list queries to rendered fields instead of full classroom rows, with legacy fallbacks when `theme_color` is unavailable during rollout.
-- Duplicate-color follow-up: changed existing-classroom migration backfill to assign per-teacher ordered palette positions, changed new-classroom default selection to seed among least-used colors, and added list hydration fallback colors for pre-migration local data.
-- UI follow-up: fixed classroom card/settings theme border specificity so existing edges visibly render classroom colors instead of the generic border utility.
-- Classroom list card follow-up: added a subtle classroom-accent card surface gradient to teacher/student classroom list cards and drag previews so classroom color is apparent beyond the edge.
-- Gradient follow-up: extended classroom gradients farther into list cards and the classroom appbar while keeping the tint subtle.
-- Appbar underline follow-up: removed the classroom-colored appbar underline so the active classroom header is identified by the subtle gradient only, with the normal neutral border retained.
-- Final gradient/settings follow-up: removed colored list-card edge accents, extended card/appbar gradients further, changed settings color options so every swatch shows its gradient and only the selected option has the accent edge plus label, and propagated saved classroom changes to the page shell so the appbar updates without refresh.
-- Left-edge follow-up: restored the classroom accent edge on the appbar left side and classroom card left side while keeping the appbar bottom border neutral and retaining the extended gradients.
-- Hover follow-up: changed classroom list card hover/focus feedback from an inner button fill to a full-card classroom-accent outline.
-- Bottom-controls follow-up: made the classroom list bottom edit control shell chromeless so the pencil sits on the page without a visible card surface.
-- Appbar logo follow-up: changed the Pika logo to a classroom-accent masked mark only when an active classroom theme is present, leaving the normal brand image on unthemed appbars.
-- Appbar logo alignment follow-up: normalized brand and classroom logo rendering into the same fixed centered box and removed the appbar left accent edge now that the logo carries the classroom color.
-- Classroom card hover follow-up: replaced the full-card hover outline with a subtle whole-card lift and panel shadow increase.
-- Appbar logo revert follow-up: removed the classroom-colored Pika logo variant and restored the classroom accent edge on the appbar left side.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh` (after `pnpm install`; includes `pnpm test`, 301 files / 2655 tests)
-- `pnpm test tests/unit/classroom-theme.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/student/classrooms.test.ts tests/api/student/classrooms-id.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx tests/components/TeacherSettingsTab.test.tsx`
-- `pnpm lint`
-- `pnpm test` (302 files / 2669 tests)
 - `pnpm build`
-- `pnpm e2e:auth`
-- Playwright screenshots under `/tmp/pika-classroom-theme/` for teacher/student classroom lists, teacher/student detail headers, and teacher settings in light/dark modes.
-- Post-rebase: `pnpm test tests/unit/classroom-theme.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/student/classrooms.test.ts tests/api/student/classrooms-id.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx tests/components/TeacherSettingsTab.test.tsx`
-- Post-rebase: `pnpm lint`
-- Repeat post-rebase: `pnpm test tests/unit/classroom-theme.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/student/classrooms.test.ts tests/api/student/classrooms-id.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx tests/components/TeacherSettingsTab.test.tsx`
-- Repeat post-rebase: `pnpm lint`
-- Pre-PR: `pnpm test tests/unit/classroom-theme.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/student/classrooms.test.ts tests/api/student/classrooms-id.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx tests/components/TeacherSettingsTab.test.tsx`
-- Pre-PR: `pnpm lint`
-- Pre-PR: `pnpm build`
-- Design revision: `pnpm test tests/unit/classroom-theme.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/student/classrooms.test.ts tests/api/student/classrooms-id.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts tests/components/AppHeader.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx tests/components/TeacherSettingsTab.test.tsx`
-- Design revision: `pnpm lint`
-- Design revision: `pnpm build`
-- Design revision visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; plus Playwright screenshots for teacher/student classroom detail and teacher settings in light/dark mode under `/tmp/pika-classroom-theme-appbar-*.png`.
-- Final post-rebase: `pnpm test tests/unit/classroom-theme.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/student/classrooms.test.ts tests/api/student/classrooms-id.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts tests/components/AppHeader.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx tests/components/TeacherSettingsTab.test.tsx`
-- Final post-rebase: `pnpm lint`
-- Palette variant update: `pnpm test tests/unit/classroom-theme.test.ts tests/api/teacher/classrooms.test.ts tests/lib/server/course-blueprints.test.ts tests/components/AppHeader.test.tsx tests/components/TeacherSettingsTab.test.tsx`
-- Palette variant update: `pnpm test tests/unit/classroom-theme.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/student/classrooms.test.ts tests/api/student/classrooms-id.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts tests/lib/server/course-blueprints.test.ts tests/components/AppHeader.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx tests/components/TeacherSettingsTab.test.tsx`
-- Palette variant update: `pnpm lint`
-- Palette variant update: `pnpm build`
-- Palette variant visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; targeted screenshots in `/tmp/pika-classroom-theme-variants-*.png`; Playwright computed-style check confirmed light appbar accent `#2563eb` and dark appbar accent `#60a5fa`.
-- Performance follow-up: `pnpm test tests/api/student/classrooms.test.ts tests/unit/server-classroom-order.test.ts tests/lib/server/classroom-order.test.ts tests/api/teacher/classrooms.test.ts`
-- Performance follow-up: `pnpm test tests/unit/classroom-theme.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/student/classrooms.test.ts tests/api/student/classrooms-id.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts tests/lib/server/course-blueprints.test.ts tests/unit/server-classroom-order.test.ts tests/lib/server/classroom-order.test.ts tests/components/AppHeader.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx tests/components/TeacherSettingsTab.test.tsx`
-- Performance follow-up: `pnpm lint`
-- Performance follow-up: `pnpm build`
-- Duplicate-color follow-up: `supabase db query --local --output json "<read-only CTE verification>"` confirmed same-teacher classrooms get Blue then Teal before repeating.
-- Duplicate-color follow-up: `pnpm test tests/unit/classroom-theme.test.ts tests/unit/classroom-theme-migration.test.ts tests/unit/server-classrooms.test.ts tests/api/teacher/classrooms.test.ts tests/api/student/classrooms.test.ts tests/api/student/classrooms-id.test.ts tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx tests/components/AppHeader.test.tsx tests/components/TeacherSettingsTab.test.tsx`
-- Duplicate-color follow-up: `pnpm test tests/unit/classroom-theme.test.ts tests/unit/classroom-theme-migration.test.ts tests/unit/server-classrooms.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/student/classrooms.test.ts tests/api/student/classrooms-id.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts tests/lib/server/course-blueprints.test.ts tests/unit/server-classroom-order.test.ts tests/lib/server/classroom-order.test.ts tests/components/AppHeader.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx tests/components/TeacherSettingsTab.test.tsx`
-- Duplicate-color follow-up: `pnpm lint`
-- Duplicate-color follow-up: `pnpm build`
-- Duplicate-color visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; Playwright computed-style check confirmed the local test list renders Blue and Teal card-edge colors for the two teacher classrooms.
-- Classroom list card follow-up: `pnpm test tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx tests/unit/classroom-theme.test.ts tests/unit/server-classrooms.test.ts`
-- Classroom list card follow-up: `pnpm test tests/unit/classroom-theme.test.ts tests/unit/classroom-theme-migration.test.ts tests/unit/server-classrooms.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/student/classrooms.test.ts tests/api/student/classrooms-id.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts tests/lib/server/course-blueprints.test.ts tests/unit/server-classroom-order.test.ts tests/lib/server/classroom-order.test.ts tests/components/AppHeader.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx tests/components/TeacherSettingsTab.test.tsx`
-- Classroom list card follow-up: `pnpm lint`
-- Classroom list card follow-up: `pnpm build` after clearing stale generated `.next` output from an overlapping dev-server build.
-- Classroom list card visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; Playwright computed-style check confirmed list cards render classroom-color gradients.
-- Gradient follow-up: `pnpm test tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/AppHeader.test.tsx tests/unit/classroom-theme.test.ts`
-- Gradient follow-up: `pnpm lint`
-- Gradient follow-up: `pnpm build`
-- Gradient visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; Playwright computed-style check confirmed appbar gradient stops at 22%/78% and card gradient stops at 18%/62%.
-- Appbar underline follow-up: `pnpm test tests/components/AppHeader.test.tsx`
-- Appbar underline follow-up: `pnpm test tests/unit/classroom-theme.test.ts tests/unit/classroom-theme-migration.test.ts tests/unit/server-classrooms.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/student/classrooms.test.ts tests/api/student/classrooms-id.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts tests/lib/server/course-blueprints.test.ts tests/unit/server-classroom-order.test.ts tests/lib/server/classroom-order.test.ts tests/components/AppHeader.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx tests/components/TeacherSettingsTab.test.tsx`
-- Appbar underline follow-up: `pnpm lint`
-- Appbar underline follow-up: `pnpm build`
-- Appbar underline visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; Playwright computed-style check confirmed header gradient remains, box-shadow is `none`, and the bottom border is neutral.
-- Final gradient/settings follow-up: `pnpm test tests/components/TeacherSettingsTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/AppHeader.test.tsx tests/unit/classroom-theme.test.ts`
-- Final gradient/settings follow-up: `pnpm test tests/unit/classroom-theme.test.ts tests/unit/classroom-theme-migration.test.ts tests/unit/server-classrooms.test.ts tests/lib/validations/teacher.test.ts tests/api/teacher/classrooms.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/student/classrooms.test.ts tests/api/student/classrooms-id.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts tests/lib/server/course-blueprints.test.ts tests/unit/server-classroom-order.test.ts tests/lib/server/classroom-order.test.ts tests/components/AppHeader.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
-- Final gradient/settings follow-up: `pnpm lint`
-- Final gradient/settings follow-up: `pnpm build`
-- Final gradient/settings visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; Playwright screenshots `/tmp/pika-classroom-theme-no-edge-extended-card.png`, `/tmp/pika-classroom-theme-settings-swatches-before.png`, `/tmp/pika-classroom-theme-settings-swatches-after.png`, and `/tmp/pika-classroom-theme-no-edge-extended-appbar.png`; computed-style check confirmed list cards have neutral 1px left borders, all settings options have gradients, only the selected option has a 4px accent edge, and the appbar changed from Blue to Teal without refresh.
-- Left-edge follow-up: `pnpm test tests/components/AppHeader.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/unit/classroom-theme.test.ts`
-- Left-edge follow-up: `pnpm lint`
-- Left-edge follow-up: `pnpm build`
-- Left-edge visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; Playwright screenshots `/tmp/pika-classroom-theme-left-edge-cards.png` and `/tmp/pika-classroom-theme-left-edge-appbar.png`; computed-style check confirmed 4px accent left borders on classroom cards and appbar, neutral card top borders, neutral appbar bottom border, and no appbar box-shadow underline.
-- Hover follow-up: `pnpm test tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/AppHeader.test.tsx tests/unit/classroom-theme.test.ts`
-- Hover follow-up: `pnpm lint`
-- Hover follow-up: `pnpm build`
-- Hover visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; Playwright screenshots `/tmp/pika-classroom-theme-card-outline-before.png` and `/tmp/pika-classroom-theme-card-outline-hover.png`; computed-style check confirmed hover changes the full card outline while the inner button background stays transparent.
-- Bottom-controls follow-up: `pnpm test tests/components/TeacherClassroomsIndex.test.tsx tests/components/TeacherWorkSurfaceActionBar.test.tsx`
-- Bottom-controls follow-up: `pnpm lint`
-- Bottom-controls follow-up: `pnpm build`
-- Bottom-controls visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; reviewed `/tmp/pika-teacher.png`, `/tmp/pika-teacher-mobile.png`, and `/tmp/pika-student.png`; dark-mode screenshot `/tmp/pika-classroom-bottom-controls-dark.png`; computed-style check confirmed the classroom bottom controls have transparent background, no shadow, no backdrop blur, and zero padding.
-- Appbar logo follow-up: `pnpm test tests/components/AppHeader.test.tsx tests/unit/classroom-theme.test.ts`
-- Appbar logo follow-up: `pnpm lint`
-- Appbar logo follow-up: `pnpm build`
-- Appbar logo visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; targeted classroom screenshots `/tmp/pika-classroom-logo-light.png` and `/tmp/pika-classroom-logo-dark.png`; computed-style check confirmed the masked logo uses the light classroom accent in light mode and the dark classroom accent in dark mode.
-- Appbar logo alignment follow-up: `pnpm test tests/components/AppHeader.test.tsx tests/unit/classroom-theme.test.ts`
-- Appbar logo alignment follow-up: `pnpm lint`
-- Appbar logo alignment follow-up: `pnpm build`
-- Appbar logo alignment visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; targeted screenshot `/tmp/pika-classroom-logo-centered-light.png`; computed geometry check confirmed the brand and classroom logo boxes share the same vertical center offset in the 48px appbar and themed appbars have `0px` left border width.
-- Classroom card hover follow-up: `pnpm test tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx`
-- Classroom card hover follow-up: `pnpm lint`
-- Classroom card hover follow-up: `pnpm build`
-- Classroom card hover visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; targeted screenshots `/tmp/pika-classroom-hover-elevation-before.png` and `/tmp/pika-classroom-hover-elevation-after.png`; computed-style check confirmed no outline, `translateY(-1px)`, and increased shadow on hover.
-- Appbar logo revert follow-up: `pnpm test tests/components/AppHeader.test.tsx tests/unit/classroom-theme.test.ts`
-- Appbar logo revert follow-up: `pnpm lint`
-- Appbar logo revert follow-up: `pnpm build`
-- Appbar logo revert visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; targeted screenshot `/tmp/pika-classroom-appbar-brand-logo-left-edge.png`; computed-style check confirmed the appbar uses the brand image, has no masked logo, and renders a 4px classroom-accent left border.
-- Bright palette follow-up: updated classroom theme labels/colors to a brighter set (Sky, Mint, Lime, Sunshine, Coral, Grape, Aqua, Peach) while keeping stored theme keys stable.
-- Bright palette follow-up: `pnpm test tests/unit/classroom-theme.test.ts tests/components/TeacherSettingsTab.test.tsx tests/components/AppHeader.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx`
-- Bright palette follow-up: `pnpm lint`
-- Bright palette follow-up: `pnpm build`
-- Bright palette visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`; reviewed `/tmp/pika-teacher.png`, `/tmp/pika-teacher-mobile.png`, and `/tmp/pika-student.png`; targeted settings screenshots `/tmp/pika-settings-light.png` and `/tmp/pika-settings-dark.png` confirmed brighter palette swatches and appbar gradients remain legible in light and dark mode.
-- Full-border follow-up: replaced the classroom-color left edge on classroom list cards and the classroom appbar with a 1px classroom-color border on all sides, keeping the existing gradients.
-- Full-border follow-up: `pnpm test tests/components/AppHeader.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/SortableClassroomRow.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/unit/classroom-theme.test.ts`
-- Full-border follow-up: `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Full-border follow-up: `pnpm lint`
-- Full-border follow-up: `pnpm build`
-- Full-border visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms` and `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms/ddb6fbe4-66b3-46cf-9efa-21cb4f2a5218`; computed-style check confirmed teacher classroom cards and the appbar all render 1px accent-colored borders on top/right/bottom/left.
-- Full-border post-rebase: rebased cleanly onto `origin/main`; migration `079_classroom_theme_color.sql` remains next after main's `078_assignment_gradex_run_metadata.sql` with no duplicate migration prefixes.
-- Gradient-only follow-up: removed classroom-colored border overrides from classroom cards and the appbar, leaving the existing classroom gradients as the sole classroom color signal on those surfaces.
-- Gradient-only follow-up: `pnpm test tests/components/AppHeader.test.tsx tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/SortableClassroomRow.test.tsx tests/unit/classroom-theme.test.ts`
-- Gradient-only follow-up: `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Gradient-only follow-up: `pnpm lint`
-- Gradient-only follow-up: `pnpm build`
-- Gradient-only visual verification: `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms` and `E2E_BASE_URL=http://localhost:3002 bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms/ddb6fbe4-66b3-46cf-9efa-21cb4f2a5218`; computed-style check confirmed card/header borders are neutral while gradients remain.
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (596 modules / 0 allowances)
+- `bash -n` and `shellcheck` for the database harness
+- Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-15 — Gradebook workflow boundary
+
+**Completed:**
+- Reduced the gradebook API route from 1,127 lines to a transport-only handler backed by a feature-owned server workflow and Zod request contracts.
+- Preserved roster paging, 50-ID chunking, 1,000-row pagination, legacy-column fallbacks, assessment ordering, status calculation, summaries, and response shape while reusing the shared query-chunks infrastructure.
+- Moved `ApiError` into a framework-neutral module so server workflows do not depend on Next transport types; `api-handler` re-exports the same class for compatibility.
+- Tightened assessment weight input to string IDs and integer/decimal-digit weights, retained the intentional legacy-category `410`, and removed the route from the API Zod baseline.
+- Narrowed missing-table detection so partial migrations fail visibly instead of silently hiding tests; added route, validation, migration-compatibility, and architecture regressions.
+- Completed independent behavior/authorization and API/Zod review-fix rounds with no remaining findings. No UI, migration, dependency, or production changes.
+
+**Validation:**
+- Focused gradebook/API/error/architecture suites (5 files / 75 tests)
+- `pnpm check:architecture` (602 modules / 0 allowances)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm vitest run` (361 files / 3,322 tests)
+- `pnpm build`
+- `git diff --check`
+
+## 2026-07-15 — Legacy quiz gradebook and archive compatibility decision
+
+**Completed:**
+- Removed the inactive quiz category from gradebook calculation inputs/results while retaining null/empty API response tombstones for older clients.
+- Added an architecture guard that allowlists gradebook dependencies and quiz tombstones, forbidding legacy quiz identifiers from active calculation and persistence code.
+- Classified legacy quiz gradebook rows as archival data and kept the version 3 course-package `quizzes` flag serialized but permanently normalized to `false`.
+- Removed dead quiz-table fixtures from gradebook tests and added encoded package compatibility regressions.
+- Expanded the archive database restore harness with non-empty quiz, question, response, and manual-override rows; the existing exact-table equality audit now proves they survive staging and final restore.
+- Documented that schema retirement remains blocked on an archive adapter, production inventory, and production verification. No production state or schema was changed.
+- Completed an independent review/fix loop; four guardrail findings were fixed and final rereview returned no findings.
+
+**Validation:**
+- Focused gradebook/package/archive suites (54 tests)
+- Classroom archive restore database contract harness
+- `pnpm vitest run` (361 files / 3,324 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (602 modules / 0 allowances)
+- `bash -n scripts/check-classroom-archive-restore-database.sh`
+- `git diff --check`
+
+## 2026-07-15 — Legacy quiz alias retirement
+
+**Completed:**
+- Removed unused quiz server access/re-export modules, quiz-named assessment helper aliases, zero-caller `Quiz*` domain/draft/markdown type aliases, and obsolete test factories.
+- Preserved persisted quiz tables/discriminants, archive resources, draft synchronization, markdown behavior, API payload aliases, gradebook tombstones, URLs, and UI compatibility props.
+- Added a TypeScript module-resolution/export-graph regression that prevents retired modules or public aliases from returning through direct exports, re-exports, or replacement index modules.
+- Removed stale Vitest coverage thresholds for deleted quiz modules and API routes, and corrected architecture/cleanup documentation.
+- Completed independent behavior and architecture/config review-fix loops; six findings were fixed and final rereviews returned no findings. No UI, migration, dependency, or production changes.
+
+**Validation:**
+- Focused assessment/access/architecture suites (4 files / 90 tests)
+- `pnpm vitest run` (361 files / 3,308 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (599 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-15 — Legacy quiz draft alias retirement
+
+**Completed:**
+- Removed the zero-caller `validateQuizDraftContent`, `buildQuizDraftContentFromRows`, and `syncQuizQuestionsFromDraft` wrapper exports and their identity-only assertions.
+- Preserved persisted `assessment_type = 'quiz'`, assessment-named legacy draft behavior, `quiz_questions`/`quiz_id` synchronization, archive resources, markdown compatibility, API aliases, and UI props.
+- Strengthened the legacy alias architecture regression to inspect resolved exports across every TypeScript module under `src`, preventing aliases from returning through unrelated re-exports.
+- Completed independent behavior and architecture review/fix loops; one guard bypass finding was fixed and final rereviews returned no findings. No UI, schema, dependency, or production changes.
+
+**Validation:**
+- Focused draft/architecture suites (2 files / 16 tests)
+- `pnpm vitest run` (361 files / 3,307 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (599 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-15 — Classroom archive source ownership fence
+
+**Completed:**
+- Added migration 096 to make assignment-artifact source deletion require a bounded, transactional ownership verification and a permanent SHA-256 path reservation.
+- Serialized verification against artifact references, Storage writes, cleanup-ledger staging, and stale-worker deletion; reset pre-fence leases and rejected unreconciled historical deletions.
+- Restricted cleanup claims, lease transitions, and exact Storage presence checks to service-owned database contracts with explicit privilege tests.
+- Kept source cleanup manual, default-off, unscheduled, operation-scoped, and limited to one object per invocation; submission images and test documents remain preserved until they have authoritative relational registries.
+- Expanded the database harness with live multi-session races and the recovery drill with exact export, cleanup, byte-identical restore, replay, and deidentified-fence retention checks.
+- Completed repeated runtime and database review/fix rounds. No production state was read or modified by this phase.
+
+**Deployment obligation:**
+- Apply migration 096 before deploying this app version.
+- Run hosted catalog audit and named canaries read-only before enabling any source cleanup; keep cleanup disabled unless both explicit gates and an exact completed operation ID are supplied.
+
+**Validation:**
+- Classroom archive source-cleanup route/server/migration suites (33 tests)
+- `pnpm vitest run` (362 files / 3,317 tests)
+- Classroom archive compaction database contract harness, including concurrent verifier/reference/Storage/staging races
+- Classroom archive full recovery drill (42 resource tables; exact restore and replay)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm db:types:check`
+- `pnpm lint`
+- `pnpm check:architecture` (599 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`

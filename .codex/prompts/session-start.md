@@ -14,7 +14,7 @@ bash .codex/skills/pika-session-start/scripts/session_start.sh --orient-only
 
 Manual fallback:
 1. Resolve the repo root with `git rev-parse --show-toplevel` and verify it is not `$HOME/Repos/pika` for branch work.
-2. Ensure `.env.local` symlinks to `$HOME/Repos/.env/pika/.env.local`.
+2. Ensure `.env.local` exists: maintainer setups usually symlink it to `$HOME/Repos/.env/pika/.env.local`; collaborators may `cp .env.example .env.local`.
 3. Run `bash scripts/verify-env.sh`.
 4. Review `git status -sb` and `git log --oneline -8`.
 5. Read `.ai/START-HERE.md`, `.ai/CURRENT.md`, `.ai/features.json`, and `docs/ai-instructions.md`.

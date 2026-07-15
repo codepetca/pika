@@ -79,13 +79,24 @@ describe('AppHeader classroom theme', () => {
     expect(header).not.toHaveClass('border')
     expect(header.getAttribute('style')).toContain('--classroom-accent-light')
     expect(header.getAttribute('style')).toContain('--classroom-accent-dark')
-    expect(screen.getByAltText('Pika')).not.toHaveClass('pika-logo-classroom')
+    expect(screen.getByAltText('Pika')).toHaveClass('pika-logo')
   })
 
   it('keeps the brand logo on unthemed appbars', () => {
     render(<AppHeader pageTitle="Classrooms" />, { wrapper: Wrapper })
 
-    expect(screen.getByAltText('Pika')).not.toHaveClass('pika-logo-classroom')
+    expect(screen.getByAltText('Pika')).toHaveClass('pika-logo')
+  })
+
+  it('themes the brand logo through design tokens instead of component dark utilities', () => {
+    const logoSource = readFileSync(resolve(process.cwd(), 'src/components/PikaLogo.tsx'), 'utf8')
+    const tokens = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8')
+
+    expect(logoSource).toContain('pika-logo')
+    expect(logoSource).not.toContain('dark:')
+    expect(tokens).toContain('--pika-logo-filter: none;')
+    expect(tokens).toContain('--pika-logo-filter: brightness(0) hue-rotate(15deg) invert(1) saturate(0.3) sepia(1);')
+    expect(tokens).toContain('filter: var(--pika-logo-filter);')
   })
 
   it('keeps appbar classroom theme to the gradient without an accent underline', () => {

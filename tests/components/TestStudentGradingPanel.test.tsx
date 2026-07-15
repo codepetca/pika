@@ -17,7 +17,15 @@ vi.mock('@/ui', () => ({
   Input: (props: any) => <input {...props} />,
 }))
 
-function makeResultsPayload(score: number | null, feedback: string | null) {
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((resolver) => {
+    resolve = resolver
+  })
+  return { promise, resolve }
+}
+
+function makeResultsPayload(score: number | null, feedback: string | null, responseRevision = 1) {
   return {
     test: { id: 'test-1', title: 'Unit Test' },
     questions: [
@@ -45,6 +53,7 @@ function makeResultsPayload(score: number | null, feedback: string | null) {
         answers: {
           'q-open-1': {
             response_id: 'response-1',
+            response_revision: responseRevision,
             question_type: 'open_response' as const,
             selected_option: null,
             response_text: 'Water moves to balance concentration.',
@@ -106,6 +115,7 @@ function makeMixedResultsPayload(
         answers: {
           'q-mc-1': {
             response_id: 'response-mc-1',
+            response_revision: 1,
             question_type: 'multiple_choice' as const,
             selected_option: selectedOption,
             response_text: null,
@@ -115,6 +125,7 @@ function makeMixedResultsPayload(
           },
           'q-open-1': {
             response_id: 'response-open-1',
+            response_revision: 1,
             question_type: 'open_response' as const,
             selected_option: null,
             response_text: 'Water moves to balance concentration.',
@@ -143,6 +154,7 @@ describe('TestStudentGradingPanel save-all grading', () => {
   it('removes per-question AI/single-save actions and saves edits via registered handler', async () => {
     let persistedScore: number | null = null
     let persistedFeedback: string | null = null
+    let persistedRevision = 3
     const patchBodies: Array<Record<string, unknown>> = []
     const gradingRowUpdates: Array<CustomEvent> = []
     const handleGradingRowUpdated = (event: Event) => {
@@ -155,7 +167,7 @@ describe('TestStudentGradingPanel save-all grading', () => {
       if (url.endsWith('/api/teacher/tests/test-1/results')) {
         return Promise.resolve({
           ok: true,
-          json: async () => makeResultsPayload(persistedScore, persistedFeedback),
+          json: async () => makeResultsPayload(persistedScore, persistedFeedback, persistedRevision),
         })
       }
       if (url.endsWith('/api/teacher/tests/test-1/students/student-1/grades') && init?.method === 'PATCH') {
@@ -169,9 +181,13 @@ describe('TestStudentGradingPanel save-all grading', () => {
           persistedScore = Number(grade?.score)
           persistedFeedback = typeof grade?.feedback === 'string' ? grade.feedback : null
         }
+        persistedRevision += 1
         return Promise.resolve({
           ok: true,
-          json: async () => ({ saved_count: 1 }),
+          json: async () => ({
+            saved_count: 1,
+            responses: [{ id: 'response-1', revision: persistedRevision }],
+          }),
         })
       }
       return Promise.resolve({
@@ -222,6 +238,8 @@ describe('TestStudentGradingPanel save-all grading', () => {
           grades: [
             expect.objectContaining({
               question_id: 'q-open-1',
+              response_id: 'response-1',
+              expected_response_revision: 3,
               score: 4,
               feedback: '',
             }),
@@ -247,6 +265,21 @@ describe('TestStudentGradingPanel save-all grading', () => {
       String(input).endsWith('/api/teacher/tests/test-1/results')
     )
     expect(resultsCalls).toHaveLength(1)
+
+    await user.clear(scoreInput)
+    await user.type(scoreInput, '5')
+    await act(async () => {
+      await saveHandler?.()
+    })
+    await waitFor(() => expect(patchBodies).toHaveLength(2))
+    expect(patchBodies[1]).toMatchObject({
+      grades: [{
+        question_id: 'q-open-1',
+        response_id: 'response-1',
+        expected_response_revision: 4,
+        score: 5,
+      }],
+    })
   })
 
   it('accepts legacy quiz result payloads as a compatibility fallback', async () => {
@@ -307,7 +340,13 @@ describe('TestStudentGradingPanel save-all grading', () => {
         }
         return Promise.resolve({
           ok: true,
-          json: async () => ({ saved_count: grades.length }),
+          json: async () => ({
+            saved_count: grades.length,
+            responses: grades.map((grade) => ({
+              id: grade.question_id === 'q-mc-1' ? 'response-mc-1' : 'response-open-1',
+              revision: 2,
+            })),
+          }),
         })
       }
 
@@ -347,7 +386,12 @@ describe('TestStudentGradingPanel save-all grading', () => {
       url: expect.stringContaining('/students/student-1/grades'),
       body: {
         grades: [
-          { question_id: 'q-mc-1', score: 1 },
+          {
+            question_id: 'q-mc-1',
+            response_id: 'response-mc-1',
+            expected_response_revision: 1,
+            score: 1,
+          },
         ],
       },
     })
@@ -446,7 +490,10 @@ describe('TestStudentGradingPanel save-all grading', () => {
         persistedFeedback = null
         return Promise.resolve({
           ok: true,
-          json: async () => ({ saved_count: 1 }),
+          json: async () => ({
+            saved_count: 1,
+            responses: [{ id: 'response-1', revision: 2 }],
+          }),
         })
       }
       return Promise.resolve({
@@ -478,7 +525,14 @@ describe('TestStudentGradingPanel save-all grading', () => {
 
     await waitFor(() => {
       expect(patchBodies).toEqual([
-        { grades: [{ question_id: 'q-open-1', clear_grade: true }] },
+        {
+          grades: [{
+            question_id: 'q-open-1',
+            response_id: 'response-1',
+            expected_response_revision: 1,
+            clear_grade: true,
+          }],
+        },
       ])
     })
   })
@@ -534,7 +588,10 @@ describe('TestStudentGradingPanel save-all grading', () => {
         patchBodies.push(JSON.parse(String(init.body || '{}')) as Record<string, unknown>)
         return Promise.resolve({
           ok: true,
-          json: async () => ({ saved_count: 1 }),
+          json: async () => ({
+            saved_count: 1,
+            responses: [{ id: 'response-1', revision: 2 }],
+          }),
         })
       }
       return Promise.resolve({
@@ -573,10 +630,252 @@ describe('TestStudentGradingPanel save-all grading', () => {
       grades: [
         {
           question_id: 'q-open-1',
+          response_id: 'response-1',
+          expected_response_revision: 1,
           score: 4,
           feedback: 'Great detail.',
         },
       ],
     })
+  })
+
+  it('preserves edits entered while a grade save is in flight', async () => {
+    const patchResponse = deferred<{
+      ok: boolean
+      json: () => Promise<{ saved_count: number; responses: Array<{ id: string; revision: number }> }>
+    }>()
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation(
+      (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.endsWith('/api/teacher/tests/test-1/results')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => makeResultsPayload(null, null),
+          })
+        }
+        if (url.endsWith('/api/teacher/tests/test-1/students/student-1/grades') && init?.method === 'PATCH') {
+          return patchResponse.promise
+        }
+        return Promise.resolve({
+          ok: false,
+          json: async () => ({ error: `Unhandled fetch: ${url}` }),
+        })
+      },
+    )
+
+    let saveHandler: (() => Promise<void>) | null = null
+    render(
+      <TestStudentGradingPanel
+        testId="test-1"
+        selectedStudentId="student-1"
+        onRegisterSaveHandler={(handler) => {
+          saveHandler = handler
+        }}
+      />,
+    )
+
+    const scoreInput = await screen.findByRole('spinbutton')
+    fireEvent.change(scoreInput, { target: { value: '4' } })
+    await waitFor(() => expect(saveHandler).not.toBeNull())
+
+    let savePromise: Promise<void> | undefined
+    await act(async () => {
+      savePromise = saveHandler?.()
+      await Promise.resolve()
+    })
+    fireEvent.change(scoreInput, { target: { value: '5' } })
+    patchResponse.resolve({
+      ok: true,
+      json: async () => ({
+        saved_count: 1,
+        responses: [{ id: 'response-1', revision: 2 }],
+      }),
+    })
+    await act(async () => {
+      await savePromise
+    })
+
+    expect(scoreInput).toHaveValue(5)
+  })
+
+  it('reloads a conflicting revision, preserves the draft, and autosaves it again', async () => {
+    let resultsRevision = 1
+    let resultsScore: number | null = null
+    const patchBodies: Array<Record<string, unknown>> = []
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation(
+      (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.endsWith('/api/teacher/tests/test-1/results')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => makeResultsPayload(resultsScore, null, resultsRevision),
+          })
+        }
+        if (url.endsWith('/api/teacher/tests/test-1/students/student-1/grades') && init?.method === 'PATCH') {
+          const body = JSON.parse(String(init.body || '{}')) as Record<string, unknown>
+          patchBodies.push(body)
+          if (patchBodies.length === 1) {
+            resultsRevision = 2
+            resultsScore = 3
+            return Promise.resolve({
+              ok: false,
+              status: 409,
+              json: async () => ({ error: 'Test response grade changed; reload and retry' }),
+            })
+          }
+          resultsRevision = 3
+          resultsScore = 4
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({
+              saved_count: 1,
+              responses: [{ id: 'response-1', revision: resultsRevision }],
+            }),
+          })
+        }
+        return Promise.resolve({
+          ok: false,
+          status: 404,
+          json: async () => ({ error: `Unhandled fetch: ${url}` }),
+        })
+      },
+    )
+
+    render(
+      <TestStudentGradingPanel
+        testId="test-1"
+        selectedStudentId="student-1"
+      />,
+    )
+
+    const scoreInput = await screen.findByRole('spinbutton')
+    fireEvent.change(scoreInput, { target: { value: '4' } })
+
+    await waitFor(() => expect(patchBodies).toHaveLength(2), { timeout: 4000 })
+    expect(patchBodies[0]).toMatchObject({
+      grades: [expect.objectContaining({ expected_response_revision: 1, score: 4 })],
+    })
+    expect(patchBodies[1]).toMatchObject({
+      grades: [expect.objectContaining({ expected_response_revision: 2, score: 4 })],
+    })
+    expect(scoreInput).toHaveValue(4)
+  })
+
+  it('preserves a submitted draft changed back to its baseline during conflict reload', async () => {
+    let resultsRevision = 1
+    let resultsScore: number | null = 1
+    const conflictResponse = deferred<{
+      ok: boolean
+      status: number
+      json: () => Promise<{ error: string }>
+    }>()
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation(
+      (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.endsWith('/api/teacher/tests/test-1/results')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => makeResultsPayload(resultsScore, null, resultsRevision),
+          })
+        }
+        if (url.endsWith('/api/teacher/tests/test-1/students/student-1/grades') && init?.method === 'PATCH') {
+          return conflictResponse.promise
+        }
+        return Promise.resolve({
+          ok: false,
+          status: 404,
+          json: async () => ({ error: `Unhandled fetch: ${url}` }),
+        })
+      },
+    )
+
+    let saveHandler: (() => Promise<void>) | null = null
+    render(
+      <TestStudentGradingPanel
+        testId="test-1"
+        selectedStudentId="student-1"
+        onRegisterSaveHandler={(handler) => {
+          saveHandler = handler
+        }}
+      />,
+    )
+
+    const scoreInput = await screen.findByRole('spinbutton')
+    fireEvent.change(scoreInput, { target: { value: '4' } })
+    await waitFor(() => expect(saveHandler).not.toBeNull())
+
+    let savePromise: Promise<void> | undefined
+    await act(async () => {
+      savePromise = saveHandler?.()
+      await Promise.resolve()
+    })
+    fireEvent.change(scoreInput, { target: { value: '1' } })
+    resultsRevision = 2
+    resultsScore = 3
+    conflictResponse.resolve({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: 'Test response grade changed; reload and retry' }),
+    })
+    await act(async () => {
+      await savePromise
+    })
+
+    expect(scoreInput).toHaveValue(1)
+  })
+
+  it('stops automatic autosave after a second consecutive revision conflict', async () => {
+    let resultsRevision = 1
+    const patchBodies: Array<Record<string, unknown>> = []
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation(
+      (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.endsWith('/api/teacher/tests/test-1/results')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => makeResultsPayload(2, null, resultsRevision),
+          })
+        }
+        if (url.endsWith('/api/teacher/tests/test-1/students/student-1/grades') && init?.method === 'PATCH') {
+          patchBodies.push(JSON.parse(String(init.body || '{}')) as Record<string, unknown>)
+          resultsRevision += 1
+          return Promise.resolve({
+            ok: false,
+            status: 409,
+            json: async () => ({ error: 'Test response grade changed; reload and retry' }),
+          })
+        }
+        return Promise.resolve({
+          ok: false,
+          status: 404,
+          json: async () => ({ error: `Unhandled fetch: ${url}` }),
+        })
+      },
+    )
+
+    render(
+      <TestStudentGradingPanel
+        testId="test-1"
+        selectedStudentId="student-1"
+      />,
+    )
+
+    const scoreInput = await screen.findByRole('spinbutton')
+    fireEvent.change(scoreInput, { target: { value: '4' } })
+
+    await screen.findByText(/Grades changed again/gi, {}, { timeout: 5000 })
+    expect(patchBodies).toHaveLength(2)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1400))
+    })
+    expect(patchBodies).toHaveLength(2)
+    expect(scoreInput).toHaveValue(4)
   })
 })

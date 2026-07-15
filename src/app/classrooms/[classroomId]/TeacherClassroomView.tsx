@@ -54,6 +54,7 @@ import {
 } from '@/components/assignment-workspace/TeacherAssignmentStudentTable'
 import {
   TeacherStudentWorkPanel,
+  type TeacherAssignmentGradePersistenceState,
   type TeacherAssignmentGradeTemplate,
 } from '@/components/TeacherStudentWorkPanel'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
@@ -109,7 +110,7 @@ import {
 } from '@/lib/events'
 import { applyDirection, compareByNameFields, toggleSort as toggleSortState } from '@/lib/table-sort'
 import type { SortDirection } from '@/lib/table-sort'
-import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchCachedJSON, fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { fetchClassDaysForClassroom } from '@/lib/class-days-client'
 import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { readCookie, writeCookie } from '@/lib/cookies'
@@ -117,6 +118,18 @@ import { safeSessionGetJson, safeSessionSetJson } from '@/lib/client-storage'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
+}
+
+type TeacherAssignmentsResponse = {
+  assignments?: AssignmentWithStats[]
+}
+
+type TeacherMaterialsResponse = {
+  materials?: ClassworkMaterial[]
+}
+
+type TeacherSurveysResponse = {
+  surveys?: SurveyWithStats[]
 }
 
 type TeacherAssignmentSelection =
@@ -681,6 +694,8 @@ export function TeacherClassroomView({
   const [gradeSelectedTemplate, setGradeSelectedTemplate] =
     useState<TeacherAssignmentGradeTemplate | null>(null)
   const [gradeSelectedRefreshCounter, setGradeSelectedRefreshCounter] = useState(0)
+  const [workspaceGradePersistence, setWorkspaceGradePersistence] =
+    useState<TeacherAssignmentGradePersistenceState>({ hasPendingChanges: false, isSaving: false })
   const [classPaneRestoreCounter, setClassPaneRestoreCounter] = useState(0)
   const [refreshCounter, setRefreshCounter] = useState(0)
   const tableContainerRef = useRef<HTMLDivElement>(null)
@@ -723,32 +738,20 @@ export function TeacherClassroomView({
     }
     try {
       const [assignmentsData, materialsData, surveysData, classDaysData] = await Promise.all([
-        fetchJSONWithCache(
+        fetchCachedJSON<TeacherAssignmentsResponse>(
           `teacher-assignments:${classroom.id}`,
-          async () => {
-            const response = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
-            if (!response.ok) throw new Error('Failed to load assignments')
-            return response.json()
-          },
-          20_000,
+          `/api/teacher/assignments?classroom_id=${classroom.id}`,
+          { errorMessage: 'Failed to load assignments', ttlMs: 20_000 },
         ),
-        fetchJSONWithCache(
+        fetchCachedJSON<TeacherMaterialsResponse>(
           `teacher-materials:${classroom.id}`,
-          async () => {
-            const response = await fetch(`/api/teacher/classrooms/${classroom.id}/materials`)
-            if (!response.ok) throw new Error('Failed to load materials')
-            return response.json()
-          },
-          20_000,
+          `/api/teacher/classrooms/${classroom.id}/materials`,
+          { errorMessage: 'Failed to load materials', ttlMs: 20_000 },
         ),
-        fetchJSONWithCache(
+        fetchCachedJSON<TeacherSurveysResponse>(
           `teacher-surveys:${classroom.id}`,
-          async () => {
-            const response = await fetch(`/api/teacher/surveys?classroom_id=${classroom.id}`)
-            if (!response.ok) throw new Error('Failed to load surveys')
-            return response.json()
-          },
-          20_000,
+          `/api/teacher/surveys?classroom_id=${classroom.id}`,
+          { errorMessage: 'Failed to load surveys', ttlMs: 20_000 },
         ).catch(() => ({ surveys: [] })),
         fetchClassDaysForClassroom(classroom.id).catch((err) => {
           console.error('Error loading class days:', err)
@@ -1459,11 +1462,15 @@ export function TeacherClassroomView({
   const handleGradeTemplateChange = useCallback((template: TeacherAssignmentGradeTemplate | null) => {
     setGradeSelectedTemplate(template)
   }, [])
+  const handleGradePersistenceStateChange = useCallback((state: TeacherAssignmentGradePersistenceState) => {
+    setWorkspaceGradePersistence(state)
+  }, [])
 
   useEffect(() => {
     if (selection.mode !== 'assignment') return
     setSelectedStudentId(null)
     setWorkspaceLoading(false)
+    setWorkspaceGradePersistence({ hasPendingChanges: false, isSaving: false })
     batchClearSelection()
   }, [batchClearSelection, selectedAssignmentKey, selection.mode])
 
@@ -1636,6 +1643,10 @@ export function TeacherClassroomView({
 
   async function handleBatchReturn() {
     if (!selectedAssignmentData || batchSelectedCount === 0) return
+    if (workspaceGradePersistence.hasPendingChanges || workspaceGradePersistence.isSaving) {
+      setError('Wait for the current grade to finish saving before returning work')
+      return
+    }
     setBatchProgressCount(batchSelectedCount)
     setIsReturning(true)
     setError('')
@@ -1718,6 +1729,12 @@ export function TeacherClassroomView({
     }
 
     const studentIds = Array.from(batchSelectedIds)
+    const expectedDocUpdatedAtByStudent = Object.fromEntries(
+      studentIds.map((studentId) => {
+        const student = selectedAssignmentData.students.find((row) => row.student_id === studentId)
+        return [studentId, student?.doc?.updated_at ?? null]
+      }),
+    )
     setBatchProgressCount(studentIds.length)
     setIsGradeSelectedSaving(true)
     setError('')
@@ -1728,6 +1745,7 @@ export function TeacherClassroomView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           student_ids: studentIds,
+          expected_doc_updated_at_by_student: expectedDocUpdatedAtByStudent,
           apply_target: applyTarget,
           ...(applyTarget === 'grade'
             ? {
@@ -2116,10 +2134,11 @@ export function TeacherClassroomView({
     !selectedAssignmentLoading &&
     currentStudentRows.length > 0
   const workspaceActionLabelSuffix = batchSelectedCount > 0 ? ` (${batchSelectedCount})` : ''
+  const workspaceGradeBusy = workspaceGradePersistence.hasPendingChanges || workspaceGradePersistence.isSaving
   const hasReturnableSelection =
     batchSelectedReturnSummary.returnableCount + batchSelectedReturnSummary.missingCount > 0
   const isReturnDisabled =
-    isReturning || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0 || !hasReturnableSelection
+    isReturning || isGradeSelectedSaving || workspaceGradeBusy || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0 || !hasReturnableSelection
   const activeGradeSelectedTemplate =
     gradeSelectedTemplate?.studentId === activeSelectedStudentId &&
     gradeSelectedTemplate.studentId === selectedStudentId
@@ -2131,6 +2150,7 @@ export function TeacherClassroomView({
     isAutoGrading ||
     hasActiveAssignmentAiRun ||
     isReturning ||
+    workspaceGradeBusy ||
     isReadOnly ||
     batchSelectedCount === 0 ||
     !activeGradeSelectedTemplate ||
@@ -2140,6 +2160,7 @@ export function TeacherClassroomView({
     isAutoGrading ||
     hasActiveAssignmentAiRun ||
     isReturning ||
+    workspaceGradeBusy ||
     isReadOnly ||
     batchSelectedCount === 0 ||
     !activeGradeSelectedTemplate
@@ -2703,6 +2724,8 @@ export function TeacherClassroomView({
       inspectorEditMode={assignmentEditMode}
       onDetailsMetaChange={setIndividualHeaderMeta}
       onGradeTemplateChange={handleGradeTemplateChange}
+      mutationsDisabled={isReturning || isGradeSelectedSaving}
+      onGradePersistenceStateChange={handleGradePersistenceStateChange}
     />
   ) : selectedAssignmentLoading || (!activeSelectedAssignmentData && !selectedAssignmentError) ? (
     <div className="flex flex-1 items-center justify-center py-12">
@@ -2808,7 +2831,7 @@ export function TeacherClassroomView({
         description={`Returning will mark ${batchSelectedReturnSummary.returnableCount} existing student document(s) as returned now, even if the work was never submitted. ${batchSelectedReturnSummary.missingCount > 0 ? `${batchSelectedReturnSummary.missingCount} selected student(s) have no work yet; Pika will create returned 0/0/0 documents for them without marking them submitted. ` : ''}${batchSelectedReturnSummary.alreadyReturnedCount > 0 ? `${batchSelectedReturnSummary.alreadyReturnedCount} selected student(s) were already returned and will be skipped. ` : ''}${batchSelectedReturnSummary.blockedCount > 0 ? `${batchSelectedReturnSummary.blockedCount} selected student(s) have partial rubric drafts and must be completed or cleared before return.` : ''}`.trim()}
         confirmLabel={isReturning ? 'Returning...' : 'Return'}
         cancelLabel="Cancel"
-        isConfirmDisabled={isReturning}
+        isConfirmDisabled={isReturning || workspaceGradeBusy}
         isCancelDisabled={isReturning}
         onCancel={() => (isReturning ? null : setShowReturnConfirm(false))}
         onConfirm={handleBatchReturn}

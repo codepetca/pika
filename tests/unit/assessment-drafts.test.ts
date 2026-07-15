@@ -2,19 +2,18 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   buildAssessmentDraftContentFromRows,
   buildNextDraftContent,
-  buildQuizDraftContentFromRows,
   buildTestDraftContentFromRows,
   createAssessmentDraft,
   getAssessmentDraftByType,
   isMissingAssessmentDraftsError,
   syncAssessmentQuestionsFromDraft,
-  syncQuizQuestionsFromDraft,
   syncTestQuestionsFromDraft,
   updateAssessmentDraft,
-  validateAssessmentDraftContent,
-  validateQuizDraftContent,
-  validateTestDraftContent,
 } from '@/lib/server/assessment-drafts'
+import {
+  validateAssessmentDraftContent,
+  validateTestDraftContent,
+} from '@/lib/validations/assessment-drafts'
 
 const QUIZ_ID_1 = '11111111-1111-4111-8111-111111111111'
 const QUIZ_ID_2 = '22222222-2222-4222-8222-222222222222'
@@ -276,12 +275,6 @@ describe('assessment drafts', () => {
     ).toBe(true)
 
     expect(isMissingAssessmentDraftsError({ code: '42703', message: 'column missing' })).toBe(false)
-  })
-
-  it('keeps legacy quiz helper exports as compatibility aliases', () => {
-    expect(validateQuizDraftContent).toBe(validateAssessmentDraftContent)
-    expect(buildQuizDraftContentFromRows).toBe(buildAssessmentDraftContentFromRows)
-    expect(syncQuizQuestionsFromDraft).toBe(syncAssessmentQuestionsFromDraft)
   })
 
   it('wraps draft fetch/create/update operations and normalizes thrown errors', async () => {

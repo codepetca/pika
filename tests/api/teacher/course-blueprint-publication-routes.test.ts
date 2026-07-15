@@ -23,6 +23,8 @@ vi.mock('@/lib/server/course-sites', () => ({
 }))
 
 describe('teacher blueprint publication routes', () => {
+  const operationId = '10000000-0000-4000-8000-000000000002'
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockRequireRole.mockResolvedValue({ id: 'teacher-1' })
@@ -32,21 +34,31 @@ describe('teacher blueprint publication routes', () => {
     mockCreateBlueprintFromClassroom.mockResolvedValue({
       ok: true,
       blueprint: { id: 'b-9', title: 'Reusable Draft' },
+      operation_id: operationId,
+      replayed: false,
     })
 
     const response = await POST_CLASSROOM_BLUEPRINT(
       new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/blueprint', {
         method: 'POST',
+        headers: { 'Idempotency-Key': operationId },
         body: JSON.stringify({ title: 'Reusable Draft' }),
       }),
       { params: Promise.resolve({ id: 'c-1' }) } as any
     )
 
-    expect(mockCreateBlueprintFromClassroom).toHaveBeenCalledWith('teacher-1', 'c-1', { title: 'Reusable Draft' })
+    expect(mockCreateBlueprintFromClassroom).toHaveBeenCalledWith(
+      'teacher-1',
+      'c-1',
+      { title: 'Reusable Draft' },
+      { operationId },
+    )
     expect(response.status).toBe(201)
     expect(await response.json()).toEqual({
       blueprint_id: 'b-9',
       redirect_url: '/teacher/blueprints?blueprint=b-9&fromClassroom=c-1',
+      operation_id: operationId,
+      replayed: false,
     })
   })
 

@@ -2,6 +2,8 @@
 
 Next.js application for classroom attendance, daily journals, and assignment submissions backed by Supabase.
 
+**Contributing?** See [CONTRIBUTING.md](./CONTRIBUTING.md) for the PR workflow and what you need to get a local environment running.
+
 ## For AI Agents
 
 Start with: `.ai/START-HERE.md`
@@ -53,15 +55,18 @@ permission. See [LICENSE](./LICENSE).
 
 ## Prerequisites
 
-- Node.js 24.x
-- Supabase project (cloud or local)
+- Node.js 24.x (use [nvm](https://github.com/nvm-sh/nvm) or [fnm](https://github.com/Schniz/fnm): `nvm install 24`)
+- pnpm via corepack (`corepack enable` — the repo pins the pnpm version)
+- [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) (`brew install supabase/tap/supabase`)
 - Git
+
+You do **not** need a Vercel account for local development.
 
 ## Getting Started
 
 1) **Clone**
 ```bash
-git clone <repository-url>
+git clone https://github.com/codepetca/pika.git
 cd pika
 ```
 
@@ -71,58 +76,66 @@ corepack enable
 pnpm install
 ```
 
-3) **Supabase setup**
-- Create a project and grab:
-  - `NEXT_PUBLIC_SUPABASE_URL`
-  - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (starts with `sb_publishable_`)
-  - `SUPABASE_SECRET_KEY` (starts with `sb_secret_`)
-- Apply migrations `supabase/migrations/001` through `008` (users, verification codes, class days, entries, auth refactor, classrooms, assignments, legacy cleanup).
-  - Dashboard: run each file in order.
-  - CLI: `supabase db push`
+3) **Set up a database (your own Supabase)**
 
-4) **Generate session secret**
+Every developer runs against their own Supabase database. Pick one:
+
+**Option A — free Supabase cloud project (simplest):**
+1. Create a project at [supabase.com](https://supabase.com) (free tier is fine).
+2. From Project Settings → API, note:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (starts with `sb_publishable_`)
+   - `SUPABASE_SECRET_KEY` (starts with `sb_secret_`)
+3. Apply all migrations (there are ~80 — do **not** run them by hand in the dashboard):
 ```bash
-pnpm run generate:secret
+supabase link --project-ref <your-project-ref>
+supabase db push
 ```
-Add to `.env.local` as `SESSION_SECRET`.
 
-5) **Environment variables**
+**Option B — local Supabase (Docker required):**
+```bash
+supabase start   # applies supabase/migrations/ automatically
+```
+Use the URL and keys it prints.
+
+4) **Environment variables**
+```bash
+cp .env.example .env.local
+```
+
+Only these are **required** for local dev:
+
 ```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-key-here
-SUPABASE_SECRET_KEY=sb_secret_your-key-here
-
-# Session
-SESSION_SECRET=your-64-char-hex-secret
-
-# Roles
-DEV_TEACHER_EMAILS=teacher@example.com,admin@yrdsb.ca
-
-# Email (mock logs codes to console in dev)
-ENABLE_MOCK_EMAIL=true
-
-# App
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+SUPABASE_SECRET_KEY=sb_secret_...
+SESSION_SECRET=...            # generate with: pnpm run generate:secret
+ENABLE_MOCK_EMAIL=true        # verification codes print to the dev server console
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-
-# Cron (Vercel Cron Jobs)
-CRON_SECRET=generate-a-secure-random-secret
+DEV_TEACHER_EMAILS=teacher@example.com   # emails that get the teacher role
 ```
+
+Everything else in `.env.example` is **optional** and only needed for specific features:
+- `BREVO_*` — real email delivery (mock email covers dev)
+- `OPENAI_API_KEY` — AI grading and log summaries
+- `GRADEX_*` — Gradex grading integration
+- `CRON_SECRET` — Vercel cron endpoints (production concern)
+- `GITHUB_PAT` / `GITHUB_FEEDBACK_TOKEN` — repo review helper scripts
 
 Cron schedules are configured in the Vercel dashboard (recommended: production only).
 Recommended schedule: `0 6 * * *` (06:00 UTC → 1:00am Toronto in winter, 2:00am in summer).
 
-6) **Seed data (optional)**
+5) **Seed data (optional)**
 ```bash
 pnpm run seed
 ```
 
 If you keep multiple Supabase environments, you can point seed scripts at a specific env file:
 ```bash
-ENV_FILE=.env.staging.local ALLOW_DB_WIPE=true pnpm run seed:fresh
+ENV_FILE=.env.custom.local ALLOW_DB_WIPE=true pnpm run seed:fresh
 ```
 
-7) **Run dev server**
+6) **Run dev server**
 ```bash
 pnpm dev
 ```
@@ -139,7 +152,7 @@ pnpm run test:ui
 
 ### UI Review (Gallery + Snapshots)
 
-Enable the UI gallery (recommended on staging):
+Enable the UI gallery (recommended on Vercel preview deployments):
 ```env
 ENABLE_UI_GALLERY=true
 ```
@@ -167,12 +180,12 @@ E2E_BASE_URL=http://localhost:3000 pnpm run e2e:snapshots
 pnpm exec playwright show-report playwright-report
 ```
 
-**Staging workflow**:
+**Remote workflow (e.g. a Vercel preview deployment)**:
 ```bash
-E2E_BASE_URL=https://your-staging-url \
-E2E_TEACHER_EMAIL=teacher@yrdsb.ca \
-E2E_STUDENT_EMAIL=student1@student.yrdsb.ca \
-E2E_PASSWORD=test1234 \
+E2E_BASE_URL=https://your-preview-url \
+E2E_TEACHER_EMAIL=your-seeded-teacher@example.com \
+E2E_STUDENT_EMAIL=your-seeded-student@example.com \
+E2E_PASSWORD=your-seeded-password \
 pnpm run e2e:snapshots
 
 pnpm exec playwright show-report playwright-report
@@ -227,7 +240,7 @@ pika/
 │   ├── components/                  # UI primitives and modals
 │   ├── lib/                         # Core logic (auth, crypto, timezone, attendance, calendar, assignments)
 │   └── types/                       # Shared TypeScript types
-├── supabase/migrations/             # 001–007 schema + RLS
+├── supabase/migrations/             # Schema + RLS (apply with supabase db push)
 ├── tests/                           # Vitest suites (unit + API)
 └── scripts/                         # Setup/seed utilities
 ```
@@ -265,4 +278,4 @@ pika/
 
 ## Support
 
-Open an issue or PR with questions or fixes.
+Open an issue with questions, or see [CONTRIBUTING.md](./CONTRIBUTING.md) to submit changes.

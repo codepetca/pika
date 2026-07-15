@@ -3,7 +3,7 @@
  * and enrolls student1 and student2.
  *
  * Usage: npx tsx scripts/seed-gld2o.ts
- *        ENV_FILE=.env.staging npx tsx scripts/seed-gld2o.ts
+ *        ENV_FILE=.env.custom.local npx tsx scripts/seed-gld2o.ts
  *
  * Prereq: the test teacher and students must already exist (run seed.ts first).
  */

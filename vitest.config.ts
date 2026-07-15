@@ -73,12 +73,6 @@ export default defineConfig({
           branches: 80,
           statements: 82,
         },
-        'src/lib/server/quizzes.ts': {
-          lines: 77,
-          functions: 100,
-          branches: 80,
-          statements: 78,
-        },
         'src/lib/server/tests.ts': {
           lines: 75,
           functions: 100,
@@ -115,24 +109,6 @@ export default defineConfig({
           branches: 85,
           statements: 92,
         },
-        'src/app/api/student/quizzes/route.ts': {
-          lines: 96,
-          functions: 100,
-          branches: 71,
-          statements: 96,
-        },
-        'src/app/api/student/quizzes/[id]/focus-events/route.ts': {
-          lines: 100,
-          functions: 100,
-          branches: 100,
-          statements: 100,
-        },
-        'src/app/api/student/quizzes/[id]/results/route.ts': {
-          lines: 89,
-          functions: 100,
-          branches: 68,
-          statements: 89,
-        },
         'src/app/api/classrooms/[classroomId]/class-days/route.ts': {
           lines: 79,
           functions: 100,
@@ -145,12 +121,6 @@ export default defineConfig({
           branches: 59,
           statements: 84,
         },
-        'src/app/api/teacher/gradebook/quiz-overrides/route.ts': {
-          lines: 78,
-          functions: 100,
-          branches: 76,
-          statements: 78,
-        },
         'src/app/api/teacher/log-summary/route.ts': {
           lines: 87,
           functions: 100,
@@ -162,36 +132,6 @@ export default defineConfig({
           functions: 100,
           branches: 78,
           statements: 86,
-        },
-        'src/app/api/teacher/quizzes/route.ts': {
-          lines: 84,
-          functions: 100,
-          branches: 54,
-          statements: 83,
-        },
-        'src/app/api/teacher/quizzes/[id]/draft/route.ts': {
-          lines: 76,
-          functions: 100,
-          branches: 60,
-          statements: 76,
-        },
-        'src/app/api/teacher/quizzes/[id]/questions/route.ts': {
-          lines: 84,
-          functions: 100,
-          branches: 75,
-          statements: 84,
-        },
-        'src/app/api/teacher/quizzes/[id]/questions/[qid]/route.ts': {
-          lines: 68,
-          functions: 100,
-          branches: 57,
-          statements: 68,
-        },
-        'src/app/api/teacher/quizzes/[id]/results/route.ts': {
-          lines: 92,
-          functions: 100,
-          branches: 55,
-          statements: 92,
         },
       },
     },
