@@ -234,6 +234,11 @@ type TableOverrides = {
       question_type?: TestQuestionType
     }
   >
+  test_responses: TableContract<
+    'test_responses',
+    { ai_reference_answers: string[] | null },
+    { ai_reference_answers?: string[] | null }
+  >
   tests: TableContract<
     'tests',
     { documents: TestDocument[]; status: 'draft' | 'active' | 'closed' },
@@ -256,6 +261,10 @@ type FunctionOverrides = {
     'claim_test_ai_grading_run',
     TableOverrides['test_ai_grading_runs']['Row'][]
   >
+  renew_test_ai_grading_run_lease: FunctionContract<
+    'renew_test_ai_grading_run_lease',
+    boolean
+  >
   close_test_for_grading_atomic: FunctionContract<
     'close_test_for_grading_atomic',
     { closed_count: number; finalized_attempts: number; inserted_responses: number }
@@ -272,6 +281,13 @@ type FunctionOverrides = {
       p_ai_feedback_suggestion: string | null
       p_graded_by: string | null
       p_skip_reason: string | null
+    }>
+  >
+  finalize_test_ai_grading_item_atomic: FunctionContract<
+    'finalize_test_ai_grading_item_atomic',
+    Json,
+    Replace<GeneratedFunctions['finalize_test_ai_grading_item_atomic']['Args'], {
+      p_ai_reference_answers: string[] | null
     }>
   >
   create_course_blueprint_atomic: FunctionContract<
@@ -330,6 +346,26 @@ type FunctionOverrides = {
     Json,
     Replace<GeneratedFunctions['save_test_attempt_atomic']['Args'], {
       p_responses: Json
+    }>
+  >
+  save_test_response_grades_atomic: FunctionContract<
+    'save_test_response_grades_atomic',
+    Json,
+    Replace<GeneratedFunctions['save_test_response_grades_atomic']['Args'], {
+      p_grade_rows: Json
+      p_student_id: string | null
+    }>
+  >
+  set_test_ai_grading_item_state_atomic: FunctionContract<
+    'set_test_ai_grading_item_state_atomic',
+    boolean,
+    Replace<GeneratedFunctions['set_test_ai_grading_item_state_atomic']['Args'], {
+      p_completed_at: string | null
+      p_last_error_code: string | null
+      p_last_error_message: string | null
+      p_next_retry_at: string | null
+      p_question_grading_snapshot: Json | null
+      p_started_at: string | null
     }>
   >
   submit_test_attempt_atomic: FunctionContract<

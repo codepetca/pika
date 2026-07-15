@@ -58,6 +58,62 @@ values (
   clock_timestamp()
 );
 
+insert into public.tests (id, classroom_id, title, status, points_possible, created_by)
+values (
+  '27000000-0000-4000-8000-000000000001',
+  '21000000-0000-4000-8000-000000000001',
+  'Restore revision contract',
+  'closed',
+  10,
+  '11000000-0000-4000-8000-000000000001'
+);
+
+insert into public.test_questions (
+  id, test_id, question_type, question_text, options, correct_option, points,
+  response_max_chars, position
+) values
+  ('27000000-0000-4000-8000-000000000011', '27000000-0000-4000-8000-000000000001', 'open_response', 'Legacy archive response', '[]', null, 5, 5000, 0),
+  ('27000000-0000-4000-8000-000000000012', '27000000-0000-4000-8000-000000000001', 'open_response', 'Current archive response', '[]', null, 5, 5000, 1);
+
+insert into public.test_responses (
+  id, test_id, question_id, student_id, response_text, submitted_at
+) values
+  ('27000000-0000-4000-8000-000000000021', '27000000-0000-4000-8000-000000000001', '27000000-0000-4000-8000-000000000011', '11000000-0000-4000-8000-000000000002', 'Legacy response', clock_timestamp()),
+  ('27000000-0000-4000-8000-000000000022', '27000000-0000-4000-8000-000000000001', '27000000-0000-4000-8000-000000000012', '11000000-0000-4000-8000-000000000002', 'Current response', clock_timestamp());
+
+insert into public.test_ai_grading_runs (
+  id, test_id, status, triggered_by, model, selection_hash, requested_count,
+  eligible_student_count, queued_response_count, processed_count, completed_count,
+  failed_count, lease_token, lease_expires_at, started_at, completed_at
+) values (
+  '27000000-0000-4000-8000-000000000031',
+  '27000000-0000-4000-8000-000000000001',
+  'running',
+  '11000000-0000-4000-8000-000000000001',
+  'restore-model',
+  'restore-revisions',
+  1, 1, 2, 1, 1, 0,
+  '27000000-0000-4000-8000-000000000099',
+  clock_timestamp() + interval '10 minutes',
+  clock_timestamp(),
+  null
+);
+
+insert into public.test_ai_grading_run_items (
+  id, run_id, test_id, student_id, question_id, response_id, queue_position
+) values
+  ('27000000-0000-4000-8000-000000000041', '27000000-0000-4000-8000-000000000031', '27000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000002', '27000000-0000-4000-8000-000000000011', '27000000-0000-4000-8000-000000000021', 0),
+  ('27000000-0000-4000-8000-000000000042', '27000000-0000-4000-8000-000000000031', '27000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000002', '27000000-0000-4000-8000-000000000012', '27000000-0000-4000-8000-000000000022', 1);
+
+update public.test_ai_grading_run_items
+set
+  status = case when id = '27000000-0000-4000-8000-000000000041' then 'queued' else 'completed' end,
+  completed_at = case when id = '27000000-0000-4000-8000-000000000041' then null else clock_timestamp() end;
+
+update public.test_responses
+set score = 4, feedback = 'Archived completed AI grade'
+where id = '27000000-0000-4000-8000-000000000022';
+
 create temporary table expected_restore_rows (
   table_name text not null,
   row_id uuid not null,
@@ -116,6 +172,29 @@ begin
       v_resource.table_name
     ) using v_archive_id;
   end loop;
+
+  update expected_restore_rows
+  set row_data = row_data || jsonb_build_object(
+    'status', 'failed',
+    'next_retry_at', null,
+    'last_error_code', 'revision_baseline_unavailable',
+    'last_error_message', 'Retry this response in a new AI grading run',
+    'completed_at', coalesce(row_data->'updated_at', row_data->'created_at')
+  )
+  where table_name = 'test_ai_grading_run_items'
+    and row_id = '27000000-0000-4000-8000-000000000041';
+
+  update expected_restore_rows
+  set row_data = row_data || jsonb_build_object(
+    'status', 'failed',
+    'processed_count', 2,
+    'failed_count', 1,
+    'lease_token', null,
+    'lease_expires_at', null,
+    'completed_at', coalesce(row_data->'updated_at', row_data->'created_at')
+  )
+  where table_name = 'test_ai_grading_runs'
+    and row_id = '27000000-0000-4000-8000-000000000031';
 
   if not public.stage_classroom_archive_object_upload(
     v_archive_id, v_teacher_id, 'classroom-archives',
@@ -405,6 +484,29 @@ begin
     select jsonb_agg(row_data order by row_id) into v_rows
     from expected_restore_rows where table_name = v_resource.table_name;
     if v_rows is not null then
+      if v_resource.table_name = 'test_responses' then
+        select jsonb_agg(
+          case
+            when row->>'id' = '27000000-0000-4000-8000-000000000021'
+              then jsonb_set(row, '{revision}', 'null'::jsonb)
+            else row
+          end
+        ) into v_rows
+        from jsonb_array_elements(v_rows) row;
+      elsif v_resource.table_name = 'test_ai_grading_run_items' then
+        select jsonb_agg(
+          case
+            when row->>'id' = '27000000-0000-4000-8000-000000000041'
+              then jsonb_set(
+                row - 'question_grading_snapshot',
+                '{response_revision}',
+                'null'::jsonb
+              )
+            else row
+          end
+        ) into v_rows
+        from jsonb_array_elements(v_rows) row;
+      end if;
       v_result := public.stage_classroom_archive_restore_rows(
         v_restore_id,
         v_teacher_id,
@@ -438,6 +540,11 @@ begin
     raise exception 'Restore completed with incomplete verification evidence';
   exception when sqlstate '22023' then null;
   end;
+  if current_setting('pika.classroom_archive_restore', true) = 'on'
+    or current_setting('pika.classroom_archive_source_revision', true) = v_source_revision::text
+  then
+    raise exception 'Rejected restore leaked archive restore context';
+  end if;
   if exists (select 1 from public.classrooms where id = v_classroom_id) then
     raise exception 'Rejected restore left relational rows behind';
   end if;
@@ -494,6 +601,11 @@ begin
     or v_result->>'operation_status' <> 'completed'
   then
     raise exception 'Restore completion failed: %', v_result;
+  end if;
+  if current_setting('pika.classroom_archive_restore', true) = 'on'
+    or current_setting('pika.classroom_archive_source_revision', true) = v_source_revision::text
+  then
+    raise exception 'Successful restore leaked archive restore context';
   end if;
 
   for v_resource in

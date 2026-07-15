@@ -321,6 +321,7 @@ describe('GET /api/teacher/tests/[id]/results', () => {
           [
             {
               id: 'response-enrolled-mc',
+              revision: 4,
               test_id: 'test-1',
               question_id: 'question-mc-1',
               student_id: 'student-1',
@@ -334,6 +335,7 @@ describe('GET /api/teacher/tests/[id]/results', () => {
             },
             {
               id: 'response-enrolled-open',
+              revision: 6,
               test_id: 'test-1',
               question_id: 'question-open-1',
               student_id: 'student-1',
@@ -347,6 +349,7 @@ describe('GET /api/teacher/tests/[id]/results', () => {
             },
             {
               id: 'response-outside-mc',
+              revision: 2,
               test_id: 'test-1',
               question_id: 'question-mc-1',
               student_id: 'student-outside',
@@ -360,6 +363,7 @@ describe('GET /api/teacher/tests/[id]/results', () => {
             },
             {
               id: 'response-outside-open',
+              revision: 3,
               test_id: 'test-1',
               question_id: 'question-open-1',
               student_id: 'student-outside',
@@ -431,6 +435,10 @@ describe('GET /api/teacher/tests/[id]/results', () => {
     expect(testResponseStudentIds).toEqual(['student-1'])
     expect(data.students).toHaveLength(1)
     expect(data.students[0].student_id).toBe('student-1')
+    expect(data.students[0].answers['question-open-1']).toMatchObject({
+      response_id: 'response-enrolled-open',
+      response_revision: 6,
+    })
     expect(data.students[0].answers).not.toHaveProperty('student-outside')
     expect(data.students[0].graded_open_responses).toBe(0)
     expect(data.students[0].ungraded_open_responses).toBe(1)
@@ -1082,6 +1090,7 @@ describe('GET /api/teacher/tests/[id]/results', () => {
     expect(data.students[0].status).toBe('in_progress')
     expect(data.students[0].answers['question-open-1']).toEqual({
       response_id: null,
+      response_revision: null,
       question_type: 'open_response',
       selected_option: null,
       response_text: 'Draft answer in progress',

@@ -1,4 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { z } from 'zod'
+import { ApiError } from '@/lib/api-handler'
 import {
   getTestOpenResponseGradingModel,
   isRetryableTestAiGradingError,
@@ -9,6 +11,12 @@ import {
 } from '@/lib/ai-test-grading'
 import type { AiSanitizationContext } from '@/lib/ai-sanitization'
 import { loadClassroomAiSanitizationContext } from '@/lib/server/ai-sanitization'
+import {
+  finalizeTestAiGradingItem,
+  renewTestAiGradingRunLease,
+  setTestAiGradingItemState,
+  TestAiGradingLeaseLostError,
+} from '@/lib/server/test-grades'
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
   isMissingTestAttemptReturnColumnsError,
@@ -21,7 +29,11 @@ import type {
   TestAiGradingRunStatus,
   TestAiGradingRunSummary,
 } from '@/types'
-import type { TableInsert } from '@/types/database'
+import type { Json } from '@/types/database.generated'
+import {
+  buildTestQuestionGradingSnapshot,
+  hasPersistedTestResponseGrade,
+} from '@/lib/test-grading-context'
 
 const TEST_AI_RETRY_BACKOFF_SECONDS = [7, 20, 45]
 export const TEST_AI_GRADING_RUN_CHUNK_SIZE = 8
@@ -29,7 +41,7 @@ export const TEST_AI_GRADING_QUESTION_CONCURRENCY = 2
 export const TEST_AI_GRADING_MICROBATCH_SIZE = 4
 export const TEST_AI_GRADING_REQUEST_TIMEOUT_MS = 25_000
 export const TEST_AI_GRADING_MAX_ATTEMPTS = 3
-export const TEST_AI_GRADING_LEASE_SECONDS = 60
+export const TEST_AI_GRADING_LEASE_SECONDS = 120
 
 type ServiceRoleSupabase = ReturnType<typeof getServiceRoleClient>
 
@@ -63,6 +75,7 @@ type SupabaseSchemaError = {
 
 type OpenQuestionRow = {
   id: string
+  updated_at: string
   question_text: string
   points: number | null
   response_monospace: boolean | null
@@ -82,14 +95,25 @@ type PreflightResponseRow = {
   ai_model: string | null
   graded_at: string | null
   score: number | null
+  feedback: string | null
+  revision: number
 }
 
 type QueuedItemSeed = {
   student_id: string
   question_id: string
   response_id: string
+  response_revision: number
   queue_position: number
 }
+
+const createRunResultSchema = z.object({
+  outcome: z.enum(['created', 'existing']),
+  run_id: z.string().uuid(),
+}).strict().or(z.object({
+  outcome: z.literal('noop'),
+  run_id: z.null(),
+}).strict())
 
 function normalizeStudentIds(studentIds: string[]): string[] {
   return Array.from(
@@ -130,7 +154,7 @@ function mapErrorSamples(rawSamples: unknown): TestAiGradingRunErrorSample[] {
     .filter((sample): sample is TestAiGradingRunErrorSample => !!sample)
 }
 
-function isTestAiGradingSchemaError(error: unknown): error is SupabaseSchemaError {
+function isTestAiGradingSchemaError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
 
   const record = error as SupabaseSchemaError
@@ -288,7 +312,7 @@ async function loadOpenQuestionRows(
 ): Promise<OpenQuestionRow[]> {
   const { data, error } = await supabase
     .from('test_questions')
-    .select('id, question_text, points, response_monospace, answer_key, sample_solution, ai_reference_cache_key, ai_reference_cache_answers, ai_reference_cache_model')
+    .select('id, updated_at, question_text, points, response_monospace, answer_key, sample_solution, ai_reference_cache_key, ai_reference_cache_answers, ai_reference_cache_model')
     .eq('test_id', testId)
     .eq('question_type', 'open_response')
 
@@ -315,7 +339,7 @@ async function loadOpenResponseRowsForPreflight(
   {
     const result = await supabase
       .from('test_responses')
-      .select('id, student_id, question_id, response_text, submitted_at, ai_model, graded_at, score')
+      .select('id, student_id, question_id, response_text, submitted_at, ai_model, graded_at, score, feedback, revision')
       .eq('test_id', testId)
       .in('student_id', studentIds)
       .in('question_id', questionIds)
@@ -326,7 +350,7 @@ async function loadOpenResponseRowsForPreflight(
   if (error && isMissingTestResponseAiColumnsError(error)) {
     const legacyResult = await supabase
       .from('test_responses')
-      .select('id, student_id, question_id, response_text, submitted_at, graded_at, score')
+      .select('id, student_id, question_id, response_text, submitted_at, graded_at, score, feedback, revision')
       .eq('test_id', testId)
       .in('student_id', studentIds)
       .in('question_id', questionIds)
@@ -351,6 +375,8 @@ async function loadOpenResponseRowsForPreflight(
     ai_model: typeof row.ai_model === 'string' ? row.ai_model : null,
     graded_at: typeof row.graded_at === 'string' ? row.graded_at : null,
     score: typeof row.score === 'number' ? row.score : null,
+    feedback: typeof row.feedback === 'string' ? row.feedback : null,
+    revision: Number(row.revision),
   }))
 }
 
@@ -378,78 +404,6 @@ async function loadSubmittedAtByStudent(
   return submittedAtByStudent
 }
 
-async function persistUnansweredPreflight(opts: {
-  supabase: ServiceRoleSupabase
-  testId: string
-  teacherId: string
-  unansweredRowsToInsert: Array<{
-    test_id: string
-    question_id: string
-    student_id: string
-    selected_option: null
-    response_text: string
-    score: number
-    feedback: string
-    graded_at: string
-    graded_by: string
-    submitted_at: string
-  }>
-  unansweredResponseIdsToGrade: string[]
-}): Promise<void> {
-  const { supabase, testId, teacherId, unansweredRowsToInsert, unansweredResponseIdsToGrade } = opts
-
-  if (unansweredRowsToInsert.length > 0) {
-    const { error } = await supabase
-      .from('test_responses')
-      .upsert(unansweredRowsToInsert, {
-        onConflict: 'question_id,student_id',
-        ignoreDuplicates: true,
-      })
-
-    if (error) {
-      throw new Error('Failed to save unanswered grades')
-    }
-  }
-
-  if (unansweredResponseIdsToGrade.length > 0) {
-    const { error } = await supabase
-      .from('test_responses')
-      .update({
-        score: 0,
-        feedback: 'Unanswered',
-        graded_at: new Date().toISOString(),
-        graded_by: teacherId,
-        ai_grading_basis: null,
-        ai_reference_answers: null,
-        ai_model: null,
-      })
-      .eq('test_id', testId)
-      .in('id', unansweredResponseIdsToGrade)
-
-    if (error && isMissingTestResponseAiColumnsError(error)) {
-      const legacyResult = await supabase
-        .from('test_responses')
-        .update({
-          score: 0,
-          feedback: 'Unanswered',
-          graded_at: new Date().toISOString(),
-          graded_by: teacherId,
-        })
-        .eq('test_id', testId)
-        .in('id', unansweredResponseIdsToGrade)
-
-      if (legacyResult.error) {
-        throw new Error('Failed to save unanswered grades')
-      }
-      return
-    }
-
-    if (error) {
-      throw new Error('Failed to save unanswered grades')
-    }
-  }
-}
-
 function buildNoopSummary(input: {
   requestedCount: number
   eligibleStudentCount: number
@@ -472,7 +426,7 @@ function buildNoopSummary(input: {
 async function refreshTestAiGradingRun(
   supabase: ServiceRoleSupabase,
   runId: string,
-  options?: { clearLease?: boolean },
+  options: { leaseToken: string; clearLease?: boolean },
 ): Promise<TestAiGradingRunSummary> {
   const run = await fetchTestAiGradingRunRow(supabase, runId)
   if (!run) {
@@ -525,18 +479,21 @@ async function refreshTestAiGradingRun(
       failed_count: failedCount,
       error_samples_json: errorSamples,
       completed_at: hasPending ? null : run.completed_at ?? new Date().toISOString(),
-      lease_token: options?.clearLease ? null : run.lease_token,
-      lease_expires_at: options?.clearLease ? null : run.lease_expires_at,
+      lease_token: options.clearLease ? null : run.lease_token,
+      lease_expires_at: options.clearLease ? null : run.lease_expires_at,
     })
     .eq('id', runId)
+    .eq('lease_token', options.leaseToken)
+    .gt('lease_expires_at', new Date().toISOString())
     .select('*')
-    .single()
+    .maybeSingle()
 
   if (error || !data) {
     if (isTestAiGradingSchemaError(error)) {
       throw new Error('Test AI grading run tables are unavailable. Apply migration 055.')
     }
-    throw new Error('Failed to refresh test AI grading run summary')
+    if (error) throw new Error('Failed to refresh test AI grading run summary')
+    throw new TestAiGradingLeaseLostError()
   }
 
   return toTestAiGradingRunSummary(data as TestAiGradingRun, { items })
@@ -545,10 +502,11 @@ async function refreshTestAiGradingRun(
 async function claimTestAiGradingRun(
   supabase: ServiceRoleSupabase,
   runId: string,
-): Promise<boolean> {
+): Promise<string | null> {
+  const leaseToken = randomUUID()
   const { data, error } = await supabase.rpc('claim_test_ai_grading_run', {
     p_run_id: runId,
-    p_lease_token: randomUUID(),
+    p_lease_token: leaseToken,
     p_lease_seconds: TEST_AI_GRADING_LEASE_SECONDS,
   })
 
@@ -560,32 +518,41 @@ async function claimTestAiGradingRun(
   }
 
   if (Array.isArray(data)) {
-    return data.length > 0
+    return data.length > 0 ? leaseToken : null
   }
 
-  return !!data
+  return data ? leaseToken : null
 }
 
 async function updateRunItem(
-  supabase: ServiceRoleSupabase,
   itemId: string,
+  leaseToken: string,
   payload: Record<string, unknown>,
 ): Promise<void> {
-  const { error } = await supabase
-    .from('test_ai_grading_run_items')
-    .update(payload)
-    .eq('id', itemId)
-
-  if (error) {
-    throw new Error('Failed to update test AI grading run item')
-  }
+  await setTestAiGradingItemState({
+    itemId,
+    leaseToken,
+    status: payload.status as 'queued' | 'processing' | 'failed',
+    attemptCount: Number(payload.attempt_count ?? 0),
+    nextRetryAt: typeof payload.next_retry_at === 'string' ? payload.next_retry_at : null,
+    lastErrorCode: typeof payload.last_error_code === 'string' ? payload.last_error_code : null,
+    lastErrorMessage: typeof payload.last_error_message === 'string' ? payload.last_error_message : null,
+    startedAt: typeof payload.started_at === 'string' ? payload.started_at : null,
+    completedAt: typeof payload.completed_at === 'string' ? payload.completed_at : null,
+    questionGradingSnapshot:
+      payload.question_grading_snapshot &&
+      typeof payload.question_grading_snapshot === 'object' &&
+      !Array.isArray(payload.question_grading_snapshot)
+        ? payload.question_grading_snapshot as Json
+        : null,
+  })
 }
 
 async function persistSuggestionForResponse(opts: {
-  supabase: ServiceRoleSupabase
-  testId: string
-  responseId: string
+  item: TestAiGradingRunItem
+  leaseToken: string
   teacherId: string
+  attemptCount: number
   suggestion: {
     score: number
     feedback: string
@@ -594,43 +561,21 @@ async function persistSuggestionForResponse(opts: {
     reference_answers: string[]
   }
 }): Promise<void> {
-  const { supabase, testId, responseId, teacherId, suggestion } = opts
-
-  let { error } = await supabase
-    .from('test_responses')
-    .update({
-      score: suggestion.score,
-      feedback: suggestion.feedback,
-      graded_at: new Date().toISOString(),
-      graded_by: teacherId,
-      ai_model: suggestion.model,
-      ai_grading_basis: suggestion.grading_basis,
-      ai_reference_answers:
-        suggestion.grading_basis === 'generated_reference'
-          ? suggestion.reference_answers
-          : null,
-    })
-    .eq('id', responseId)
-    .eq('test_id', testId)
-
-  if (error && isMissingTestResponseAiColumnsError(error)) {
-    const legacyResult = await supabase
-      .from('test_responses')
-      .update({
-        score: suggestion.score,
-        feedback: suggestion.feedback,
-        graded_at: new Date().toISOString(),
-        graded_by: teacherId,
-      })
-      .eq('id', responseId)
-      .eq('test_id', testId)
-
-    error = legacyResult.error
-  }
-
-  if (error) {
-    throw new Error(error.message || 'Failed to save AI grade')
-  }
+  const result = await finalizeTestAiGradingItem({
+    itemId: opts.item.id,
+    teacherId: opts.teacherId,
+    leaseToken: opts.leaseToken,
+    score: opts.suggestion.score,
+    feedback: opts.suggestion.feedback,
+    aiModel: opts.suggestion.model,
+    aiGradingBasis: opts.suggestion.grading_basis,
+    aiReferenceAnswers:
+      opts.suggestion.grading_basis === 'generated_reference'
+        ? opts.suggestion.reference_answers
+        : null,
+    attemptCount: opts.attemptCount,
+  })
+  if (result.outcome === 'stale') return
 }
 
 function getNextRetryAt(attemptCount: number): string {
@@ -681,8 +626,8 @@ function getRunItemErrorCode(error: unknown): string {
 }
 
 async function failOrRetryItem(opts: {
-  supabase: ServiceRoleSupabase
   item: TestAiGradingRunItem
+  leaseToken: string
   attemptCount: number
   error: unknown
 }): Promise<void> {
@@ -690,7 +635,7 @@ async function failOrRetryItem(opts: {
   const retryable = isRetryableTestAiGradingError(opts.error) || isBatchOmittedResponseError(opts.error)
 
   if (retryable && opts.attemptCount < TEST_AI_GRADING_MAX_ATTEMPTS) {
-    await updateRunItem(opts.supabase, opts.item.id, {
+    await updateRunItem(opts.item.id, opts.leaseToken, {
       status: 'queued',
       attempt_count: opts.attemptCount,
       last_error_code: getRunItemErrorCode(opts.error),
@@ -701,7 +646,7 @@ async function failOrRetryItem(opts: {
     return
   }
 
-  await updateRunItem(opts.supabase, opts.item.id, {
+  await updateRunItem(opts.item.id, opts.leaseToken, {
     status: 'failed',
     attempt_count: opts.attemptCount,
     last_error_code: getRunItemErrorCode(opts.error),
@@ -783,25 +728,20 @@ export async function createOrResumeTestAiGradingRun(opts: {
     opts.testId,
     normalizedStudentIds,
   )
+  const eligibleStudentIds = normalizedStudentIds.filter((studentId) => submittedAtByStudent.has(studentId))
 
   const responseByStudentQuestion = new Map<string, PreflightResponseRow>()
   for (const response of responses) {
     responseByStudentQuestion.set(`${response.student_id}:${response.question_id}`, response)
   }
 
-  const unansweredRowsToInsert: Array<{
-    test_id: string
+  const unansweredRows: Array<{
     question_id: string
     student_id: string
-    selected_option: null
-    response_text: string
-    score: number
-    feedback: string
-    graded_at: string
-    graded_by: string
-    submitted_at: string
+    response_id: string | null
+    expected_response_revision: number | null
+    submitted_at: string | null
   }> = []
-  const unansweredResponseIdsToGrade: string[] = []
   const queuedItems: QueuedItemSeed[] = []
   let skippedUnansweredCount = 0
   let skippedAlreadyGradedCount = 0
@@ -813,16 +753,11 @@ export async function createOrResumeTestAiGradingRun(opts: {
     for (const question of openQuestions) {
       const existing = responseByStudentQuestion.get(`${studentId}:${question.id}`)
       if (!existing) {
-        unansweredRowsToInsert.push({
-          test_id: opts.testId,
+        unansweredRows.push({
           question_id: question.id,
           student_id: studentId,
-          selected_option: null,
-          response_text: '',
-          score: 0,
-          feedback: 'Unanswered',
-          graded_at: new Date().toISOString(),
-          graded_by: opts.teacherId,
+          response_id: null,
+          expected_response_revision: null,
           submitted_at: submittedAt,
         })
         skippedUnansweredCount += 1
@@ -831,7 +766,17 @@ export async function createOrResumeTestAiGradingRun(opts: {
 
       const responseText = typeof existing.response_text === 'string' ? existing.response_text.trim() : ''
       if (!responseText) {
-        unansweredResponseIdsToGrade.push(existing.id)
+        if (hasPersistedTestResponseGrade(existing)) {
+          skippedAlreadyGradedCount += 1
+          continue
+        }
+        unansweredRows.push({
+          question_id: question.id,
+          student_id: studentId,
+          response_id: existing.id,
+          expected_response_revision: existing.revision,
+          submitted_at: null,
+        })
         skippedUnansweredCount += 1
         continue
       }
@@ -850,28 +795,56 @@ export async function createOrResumeTestAiGradingRun(opts: {
         student_id: studentId,
         question_id: question.id,
         response_id: existing.id,
+        response_revision: existing.revision,
         queue_position: queuedItems.length,
       })
     }
   }
 
-  await persistUnansweredPreflight({
-    supabase,
-    testId: opts.testId,
-    teacherId: opts.teacherId,
-    unansweredRowsToInsert,
-    unansweredResponseIdsToGrade,
-  })
+  const { data: createResult, error: runError } = await supabase.rpc(
+    'create_test_ai_grading_run_atomic',
+    {
+      p_test_id: opts.testId,
+      p_teacher_id: opts.teacherId,
+      p_model: model,
+      p_requested_student_ids: normalizedStudentIds,
+      p_eligible_student_ids: eligibleStudentIds,
+      p_selection_hash: selectionHash,
+      p_eligible_student_count: eligibleStudentIds.length,
+      p_skipped_unanswered_count: skippedUnansweredCount,
+      p_skipped_already_graded_count: skippedAlreadyGradedCount,
+      p_item_rows: queuedItems,
+      p_unanswered_rows: unansweredRows,
+      ...(promptGuidelineOverride === null
+        ? {}
+        : { p_prompt_guideline_override: promptGuidelineOverride }),
+    },
+  )
 
-  if (queuedItems.length === 0) {
-    const eligibleStudentCount = normalizedStudentIds.filter((studentId) => submittedAtByStudent.has(studentId)).length
+  if (runError) {
+    if (isTestAiGradingSchemaError(runError)) {
+      throw new Error('Test AI grading run tables are unavailable. Apply migration 055.')
+    }
+    if (runError.code === '40001') throw new ApiError(409, runError.message)
+    if (runError.code === '42501') throw new ApiError(403, runError.message)
+    if (runError.code === '22023' || runError.code === '22P02') {
+      throw new ApiError(400, runError.message)
+    }
+    throw new Error('Failed to create test AI grading run')
+  }
+  const parsedCreateResult = createRunResultSchema.safeParse(createResult)
+  if (!parsedCreateResult.success) {
+    throw new Error('Invalid test AI grading run creation result')
+  }
+
+  if (parsedCreateResult.data.outcome === 'noop') {
+    const eligibleStudentCount = eligibleStudentIds.length
     const message =
       eligibleStudentCount === 0
         ? 'Selected students have not submitted this test yet.'
         : skippedAlreadyGradedCount > 0 || skippedUnansweredCount > 0
           ? 'No AI grading was needed for this selection.'
           : 'No submitted open responses were eligible for AI grading.'
-
     return {
       kind: 'noop',
       summary: buildNoopSummary({
@@ -884,70 +857,25 @@ export async function createOrResumeTestAiGradingRun(opts: {
     }
   }
 
-  const runPayload: TableInsert<'test_ai_grading_runs'> = {
-    test_id: opts.testId,
-    status: 'queued',
-    triggered_by: opts.teacherId,
-    model,
-    prompt_guideline_override: promptGuidelineOverride,
-    requested_student_ids_json: normalizedStudentIds,
-    selection_hash: selectionHash,
-    requested_count: normalizedStudentIds.length,
-    eligible_student_count: normalizedStudentIds.filter((studentId) => submittedAtByStudent.has(studentId)).length,
-    queued_response_count: queuedItems.length,
-    processed_count: 0,
-    completed_count: 0,
-    skipped_unanswered_count: skippedUnansweredCount,
-    skipped_already_graded_count: skippedAlreadyGradedCount,
-    failed_count: 0,
-    error_samples_json: [],
-    started_at: null,
-    completed_at: null,
-  }
+  const run = await fetchTestAiGradingRunRow(supabase, parsedCreateResult.data.run_id)
+  if (!run || run.test_id !== opts.testId) throw new Error('Created test AI grading run was not found')
+  const items = await fetchTestAiGradingRunItems(supabase, run.id)
+  const summary = toTestAiGradingRunSummary(run, { items })
 
-  const { data: run, error: runError } = await supabase
-    .from('test_ai_grading_runs')
-    .insert(runPayload)
-    .select('*')
-    .single()
-
-  if (runError || !run) {
-    if (isTestAiGradingSchemaError(runError)) {
-      throw new Error('Test AI grading run tables are unavailable. Apply migration 055.')
+  if (parsedCreateResult.data.outcome === 'existing') {
+    if (
+      run.selection_hash === selectionHash &&
+      (run.prompt_guideline_override ?? null) === promptGuidelineOverride &&
+      (run.model ?? null) === model
+    ) {
+      return { kind: 'resumed', run: summary }
     }
-    throw new Error('Failed to create test AI grading run')
-  }
-
-  const { error: itemsError } = await supabase
-    .from('test_ai_grading_run_items')
-    .insert(
-      queuedItems.map((item) => ({
-        run_id: run.id,
-        test_id: opts.testId,
-        student_id: item.student_id,
-        question_id: item.question_id,
-        response_id: item.response_id,
-        queue_position: item.queue_position,
-        status: 'queued',
-        attempt_count: 0,
-        next_retry_at: null,
-        last_error_code: null,
-        last_error_message: null,
-        started_at: null,
-        completed_at: null,
-      })),
-    )
-
-  if (itemsError) {
-    if (isTestAiGradingSchemaError(itemsError)) {
-      throw new Error('Test AI grading run tables are unavailable. Apply migration 055.')
-    }
-    throw new Error('Failed to create test AI grading run items')
+    return { kind: 'conflict', run: summary }
   }
 
   return {
     kind: 'created',
-    run: toTestAiGradingRunSummary(run as TestAiGradingRun),
+    run: summary,
   }
 }
 
@@ -979,14 +907,20 @@ export async function getActiveTestAiGradingRunSummary(
 async function processQuestionBatch(opts: {
   supabase: ServiceRoleSupabase
   run: TestAiGradingRun
+  leaseToken: string
   testTitle: string
   question: OpenQuestionRow
   items: TestAiGradingRunItem[]
   responsesById: Map<string, { id: string; response_text: string | null }>
   sanitizationContext?: AiSanitizationContext | null
 }): Promise<void> {
-  const { supabase, run, testTitle, question, items, responsesById, sanitizationContext } = opts
+  const { supabase, run, leaseToken, testTitle, question, items, responsesById, sanitizationContext } = opts
   const model = run.model ?? getTestOpenResponseGradingModel()
+  await renewTestAiGradingRunLease({
+    runId: run.id,
+    leaseToken,
+    leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
+  })
   const cacheResolution = resolveReusableTestOpenResponseReferenceAnswers({
     testTitle,
     questionText: String(question.question_text || ''),
@@ -1034,6 +968,7 @@ async function processQuestionBatch(opts: {
         })
         .eq('id', question.id)
         .eq('test_id', run.test_id)
+        .eq('updated_at', question.updated_at)
 
       if (cacheUpdateError) {
         console.error('Error caching generated reference answers for test grading run:', {
@@ -1046,13 +981,14 @@ async function processQuestionBatch(opts: {
   } catch (error) {
     await mapWithConcurrency(items, TEST_AI_GRADING_MICROBATCH_SIZE, async (item) => {
       const attemptCount = item.attempt_count + 1
-      await updateRunItem(supabase, item.id, {
+      await updateRunItem(item.id, leaseToken, {
         status: 'processing',
         started_at: item.started_at ?? new Date().toISOString(),
         next_retry_at: null,
         completed_at: null,
+        question_grading_snapshot: buildTestQuestionGradingSnapshot({ testTitle, question }),
       })
-      await failOrRetryItem({ supabase, item, attemptCount, error })
+      await failOrRetryItem({ item, leaseToken, attemptCount, error })
     })
     return
   }
@@ -1065,11 +1001,12 @@ async function processQuestionBatch(opts: {
     for (const item of batchItems) {
       const attemptCount = item.attempt_count + 1
       attempts.set(item.id, attemptCount)
-      await updateRunItem(supabase, item.id, {
+      await updateRunItem(item.id, leaseToken, {
         status: 'processing',
         started_at: item.started_at ?? now,
         next_retry_at: null,
         completed_at: null,
+        question_grading_snapshot: buildTestQuestionGradingSnapshot({ testTitle, question }),
       })
     }
 
@@ -1086,8 +1023,8 @@ async function processQuestionBatch(opts: {
     if (missingResponseEntries.length > 0) {
       for (const entry of missingResponseEntries) {
         await failOrRetryItem({
-          supabase,
           item: entry.item,
+          leaseToken,
           attemptCount: attempts.get(entry.item.id) ?? entry.item.attempt_count + 1,
           error: new Error('Response is no longer available for grading'),
         })
@@ -1101,6 +1038,11 @@ async function processQuestionBatch(opts: {
     try {
       if (activeBatchRequests.length === 1) {
         const only = activeBatchRequests[0]
+        await renewTestAiGradingRunLease({
+          runId: run.id,
+          leaseToken,
+          leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
+        })
         const suggestion = await suggestTestOpenResponseGradeWithContext(
           prepared,
           only.responseText,
@@ -1115,24 +1057,27 @@ async function processQuestionBatch(opts: {
           TEST_AI_GRADING_REQUEST_TIMEOUT_MS,
         )
 
-        await persistSuggestionForResponse({
-          supabase,
-          testId: run.test_id,
-          responseId: only.item.response_id,
-          teacherId: run.triggered_by,
-          suggestion,
+        await renewTestAiGradingRunLease({
+          runId: run.id,
+          leaseToken,
+          leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
         })
 
-        await updateRunItem(supabase, only.item.id, {
-          status: 'completed',
-          attempt_count: attempts.get(only.item.id) ?? only.item.attempt_count + 1,
-          last_error_code: null,
-          last_error_message: null,
-          completed_at: new Date().toISOString(),
+        await persistSuggestionForResponse({
+          item: only.item,
+          leaseToken,
+          teacherId: run.triggered_by,
+          attemptCount: attempts.get(only.item.id) ?? only.item.attempt_count + 1,
+          suggestion,
         })
         continue
       }
 
+      await renewTestAiGradingRunLease({
+        runId: run.id,
+        leaseToken,
+        leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
+      })
       const suggestions = await suggestTestOpenResponseGradesBatchWithContext(
         prepared,
         activeBatchRequests.map((entry) => ({
@@ -1148,6 +1093,12 @@ async function processQuestionBatch(opts: {
         TEST_AI_GRADING_REQUEST_TIMEOUT_MS,
       )
 
+      await renewTestAiGradingRunLease({
+        runId: run.id,
+        leaseToken,
+        leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
+      })
+
       const suggestionByResponseId = new Map(
         suggestions.map((suggestion) => [suggestion.responseId, suggestion]),
       )
@@ -1156,8 +1107,8 @@ async function processQuestionBatch(opts: {
         const suggestion = suggestionByResponseId.get(entry.item.response_id)
         if (!suggestion) {
           await failOrRetryItem({
-            supabase,
             item: entry.item,
+            leaseToken,
             attemptCount: attempts.get(entry.item.id) ?? entry.item.attempt_count + 1,
             error: new Error(`AI batch grade suggestion omitted response ${entry.item.response_id}`),
           })
@@ -1166,34 +1117,28 @@ async function processQuestionBatch(opts: {
 
         try {
           await persistSuggestionForResponse({
-            supabase,
-            testId: run.test_id,
-            responseId: entry.item.response_id,
+            item: entry.item,
+            leaseToken,
             teacherId: run.triggered_by,
+            attemptCount: attempts.get(entry.item.id) ?? entry.item.attempt_count + 1,
             suggestion,
           })
-
-          await updateRunItem(supabase, entry.item.id, {
-            status: 'completed',
-            attempt_count: attempts.get(entry.item.id) ?? entry.item.attempt_count + 1,
-            last_error_code: null,
-            last_error_message: null,
-            completed_at: new Date().toISOString(),
-          })
         } catch (error) {
+          if (error instanceof TestAiGradingLeaseLostError) throw error
           await failOrRetryItem({
-            supabase,
             item: entry.item,
+            leaseToken,
             attemptCount: attempts.get(entry.item.id) ?? entry.item.attempt_count + 1,
             error,
           })
         }
       }
     } catch (error) {
+      if (error instanceof TestAiGradingLeaseLostError) throw error
       for (const entry of activeBatchRequests) {
         await failOrRetryItem({
-          supabase,
           item: entry.item,
+          leaseToken,
           attemptCount: attempts.get(entry.item.id) ?? entry.item.attempt_count + 1,
           error,
         })
@@ -1217,8 +1162,8 @@ export async function tickTestAiGradingRun(opts: {
     return { run: toTestAiGradingRunSummary(run, { items }), claimed: false }
   }
 
-  const claimed = await claimTestAiGradingRun(supabase, run.id)
-  if (!claimed) {
+  const leaseToken = await claimTestAiGradingRun(supabase, run.id)
+  if (!leaseToken) {
     const latest = await fetchTestAiGradingRunRow(supabase, run.id)
     if (!latest) {
       throw new Error('Test AI grading run not found after lease claim')
@@ -1288,8 +1233,8 @@ export async function tickTestAiGradingRun(opts: {
             await Promise.all(
               group.items.map((item) =>
                 failOrRetryItem({
-                  supabase,
                   item,
+                  leaseToken,
                   attemptCount: item.attempt_count + 1,
                   error: new Error('Question is no longer available for grading'),
                 }),
@@ -1301,6 +1246,7 @@ export async function tickTestAiGradingRun(opts: {
           await processQuestionBatch({
             supabase,
             run: claimedRun,
+            leaseToken,
             testTitle: test.title,
             question: group.question,
             items: group.items,
@@ -1312,11 +1258,21 @@ export async function tickTestAiGradingRun(opts: {
     }
 
     return {
-      run: await refreshTestAiGradingRun(supabase, claimedRun.id, { clearLease: true }),
+      run: await refreshTestAiGradingRun(supabase, claimedRun.id, {
+        leaseToken,
+        clearLease: true,
+      }),
       claimed: true,
     }
   } catch (error) {
-    const { data: failedRun } = await supabase
+    if (error instanceof TestAiGradingLeaseLostError) {
+      const latest = await fetchTestAiGradingRunRow(supabase, run.id)
+      if (!latest) throw new Error('Test AI grading run not found after lease loss')
+      const items = await fetchTestAiGradingRunItems(supabase, latest.id)
+      return { run: toTestAiGradingRunSummary(latest, { items }), claimed: false }
+    }
+
+    const { data: failedRun, error: failedRunError } = await supabase
       .from('test_ai_grading_runs')
       .update({
         status: 'failed',
@@ -1332,8 +1288,10 @@ export async function tickTestAiGradingRun(opts: {
         ],
       })
       .eq('id', run.id)
+      .eq('lease_token', leaseToken)
+      .gt('lease_expires_at', new Date().toISOString())
       .select('*')
-      .single()
+      .maybeSingle()
 
     if (failedRun) {
       const items = await fetchTestAiGradingRunItems(supabase, run.id)
@@ -1341,6 +1299,13 @@ export async function tickTestAiGradingRun(opts: {
         run: toTestAiGradingRunSummary(failedRun as TestAiGradingRun, { items }),
         claimed: true,
       }
+    }
+
+    if (!failedRun && !failedRunError) {
+      const latest = await fetchTestAiGradingRunRow(supabase, run.id)
+      if (!latest) throw new Error('Test AI grading run not found after lease loss')
+      const items = await fetchTestAiGradingRunItems(supabase, latest.id)
+      return { run: toTestAiGradingRunSummary(latest, { items }), claimed: false }
     }
 
     throw error
