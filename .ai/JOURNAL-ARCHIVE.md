@@ -13597,3 +13597,15 @@
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-07-05 — Student exam access e2e coverage
+
+**Completed:**
+- Added one focused Playwright flow for student exam mode covering teacher-closed access during an in-progress open-response test.
+- The test creates an active open-response test through existing teacher APIs, saves a student draft, closes and reopens that student's access, and verifies the draft is restored after reopening.
+- Kept the patch to e2e coverage plus this continuity entry; no app logic, migrations, or dependencies changed.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `corepack pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop --grep "preserves an open-response draft when teacher closes and reopens access"`
+- `corepack pnpm lint`

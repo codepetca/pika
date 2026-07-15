@@ -1,18 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ZodError } from 'zod'
+import { ApiError } from '@/lib/api-error'
 
-/**
- * Standard API error response shape.
- */
-export class ApiError extends Error {
-  constructor(
-    public readonly statusCode: number,
-    message: string,
-  ) {
-    super(message)
-    this.name = 'ApiError'
-  }
-}
+export { ApiError } from '@/lib/api-error'
 
 /**
  * Convenience constructors for common API errors.

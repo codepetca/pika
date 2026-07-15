@@ -10,18 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-05 — Student exam access e2e coverage
-
-**Completed:**
-- Added one focused Playwright flow for student exam mode covering teacher-closed access during an in-progress open-response test.
-- The test creates an active open-response test through existing teacher APIs, saves a student draft, closes and reopens that student's access, and verifies the draft is restored after reopening.
-- Kept the patch to e2e coverage plus this continuity entry; no app logic, migrations, or dependencies changed.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `corepack pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop --grep "preserves an open-response draft when teacher closes and reopens access"`
-- `corepack pnpm lint`
-
 ## 2026-07-09 — Collaborator readiness: rulesets, CODEOWNERS, onboarding docs
 
 **Completed:**
@@ -729,4 +717,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm check:architecture` (596 modules / 0 allowances)
 - `bash -n` and `shellcheck` for the database harness
 - Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-15 — Gradebook workflow boundary
+
+**Completed:**
+- Reduced the gradebook API route from 1,127 lines to a transport-only handler backed by a feature-owned server workflow and Zod request contracts.
+- Preserved roster paging, 50-ID chunking, 1,000-row pagination, legacy-column fallbacks, assessment ordering, status calculation, summaries, and response shape while reusing the shared query-chunks infrastructure.
+- Moved `ApiError` into a framework-neutral module so server workflows do not depend on Next transport types; `api-handler` re-exports the same class for compatibility.
+- Tightened assessment weight input to string IDs and integer/decimal-digit weights, retained the intentional legacy-category `410`, and removed the route from the API Zod baseline.
+- Narrowed missing-table detection so partial migrations fail visibly instead of silently hiding tests; added route, validation, migration-compatibility, and architecture regressions.
+- Completed independent behavior/authorization and API/Zod review-fix rounds with no remaining findings. No UI, migration, dependency, or production changes.
+
+**Validation:**
+- Focused gradebook/API/error/architecture suites (5 files / 75 tests)
+- `pnpm check:architecture` (602 modules / 0 allowances)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm vitest run` (361 files / 3,322 tests)
+- `pnpm build`
 - `git diff --check`
