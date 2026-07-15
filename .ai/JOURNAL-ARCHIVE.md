@@ -13609,3 +13609,17 @@
 - `bash scripts/verify-env.sh`
 - `corepack pnpm exec playwright test e2e/student-exam-mode.spec.ts --project=chromium-desktop --grep "preserves an open-response draft when teacher closes and reopens access"`
 - `corepack pnpm lint`
+
+## 2026-07-09 — Collaborator readiness: rulesets, CODEOWNERS, onboarding docs
+
+**Completed:**
+- Updated GitHub rulesets via API: `main` now requires a PR with 1 approving code-owner review plus the `Test & Build` status check (squash/rebase only); `production` mirrors the review + status-check requirements. Repo admins retain bypass.
+- Added `.github/CODEOWNERS` (`* @armorup`) and `CONTRIBUTING.md` (collaborator setup, PR workflow, contribution permission note).
+- README Getting Started rewritten: own-Supabase-per-developer with `supabase db push` (was stale "migrations 001–008 in dashboard"), required vs optional env split, seeded staging creds removed from docs.
+- Marked shared `.env.local` symlink convention as maintainer-specific in `.ai/START-HERE.md` and `docs/dev-workflow.md`.
+- Ran gitleaks over full history (1242 commits): no live secrets; flagged initial-commit README/tests 64-hex `SESSION_SECRET` example for precautionary rotation.
+- PR: https://github.com/codepetca/pika/pull/835
+
+**Validation:**
+- `pnpm test tests/unit/ai-startup-docs.test.ts` (26/26 passed)
+- `gh api repos/codepetca/pika/rulesets/{10460660,12273665}` confirmed new rules active

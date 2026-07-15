@@ -10,20 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-09 — Collaborator readiness: rulesets, CODEOWNERS, onboarding docs
-
-**Completed:**
-- Updated GitHub rulesets via API: `main` now requires a PR with 1 approving code-owner review plus the `Test & Build` status check (squash/rebase only); `production` mirrors the review + status-check requirements. Repo admins retain bypass.
-- Added `.github/CODEOWNERS` (`* @armorup`) and `CONTRIBUTING.md` (collaborator setup, PR workflow, contribution permission note).
-- README Getting Started rewritten: own-Supabase-per-developer with `supabase db push` (was stale "migrations 001–008 in dashboard"), required vs optional env split, seeded staging creds removed from docs.
-- Marked shared `.env.local` symlink convention as maintainer-specific in `.ai/START-HERE.md` and `docs/dev-workflow.md`.
-- Ran gitleaks over full history (1242 commits): no live secrets; flagged initial-commit README/tests 64-hex `SESSION_SECRET` example for precautionary rotation.
-- PR: https://github.com/codepetca/pika/pull/835
-
-**Validation:**
-- `pnpm test tests/unit/ai-startup-docs.test.ts` (26/26 passed)
-- `gh api repos/codepetca/pika/rulesets/{10460660,12273665}` confirmed new rules active
-
 ## 2026-07-09 — Archive trimmed session-log entries instead of deleting
 
 **Completed:**
@@ -736,4 +722,26 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm vitest run` (361 files / 3,322 tests)
 - `pnpm build`
+- `git diff --check`
+
+## 2026-07-15 — Legacy quiz gradebook and archive compatibility decision
+
+**Completed:**
+- Removed the inactive quiz category from gradebook calculation inputs/results while retaining null/empty API response tombstones for older clients.
+- Added an architecture guard that allowlists gradebook dependencies and quiz tombstones, forbidding legacy quiz identifiers from active calculation and persistence code.
+- Classified legacy quiz gradebook rows as archival data and kept the version 3 course-package `quizzes` flag serialized but permanently normalized to `false`.
+- Removed dead quiz-table fixtures from gradebook tests and added encoded package compatibility regressions.
+- Expanded the archive database restore harness with non-empty quiz, question, response, and manual-override rows; the existing exact-table equality audit now proves they survive staging and final restore.
+- Documented that schema retirement remains blocked on an archive adapter, production inventory, and production verification. No production state or schema was changed.
+- Completed an independent review/fix loop; four guardrail findings were fixed and final rereview returned no findings.
+
+**Validation:**
+- Focused gradebook/package/archive suites (54 tests)
+- Classroom archive restore database contract harness
+- `pnpm vitest run` (361 files / 3,324 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (602 modules / 0 allowances)
+- `bash -n scripts/check-classroom-archive-restore-database.sh`
 - `git diff --check`
