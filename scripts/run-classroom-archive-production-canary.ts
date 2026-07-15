@@ -21,6 +21,7 @@ import {
   classroomArchiveProductionCanaryEvidenceDigest,
   classroomArchiveStorageIdentitySha256,
   createClassroomArchiveProductionCanaryPlan,
+  normalizeClassroomArchiveProductionCanaryCliArguments,
   runClassroomArchiveProductionCanary,
   verifyClassroomArchiveProductionCanaryPlan,
   type ClassroomArchiveProductionArchiveEvidence,
@@ -195,12 +196,13 @@ function assertCleanCheckout(expectedCommit?: string) {
 }
 
 function parseArguments() {
-  const command = commandSchema.parse(process.argv[2])
-  const planIndex = process.argv.indexOf('--plan')
-  if (planIndex < 0 || !process.argv[planIndex + 1]) {
+  const args = normalizeClassroomArchiveProductionCanaryCliArguments(process.argv.slice(2))
+  const command = commandSchema.parse(args[0])
+  const planIndex = args.indexOf('--plan')
+  if (planIndex < 0 || !args[planIndex + 1]) {
     throw new Error('--plan is required')
   }
-  return { command, planPath: planFileSchema.parse(process.argv[planIndex + 1]) }
+  return { command, planPath: planFileSchema.parse(args[planIndex + 1]) }
 }
 
 async function writeImmutablePlan(path: string, plan: ClassroomArchiveProductionCanaryPlan) {
