@@ -210,7 +210,7 @@ function comparePrimaryKey(left: Record<string, unknown>, right: Record<string, 
   return leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0
 }
 
-async function readClassroomResources(
+export async function readClassroomArchiveResourceGraph(
   reader: ClassroomArchiveInventoryReader,
   classroomId: string,
 ) {
@@ -283,7 +283,7 @@ async function readStableClassroomInventory(
 ) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const revisionBefore = revisionSchema.parse(await reader.readRevision(classroomId))
-    const resources = await readClassroomResources(reader, classroomId)
+    const resources = await readClassroomArchiveResourceGraph(reader, classroomId)
     const classroomRows = resources.classrooms || []
     if (
       classroomRows.length !== 1 ||

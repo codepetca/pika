@@ -13664,3 +13664,12 @@
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
 - `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
 - `git diff --check`
+
+## 2026-07-10 — Bump GitHub Actions off deprecated Node 20
+
+**Completed:**
+- Bumped pinned action majors in ci.yml and ui-policy.yml to clear the "Node.js 20 is deprecated" runner warning: checkout v4→v7, setup-node v4→v6, pnpm/action-setup v4→v6, cache v4→v6, upload-artifact v4→v7.
+- All step inputs used are stable across these majors (no removed inputs); relying on CI to validate.
+
+**Validation:**
+- CI `Test & Build` on the PR (self-validating workflow change)

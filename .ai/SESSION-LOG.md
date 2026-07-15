@@ -10,15 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-10 — Bump GitHub Actions off deprecated Node 20
-
-**Completed:**
-- Bumped pinned action majors in ci.yml and ui-policy.yml to clear the "Node.js 20 is deprecated" runner warning: checkout v4→v7, setup-node v4→v6, pnpm/action-setup v4→v6, cache v4→v6, upload-artifact v4→v7.
-- All step inputs used are stable across these majors (no removed inputs); relying on CI to validate.
-
-**Validation:**
-- CI `Test & Build` on the PR (self-validating workflow change)
-
 ## 2026-07-10 — Repo cleanup and /repo-tidy skill
 
 **Completed:**
@@ -285,6 +276,36 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm build`
+- Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-15 — Production classroom archive canary runner
+
+**Completed:**
+- Added a production-only prepare/execute/resume CLI bound to one hosted project, teacher,
+  archived-hot classroom, immutable mode-0600 plan, clean deployed commit, exact acknowledgement,
+  and deterministic export/compact/restore operation UUIDs.
+- Added exact pre/archive/restored-projection evidence across all 42 classroom resources and every
+  source object, full manifest and operation metadata auditing, original/restored object byte checks,
+  source-revision equality, pre/post database sizing, and a conservative restore safety margin.
+- Kept every source/Gradex cleanup gate disabled and proved cleanup rows, reservations, restore
+  staging, and upload-cleanup state remain untouched or empty after immediate restore.
+- Added crash recovery for cold state, transient state/archive reads, ambiguous coordinator results,
+  journal failure, and hot state after restore completion. Evidence files reject symlink traversal and
+  unsafe permissions.
+- Updated lifecycle/testing/operator documentation and current context. Production migrations 001-096,
+  read-only inventory, and hosted catalog audit were previously verified; no mutation canary ran in
+  this branch.
+- Completed repeated independent production-safety/data-integrity review and fix rounds.
+
+**Validation:**
+- Production canary contract suite (14 tests)
+- `pnpm vitest run` (363 files / 3,329 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm db:types:check`
+- `pnpm lint`
+- `pnpm check:architecture` (600 modules / 0 allowances)
 - Pika pre-commit audit
 - `git diff --check`
 

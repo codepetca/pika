@@ -99,6 +99,18 @@ privacy-safe row and managed-object sizing for hot archived classrooms. The dire
 audit documented in `docs/guidance/classroom-lifecycle-archives.md` remains separately required. The
 inventory does not create an archive or modify database or Storage state.
 
+The named production round-trip runner has separate read-only preparation and explicitly
+acknowledged mutation/resume modes:
+
+```bash
+pnpm canary:classroom-archive-production -- prepare --plan "$HOME/.pika/archive-canary.json"
+pnpm canary:classroom-archive-production -- execute --plan "$HOME/.pika/archive-canary.json"
+pnpm canary:classroom-archive-production -- resume --plan "$HOME/.pika/archive-canary.json"
+```
+
+Use it only under the migration, catalog, deployment, headroom, named-target, immutable-plan, and
+cleanup-disabled procedure in `docs/guidance/classroom-lifecycle-archives.md`.
+
 ---
 
 ## Environment Variables (required)
@@ -113,12 +125,15 @@ inventory does not create an archive or modify database or Storage state.
 - `CRON_SECRET` (required for protected cron endpoints; Vercel sends `Authorization: Bearer <CRON_SECRET>`; cron schedules are configured in `vercel.json` or the Vercel dashboard; on the Hobby plan, schedules must run at most once per day)
 - `OPENAI_API_KEY` (optional; required for AI grading, nightly log summaries, and developer feedback extraction)
 - `OPENAI_SUMMARY_MODEL` / `OPENAI_DEVELOPER_FEEDBACK_MODEL` (optional model overrides)
+- `SUPABASE_ACCESS_TOKEN` (operator-only; required by the named production archive canary for
+  read-only pre/post database-size evidence)
 
 Classroom archive rollout controls are optional and disabled by default. Cold compaction requires
 `CLASSROOM_ARCHIVE_COMPACTION_ENABLED=true` plus exact UUID matches in both
 `CLASSROOM_ARCHIVE_COMPACTION_TEACHER_IDS` and `CLASSROOM_ARCHIVE_COMPACTION_ARCHIVE_IDS`. The
 coordinator is server-only and has no route or schedule; migration application and a named canary
-still require explicit human approval.
+still require explicit human approval. The named round-trip canary keeps every source and Gradex
+cleanup gate disabled and immediately restores the classroom after cold compaction.
 
 Source-object deletion is separately disabled by default. Migration 096 transactionally fences
 `assignment-artifacts`; embedded-reference buckets remain ineligible. The manual route requires two
