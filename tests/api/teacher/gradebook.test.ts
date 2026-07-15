@@ -26,6 +26,8 @@ type GradebookFixture = {
   quizOverrides?: Array<any>
   quizOverridesError?: SupabaseReadError | null
   tests?: Array<any>
+  testsWithMetaError?: SupabaseReadError | null
+  testsLegacyError?: SupabaseReadError | null
   testQuestions?: Array<any>
   testQuestionsError?: SupabaseReadError | null
   testResponses?: Array<any>
@@ -186,12 +188,17 @@ function buildMockFrom(fixture: GradebookFixture) {
 
     if (table === 'tests') {
       return {
-        select: vi.fn(() => ({
-          eq: vi.fn().mockResolvedValue({
-            data: fixture.tests ?? [],
-            error: null,
-          }),
-        })),
+        select: vi.fn((selection: string) => {
+          const error = selection.includes('gradebook_weight')
+            ? fixture.testsWithMetaError ?? null
+            : fixture.testsLegacyError ?? null
+          return {
+            eq: vi.fn().mockResolvedValue({
+              data: error ? null : fixture.tests ?? [],
+              error,
+            }),
+          }
+        }),
       }
     }
 
@@ -1041,6 +1048,27 @@ describe('GET /api/teacher/gradebook', () => {
     ])
   })
 
+  it('does not hide tests when a partial migration leaves fallback columns unavailable', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      testsWithMetaError: {
+        code: '42703',
+        message: 'column tests.gradebook_weight does not exist',
+      },
+      testsLegacyError: {
+        code: '42703',
+        message: 'column tests.include_in_final does not exist',
+      },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
+    const response = await GET(request)
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to load tests for gradebook' })
+    consoleError.mockRestore()
+  })
+
   it('falls back to legacy assignment/quiz columns when gradebook metadata columns are unavailable', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classrooms') {
@@ -1220,6 +1248,70 @@ describe('PATCH /api/teacher/gradebook', () => {
     vi.clearAllMocks()
   })
 
+  it.each([
+    ['{', 'Invalid JSON body'],
+    [JSON.stringify(null), 'classroom_id is required'],
+    [JSON.stringify({ classroom_id: 'c1' }), 'No gradebook update provided'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: 'quiz',
+      assessment_id: 'q1',
+      gradebook_weight: 10,
+    }), 'assessment_type must be assignment or test'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: 'test',
+      assessment_id: 't1',
+      gradebook_weight: 1000,
+    }), 'gradebook_weight must be an integer 1-999'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: false,
+      assessment_id: 't1',
+      gradebook_weight: 10,
+    }), 'assessment_type must be assignment or test'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: 'test',
+      assessment_id: [],
+      gradebook_weight: 10,
+    }), 'assessment_id is required'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: 'test',
+      assessment_id: '',
+      gradebook_weight: 10,
+    }), 'assessment_id is required'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: 'test',
+      assessment_id: 't1',
+      gradebook_weight: true,
+    }), 'gradebook_weight must be an integer 1-999'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: 'test',
+      assessment_id: 't1',
+      gradebook_weight: 0,
+    }), 'gradebook_weight must be an integer 1-999'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: 'test',
+      assessment_id: 't1',
+      gradebook_weight: { value: 10 },
+    }), 'gradebook_weight must be an integer 1-999'],
+  ])('returns 400 for invalid update input %#', async (body, message) => {
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook', {
+      method: 'PATCH',
+      body,
+    })
+
+    const response = await PATCH(request)
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error: message })
+  })
+
   it('rejects legacy category settings updates', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classrooms') {
@@ -1242,6 +1334,9 @@ describe('PATCH /api/teacher/gradebook', () => {
       method: 'PATCH',
       body: JSON.stringify({
         classroom_id: 'c1',
+        assessment_type: null,
+        assessment_id: null,
+        gradebook_weight: null,
         use_weights: false,
         assignments_weight: 10,
         quizzes_weight: 20,
@@ -1295,7 +1390,8 @@ describe('PATCH /api/teacher/gradebook', () => {
         classroom_id: 'c1',
         assessment_type: 'assignment',
         assessment_id: 'a1',
-        gradebook_weight: 20,
+        gradebook_weight: '20',
+        assignments_weight: 50,
       }),
     })
 
