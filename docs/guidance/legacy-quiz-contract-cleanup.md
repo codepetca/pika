@@ -66,8 +66,9 @@ Retain for compatibility or schema-backed behavior:
 
 - `src/lib/assessments.ts` default handling for persisted legacy assessment
   types.
-- `src/lib/server/assessment-drafts.ts` quiz draft helpers and
-  `quiz_questions` sync for legacy rows.
+- `src/lib/server/assessment-drafts.ts` assessment-named draft helpers and their
+  `quiz_questions` sync behavior for legacy rows. The unused quiz-named wrapper
+  exports have been retired.
 - `src/lib/quiz-markdown.ts` and `tests/lib/quiz-markdown.test.ts`, which cover
   legacy quiz markdown import/export aliases.
 - Gradebook response tombstones for older clients. The active gradebook server
@@ -239,10 +240,11 @@ For each implementation pass:
 
 ## Next Implementation Pass
 
-The gradebook/course-package decision and dead alias retirement are complete.
-The next safe pass should remove test-only quiz draft aliases or continue
-fixture-only cleanup where no persisted/API/UI compatibility contract depends
-on the name. Start with:
+The gradebook/course-package decision and dead draft alias retirement are
+complete. The next safe pass should decide whether the test-only markdown
+aliases have completed their compatibility window or continue fixture-only
+cleanup where no persisted/API/UI compatibility contract depends on the name.
+Start with:
 
 - `tests/lib/quiz-markdown.test.ts` only if the test is rewritten to clearly say
   it covers legacy quiz markdown compatibility.

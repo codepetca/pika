@@ -10,19 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-09 — Remove stale staging environment references
-
-**Completed:**
-- Removed stale staging-environment references now that the staging Supabase environment is gone: README.md (seed `ENV_FILE` example, UI gallery wording, renamed the "Staging workflow" E2E section to a remote/preview workflow), docs/core/pilot-mvp.md (Environments section and manual cron trigger now reference Vercel preview deployments), docs/core/project-context.md, docs/core/tests.md, docs/semester-plan.md, docs/deployment/BREVO-SETUP.md, seed script headers (scripts/seed.ts, scripts/seed-gld2o.ts), and src/lib/email.ts comments.
-- Kept the generic `ENV_FILE` mechanism (examples now use a pasteable `.env.custom.local`) and reworded remote-testing guidance to Vercel preview deployments.
-- Left the seeded `GLD2O Staging` classroom title unchanged (test-data name, not an environment reference) and `.ai/JOURNAL-ARCHIVE.md` (historical archive).
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `grep -rni staging` (only seed-data classroom title and journal archive remain)
-- `pnpm lint`
-- `pnpm exec tsc --noEmit`
-
 ## 2026-07-11 — Collaborator-local env startup guidance
 
 **Completed:**
@@ -743,6 +730,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Validation:**
 - Focused assessment/access/architecture suites (4 files / 90 tests)
 - `pnpm vitest run` (361 files / 3,308 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (599 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-15 — Legacy quiz draft alias retirement
+
+**Completed:**
+- Removed the zero-caller `validateQuizDraftContent`, `buildQuizDraftContentFromRows`, and `syncQuizQuestionsFromDraft` wrapper exports and their identity-only assertions.
+- Preserved persisted `assessment_type = 'quiz'`, assessment-named legacy draft behavior, `quiz_questions`/`quiz_id` synchronization, archive resources, markdown compatibility, API aliases, and UI props.
+- Strengthened the legacy alias architecture regression to inspect resolved exports across every TypeScript module under `src`, preventing aliases from returning through unrelated re-exports.
+- Completed independent behavior and architecture review/fix loops; one guard bypass finding was fixed and final rereviews returned no findings. No UI, schema, dependency, or production changes.
+
+**Validation:**
+- Focused draft/architecture suites (2 files / 16 tests)
+- `pnpm vitest run` (361 files / 3,307 tests)
 - `pnpm build`
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`

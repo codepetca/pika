@@ -137,8 +137,6 @@ export function validateAssessmentDraftContent(
   }
 }
 
-export const validateQuizDraftContent = validateAssessmentDraftContent
-
 export function validateTestDraftContent(
   input: unknown,
   options?: { allowEmptyQuestionText?: boolean },
