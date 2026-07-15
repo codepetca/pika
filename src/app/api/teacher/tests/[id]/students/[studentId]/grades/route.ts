@@ -32,9 +32,8 @@ export const PATCH = withErrorHandler('BulkSaveTeacherTestGrades', async (reques
     studentId,
     grades: parsed.data.grades,
   })
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: result.status })
-  }
-
-  return NextResponse.json({ saved_count: result.savedCount })
+  return NextResponse.json({
+    saved_count: result.savedCount,
+    responses: result.responses,
+  })
 })

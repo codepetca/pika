@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { GET, PATCH } from '@/app/api/teacher/tests/[id]/route'
+import { DELETE, GET, PATCH } from '@/app/api/teacher/tests/[id]/route'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { deleteTeacherTestAtomic } from '@/lib/server/test-deletion'
 import { getAssessmentDraftByType } from '@/lib/server/assessment-drafts'
 
 vi.mock('@/lib/supabase', () => ({
@@ -35,6 +36,9 @@ vi.mock('@/lib/server/tests', () => ({
     },
   })),
 }))
+vi.mock('@/lib/server/test-deletion', () => ({
+  deleteTeacherTestAtomic: vi.fn(async () => ({ deleted: true, responsesCount: 3 })),
+}))
 
 vi.mock('@/lib/server/assessment-drafts', () => ({
   getAssessmentDraftByType: vi.fn(async () => ({ draft: null, error: null })),
@@ -44,6 +48,27 @@ vi.mock('@/lib/server/assessment-drafts', () => ({
 }))
 
 const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
+
+describe('DELETE /api/teacher/tests/[id]', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('deletes through the atomic test boundary', async () => {
+    const response = await DELETE(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1', { method: 'DELETE' }),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ success: true, responses_count: 3 })
+    expect(deleteTeacherTestAtomic).toHaveBeenCalledWith({
+      testId: 'test-1',
+      teacherId: 'teacher-1',
+    })
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+})
 
 describe('PATCH /api/teacher/tests/[id]', () => {
   beforeEach(() => {

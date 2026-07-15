@@ -13579,3 +13579,21 @@
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `pnpm test`
 - `pnpm build`
+
+## 2026-06-24 — Student log history cached JSON
+
+**Completed:**
+- Continued the bounded architecture/UI improvement goal with a small client read-cache consistency slice.
+- Replaced `StudentLogHistory`'s latest and load-more manual cached history GET fetchers with `fetchCachedJSON`.
+- Preserved existing cache keys, 60s TTL, pagination URL params, loading behavior, and error handling.
+- Added a focused regression proving the load-more history page is reused from cache on a repeated request.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm vitest run tests/components/StudentLogHistory.test.tsx tests/unit/request-cache.test.ts`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `git diff --check`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm test`
+- `pnpm build`

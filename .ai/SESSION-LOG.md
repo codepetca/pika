@@ -10,24 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-06-24 — Student log history cached JSON
-
-**Completed:**
-- Continued the bounded architecture/UI improvement goal with a small client read-cache consistency slice.
-- Replaced `StudentLogHistory`'s latest and load-more manual cached history GET fetchers with `fetchCachedJSON`.
-- Preserved existing cache keys, 60s TTL, pagination URL params, loading behavior, and error handling.
-- Added a focused regression proving the load-more history page is reused from cache on a repeated request.
-
-**Validation:**
-- `bash scripts/verify-env.sh`
-- `pnpm vitest run tests/components/StudentLogHistory.test.tsx tests/unit/request-cache.test.ts`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `git diff --check`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm test`
-- `pnpm build`
-
 ## 2026-07-05 — Student exam access e2e coverage
 
 **Completed:**
@@ -371,6 +353,26 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-14 — Atomic test grading contracts
+
+**Completed:**
+- Moved manual, bulk-clear, unanswered, and AI test grading writes behind typed atomic database RPCs with optimistic response/item revisions, exact-cohort validation, deterministic lock ordering, leases, and signed AI provenance.
+- Added shared test-scoped advisory locking and an atomic test-deletion boundary so grading, finalization, and deletion serialize without deadlocks or partial writes.
+- Added bounded client conflict recovery that reloads canonical revisions while preserving the teacher's latest draft, plus Zod validation at changed API/server boundaries.
+- Hardened classroom archive restore context scoping and added database-backed CI coverage for both grading concurrency and archive restore contracts.
+- Added migrations `089` through `095`, generated Supabase types, rollout guidance, focused API/server/component/architecture tests, and multi-session database regression harnesses.
+
+**Validation:**
+- `pnpm exec supabase db reset --local`
+- `pnpm run db:types:check`
+- `bash scripts/check-atomic-test-grading.sh`
+- `bash scripts/check-classroom-archive-restore-database.sh`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm lint`
+- `pnpm vitest run` (359 files, 3,287 tests)
+- `pnpm build`
 - `git diff --check`
 
 ## 2026-07-13 — Atomic classroom cold-compaction database contract

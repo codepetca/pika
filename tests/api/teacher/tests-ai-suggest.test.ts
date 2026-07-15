@@ -77,7 +77,16 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
   })
 
   function setupResponseRow() {
+    const questionUpdateChain = {
+      eq: vi.fn(),
+      error: null,
+    }
+    questionUpdateChain.eq.mockReturnValue(questionUpdateChain)
+    const questionUpdate = vi.fn(() => questionUpdateChain)
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_questions') {
+        return { update: questionUpdate }
+      }
       if (table !== 'test_responses') {
         throw new Error(`Unexpected table: ${table}`)
       }
@@ -91,8 +100,10 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
               question_id: 'question-1',
               student_id: 'student-1',
               response_text: 'Water moves to balance concentration.',
+              revision: 7,
               test_questions: {
                 id: 'question-1',
+                updated_at: '2026-07-14T12:00:00.000Z',
                 question_type: 'open_response',
                 question_text: 'Explain osmosis.',
                 points: 5,
@@ -111,6 +122,7 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
         })),
       }
     })
+    return { questionUpdate, questionUpdateChain }
   }
 
   it('returns suggestion with grading metadata and uses answer_key context', async () => {
@@ -167,6 +179,58 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
         model: 'gpt-5-nano',
       })
     )
+    expect(data.question_grading_snapshot).toEqual({
+      test_title: 'Unit Test',
+      question_text: 'Explain osmosis.',
+      points: 5,
+      response_monospace: true,
+      answer_key:
+        'Water moves across a semi-permeable membrane from low solute to high solute concentration.',
+      sample_solution:
+        'public String explainOsmosis() {\n  return "Water moves across a semipermeable membrane.";\n}',
+    })
+    expect(data.ai_provenance_token).toEqual(expect.any(String))
+  })
+
+  it('fences generated-reference cache writes with the question version', async () => {
+    resolveReusableTestOpenResponseReferenceAnswers.mockReturnValueOnce({
+      expectedCacheKey: 'new-cache-key',
+      cacheHit: false,
+      referenceAnswers: null,
+    })
+    prepareTestOpenResponseGradingContext.mockResolvedValue({
+      model: 'gpt-5-nano',
+      grading_basis: 'generated_reference',
+      reference_answers: ['Generated answer'],
+      reference_answers_source: 'generated',
+    })
+    suggestTestOpenResponseGradeWithContext.mockResolvedValue({
+      score: 4,
+      feedback: 'Good.',
+      grading_basis: 'generated_reference',
+      reference_answers: ['Generated answer'],
+      model: 'gpt-5-nano',
+    })
+    const { questionUpdate, questionUpdateChain } = setupResponseRow()
+
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/responses/response-1/ai-suggest', {
+        method: 'POST',
+      }),
+      { params: Promise.resolve({ id: 'test-1', responseId: 'response-1' }) },
+    )
+
+    expect(response.status).toBe(200)
+    expect(questionUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      ai_reference_cache_key: 'new-cache-key',
+      ai_reference_cache_answers: ['Generated answer'],
+      ai_reference_cache_model: 'gpt-5-nano',
+    }))
+    expect(questionUpdateChain.eq.mock.calls).toEqual([
+      ['id', 'question-1'],
+      ['test_id', 'test-1'],
+      ['updated_at', '2026-07-14T12:00:00.000Z'],
+    ])
   })
 
   it('rejects suggestions when the response student is no longer enrolled', async () => {

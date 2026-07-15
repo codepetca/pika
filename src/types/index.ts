@@ -495,6 +495,8 @@ export interface TestAiGradingRunItem {
   student_id: string
   question_id: string
   response_id: string
+  response_revision: number
+  question_grading_snapshot: Record<string, unknown> | null
   queue_position: number
   status: TestAiGradingItemStatus
   attempt_count: number
@@ -1010,6 +1012,7 @@ export interface TestResponse {
   id: string
   test_id: string
   question_id: string
+  revision: number
   student_id: string
   selected_option: number | null
   response_text: string | null
@@ -1020,6 +1023,8 @@ export interface TestResponse {
   ai_grading_basis: TestAiGradingBasis | null
   ai_reference_answers: string[] | null
   ai_model: string | null
+  ai_suggested_score: number | null
+  ai_suggested_feedback: string | null
   submitted_at: string
 }
 

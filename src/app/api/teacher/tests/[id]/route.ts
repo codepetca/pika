@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth'
 import { canActivateTest } from '@/lib/tests'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { deleteTeacherTestAtomic } from '@/lib/server/test-deletion'
 import { normalizeTestDocuments, validateTestDocumentsPayload } from '@/lib/test-documents'
 import {
   getAssessmentDraftByType,
@@ -368,22 +369,6 @@ export const DELETE = withErrorHandler('DeleteTest', async (_request, context) =
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
   }
-  const supabase = getServiceRoleClient()
-
-  const { count: responsesCount } = await supabase
-    .from('test_responses')
-    .select('*', { count: 'exact', head: true })
-    .eq('test_id', id)
-
-  const { error } = await supabase
-    .from('tests')
-    .delete()
-    .eq('id', id)
-
-  if (error) {
-    console.error('Error deleting test:', error)
-    return NextResponse.json({ error: 'Failed to delete test' }, { status: 500 })
-  }
-
-  return NextResponse.json({ success: true, responses_count: responsesCount || 0 })
+  const result = await deleteTeacherTestAtomic({ testId: id, teacherId: user.id })
+  return NextResponse.json({ success: result.deleted, responses_count: result.responsesCount })
 })

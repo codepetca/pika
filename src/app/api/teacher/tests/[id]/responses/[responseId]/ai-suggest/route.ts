@@ -10,6 +10,8 @@ import {
 } from '@/lib/ai-test-grading'
 import { withErrorHandler } from '@/lib/api-handler'
 import { loadClassroomAiSanitizationContext } from '@/lib/server/ai-sanitization'
+import { buildTestQuestionGradingSnapshot } from '@/lib/test-grading-context'
+import { createManualTestAiProvenanceToken } from '@/lib/server/test-ai-provenance'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -33,8 +35,10 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
       question_id,
       student_id,
       response_text,
+      revision,
       test_questions!inner (
         id,
+        updated_at,
         question_type,
         question_text,
         points,
@@ -86,6 +90,19 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
   if (!responseText) {
     return NextResponse.json({ error: 'Response text is empty' }, { status: 400 })
   }
+
+  const questionGradingSnapshot = buildTestQuestionGradingSnapshot({
+    testTitle: access.test.title,
+    question: {
+      question_text: String(question.question_text || ''),
+      points: typeof question.points === 'number' ? question.points : null,
+      response_monospace:
+        typeof question.response_monospace === 'boolean' ? question.response_monospace : null,
+      answer_key: typeof question.answer_key === 'string' ? question.answer_key : null,
+      sample_solution:
+        typeof question.sample_solution === 'string' ? question.sample_solution : null,
+    },
+  })
 
   const currentModel = getTestOpenResponseGradingModel()
   const sanitizationContext = await loadClassroomAiSanitizationContext(
@@ -140,6 +157,7 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
       })
       .eq('id', question.id)
       .eq('test_id', testId)
+      .eq('updated_at', question.updated_at)
 
     if (cacheUpdateError) {
       console.error('Error caching generated reference answers for AI suggest:', {
@@ -155,9 +173,30 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
     requestedStrategy: 'manual',
     resolvedStrategy: 'single',
   })
+  const responseRevision = Number(responseRow.revision)
+  if (!Number.isSafeInteger(responseRevision) || responseRevision < 1) {
+    return NextResponse.json({ error: 'Response revision is unavailable' }, { status: 409 })
+  }
+  const aiProvenanceToken = createManualTestAiProvenanceToken({
+    teacherId: user.id,
+    testId,
+    responseId,
+    responseRevision,
+    gradingBasis: suggestion.grading_basis,
+    referenceAnswers:
+      suggestion.grading_basis === 'generated_reference'
+        ? suggestion.reference_answers
+        : null,
+    model: suggestion.model,
+    suggestedScore: suggestion.score,
+    suggestedFeedback: suggestion.feedback,
+    questionGradingSnapshot,
+  })
 
   return NextResponse.json({
     suggestion,
     max_points: Number(question.points ?? 0),
+    question_grading_snapshot: questionGradingSnapshot,
+    ai_provenance_token: aiProvenanceToken,
   })
 })

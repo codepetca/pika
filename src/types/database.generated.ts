@@ -3089,9 +3089,11 @@ export type Database = {
           last_error_code: string | null
           last_error_message: string | null
           next_retry_at: string | null
+          question_grading_snapshot: Json | null
           question_id: string
           queue_position: number
           response_id: string
+          response_revision: number
           run_id: string
           started_at: string | null
           status: string
@@ -3107,9 +3109,11 @@ export type Database = {
           last_error_code?: string | null
           last_error_message?: string | null
           next_retry_at?: string | null
+          question_grading_snapshot?: Json | null
           question_id: string
           queue_position?: number
           response_id: string
+          response_revision: number
           run_id: string
           started_at?: string | null
           status?: string
@@ -3125,9 +3129,11 @@ export type Database = {
           last_error_code?: string | null
           last_error_message?: string | null
           next_retry_at?: string | null
+          question_grading_snapshot?: Json | null
           question_id?: string
           queue_position?: number
           response_id?: string
+          response_revision?: number
           run_id?: string
           started_at?: string | null
           status?: string
@@ -3517,12 +3523,15 @@ export type Database = {
           ai_grading_basis: string | null
           ai_model: string | null
           ai_reference_answers: Json | null
+          ai_suggested_feedback: string | null
+          ai_suggested_score: number | null
           feedback: string | null
           graded_at: string | null
           graded_by: string | null
           id: string
           question_id: string
           response_text: string | null
+          revision: number
           score: number | null
           selected_option: number | null
           student_id: string
@@ -3533,12 +3542,15 @@ export type Database = {
           ai_grading_basis?: string | null
           ai_model?: string | null
           ai_reference_answers?: Json | null
+          ai_suggested_feedback?: string | null
+          ai_suggested_score?: number | null
           feedback?: string | null
           graded_at?: string | null
           graded_by?: string | null
           id?: string
           question_id: string
           response_text?: string | null
+          revision?: number
           score?: number | null
           selected_option?: number | null
           student_id: string
@@ -3549,12 +3561,15 @@ export type Database = {
           ai_grading_basis?: string | null
           ai_model?: string | null
           ai_reference_answers?: Json | null
+          ai_suggested_feedback?: string | null
+          ai_suggested_score?: number | null
           feedback?: string | null
           graded_at?: string | null
           graded_by?: string | null
           id?: string
           question_id?: string
           response_text?: string | null
+          revision?: number
           score?: number | null
           selected_option?: number | null
           student_id?: string
@@ -4011,6 +4026,16 @@ export type Database = {
         Args: never
         Returns: number
       }
+      clear_test_open_response_grades_atomic: {
+        Args: {
+          p_expected_responses: Json
+          p_now: string
+          p_student_ids: string[]
+          p_teacher_id: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
       close_test_for_grading_atomic: {
         Args: { p_closed_by: string; p_test_id: string }
         Returns: Json
@@ -4155,12 +4180,33 @@ export type Database = {
         }
         Returns: Json
       }
+      create_test_ai_grading_run_atomic: {
+        Args: {
+          p_eligible_student_count: number
+          p_eligible_student_ids: string[]
+          p_item_rows: Json
+          p_model: string
+          p_prompt_guideline_override?: string
+          p_requested_student_ids: string[]
+          p_selection_hash: string
+          p_skipped_already_graded_count: number
+          p_skipped_unanswered_count: number
+          p_teacher_id: string
+          p_test_id: string
+          p_unanswered_rows: Json
+        }
+        Returns: Json
+      }
       delete_student_test_attempt_atomic: {
         Args: { p_student_id: string; p_test_id: string }
         Returns: Json
       }
       delete_student_test_attempts_atomic: {
         Args: { p_student_ids: string[]; p_test_id: string }
+        Returns: Json
+      }
+      delete_test_atomic: {
+        Args: { p_teacher_id: string; p_test_id: string }
         Returns: Json
       }
       fail_classroom_archive_compaction: {
@@ -4247,6 +4293,21 @@ export type Database = {
         }
         Returns: Json
       }
+      finalize_test_ai_grading_item_atomic: {
+        Args: {
+          p_ai_grading_basis: string
+          p_ai_model: string
+          p_ai_reference_answers: Json
+          p_attempt_count: number
+          p_feedback: string
+          p_item_id: string
+          p_lease_token: string
+          p_now: string
+          p_score: number
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       finalize_test_attempts_for_grading_atomic: {
         Args: {
           p_closed_by: string
@@ -4287,6 +4348,14 @@ export type Database = {
         }
         Returns: Json
       }
+      is_classroom_archive_maintenance_mode: {
+        Args: { p_mode: string }
+        Returns: boolean
+      }
+      normalize_classroom_archive_restore_row: {
+        Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
       remove_classroom_roster_entries_atomic: {
         Args: { p_classroom_id: string; p_roster_ids: string[] }
         Returns: Json
@@ -4316,6 +4385,14 @@ export type Database = {
           p_extract_id: string
           p_lease_seconds?: number
           p_lease_token: string
+        }
+        Returns: boolean
+      }
+      renew_test_ai_grading_run_lease: {
+        Args: {
+          p_lease_seconds?: number
+          p_lease_token: string
+          p_run_id: string
         }
         Returns: boolean
       }
@@ -4441,6 +4518,40 @@ export type Database = {
       save_test_attempt_atomic: {
         Args: { p_responses: Json; p_student_id: string; p_test_id: string }
         Returns: Json
+      }
+      save_test_response_grades_atomic: {
+        Args: {
+          p_grade_rows: Json
+          p_now: string
+          p_student_id: string
+          p_teacher_id: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
+      save_test_unanswered_grades_atomic: {
+        Args: {
+          p_now: string
+          p_rows: Json
+          p_teacher_id: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
+      set_test_ai_grading_item_state_atomic: {
+        Args: {
+          p_attempt_count: number
+          p_completed_at: string
+          p_item_id: string
+          p_last_error_code: string
+          p_last_error_message: string
+          p_lease_token: string
+          p_next_retry_at: string
+          p_question_grading_snapshot: Json
+          p_started_at: string
+          p_status: string
+        }
+        Returns: boolean
       }
       stage_classroom_archive_compaction_objects: {
         Args: { p_objects: Json; p_operation_id: string; p_teacher_id: string }
