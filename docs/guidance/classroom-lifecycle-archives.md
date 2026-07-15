@@ -457,7 +457,7 @@ restore rollback, and archives without a successful read-back check.
    relationships with the contract. No writes.
 3. **Export only:** create private archives for selected archived classrooms but retain all hot data.
    Compare counts/checksums and measure compression. Migration 082 and the teacher-only API implement
-   this stage; rollout still requires human migration application and selected production canaries.
+   this stage; rollout still requires authorized migration application and selected production canaries.
 4. **Restore canary:** use migration 083's rollback-only database contract first. A teacher-approved
    cold canary may then use the gated restore endpoint; compare all rows/objects and preserve the
    immutable source archive. Production compaction remains disabled.
@@ -471,7 +471,8 @@ restore rollback, and archives without a successful read-back check.
    remaining readers/writers and every retained archive has a tested adapter.
 
 Production database access for inventory and verification is read-only unless a human explicitly
-approves a named canary operation. Migrations are applied by humans.
+approves a named canary operation. Migration application follows the schema rollout authorization
+contract.
 
 Run the production inventory only after verifying the linked project. The command validates the
 expected project ref against `NEXT_PUBLIC_SUPABASE_URL`, compares the deployed 42-resource archive

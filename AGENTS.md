@@ -54,6 +54,8 @@ Use `docs/guides/ai-ui-testing.md` and `.codex/prompts/ui-verify.md` for the act
 - All deadline calculations use `America/Toronto` timezone.
 - Do not introduce new dependencies unless explicitly approved.
 - Do not commit secrets (`.env.local`, Supabase keys, session secrets).
+- Migration application is human-controlled by default. AI may apply only with one-time permission
+  naming the target and exact migration; follow `docs/guidance/schema-rollout-checklist.md`.
 
 ## When Docs Conflict
 1. `.ai/features.json` (status authority)
