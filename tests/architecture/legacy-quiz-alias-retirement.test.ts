@@ -8,26 +8,26 @@ const retiredModules = [
   '@/lib/server/quizzes',
   '@/lib/quizzes',
 ]
-const exportModules = [
-  'src/types/index.ts',
-  'src/lib/assessments.ts',
-  'src/lib/quiz-markdown.ts',
-]
-
 const configFile = ts.readConfigFile(path.join(root, 'tsconfig.json'), ts.sys.readFile)
 const parsedConfig = ts.parseJsonConfigFileContent(configFile.config, ts.sys, root)
-const program = ts.createProgram(
-  exportModules.map((file) => path.join(root, file)),
-  parsedConfig.options
-)
+const sourceRoot = `${path.join(root, 'src')}${path.sep}`
+const sourceFiles = parsedConfig.fileNames.filter((file) => file.startsWith(sourceRoot))
+const program = ts.createProgram(sourceFiles, parsedConfig.options)
 const checker = program.getTypeChecker()
 
-function exportedNames(file: string): Set<string> {
-  const source = program.getSourceFile(path.join(root, file))
-  if (!source) throw new Error(`TypeScript program did not load ${file}`)
-  const symbol = checker.getSymbolAtLocation(source)
-  if (!symbol) throw new Error(`TypeScript checker did not resolve ${file}`)
-  return new Set(checker.getExportsOfModule(symbol).map((entry) => entry.name))
+function exportedLocations(name: string): string[] {
+  const locations: string[] = []
+
+  for (const source of program.getSourceFiles()) {
+    if (!source.fileName.startsWith(sourceRoot)) continue
+    const symbol = checker.getSymbolAtLocation(source)
+    if (!symbol) continue
+    if (checker.getExportsOfModule(symbol).some((entry) => entry.name === name)) {
+      locations.push(path.relative(root, source.fileName))
+    }
+  }
+
+  return locations
 }
 
 describe('legacy quiz alias retirement', () => {
@@ -45,10 +45,7 @@ describe('legacy quiz alias retirement', () => {
     }
   })
 
-  it('keeps test-domain types and helpers on their current names', () => {
-    const typeExports = exportedNames('src/types/index.ts')
-    const assessmentExports = exportedNames('src/lib/assessments.ts')
-    const markdownExports = exportedNames('src/lib/quiz-markdown.ts')
+  it('does not expose retired quiz aliases from any source module', () => {
     const retiredTypeAliases = [
       'QuizDraftQuestion',
       'QuizDraftContent',
@@ -84,15 +81,19 @@ describe('legacy quiz alias retirement', () => {
       'emptyQuizFocusSummary',
       'summarizeQuizFocusEvents',
     ]
+    const retiredDraftAliases = [
+      'buildQuizDraftContentFromRows',
+      'syncQuizQuestionsFromDraft',
+      'validateQuizDraftContent',
+    ]
 
-    for (const alias of retiredTypeAliases) {
-      expect(typeExports).not.toContain(alias)
-    }
-    for (const alias of retiredHelperAliases) {
-      expect(assessmentExports).not.toContain(alias)
-    }
-    for (const alias of retiredMarkdownAliases) {
-      expect(markdownExports).not.toContain(alias)
+    for (const alias of [
+      ...retiredTypeAliases,
+      ...retiredHelperAliases,
+      ...retiredMarkdownAliases,
+      ...retiredDraftAliases,
+    ]) {
+      expect(exportedLocations(alias), `${alias} is exported`).toEqual([])
     }
   })
 })

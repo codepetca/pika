@@ -100,8 +100,6 @@ export function buildAssessmentDraftContentFromRows(
   }
 }
 
-export const buildQuizDraftContentFromRows = buildAssessmentDraftContentFromRows
-
 type TestQuestionRow = {
   id: string
   question_type: unknown
@@ -271,8 +269,6 @@ export async function syncAssessmentQuestionsFromDraft(
     },
   })
 }
-
-export const syncQuizQuestionsFromDraft = syncAssessmentQuestionsFromDraft
 
 export async function syncTestQuestionsFromDraft(
   supabase: SupabaseLike,
