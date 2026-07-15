@@ -13687,3 +13687,13 @@
 - `bash scripts/repo-tidy.sh` (clean run against the tidied repo)
 - `pnpm test tests/unit/ai-startup-docs.test.ts` (26/26 passed)
 - `pnpm lint`
+
+## 2026-07-10 — Issue backlog triage + CONTRIBUTING "Finding work" section
+
+**Completed:**
+- Triaged 61 open issues → 46. Closed 10 delivered-by-merged-PR (#86/#87/#88/#99/#144/#418/#431/#460/#523/#417), 2 duplicates (#451→#152, #366→#362), 1 abandoned (#252), 2 out-of-direction Clerk auth (#434/#449).
+- Labeled all 46 survivors (0 unlabeled): 14 bug, 29 enhancement, 4 good-first-issue, 2 needs-triage (new label).
+- Added a "Finding something to work on" section to CONTRIBUTING.md pointing collaborators at label filters and noting big ideas (e.g. gamification #205) vs ad-hoc feature work.
+
+**Validation:**
+- `gh issue list` label coverage check (0 unlabeled)

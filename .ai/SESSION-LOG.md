@@ -10,16 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-10 — Issue backlog triage + CONTRIBUTING "Finding work" section
-
-**Completed:**
-- Triaged 61 open issues → 46. Closed 10 delivered-by-merged-PR (#86/#87/#88/#99/#144/#418/#431/#460/#523/#417), 2 duplicates (#451→#152, #366→#362), 1 abandoned (#252), 2 out-of-direction Clerk auth (#434/#449).
-- Labeled all 46 survivors (0 unlabeled): 14 bug, 29 enhancement, 4 good-first-issue, 2 needs-triage (new label).
-- Added a "Finding something to work on" section to CONTRIBUTING.md pointing collaborators at label filters and noting big ideas (e.g. gamification #205) vs ad-hoc feature work.
-
-**Validation:**
-- `gh issue list` label coverage check (0 unlabeled)
-
 ## 2026-07-10 — Auto-label new issues with needs-triage
 
 **Completed:**
@@ -800,3 +790,28 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Pika pre-commit audit
 - `git diff --check`
 - `pnpm db:types:check` intentionally blocked because local database history remains at 096 and AI did not apply migration 097
+
+## 2026-07-15 — Production archive canary timeout hardening
+
+**Completed:**
+- Verified production migrations 001-097, released the reviewed archive recovery changes, and prepared a fresh named canary against the exact production deployment.
+- Completed the approved production export for one archived-hot classroom: 42 relational resources and 20 source objects were captured in a 2,489,962-byte compressed archive with independent evidence.
+- Kept the classroom hot after two same-operation compaction attempts rolled back atomically. No source or Gradex cleanup ran; all 20 source cleanup rows remain staged and no ownership verification or deletion attempt was recorded.
+- Correlated both failures with PostgreSQL SQLSTATE `57014` in hosted logs: `complete_classroom_archive_compaction` exceeded the default statement timeout while finalizing the transition.
+- Added migration 098 to set `statement_timeout = '60s'` only on the service-only compaction finalizer. Added source and replayed-database assertions that reject role- or database-wide timeout changes.
+- Left migration application and the existing canary resume to a human. Independent subagent review was unavailable due to the account usage limit; local SQL review found no additional issue.
+
+**Deployment obligation:**
+- Apply migration 098 before resuming the existing fixed canary operation from its approved runner commit.
+- Keep source cleanup and Gradex cleanup disabled. Resume the same plan; do not prepare a replacement operation or release a different runner before the round trip completes.
+
+**Validation:**
+- Focused archive timeout/compaction/migration suites (3 files / 11 tests)
+- `pnpm vitest run` (365 files / 3,346 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm check:architecture` (600 modules / 0 allowances)
+- Bash syntax validation for the compaction database contract harness
+- Pika pre-commit audit (no TypeScript files changed)
+- `git diff --check`
+- Database replay deferred to PR CI because local database history remains at 097 and AI did not apply migration 098

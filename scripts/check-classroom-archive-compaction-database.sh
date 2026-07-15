@@ -122,6 +122,23 @@ create trigger reject_rollback_compaction
   before delete on public.classrooms
   for each row execute function public.reject_test_classroom_archive_compaction();
 
+do $timeout_contract$
+begin
+  if not exists (
+    select 1
+    from pg_proc procedure
+    join pg_namespace namespace on namespace.oid = procedure.pronamespace
+    where namespace.nspname = 'public'
+      and procedure.proname = 'complete_classroom_archive_compaction'
+      and pg_get_function_identity_arguments(procedure.oid) =
+        'p_operation_id uuid, p_teacher_id uuid, p_actors jsonb, p_verification jsonb'
+      and procedure.proconfig @> array['statement_timeout=60s']::text[]
+  ) then
+    raise exception 'Compaction finalizer does not have the function-scoped 60-second timeout';
+  end if;
+end;
+$timeout_contract$;
+
 set local role service_role;
 
 do $contract$
