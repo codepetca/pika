@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
 import { buildClassroomArchiveBundle } from '@/lib/server/classroom-archive-format'
 import {
+  classroomArchiveRestoreObjectPath,
+} from '@/lib/server/classroom-archive-restore'
+import {
   isClassroomArchiveRestoreAllowed,
   resolveClassroomArchiveRestoreDatabaseBudget,
   restoreClassroomArchive,
@@ -71,6 +74,11 @@ function createSupabaseMock(options: {
   completeMalformed?: boolean
   stageFailure?: boolean
   failureRecorded?: boolean
+  failureRecordThrows?: boolean
+  postUploadReadFailureOnce?: boolean
+  stageRpcThrows?: boolean
+  preexistingRestoreObject?: boolean
+  metadataErrorOnce?: boolean
 } = {}) {
   const bundle = fixture()
   const counts = Object.fromEntries(
@@ -85,6 +93,19 @@ function createSupabaseMock(options: {
     : bundle.archive
   const stored = new Map<string, Uint8Array>()
   const removed: string[] = []
+  if (options.preexistingRestoreObject) {
+    const object = bundle.manifest.storage_objects[0]
+    const restorePath = classroomArchiveRestoreObjectPath({
+      classroomId: CLASSROOM_ID,
+      operationId: OPERATION_ID,
+      sha256: object.sha256,
+      sourcePath: object.source_path,
+      contentType: object.content_type,
+    })
+    stored.set(`assignment-artifacts/${restorePath}`, Buffer.from('restore evidence'))
+  }
+  let postUploadReadFailed = false
+  let metadataReads = 0
   const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
     if (name === 'begin_classroom_archive_restore') {
       if (options.beginError) return { data: null, error: options.beginError }
@@ -105,6 +126,7 @@ function createSupabaseMock(options: {
       }
     }
     if (name === 'stage_classroom_archive_restore_rows') {
+      if (options.stageRpcThrows) throw new Error('staging transport unavailable')
       if (options.stageFailure) {
         return {
           data: {
@@ -155,6 +177,7 @@ function createSupabaseMock(options: {
       }
     }
     if (name === 'fail_classroom_archive_restore') {
+      if (options.failureRecordThrows) throw new Error('failure record unavailable')
       return { data: options.failureRecorded !== false, error: null }
     }
     return { data: true, error: null }
@@ -165,8 +188,13 @@ function createSupabaseMock(options: {
       const query = {
         select: vi.fn(() => query),
         eq: vi.fn(() => query),
-        single: vi.fn(async () => ({
-          data: {
+        single: vi.fn(async () => {
+          metadataReads += 1
+          if (options.metadataErrorOnce && metadataReads === 1) {
+            return { data: null, error: { code: 'PGRST503', message: 'temporarily unavailable' } }
+          }
+          return {
+            data: {
             id: ARCHIVE_ID,
             classroom_id: CLASSROOM_ID,
             teacher_id: TEACHER_ID,
@@ -177,9 +205,10 @@ function createSupabaseMock(options: {
             compressed_byte_size: bundle.archive.byteLength,
             uncompressed_byte_size: bundle.uncompressedByteSize,
             resource_counts: counts,
-          },
-          error: null,
-        })),
+            },
+            error: null,
+          }
+        }),
       }
       return query
     }
@@ -202,6 +231,15 @@ function createSupabaseMock(options: {
         const bytes = bucket === 'classroom-archives'
           ? archive
           : stored.get(`${bucket}/${path}`)
+        if (
+          bucket !== 'classroom-archives' &&
+          bytes &&
+          options.postUploadReadFailureOnce &&
+          !postUploadReadFailed
+        ) {
+          postUploadReadFailed = true
+          throw new Error('transient read failure')
+        }
         return bytes
           ? {
               data: {
@@ -381,9 +419,113 @@ describe('classroom archive restore coordinator', () => {
 
     expect(result).toEqual(expect.objectContaining({
       ok: false,
+      error_code: 'classroom_archive_restore_failure_recording_failed',
+      retryable: true,
+    }))
+    expect(mock.stored.size).toBe(1)
+    expect(mock.removed).toEqual([])
+  })
+
+  it('retries the same operation after a transient post-upload read failure', async () => {
+    const mock = createSupabaseMock({ postUploadReadFailureOnce: true })
+    const args = {
+      supabase: mock.client,
+      operationId: OPERATION_ID,
+      archiveId: ARCHIVE_ID,
+      teacherId: TEACHER_ID,
+      classroomId: CLASSROOM_ID,
+      databaseBudgetBytes: 524288000,
+      supabaseUrl: 'https://project.supabase.co',
+    }
+
+    await expect(restoreClassroomArchive(args)).resolves.toEqual(expect.objectContaining({
+      ok: false,
+      operation_id: OPERATION_ID,
+      error_code: 'restore_storage_readback_failed',
+      retryable: true,
+    }))
+    expect(mock.stored.size).toBe(1)
+    expect(mock.removed).toEqual([])
+
+    await expect(restoreClassroomArchive(args)).resolves.toEqual(expect.objectContaining({
+      ok: true,
+      operation_id: OPERATION_ID,
+    }))
+  })
+
+  it('returns a structured failure when durable failure recording throws', async () => {
+    const mock = createSupabaseMock({ stageFailure: true, failureRecordThrows: true })
+    await expect(restoreClassroomArchive({
+      supabase: mock.client,
+      operationId: OPERATION_ID,
+      archiveId: ARCHIVE_ID,
+      teacherId: TEACHER_ID,
+      classroomId: CLASSROOM_ID,
+      databaseBudgetBytes: 524288000,
+      supabaseUrl: 'https://project.supabase.co',
+    })).resolves.toEqual(expect.objectContaining({
+      ok: false,
+      error_code: 'classroom_archive_restore_failure_recording_failed',
+      retryable: true,
+    }))
+    expect(mock.stored.size).toBe(1)
+    expect(mock.removed).toEqual([])
+  })
+
+  it('keeps unexpected SDK failures retryable for the fixed operation id', async () => {
+    const mock = createSupabaseMock({ stageRpcThrows: true })
+    await expect(restoreClassroomArchive({
+      supabase: mock.client,
+      operationId: OPERATION_ID,
+      archiveId: ARCHIVE_ID,
+      teacherId: TEACHER_ID,
+      classroomId: CLASSROOM_ID,
+      databaseBudgetBytes: 524288000,
+      supabaseUrl: 'https://project.supabase.co',
+    })).resolves.toEqual(expect.objectContaining({
+      ok: false,
+      error_code: 'classroom_archive_restore_unexpected_failure',
+      retryable: true,
+    }))
+  })
+
+  it('does not remove a matching object that this invocation reused', async () => {
+    const mock = createSupabaseMock({ stageFailure: true, preexistingRestoreObject: true })
+    await expect(restoreClassroomArchive({
+      supabase: mock.client,
+      operationId: OPERATION_ID,
+      archiveId: ARCHIVE_ID,
+      teacherId: TEACHER_ID,
+      classroomId: CLASSROOM_ID,
+      databaseBudgetBytes: 524288000,
+      supabaseUrl: 'https://project.supabase.co',
+    })).resolves.toEqual(expect.objectContaining({
+      ok: false,
       error_code: 'restore_staging_rejected',
     }))
     expect(mock.stored.size).toBe(1)
     expect(mock.removed).toEqual([])
+  })
+
+  it('retries the same operation after a transient archive metadata read error', async () => {
+    const mock = createSupabaseMock({ metadataErrorOnce: true })
+    const args = {
+      supabase: mock.client,
+      operationId: OPERATION_ID,
+      archiveId: ARCHIVE_ID,
+      teacherId: TEACHER_ID,
+      classroomId: CLASSROOM_ID,
+      databaseBudgetBytes: 524288000,
+      supabaseUrl: 'https://project.supabase.co',
+    }
+    await expect(restoreClassroomArchive(args)).resolves.toEqual(expect.objectContaining({
+      ok: false,
+      error_code: 'classroom_archive_metadata_read_failed',
+      retryable: true,
+    }))
+    await expect(restoreClassroomArchive(args)).resolves.toEqual(expect.objectContaining({
+      ok: true,
+      operation_id: OPERATION_ID,
+    }))
   })
 })

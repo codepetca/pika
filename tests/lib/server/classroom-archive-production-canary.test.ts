@@ -1,12 +1,24 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
 import {
+  buildClassroomArchiveBundle,
+  verifyClassroomArchiveBundle,
+} from '@/lib/server/classroom-archive-format'
+import {
+  assertClassroomArchiveProductionCanaryStorageMappingsEqual,
   assertClassroomArchiveProductionCanaryExecution,
   classroomArchiveProductionCanaryAcknowledgement,
   classroomArchiveProductionCanaryEvidenceDigest,
+  createClassroomArchiveProductionCanaryArchiveProjection,
+  createClassroomArchiveProductionCanaryNormalizedEvidence,
   createClassroomArchiveProductionCanaryPlan,
+  createClassroomArchiveProductionCanaryVerifiedArchiveProjection,
   deriveClassroomArchiveProductionCanaryOperationId,
+  deriveClassroomArchiveProductionCanaryRestoredStoragePath,
   normalizeClassroomArchiveProductionCanaryCliArguments,
+  normalizeClassroomArchiveProductionCanaryResources,
   runClassroomArchiveProductionCanary,
   verifyClassroomArchiveProductionCanaryPlan,
   type ClassroomArchiveProductionCanaryDependencies,
@@ -95,6 +107,7 @@ function dependencies(options: {
   stateFailuresAtCalls?: number[]
   restoreCompleted?: boolean
   archiveFailures?: number
+  restoreThrows?: number
 } = {}): ClassroomArchiveProductionCanaryDependencies & {
   calls: string[]
   events: Array<{ phase: string; status: string }>
@@ -123,6 +136,7 @@ function dependencies(options: {
     operationRequestSha256: { export: SHA, compact: SHA, restore: SHA },
     storageObjectCounts: {},
     restoreAdapterChain: ['classroom-archive-v1-082-to-083'],
+    restoredStorageMappings: [],
     evidence: approvedPlan.pre_evidence,
     restoredEvidence: options.restoredEvidence || approvedPlan.pre_evidence,
   }
@@ -147,6 +161,13 @@ function dependencies(options: {
       return evidenceReads > 1 && options.postEvidence
         ? options.postEvidence
         : options.initialEvidence || approvedPlan.pre_evidence
+    }),
+    readRestoredEvidence: vi.fn(async () => {
+      calls.push('restored-evidence')
+      evidenceReads += 1
+      return evidenceReads > 1 && options.postEvidence
+        ? options.postEvidence
+        : options.initialEvidence || options.restoredEvidence || approvedPlan.pre_evidence
     }),
     readArchiveEvidence: vi.fn(async () => {
       calls.push('archive')
@@ -213,6 +234,9 @@ function dependencies(options: {
     restoreArchive: vi.fn(async () => {
       calls.push('restore')
       restoreCalls += 1
+      if (restoreCalls <= (options.restoreThrows || 0)) {
+        throw new Error('transient restore transport failure')
+      }
       if (options.restoreFailure || (options.retryRestore && restoreCalls === 1)) {
         return {
           ok: false as const,
@@ -298,6 +322,445 @@ describe('production classroom archive canary contract', () => {
       environment: { CLASSROOM_ARCHIVE_SOURCE_CLEANUP_ENABLED: 'true' },
     })).toThrow('cleanup gate')
   })
+
+  it('normalizes only deterministic restored storage references to source identities', () => {
+    const sourcePath = 'student/evidence.png'
+    const restorePath = deriveClassroomArchiveProductionCanaryRestoredStoragePath({
+      classroomId: CLASSROOM_ID,
+      operationId: plan().operation_ids.restore,
+      sha256: SHA,
+      sourcePath,
+      contentType: 'image/png',
+    })
+    const mappings = [{
+      bucket: 'assignment-artifacts',
+      sourcePath,
+      restorePath,
+    }]
+    const source = {
+      assignment_submission_artifacts: [{
+        id: 'artifact-1',
+        storage_path: sourcePath,
+        caption: 'Original caption',
+      }],
+      assignments: [{
+        id: 'assignment-1',
+        instructions: `See https://${PROJECT_REF}.supabase.co/storage/v1/object/sign/assignment-artifacts/${sourcePath}.`,
+      }],
+    }
+    const restored = {
+      assignment_submission_artifacts: [{
+        id: 'artifact-1',
+        storage_path: restorePath,
+        caption: 'Original caption',
+      }],
+      assignments: [{
+        id: 'assignment-1',
+        instructions: `See https://${PROJECT_REF}.supabase.co/storage/v1/object/public/assignment-artifacts/${restorePath}.`,
+      }],
+    }
+
+    expect(normalizeClassroomArchiveProductionCanaryResources({
+      resources: restored,
+      storageMappings: mappings,
+      storagePathKind: 'restored',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })).toEqual(normalizeClassroomArchiveProductionCanaryResources({
+      resources: source,
+      storageMappings: mappings,
+      storagePathKind: 'source',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    }))
+    restored.assignment_submission_artifacts[0].caption = 'Changed caption'
+    expect(normalizeClassroomArchiveProductionCanaryResources({
+      resources: restored,
+      storageMappings: mappings,
+      storagePathKind: 'restored',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })).not.toEqual(normalizeClassroomArchiveProductionCanaryResources({
+      resources: source,
+      storageMappings: mappings,
+      storagePathKind: 'source',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    }))
+
+    const staleNestedUrlOnly = {
+      assignment_submission_artifacts: [{
+        id: 'artifact-1',
+        storage_path: restorePath,
+        caption: 'Original caption',
+      }],
+      assignments: source.assignments,
+    }
+    expect(normalizeClassroomArchiveProductionCanaryResources({
+      resources: staleNestedUrlOnly,
+      storageMappings: mappings,
+      storagePathKind: 'restored',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })).not.toEqual(normalizeClassroomArchiveProductionCanaryResources({
+      resources: source,
+      storageMappings: mappings,
+      storagePathKind: 'source',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    }))
+
+    const authenticatedRestoredUrl = {
+      ...restored,
+      assignment_submission_artifacts: [{
+        id: 'artifact-1',
+        storage_path: restorePath,
+        caption: 'Original caption',
+      }],
+      assignments: [{
+        id: 'assignment-1',
+        instructions: `See https://${PROJECT_REF}.supabase.co/storage/v1/object/authenticated/assignment-artifacts/${restorePath}.`,
+      }],
+    }
+    expect(normalizeClassroomArchiveProductionCanaryResources({
+      resources: authenticatedRestoredUrl,
+      storageMappings: mappings,
+      storagePathKind: 'restored',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })).not.toEqual(normalizeClassroomArchiveProductionCanaryResources({
+      resources: source,
+      storageMappings: mappings,
+      storagePathKind: 'source',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    }))
+
+    const canonicalRestoredUrl = `https://${PROJECT_REF}.supabase.co/storage/v1/object/public/assignment-artifacts/${restorePath}`
+    const expectedNormalized = normalizeClassroomArchiveProductionCanaryResources({
+      resources: source,
+      storageMappings: mappings,
+      storagePathKind: 'source',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })
+    for (const aliasedUrl of [
+      `${canonicalRestoredUrl}?token=unexpected`,
+      `${canonicalRestoredUrl}#unexpected`,
+      canonicalRestoredUrl.replace('https://', 'https://user@'),
+      canonicalRestoredUrl.replace('.supabase.co', '.supabase.co:443'),
+    ]) {
+      const aliased = {
+        assignment_submission_artifacts: [{
+          id: 'artifact-1',
+          storage_path: restorePath,
+          caption: 'Original caption',
+        }],
+        assignments: [{ id: 'assignment-1', instructions: `See ${aliasedUrl}.` }],
+      }
+      expect(normalizeClassroomArchiveProductionCanaryResources({
+        resources: aliased,
+        storageMappings: mappings,
+        storagePathKind: 'restored',
+        supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+      })).not.toEqual(expectedNormalized)
+    }
+
+    const wrongDirectRepresentation = {
+      assignment_submission_artifacts: [{
+        id: 'artifact-1',
+        storage_path: canonicalRestoredUrl,
+        caption: 'Original caption',
+      }],
+      assignments: restored.assignments,
+    }
+    expect(normalizeClassroomArchiveProductionCanaryResources({
+      resources: wrongDirectRepresentation,
+      storageMappings: mappings,
+      storagePathKind: 'restored',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })).not.toEqual(expectedNormalized)
+  })
+
+  it('builds the runner archive projection from verified source rows', () => {
+    const sourcePath = 'student/evidence.png'
+    const resources = Object.fromEntries(
+      CLASSROOM_RELATIONAL_RESOURCES.map(({ table }) => [table, []]),
+    ) as Record<string, Array<Record<string, unknown>>>
+    resources.classrooms = [{
+      id: CLASSROOM_ID,
+      teacher_id: TEACHER_ID,
+      title: 'Projection fixture',
+      archived_at: '2026-07-15T12:00:00.000Z',
+    }]
+    resources.assignments = [{
+      id: '10000000-0000-4000-8000-000000000001',
+      classroom_id: CLASSROOM_ID,
+      created_by: TEACHER_ID,
+    }]
+    resources.assignment_docs = [{
+      id: '10000000-0000-4000-8000-000000000002',
+      assignment_id: '10000000-0000-4000-8000-000000000001',
+      student_id: '10000000-0000-4000-8000-000000000004',
+    }]
+    resources.assignment_submission_artifacts = [{
+      id: '10000000-0000-4000-8000-000000000003',
+      assignment_doc_id: '10000000-0000-4000-8000-000000000002',
+      student_id: '10000000-0000-4000-8000-000000000004',
+      storage_path: sourcePath,
+      metadata: { preserved: true },
+    }]
+    const bundle = buildClassroomArchiveBundle({
+      archiveId: plan().operation_ids.export,
+      classroomId: CLASSROOM_ID,
+      teacherId: TEACHER_ID,
+      createdAt: '2026-07-15T12:00:00.000Z',
+      source: { schemaMigration: '082_verified_classroom_archive_exports', appCommit: COMMIT },
+      retention: { mode: 'teacher_managed', delete_after: null },
+      resources,
+      actors: [
+        { id: TEACHER_ID, email: 'teacher@example.test', role: 'teacher', profile: null },
+        {
+          id: '10000000-0000-4000-8000-000000000004',
+          email: 'student@example.test',
+          role: 'student',
+          profile: null,
+        },
+      ],
+      storageObjects: [{
+        bucket: 'assignment-artifacts',
+        sourcePath,
+        contentType: 'image/png',
+        bytes: Buffer.from('projection bytes'),
+      }],
+    })
+    const verified = verifyClassroomArchiveBundle(bundle.archive)
+    if (!verified.ok) throw new Error(verified.error)
+    const projection = createClassroomArchiveProductionCanaryArchiveProjection({
+      verified,
+      sourceRevision: 7,
+      restoreOperationId: plan().operation_ids.restore,
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })
+    expect(projection.restoredStorageMappings).toEqual([expect.objectContaining({
+      bucket: 'assignment-artifacts',
+      sourcePath,
+    })])
+    expect(() => assertClassroomArchiveProductionCanaryStorageMappingsEqual({
+      independent: projection.restoredStorageMappings,
+      planned: projection.restoredStorageMappings.map((mapping) => ({
+        ...mapping,
+        restorePath: `${mapping.restorePath}-wrong`,
+      })),
+    })).toThrow('independent restored paths differ')
+    expect(createClassroomArchiveProductionCanaryVerifiedArchiveProjection({
+      verified,
+      sourceRevision: 7,
+      restoreOperationId: plan().operation_ids.restore,
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+      plannedStorageMappings: projection.restoredStorageMappings,
+    })).toEqual(projection)
+    expect(() => createClassroomArchiveProductionCanaryVerifiedArchiveProjection({
+      verified,
+      sourceRevision: 7,
+      restoreOperationId: plan().operation_ids.restore,
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+      plannedStorageMappings: projection.restoredStorageMappings.map((mapping) => ({
+        ...mapping,
+        restorePath: `${mapping.restorePath}-wrong`,
+      })),
+    })).toThrow('independent restored paths differ')
+    expect(projection.restoredEvidence).toEqual(
+      createClassroomArchiveProductionCanaryNormalizedEvidence({
+        sourceRevision: 7,
+        resources,
+        storageObjects: bundle.manifest.storage_objects.map((object) => ({
+          bucket: object.bucket,
+          path: object.source_path,
+          byteSize: object.byte_size,
+          sha256: object.sha256,
+        })),
+        storageMappings: projection.restoredStorageMappings,
+        storagePathKind: 'source',
+        supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+      }),
+    )
+    const runner = readFileSync(resolve(
+      process.cwd(),
+      'scripts/run-classroom-archive-production-canary.ts',
+    ), 'utf8')
+    expect(runner).toContain('createClassroomArchiveProductionCanaryVerifiedArchiveProjection({')
+    expect(runner).not.toContain('restorePlan.resources')
+  })
+
+  it('builds strict normalized evidence for the runner without sharing restore rows', () => {
+    const sourcePath = 'student/evidence.png'
+    const restorePath = deriveClassroomArchiveProductionCanaryRestoredStoragePath({
+      classroomId: CLASSROOM_ID,
+      operationId: plan().operation_ids.restore,
+      sha256: SHA,
+      sourcePath,
+      contentType: 'image/png',
+    })
+    const storageMappings = [{ bucket: 'assignment-artifacts', sourcePath, restorePath }]
+    const baseResources = Object.fromEntries(
+      CLASSROOM_RELATIONAL_RESOURCES.map(({ table }) => [table, []]),
+    ) as Record<string, Array<Record<string, unknown>>>
+    const sourceResources = {
+      ...baseResources,
+      classrooms: [{ id: CLASSROOM_ID, teacher_id: TEACHER_ID, title: 'Original' }],
+      assignment_submission_artifacts: [{ storage_path: sourcePath, metadata: { kept: true } }],
+    }
+    const restoredResources = {
+      ...baseResources,
+      classrooms: [{ id: CLASSROOM_ID, teacher_id: TEACHER_ID, title: 'Original' }],
+      assignment_submission_artifacts: [{ storage_path: restorePath, metadata: { kept: true } }],
+    }
+    const expected = createClassroomArchiveProductionCanaryNormalizedEvidence({
+      sourceRevision: 7,
+      resources: sourceResources,
+      storageObjects: [{ bucket: 'assignment-artifacts', path: sourcePath, byteSize: 5, sha256: SHA }],
+      storageMappings,
+      storagePathKind: 'source',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })
+    const actual = createClassroomArchiveProductionCanaryNormalizedEvidence({
+      sourceRevision: 7,
+      resources: restoredResources,
+      storageObjects: [{ bucket: 'assignment-artifacts', path: restorePath, byteSize: 5, sha256: SHA }],
+      storageMappings,
+      storagePathKind: 'restored',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })
+    expect(actual).toEqual(expected)
+
+    const drifted = createClassroomArchiveProductionCanaryNormalizedEvidence({
+      sourceRevision: 7,
+      resources: {
+        ...restoredResources,
+        assignment_submission_artifacts: [{
+          storage_path: restorePath,
+          metadata: { kept: false },
+        }],
+      },
+      storageObjects: [{ bucket: 'assignment-artifacts', path: restorePath, byteSize: 5, sha256: SHA }],
+      storageMappings,
+      storagePathKind: 'restored',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })
+    expect(drifted.evidence_sha256).not.toBe(expected.evidence_sha256)
+    const wrongBytes = createClassroomArchiveProductionCanaryNormalizedEvidence({
+      sourceRevision: 7,
+      resources: restoredResources,
+      storageObjects: [{
+        bucket: 'assignment-artifacts',
+        path: restorePath,
+        byteSize: 5,
+        sha256: 'd'.repeat(64),
+      }],
+      storageMappings,
+      storagePathKind: 'restored',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })
+    expect(wrongBytes.evidence_sha256).not.toBe(expected.evidence_sha256)
+    expect(() => createClassroomArchiveProductionCanaryNormalizedEvidence({
+      sourceRevision: 7,
+      resources: sourceResources,
+      storageObjects: [{ bucket: 'assignment-artifacts', path: sourcePath, byteSize: 5, sha256: SHA }],
+      storageMappings,
+      storagePathKind: 'restored',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })).toThrow('restored storage object path is unknown')
+    expect(() => createClassroomArchiveProductionCanaryNormalizedEvidence({
+      sourceRevision: 7,
+      resources: restoredResources,
+      storageObjects: [],
+      storageMappings,
+      storagePathKind: 'restored',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })).toThrow('storage object count differs')
+    expect(() => createClassroomArchiveProductionCanaryNormalizedEvidence({
+      sourceRevision: 7,
+      resources: restoredResources,
+      storageObjects: [
+        { bucket: 'assignment-artifacts', path: restorePath, byteSize: 5, sha256: SHA },
+        { bucket: 'assignment-artifacts', path: 'extra', byteSize: 1, sha256: SHA },
+      ],
+      storageMappings,
+      storagePathKind: 'restored',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })).toThrow('storage object count differs')
+  })
+
+  it('binds each restored object checksum to its source identity', () => {
+    const sourcePaths = ['student/first.png', 'student/second.png']
+    const shas = ['1'.repeat(64), '2'.repeat(64)]
+    const storageMappings = sourcePaths.map((sourcePath, index) => ({
+      bucket: 'assignment-artifacts',
+      sourcePath,
+      restorePath: deriveClassroomArchiveProductionCanaryRestoredStoragePath({
+        classroomId: CLASSROOM_ID,
+        operationId: plan().operation_ids.restore,
+        sha256: shas[index],
+        sourcePath,
+        contentType: 'image/png',
+      }),
+    }))
+    const resources = Object.fromEntries(
+      CLASSROOM_RELATIONAL_RESOURCES.map(({ table }) => [table, []]),
+    ) as Record<string, Array<Record<string, unknown>>>
+    resources.classrooms = [{ id: CLASSROOM_ID, teacher_id: TEACHER_ID }]
+    resources.assignment_submission_artifacts = storageMappings.map((mapping, index) => ({
+      id: `artifact-${index}`,
+      storage_path: mapping.restorePath,
+    }))
+    const sourceResources = {
+      ...resources,
+      assignment_submission_artifacts: storageMappings.map((mapping, index) => ({
+        id: `artifact-${index}`,
+        storage_path: mapping.sourcePath,
+      })),
+    }
+    const expected = createClassroomArchiveProductionCanaryNormalizedEvidence({
+      sourceRevision: 7,
+      resources: sourceResources,
+      storageObjects: storageMappings.map((mapping, index) => ({
+        bucket: mapping.bucket,
+        path: mapping.sourcePath,
+        byteSize: index === 0 ? 5 : 7,
+        sha256: shas[index],
+      })),
+      storageMappings,
+      storagePathKind: 'source',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })
+    const swapped = createClassroomArchiveProductionCanaryNormalizedEvidence({
+      sourceRevision: 7,
+      resources,
+      storageObjects: storageMappings.map((mapping, index) => ({
+        bucket: mapping.bucket,
+        path: mapping.restorePath,
+        byteSize: index === 0 ? 7 : 5,
+        sha256: shas[index === 0 ? 1 : 0],
+      })),
+      storageMappings,
+      storagePathKind: 'restored',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })
+    expect(swapped.evidence_sha256).not.toBe(expected.evidence_sha256)
+    expect(() => createClassroomArchiveProductionCanaryNormalizedEvidence({
+      sourceRevision: 7,
+      resources,
+      storageObjects: [
+        {
+          bucket: storageMappings[0].bucket,
+          path: storageMappings[0].restorePath,
+          byteSize: 5,
+          sha256: shas[0],
+        },
+        {
+          bucket: storageMappings[1].bucket,
+          path: 'restores/unknown-object',
+          byteSize: 7,
+          sha256: shas[1],
+        },
+      ],
+      storageMappings,
+      storagePathKind: 'restored',
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
+    })).toThrow('restored storage object path is unknown')
+  })
 })
 
 describe('production classroom archive canary orchestration', () => {
@@ -313,7 +776,7 @@ describe('production classroom archive canary orchestration', () => {
     })
     expect(deps.calls).toEqual([
       'state', 'archive', 'evidence', 'export', 'archive', 'compact', 'state',
-      'restore', 'evidence', 'verify',
+      'restore', 'restored-evidence', 'verify',
     ])
   })
 
@@ -399,6 +862,33 @@ describe('production classroom archive canary orchestration', () => {
     const drifting = dependencies({ postEvidence: changed })
     await expect(runClassroomArchiveProductionCanary({ plan: plan(), dependencies: drifting }))
       .rejects.toThrow('exact resource or storage evidence differs')
+  })
+
+  it('reconciles thrown restore calls from durable state before retrying', async () => {
+    const approvedPlan = plan()
+    const deps = dependencies({
+      restoreThrows: 1,
+      states: [
+        { phase: 'hot', teacherId: TEACHER_ID, archivedAt: '2026-07-01T00:00:00.000Z' },
+        { phase: 'cold', teacherId: TEACHER_ID, archiveId: approvedPlan.operation_ids.export },
+        { phase: 'hot', teacherId: TEACHER_ID, archivedAt: '2026-07-01T00:00:00.000Z' },
+      ],
+    })
+    const result = await runClassroomArchiveProductionCanary({
+      plan: approvedPlan,
+      dependencies: deps,
+    })
+    expect(result).toMatchObject({
+      ok: true,
+      restoreReplayed: true,
+      restoreAttempts: 1,
+    })
+    expect(deps.calls.filter((call) => call === 'restore')).toHaveLength(1)
+    expect(deps.events).toContainEqual({
+      phase: 'restore',
+      status: 'reconciled',
+      errorCode: 'restore_call_threw',
+    })
   })
 
   it('reconciles an ambiguous restore response only from exact durable hot state', async () => {
