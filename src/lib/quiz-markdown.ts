@@ -16,21 +16,15 @@ export interface AssessmentMarkdownSerializeInput {
   }>
 }
 
-export type QuizMarkdownSerializeInput = AssessmentMarkdownSerializeInput
-
 export interface AssessmentMarkdownParseOptions {
   defaultShowResults?: boolean
   existingQuestions?: Array<{ id: string }>
 }
 
-export type QuizMarkdownParseOptions = AssessmentMarkdownParseOptions
-
 export interface AssessmentMarkdownParseResult {
   draftContent: AssessmentDraftContent | null
   errors: string[]
 }
-
-export type QuizMarkdownParseResult = AssessmentMarkdownParseResult
 
 function normalizeLineEndings(markdown: string): string[] {
   return markdown.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')

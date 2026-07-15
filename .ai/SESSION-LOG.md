@@ -10,21 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-09 — Archive trimmed session-log entries instead of deleting
-
-**Completed:**
-- Fixed `scripts/trim-session-log.mjs` so entries it removes from `.ai/SESSION-LOG.md` are appended to the bottom of `.ai/JOURNAL-ARCHIVE.md` (preserving entry markdown and chronological order) instead of being permanently deleted, matching the header claim that full history lives in the archive.
-- Added `--archive <path>` and `--no-archive` flags; archiving is on by default and skipped when nothing is trimmed. A missing archive file is created with a minimal append-only header.
-- Documented the archiving behavior in the generated session-log header rules and script usage text.
-- Updated `tests/unit/trim-session-log.test.ts`: existing temp-path tests now pass explicit `--archive`/`--no-archive` (so they cannot write to the real archive), plus new coverage for appending to an existing archive, default-path archive creation, and no-op trims leaving the archive untouched.
-- Note: entries trimmed between ~2026-05-05 and 2026-06-14 predate this fix; they are gone from the archive but recoverable from `.ai/SESSION-LOG.md` git history.
-
-**Validation:**
-- `pnpm test tests/unit/trim-session-log.test.ts` (8/8 passed)
-- `pnpm test tests/unit/ai-startup-docs.test.ts`
-- `node scripts/trim-session-log.mjs --check`
-- `pnpm lint`
-
 ## 2026-07-09 — Remove stale staging environment references
 
 **Completed:**
@@ -744,4 +729,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm check:architecture` (602 modules / 0 allowances)
 - `bash -n scripts/check-classroom-archive-restore-database.sh`
+- `git diff --check`
+
+## 2026-07-15 — Legacy quiz alias retirement
+
+**Completed:**
+- Removed unused quiz server access/re-export modules, quiz-named assessment helper aliases, zero-caller `Quiz*` domain/draft/markdown type aliases, and obsolete test factories.
+- Preserved persisted quiz tables/discriminants, archive resources, draft synchronization, markdown behavior, API payload aliases, gradebook tombstones, URLs, and UI compatibility props.
+- Added a TypeScript module-resolution/export-graph regression that prevents retired modules or public aliases from returning through direct exports, re-exports, or replacement index modules.
+- Removed stale Vitest coverage thresholds for deleted quiz modules and API routes, and corrected architecture/cleanup documentation.
+- Completed independent behavior and architecture/config review-fix loops; six findings were fixed and final rereviews returned no findings. No UI, migration, dependency, or production changes.
+
+**Validation:**
+- Focused assessment/access/architecture suites (4 files / 90 tests)
+- `pnpm vitest run` (361 files / 3,308 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (599 modules / 0 allowances)
+- Pika pre-commit audit
 - `git diff --check`

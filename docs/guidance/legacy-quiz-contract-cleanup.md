@@ -18,8 +18,7 @@ The current product contract is:
 
 Retain until an approved schema migration exists:
 
-- Legacy quiz tables and columns referenced by archive contracts, legacy-only
-  helpers, and tests:
+- Legacy quiz tables and columns referenced by archive contracts and tests:
   `quizzes`, `quiz_questions`, `quiz_responses`, `quiz_student_scores`,
   `quiz_id`, and quiz update functions/policies.
 - Historical migrations that created or hardened quiz tables, indexes, and RLS.
@@ -45,7 +44,6 @@ Retain during the compatibility window:
   legacy keys.
 - Tests that assert `data.tests === data.quizzes` or `data.test === data.quiz`
   protect this compatibility contract.
-- Server access helpers may return both `assessment` and legacy `quiz` aliases.
 
 Next compatibility decision: choose the deprecation point for legacy response
 keys, then remove fallback readers in the same or next release after clients
@@ -56,29 +54,29 @@ have moved to `test` / `tests`.
 Retain while persisted and API compatibility names remain:
 
 - `TestAssessmentType = 'quiz' | 'test'`.
-- `Quiz*` aliases in `src/types/index.ts`.
 - Gradebook union members and payload fields that still include `quiz`.
 
-Safe cleanup is limited to comments, fixtures, and local variable names that are
-not documenting or exercising a legacy contract.
+The unused exported `Quiz*` aliases have been retired. Persisted discriminants
+and payload fields use explicit current types rather than recreating those
+aliases.
 
 ### Server And Library Code
 
 Retain for compatibility or schema-backed behavior:
 
-- `src/lib/assessments.ts` legacy quiz exports and default handling for missing
-  assessment type.
+- `src/lib/assessments.ts` default handling for persisted legacy assessment
+  types.
 - `src/lib/server/assessment-drafts.ts` quiz draft helpers and
   `quiz_questions` sync for legacy rows.
-- `src/lib/server/assessments.ts` access aliases.
 - `src/lib/quiz-markdown.ts` and `tests/lib/quiz-markdown.test.ts`, which cover
   legacy quiz markdown import/export aliases.
 - Gradebook response tombstones for older clients. The active gradebook server
   must never read quiz tables or include quiz rows in calculations.
 
 The active Tests, gradebook, and student-notification workflows do not query
-legacy quiz tables. Legacy-only server helpers and type aliases may be removed
-in isolated passes once an import audit proves they have no runtime callers.
+legacy quiz tables. The unused quiz server access module, re-export shims, and
+quiz-named helper/type aliases have been removed and are protected by an
+architecture regression.
 
 ### UI Compatibility Wrappers
 
@@ -98,8 +96,7 @@ test when they are not exercising a compatibility fallback.
 
 Remaining quiz references usually fall into one of these groups:
 
-- Compatibility regressions for legacy response keys, props, route params, or
-  helper aliases.
+- Compatibility regressions for legacy response keys, props, or route params.
 - Database-shaped mocks that must still use `quiz_id` or legacy table names.
 - Gradebook tests that prove legacy quiz response fields remain inert and the
   active server never queries quiz tables.
@@ -128,8 +125,8 @@ Safe without schema or API migration:
   on the string.
 - Rename local variables and comments that describe the active Tests path, as
   long as compatibility assertions stay explicit.
-- Move compatibility helpers behind clearer `test`-named wrappers while keeping
-  old exports as aliases.
+- Remove dead aliases after an import audit proves they have no application
+  callers.
 - Add or update tests that make legacy fallback behavior explicit.
 - Update docs to classify a remaining quiz reference as intentional legacy
   compatibility.
@@ -141,7 +138,7 @@ Requires a follow-up design and approval:
 - Renaming database tables, columns, functions, indexes, policies, or migration
   history from quiz to test.
 - Removing `quiz` / `quizzes` API response keys.
-- Removing TypeScript `Quiz*` aliases used by callers or tests.
+- Removing a TypeScript compatibility alias that still has application callers.
 - Changing gradebook quiz category fields, weights, override routes, or report
   payloads.
 - Changing course blueprint/package `quizzes` fields or exported package shape.
@@ -177,8 +174,11 @@ Requires a follow-up design and approval:
    - Rollback: restore the helpers and response aliases without data changes.
 
 4. **Type and wrapper retirement**
-   - Remove `Quiz*` type aliases and legacy component prop aliases only after
-     payload deprecation lands.
+   - Completed: removed unused `Quiz*` types, quiz-named assessment helper
+     aliases, and dead server/re-export modules after proving they had no
+     application callers.
+   - Keep legacy component prop aliases until their UI compatibility window is
+     explicitly closed and visually verified.
    - Rename remaining test ids if no external automation depends on them.
    - Rollback: restore aliases; no data rollback required.
 
@@ -239,9 +239,10 @@ For each implementation pass:
 
 ## Next Implementation Pass
 
-The gradebook/course-package decision is complete. The next safe pass should
-continue fixture-only cleanup in tests that still use arbitrary "Quiz" titles
-while not exercising a legacy fallback. Start with:
+The gradebook/course-package decision and dead alias retirement are complete.
+The next safe pass should remove test-only quiz draft aliases or continue
+fixture-only cleanup where no persisted/API/UI compatibility contract depends
+on the name. Start with:
 
 - `tests/lib/quiz-markdown.test.ts` only if the test is rewritten to clearly say
   it covers legacy quiz markdown compatibility.

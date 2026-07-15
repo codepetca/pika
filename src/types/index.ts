@@ -800,8 +800,6 @@ export type AssessmentDraftQuestion = {
   options: string[]
 }
 
-export type QuizDraftQuestion = AssessmentDraftQuestion
-
 export type TestDraftQuestion = {
   id: string
   question_type: TestQuestionType
@@ -822,8 +820,6 @@ export type AssessmentDraftContent = {
   source_format?: 'markdown'
   source_markdown?: string
 }
-
-export type QuizDraftContent = AssessmentDraftContent
 
 export type TestDraftContent = {
   title: string
@@ -1099,21 +1095,6 @@ export interface TestResultsAggregate {
   counts: number[] // count per option, same index
   total_responses: number
 }
-
-// Legacy quiz-facing aliases remain exported while database/API compatibility
-// fields still use quiz-shaped names during the Tests transition.
-export type QuizStatus = TestAssessmentStatus
-export type QuizAssessmentType = TestAssessmentType
-export type QuizFocusEventType = TestFocusEventType
-export interface QuizFocusSummary extends TestFocusSummary {}
-export interface Quiz extends TestAssessment {}
-export interface QuizQuestion extends TestAssessmentQuestion {}
-export interface QuizResponse extends TestAssessmentResponse {}
-export interface QuizWithQuestions extends TestAssessmentWithQuestions {}
-export interface QuizWithStats extends TestAssessmentWithStats {}
-export type StudentQuizStatus = StudentTestStatus
-export interface StudentQuizView extends StudentTestView {}
-export type QuizResultsAggregate = TestResultsAggregate
 
 // Log summary types
 export interface LogSummaryActionItem {
