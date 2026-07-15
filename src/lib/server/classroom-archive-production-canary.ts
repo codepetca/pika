@@ -10,6 +10,12 @@ import { verifyHostedSupabaseApiOrigin } from '@/lib/server/supabase-target'
 export const CLASSROOM_ARCHIVE_PRODUCTION_CANARY_PLAN_VERSION = 1 as const
 export const CLASSROOM_ARCHIVE_PRODUCTION_CANARY_ACK_PREFIX = 'COMPACT_AND_RESTORE'
 
+export function normalizeClassroomArchiveProductionCanaryCliArguments(
+  args: string[],
+): string[] {
+  return args[0] === '--' ? args.slice(1) : args
+}
+
 const uuidSchema = z.string().uuid()
 const projectRefSchema = z.string().regex(/^[a-z0-9]{20}$/)
 const commitSchema = z.string().regex(/^[a-f0-9]{40}$/)
