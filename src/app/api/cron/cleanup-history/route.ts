@@ -3,6 +3,11 @@ import { formatInTimeZone } from 'date-fns-tz'
 import { subDays } from 'date-fns'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { withErrorHandler } from '@/lib/api-handler'
+import {
+  isClassroomArchiveObjectCleanupEnabled,
+  resolveClassroomArchiveObjectCleanupLeaseToken,
+  runClassroomArchiveObjectCleanup,
+} from '@/lib/server/classroom-archive-object-cleanup'
 import { chunkValues, loadChunkedRows, loadPagedRows } from '@/lib/server/query-chunks'
 
 export const dynamic = 'force-dynamic'
@@ -13,6 +18,12 @@ const DELETE_CHUNK_SIZE = 200
 const CLEANUP_PAGE_SIZE = 1000
 
 type IdRow = { id: string }
+
+function isArchiveStagingCleanupEnabled(): boolean {
+  return process.env.CLASSROOM_ARCHIVE_STAGING_CLEANUP_ENABLED
+    ?.trim()
+    .toLowerCase() === 'true'
+}
 
 function getCronAuthHeader(request: NextRequest): string | null {
   return request.headers.get('authorization') ?? request.headers.get('Authorization')
@@ -98,6 +109,45 @@ async function handle(request: NextRequest) {
   )
 
   const supabase = getServiceRoleClient()
+  const objectCleanupEnabled = isClassroomArchiveObjectCleanupEnabled()
+  let archiveStagingCleaned: number | undefined
+  if (isArchiveStagingCleanupEnabled() || objectCleanupEnabled) {
+    const response = await supabase.rpc('cleanup_expired_classroom_archive_snapshots')
+    if (
+      response.error
+      || !Number.isSafeInteger(response.data)
+      || response.data < 0
+    ) {
+      console.error('Error cleaning expired classroom archive staging:', response.error)
+      return NextResponse.json(
+        { error: 'Failed to clean classroom archive staging' },
+        { status: 500 },
+      )
+    }
+    archiveStagingCleaned = response.data
+  }
+  let archiveObjectCleanup: { claimed: number; deleted: number; failed: number } | undefined
+  if (objectCleanupEnabled) {
+    const result = await runClassroomArchiveObjectCleanup({
+      supabase,
+      leaseToken: resolveClassroomArchiveObjectCleanupLeaseToken(),
+    })
+    if (!result.ok || result.retry_recording_failed > 0) {
+      console.error(
+        'Error cleaning abandoned classroom archive objects:',
+        result.ok ? 'archive_object_cleanup_retry_unrecorded' : result.error_code,
+      )
+      return NextResponse.json(
+        { error: 'Failed to clean classroom archive objects' },
+        { status: 503 },
+      )
+    }
+    archiveObjectCleanup = {
+      claimed: result.claimed,
+      deleted: result.deleted,
+      failed: result.failed,
+    }
+  }
 
   const { ids: classroomIds, error: classroomsError } = await loadExpiredClassroomIds(
     supabase,
@@ -113,7 +163,16 @@ async function handle(request: NextRequest) {
   }
 
   if (classroomIds.length === 0) {
-    return NextResponse.json({ status: 'ok', deleted: 0 })
+    return NextResponse.json({
+      status: 'ok',
+      deleted: 0,
+      ...(archiveStagingCleaned === undefined
+        ? {}
+        : { archive_staging_cleaned: archiveStagingCleaned }),
+      ...(archiveObjectCleanup === undefined
+        ? {}
+        : { archive_object_cleanup: archiveObjectCleanup }),
+    })
   }
 
   let deleted = 0
@@ -212,7 +271,16 @@ async function handle(request: NextRequest) {
   }
   deleted += testHistoryDeleted
 
-  return NextResponse.json({ status: 'ok', deleted })
+  return NextResponse.json({
+    status: 'ok',
+    deleted,
+    ...(archiveStagingCleaned === undefined
+      ? {}
+      : { archive_staging_cleaned: archiveStagingCleaned }),
+    ...(archiveObjectCleanup === undefined
+      ? {}
+      : { archive_object_cleanup: archiveObjectCleanup }),
+  })
 }
 
 export const GET = withErrorHandler('GetCronCleanupHistory', async (request: NextRequest) => {

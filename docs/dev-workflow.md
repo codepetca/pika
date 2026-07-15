@@ -79,7 +79,12 @@ intended worktree.
 
 ### Environment files
 
-All worktrees share a single canonical `.env.local` file:
+> **Collaborators:** the shared canonical env file below is the maintainer's
+> machine-specific convention. If you don't have `$HOME/Repos/.env/pika/`,
+> just keep your own `.env.local` (copied from `.env.example` — see the
+> README) in each checkout and skip the symlink steps.
+
+On the maintainer's setup, all worktrees share a single canonical `.env.local` file:
 
 ```
 $HOME/Repos/.env/pika/.env.local
@@ -228,6 +233,20 @@ git -C "$HUB" branch -D "$BRANCH"
 This keeps the hub checkout fast-forwarded to the merged `main` before removing
 the finished worktree and branch. Resolving the path from Git metadata lets
 cleanup handle both new Codex worktrees and older legacy worktrees.
+
+### Periodic hygiene check
+
+Merged PR branches are deleted automatically on GitHub, but local branches,
+worktrees, and idle PRs still accumulate. Run the read-only report at any time:
+
+```bash
+bash scripts/repo-tidy.sh
+```
+
+It lists remote branches whose PR is merged/closed, local branches with deleted
+upstreams, clean vs dirty worktrees, and open PRs idle for more than 30 days
+(override with `IDLE_DAYS`). It deletes nothing — it prints the command for each
+finding. `/repo-tidy` runs the report and walks through the cleanup with you.
 
 ---
 

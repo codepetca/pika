@@ -1,179 +1,106 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { PATCH } from '@/app/api/student/tests/[id]/attempt/route'
+import { requireRole } from '@/lib/auth'
+import { saveStudentTestAttempt } from '@/lib/server/test-submissions'
 import { mockAuthenticationError } from '../setup'
-
-vi.mock('@/lib/supabase', () => ({
-  getServiceRoleClient: vi.fn(() => mockSupabaseClient),
-}))
 
 vi.mock('@/lib/auth', () => ({
   requireRole: vi.fn(async () => ({
-    id: 'student-1',
+    id: '10000000-0000-4000-8000-000000000002',
     email: 'student1@example.com',
     role: 'student',
   })),
 }))
 
-vi.mock('@/lib/server/tests', async () => {
-  const actual = await vi.importActual<any>('@/lib/server/tests')
-  return {
-    ...actual,
-    assertStudentCanAccessTest: vi.fn(async () => ({
-      ok: true,
-      test: {
-        id: 'test-1',
-        classroom_id: 'classroom-1',
-        status: 'active',
-        title: 'Unit Test',
-        show_results: false,
-        position: 0,
-        created_by: 'teacher-1',
-        created_at: '2026-01-01T00:00:00.000Z',
-        updated_at: '2026-01-01T00:00:00.000Z',
-        classrooms: {
-          id: 'classroom-1',
-          teacher_id: 'teacher-1',
-          archived_at: null,
-        },
-      },
-    })),
-  }
-})
+vi.mock('@/lib/server/test-submissions', () => ({
+  saveStudentTestAttempt: vi.fn(),
+}))
 
-const mockSupabaseClient = { from: vi.fn() }
-
-function buildRequest(body: unknown) {
-  return new NextRequest('http://localhost:3000/api/student/tests/test-1/attempt', {
-    method: 'PATCH',
-    body: JSON.stringify(body),
-  })
+const routeContext = {
+  params: Promise.resolve({ id: '10000000-0000-4000-8000-000000000010' }),
 }
 
-function createQuestionsMock() {
-  return {
-    select: vi.fn(() => ({
-      eq: vi.fn().mockResolvedValue({
-        data: [
-          { id: 'q-1', options: ['A', 'B'] },
-          { id: 'q-2', options: ['A', 'B'] },
-        ],
-        error: null,
-      }),
-    })),
-  }
+function buildRequest(body: unknown, raw = false) {
+  return new NextRequest('http://localhost:3000/api/student/tests/test-1/attempt', {
+    method: 'PATCH',
+    body: raw ? String(body) : JSON.stringify(body),
+  })
 }
 
 describe('PATCH /api/student/tests/[id]/attempt', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(saveStudentTestAttempt).mockResolvedValue({
+      ok: true,
+      attempt: {
+        id: '10000000-0000-4000-8000-000000000020',
+        test_id: '10000000-0000-4000-8000-000000000010',
+        student_id: '10000000-0000-4000-8000-000000000002',
+        responses: {},
+        is_submitted: false,
+        submitted_at: null,
+        created_at: '2026-07-14T12:00:00.000Z',
+        updated_at: '2026-07-14T12:00:00.000Z',
+      },
+      historyEntry: null,
+    })
   })
 
-  it('returns 401 when unauthenticated', async () => {
-    const { requireRole } = await import('@/lib/auth')
-    ;(requireRole as any).mockRejectedValueOnce(mockAuthenticationError())
+  it('authenticates before parsing malformed JSON', async () => {
+    vi.mocked(requireRole).mockRejectedValueOnce(mockAuthenticationError())
 
-    const response = await PATCH(
-      buildRequest({ responses: { 'q-1': 1 } }),
-      { params: Promise.resolve({ id: 'test-1' }) }
-    )
-    const data = await response.json()
+    const response = await PATCH(buildRequest('{', true), routeContext)
 
     expect(response.status).toBe(401)
-    expect(data.error).toBe('Unauthorized')
+    expect(saveStudentTestAttempt).not.toHaveBeenCalled()
   })
 
-  it('rejects draft save when test attempt is already submitted', async () => {
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'test_questions') return createQuestionsMock()
-      if (table === 'test_attempts') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            maybeSingle: vi.fn().mockResolvedValue({
-              data: { id: 'attempt-1', responses: { 'q-1': 0 }, is_submitted: true },
-              error: null,
-            }),
-          })),
-        }
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
+  it.each([
+    ['{', true, 'Invalid JSON body'],
+    [null, false, 'Responses are required'],
+    [{ responses: [] }, false, 'Responses are required'],
+    [{ responses: {}, trigger: 'submit' }, false, 'Invalid trigger'],
+  ])('rejects invalid request %#', async (body, raw, expectedError) => {
+    const response = await PATCH(buildRequest(body, raw), routeContext)
 
-    const response = await PATCH(
-      buildRequest({ responses: { 'q-1': 1 } }),
-      { params: Promise.resolve({ id: 'test-1' }) }
-    )
-    const data = await response.json()
-
-    expect(response.status).toBe(403)
-    expect(data.error).toContain('submitted test')
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: expectedError })
+    expect(saveStudentTestAttempt).not.toHaveBeenCalled()
   })
 
-  it('creates a draft attempt and baseline history entry', async () => {
-    const historyInsert = vi.fn(() => ({
-      select: vi.fn(() => ({
-        single: vi.fn().mockResolvedValue({
-          data: {
-            id: 'history-1',
-            test_attempt_id: 'attempt-1',
-            trigger: 'baseline',
-            created_at: '2026-02-24T00:00:00.000Z',
-          },
-          error: null,
-        }),
-      })),
-    }))
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'test_questions') return createQuestionsMock()
-      if (table === 'test_attempts') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-          })),
-          insert: vi.fn(() => ({
-            select: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'attempt-1',
-                  test_id: 'test-1',
-                  student_id: 'student-1',
-                  responses: { 'q-1': 1 },
-                  is_submitted: false,
-                },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-      if (table === 'test_responses') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
-          })),
-        }
-      }
-      if (table === 'test_attempt_history') {
-        return {
-          insert: historyInsert,
-        }
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
-    const response = await PATCH(
-      buildRequest({ responses: { 'q-1': 1 } }),
-      { params: Promise.resolve({ id: 'test-1' }) }
-    )
-    const data = await response.json()
+  it('normalizes the draft and telemetry before invoking the atomic workflow', async () => {
+    const response = await PATCH(buildRequest({
+      responses: { 'q-1': 1, 'q-2': 'Draft answer' },
+      trigger: 'blur',
+      paste_word_count: 2.6,
+      keystroke_count: -5,
+    }), routeContext)
 
     expect(response.status).toBe(200)
-    expect(data.attempt.id).toBe('attempt-1')
-    expect(data.historyEntry.id).toBe('history-1')
-    expect(historyInsert).toHaveBeenCalled()
+    expect(saveStudentTestAttempt).toHaveBeenCalledWith({
+      testId: '10000000-0000-4000-8000-000000000010',
+      studentId: '10000000-0000-4000-8000-000000000002',
+      responses: {
+        'q-1': { question_type: 'multiple_choice', selected_option: 1 },
+        'q-2': { question_type: 'open_response', response_text: 'Draft answer' },
+      },
+      trigger: 'blur',
+      pasteWordCount: 3,
+      keystrokeCount: 0,
+    })
+  })
+
+  it('returns workflow errors', async () => {
+    vi.mocked(saveStudentTestAttempt).mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      error: 'Cannot edit a submitted test',
+    })
+
+    const response = await PATCH(buildRequest({ responses: {} }), routeContext)
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Cannot edit a submitted test' })
   })
 })

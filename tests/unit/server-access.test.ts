@@ -6,12 +6,6 @@ import {
   getClassroomStudentIds,
 } from '@/lib/server/classrooms'
 import {
-  assertStudentCanAccessAssessment,
-  assertStudentCanAccessQuiz,
-  assertTeacherOwnsAssessment,
-  assertTeacherOwnsQuiz,
-} from '@/lib/server/assessments'
-import {
   assertStudentCanAccessTest,
   assertTeacherOwnsTest,
   isMissingTestAttemptReturnColumnsError,
@@ -70,6 +64,41 @@ describe('server access helpers', () => {
         status: 403,
         error: 'Forbidden',
       })
+    })
+
+    it('returns classroom title and reuses a provided Supabase client', async () => {
+      const providedSupabase = {
+        from: vi.fn((table: string) => {
+          expect(table).toBe('classrooms')
+          return createSingleSelectResult({
+            data: {
+              id: 'classroom-1',
+              title: 'Period 1',
+              teacher_id: 'teacher-1',
+              archived_at: null,
+              actual_site_slug: 'period-1',
+              actual_site_published: true,
+            },
+            error: null,
+          })
+        }),
+      }
+
+      await expect(
+        assertTeacherOwnsClassroom('teacher-1', 'classroom-1', { supabase: providedSupabase as any })
+      ).resolves.toEqual({
+        ok: true,
+        classroom: {
+          id: 'classroom-1',
+          title: 'Period 1',
+          teacher_id: 'teacher-1',
+          archived_at: null,
+          actual_site_slug: 'period-1',
+          actual_site_published: true,
+        },
+      })
+      expect(providedSupabase.from).toHaveBeenCalledTimes(1)
+      expect(mockSupabaseClient.from).not.toHaveBeenCalled()
     })
 
     it('blocks mutation when the classroom is archived', async () => {
@@ -168,135 +197,6 @@ describe('server access helpers', () => {
       expect(result.totalStudents).toBe(1001)
       expect(result.studentIds).toHaveLength(1001)
       expect(result.studentIdSet.has('student-1000')).toBe(true)
-    })
-  })
-
-  describe('assessment access', () => {
-    it('returns 403 when the teacher requests archived assessment access with archived checks enabled', async () => {
-      mockSupabaseClient.from.mockImplementation((table: string) => {
-        expect(table).toBe('quizzes')
-        return createSingleSelectResult({
-          data: {
-            id: 'quiz-1',
-            classroom_id: 'classroom-1',
-            status: 'active',
-            opens_at: null,
-            title: 'Quiz 1',
-            show_results: false,
-            position: 0,
-            created_by: 'teacher-1',
-            created_at: '2026-03-01T00:00:00.000Z',
-            updated_at: '2026-03-01T00:00:00.000Z',
-            classrooms: {
-              id: 'classroom-1',
-              teacher_id: 'teacher-1',
-              archived_at: '2026-03-02T00:00:00.000Z',
-            },
-          },
-          error: null,
-        })
-      })
-
-      await expect(assertTeacherOwnsAssessment('teacher-1', 'quiz-1', { checkArchived: true })).resolves.toEqual({
-        ok: false,
-        status: 403,
-        error: 'Classroom is archived',
-      })
-    })
-
-    it('returns 404 when the assessment does not exist for a student', async () => {
-      mockSupabaseClient.from.mockImplementation((table: string) => {
-        expect(table).toBe('quizzes')
-        return createSingleSelectResult({ data: null, error: { code: 'PGRST116' } })
-      })
-
-      await expect(assertStudentCanAccessAssessment('student-1', 'quiz-1')).resolves.toEqual({
-        ok: false,
-        status: 404,
-        error: 'Assessment not found',
-      })
-    })
-
-    it('returns the assessment when the student is enrolled in an active classroom', async () => {
-      mockSupabaseClient.from.mockImplementation((table: string) => {
-        if (table === 'quizzes') {
-          return createSingleSelectResult({
-            data: {
-              id: 'quiz-1',
-              classroom_id: 'classroom-1',
-              status: 'active',
-              opens_at: null,
-              title: 'Quiz 1',
-              show_results: false,
-              position: 0,
-              created_by: 'teacher-1',
-              created_at: '2026-03-01T00:00:00.000Z',
-              updated_at: '2026-03-01T00:00:00.000Z',
-              classrooms: {
-                id: 'classroom-1',
-                teacher_id: 'teacher-1',
-                archived_at: null,
-              },
-            },
-            error: null,
-          })
-        }
-
-        expect(table).toBe('classroom_enrollments')
-        return createSingleSelectResult({ data: { id: 'enrollment-1' }, error: null })
-      })
-
-      const result = await assertStudentCanAccessAssessment('student-1', 'quiz-1')
-
-      expect(result.ok).toBe(true)
-      if (result.ok) {
-        expect(result.assessment).toBe(result.quiz)
-        expect(result.assessment.id).toBe('quiz-1')
-        expect(result.quiz.id).toBe('quiz-1')
-        expect(result.quiz.classrooms.archived_at).toBeNull()
-      }
-    })
-
-    it('keeps legacy quiz access aliases wired to the assessment contract', async () => {
-      mockSupabaseClient.from.mockImplementation((table: string) => {
-        if (table === 'quizzes') {
-          return createSingleSelectResult({
-            data: {
-              id: 'quiz-1',
-              classroom_id: 'classroom-1',
-              status: 'active',
-              opens_at: null,
-              title: 'Quiz 1',
-              show_results: false,
-              position: 0,
-              created_by: 'teacher-1',
-              created_at: '2026-03-01T00:00:00.000Z',
-              updated_at: '2026-03-01T00:00:00.000Z',
-              classrooms: {
-                id: 'classroom-1',
-                teacher_id: 'teacher-1',
-                archived_at: null,
-              },
-            },
-            error: null,
-          })
-        }
-
-        expect(table).toBe('classroom_enrollments')
-        return createSingleSelectResult({ data: { id: 'enrollment-1' }, error: null })
-      })
-
-      const result = await assertStudentCanAccessQuiz('student-1', 'quiz-1')
-
-      expect(result.ok).toBe(true)
-      if (result.ok) {
-        expect(result.assessment).toBe(result.quiz)
-        expect(result.assessment.id).toBe('quiz-1')
-      }
-
-      await expect(assertTeacherOwnsQuiz('teacher-1', 'quiz-1')).resolves.toMatchObject({
-        ok: true,
-      })
     })
   })
 

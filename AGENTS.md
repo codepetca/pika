@@ -26,7 +26,8 @@ Use `docs/guides/ai-ui-testing.md` and `.codex/prompts/ui-verify.md` for the act
 ## Environment Files (.env.local)
 
 - Shared `.env.local` setup is defined in `docs/dev-workflow.md`.
-- Default policy: every worktree has `.env.local` symlinked to `$HOME/Repos/.env/pika/.env.local`.
+- Maintainer default: each worktree symlinks `.env.local` to `$HOME/Repos/.env/pika/.env.local`.
+- Collaborators may keep a checkout-local `.env.local` copied from `.env.example`.
 - Only use branch-specific env files when intentionally isolating backend state or secrets.
 
 ## Project Overview

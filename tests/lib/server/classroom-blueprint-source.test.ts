@@ -34,11 +34,31 @@ vi.mock('@/lib/limited-markdown', () => ({
 function seedSourceSupabase(overrides?: {
   testQuestionsError?: any
   assessmentDraftError?: any
+  classroom?: Record<string, any>
+  finalSourceRevision?: number
+  assignments?: Array<Record<string, any>>
+  assignmentRequirements?: Array<Record<string, any>>
+  tests?: Array<Record<string, any>>
+  testQuestions?: Array<Record<string, any>>
+  assessmentDrafts?: Array<Record<string, any>>
 }) {
+  const classroom = {
+    id: 'c-1',
+    teacher_id: 'teacher-1',
+    title: 'CS 11',
+    course_overview_markdown: '',
+    course_outline_markdown: '',
+    blueprint_source_revision: 1,
+    ...overrides?.classroom,
+  }
   mockSupabase = makeSupabaseFromQueues({
     classrooms: [
+      makeQueryBuilder({ data: classroom, error: null }),
       makeQueryBuilder({
-        data: { id: 'c-1', teacher_id: 'teacher-1', title: 'CS 11', course_overview_markdown: '', course_outline_markdown: '' },
+        data: {
+          blueprint_source_revision:
+            overrides?.finalSourceRevision ?? classroom.blueprint_source_revision,
+        },
         error: null,
       }),
     ],
@@ -46,10 +66,16 @@ function seedSourceSupabase(overrides?: {
       makeQueryBuilder({ data: { content: { markdown: 'Resources' } }, error: null }),
     ],
     assignments: [
-      makeQueryBuilder({ data: [], error: null }),
+      makeQueryBuilder({ data: overrides?.assignments || [], error: null }),
     ],
+    assignment_submission_requirements: overrides?.assignments?.length
+      ? [makeQueryBuilder({ data: overrides.assignmentRequirements || [], error: null })]
+      : [],
     tests: [
-      makeQueryBuilder({ data: [{ id: 't-1', title: 'Test 1', status: 'active', show_results: true, position: 0 }], error: null }),
+      makeQueryBuilder({
+        data: overrides?.tests || [{ id: 't-1', title: 'Test 1', status: 'active', show_results: true, position: 0 }],
+        error: null,
+      }),
     ],
     lesson_plans: [
       makeQueryBuilder({ data: [], error: null }),
@@ -59,13 +85,20 @@ function seedSourceSupabase(overrides?: {
     ],
     test_questions: [
       makeQueryBuilder({
-        data: overrides?.testQuestionsError ? null : [{ id: 'tq-1', prompt: 'Q1' }],
+        data: overrides?.testQuestionsError
+          ? null
+          : overrides?.testQuestions || [{ id: 'tq-1', test_id: 't-1', prompt: 'Q1' }],
         error: overrides?.testQuestionsError ?? null,
       }),
     ],
     assessment_drafts: [
       makeQueryBuilder({
-        data: overrides?.assessmentDraftError ? null : { content: { title: 'Test 1', questions: [] } },
+        data: overrides?.assessmentDraftError
+          ? null
+          : overrides?.assessmentDrafts || [{
+            assessment_id: 't-1',
+            content: { title: 'Test 1', questions: [] },
+          }],
         error: overrides?.assessmentDraftError ?? null,
       }),
     ],
@@ -105,5 +138,94 @@ describe('classroom blueprint source loader', () => {
     })
 
     errorSpy.mockRestore()
+  })
+
+  it('preserves assignment timing relative to the source classroom start in Toronto', async () => {
+    seedSourceSupabase({
+      classroom: {
+        id: 'c-1',
+        teacher_id: 'teacher-1',
+        title: 'CS 11',
+        start_date: '2026-02-02',
+        course_overview_markdown: '',
+        course_outline_markdown: '',
+      },
+      assignments: [{
+        id: 'a-1',
+        title: 'Project',
+        instructions_markdown: 'Build it',
+        due_at: '2026-02-16T04:30:00.000Z',
+        gradebook_weight: 25,
+        is_draft: false,
+        position: 2,
+      }],
+      assignmentRequirements: [{
+        id: 'r-1',
+        assignment_id: 'a-1',
+        type: 'link',
+        label: 'Published project',
+        instructions: 'Share a public URL',
+        required: true,
+        position: 0,
+        validation_policy_json: {},
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      }],
+    })
+
+    const result = await loadClassroomBlueprintSource('teacher-1', 'c-1')
+
+    expect(result).toEqual(expect.objectContaining({ ok: true }))
+    if (!result.ok) throw new Error('Expected classroom source to load')
+    expect(result.source.assignments).toEqual([
+      expect.objectContaining({
+        title: 'Project',
+        default_due_days: 13,
+        default_due_time: '23:30',
+        gradebook_weight: 25,
+        is_draft: true,
+        submission_requirements_json: [
+          expect.objectContaining({ id: 'r-1', label: 'Published project' }),
+        ],
+      }),
+    ])
+  })
+
+  it('includes draft tests in the reusable blueprint source', async () => {
+    seedSourceSupabase({
+      tests: [
+        { id: 't-1', title: 'Published test', status: 'active', show_results: false, position: 0 },
+        { id: 't-2', title: 'Draft test', status: 'draft', show_results: false, position: 1 },
+      ],
+      testQuestions: [
+        { id: 'tq-1', test_id: 't-1', prompt: 'Published question' },
+        { id: 'tq-2', test_id: 't-2', prompt: 'Draft question' },
+      ],
+      assessmentDrafts: [
+        { assessment_id: 't-1', content: { title: 'Published test', questions: [] } },
+        { assessment_id: 't-2', content: { title: 'Draft test', questions: [] } },
+      ],
+    })
+
+    const result = await loadClassroomBlueprintSource('teacher-1', 'c-1')
+
+    expect(result).toEqual(expect.objectContaining({ ok: true }))
+    if (!result.ok) throw new Error('Expected classroom source to load')
+    expect(result.source.tests).toEqual([
+      expect.objectContaining({ title: 'Published test' }),
+      expect.objectContaining({ title: 'Draft test' }),
+    ])
+    expect(mockSupabase.from.mock.calls.filter(([table]: [string]) => table === 'test_questions')).toHaveLength(1)
+    expect(mockSupabase.from.mock.calls.filter(([table]: [string]) => table === 'assessment_drafts')).toHaveLength(1)
+  })
+
+  it('rejects a source snapshot when classroom content changes during loading', async () => {
+    seedSourceSupabase({ finalSourceRevision: 2 })
+
+    await expect(loadClassroomBlueprintSource('teacher-1', 'c-1')).resolves.toEqual({
+      ok: false,
+      status: 409,
+      error: 'Classroom content changed while preparing the blueprint; review and retry',
+    })
   })
 })

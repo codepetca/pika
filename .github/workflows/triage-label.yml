@@ -1,0 +1,32 @@
+name: Auto-label new issues
+
+# Keeps the backlog legible: any newly opened issue that arrives without a
+# label gets `needs-triage` so it shows up in the triage filter instead of
+# disappearing into the unlabeled pile. Issues opened with a label (e.g. via a
+# template) are left alone.
+
+on:
+  issues:
+    types: [opened]
+
+# The repo default is read-only; grant only what this job needs.
+permissions:
+  issues: write
+
+jobs:
+  label-if-unlabeled:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add needs-triage when the issue has no labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          count="$(gh issue view "$ISSUE" --repo "$REPO" --json labels --jq '.labels | length')"
+          if [ "$count" -eq 0 ]; then
+            gh issue edit "$ISSUE" --repo "$REPO" --add-label needs-triage
+            echo "Added needs-triage to #$ISSUE"
+          else
+            echo "#$ISSUE already has $count label(s); leaving as-is"
+          fi

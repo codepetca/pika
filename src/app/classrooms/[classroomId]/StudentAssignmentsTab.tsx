@@ -22,7 +22,7 @@ import { RichTextViewer } from '@/components/editor'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { StudentSurveyPanel } from '@/components/surveys/StudentSurveyPanel'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
-import { fetchJSONWithCache } from '@/lib/request-cache'
+import { fetchCachedJSON } from '@/lib/request-cache'
 import { buildOrderedClassworkItems } from '@/lib/classwork-order'
 import { getStudentSurveyStatus, getSurveyStatusBadgeClass, getSurveyStatusLabel } from '@/lib/surveys'
 
@@ -36,6 +36,9 @@ interface Props {
 }
 
 type StudentAssignmentsView = 'summary' | 'edit' | 'material' | 'survey'
+type StudentAssignmentsResponse = { assignments?: AssignmentWithStatus[] }
+type StudentMaterialsResponse = { materials?: ClassworkMaterial[] }
+type StudentSurveysResponse = { surveys?: StudentSurveyView[] }
 
 export function StudentAssignmentsTab({
   classroom,
@@ -93,32 +96,20 @@ export function StudentAssignmentsTab({
       }
       try {
         const [assignmentsData, materialsData, surveysData] = await Promise.all([
-          fetchJSONWithCache(
+          fetchCachedJSON<StudentAssignmentsResponse>(
             `student-assignments:${classroom.id}`,
-            async () => {
-              const res = await fetch(`/api/student/assignments?classroom_id=${classroom.id}`)
-              if (!res.ok) throw new Error('Failed to load assignments')
-              return res.json()
-            },
-            20_000,
+            `/api/student/assignments?classroom_id=${classroom.id}`,
+            { ttlMs: 20_000, errorMessage: 'Failed to load assignments' },
           ),
-          fetchJSONWithCache(
+          fetchCachedJSON<StudentMaterialsResponse>(
             `student-materials:${classroom.id}`,
-            async () => {
-              const res = await fetch(`/api/student/classrooms/${classroom.id}/materials`)
-              if (!res.ok) throw new Error('Failed to load materials')
-              return res.json()
-            },
-            20_000,
+            `/api/student/classrooms/${classroom.id}/materials`,
+            { ttlMs: 20_000, errorMessage: 'Failed to load materials' },
           ),
-          fetchJSONWithCache(
+          fetchCachedJSON<StudentSurveysResponse>(
             `student-surveys:${classroom.id}`,
-            async () => {
-              const res = await fetch(`/api/student/surveys?classroom_id=${classroom.id}`)
-              if (!res.ok) throw new Error('Failed to load surveys')
-              return res.json()
-            },
-            20_000,
+            `/api/student/surveys?classroom_id=${classroom.id}`,
+            { ttlMs: 20_000, errorMessage: 'Failed to load surveys' },
           ).catch(() => ({ surveys: [] })),
         ])
         if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return

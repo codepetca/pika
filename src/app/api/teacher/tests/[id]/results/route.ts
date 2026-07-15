@@ -29,6 +29,7 @@ const TEST_RESULTS_PAGE_SIZE = 1000
 
 type TestResponseResultRow = {
   id: string
+  revision: number
   test_id: string
   question_id: string
   student_id: string
@@ -109,7 +110,7 @@ async function loadTestResponses(
   return loadStudentScopedRows<TestResponseResultRow>(
     supabase,
     'test_responses',
-    'id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, graded_by, submitted_at',
+    'id, revision, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, graded_by, submitted_at',
     testId,
     studentIds,
   )
@@ -344,6 +345,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
 
   const studentAnswers: Record<string, Record<string, {
     response_id: string | null
+    response_revision: number | null
     question_type: 'multiple_choice' | 'open_response'
     selected_option: number | null
     response_text: string | null
@@ -363,6 +365,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     if (!studentAnswers[response.student_id]) studentAnswers[response.student_id] = {}
     studentAnswers[response.student_id][response.question_id] = {
       response_id: response.id,
+      response_revision: response.revision,
       question_type: question.question_type === 'open_response' ? 'open_response' : 'multiple_choice',
       selected_option: response.selected_option,
       response_text: response.response_text,
@@ -504,6 +507,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
       const normalizedDraft = normalizeTestResponses(attempt.responses)
       const draftAnswers: Record<string, {
         response_id: string | null
+        response_revision: number | null
         question_type: 'multiple_choice' | 'open_response'
         selected_option: number | null
         response_text: string | null
@@ -519,6 +523,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
         if (response.question_type === 'multiple_choice') {
           draftAnswers[question.id] = {
             response_id: null,
+            response_revision: null,
             question_type: 'multiple_choice',
             selected_option: response.selected_option,
             response_text: null,
@@ -532,6 +537,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
 
         draftAnswers[question.id] = {
           response_id: null,
+          response_revision: null,
           question_type: 'open_response',
           selected_option: null,
           response_text: response.response_text,
@@ -616,10 +622,11 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     } satisfies TestAssessmentResponse]
   })
 
-  const aggregated = aggregateTestResults(
-    multipleChoiceQuestions as TestAssessmentQuestion[],
-    multipleChoiceResponses
-  )
+  const aggregateQuestions: TestAssessmentQuestion[] = multipleChoiceQuestions.map((question) => ({
+    ...question,
+    quiz_id: question.test_id,
+  }))
+  const aggregated = aggregateTestResults(aggregateQuestions, multipleChoiceResponses)
 
   const openQuestionIds = new Set(
     (questions || [])

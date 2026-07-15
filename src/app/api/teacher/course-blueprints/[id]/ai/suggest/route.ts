@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
-import { courseBlueprintAiSuggestSchema } from '@/lib/validations/teacher'
+import { courseBlueprintAiSuggestSchema } from '@/lib/validations/course-blueprints'
 import { getCourseBlueprintDetail } from '@/lib/server/course-blueprints'
 import { suggestCourseBlueprintDraft } from '@/lib/course-blueprint-copilot'
 

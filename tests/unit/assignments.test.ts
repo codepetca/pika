@@ -795,6 +795,15 @@ describe('assignment utilities', () => {
       expect(isAssignmentAlreadyReturnedWithoutResubmission(null)).toBe(false)
     })
 
+    it('does not treat work without a return timestamp as already returned', () => {
+      expect(isAssignmentAlreadyReturnedWithoutResubmission({
+        is_submitted: true,
+        submitted_at: '2026-04-20T12:00:00.000Z',
+        returned_at: null,
+        teacher_cleared_at: null,
+      })).toBe(false)
+    })
+
     it('uses the latest full-return timestamp', () => {
       expect(getAssignmentFullReturnAt({
         returned_at: '2026-04-20T12:00:00.000Z',

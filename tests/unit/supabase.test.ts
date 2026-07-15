@@ -133,6 +133,21 @@ describe('supabase utilities', () => {
       )
     })
 
+    it('should pass an optional target-bound fetch implementation to the service client', async () => {
+      const { getServiceRoleClient } = await import('@/lib/supabase')
+      const customFetch = vi.fn() as unknown as typeof fetch
+
+      getServiceRoleClient({ fetch: customFetch })
+
+      expect(mockCreateClient).toHaveBeenLastCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.objectContaining({
+          global: { fetch: customFetch },
+        })
+      )
+    })
+
     it('should throw error when SUPABASE_SECRET_KEY is missing', async () => {
       delete process.env.SUPABASE_SECRET_KEY
       vi.resetModules()

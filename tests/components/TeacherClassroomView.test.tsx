@@ -22,6 +22,10 @@ const mockStudentSelectionState = {
   allSelected: false,
   selectedCount: 0,
 }
+const mockWorkPanelGradePersistenceState = {
+  hasPendingChanges: false,
+  isSaving: false,
+}
 
 vi.mock('@dnd-kit/core', () => ({
   DndContext: ({ children }: any) => <div>{children}</div>,
@@ -248,6 +252,7 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
     onLayoutChange,
     onDetailsMetaChange,
     onGradeTemplateChange,
+    onGradePersistenceStateChange,
     highlightedInspectorSections = [],
   }: any) => {
     useEffect(() => {
@@ -272,6 +277,10 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
           : null,
       )
     }, [mode, onGradeTemplateChange, splitPaneView, studentId])
+
+    useEffect(() => {
+      onGradePersistenceStateChange?.(mockWorkPanelGradePersistenceState)
+    }, [onGradePersistenceStateChange])
 
     if (mode === 'workspace') {
       return (
@@ -402,6 +411,19 @@ vi.mock('@/components/DataTable', () => ({
 }))
 
 vi.mock('@/lib/request-cache', () => ({
+  fetchCachedJSON: (key: string, input: RequestInfo | URL, options?: { ttlMs?: number; errorMessage?: string }) =>
+    mockFetchJSONWithCache(
+      key,
+      async () => {
+        const response = await fetch(input)
+        const payload = await response.json()
+        if (!response.ok) {
+          throw new Error(payload?.error || options?.errorMessage || 'Request failed')
+        }
+        return payload
+      },
+      options?.ttlMs,
+    ),
   fetchJSONWithCache: (...args: any[]) => mockFetchJSONWithCache(...args),
   invalidateCachedJSON: (...args: any[]) => mockInvalidateCachedJSON(...args),
 }))
@@ -617,6 +639,8 @@ describe('TeacherClassroomView', () => {
     mockStudentSelectionState.selectedIds = new Set<string>()
     mockStudentSelectionState.allSelected = false
     mockStudentSelectionState.selectedCount = 0
+    mockWorkPanelGradePersistenceState.hasPendingChanges = false
+    mockWorkPanelGradePersistenceState.isSaving = false
     window.sessionStorage.clear()
     clearSelectionCookie()
     clearAssignmentWorkspaceStudentCookie()
@@ -1942,6 +1966,10 @@ describe('TeacherClassroomView', () => {
     expect(gradeSelectedBodies[0]).toEqual({
       student_ids: ['student-1', 'student-2'],
       apply_target: 'grade',
+      expected_doc_updated_at_by_student: {
+        'student-1': '2026-04-10T12:00:00Z',
+        'student-2': '2026-04-10T12:00:00Z',
+      },
       score_completion: '7',
       score_thinking: '8',
       score_workflow: '9',
@@ -2044,6 +2072,10 @@ describe('TeacherClassroomView', () => {
     expect(gradeSelectedBodies[0]).toEqual({
       student_ids: ['student-1', 'student-2'],
       apply_target: 'comments',
+      expected_doc_updated_at_by_student: {
+        'student-1': '2026-04-10T12:00:00Z',
+        'student-2': '2026-04-10T12:00:00Z',
+      },
       feedback: 'Use this feedback for the selected students.',
     })
     expect(mockClearSelection).not.toHaveBeenCalled()
@@ -3032,6 +3064,41 @@ describe('TeacherClassroomView', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('disables batch actions while the mounted editor has unsaved grade changes', async () => {
+    mockStudentSelectionState.selectedIds = new Set(['student-1'])
+    mockStudentSelectionState.selectedCount = 1
+    mockWorkPanelGradePersistenceState.hasPendingChanges = true
+    const details = makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1')
+    details.students[0]!.doc = {
+      ...details.students[0]!.doc,
+      score_completion: 8,
+      score_thinking: 7,
+      score_workflow: 9,
+      graded_at: '2026-04-10T13:00:00Z',
+    }
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({ ok: true, json: async () => details })
+      }
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
+    })
+    expect(screen.getByRole('button', { name: /Return/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Apply Grade to Selected Students' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Apply Comments to Selected Students' })).toBeDisabled()
   })
 
   it('disables batch return when selected students have nothing returnable', async () => {

@@ -70,7 +70,12 @@ function buildRunsTableWithSequence(activeRunBatches: unknown[][]) {
   }
 }
 
-function buildAssignmentDocsTable(docs: Array<{ id: string; student_id: string; content: unknown }> = []) {
+function buildAssignmentDocsTable(docs: Array<{
+  id: string
+  student_id: string
+  content: unknown
+  updated_at: string
+}> = []) {
   return {
     select: vi.fn(() => ({
       eq: vi.fn().mockReturnThis(),
@@ -114,6 +119,7 @@ function buildTickHarness(opts: {
     content: unknown
     feedback: string | null
     authenticity_score: number | null
+    updated_at: string
   } | null
   upsertError: unknown
 }) {
@@ -148,6 +154,7 @@ function buildTickHarness(opts: {
       assignment_id: 'assignment-1',
       student_id: 'student-1',
       assignment_doc_id: opts.assignmentDoc?.id ?? null,
+      assignment_doc_updated_at: opts.assignmentDoc?.updated_at ?? null,
       queue_position: 0,
       status: 'queued',
       skip_reason: opts.skipReason,
@@ -165,6 +172,9 @@ function buildTickHarness(opts: {
   mockSupabaseClient.rpc.mockImplementation(async (fn: string) => {
     if (fn === 'claim_assignment_ai_grading_run') {
       return { data: true, error: null }
+    }
+    if (fn === 'finalize_assignment_ai_grading_item_atomic') {
+      return { data: null, error: opts.upsertError }
     }
     throw new Error(`Unexpected rpc: ${fn}`)
   })
@@ -232,11 +242,13 @@ function buildTickHarness(opts: {
           })),
         })),
         update: vi.fn((payload: Record<string, unknown>) => ({
-          eq: vi.fn(async (field: string, value: string) => {
-            const item = items.find((candidate) => field === 'id' && candidate.id === value)
-            if (item) Object.assign(item, payload)
-            return { error: null }
-          }),
+          eq: vi.fn((field: string, value: string) => ({
+            in: vi.fn(async () => {
+              const item = items.find((candidate) => field === 'id' && candidate.id === value)
+              if (item) Object.assign(item, payload)
+              return { error: null }
+            }),
+          })),
         })),
       }
     }
@@ -297,10 +309,12 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
         id: 'doc-empty',
         student_id: 'student-empty',
         content: JSON.stringify({ type: 'doc', content: [] }),
+        updated_at: '2026-04-21T12:00:00.000Z',
       },
       {
         id: 'doc-gradable',
         student_id: 'student-gradable',
+        updated_at: '2026-04-21T12:00:00.000Z',
         content: JSON.stringify({
           type: 'doc',
           content: [
@@ -625,8 +639,42 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       skip_reason: null,
       attempt_count: 1,
       last_error_code: 'save_missing_grade_failed',
-      last_error_message: 'Failed to save missing grade for student student-1',
+      last_error_message: 'Failed to finalize AI assignment grade',
     }))
+  })
+
+  it('fails a legacy queued item closed when its source revision is unavailable', async () => {
+    const harness = buildTickHarness({
+      skipReason: 'empty_doc',
+      assignmentDoc: {
+        id: 'doc-1',
+        student_id: 'student-1',
+        content: JSON.stringify({ type: 'doc', content: [{ type: 'paragraph' }] }),
+        feedback: null,
+        authenticity_score: null,
+        updated_at: '2026-04-21T12:00:00.000Z',
+      },
+      upsertError: null,
+    })
+    harness.items[0]!.assignment_doc_updated_at = null
+
+    const result = await tickAssignmentAiGradingRun({
+      assignmentId: 'assignment-1',
+      runId: 'run-1',
+    })
+
+    expect(result.run).toEqual(expect.objectContaining({
+      status: 'completed_with_errors',
+      failed_count: 1,
+    }))
+    expect(harness.items[0]).toEqual(expect.objectContaining({
+      status: 'failed',
+      last_error_code: 'source_revision_unavailable',
+    }))
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalledWith(
+      'save_assignment_ai_grade_atomic',
+      expect.anything(),
+    )
   })
 
   it('delegates Gradex-marked runs to the Gradex assignment processor', async () => {
@@ -647,6 +695,7 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
         }),
         feedback: null,
         authenticity_score: null,
+        updated_at: '2026-04-21T12:00:00.000Z',
       },
       upsertError: null,
     })
@@ -678,6 +727,7 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
         content: JSON.stringify({ type: 'doc', content: [] }),
         feedback: null,
         authenticity_score: null,
+        updated_at: '2026-04-21T12:00:00.000Z',
       },
       upsertError: { message: 'upsert failed' },
     })
@@ -698,7 +748,7 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       skip_reason: null,
       attempt_count: 1,
       last_error_code: 'save_missing_grade_failed',
-      last_error_message: 'Failed to save missing grade for student student-1',
+      last_error_message: 'Failed to finalize AI assignment grade',
     }))
   })
 })

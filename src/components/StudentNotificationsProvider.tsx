@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
 
 type NotificationState = {
   hasTodayEntry: boolean
@@ -25,6 +26,18 @@ type NotificationState = {
 }
 
 const NotificationsContext = createContext<NotificationState | null>(null)
+const NOTIFICATIONS_CACHE_TTL_MS = 15_000
+
+type StudentNotificationsResponse = {
+  hasTodayEntry: boolean
+  unviewedAssignmentsCount: number
+  activeTestsCount?: number
+  unreadAnnouncementsCount?: number
+}
+
+function getStudentNotificationsCacheKey(classroomId: string): string {
+  return `student-notifications:${classroomId}`
+}
 
 export function StudentNotificationsProvider({
   classroomId,
@@ -43,12 +56,14 @@ export function StudentNotificationsProvider({
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await fetch(`/api/student/notifications?classroom_id=${classroomId}`)
-      if (!res.ok) {
-        console.error('Failed to fetch notifications:', res.status)
-        return
-      }
-      const data = await res.json()
+      const data = await fetchCachedJSON<StudentNotificationsResponse>(
+        getStudentNotificationsCacheKey(classroomId),
+        `/api/student/notifications?classroom_id=${classroomId}`,
+        {
+          ttlMs: NOTIFICATIONS_CACHE_TTL_MS,
+          errorMessage: 'Failed to fetch notifications',
+        },
+      )
       setHasTodayEntry(data.hasTodayEntry)
       setUnviewedAssignmentsCount(data.unviewedAssignmentsCount)
       setActiveTestsCount(data.activeTestsCount ?? 0)
@@ -75,26 +90,35 @@ export function StudentNotificationsProvider({
     return () => window.removeEventListener('focus', onFocus)
   }, [fetchNotifications, FOCUS_COOLDOWN_MS])
 
+  const invalidateNotificationsCache = useCallback(() => {
+    invalidateCachedJSON(getStudentNotificationsCacheKey(classroomId))
+  }, [classroomId])
+
   const refresh = useCallback(async () => {
+    invalidateNotificationsCache()
     setLoading(true)
     await fetchNotifications()
-  }, [fetchNotifications])
+  }, [fetchNotifications, invalidateNotificationsCache])
 
   const markTodayComplete = useCallback(() => {
+    invalidateNotificationsCache()
     setHasTodayEntry(true)
-  }, [])
+  }, [invalidateNotificationsCache])
 
   const decrementUnviewedCount = useCallback(() => {
+    invalidateNotificationsCache()
     setUnviewedAssignmentsCount((prev) => Math.max(0, prev - 1))
-  }, [])
+  }, [invalidateNotificationsCache])
 
   const decrementActiveTestsCount = useCallback(() => {
+    invalidateNotificationsCache()
     setActiveTestsCount((prev) => Math.max(0, prev - 1))
-  }, [])
+  }, [invalidateNotificationsCache])
 
   const markAnnouncementsRead = useCallback(() => {
+    invalidateNotificationsCache()
     setUnreadAnnouncementsCount(0)
-  }, [])
+  }, [invalidateNotificationsCache])
 
   const value = useMemo<NotificationState>(
     () => ({

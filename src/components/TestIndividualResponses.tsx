@@ -5,6 +5,7 @@ import { Spinner } from '@/components/Spinner'
 import { getTestExitCount } from '@/lib/tests'
 import { Button, Input } from '@/ui'
 import type { TestFocusSummary } from '@/types'
+import type { TestQuestionGradingSnapshot } from '@/lib/test-grading-context'
 
 interface QuestionInfo {
   id: string
@@ -17,6 +18,7 @@ interface QuestionInfo {
 
 type TestAnswerDetail = {
   response_id: string
+  response_revision: number
   question_type: 'multiple_choice' | 'open_response'
   selected_option: number | null
   response_text: string | null
@@ -44,6 +46,13 @@ interface Props {
 interface GradeDraft {
   score: string
   feedback: string
+  aiGradingBasis?: 'teacher_key' | 'generated_reference'
+  aiReferenceAnswers?: string[]
+  aiModel?: string
+  questionGradingSnapshot?: TestQuestionGradingSnapshot
+  aiProvenanceToken?: string
+  aiSuggestedScore?: number
+  aiSuggestedFeedback?: string
 }
 
 interface TestStats {
@@ -104,6 +113,7 @@ export function TestIndividualResponses({
   const [gradingErrorState, setGradingErrorState] = useState<ScopedMessageState | null>(null)
   const [gradingMessageState, setGradingMessageState] = useState<ScopedMessageState | null>(null)
   const loadRequestIdRef = useRef(0)
+  const gradeDraftsRef = useRef<Record<string, GradeDraft>>({})
   const currentScopeRef = useRef(scope)
   currentScopeRef.current = scope
 
@@ -149,8 +159,10 @@ export function TestIndividualResponses({
             }
           }
         }
+        gradeDraftsRef.current = nextDrafts
         setGradeDrafts(nextDrafts)
       } else {
+        gradeDraftsRef.current = {}
         setGradeDrafts({})
       }
     } catch (loadError: any) {
@@ -177,14 +189,16 @@ export function TestIndividualResponses({
   )
 
   function updateDraft(responseId: string, updates: Partial<GradeDraft>) {
-    setGradeDrafts((prev) => ({
-      ...prev,
+    const nextDrafts = {
+      ...gradeDraftsRef.current,
       [responseId]: {
-        score: prev[responseId]?.score ?? '',
-        feedback: prev[responseId]?.feedback ?? '',
+        score: gradeDraftsRef.current[responseId]?.score ?? '',
+        feedback: gradeDraftsRef.current[responseId]?.feedback ?? '',
         ...updates,
       },
-    }))
+    }
+    gradeDraftsRef.current = nextDrafts
+    setGradeDrafts(nextDrafts)
   }
 
   async function handleSuggestGrade(
@@ -205,6 +219,16 @@ export function TestIndividualResponses({
       updateDraft(responseId, {
         score: data.suggestion?.score != null ? String(data.suggestion.score) : '',
         feedback: data.suggestion?.feedback || '',
+        aiGradingBasis: data.suggestion?.grading_basis,
+        aiReferenceAnswers:
+          data.suggestion?.grading_basis === 'generated_reference'
+            ? data.suggestion?.reference_answers
+            : undefined,
+        aiModel: data.suggestion?.model,
+        questionGradingSnapshot: data.question_grading_snapshot,
+        aiProvenanceToken: data.ai_provenance_token,
+        aiSuggestedScore: data.suggestion?.score,
+        aiSuggestedFeedback: data.suggestion?.feedback,
       })
       setGradingMessageState({
         scope: operationScope,
@@ -229,6 +253,14 @@ export function TestIndividualResponses({
     const operationScope = scope
     const draft = gradeDrafts[responseId]
     if (!draft) return
+    const response = responders
+      .flatMap((student) => Object.values(student.answers || {}))
+      .map(toTestAnswerDetail)
+      .find((answer) => answer?.response_id === responseId)
+    if (!response || !Number.isSafeInteger(response.response_revision) || response.response_revision < 1) {
+      setGradingErrorState({ scope: operationScope, message: 'Response revision is unavailable' })
+      return
+    }
 
     const score = Number(draft.score)
     if (!Number.isFinite(score) || score < 0 || score > maxPoints) {
@@ -247,12 +279,50 @@ export function TestIndividualResponses({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          response_id: responseId,
+          expected_response_revision: response.response_revision,
           score,
           feedback: draft.feedback.trim(),
+          ...(draft.aiGradingBasis
+            ? {
+                ai_grading_basis: draft.aiGradingBasis,
+                ai_reference_answers:
+                  draft.aiGradingBasis === 'generated_reference'
+                    ? draft.aiReferenceAnswers
+                    : null,
+                ai_model: draft.aiModel,
+                question_grading_snapshot: draft.questionGradingSnapshot,
+                ai_provenance_token: draft.aiProvenanceToken,
+                ai_suggested_score: draft.aiSuggestedScore,
+                ai_suggested_feedback: draft.aiSuggestedFeedback,
+              }
+            : {}),
         }),
       })
       const data = await res.json()
       if (currentScopeRef.current !== operationScope) return
+      if (res.status === 409) {
+        const latestDraft = gradeDraftsRef.current[responseId] ?? draft
+        const hadAiProvenance = Boolean(draft.aiGradingBasis || latestDraft.aiGradingBasis)
+        await load()
+        if (currentScopeRef.current !== operationScope) return
+        const nextDrafts = {
+          ...gradeDraftsRef.current,
+          [responseId]: {
+            score: latestDraft.score,
+            feedback: latestDraft.feedback,
+          },
+        }
+        gradeDraftsRef.current = nextDrafts
+        setGradeDrafts(nextDrafts)
+        setGradingErrorState({
+          scope: operationScope,
+          message: hadAiProvenance
+            ? 'Grade changed elsewhere. Your draft was preserved, but the AI suggestion must be regenerated or saved as a manual grade.'
+            : 'Grade changed elsewhere. The latest version was loaded and your draft was preserved; review and save again.',
+        })
+        return
+      }
       if (!res.ok) throw new Error(data.error || 'Failed to save grade')
 
       setGradingMessageState({ scope: operationScope, message: 'Grade saved.' })
@@ -276,6 +346,14 @@ export function TestIndividualResponses({
 
   async function handleClearGrade(responseId: string) {
     const operationScope = scope
+    const response = responders
+      .flatMap((student) => Object.values(student.answers || {}))
+      .map(toTestAnswerDetail)
+      .find((answer) => answer?.response_id === responseId)
+    if (!response || !Number.isSafeInteger(response.response_revision) || response.response_revision < 1) {
+      setGradingErrorState({ scope: operationScope, message: 'Response revision is unavailable' })
+      return
+    }
     setGradingErrorState(null)
     setGradingMessageState(null)
     setSavingResponseId(responseId)
@@ -283,10 +361,23 @@ export function TestIndividualResponses({
       const res = await fetch(`${apiBasePath}/${testId}/responses/${responseId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clear_grade: true }),
+        body: JSON.stringify({
+          response_id: responseId,
+          expected_response_revision: response.response_revision,
+          clear_grade: true,
+        }),
       })
       const data = await res.json()
       if (currentScopeRef.current !== operationScope) return
+      if (res.status === 409) {
+        await load()
+        if (currentScopeRef.current !== operationScope) return
+        setGradingErrorState({
+          scope: operationScope,
+          message: 'Grade changed elsewhere. The latest version was loaded; try clearing again.',
+        })
+        return
+      }
       if (!res.ok) throw new Error(data.error || 'Failed to clear grade')
 
       setGradingMessageState({ scope: operationScope, message: 'Grade cleared.' })

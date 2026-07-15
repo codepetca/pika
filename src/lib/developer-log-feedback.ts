@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { redactDirectIdentifiers } from '@/lib/log-summary'
+import type { Database } from '@/types/database'
 
 const DEFAULT_MODEL = 'gpt-5-nano'
 const MIN_CONFIDENCE = 0.55
@@ -59,9 +61,12 @@ export interface DirectDeveloperFeedbackRecord {
   id: string
 }
 
-type SupabaseLike = {
-  from: (table: string) => any
-  rpc?: (fn: string, args: Record<string, unknown>) => any
+type DeveloperFeedbackRpcClient = {
+  rpc?: SupabaseClient<Database>['rpc']
+}
+
+type DeveloperFeedbackInsertClient = {
+  from: SupabaseClient<Database>['from']
 }
 
 export function buildDeveloperFeedbackPrompt(
@@ -189,7 +194,7 @@ export function normalizeDeveloperFeedbackDedupeKey(input: string): string {
 }
 
 export async function extractAndStoreDeveloperFeedbackCandidates(
-  supabase: SupabaseLike,
+  supabase: DeveloperFeedbackRpcClient,
   context: DeveloperFeedbackRecordContext & { sanitizedLogs: SanitizedDeveloperFeedbackLog[] }
 ): Promise<DeveloperFeedbackRecordResult> {
   if (context.sanitizedLogs.length === 0) {
@@ -202,7 +207,7 @@ export async function extractAndStoreDeveloperFeedbackCandidates(
 }
 
 export async function recordDeveloperFeedbackCandidates(
-  supabase: SupabaseLike,
+  supabase: DeveloperFeedbackRpcClient,
   candidates: DeveloperFeedbackCandidateInput[],
   context: DeveloperFeedbackRecordContext
 ): Promise<DeveloperFeedbackRecordResult> {
@@ -254,7 +259,7 @@ export async function recordDeveloperFeedbackCandidates(
 }
 
 export async function recordDirectDeveloperFeedback(
-  supabase: SupabaseLike,
+  supabase: DeveloperFeedbackInsertClient,
   input: DirectDeveloperFeedbackInput
 ): Promise<DirectDeveloperFeedbackRecord> {
   const sanitizedDescription = redactDirectIdentifiers(input.description).trim()

@@ -1,53 +1,13 @@
 import { tryApplyJsonPatch } from '@/lib/json-patch'
-import { validateAssessmentOptions } from '@/lib/assessments'
-import { validateTestQuestionCreate } from '@/lib/test-questions'
-import type { JsonPatchOperation, TestQuestionType } from '@/types'
+import type { AssessmentDraftValidationResult } from '@/lib/validations/assessment-drafts'
+import type {
+  AssessmentDraftContent,
+  AssessmentDraftType,
+  JsonPatchOperation,
+  TestDraftContent,
+} from '@/types'
 
 type SupabaseLike = any
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-
-export type AssessmentDraftType = 'quiz' | 'test'
-
-export type AssessmentDraftQuestion = {
-  id: string
-  question_text: string
-  options: string[]
-}
-
-export type QuizDraftQuestion = AssessmentDraftQuestion
-
-export type TestDraftQuestion = {
-  id: string
-  question_type: TestQuestionType
-  question_text: string
-  options: string[]
-  correct_option: number | null
-  answer_key: string | null
-  sample_solution: string | null
-  points: number
-  response_max_chars: number
-  response_monospace: boolean
-}
-
-export type AssessmentDraftContent = {
-  title: string
-  show_results: boolean
-  questions: AssessmentDraftQuestion[]
-  source_format?: 'markdown'
-  source_markdown?: string
-}
-
-export type QuizDraftContent = AssessmentDraftContent
-
-export type TestDraftContent = {
-  title: string
-  show_results: boolean
-  questions: TestDraftQuestion[]
-  source_format?: 'markdown'
-  source_markdown?: string
-}
 
 export type AssessmentDraftRow<TContent> = {
   id: string
@@ -62,25 +22,6 @@ export type AssessmentDraftRow<TContent> = {
   updated_at: string
 }
 
-type ValidationResult<TContent> =
-  | { valid: true; value: TContent }
-  | { valid: false; error: string }
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function parseUuid(value: unknown): string | null {
-  if (typeof value !== 'string') return null
-  return UUID_RE.test(value) ? value : null
-}
-
-function parseTitle(value: unknown): string | null {
-  if (typeof value !== 'string') return null
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : null
-}
-
 function parseStringArray(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null
 
@@ -93,27 +34,6 @@ function parseStringArray(value: unknown): string[] | null {
   }
 
   return next
-}
-
-function parseBoolean(value: unknown): boolean | null {
-  return typeof value === 'boolean' ? value : null
-}
-
-function parseOptionalMarkdown(value: unknown): string | undefined {
-  if (value === undefined || value === null) return undefined
-  if (typeof value !== 'string') return undefined
-  return value.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-}
-
-function ensureUniqueQuestionIds<TQuestion extends { id: string }>(questions: TQuestion[]): string | null {
-  const ids = new Set<string>()
-  for (const question of questions) {
-    if (ids.has(question.id)) {
-      return `Duplicate question id: ${question.id}`
-    }
-    ids.add(question.id)
-  }
-  return null
 }
 
 // TODO(cleanup-045): Remove this function and all callsites once migration 045
@@ -136,147 +56,10 @@ export function isMissingAssessmentDraftsError(error: {
   return error.code === 'PGRST205' || error.code === '42P01' || combined.includes('table')
 }
 
-export function validateAssessmentDraftContent(
-  input: unknown
-): ValidationResult<AssessmentDraftContent> {
-  if (!isRecord(input)) return { valid: false, error: 'Invalid draft content' }
-
-  const title = parseTitle(input.title)
-  if (!title) return { valid: false, error: 'Title is required' }
-
-  const showResults = parseBoolean(input.show_results)
-  if (showResults === null) {
-    return { valid: false, error: 'show_results must be a boolean' }
-  }
-
-  if (!Array.isArray(input.questions)) {
-    return { valid: false, error: 'questions must be an array' }
-  }
-
-  const questions: AssessmentDraftQuestion[] = []
-
-  for (let index = 0; index < input.questions.length; index += 1) {
-    const rawQuestion = input.questions[index]
-    if (!isRecord(rawQuestion)) {
-      return { valid: false, error: `Q${index + 1}: Invalid question` }
-    }
-
-    const id = parseUuid(rawQuestion.id)
-    if (!id) {
-      return { valid: false, error: `Q${index + 1}: Invalid question id` }
-    }
-
-    const questionText = parseTitle(rawQuestion.question_text)
-    if (!questionText) {
-      return { valid: false, error: `Q${index + 1}: Question text is required` }
-    }
-
-    const options = parseStringArray(rawQuestion.options)
-    if (!options) {
-      return { valid: false, error: `Q${index + 1}: Options must be non-empty strings` }
-    }
-
-    const optionsValidation = validateAssessmentOptions(options)
-    if (!optionsValidation.valid) {
-      return { valid: false, error: `Q${index + 1}: ${optionsValidation.error}` }
-    }
-
-    questions.push({
-      id,
-      question_text: questionText,
-      options,
-    })
-  }
-
-  const duplicateError = ensureUniqueQuestionIds(questions)
-  if (duplicateError) {
-    return { valid: false, error: duplicateError }
-  }
-
-  return {
-    valid: true,
-    value: {
-      title,
-      show_results: showResults,
-      questions,
-      ...(input.source_format === 'markdown' ? { source_format: 'markdown' as const } : {}),
-      ...(parseOptionalMarkdown(input.source_markdown) !== undefined
-        ? { source_markdown: parseOptionalMarkdown(input.source_markdown) }
-        : {}),
-    },
-  }
-}
-
-export const validateQuizDraftContent = validateAssessmentDraftContent
-
-export function validateTestDraftContent(
-  input: unknown,
-  options?: { allowEmptyQuestionText?: boolean }
-): ValidationResult<TestDraftContent> {
-  if (!isRecord(input)) return { valid: false, error: 'Invalid draft content' }
-
-  const title = parseTitle(input.title)
-  if (!title) return { valid: false, error: 'Title is required' }
-
-  const showResults = parseBoolean(input.show_results)
-  if (showResults === null) {
-    return { valid: false, error: 'show_results must be a boolean' }
-  }
-
-  if (!Array.isArray(input.questions)) {
-    return { valid: false, error: 'questions must be an array' }
-  }
-
-  const questions: TestDraftQuestion[] = []
-
-  for (let index = 0; index < input.questions.length; index += 1) {
-    const rawQuestion = input.questions[index]
-    if (!isRecord(rawQuestion)) {
-      return { valid: false, error: `Q${index + 1}: Invalid question` }
-    }
-
-    const id = parseUuid(rawQuestion.id)
-    if (!id) {
-      return { valid: false, error: `Q${index + 1}: Invalid question id` }
-    }
-
-    const validation = validateTestQuestionCreate(rawQuestion, {
-      allowEmptyQuestionText: options?.allowEmptyQuestionText === true,
-    })
-
-    if (!validation.valid) {
-      return { valid: false, error: `Q${index + 1}: ${validation.error}` }
-    }
-
-    questions.push({
-      id,
-      ...validation.value,
-    })
-  }
-
-  const duplicateError = ensureUniqueQuestionIds(questions)
-  if (duplicateError) {
-    return { valid: false, error: duplicateError }
-  }
-
-  return {
-    valid: true,
-    value: {
-      title,
-      show_results: showResults,
-      questions,
-      ...(input.source_format === 'markdown' ? { source_format: 'markdown' as const } : {}),
-      ...(parseOptionalMarkdown(input.source_markdown) !== undefined
-        ? { source_markdown: parseOptionalMarkdown(input.source_markdown) }
-        : {}),
-    },
-  }
-}
-
 export function buildNextDraftContent<TContent extends object>(
   currentContent: TContent,
   payload: { patch?: JsonPatchOperation[]; content?: unknown },
-  validate: (input: unknown) => ValidationResult<TContent>
+  validate: (input: unknown) => AssessmentDraftValidationResult<TContent>
 ): { ok: true; content: TContent } | { ok: false; status: number; error: string } {
   let candidateContent: unknown
 
@@ -316,8 +99,6 @@ export function buildAssessmentDraftContentFromRows(
     }),
   }
 }
-
-export const buildQuizDraftContentFromRows = buildAssessmentDraftContentFromRows
 
 type TestQuestionRow = {
   id: string
@@ -489,8 +270,6 @@ export async function syncAssessmentQuestionsFromDraft(
   })
 }
 
-export const syncQuizQuestionsFromDraft = syncAssessmentQuestionsFromDraft
-
 export async function syncTestQuestionsFromDraft(
   supabase: SupabaseLike,
   testId: string,
@@ -623,7 +402,10 @@ export type EnsureDraftConfig<TContent> = {
   /** Columns to select from the questions table */
   questionsSelect: string
   /** Validate draft content; extra options forwarded as `opts` */
-  validateContent: (input: unknown, opts?: { allowEmptyQuestionText?: boolean }) => ValidationResult<TContent>
+  validateContent: (
+    input: unknown,
+    opts?: { allowEmptyQuestionText?: boolean },
+  ) => AssessmentDraftValidationResult<TContent>
   validateOptions?: { allowEmptyQuestionText?: boolean }
   /** Build a fresh draft from the assessment + questions rows */
   buildFromRows: (
@@ -717,27 +499,4 @@ export async function ensureAssessmentDraft<TContent>(
   }
 
   return { ok: true, draft: createdDraft }
-}
-
-/**
- * Sync title and show_results from a saved draft back to the parent assessment table.
- * Used after PATCH in assessment draft routes.
- */
-export async function syncAssessmentMetadataFromDraft(
-  supabase: SupabaseLike,
-  parentTable: string,
-  id: string,
-  content: { title: string; show_results: boolean }
-): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
-  const { error } = await supabase
-    .from(parentTable)
-    .update({ title: content.title, show_results: content.show_results })
-    .eq('id', id)
-
-  if (error) {
-    console.error(`Error syncing ${parentTable} metadata from draft:`, error)
-    return { ok: false, status: 500, error: 'Failed to sync assessment metadata' }
-  }
-
-  return { ok: true }
 }

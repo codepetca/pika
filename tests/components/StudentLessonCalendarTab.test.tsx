@@ -24,6 +24,9 @@ vi.mock('@/components/LessonCalendar', () => ({
       data-lesson-count={lessonPlans.length}
       data-assignment-count={assignments.length}
       data-announcement-count={announcements.length}
+      data-lesson-ids={lessonPlans.map((lesson: { id: string }) => lesson.id).join(',')}
+      data-assignment-ids={assignments.map((assignment: { id: string }) => assignment.id).join(',')}
+      data-announcement-ids={announcements.map((announcement: { id: string }) => announcement.id).join(',')}
     />
   ),
   CalendarViewMode: {},
@@ -34,12 +37,20 @@ describe('StudentLessonCalendarTab', () => {
     start_date: '2025-01-01',
     end_date: '2025-06-30',
   })
+  const secondClassroom = createMockClassroom({
+    id: 'classroom-2',
+    start_date: '2025-01-01',
+    end_date: '2025-06-30',
+  })
   let fetchMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     invalidateCachedJSON(`student-lesson-plans:${classroom.id}:2025-01-01:2025-06-30`)
     invalidateCachedJSON(`student-assignments:${classroom.id}`)
     invalidateCachedJSON(`student-announcements:${classroom.id}`)
+    invalidateCachedJSON(`student-lesson-plans:${secondClassroom.id}:2025-01-01:2025-06-30`)
+    invalidateCachedJSON(`student-assignments:${secondClassroom.id}`)
+    invalidateCachedJSON(`student-announcements:${secondClassroom.id}`)
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
   })
@@ -48,6 +59,9 @@ describe('StudentLessonCalendarTab', () => {
     invalidateCachedJSON(`student-lesson-plans:${classroom.id}:2025-01-01:2025-06-30`)
     invalidateCachedJSON(`student-assignments:${classroom.id}`)
     invalidateCachedJSON(`student-announcements:${classroom.id}`)
+    invalidateCachedJSON(`student-lesson-plans:${secondClassroom.id}:2025-01-01:2025-06-30`)
+    invalidateCachedJSON(`student-assignments:${secondClassroom.id}`)
+    invalidateCachedJSON(`student-announcements:${secondClassroom.id}`)
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -174,5 +188,71 @@ describe('StudentLessonCalendarTab', () => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-count', '1')
     })
     expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('ignores late calendar responses after switching classrooms', async () => {
+    type PendingFetch = {
+      url: string
+      resolve: (value: { ok: boolean; json: () => Promise<Record<string, unknown>> }) => void
+    }
+    const pending: PendingFetch[] = []
+
+    fetchMock.mockImplementation((url: string) => (
+      new Promise((resolve) => {
+        pending.push({ url, resolve: resolve as PendingFetch['resolve'] })
+      })
+    ))
+
+    function payloadFor(url: string, classroomId: string) {
+      if (url.includes('lesson-plans')) {
+        return { lesson_plans: [{ id: `${classroomId}-lesson` }], max_date: '2025-06-30' }
+      }
+      if (url.includes('assignments')) {
+        return { assignments: [{ id: `${classroomId}-assignment` }] }
+      }
+      if (url.includes('announcements')) {
+        return { announcements: [{ id: `${classroomId}-announcement` }] }
+      }
+      return {}
+    }
+
+    async function resolveClassroom(classroomId: string) {
+      await act(async () => {
+        pending
+          .filter((request) => request.url.includes(classroomId))
+          .forEach((request) => {
+            request.resolve({
+              ok: true,
+              json: async () => payloadFor(request.url, classroomId),
+            })
+          })
+        await Promise.resolve()
+      })
+    }
+
+    const view = render(<StudentLessonCalendarTab classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+    })
+
+    view.rerender(<StudentLessonCalendarTab classroom={secondClassroom} />)
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(6)
+    })
+
+    await resolveClassroom(classroom.id)
+
+    expect(screen.queryByTestId('lesson-calendar')).not.toBeInTheDocument()
+
+    await resolveClassroom(secondClassroom.id)
+
+    await waitFor(() => {
+      const calendar = screen.getByTestId('lesson-calendar')
+      expect(calendar).toHaveAttribute('data-lesson-ids', 'classroom-2-lesson')
+      expect(calendar).toHaveAttribute('data-assignment-ids', 'classroom-2-assignment')
+      expect(calendar).toHaveAttribute('data-announcement-ids', 'classroom-2-announcement')
+    })
   })
 })

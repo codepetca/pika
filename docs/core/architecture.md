@@ -65,9 +65,9 @@ src/
 │   ├── server/
 │   │   ├── assessment-drafts.ts   # Legacy quiz + current test draft system (JSON Patch)
 │   │   └── tests.ts               # Test query helpers
-│   ├── assignments.ts, quizzes.ts, test-responses.ts, scheduling.ts …
+│   ├── assignments.ts, assessments.ts, test-responses.ts, scheduling.ts …
 │   └── auth.ts, crypto.ts, timezone.ts, attendance.ts …
-├── types/                         # Shared TypeScript types (src/types/index.ts)
+├── types/                         # Domain types plus generated/custom database contracts
 └── ui/                            # Design-system primitives (import from @/ui NOT @/components)
     ├── Button, Input, FormField, Select, AlertDialog, ConfirmDialog, Card, Tooltip, SplitButton
 
@@ -81,6 +81,27 @@ tests/                             # Vitest unit + API suites
 ---
 
 ## Key Patterns
+
+### Supabase Database Contracts
+- `src/types/database.generated.ts` is generated from the public schema and must not be edited manually.
+- `src/types/database.ts` composes the generated schema with application-owned JSON, status, and RPC result contracts that PostgreSQL metadata cannot express precisely.
+- Both central clients in `src/lib/supabase.ts` use the composed `Database` type. New server data access should flow through those factories.
+- Use `TableRow`, `TableInsert`, and `TableUpdate` from `@/types/database` for persisted payloads instead of generic records or local copies of table shapes.
+- After changing a migration, start the local Supabase stack through the documented human workflow and run `pnpm run db:types:generate`. CI replays migrations in an ephemeral database and runs `pnpm run db:types:check` to reject drift.
+
+### Enforced Module Boundaries
+- Run `pnpm check:architecture` before committing changes that move code across layers.
+- `src/lib/` cannot depend on presentation or App Router modules (`src/ui`, `src/components`,
+  `src/hooks`, or `src/app`).
+- `src/ui/` cannot depend on feature presentation, App Router, or server-only modules.
+- API routes cannot depend on presentation modules, and components/hooks cannot directly depend
+  on API routes or `src/lib/server/`.
+- Runtime code in `src/types/` may only depend on other type modules. Type-only imports remain
+  allowed so contracts can reference domain types without creating a runtime edge.
+- Modules reachable from a `'use client'` entry cannot reach `src/lib/server/`, API routes,
+  Supabase runtime clients, Next.js server APIs, `server-only`, or Node built-ins.
+- `scripts/architecture-baseline.json` records known client/server debt. It is deletion-only: CI
+  fails for new violations and for stale entries after debt is removed.
 
 ### UI/Theming (Required)
 - **All UI must use semantic design tokens** — NOT raw color or `dark:` classes in app code.
@@ -172,7 +193,8 @@ Before changing remaining `quiz` / `quizzes` names, load
 [`docs/guidance/legacy-quiz-contract-cleanup.md`](../guidance/legacy-quiz-contract-cleanup.md).
 
 - **Test status**: `getStudentTestStatus()` from `@/lib/tests` — uses `returned_at` field
-- **Draft editing**: unified `assessment_drafts` table + JSON Patch via `@/lib/server/assessment-drafts`
+- **Draft validation**: browser-safe draft contracts live in `@/lib/validations/assessment-drafts`
+- **Draft persistence**: unified `assessment_drafts` table + JSON Patch via `@/lib/server/assessment-drafts`
 - **Scheduling**: `combineScheduleDateTimeToIso()` / `isScheduleIsoInFuture()` from `@/lib/scheduling`
 - **AI grading** (tests only): `src/lib/ai-test-grading.ts` — reference answer SHA-256 cached per question
 
@@ -204,13 +226,18 @@ if (isMissingAssessmentDraftsError(error)) { /* graceful fallback */ }
 Search for `TODO(cleanup-0XX)` comments to find shims scheduled for removal.
 
 ### Request Validation (Zod)
-Use Zod schemas from `@/lib/validations/` for request body/query validation:
+Treat request bodies, route params, and query values as untrusted. Parse them once at the route boundary with a named, feature-owned Zod schema from `@/lib/validations/`, then pass only the parsed value into server/application code:
 
 ```ts
-import { z } from 'zod'
-const schema = z.object({ email: z.string().email(), password: z.string().min(8) })
-const body = schema.parse(await request.json())  // throws ZodError on invalid
+import { updateCourseBlueprintSchema } from '@/lib/validations/course-blueprints'
+
+const body = updateCourseBlueprintSchema.parse(await request.json())
+const result = await updateCourseBlueprint(user.id, blueprintId, body)
 ```
+
+Do not cast `request.json()` to a trusted type or repeat field-by-field validation in a route. `withErrorHandler` converts a thrown `ZodError` into a `400` response. Shared primitives may live in narrowly scoped validation modules, but feature contracts should not accumulate in broad role-based files.
+
+The architecture test prevents new body-reading routes without `*Schema.parse(...)` or `*Schema.safeParse(...)`. Its baseline records existing migration debt and must only shrink as routes are converted. See [`docs/guidance/api-boundary-validation.md`](../guidance/api-boundary-validation.md) for contract ownership, non-JSON boundaries, and baseline maintenance.
 
 ### Email-Based Role Detection (YRDSB-Specific)
 Role detection in `isTeacherEmail()` (`src/lib/auth.ts`) uses a **YRDSB-specific heuristic**:

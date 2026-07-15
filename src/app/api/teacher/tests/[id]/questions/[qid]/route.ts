@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { validateTestQuestionUpdate } from '@/lib/test-questions'
-import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { assertTeacherOwnsTest, isLockedTestQuestionMutationError } from '@/lib/server/tests'
 import { withErrorHandler } from '@/lib/api-handler'
 
 export const dynamic = 'force-dynamic'
@@ -88,6 +88,12 @@ export const PATCH = withErrorHandler('UpdateTeacherTestQuestion', async (reques
     .single()
 
   if (error) {
+    if (isLockedTestQuestionMutationError(error)) {
+      return NextResponse.json(
+        { error: 'Test questions cannot be changed after student work exists' },
+        { status: 409 },
+      )
+    }
     console.error('Error updating test question:', error)
     return NextResponse.json({ error: 'Failed to update question' }, { status: 500 })
   }
@@ -123,6 +129,12 @@ export const DELETE = withErrorHandler('DeleteTeacherTestQuestion', async (reque
     .eq('id', questionId)
 
   if (error) {
+    if (isLockedTestQuestionMutationError(error)) {
+      return NextResponse.json(
+        { error: 'Test questions cannot be changed after student work exists' },
+        { status: 409 },
+      )
+    }
     console.error('Error deleting test question:', error)
     return NextResponse.json({ error: 'Failed to delete question' }, { status: 500 })
   }

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useGradebookData } from '@/hooks/useGradebookData'
-import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
+import { fetchCachedJSON, invalidateCachedJSONMatching } from '@/lib/request-cache'
 import type {
   GradebookClassSummary,
   GradebookStudentDetail,
@@ -9,7 +9,7 @@ import type {
 } from '@/types'
 
 vi.mock('@/lib/request-cache', () => ({
-  fetchJSONWithCache: vi.fn(),
+  fetchCachedJSON: vi.fn(),
   invalidateCachedJSONMatching: vi.fn(),
 }))
 
@@ -72,7 +72,7 @@ describe('useGradebookData', () => {
       tests: [],
     }
 
-    const cacheFetchMock = vi.mocked(fetchJSONWithCache)
+    const cacheFetchMock = vi.mocked(fetchCachedJSON)
     cacheFetchMock
       .mockResolvedValueOnce({ selected_student: firstDetail })
       .mockResolvedValueOnce({ selected_student: secondDetail })

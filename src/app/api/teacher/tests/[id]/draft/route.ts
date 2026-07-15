@@ -6,15 +6,12 @@ import { validateTestDocumentsPayload } from '@/lib/test-documents'
 import {
   buildNextDraftContent,
   buildTestDraftContentFromRows,
-  createAssessmentDraft,
-  getAssessmentDraftByType,
-  isMissingAssessmentDraftsError,
+  ensureAssessmentDraft,
   updateAssessmentDraft,
-  validateTestDraftContent,
-  type AssessmentDraftRow,
-  type TestDraftContent,
 } from '@/lib/server/assessment-drafts'
+import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import { withErrorHandler } from '@/lib/api-handler'
+import type { TestDraftContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -30,86 +27,6 @@ const TEST_DRAFT_CONFIG = {
   buildFromRows: buildTestDraftContentFromRows,
 }
 
-async function ensureTestDraft(
-  supabase: any,
-  test: { id: string; classroom_id: string; title: string; show_results: boolean },
-  userId: string
-): Promise<
-  | { ok: true; draft: AssessmentDraftRow<TestDraftContent> }
-  | { ok: false; status: number; error: string }
-> {
-  const { draft, error } = await getAssessmentDraftByType<TestDraftContent>(
-    supabase,
-    'test',
-    test.id
-  )
-
-  if (isMissingAssessmentDraftsError(error)) {
-    return {
-      ok: false,
-      status: 400,
-      error: 'Assessment drafts require migration 045 to be applied',
-    }
-  }
-
-  if (error) {
-    console.error('Error fetching test draft:', error)
-    return { ok: false, status: 500, error: 'Failed to fetch draft' }
-  }
-
-  if (draft) {
-    const valid = validateTestDraftContent(draft.content, {
-      allowEmptyQuestionText: true,
-    })
-    if (valid.valid) {
-      return { ok: true, draft: { ...draft, content: valid.value } }
-    }
-  }
-
-  const { data: questions, error: questionsError } = await supabase
-    .from('test_questions')
-    .select(TEST_DRAFT_CONFIG.questionsSelect)
-    .eq('test_id', test.id)
-    .order('position', { ascending: true })
-
-  if (questionsError) {
-    console.error('Error building baseline test draft:', questionsError)
-    return { ok: false, status: 500, error: 'Failed to build draft' }
-  }
-
-  const content = buildTestDraftContentFromRows(test, questions || [])
-
-  if (draft) {
-    const { draft: updatedDraft, error: updateError } = await updateAssessmentDraft(
-      supabase,
-      draft.id,
-      draft.version + 1,
-      userId,
-      content
-    )
-    if (updateError || !updatedDraft) {
-      return { ok: false, status: 500, error: 'Failed to reset invalid draft' }
-    }
-    return { ok: true, draft: updatedDraft }
-  }
-
-  const { draft: createdDraft, error: createError } = await createAssessmentDraft<TestDraftContent>(
-    supabase,
-    {
-      assessmentType: 'test',
-      assessmentId: test.id,
-      classroomId: test.classroom_id,
-      userId,
-      content,
-    }
-  )
-  if (createError || !createdDraft) {
-    console.error('Error creating test draft:', createError)
-    return { ok: false, status: 500, error: 'Failed to create draft' }
-  }
-  return { ok: true, draft: createdDraft }
-}
-
 export const GET = withErrorHandler('GetTestDraft', async (request, context) => {
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
@@ -120,7 +37,11 @@ export const GET = withErrorHandler('GetTestDraft', async (request, context) => 
   }
 
   const supabase = getServiceRoleClient()
-  const ensured = await ensureTestDraft(supabase, access.test, user.id)
+  const ensured = await ensureAssessmentDraft<TestDraftContent>(supabase, {
+    ...TEST_DRAFT_CONFIG,
+    assessment: access.test,
+    userId: user.id,
+  })
   if (!ensured.ok) {
     return NextResponse.json({ error: ensured.error }, { status: ensured.status })
   }
@@ -161,7 +82,11 @@ export const PATCH = withErrorHandler('PatchTestDraft', async (request, context)
   }
 
   const supabase = getServiceRoleClient()
-  const ensured = await ensureTestDraft(supabase, access.test, user.id)
+  const ensured = await ensureAssessmentDraft<TestDraftContent>(supabase, {
+    ...TEST_DRAFT_CONFIG,
+    assessment: access.test,
+    userId: user.id,
+  })
   if (!ensured.ok) {
     return NextResponse.json({ error: ensured.error }, { status: ensured.status })
   }

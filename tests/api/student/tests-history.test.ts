@@ -225,6 +225,57 @@ describe('GET /api/student/tests/[id]/history', () => {
     expect(data.error).toBe('student_id is required')
   })
 
+  it('blocks teacher history reads for tests they do not own', async () => {
+    const { requireAuth } = await import('@/lib/auth')
+    ;(requireAuth as any).mockResolvedValueOnce({
+      id: 'teacher-2',
+      email: 'teacher2@example.com',
+      role: 'teacher',
+    })
+    vi.mocked(serverTests.assertTeacherOwnsTest).mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      error: 'Forbidden',
+    } as any)
+    ;(mockSupabaseClient.from as any) = vi.fn()
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/student/tests/test-1/history?student_id=student-1'),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(data.error).toBe('Forbidden')
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it('blocks teacher history reads for students outside the test classroom', async () => {
+    const { requireAuth } = await import('@/lib/auth')
+    ;(requireAuth as any).mockResolvedValueOnce({
+      id: 'teacher-1',
+      email: 'teacher@example.com',
+      role: 'teacher',
+    })
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classroom_enrollments') {
+        return mockSingle({ data: null, error: null })
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/student/tests/test-1/history?student_id=student-2'),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(403)
+    expect(data.error).toBe('Not enrolled in this classroom')
+    expect(mockSupabaseClient.from).toHaveBeenCalledTimes(1)
+    expect(mockSupabaseClient.from).toHaveBeenCalledWith('classroom_enrollments')
+  })
+
   it('keeps teacher-owned history access independent from student availability state', async () => {
     const { requireAuth } = await import('@/lib/auth')
     ;(requireAuth as any).mockResolvedValueOnce({

@@ -39,6 +39,9 @@
   --color-text-muted: #6b7280;
   --color-text-inverse: #ffffff;
 
+  /* Brand assets */
+  --pika-logo-filter: none;
+
   /* Primary accent */
   --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;
@@ -100,6 +103,9 @@
   --color-text-default: #f3f4f6;
   --color-text-muted: #9ca3af;
   --color-text-inverse: #ffffff;
+
+  /* Brand assets - dark mode */
+  --pika-logo-filter: brightness(0) hue-rotate(15deg) invert(1) saturate(0.3) sepia(1);
 
   /* Primary accent - dark mode */
   --color-primary: #3b82f6;
@@ -166,4 +172,8 @@
 
 .classroom-theme-option-selected {
   border-left-color: var(--classroom-accent) !important;
+}
+
+.pika-logo {
+  filter: var(--pika-logo-filter);
 }

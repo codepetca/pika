@@ -26,7 +26,7 @@ Your Brevo template should include these variables:
 
 Configure these in Vercel Dashboard → Settings → Environment Variables:
 
-### For Staging (Preview environment):
+### For Preview deployments:
 
 ```bash
 # Disable mock email mode
@@ -128,7 +128,7 @@ Monitor email delivery:
 - [ ] Brevo template created with `{{ params.code }}`, `{{ params.expires }}`
 - [ ] Sender email verified in Brevo
 - [ ] Environment variables set in Vercel
-- [ ] `ENABLE_MOCK_EMAIL=false` for staging/production
+- [ ] `ENABLE_MOCK_EMAIL=false` for preview/production
 - [ ] Test email received successfully
 - [ ] Verification code works in app
 

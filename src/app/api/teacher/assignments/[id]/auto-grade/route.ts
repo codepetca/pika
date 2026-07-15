@@ -14,6 +14,10 @@ import { isGradexAssignmentGradingEnabled } from '@/lib/server/gradex-assignment
 import { loadAssignmentSubmissionArtifactsForDoc } from '@/lib/server/assignment-submission-artifacts'
 import { validateClassroomStudentIds } from '@/lib/server/classroom-enrollment-validation'
 import { assertTeacherCanMutateAssignment } from '@/lib/server/repo-review'
+import {
+  assignmentIdSchema,
+  assignmentStudentIdsRequestSchema,
+} from '@/lib/validations/assignment-identifiers'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -21,20 +25,10 @@ export const revalidate = 0
 // POST /api/teacher/assignments/[id]/auto-grade - AI grade selected students
 export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (request, context) => {
   const user = await requireRole('teacher')
-  const { id } = await context.params
-  const body = await request.json()
-  const student_ids = Array.isArray(body?.student_ids)
-    ? body.student_ids.filter((studentId: unknown): studentId is string => typeof studentId === 'string')
-    : []
-  const normalizedStudentIds: string[] = Array.from(new Set(student_ids))
-
-  if (normalizedStudentIds.length === 0) {
-    return NextResponse.json({ error: 'student_ids array is required' }, { status: 400 })
-  }
-
-  if (normalizedStudentIds.length > 100) {
-    return NextResponse.json({ error: 'Cannot auto-grade more than 100 students at once' }, { status: 400 })
-  }
+  const id = assignmentIdSchema.parse((await context.params).id)
+  const { studentIds: normalizedStudentIds } = assignmentStudentIdsRequestSchema.parse(
+    await request.json(),
+  )
 
   const assignment = await assertTeacherCanMutateAssignment(user.id, id)
   const supabase = getServiceRoleClient()
@@ -86,7 +80,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
   const studentId = normalizedStudentIds[0]
   const { data: doc, error: docError } = await supabase
     .from('assignment_docs')
-    .select('id, student_id, content, feedback, authenticity_score')
+    .select('id, student_id, content, feedback, authenticity_score, updated_at')
     .eq('assignment_id', id)
     .eq('student_id', studentId)
     .maybeSingle()
@@ -101,7 +95,9 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
       supabase,
       assignmentId: id,
       studentId,
+      teacherId: user.id,
       gradedBy: user.id,
+      expectedDocUpdatedAt: null,
     })
     return NextResponse.json({
       graded_count: 1,
@@ -119,7 +115,9 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
       supabase,
       assignmentId: id,
       studentId,
+      teacherId: user.id,
       gradedBy: user.id,
+      expectedDocUpdatedAt: doc.updated_at,
     })
     return NextResponse.json({
       graded_count: 1,

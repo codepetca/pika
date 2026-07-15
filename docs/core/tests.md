@@ -116,6 +116,72 @@ Test password-based flows:
 - `/api/assignment-docs/[id]` → fetch/update only for owner student or classroom teacher
 - `/submit` and `/unsubmit` → submitted_at handling, status transitions, late/on-time logic
 
+### 4.5 Classroom Archives
+
+- Format tests prove canonical row ordering, deterministic tar+gzip output, strict manifests, and
+  checksum/read-back failure behavior.
+- Privacy tests reject actor credential fields and storage references outside the managed source
+  origin and allowlisted discovery paths.
+- API tests cover teacher auth boundaries, UUID idempotency keys, retention validation, and
+  migration/version fail-closed behavior.
+- Database-backed CI replays every migration, audits the 42-resource ownership graph and actual
+  primary keys, and proves revision triggers, atomic membership snapshots, idempotent replay,
+  stale-source rejection, private buckets, service-role-only RPCs, staging cleanup, and immutable
+  verified metadata.
+- Restore equality and cold-compaction database tests exercise a real hot-to-cold-to-hot round trip,
+  forced transactional rollback, idempotent replay, concurrency rejection, strict verification,
+  durable-but-ineligible cleanup staging, lease reclaim/backoff/completion, and service-role
+  isolation.
+- Production canary contract tests prove immutable plan digests, deterministic and distinct phase
+  operation UUIDs, exact hosted target/credential/acknowledgement binding, cleanup-gate rejection,
+  complete 42-resource evidence, exact aggregate-digest validation, hot and cold crash resumption,
+  journal-failure-tolerant cold recovery, ambiguous export/compaction/restore reconciliation,
+  same-operation restore retry, deterministic restored-path projection, and post-restore row,
+  revision, and source-object drift rejection. The operator runner additionally verifies actual tar
+  bytes, full manifest identity, retained archive bytes, complete operation evidence, pre/post database
+  size, no tombstone, no ownership reservations, and the exact untouched cleanup descriptor set.
+- Teacher recovery-list tests prove tombstone queries are teacher-scoped, response rows are
+  Zod-validated, missing migrations preserve the hot-archive response, unexpected failures fail
+  closed, tombstone changes around the hot query trigger a bounded stable-read retry, restore remains
+  disabled without all server gates, and the UI retains one idempotency key across request or refresh
+  retries until the restored state is confirmed.
+- Cold-compaction coordinator tests prove disabled-by-default teacher/archive canary gates, immutable
+  artifact and manifest verification, exact database-to-archive inventory equality, bounded and
+  idempotent cleanup staging, atomic-finalization ordering, completed replay, and fail-closed handling
+  when a completion response cannot prove its committed state. No route or schedule invokes it.
+- Source-object cleanup worker tests prove strict claim validation, full-byte checksum and size
+  verification before removal, ownership reservation before v2 claims, authoritative exact-key
+  absence afterward through a definitive download response or exact database presence check,
+  stale-lease rejection, durable retry evidence, independent claim containment, and privacy-safe
+  metrics.
+- Source-object cleanup trigger tests prove cron-secret authentication, independent worker/trigger
+  gates, an exact operation canary, one-claim bounds, GET/POST parity, exact status propagation, and
+  unhealthy batch signaling; they also lock out automatic Vercel scheduling during the manual-canary
+  stage. The PostgreSQL contract proves bounded SHA-256 path reservations, separate relational and
+  Storage write races, concurrent cleanup-staging serialization, stale pre-fence lease and delete
+  rejection, exact presence-RPC semantics, boolean-only evidence rejection, and revocation of the
+  unfenced claim RPC.
+- Ephemeral full-stack CI starts local Supabase REST and Storage, creates a synthetic archived
+  classroom with submitted work and a managed object, and invokes the real export, compaction,
+  source-cleanup, and restore coordinators. The rehearsal proves representative row equality,
+  fenced source deletion, restored object-byte equality, cold tombstone removal, immutable archive
+  retention, idempotent replay, fixture-row teardown, and clearing of the operation id from the
+  retained one-way path fence. Its guard rejects non-loopback targets and non-local service-role
+  credentials before any write.
+- Gradex runtime coordinator tests prove the internal feature gate, source archive identity/checksum
+  binding, HMAC-key-bound idempotency, private no-overwrite upload, complete read-back verification,
+  finalization ordering, deterministic retry reuse, and terminal-versus-retryable object cleanup.
+- Gradex trigger route tests prove teacher authentication, explicit UUID idempotency, strict 90-day
+  retention, separate teacher/archive canary gates, immutable archive ownership delegation, and
+  exact coordinator status propagation without invoking production generation.
+- Gradex cleanup coordinator tests prove bounded lease claims, canonical object-path binding,
+  authoritative post-delete absence checks, stale-lease rejection, durable retry evidence,
+  per-claim failure containment, and fail-closed RPC/storage contract handling.
+- Gradex cleanup trigger tests prove cron-secret authentication, an independent trigger gate,
+  one-claim canary bounds, GET/POST parity, exact worker status propagation, and unhealthy batch
+  signaling when durable retry evidence is incomplete; they also lock out automatic Vercel
+  scheduling during the manual-canary stage.
+
 ### 5. Integration & Smoke Tests
 
 **Location**: `tests/integration/` (or Playwright)
@@ -140,7 +206,7 @@ Focus on **critical user flows**:
 
 ### UI Snapshot Runs (Playwright)
 
-For visual review (spacing/aesthetics), we also support a **manual** Playwright snapshot run against staging:
+For visual review (spacing/aesthetics), we also support a **manual** Playwright snapshot run against a deployed environment (e.g. a Vercel preview deployment):
 - Spec: `e2e/ui-snapshots.spec.ts`
 - Output (local): `artifacts/ui-snapshots/` (screenshots) and `playwright-report/` (HTML report)
 - Gallery (web): `/__ui` (gated by `ENABLE_UI_GALLERY=true`)

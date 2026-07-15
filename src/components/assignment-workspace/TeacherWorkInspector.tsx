@@ -80,10 +80,12 @@ function ScoreInput({
   label,
   value,
   onChange,
+  disabled = false,
 }: {
   label: string
   value: string
   onChange: (value: string) => void
+  disabled?: boolean
 }) {
   const quickScores = Array.from({ length: 11 }, (_, index) => index)
   const numericValue = Number(value)
@@ -109,6 +111,7 @@ function ScoreInput({
               <button
                 type="button"
                 onClick={() => onChange(String(score))}
+                disabled={disabled}
                 className={[
                   'inline-flex h-6 w-[clamp(0.5rem,calc(100%/11),1.5rem)] flex-none items-center justify-center rounded border px-0 text-[10px] font-semibold leading-none transition-colors',
                   isActive
@@ -129,6 +132,7 @@ function ScoreInput({
           max={10}
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          disabled={disabled}
           className="min-w-0 border-0 bg-transparent px-2 text-center text-sm font-semibold text-text-default [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           aria-label={`${label} score`}
         />
@@ -364,11 +368,13 @@ function AutoGrowFeedbackTextarea({
   onChange,
   onFocus,
   hasFreshAIDraft,
+  disabled = false,
 }: {
   value: string
   onChange: (value: string) => void
   onFocus: () => void
   hasFreshAIDraft: boolean
+  disabled?: boolean
 }) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -382,6 +388,7 @@ function AutoGrowFeedbackTextarea({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       onFocus={onFocus}
+      disabled={disabled}
       className={[
         'min-h-[10rem] w-full overflow-hidden rounded border px-2 py-1 text-sm text-text-default',
         hasFreshAIDraft ? 'border-primary bg-info-bg' : 'border-border bg-surface',
@@ -443,6 +450,7 @@ export function TeacherWorkInspector({
   gradeError,
   feedbackReturning,
   gradeSaving,
+  mutationsDisabled = false,
   showDraftAutosavedNotice,
   highlightedSections = [],
   expandedSections,
@@ -480,6 +488,7 @@ export function TeacherWorkInspector({
   gradeError: string
   feedbackReturning: boolean
   gradeSaving: boolean
+  mutationsDisabled?: boolean
   showDraftAutosavedNotice: boolean
   highlightedSections?: readonly InspectorSectionId[]
   expandedSections: InspectorSectionId[]
@@ -490,6 +499,7 @@ export function TeacherWorkInspector({
   handleReturnFeedback: () => Promise<void>
   handleSetGradeMode: (mode: GradeSaveMode) => Promise<void>
 }) {
+  const gradeMutationsDisabled = gradeSaving || feedbackReturning || mutationsDisabled
   const gradeStatusLabel = gradeSaving
     ? `Saving ${gradeMode === 'graded' ? 'graded' : 'draft'}...`
     : data.doc?.graded_at
@@ -554,9 +564,9 @@ export function TeacherWorkInspector({
       summary: <GradeSummary totalPercent={totalPercent} />,
       content: (
         <div className="space-y-3">
-          <ScoreInput label="Completion" value={scoreCompletion} onChange={setScoreCompletion} />
-          <ScoreInput label="Thinking" value={scoreThinking} onChange={setScoreThinking} />
-          <ScoreInput label="Workflow" value={scoreWorkflow} onChange={setScoreWorkflow} />
+          <ScoreInput label="Completion" value={scoreCompletion} onChange={setScoreCompletion} disabled={gradeMutationsDisabled} />
+          <ScoreInput label="Thinking" value={scoreThinking} onChange={setScoreThinking} disabled={gradeMutationsDisabled} />
+          <ScoreInput label="Workflow" value={scoreWorkflow} onChange={setScoreWorkflow} disabled={gradeMutationsDisabled} />
           <div className="grid grid-cols-[4.75rem_minmax(0,1fr)_4.75rem] items-center gap-x-2">
             <div className="whitespace-nowrap text-[11px] font-medium text-text-muted">Total</div>
             <div />
@@ -572,8 +582,8 @@ export function TeacherWorkInspector({
               }}
               testId="grade-mode-toggle"
               options={[
-                { value: 'draft', label: 'Draft', disabled: gradeSaving },
-                { value: 'graded', label: 'Final', disabled: gradeSaving },
+                { value: 'draft', label: 'Draft', disabled: gradeMutationsDisabled },
+                { value: 'graded', label: 'Final', disabled: gradeMutationsDisabled },
               ]}
             />
           </div>
@@ -592,6 +602,7 @@ export function TeacherWorkInspector({
               onChange={setFeedbackDraft}
               onFocus={onAIDraftAcknowledge}
               hasFreshAIDraft={hasFreshAIDraft}
+              disabled={gradeMutationsDisabled}
             />
             {hasFreshAIDraft && (
               <div className="flex justify-start">
@@ -607,7 +618,7 @@ export function TeacherWorkInspector({
                 onClick={() => {
                   void handleReturnFeedback()
                 }}
-                disabled={feedbackReturning || !feedbackDraft.trim()}
+                disabled={gradeMutationsDisabled || !feedbackDraft.trim()}
               >
                 {feedbackReturning ? (
                   'Sending...'

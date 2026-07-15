@@ -1,9 +1,9 @@
-import { validateTestDraftContent, type TestDraftContent, type TestDraftQuestion } from '@/lib/server/assessment-drafts'
+import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import { DEFAULT_OPEN_RESPONSE_MAX_CHARS } from '@/lib/test-attempts'
 import { TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown-schema'
 import { defaultPointsForQuestionType } from '@/lib/test-questions'
 import { validateTestDocumentsPayload } from '@/lib/test-documents'
-import type { TestDocument, TestQuestionType } from '@/types'
+import type { TestDocument, TestDraftContent, TestDraftQuestion, TestQuestionType } from '@/types'
 
 export { TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown-schema'
 

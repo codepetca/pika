@@ -3,7 +3,7 @@
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { entryHasContent } from '@/lib/attendance'
-import { fetchJSONWithCache } from '@/lib/request-cache'
+import { fetchCachedJSON } from '@/lib/request-cache'
 import type { Entry } from '@/types'
 
 interface Props {
@@ -56,16 +56,10 @@ export function StudentLogHistory({
     })
     const cacheKey = `teacher-student-history:${classroomId}:${studentId}:latest:${HISTORY_LIMIT}`
 
-    fetchJSONWithCache<StudentHistoryResponse>(
+    fetchCachedJSON<StudentHistoryResponse>(
       cacheKey,
-      async () => {
-        const res = await fetch(`/api/teacher/student-history?${params}`)
-        if (!res.ok) {
-          throw new Error('Failed to load student history')
-        }
-        return res.json()
-      },
-      HISTORY_CACHE_TTL_MS
+      `/api/teacher/student-history?${params}`,
+      { errorMessage: 'Failed to load student history', ttlMs: HISTORY_CACHE_TTL_MS },
     )
       .then(data => {
         if (cancelled) return
@@ -98,16 +92,10 @@ export function StudentLogHistory({
     })
     const cacheKey = `teacher-student-history:${classroomId}:${studentId}:before:${oldestDate}:${HISTORY_LIMIT}`
 
-    fetchJSONWithCache<StudentHistoryResponse>(
+    fetchCachedJSON<StudentHistoryResponse>(
       cacheKey,
-      async () => {
-        const res = await fetch(`/api/teacher/student-history?${params}`)
-        if (!res.ok) {
-          throw new Error('Failed to load more history')
-        }
-        return res.json()
-      },
-      HISTORY_CACHE_TTL_MS
+      `/api/teacher/student-history?${params}`,
+      { errorMessage: 'Failed to load more history', ttlMs: HISTORY_CACHE_TTL_MS },
     )
       .then(data => {
         const fetched: Entry[] = data.entries || []

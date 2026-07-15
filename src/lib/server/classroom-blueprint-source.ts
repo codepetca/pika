@@ -1,17 +1,18 @@
+import { differenceInCalendarDays, isValid, parseISO } from 'date-fns'
+import { toZonedTime } from 'date-fns-tz'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { tiptapToMarkdown } from '@/lib/limited-markdown'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsClassroom, hydrateClassroomRecord } from '@/lib/server/classrooms'
-import type { TestDraftContent } from '@/lib/server/assessment-drafts'
 import type {
   Announcement,
+  AssignmentSubmissionRequirement,
   Classroom,
   ClassroomResources,
   TestDocument,
+  TestDraftContent,
 } from '@/types'
-
-type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 
 export type ClassroomBlueprintSource = {
   classroom: Classroom
@@ -20,6 +21,7 @@ export type ClassroomBlueprintSource = {
   assignments: Array<{
     title: string
     instructions_markdown: string
+    submission_requirements_json: AssignmentSubmissionRequirement[]
     default_due_days: number
     default_due_time: string
     points_possible: number | null
@@ -55,25 +57,21 @@ function getSupabase() {
   return getServiceRoleClient()
 }
 
-async function loadAssessmentDraftContent(
-  supabase: SupabaseClient,
-  assessmentType: 'test',
-  classroomId: string,
-  assessmentId: string
-) {
-  const { data, error } = await supabase
-    .from('assessment_drafts')
-    .select('content')
-    .eq('classroom_id', classroomId)
-    .eq('assessment_type', assessmentType)
-    .eq('assessment_id', assessmentId)
-    .maybeSingle()
+function getReusableAssignmentTiming(classroomStartDate: string | null, dueAt: string | null) {
+  if (!dueAt) return { default_due_days: 0, default_due_time: '23:59' }
 
-  if (error) {
-    throw new Error(`Failed to load ${assessmentType} draft content`)
+  const dueDate = parseISO(dueAt)
+  if (!isValid(dueDate)) return { default_due_days: 0, default_due_time: '23:59' }
+
+  const torontoDueDate = toZonedTime(dueDate, 'America/Toronto')
+  const defaultDueTime = `${String(torontoDueDate.getHours()).padStart(2, '0')}:${String(torontoDueDate.getMinutes()).padStart(2, '0')}`
+  if (!classroomStartDate) return { default_due_days: 0, default_due_time: defaultDueTime }
+
+  const startDate = parseISO(classroomStartDate)
+  return {
+    default_due_days: isValid(startDate) ? differenceInCalendarDays(torontoDueDate, startDate) : 0,
+    default_due_time: defaultDueTime,
   }
-
-  return (data?.content as Record<string, unknown> | null) ?? null
 }
 
 export async function loadClassroomBlueprintSource(
@@ -93,24 +91,39 @@ export async function loadClassroomBlueprintSource(
 
   const supabase = getSupabase()
   const lessonTemplateTitleMode = options.lessonTemplateTitleMode || 'dated'
+  const initialClassroomResult = await supabase
+    .from('classrooms')
+    .select('*')
+    .eq('id', classroomId)
+    .single()
+
+  if (initialClassroomResult.error || !initialClassroomResult.data) {
+    console.error('Error loading classroom blueprint source:', initialClassroomResult.error)
+    return { ok: false, status: 500, error: 'Failed to load classroom content' }
+  }
+
+  const initialSourceRevision = Number(
+    initialClassroomResult.data.blueprint_source_revision ?? 1,
+  )
   const [
-    classroomResult,
     resourcesResult,
     assignmentsResult,
     testsResult,
     lessonPlansResult,
     announcementsResult,
   ] = await Promise.all([
-    supabase.from('classrooms').select('*').eq('id', classroomId).single(),
     supabase.from('classroom_resources').select('*').eq('classroom_id', classroomId).maybeSingle(),
-    supabase.from('assignments').select('*').eq('classroom_id', classroomId).order('position', { ascending: true }),
-    supabase.from('tests').select('*').eq('classroom_id', classroomId).order('position', { ascending: true }),
-    supabase.from('lesson_plans').select('*').eq('classroom_id', classroomId).order('date', { ascending: true }),
-    supabase.from('announcements').select('*').eq('classroom_id', classroomId).order('created_at', { ascending: false }),
+    supabase.from('assignments').select('*').eq('classroom_id', classroomId)
+      .order('position', { ascending: true }).order('id', { ascending: true }),
+    supabase.from('tests').select('*').eq('classroom_id', classroomId)
+      .order('position', { ascending: true }).order('id', { ascending: true }),
+    supabase.from('lesson_plans').select('*').eq('classroom_id', classroomId)
+      .order('date', { ascending: true }).order('id', { ascending: true }),
+    supabase.from('announcements').select('*').eq('classroom_id', classroomId)
+      .order('created_at', { ascending: false }).order('id', { ascending: true }),
   ])
 
   if (
-    classroomResult.error ||
     assignmentsResult.error ||
     testsResult.error ||
     lessonPlansResult.error ||
@@ -119,8 +132,7 @@ export async function loadClassroomBlueprintSource(
   ) {
     console.error(
       'Error loading classroom blueprint source:',
-      classroomResult.error ||
-        assignmentsResult.error ||
+      assignmentsResult.error ||
         testsResult.error ||
         lessonPlansResult.error ||
         announcementsResult.error ||
@@ -129,39 +141,100 @@ export async function loadClassroomBlueprintSource(
     return { ok: false, status: 500, error: 'Failed to load classroom content' }
   }
 
-  const classroom = hydrateClassroomRecord(classroomResult.data as Record<string, any>)
+  const classroom = hydrateClassroomRecord(initialClassroomResult.data as Record<string, any>)
   const resources = (resourcesResult.data || null) as ClassroomResources | null
   const resourcesMarkdown = resources?.content ? tiptapToMarkdown(resources.content).markdown : ''
 
-  let testQuestions: Array<Record<string, any>>
+  const assignmentRows = (assignmentsResult.data || []) as Array<Record<string, any>>
+  const assignmentIds = assignmentRows.map((assignment) => String(assignment.id))
+  let assignmentRequirementRows: AssignmentSubmissionRequirement[] = []
+  if (assignmentIds.length > 0) {
+    const { data, error } = await supabase
+      .from('assignment_submission_requirements')
+      .select('*')
+      .in('assignment_id', assignmentIds)
+      .order('position', { ascending: true })
+      .order('id', { ascending: true })
 
-  try {
-    testQuestions = await Promise.all(
-      ((testsResult.data || []) as Array<Record<string, any>>).map(async (test) => {
-        const { data: questions, error } = await supabase
-          .from('test_questions')
-          .select('*')
-          .eq('test_id', test.id)
-          .order('position', { ascending: true })
+    if (error) {
+      console.error('Error loading classroom blueprint assignment requirements:', error)
+      return { ok: false, status: 500, error: 'Failed to load classroom content' }
+    }
+    assignmentRequirementRows = (data || []) as AssignmentSubmissionRequirement[]
+  }
 
-        if (error) {
-          throw new Error('Failed to load test questions')
-        }
+  const requirementsByAssignmentId = new Map<string, AssignmentSubmissionRequirement[]>()
+  for (const requirement of assignmentRequirementRows) {
+    const requirements = requirementsByAssignmentId.get(requirement.assignment_id) || []
+    requirements.push(requirement)
+    requirementsByAssignmentId.set(requirement.assignment_id, requirements)
+  }
 
-        const draftContent = await loadAssessmentDraftContent(supabase, 'test', classroomId, test.id)
-        return {
-          ...test,
-          content: draftContent ?? {
-            title: test.title,
-            show_results: !!test.show_results,
-            questions: questions || [],
-          },
-        }
-      })
-    )
-  } catch (error) {
-    console.error('Error loading classroom blueprint assessment content:', error)
-    return { ok: false, status: 500, error: 'Failed to load classroom content' }
+  const testRows = (testsResult.data || []) as Array<Record<string, any>>
+  const testIds = testRows.map((test) => String(test.id))
+  let questionRows: Array<Record<string, any>> = []
+  let draftRows: Array<Record<string, any>> = []
+
+  if (testIds.length > 0) {
+    const [questionsResult, draftsResult] = await Promise.all([
+      supabase
+        .from('test_questions')
+        .select('*')
+        .in('test_id', testIds)
+        .order('position', { ascending: true })
+        .order('id', { ascending: true }),
+      supabase
+        .from('assessment_drafts')
+        .select('assessment_id, content')
+        .eq('classroom_id', classroomId)
+        .eq('assessment_type', 'test')
+        .in('assessment_id', testIds),
+    ])
+
+    if (questionsResult.error || draftsResult.error) {
+      console.error(
+        'Error loading classroom blueprint assessment content:',
+        questionsResult.error || draftsResult.error
+      )
+      return { ok: false, status: 500, error: 'Failed to load classroom content' }
+    }
+
+    questionRows = (questionsResult.data || []) as Array<Record<string, any>>
+    draftRows = (draftsResult.data || []) as Array<Record<string, any>>
+  }
+
+  const questionsByTestId = new Map<string, Array<Record<string, any>>>()
+  for (const question of questionRows) {
+    const testId = String(question.test_id || '')
+    const questions = questionsByTestId.get(testId) || []
+    questions.push(question)
+    questionsByTestId.set(testId, questions)
+  }
+  const draftsByTestId = new Map<string, TestDraftContent>()
+  for (const draft of draftRows) {
+    draftsByTestId.set(String(draft.assessment_id), draft.content as TestDraftContent)
+  }
+  const tests: Array<Record<string, any> & { content: TestDraftContent }> = testRows.map((test) => ({
+    ...test,
+    content: draftsByTestId.get(String(test.id)) ?? {
+      title: test.title,
+      show_results: !!test.show_results,
+      questions: (questionsByTestId.get(String(test.id)) || []) as TestDraftContent['questions'],
+    },
+  }))
+
+  const finalRevisionResult = await supabase
+    .from('classrooms')
+    .select('blueprint_source_revision')
+    .eq('id', classroomId)
+    .single()
+  const finalSourceRevision = Number(finalRevisionResult.data?.blueprint_source_revision ?? 0)
+  if (finalRevisionResult.error || finalSourceRevision !== initialSourceRevision) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'Classroom content changed while preparing the blueprint; review and retry',
+    }
   }
 
   return {
@@ -170,21 +243,19 @@ export async function loadClassroomBlueprintSource(
       classroom,
       resources,
       resources_markdown: resourcesMarkdown,
-      assignments: ((assignmentsResult.data || []) as Array<Record<string, any>>).map((assignment) => ({
+      assignments: assignmentRows.map((assignment) => ({
         title: assignment.title,
         instructions_markdown: getAssignmentInstructionsMarkdown(assignment as any).markdown,
-        default_due_days: 0,
-        default_due_time: '23:59',
+        submission_requirements_json: requirementsByAssignmentId.get(String(assignment.id)) || [],
+        ...getReusableAssignmentTiming(classroom.start_date ?? null, assignment.due_at ?? null),
         points_possible: assignment.points_possible ?? null,
         gradebook_weight: assignment.gradebook_weight ?? null,
         include_in_final: assignment.include_in_final ?? true,
-        is_draft: !!assignment.is_draft,
+        is_draft: true,
         position: assignment.position ?? 0,
       })),
       quizzes: [],
-      tests: testQuestions
-        .filter((test) => test.status !== 'draft')
-        .map((test) => ({
+      tests: tests.map((test) => ({
           assessment_type: 'test' as const,
           title: test.title,
           content: test.content,

@@ -7,21 +7,90 @@ on:
     branches: [main, production]
 
 jobs:
+  architecture-database-contracts:
+    name: Architecture Database Contracts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.103.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.25.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start ephemeral Supabase and replay migrations
+        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
+
+      - name: Check generated database types
+        run: pnpm run db:types:check
+
+      - name: Verify atomic assignment feedback returns
+        run: bash scripts/check-atomic-assignment-feedback-returns.sh
+
+      - name: Verify atomic student test submission
+        run: bash scripts/check-atomic-test-submit.sh
+
+      - name: Verify atomic test grading
+        run: bash scripts/check-atomic-test-grading.sh
+
+      - name: Verify atomic blueprint rollback and replay
+        run: bash scripts/check-atomic-blueprint-operations.sh
+
+      - name: Verify archive operations and lifecycle evidence
+        run: bash scripts/check-classroom-archive-database.sh
+
+      - name: Verify atomic archive compaction rollback and cleanup staging
+        run: bash scripts/check-classroom-archive-compaction-database.sh
+
+      - name: Verify real compaction and resumable restore round trip
+        run: bash scripts/check-classroom-archive-restore-database.sh
+
+      - name: Verify Gradex extract operations and retention cleanup
+        run: bash scripts/check-classroom-gradex-database.sh
+
+      - name: Audit classroom ownership graph and primary keys
+        run: pnpm exec tsx scripts/check-classroom-resource-schema.ts
+        env:
+          CLASSROOM_SCHEMA_AUDIT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          CLASSROOM_SCHEMA_AUDIT_LOCAL: "true"
+
+      - name: Rehearse full classroom archive recovery on local Supabase
+        run: pnpm verify:classroom-archive-recovery
+
+      - name: Stop ephemeral database
+        if: always()
+        run: supabase stop --no-backup
+
   test-and-build:
     name: Test & Build
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '24'
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10.25.0
 
@@ -31,7 +100,7 @@ jobs:
           echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
       - name: Setup pnpm cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
@@ -40,6 +109,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Check architecture boundaries
+        run: pnpm run check:architecture
 
       - name: Run tests with coverage
         run: pnpm run test:coverage
@@ -62,7 +134,7 @@ jobs:
 
       - name: Upload coverage reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage/

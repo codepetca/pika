@@ -51,13 +51,14 @@ Package manager: pnpm (recommended via Corepack; `package.json#packageManager`)
    - `corepack enable`
    - `pnpm install`
 2. Set up `.env.local` using the shared-worktree flow in [`docs/dev-workflow.md`](../dev-workflow.md).
-   - Default: symlink the worktree’s `.env.local` to `$HOME/Repos/.env/pika/.env.local`
+   - Maintainer default: symlink the worktree’s `.env.local` to `$HOME/Repos/.env/pika/.env.local`
+   - Collaborator default: `cp .env.example .env.local`, then fill in the required values
    - Exception-only: use a branch-specific env file when intentionally isolating backend state
 3. Ensure pending migrations have been applied by a human before runtime work that depends on them.
    - AI agents may create or edit migration files, but must not run `supabase db push`, `supabase db reset`, or similar migration commands
 4. `pnpm dev` and open http://localhost:3000
 5. Optional: `pnpm seed`
-   - To wipe + reseed against a specific env file: `ENV_FILE=.env.staging.local ALLOW_DB_WIPE=true pnpm seed:fresh`
+   - To wipe + reseed against a specific env file: `ENV_FILE=.env.custom.local ALLOW_DB_WIPE=true pnpm seed:fresh`
 
 Email sending is mocked (`ENABLE_MOCK_EMAIL=true` logs codes). For production email setup, see [`docs/deployment/BREVO-SETUP.md`](../deployment/BREVO-SETUP.md).
 
@@ -75,6 +76,41 @@ pnpm run test:coverage
 pnpm run lint
 ```
 
+The classroom archive recovery rehearsal runs only against an already-started local Supabase stack:
+
+```bash
+pnpm verify:classroom-archive-recovery
+```
+
+The command derives its credentials from `supabase status`, requires the local Supabase demo
+service-role JWT and an exact destructive-operation acknowledgement, and rejects non-loopback URLs.
+It creates and removes only a uniquely identified synthetic fixture. It must never be pointed at a
+hosted or production project.
+
+The production archive inventory is read-only and requires an exact expected project ref:
+
+```bash
+pnpm verify:classroom-archive-inventory -- \
+  --expected-project-ref "$(cat supabase/.temp/project-ref)"
+```
+
+It validates deployed archive/Gradex contracts and exposed PostgREST relationships, then reports
+privacy-safe row and managed-object sizing for hot archived classrooms. The direct database catalog
+audit documented in `docs/guidance/classroom-lifecycle-archives.md` remains separately required. The
+inventory does not create an archive or modify database or Storage state.
+
+The named production round-trip runner has separate read-only preparation and explicitly
+acknowledged mutation/resume modes:
+
+```bash
+pnpm canary:classroom-archive-production -- prepare --plan "$HOME/.pika/archive-canary.json"
+pnpm canary:classroom-archive-production -- execute --plan "$HOME/.pika/archive-canary.json"
+pnpm canary:classroom-archive-production -- resume --plan "$HOME/.pika/archive-canary.json"
+```
+
+Use it only under the migration, catalog, deployment, headroom, named-target, immutable-plan, and
+cleanup-disabled procedure in `docs/guidance/classroom-lifecycle-archives.md`.
+
 ---
 
 ## Environment Variables (required)
@@ -89,6 +125,25 @@ pnpm run lint
 - `CRON_SECRET` (required for protected cron endpoints; Vercel sends `Authorization: Bearer <CRON_SECRET>`; cron schedules are configured in `vercel.json` or the Vercel dashboard; on the Hobby plan, schedules must run at most once per day)
 - `OPENAI_API_KEY` (optional; required for AI grading, nightly log summaries, and developer feedback extraction)
 - `OPENAI_SUMMARY_MODEL` / `OPENAI_DEVELOPER_FEEDBACK_MODEL` (optional model overrides)
+- `SUPABASE_ACCESS_TOKEN` (operator-only; required by the named production archive canary for
+  read-only pre/post database-size evidence)
+
+Classroom archive rollout controls are optional and disabled by default. Cold compaction requires
+`CLASSROOM_ARCHIVE_COMPACTION_ENABLED=true` plus exact UUID matches in both
+`CLASSROOM_ARCHIVE_COMPACTION_TEACHER_IDS` and `CLASSROOM_ARCHIVE_COMPACTION_ARCHIVE_IDS`. The
+coordinator is server-only and has no route or schedule; migration application and a named canary
+still require explicit human approval. The named round-trip canary keeps every source and Gradex
+cleanup gate disabled and immediately restores the classroom after cold compaction.
+
+Source-object deletion is separately disabled by default. Migration 096 transactionally fences
+`assignment-artifacts`; embedded-reference buckets remain ineligible. The manual route requires two
+independent gates plus one exact compaction operation UUID, and bounds both new reservations and
+claims to one object. It is not scheduled in `vercel.json`.
+
+Abandoned export/restore upload cleanup is independently disabled by default with
+`CLASSROOM_ARCHIVE_OBJECT_CLEANUP_ENABLED=false`. When enabled, the authenticated daily history cron
+first expires stale snapshots, then uses database leases to delete only objects authorized by
+terminal, non-retryable operations.
 
 Legacy anon/service keys are supported but publishable/secret are preferred.
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
 import type { Entry } from '@/types'
 
@@ -250,6 +250,51 @@ describe('StudentLogHistory', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('reuses cached load-more history when the same page is requested again', async () => {
+    const latestEntries = Array.from({ length: 10 }, (_, index) =>
+      entry({
+        id: `latest-${index}`,
+        student_id: 'student-cache-more',
+        classroom_id: 'classroom-cache-more',
+        date: `2026-03-${String(20 - index).padStart(2, '0')}`,
+        text: `Latest history ${index + 1}.`,
+      })
+    )
+    const olderEntry = entry({
+      id: 'older-cached-entry',
+      student_id: 'student-cache-more',
+      classroom_id: 'classroom-cache-more',
+      date: '2026-03-01',
+      text: 'Older cached history.',
+    })
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('before_date=2026-03-11')) {
+        return mockJson({ entries: [olderEntry] })
+      }
+      return mockJson({ entries: latestEntries })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const first = render(
+      <StudentLogHistory studentId="student-cache-more" classroomId="classroom-cache-more" />
+    )
+    await screen.findByText('Latest history 10.')
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
+    await screen.findByText('Older cached history.')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    first.unmount()
+
+    render(<StudentLogHistory studentId="student-cache-more" classroomId="classroom-cache-more" />)
+    await screen.findByText('Latest history 10.')
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
+    await screen.findByText('Older cached history.')
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2)
     })
   })
 })

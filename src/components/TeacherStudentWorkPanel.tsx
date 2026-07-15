@@ -46,7 +46,14 @@ interface TeacherStudentWorkPanelProps {
   inspectorEditMode?: boolean
   onDetailsMetaChange?: (meta: { studentName: string; characterCount: number } | null) => void
   onGradeTemplateChange?: (template: TeacherAssignmentGradeTemplate | null) => void
+  mutationsDisabled?: boolean
+  onGradePersistenceStateChange?: (state: TeacherAssignmentGradePersistenceState) => void
   highlightedInspectorSections?: readonly InspectorSectionId[]
+}
+
+export interface TeacherAssignmentGradePersistenceState {
+  hasPendingChanges: boolean
+  isSaving: boolean
 }
 
 export interface TeacherAssignmentGradeTemplate {
@@ -56,6 +63,7 @@ export interface TeacherAssignmentGradeTemplate {
   scoreWorkflow: string
   feedbackDraft: string
   gradeMode: 'draft' | 'graded'
+  expectedDocUpdatedAt: string | null
 }
 
 function RequiredSubmissionsList({
@@ -245,6 +253,8 @@ export function TeacherStudentWorkPanel({
   inspectorEditMode = false,
   onDetailsMetaChange,
   onGradeTemplateChange,
+  mutationsDisabled = false,
+  onGradePersistenceStateChange,
   highlightedInspectorSections = [],
 }: TeacherStudentWorkPanelProps) {
   const {
@@ -292,6 +302,8 @@ export function TeacherStudentWorkPanel({
     studentId,
     refreshKey,
     onLoadingStateChange,
+    mutationsDisabled,
+    onGradePersistenceStateChange,
   })
   const previousInspectorEditModeRef = useRef(inspectorEditMode)
   const hasGradingPane = mode !== 'workspace' || splitPaneView !== 'students-content'
@@ -372,6 +384,7 @@ export function TeacherStudentWorkPanel({
       scoreWorkflow,
       feedbackDraft,
       gradeMode,
+      expectedDocUpdatedAt: data.doc?.updated_at ?? null,
     })
   }, [
     data,
@@ -441,6 +454,7 @@ export function TeacherStudentWorkPanel({
       gradeError={gradeError}
       feedbackReturning={feedbackReturning}
       gradeSaving={gradeSaving}
+      mutationsDisabled={mutationsDisabled}
       showDraftAutosavedNotice={showDraftAutosavedNotice}
       highlightedSections={highlightedInspectorSections}
       expandedSections={expandedSections}

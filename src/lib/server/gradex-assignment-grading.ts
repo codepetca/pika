@@ -1,4 +1,6 @@
+import { z } from 'zod'
 import { loadClassroomAiSanitizationContext } from '@/lib/server/ai-sanitization'
+import { finalizeAssignmentAiGradingItemAtomic } from '@/lib/server/assignment-grades'
 import { loadAssignmentSubmissionArtifactsForDocs } from '@/lib/server/assignment-submission-artifacts'
 import {
   buildPikaAssignmentGradexRunPayload,
@@ -8,6 +10,7 @@ import {
 } from '@/lib/server/gradex-assignment-payload'
 import { mapGradexItemsToPikaGradeRecords, type GradexSmokeRunItemResponse, type GradexSmokeRunResponse } from '@/lib/server/gradex-smoke-runner'
 import { sanitizeAiOutputText } from '@/lib/ai-sanitization'
+import { getServiceRoleClient } from '@/lib/supabase'
 import type { Assignment, AssignmentAiGradingRun, AssignmentAiGradingRunItem, AssignmentSubmissionArtifact, AuthenticityFlag } from '@/types'
 
 export const GRADEX_ASSIGNMENT_RUN_MODEL = 'gradex:pika-assignment-v1'
@@ -17,14 +20,65 @@ const RETRYABLE_GRADEX_STATUS_CODES = new Set([408, 409, 425, 429, 500, 502, 503
 const GRADEX_ASSIGNMENT_MAX_ATTEMPTS = 3
 const GRADEX_ASSIGNMENT_RETRY_BACKOFF_SECONDS = [15, 60, 180]
 
-type ServiceRoleSupabase = {
-  from: (table: string) => any
-}
+const gradexRunItemSummarySchema = z.object({
+  id: z.string().min(1),
+  status: z.enum(['queued', 'processing', 'completed', 'failed', 'skipped']),
+  external_submission_id: z.string().nullable(),
+  external_student_id: z.string().nullable(),
+  error: z.unknown().nullable(),
+})
+
+export const gradexAssignmentRunResponseSchema = z.object({
+  id: z.string().min(1),
+  status: z.enum(['queued', 'running', 'completed', 'completed_with_errors', 'failed']),
+  counts: z.object({
+    requested: z.number().int().nonnegative(),
+    processed: z.number().int().nonnegative(),
+    completed: z.number().int().nonnegative(),
+    failed: z.number().int().nonnegative(),
+    skipped: z.number().int().nonnegative(),
+    pending: z.number().int().nonnegative(),
+  }),
+  provider: z.string().nullable(),
+  model: z.string().nullable(),
+  tier: z.string().nullable(),
+  policy_version: z.string().nullable(),
+  prompt_version: z.string().nullable(),
+  items: z.array(gradexRunItemSummarySchema).optional(),
+})
+
+export const gradexAssignmentRunItemResponseSchema = gradexRunItemSummarySchema.extend({
+  result: z.object({
+    provider: z.string(),
+    model: z.string(),
+    tier: z.string(),
+    policy_version: z.string(),
+    prompt_version: z.string(),
+    audit_id: z.string(),
+    token_usage: z.unknown().nullable(),
+    criteria_results: z.array(z.object({
+      criterion_id: z.string(),
+      score: z.number(),
+    })).optional(),
+    feedback: z.object({ student: z.string().optional() }).optional(),
+    compatibility: z.object({
+      pika_assignment_v1: z.object({
+        score_completion: z.number(),
+        score_thinking: z.number(),
+        score_workflow: z.number(),
+        feedback: z.string(),
+      }).optional(),
+    }).optional(),
+  }).nullable(),
+})
+
+type ServiceRoleSupabase = ReturnType<typeof getServiceRoleClient>
 
 type GradexAssignmentDocRow = {
   id: string
   student_id: string
   content: unknown
+  updated_at: string
   submitted_at?: string | null
   authenticity_score?: number | null
   authenticity_flags?: AuthenticityFlag[] | null
@@ -94,6 +148,7 @@ async function requestGradexJson<T>(
     body?: unknown
     expectedStatus: number
     timeoutMs?: number
+    schema: z.ZodType<T>
   },
 ): Promise<T> {
   const timeoutMs = opts.timeoutMs ?? 25_000
@@ -128,7 +183,7 @@ async function requestGradexJson<T>(
     }
     throw new Error(formatGradexError(body, response.status))
   }
-  return body as T
+  return opts.schema.parse(body)
 }
 
 function isGradexRetryableRequestError(error: unknown): error is GradexRetryableRequestError {
@@ -170,7 +225,7 @@ async function loadGradexRunInputs(opts: {
 
   const { data: docs, error: docsError } = await opts.supabase
     .from('assignment_docs')
-    .select('id, student_id, content, submitted_at, authenticity_score, authenticity_flags')
+    .select('id, student_id, content, updated_at, submitted_at, authenticity_score, authenticity_flags')
     .in('id', docIds)
 
   if (docsError) {
@@ -188,8 +243,8 @@ async function loadGradexRunInputs(opts: {
     throw new Error('Gradex assignment run is missing one or more assignment documents')
   }
 
-  const submissionArtifacts = await loadAssignmentSubmissionArtifactsForDocs(opts.supabase as any, docIds)
-  const sanitizationContext = await loadClassroomAiSanitizationContext(opts.supabase as any, opts.assignment.classroom_id)
+  const submissionArtifacts = await loadAssignmentSubmissionArtifactsForDocs(opts.supabase, docIds)
+  const sanitizationContext = await loadClassroomAiSanitizationContext(opts.supabase, opts.assignment.classroom_id)
   const built = buildPikaAssignmentGradexRunPayload({
     assignment: opts.assignment,
     assignmentDocs,
@@ -227,6 +282,7 @@ async function updateRunItem(
     .from('assignment_ai_grading_run_items')
     .update(payload)
     .eq('id', itemId)
+    .in('status', ['queued', 'processing'])
 
   if (error) {
     throw new Error('Failed to update assignment AI grading run item')
@@ -370,11 +426,12 @@ async function submitGradexAssignmentRun(opts: {
 
   let gradexRun: GradexSmokeRunResponse
   try {
-    gradexRun = await requestGradexJson<GradexSmokeRunResponse>(config, {
+    gradexRun = await requestGradexJson(config, {
       path: '/api/v1/grading-runs',
       method: 'POST',
       body: requestWithRunMetadata,
       expectedStatus: 202,
+      schema: gradexAssignmentRunResponseSchema,
       timeoutMs: gradexRequest.settings.request_timeout_ms,
     })
   } catch (error) {
@@ -435,23 +492,25 @@ async function applyCompletedGradexRecord(opts: {
   }
 
   const feedback = sanitizeAiOutputText(opts.record.feedback.trim())
-  const { error } = await opts.supabase
-    .from('assignment_docs')
-    .update({
-      score_completion: opts.record.score_completion,
-      score_thinking: opts.record.score_thinking,
-      score_workflow: opts.record.score_workflow,
-      teacher_feedback_draft: feedback,
-      teacher_feedback_draft_updated_at: opts.now,
-      ai_feedback_suggestion: feedback,
-      ai_feedback_suggested_at: opts.now,
-      ai_feedback_model: formatGradexModel(opts.record),
-      graded_at: opts.now,
-      graded_by: opts.run.triggered_by,
+  try {
+    await finalizeAssignmentAiGradingItemAtomic({
+      supabase: opts.supabase,
+      itemId: opts.item.id,
+      teacherId: opts.run.triggered_by,
+      grade: {
+        scoreCompletion: opts.record.score_completion,
+        scoreThinking: opts.record.score_thinking,
+        scoreWorkflow: opts.record.score_workflow,
+        feedback,
+        aiFeedbackSuggestion: feedback,
+        aiFeedbackModel: formatGradexModel(opts.record),
+        gradedBy: opts.run.triggered_by,
+      },
+      attemptCount: opts.item.attempt_count + 1,
+      itemStatus: 'completed',
+      now: opts.now,
     })
-    .eq('id', opts.record.assignment_doc_id)
-
-  if (error) {
+  } catch {
     await updateRunItem(opts.supabase, opts.item.id, {
       status: 'failed',
       attempt_count: opts.item.attempt_count + 1,
@@ -462,13 +521,6 @@ async function applyCompletedGradexRecord(opts: {
     return
   }
 
-  await updateRunItem(opts.supabase, opts.item.id, {
-    status: 'completed',
-    attempt_count: opts.item.attempt_count + 1,
-    last_error_code: null,
-    last_error_message: null,
-    completed_at: opts.now,
-  })
 }
 
 async function pollGradexAssignmentRun(opts: {
@@ -491,10 +543,11 @@ async function pollGradexAssignmentRun(opts: {
 
   let gradexRun: GradexSmokeRunResponse
   try {
-    gradexRun = await requestGradexJson<GradexSmokeRunResponse>(config, {
+    gradexRun = await requestGradexJson(config, {
       path: `/api/v1/grading-runs/${encodeURIComponent(gradexRunId)}`,
       method: 'GET',
       expectedStatus: 200,
+      schema: gradexAssignmentRunResponseSchema,
     })
   } catch (error) {
     if (isGradexRetryableRequestError(error)) {
@@ -532,10 +585,11 @@ async function pollGradexAssignmentRun(opts: {
   try {
     itemDetails = await Promise.all(
       (gradexRun.items ?? []).map((item) =>
-        requestGradexJson<GradexSmokeRunItemResponse>(config, {
+        requestGradexJson(config, {
           path: `/api/v1/grading-runs/${encodeURIComponent(gradexRunId)}/items/${encodeURIComponent(item.id)}`,
           method: 'GET',
           expectedStatus: 200,
+          schema: gradexAssignmentRunItemResponseSchema,
         }),
       ),
     )

@@ -28,6 +28,7 @@ import {
   replaceAssignmentSubmissionRequirements,
 } from '@/lib/server/assignment-submission-artifacts'
 import type { AssignmentDoc, AssignmentSubmissionArtifact } from '@/types'
+import type { TableRow } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -506,7 +507,7 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
     ? await collectRemovedImageArtifactStoragePaths(supabase, id, submission_requirements as any[])
     : []
 
-  let assignment = existing
+  let assignment: TableRow<'assignments'> = existing
   if (Object.keys(updates).length > 0) {
     const { data: updatedAssignment, error } = await supabase
       .from('assignments')

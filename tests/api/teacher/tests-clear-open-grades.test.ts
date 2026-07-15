@@ -1,221 +1,67 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
+import { ApiError } from '@/lib/api-handler'
 import { POST } from '@/app/api/teacher/tests/[id]/clear-open-grades/route'
 
-const { assertTeacherOwnsTest, validateSelectedTestStudentEnrollment } = vi.hoisted(() => ({
-  assertTeacherOwnsTest: vi.fn(async () => ({
-    ok: true,
-    test: {
-      id: 'test-1',
-      title: 'Unit Test',
-      classroom_id: 'classroom-1',
-      classrooms: { archived_at: null },
-    },
-  })),
-  validateSelectedTestStudentEnrollment: vi.fn(),
-}))
-
-vi.mock('@/lib/supabase', () => ({
-  getServiceRoleClient: vi.fn(() => mockSupabaseClient),
-}))
+const { clearTestOpenResponseGrades } = vi.hoisted(() => ({ clearTestOpenResponseGrades: vi.fn() }))
 
 vi.mock('@/lib/auth', () => ({
-  requireRole: vi.fn(async () => ({
-    id: 'teacher-1',
-    email: 'teacher@example.com',
-    role: 'teacher',
-  })),
+  requireRole: vi.fn(async () => ({ id: 'teacher-1', role: 'teacher' })),
 }))
+vi.mock('@/lib/server/test-grades', () => ({ clearTestOpenResponseGrades }))
 
-vi.mock('@/lib/server/tests', () => ({
-  assertTeacherOwnsTest,
-  validateSelectedTestStudentEnrollment,
-}))
+const context = { params: Promise.resolve({ id: 'test-1' }) }
+function request(body: string | object) {
+  return new NextRequest('http://localhost/api/teacher/tests/test-1/clear-open-grades', {
+    method: 'POST',
+    body: typeof body === 'string' ? body : JSON.stringify(body),
+  })
+}
 
-const mockSupabaseClient = { from: vi.fn() }
-
-describe('POST /api/teacher/tests/[id]/clear-open-grades', () => {
+describe('POST clear teacher test open grades', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    assertTeacherOwnsTest.mockResolvedValue({
-      ok: true,
-      test: {
-        id: 'test-1',
-        title: 'Unit Test',
-        classroom_id: 'classroom-1',
-        classrooms: { archived_at: null },
-      },
-    })
-    validateSelectedTestStudentEnrollment.mockResolvedValue({
-      ok: true,
-      enrolledStudentIds: new Set(['student-1', 'student-2', 'student-3']),
-      missingStudentIds: [],
+    clearTestOpenResponseGrades.mockResolvedValue({
+      clearedStudents: 2,
+      skippedStudents: 1,
+      clearedResponses: 3,
     })
   })
 
-  it('returns 400 when student_ids is missing', async () => {
-    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/clear-open-grades', {
-      method: 'POST',
-      body: JSON.stringify({}),
-    })
-    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('student_ids array is required')
-  })
-
-  it('clears open-response grade fields and reports counts', async () => {
-    const updatedPayloads: Array<Record<string, unknown>> = []
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'test_questions') {
-        const query = {
-          eq: vi.fn().mockReturnThis(),
-        } as any
-        query.eq.mockImplementationOnce(() => query)
-        query.eq.mockImplementationOnce(async () => ({
-          data: [{ id: 'open-q1' }, { id: 'open-q2' }],
-          error: null,
-        }))
-        return {
-          select: vi.fn(() => query),
-        }
-      }
-
-      if (table === 'test_responses') {
-        return {
-          update: vi.fn((payload: Record<string, unknown>) => {
-            updatedPayloads.push(payload)
-            return {
-              eq: vi.fn(() => ({
-                in: vi.fn(() => ({
-                  in: vi.fn(() => ({
-                    select: vi.fn(async () => ({
-                      data: [
-                        { id: 'r1', student_id: 'student-1' },
-                        { id: 'r2', student_id: 'student-1' },
-                        { id: 'r3', student_id: 'student-2' },
-                      ],
-                      error: null,
-                    })),
-                  })),
-                })),
-              })),
-            }
-          }),
-        }
-      }
-
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/clear-open-grades', {
-      method: 'POST',
-      body: JSON.stringify({ student_ids: ['student-1', 'student-2', 'student-3'] }),
-    })
-    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
-    const data = await response.json()
-
+  it('normalizes selected students and forwards one atomic clear', async () => {
+    const response = await POST(request({
+      student_ids: [' student-1 ', 'student-1', 'student-2'],
+      responses: [{ response_id: 'response-1', expected_response_revision: 4 }],
+    }), context)
     expect(response.status).toBe(200)
-    expect(updatedPayloads).toEqual([
-      expect.objectContaining({
-        score: null,
-        feedback: null,
-        graded_at: null,
-        graded_by: null,
-        ai_grading_basis: null,
-        ai_reference_answers: null,
-        ai_model: null,
-      }),
-    ])
-    expect(data).toEqual({
+    expect(await response.json()).toEqual({
       cleared_students: 2,
       skipped_students: 1,
       cleared_responses: 3,
     })
-    expect(validateSelectedTestStudentEnrollment).toHaveBeenCalledWith(
-      mockSupabaseClient,
-      'classroom-1',
-      ['student-1', 'student-2', 'student-3'],
-    )
+    expect(clearTestOpenResponseGrades).toHaveBeenCalledWith({
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      studentIds: ['student-1', 'student-2'],
+      expectedResponses: [{ response_id: 'response-1', expected_response_revision: 4 }],
+    })
   })
 
-  it('rejects selected students outside the test classroom before clearing anything', async () => {
-    validateSelectedTestStudentEnrollment.mockResolvedValueOnce({
-      ok: true,
-      enrolledStudentIds: new Set(['student-1']),
-      missingStudentIds: ['student-2'],
-    })
-    ;(mockSupabaseClient.from as any) = vi.fn(() => {
-      throw new Error('No Supabase table queries should run after validation rejection')
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/clear-open-grades', {
-      method: 'POST',
-      body: JSON.stringify({ student_ids: ['student-1', 'student-2'] }),
-    })
-    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
-    const data = await response.json()
-
+  it.each([
+    ['{', 'Invalid JSON body'],
+    [{}, 'student_ids array is required'],
+    [{ student_ids: ['student-1', 2], responses: [] }, 'student_ids must contain non-empty strings'],
+    [{ student_ids: ['student-1'] }, 'responses array is required'],
+  ])('rejects invalid input %#', async (body, message) => {
+    const response = await POST(request(body), context)
     expect(response.status).toBe(400)
-    expect(data.error).toBe('One or more selected students are not enrolled in this classroom')
-    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+    expect(await response.json()).toEqual({ error: message })
+    expect(clearTestOpenResponseGrades).not.toHaveBeenCalled()
   })
 
-  it('returns 500 when selected student enrollment validation fails', async () => {
-    validateSelectedTestStudentEnrollment.mockResolvedValueOnce({
-      ok: false,
-      error: { message: 'enrollment lookup failed' },
-    })
-    ;(mockSupabaseClient.from as any) = vi.fn(() => {
-      throw new Error('No Supabase table queries should run after validation failure')
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/clear-open-grades', {
-      method: 'POST',
-      body: JSON.stringify({ student_ids: ['student-1'] }),
-    })
-    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(500)
-    expect(data.error).toBe('Failed to validate selected students')
-    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
-  })
-
-  it('returns skipped counts when there are no open-response questions', async () => {
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table !== 'test_questions') {
-        throw new Error(`Unexpected table: ${table}`)
-      }
-
-      const query = {
-        eq: vi.fn().mockReturnThis(),
-      } as any
-      query.eq.mockImplementationOnce(() => query)
-      query.eq.mockImplementationOnce(async () => ({
-        data: [],
-        error: null,
-      }))
-
-      return {
-        select: vi.fn(() => query),
-      }
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/clear-open-grades', {
-      method: 'POST',
-      body: JSON.stringify({ student_ids: ['student-1', 'student-2'] }),
-    })
-    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data).toEqual({
-      cleared_students: 0,
-      skipped_students: 2,
-      cleared_responses: 0,
-    })
+  it('maps an archived classroom rejection', async () => {
+    clearTestOpenResponseGrades.mockRejectedValueOnce(new ApiError(403, 'Classroom is archived'))
+    const response = await POST(request({ student_ids: ['student-1'], responses: [] }), context)
+    expect(response.status).toBe(403)
   })
 })

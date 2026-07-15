@@ -20,6 +20,11 @@ import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submi
 import { loadAssignmentSubmissionArtifactsForDocs } from '@/lib/server/assignment-submission-artifacts'
 import { assertTeacherCanMutateAssignment } from '@/lib/server/repo-review'
 import { loadClassroomAiSanitizationContext } from '@/lib/server/ai-sanitization'
+import { completeAssignmentRepoReviewRunAtomic } from '@/lib/server/assignment-grades'
+import {
+  assignmentIdSchema,
+  assignmentStudentIdsRequestSchema,
+} from '@/lib/validations/assignment-identifiers'
 import type { AssignmentRepoReviewConfig, AssignmentSubmissionArtifact } from '@/types'
 
 type GroupedStudent = {
@@ -53,19 +58,9 @@ function createConfigForResolvedRepo(opts: {
 
 export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis', async (request, context) => {
   const user = await requireRole('teacher')
-  const { id: assignmentId } = await context.params
+  const assignmentId = assignmentIdSchema.parse((await context.params).id)
   const assignment = await assertTeacherCanMutateAssignment(user.id, assignmentId)
-  const body: unknown = await request.json()
-  const studentIds = Array.isArray((body as { student_ids?: unknown[] })?.student_ids)
-    ? ((body as { student_ids: unknown[] }).student_ids.filter((value: unknown): value is string => typeof value === 'string'))
-    : []
-
-  if (studentIds.length === 0) {
-    throw apiErrors.badRequest('student_ids array is required')
-  }
-  if (studentIds.length > 100) {
-    throw apiErrors.badRequest('Cannot analyze more than 100 students at once')
-  }
+  const { studentIds } = assignmentStudentIdsRequestSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
   const { data: enrollments, error: enrollmentsError } = await supabase
@@ -307,52 +302,33 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
         })
       )
 
-      const { error: resultsError } = await supabase
-        .from('assignment_repo_review_results')
-        .insert(results)
-      if (resultsError) {
-        throw apiErrors.conflict('Failed to save repo analysis results')
-      }
-
-      const docRows = results.map((result) => {
-        const existingDoc = docMap.get(result.student_id)
-        return {
-          assignment_id: assignmentId,
-          student_id: result.student_id,
-          content: existingDoc?.content || { type: 'doc', content: [] },
-          is_submitted: existingDoc?.is_submitted ?? false,
-          submitted_at: existingDoc?.submitted_at ?? null,
-          score_completion: result.draft_score_completion,
-          score_thinking: result.draft_score_thinking,
-          score_workflow: result.draft_score_workflow,
-          ai_feedback_suggestion: result.draft_feedback,
-          ai_feedback_suggested_at: new Date().toISOString(),
-          ai_feedback_model: 'repo-review-v2',
-          graded_at: null,
-          graded_by: null,
-        }
+      const gradeSavedAt = new Date().toISOString()
+      await completeAssignmentRepoReviewRunAtomic({
+        supabase,
+        runId: run.id,
+        teacherId: user.id,
+        results,
+        sourceRef: analysis.sourceRef || group.defaultBranch,
+        model: 'repo-review-v2',
+        warnings: analysis.warnings,
+        now: gradeSavedAt,
+        grades: results.map((result) => {
+          const existingDoc = docMap.get(result.student_id)
+          return {
+            studentId: result.student_id,
+            expectedDocUpdatedAt: existingDoc?.updated_at ?? null,
+            scoreCompletion: result.draft_score_completion,
+            scoreThinking: result.draft_score_thinking,
+            scoreWorkflow: result.draft_score_workflow,
+            feedback: result.draft_feedback,
+            applyTeacherFeedbackDraft: false,
+            markGraded: false,
+            aiFeedbackSuggestion: result.draft_feedback,
+            aiFeedbackModel: 'repo-review-v2',
+            gradedBy: null,
+          }
+        }),
       })
-
-      const { error: docsError } = await supabase
-        .from('assignment_docs')
-        .upsert(docRows, { onConflict: 'assignment_id,student_id' })
-      if (docsError) {
-        throw apiErrors.conflict('Failed to save repo analysis draft grades')
-      }
-
-      const { error: completeError } = await supabase
-        .from('assignment_repo_review_runs')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          source_ref: analysis.sourceRef || group.defaultBranch,
-          model: 'repo-review-v2',
-          warnings_json: analysis.warnings,
-        })
-        .eq('id', run.id)
-      if (completeError) {
-        throw apiErrors.conflict('Failed to finalize repo analysis run')
-      }
 
       analyzedStudents += results.length
       repoGroups += 1
@@ -367,6 +343,7 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
           ],
         })
         .eq('id', run.id)
+        .eq('status', 'running')
       throw analysisError
     }
   }

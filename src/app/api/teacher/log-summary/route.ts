@@ -6,6 +6,7 @@ import {
   type RawSummaryResponse,
 } from '@/lib/log-summary'
 import { withErrorHandler } from '@/lib/api-handler'
+import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -35,25 +36,11 @@ export const GET = withErrorHandler('GetLogSummary', async (request: NextRequest
   }
 
   const supabase = getServiceRoleClient()
-
-  // Verify classroom ownership
-  const { data: classroom, error: classroomError } = await supabase
-    .from('classrooms')
-    .select('teacher_id')
-    .eq('id', classroomId)
-    .single()
-
-  if (classroomError || !classroom) {
+  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId, { supabase })
+  if (!ownership.ok) {
     return NextResponse.json(
-      { error: 'Classroom not found' },
-      { status: 404 }
-    )
-  }
-
-  if (classroom.teacher_id !== user.id) {
-    return NextResponse.json(
-      { error: 'Forbidden' },
-      { status: 403 }
+      { error: ownership.error },
+      { status: ownership.status }
     )
   }
 

@@ -196,7 +196,7 @@ describe('TeacherGradebookTab', () => {
 
   function toggleGradebookColumnControls() {
     const menu = openGradebookActions()
-    fireEvent.click(within(menu).getByRole('menuitemradio', { name: 'Column controls' }))
+    fireEvent.click(within(menu).getByRole('menuitemcheckbox', { name: 'Column controls' }))
   }
 
   it('renders the assessment matrix and delegates settings navigation', async () => {
@@ -266,7 +266,7 @@ describe('TeacherGradebookTab', () => {
     })
     fireEvent.click(adaSelect)
     gradebookMenu = openGradebookActions()
-    expect(within(gradebookMenu).getByRole('menuitemradio', { name: 'Column controls' })).toHaveAttribute('aria-checked', 'false')
+    expect(within(gradebookMenu).getByRole('menuitemcheckbox', { name: 'Column controls' })).toHaveAttribute('aria-checked', 'false')
 
     fireEvent.click(screen.getByRole('row', { name: /Ada Lovelace.*80% 100% 90% 85\.0%/ }))
     const detailPanel = screen.getByRole('region', { name: 'Ada Lovelace assessment details' })
@@ -367,7 +367,7 @@ describe('TeacherGradebookTab', () => {
       </AppMessageProvider>,
     )
     gradebookMenu = openGradebookActions()
-    expect(within(gradebookMenu).getByRole('menuitemradio', { name: 'Column controls' })).toHaveAttribute('aria-checked', 'true')
+    expect(within(gradebookMenu).getByRole('menuitemcheckbox', { name: 'Column controls' })).toHaveAttribute('aria-checked', 'true')
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(`/api/teacher/gradebook?classroom_id=${classroom.id}`)
     })

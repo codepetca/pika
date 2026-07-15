@@ -24,6 +24,7 @@ export interface TeacherWorkSurfaceActionItem {
   disabled?: boolean
   icon?: ReactNode
   checked?: boolean
+  checkedRole?: 'menuitemcheckbox' | 'menuitemradio'
   dividerBefore?: boolean
   destructive?: boolean
 }
@@ -84,7 +85,7 @@ function TeacherWorkSurfaceActionMenuButton({
   const getEnabledMenuItems = useCallback(() => {
     return Array.from(
       menuRef.current?.querySelectorAll<HTMLButtonElement>(
-        '[role="menuitem"], [role="menuitemcheckbox"]'
+        '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]'
       ) ?? []
     ).filter((item) => !item.disabled)
   }, [])
@@ -210,7 +211,7 @@ function TeacherWorkSurfaceActionMenuButton({
               ) : null}
               <button
                 type="button"
-                role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+                role={item.checked === undefined ? 'menuitem' : item.checkedRole ?? 'menuitemcheckbox'}
                 aria-checked={item.checked === undefined ? undefined : item.checked}
                 disabled={item.disabled}
                 onClick={(event) => {

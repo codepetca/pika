@@ -17,15 +17,9 @@ type GradebookFixture = {
   docs?: Array<any>
   docsError?: SupabaseReadError | null
   docsTeacherClearedAtError?: SupabaseReadError | null
-  quizzes?: Array<any>
-  quizQuestions?: Array<any>
-  quizQuestionsCorrectOptionError?: SupabaseReadError | null
-  quizQuestionsError?: SupabaseReadError | null
-  quizResponses?: Array<any>
-  quizResponsesError?: SupabaseReadError | null
-  quizOverrides?: Array<any>
-  quizOverridesError?: SupabaseReadError | null
   tests?: Array<any>
+  testsWithMetaError?: SupabaseReadError | null
+  testsLegacyError?: SupabaseReadError | null
   testQuestions?: Array<any>
   testQuestionsError?: SupabaseReadError | null
   testResponses?: Array<any>
@@ -131,67 +125,19 @@ function buildMockFrom(fixture: GradebookFixture) {
       }
     }
 
-    if (table === 'quizzes') {
-      return {
-        select: vi.fn(() => ({
-          eq: vi.fn().mockResolvedValue({
-            data: fixture.quizzes ?? [],
-            error: null,
-          }),
-        })),
-      }
-    }
-
-    if (table === 'quiz_questions') {
+    if (table === 'tests') {
       return {
         select: vi.fn((selection: string) => {
-          const selectionError = fixture.quizQuestionsError ?? (
-            selection.includes('correct_option') ? fixture.quizQuestionsCorrectOptionError ?? null : null
-          )
+          const error = selection.includes('gradebook_weight')
+            ? fixture.testsWithMetaError ?? null
+            : fixture.testsLegacyError ?? null
           return {
-            in: vi.fn().mockResolvedValue({
-              data: selectionError ? null : fixture.quizQuestions ?? [],
-              error: selectionError,
+            eq: vi.fn().mockResolvedValue({
+              data: error ? null : fixture.tests ?? [],
+              error,
             }),
           }
         }),
-      }
-    }
-
-    if (table === 'quiz_responses') {
-      return {
-        select: vi.fn(() => ({
-          in: vi.fn(() => ({
-            in: vi.fn().mockResolvedValue({
-              data: fixture.quizResponsesError ? null : fixture.quizResponses ?? [],
-              error: fixture.quizResponsesError ?? null,
-            }),
-          })),
-        })),
-      }
-    }
-
-    if (table === 'quiz_student_scores') {
-      return {
-        select: vi.fn(() => ({
-          in: vi.fn(() => ({
-            in: vi.fn().mockResolvedValue({
-              data: fixture.quizOverridesError ? null : fixture.quizOverrides ?? [],
-              error: fixture.quizOverridesError ?? null,
-            }),
-          })),
-        })),
-      }
-    }
-
-    if (table === 'tests') {
-      return {
-        select: vi.fn(() => ({
-          eq: vi.fn().mockResolvedValue({
-            data: fixture.tests ?? [],
-            error: null,
-          }),
-        })),
       }
     }
 
@@ -330,18 +276,8 @@ describe('GET /api/teacher/gradebook', () => {
     vi.clearAllMocks()
   })
 
-  it('ignores legacy quiz rows in grade calculations', async () => {
-    ;(mockSupabaseClient.from as any) = buildMockFrom({
-      quizzes: [
-        { id: 'quiz-active', title: 'Active Quiz', status: 'active', points_possible: 10, include_in_final: true },
-        { id: 'quiz-draft', title: 'Draft Quiz', status: 'draft', points_possible: 10, include_in_final: true },
-      ],
-      quizQuestions: [
-        { id: 'q1', quiz_id: 'quiz-active', correct_option: 0 },
-        { id: 'q2', quiz_id: 'quiz-draft', correct_option: 0 },
-      ],
-      quizResponses: [{ quiz_id: 'quiz-active', question_id: 'q1', student_id: 'student-1', selected_option: 0 }],
-    })
+  it('returns inert legacy quiz response tombstones without querying quiz storage', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({})
 
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
     const response = await GET(request)
@@ -349,28 +285,16 @@ describe('GET /api/teacher/gradebook', () => {
 
     expect(response.status).toBe(200)
     expect(body.students).toHaveLength(1)
-
+    expect(body.students[0].quizzes_earned).toBeNull()
+    expect(body.students[0].quizzes_possible).toBeNull()
     expect(body.students[0].quizzes_percent).toBeNull()
     expect(body.students[0].final_percent).toBeNull()
-  })
-
-  it('does not count unattempted active quizzes as zero before they are closed', async () => {
-    ;(mockSupabaseClient.from as any) = buildMockFrom({
-      quizzes: [{ id: 'quiz-active', title: 'Active Quiz', status: 'active', points_possible: 10, include_in_final: true }],
-      quizQuestions: [{ id: 'q1', quiz_id: 'quiz-active', correct_option: 1 }],
-      quizResponses: [],
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
-    const response = await GET(request)
-    const body = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(body.students).toHaveLength(1)
-
-    // No attempt yet means no quiz mark in-progress.
-    expect(body.students[0].quizzes_percent).toBeNull()
-    expect(body.students[0].final_percent).toBeNull()
+    expect(body.class_summary.quizzes).toEqual([])
+    expect(body.totals.quizzes).toBe(0)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('quizzes')
+    expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('quiz_questions')
+    expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('quiz_responses')
+    expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('quiz_student_scores')
   })
 
   it('returns selected student assignment breakdown when student_id is provided', async () => {
@@ -532,9 +456,6 @@ describe('GET /api/teacher/gradebook', () => {
         { assignment_id: 'a-heavy-points', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 },
         { assignment_id: 'a-small-points', student_id: 'student-1', score_completion: 0, score_thinking: 0, score_workflow: 0 },
       ],
-      quizzes: [],
-      quizQuestions: [],
-      quizResponses: [],
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
@@ -578,18 +499,6 @@ describe('GET /api/teacher/gradebook', () => {
       docs: [
         { assignment_id: 'a1', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 },
       ],
-      quizzes: [
-        {
-          id: 'q1',
-          title: 'Quiz 1',
-          status: 'closed',
-          points_possible: 1,
-          include_in_final: true,
-          gradebook_weight: 10,
-        },
-      ],
-      quizQuestions: [{ id: 'qq1', quiz_id: 'q1', correct_option: 0 }],
-      quizResponses: [{ quiz_id: 'q1', question_id: 'qq1', student_id: 'student-1', selected_option: 1 }],
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
@@ -630,9 +539,6 @@ describe('GET /api/teacher/gradebook', () => {
         { id: 'a-draft', title: 'Draft Assignment', due_at: '2025-01-03T12:00:00.000Z', position: 4, is_draft: true, points_possible: 30, include_in_final: true },
       ],
       docs: [{ assignment_id: 'a-graded', student_id: 'student-1', score_completion: 10, score_thinking: 10, score_workflow: 10 }],
-      quizzes: [],
-      quizQuestions: [],
-      quizResponses: [],
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1')
@@ -701,9 +607,6 @@ describe('GET /api/teacher/gradebook', () => {
         { assignment_id: 'a1', student_id: 'student-1', score_completion: 2, score_thinking: 2, score_workflow: 2 }, // 20%
         { assignment_id: 'a1', student_id: 'student-2', score_completion: 5, score_thinking: 5, score_workflow: 5 }, // 50%
       ],
-      quizzes: [],
-      quizQuestions: [],
-      quizResponses: [],
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
@@ -731,9 +634,6 @@ describe('GET /api/teacher/gradebook', () => {
         { assignment_id: 'a1', student_id: 'student-1', score_completion: 3, score_thinking: 3, score_workflow: 3 }, // 30%
         { assignment_id: 'a1', student_id: 'withdrawn-student', score_completion: 10, score_thinking: 10, score_workflow: 10 }, // 100% (must be ignored)
       ],
-      quizzes: [],
-      quizQuestions: [],
-      quizResponses: [],
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
@@ -761,16 +661,6 @@ describe('GET /api/teacher/gradebook', () => {
       position: index + 1,
       is_draft: false,
       points_possible: 30,
-      include_in_final: true,
-      gradebook_weight: 10,
-    }))
-    const quizzes = Array.from({ length: 51 }, (_, index) => ({
-      id: `quiz-${String(index + 1).padStart(2, '0')}`,
-      classroom_id: 'c1',
-      title: `Quiz ${index + 1}`,
-      status: 'closed',
-      position: index + 1,
-      points_possible: 10,
       include_in_final: true,
       gradebook_weight: 10,
     }))
@@ -824,18 +714,6 @@ describe('GET /api/teacher/gradebook', () => {
           score_thinking: 10,
           score_workflow: 10,
         },
-      ],
-      quizzes,
-      quiz_questions: [
-        { id: 'quiz-question-first', quiz_id: quizzes[0].id, correct_option: 1 },
-        { id: 'quiz-question-last', quiz_id: quizzes[50].id, correct_option: 1 },
-      ],
-      quiz_responses: [
-        { id: 'quiz-response-first', quiz_id: quizzes[0].id, question_id: 'quiz-question-first', student_id: studentIds[0], selected_option: 1 },
-        { id: 'quiz-response-last', quiz_id: quizzes[50].id, question_id: 'quiz-question-last', student_id: studentIds[50], selected_option: 1 },
-      ],
-      quiz_student_scores: [
-        { id: 'quiz-override-last', quiz_id: quizzes[50].id, student_id: studentIds[50], manual_override_score: 9 },
       ],
       tests,
       test_questions: [
@@ -908,10 +786,6 @@ describe('GET /api/teacher/gradebook', () => {
       student_profiles: [],
       assignments,
       assignment_docs: docs,
-      quizzes: [],
-      quiz_questions: [],
-      quiz_responses: [],
-      quiz_student_scores: [],
       tests: [],
       test_questions: [],
       test_responses: [],
@@ -950,10 +824,6 @@ describe('GET /api/teacher/gradebook', () => {
       student_profiles: [],
       assignments: [],
       assignment_docs: [],
-      quizzes: [],
-      quiz_questions: [],
-      quiz_responses: [],
-      quiz_student_scores: [],
       tests: [],
       test_questions: [],
       test_responses: [],
@@ -1041,7 +911,28 @@ describe('GET /api/teacher/gradebook', () => {
     ])
   })
 
-  it('falls back to legacy assignment/quiz columns when gradebook metadata columns are unavailable', async () => {
+  it('does not hide tests when a partial migration leaves fallback columns unavailable', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      testsWithMetaError: {
+        code: '42703',
+        message: 'column tests.gradebook_weight does not exist',
+      },
+      testsLegacyError: {
+        code: '42703',
+        message: 'column tests.include_in_final does not exist',
+      },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
+    const response = await GET(request)
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to load tests for gradebook' })
+    consoleError.mockRestore()
+  })
+
+  it('falls back to legacy assignment columns when gradebook metadata columns are unavailable', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classrooms') {
         return {
@@ -1125,46 +1016,6 @@ describe('GET /api/teacher/gradebook', () => {
         }
       }
 
-      if (table === 'quizzes') {
-        return {
-          select: vi.fn((selection: string) => ({
-            eq: vi.fn().mockResolvedValue(
-              selection.includes('points_possible')
-                ? { data: null, error: { message: 'column quizzes.points_possible does not exist' } }
-                : { data: [], error: null }
-            ),
-          })),
-        }
-      }
-
-      if (table === 'quiz_questions') {
-        return {
-          select: vi.fn(() => ({
-            in: vi.fn().mockResolvedValue({ data: [], error: null }),
-          })),
-        }
-      }
-
-      if (table === 'quiz_responses') {
-        return {
-          select: vi.fn(() => ({
-            in: vi.fn(() => ({
-              in: vi.fn().mockResolvedValue({ data: [], error: null }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'quiz_student_scores') {
-        return {
-          select: vi.fn(() => ({
-            in: vi.fn(() => ({
-              in: vi.fn().mockResolvedValue({ data: [], error: null }),
-            })),
-          })),
-        }
-      }
-
       if (table === 'tests') {
         return {
           select: vi.fn(() => ({
@@ -1220,6 +1071,70 @@ describe('PATCH /api/teacher/gradebook', () => {
     vi.clearAllMocks()
   })
 
+  it.each([
+    ['{', 'Invalid JSON body'],
+    [JSON.stringify(null), 'classroom_id is required'],
+    [JSON.stringify({ classroom_id: 'c1' }), 'No gradebook update provided'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: 'quiz',
+      assessment_id: 'q1',
+      gradebook_weight: 10,
+    }), 'assessment_type must be assignment or test'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: 'test',
+      assessment_id: 't1',
+      gradebook_weight: 1000,
+    }), 'gradebook_weight must be an integer 1-999'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: false,
+      assessment_id: 't1',
+      gradebook_weight: 10,
+    }), 'assessment_type must be assignment or test'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: 'test',
+      assessment_id: [],
+      gradebook_weight: 10,
+    }), 'assessment_id is required'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: 'test',
+      assessment_id: '',
+      gradebook_weight: 10,
+    }), 'assessment_id is required'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: 'test',
+      assessment_id: 't1',
+      gradebook_weight: true,
+    }), 'gradebook_weight must be an integer 1-999'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: 'test',
+      assessment_id: 't1',
+      gradebook_weight: 0,
+    }), 'gradebook_weight must be an integer 1-999'],
+    [JSON.stringify({
+      classroom_id: 'c1',
+      assessment_type: 'test',
+      assessment_id: 't1',
+      gradebook_weight: { value: 10 },
+    }), 'gradebook_weight must be an integer 1-999'],
+  ])('returns 400 for invalid update input %#', async (body, message) => {
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook', {
+      method: 'PATCH',
+      body,
+    })
+
+    const response = await PATCH(request)
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error: message })
+  })
+
   it('rejects legacy category settings updates', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classrooms') {
@@ -1242,6 +1157,9 @@ describe('PATCH /api/teacher/gradebook', () => {
       method: 'PATCH',
       body: JSON.stringify({
         classroom_id: 'c1',
+        assessment_type: null,
+        assessment_id: null,
+        gradebook_weight: null,
         use_weights: false,
         assignments_weight: 10,
         quizzes_weight: 20,
@@ -1295,7 +1213,8 @@ describe('PATCH /api/teacher/gradebook', () => {
         classroom_id: 'c1',
         assessment_type: 'assignment',
         assessment_id: 'a1',
-        gradebook_weight: 20,
+        gradebook_weight: '20',
+        assignments_weight: 50,
       }),
     })
 

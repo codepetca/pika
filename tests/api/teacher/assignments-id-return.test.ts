@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/assignments/[id]/return/route'
+import { ApiError } from '@/lib/api-handler'
 
-const { appendAssignmentFeedbackEntry } = vi.hoisted(() => ({
-  appendAssignmentFeedbackEntry: vi.fn(),
+const { loadTeacherOwnedAssignment, mockSupabaseClient } = vi.hoisted(() => ({
+  loadTeacherOwnedAssignment: vi.fn(),
+  mockSupabaseClient: {
+    rpc: vi.fn(),
+  },
 }))
 
 vi.mock('@/lib/supabase', () => ({
@@ -18,809 +22,183 @@ vi.mock('@/lib/auth', () => ({
   })),
 }))
 
-vi.mock('@/lib/server/assignment-feedback', () => ({
-  appendAssignmentFeedbackEntry,
+vi.mock('@/lib/server/assignments', () => ({
+  loadTeacherOwnedAssignment,
 }))
 
-const mockSupabaseClient = { from: vi.fn() }
+const student1 = '10000000-0000-4000-8000-000000000001'
+const student2 = '10000000-0000-4000-8000-000000000002'
+const student3 = '10000000-0000-4000-8000-000000000003'
+const student4 = '10000000-0000-4000-8000-000000000004'
 
-function buildAssignmentDocsTable(options?: {
-  docs?: any[]
-  returnUpdateError?: any
-  feedbackUpdateError?: any
-  insertError?: any
-  selectError?: any
-}) {
-  const docs = options?.docs ?? []
-  const returnUpdateIn = vi.fn().mockResolvedValue({
-    error: options?.returnUpdateError ?? null,
-  })
-  const update = vi.fn((payload: Record<string, unknown>) => ({
-    eq: vi.fn(() => {
-      if ('returned_at' in payload) {
-        return {
-          in: returnUpdateIn,
-        }
-      }
-      return Promise.resolve({
-        error: options?.feedbackUpdateError ?? null,
-      })
-    }),
-  }))
-  const insert = vi.fn().mockResolvedValue({
-    error: options?.insertError ?? null,
-  })
-
-  return {
-    table: {
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          in: vi.fn().mockResolvedValue({
-            data: docs,
-            error: options?.selectError ?? null,
-          }),
-        })),
-      })),
-      update,
-      insert,
-    },
-    update,
-    returnUpdateIn,
-    insert,
-  }
+const successfulResult = {
+  returned_count: 3,
+  cleared_count: 3,
+  updated_count: 2,
+  created_count: 1,
+  created_student_ids: [student4],
+  returned_student_ids: [student1, student2, student4],
+  blocked_count: 1,
+  blocked_student_ids: [student3],
+  already_returned_count: 0,
+  already_returned_student_ids: [],
+  missing_count: 0,
+  missing_student_ids: [],
+  not_enrolled_count: 0,
+  not_enrolled_student_ids: [],
+  mailbox_tracking_available: true,
 }
 
-function buildClassroomEnrollmentsTable(options?: {
-  enrollments?: any[]
-  selectError?: any
-}) {
-  return {
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        in: vi.fn().mockResolvedValue({
-          data: options?.enrollments ?? [],
-          error: options?.selectError ?? null,
-        }),
-      })),
-    })),
-  }
+function makeRequest(body: unknown) {
+  return new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/return', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
 }
 
 describe('POST /api/teacher/assignments/[id]/return', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    appendAssignmentFeedbackEntry.mockResolvedValue({
-      id: 'entry-1',
+    loadTeacherOwnedAssignment.mockResolvedValue({
+      id: 'a0000000-0000-4000-8000-000000000001',
+      classroom_id: 'classroom-1',
+      classrooms: { teacher_id: 'teacher-1', archived_at: null },
     })
+    mockSupabaseClient.rpc.mockResolvedValue({ data: successfulResult, error: null })
   })
 
-  it('returns 400 when student_ids is missing', async () => {
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
+  it('authenticates before parsing the request body', async () => {
+    const { requireRole } = await import('@/lib/auth')
+    const error = new Error('Not authenticated')
+    error.name = 'AuthenticationError'
+    vi.mocked(requireRole).mockRejectedValueOnce(error)
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/return', {
       method: 'POST',
-      body: JSON.stringify({}),
+      body: '{',
     })
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
+
+    expect(response.status).toBe(401)
+    expect(loadTeacherOwnedAssignment).not.toHaveBeenCalled()
+  })
+
+  it('rejects a missing student list before authorization or database access', async () => {
+    const response = await POST(makeRequest({}), { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
     const data = await response.json()
 
     expect(response.status).toBe(400)
     expect(data.error).toBe('student_ids array is required')
+    expect(loadTeacherOwnedAssignment).not.toHaveBeenCalled()
   })
 
-  it('returns 500 when selected student enrollment loading fails', async () => {
-    const enrollmentsTable = buildClassroomEnrollmentsTable({
-      selectError: { message: 'boom' },
+  it('rejects a batch without string student ids', async () => {
+    const response = await POST(makeRequest({ student_ids: [42] }), {
+      params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }),
     })
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'assignments') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'assignment-1',
-                  classroom_id: 'classroom-1',
-                  classrooms: { teacher_id: 'teacher-1' },
-                },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'classroom_enrollments') {
-        return enrollmentsTable
-      }
-
-      throw new Error(`Unexpected table in test: ${table}`)
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['student-1'],
-      }),
-    })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
     const data = await response.json()
 
-    expect(response.status).toBe(500)
-    expect(data.error).toBe('Failed to load enrollments for return')
-    expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('assignment_docs')
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('student_ids array is required')
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
   })
 
-  it('does not load or mutate assignment docs when selected students are not enrolled', async () => {
-    const enrollmentsTable = buildClassroomEnrollmentsTable({
-      enrollments: [],
-    })
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'assignments') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'assignment-1',
-                  classroom_id: 'classroom-1',
-                  classrooms: { teacher_id: 'teacher-1' },
-                },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'classroom_enrollments') {
-        return enrollmentsTable
-      }
-
-      throw new Error(`Unexpected table in test: ${table}`)
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['student-stale'],
-      }),
-    })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+  it('rejects batches above 100 students', async () => {
+    const response = await POST(makeRequest({
+      student_ids: Array.from({ length: 101 }, (_, index) => `student-${index}`),
+    }), { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
     const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('Cannot return more than 100 students at once')
+  })
+
+  it('normalizes duplicate and non-string ids before the atomic call', async () => {
+    const response = await POST(makeRequest({
+      student_ids: [student1, student1, 42, student2],
+    }), { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
 
     expect(response.status).toBe(200)
-    expect(data.returned_count).toBe(0)
-    expect(data.missing_count).toBe(1)
-    expect(data.missing_student_ids).toEqual(['student-stale'])
-    expect(data.not_enrolled_count).toBe(1)
-    expect(data.not_enrolled_student_ids).toEqual(['student-stale'])
-    expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('assignment_docs')
-  })
-
-  it('filters stale existing docs before returning selected enrolled students', async () => {
-    const docs = [
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'return_assignment_docs_with_feedback_atomic',
       {
-        id: 'doc-1',
-        student_id: 'student-1',
-        is_submitted: true,
-        submitted_at: '2026-04-10T12:00:00.000Z',
-        score_completion: 4,
-        score_thinking: 4,
-        score_workflow: 4,
-        teacher_feedback_draft: '',
+        p_assignment_id: 'a0000000-0000-4000-8000-000000000001',
+        p_student_ids: [student1, student2],
+        p_teacher_id: 'teacher-1',
+        p_now: expect.any(String),
       },
-      {
-        id: 'doc-stale',
-        student_id: 'student-stale',
-        is_submitted: true,
-        submitted_at: '2026-04-10T12:00:00.000Z',
-        score_completion: 4,
-        score_thinking: 4,
-        score_workflow: 4,
-        teacher_feedback_draft: '',
-      },
-    ]
-
-    const assignmentDocsTable = buildAssignmentDocsTable({ docs })
-    const enrollmentsTable = buildClassroomEnrollmentsTable({
-      enrollments: [{ student_id: 'student-1' }],
-    })
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'assignments') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'assignment-1',
-                  classroom_id: 'classroom-1',
-                  classrooms: { teacher_id: 'teacher-1' },
-                },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'classroom_enrollments') {
-        return enrollmentsTable
-      }
-
-      if (table === 'assignment_docs') {
-        return assignmentDocsTable.table
-      }
-
-      throw new Error(`Unexpected table in test: ${table}`)
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['student-1', 'student-stale'],
-      }),
-    })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data.returned_count).toBe(1)
-    expect(data.returned_student_ids).toEqual(['student-1'])
-    expect(data.missing_count).toBe(1)
-    expect(data.missing_student_ids).toEqual(['student-stale'])
-    expect(data.not_enrolled_student_ids).toEqual(['student-stale'])
-    expect(assignmentDocsTable.returnUpdateIn).toHaveBeenCalledWith('student_id', ['student-1'])
-  })
-
-  it('returns existing docs, creates zero returns for enrolled missing work, and blocks partial rubrics', async () => {
-    const docs = [
-      {
-        id: 'doc-1',
-        student_id: 'student-1',
-        is_submitted: true,
-        submitted_at: '2026-04-10T12:00:00.000Z',
-        score_completion: 4,
-        score_thinking: 4,
-        score_workflow: 4,
-        teacher_feedback_draft: 'Strong work',
-      },
-      {
-        id: 'doc-2',
-        student_id: 'student-2',
-        is_submitted: false,
-        submitted_at: null,
-        score_completion: null,
-        score_thinking: null,
-        score_workflow: null,
-        teacher_feedback_draft: '',
-      },
-      {
-        id: 'doc-3',
-        student_id: 'student-3',
-        is_submitted: false,
-        submitted_at: null,
-        score_completion: 2,
-        score_thinking: 3,
-        score_workflow: null,
-        teacher_feedback_draft: 'Missing completion score',
-      },
-    ]
-
-    const assignmentDocsTable = buildAssignmentDocsTable({ docs })
-    const enrollmentsTable = buildClassroomEnrollmentsTable({
-      enrollments: [
-        { student_id: 'student-1' },
-        { student_id: 'student-2' },
-        { student_id: 'student-3' },
-        { student_id: 'student-4' },
-      ],
-    })
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'assignments') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'assignment-1',
-                  classroom_id: 'classroom-1',
-                  classrooms: { teacher_id: 'teacher-1' },
-                },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'assignment_docs') {
-        return assignmentDocsTable.table
-      }
-
-      if (table === 'classroom_enrollments') {
-        return enrollmentsTable
-      }
-
-      throw new Error(`Unexpected table in test: ${table}`)
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['student-1', 'student-2', 'student-3', 'student-4'],
-      }),
-    })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data.returned_count).toBe(3)
-    expect(data.cleared_count).toBe(3)
-    expect(data.updated_count).toBe(2)
-    expect(data.created_count).toBe(1)
-    expect(data.created_student_ids).toEqual(['student-4'])
-    expect(data.returned_student_ids).toEqual(['student-1', 'student-2', 'student-4'])
-    expect(data.blocked_count).toBe(1)
-    expect(data.blocked_student_ids).toEqual(['student-3'])
-    expect(data.already_returned_count).toBe(0)
-    expect(data.already_returned_student_ids).toEqual([])
-    expect(data.missing_count).toBe(0)
-    expect(data.missing_student_ids).toEqual([])
-
-    const payloads = assignmentDocsTable.update.mock.calls.map(([payload]) => payload)
-    expect(payloads).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        teacher_cleared_at: expect.any(String),
-      }),
-      expect.objectContaining({
-        is_submitted: false,
-        returned_at: expect.any(String),
-        feedback_returned_at: expect.any(String),
-        teacher_feedback_draft: null,
-        teacher_feedback_draft_updated_at: null,
-        ai_feedback_suggestion: null,
-        ai_feedback_suggested_at: null,
-        ai_feedback_model: null,
-      }),
-    ]))
-    expect(
-      payloads.every((payload: any) => !('submitted_at' in payload))
-    ).toBe(true)
-
-    expect(assignmentDocsTable.insert).toHaveBeenCalledWith([
-      expect.objectContaining({
-        assignment_id: 'assignment-1',
-        student_id: 'student-4',
-        is_submitted: false,
-        submitted_at: null,
-        score_completion: 0,
-        score_thinking: 0,
-        score_workflow: 0,
-        feedback: null,
-        graded_at: expect.any(String),
-        graded_by: 'teacher',
-        returned_at: expect.any(String),
-        feedback_returned_at: expect.any(String),
-        teacher_cleared_at: expect.any(String),
-      }),
-    ])
-
-    expect(appendAssignmentFeedbackEntry).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assignmentId: 'assignment-1',
-        studentId: 'student-1',
-        createdBy: 'teacher-1',
-        body: 'Strong work',
-      })
     )
   })
 
-  it('returns 403 when returning work from an archived classroom', async () => {
-    const mockFrom = vi.fn((table: string) => {
-      if (table === 'assignments') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'assignment-1',
-                  classroom_id: 'classroom-1',
-                  classrooms: {
-                    teacher_id: 'teacher-1',
-                    archived_at: '2026-05-01T12:00:00.000Z',
-                  },
-                },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
+  it('returns the complete atomic result unchanged', async () => {
+    const response = await POST(makeRequest({
+      student_ids: [student1, student2, student3, student4],
+    }), { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
+    const data = await response.json()
 
-      throw new Error(`Unexpected table in test: ${table}`)
+    expect(response.status).toBe(200)
+    expect(data).toEqual(successfulResult)
+    expect(loadTeacherOwnedAssignment).toHaveBeenCalledWith({
+      supabase: mockSupabaseClient,
+      assignmentId: 'a0000000-0000-4000-8000-000000000001',
+      teacherId: 'teacher-1',
     })
+  })
 
-    ;(mockSupabaseClient.from as any) = mockFrom
+  it('rejects mutation of an archived classroom before the RPC', async () => {
+    loadTeacherOwnedAssignment.mockRejectedValueOnce(
+      new ApiError(403, 'Classroom is archived'),
+    )
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['student-1'],
-      }),
+    const response = await POST(makeRequest({ student_ids: [student1] }), {
+      params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }),
     })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
-    const body = await response.json()
+    const data = await response.json()
 
     expect(response.status).toBe(403)
-    expect(body.error).toBe('Classroom is archived')
-    expect(mockFrom).toHaveBeenCalledTimes(1)
+    expect(data.error).toBe('Classroom is archived')
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
   })
 
-  it('returns graded missing work even when it was never submitted', async () => {
-    const docs = [
-      {
-        id: 'doc-1',
-        student_id: 'student-1',
-        is_submitted: false,
-        score_completion: 0,
-        score_thinking: 0,
-        score_workflow: 0,
-        teacher_feedback_draft: 'Missing',
-      },
-    ]
-
-    const assignmentDocsTable = buildAssignmentDocsTable({ docs })
-    const enrollmentsTable = buildClassroomEnrollmentsTable({
-      enrollments: [{ student_id: 'student-1' }],
+  it('returns 500 without exposing a partial result when the RPC fails', async () => {
+    mockSupabaseClient.rpc.mockResolvedValue({
+      data: null,
+      error: { message: 'transaction rolled back' },
     })
 
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'assignments') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'assignment-1',
-                  classroom_id: 'classroom-1',
-                  classrooms: { teacher_id: 'teacher-1' },
-                },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'assignment_docs') {
-        return assignmentDocsTable.table
-      }
-
-      if (table === 'classroom_enrollments') {
-        return enrollmentsTable
-      }
-
-      throw new Error(`Unexpected table in test: ${table}`)
+    const response = await POST(makeRequest({ student_ids: [student1] }), {
+      params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }),
     })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['student-1'],
-      }),
-    })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
     const data = await response.json()
 
-    expect(response.status).toBe(200)
-    expect(data.returned_count).toBe(1)
-    expect(data.cleared_count).toBe(1)
-    expect(data.missing_count).toBe(0)
-
-    expect(assignmentDocsTable.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        is_submitted: false,
-        returned_at: expect.any(String),
-        feedback_returned_at: expect.any(String),
-        teacher_cleared_at: expect.any(String),
-        teacher_feedback_draft: null,
-        teacher_feedback_draft_updated_at: null,
-        ai_feedback_suggestion: null,
-        ai_feedback_suggested_at: null,
-        ai_feedback_model: null,
-      }),
-    )
-    expect(appendAssignmentFeedbackEntry).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assignmentId: 'assignment-1',
-        studentId: 'student-1',
-        createdBy: 'teacher-1',
-        body: 'Missing',
-      }),
-    )
-  })
-
-  it('does not re-return work that was already returned and not resubmitted', async () => {
-    const docs = [
-      {
-        id: 'doc-1',
-        student_id: 'student-1',
-        is_submitted: false,
-        returned_at: '2026-04-20T12:00:00Z',
-        score_completion: 8,
-        score_thinking: 8,
-        score_workflow: 8,
-        teacher_feedback_draft: 'Already returned',
-      },
-    ]
-
-    const assignmentDocsTable = buildAssignmentDocsTable({ docs })
-    const enrollmentsTable = buildClassroomEnrollmentsTable({
-      enrollments: [{ student_id: 'student-1' }],
-    })
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'assignments') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'assignment-1',
-                  classroom_id: 'classroom-1',
-                  classrooms: { teacher_id: 'teacher-1' },
-                },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'assignment_docs') {
-        return assignmentDocsTable.table
-      }
-
-      if (table === 'classroom_enrollments') {
-        return enrollmentsTable
-      }
-
-      throw new Error(`Unexpected table in test: ${table}`)
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['student-1'],
-      }),
-    })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data.returned_count).toBe(0)
-    expect(data.cleared_count).toBe(0)
-    expect(data.already_returned_count).toBe(1)
-    expect(data.already_returned_student_ids).toEqual(['student-1'])
-    expect(data.missing_count).toBe(0)
-    expect(assignmentDocsTable.update).not.toHaveBeenCalled()
-    expect(appendAssignmentFeedbackEntry).not.toHaveBeenCalled()
-  })
-
-  it('returns already returned work after the student resubmits', async () => {
-    const docs = [
-      {
-        id: 'doc-1',
-        student_id: 'student-1',
-        is_submitted: true,
-        submitted_at: '2026-04-21T12:00:00Z',
-        returned_at: '2026-04-20T12:00:00Z',
-        teacher_cleared_at: '2026-04-20T12:00:00Z',
-        score_completion: 8,
-        score_thinking: 8,
-        score_workflow: 8,
-        teacher_feedback_draft: 'Revision checked',
-      },
-    ]
-
-    const assignmentDocsTable = buildAssignmentDocsTable({ docs })
-    const enrollmentsTable = buildClassroomEnrollmentsTable({
-      enrollments: [{ student_id: 'student-1' }],
-    })
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'assignments') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'assignment-1',
-                  classroom_id: 'classroom-1',
-                  classrooms: { teacher_id: 'teacher-1' },
-                },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'assignment_docs') {
-        return assignmentDocsTable.table
-      }
-
-      if (table === 'classroom_enrollments') {
-        return enrollmentsTable
-      }
-
-      throw new Error(`Unexpected table in test: ${table}`)
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['student-1'],
-      }),
-    })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data.returned_count).toBe(1)
-    expect(data.already_returned_count).toBe(0)
-    expect(data.returned_student_ids).toEqual(['student-1'])
-    expect(assignmentDocsTable.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        is_submitted: false,
-        returned_at: expect.any(String),
-        feedback_returned_at: expect.any(String),
-        teacher_cleared_at: expect.any(String),
-      }),
-    )
-    expect(appendAssignmentFeedbackEntry).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assignmentId: 'assignment-1',
-        studentId: 'student-1',
-        createdBy: 'teacher-1',
-        body: 'Revision checked',
-      }),
-    )
-  })
-
-  it('returns 500 when returning docs update fails', async () => {
-    const assignmentDocsTable = buildAssignmentDocsTable({
-      docs: [
-        {
-          id: 'doc-1',
-          student_id: 'student-1',
-          is_submitted: true,
-          score_completion: 4,
-          score_thinking: 4,
-          score_workflow: 4,
-          teacher_feedback_draft: '',
-        },
-      ],
-      returnUpdateError: { message: 'boom' },
-    })
-    const enrollmentsTable = buildClassroomEnrollmentsTable({
-      enrollments: [{ student_id: 'student-1' }],
-    })
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'assignments') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'assignment-1',
-                  classroom_id: 'classroom-1',
-                  classrooms: { teacher_id: 'teacher-1' },
-                },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'assignment_docs') {
-        return assignmentDocsTable.table
-      }
-
-      if (table === 'classroom_enrollments') {
-        return enrollmentsTable
-      }
-
-      throw new Error(`Unexpected table in test: ${table}`)
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['student-1'],
-      }),
-    })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
-    const data = await response.json()
     expect(response.status).toBe(500)
     expect(data.error).toBe('Failed to return docs')
   })
 
-  it('does not return partial rubric drafts when every selected doc is blocked', async () => {
-    const assignmentDocsTable = buildAssignmentDocsTable({
-      docs: [
-        {
-          id: 'doc-1',
-          student_id: 'student-1',
-          is_submitted: false,
-          score_completion: 5,
-          score_thinking: null,
-          score_workflow: 7,
-          teacher_feedback_draft: '',
-        },
-      ],
-    })
-    const enrollmentsTable = buildClassroomEnrollmentsTable({
-      enrollments: [{ student_id: 'student-1' }],
+  it('returns a retryable conflict when a missing document is created concurrently', async () => {
+    mockSupabaseClient.rpc.mockResolvedValue({
+      data: null,
+      error: { code: '40001', message: 'Assignment document changed; retry return' },
     })
 
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'assignments') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'assignment-1',
-                  classroom_id: 'classroom-1',
-                  classrooms: { teacher_id: 'teacher-1' },
-                },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'assignment_docs') {
-        return assignmentDocsTable.table
-      }
-
-      if (table === 'classroom_enrollments') {
-        return enrollmentsTable
-      }
-
-      throw new Error(`Unexpected table in test: ${table}`)
+    const response = await POST(makeRequest({ student_ids: [student1] }), {
+      params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }),
     })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['student-1'],
-      }),
-    })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
     const data = await response.json()
 
-    expect(response.status).toBe(200)
-    expect(data.returned_count).toBe(0)
-    expect(data.blocked_count).toBe(1)
-    expect(data.blocked_student_ids).toEqual(['student-1'])
-    expect(assignmentDocsTable.update).not.toHaveBeenCalled()
+    expect(response.status).toBe(409)
+    expect(data.error).toBe('Assignment document changed; retry return')
+  })
+
+  it('rejects an invalid database response as a server contract failure', async () => {
+    mockSupabaseClient.rpc.mockResolvedValue({ data: { returned_count: 1 }, error: null })
+
+    const response = await POST(makeRequest({ student_ids: [student1] }), {
+      params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }),
+    })
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe('Invalid assignment return result')
   })
 })

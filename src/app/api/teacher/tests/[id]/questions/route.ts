@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
-import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { assertTeacherOwnsTest, isLockedTestQuestionMutationError } from '@/lib/server/tests'
 import { withErrorHandler } from '@/lib/api-handler'
 
 export const dynamic = 'force-dynamic'
@@ -47,6 +47,12 @@ export const POST = withErrorHandler('CreateTeacherTestQuestion', async (request
     .single()
 
   if (error) {
+    if (isLockedTestQuestionMutationError(error)) {
+      return NextResponse.json(
+        { error: 'Test questions cannot be changed after student work exists' },
+        { status: 409 },
+      )
+    }
     console.error('Error creating test question:', error)
     return NextResponse.json({ error: 'Failed to create question' }, { status: 500 })
   }

@@ -2,14 +2,11 @@
 
 import type { ReactNode } from 'react'
 import { FloatingActionCluster } from '@/components/FloatingActionCluster'
-import { SplitButton, type SplitButtonProps } from '@/ui'
 import { cn } from '@/ui/utils'
 
 interface TeacherWorkSurfaceActionBarProps {
   label?: ReactNode
   center?: ReactNode
-  floatingAction?: SplitButtonProps
-  floatingActionStatus?: ReactNode
   trailing?: ReactNode
   className?: string
   labelClassName?: string
@@ -36,8 +33,6 @@ export function TeacherWorkSurfaceFloatingActionCluster({
 export function TeacherWorkSurfaceActionBar({
   label,
   center,
-  floatingAction,
-  floatingActionStatus,
   trailing,
   className,
   labelClassName,
@@ -47,12 +42,6 @@ export function TeacherWorkSurfaceActionBar({
   testId,
 }: TeacherWorkSurfaceActionBarProps) {
   const isCenterFloating = centerPlacement === 'floating'
-  const resolvedCenter = floatingAction ? (
-    <div className="flex max-w-[calc(100vw-2rem)] items-center justify-center gap-2">
-      <SplitButton {...floatingAction} />
-      {floatingActionStatus}
-    </div>
-  ) : center
 
   return (
     <div
@@ -65,14 +54,14 @@ export function TeacherWorkSurfaceActionBar({
       <div className={cn('min-w-0 max-w-full overflow-hidden justify-self-start text-sm font-semibold text-text-default', labelClassName)}>
         {label}
       </div>
-      {resolvedCenter ? (
+      {center ? (
         isCenterFloating ? (
           <TeacherWorkSurfaceFloatingActionCluster className={centerClassName}>
-            {resolvedCenter}
+            {center}
           </TeacherWorkSurfaceFloatingActionCluster>
         ) : (
           <div className={cn('min-w-0 justify-self-center', centerClassName)}>
-            {resolvedCenter}
+            {center}
           </div>
         )
       ) : (

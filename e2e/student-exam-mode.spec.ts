@@ -31,6 +31,14 @@ interface StudentTestDetailRecord {
   } | null
 }
 
+interface AuthMeRecord {
+  user: {
+    id: string
+    email: string
+    role: string
+  }
+}
+
 function uniqueTitle(): string {
   return `Exam Mode E2E ${Date.now()}`
 }
@@ -154,6 +162,18 @@ async function cleanupTest(browser: Browser, testId: string | null): Promise<voi
   if (!testId) return
   await withTeacherPage(browser, async (teacherPage) => {
     await sendJson(teacherPage, 'DELETE', `/api/teacher/tests/${testId}`).catch(() => undefined)
+  })
+}
+
+async function updateStudentTestAccess(
+  teacherPage: Page,
+  testId: string,
+  studentId: string,
+  state: 'open' | 'closed',
+): Promise<void> {
+  await sendJson(teacherPage, 'POST', `/api/teacher/tests/${testId}/student-access`, {
+    student_ids: [studentId],
+    state,
   })
 }
 
@@ -358,6 +378,64 @@ test.describe('student exam mode', () => {
         const detail = await loadJson<StudentTestDetailRecord>(page, `/api/student/tests/${testId}`)
         return detail.focus_summary?.route_exit_attempts ?? 0
       }).toBeGreaterThanOrEqual(1)
+    } finally {
+      await cleanupTest(browser, testId)
+    }
+  })
+
+  test('preserves an open-response draft when teacher closes and reopens access', async ({ browser, page }) => {
+    test.setTimeout(90_000)
+    let testId: string | null = null
+
+    try {
+      await page.goto('/classrooms', { waitUntil: 'domcontentloaded' })
+
+      const testTitle = uniqueTitle()
+      const currentStudent = await loadJson<AuthMeRecord>(page, '/api/auth/me')
+      const classroom = await withTeacherPage(browser, async (teacherPage) => {
+        const shared = await findSharedClassroom(page, teacherPage)
+        const testRecord = await createActiveOpenResponseTest(teacherPage, shared.id, testTitle)
+        testId = testRecord.id
+        return shared
+      })
+
+      await page.goto(`/classrooms/${classroom.id}?tab=tests`, { waitUntil: 'domcontentloaded' })
+      await page.getByRole('button', { name: new RegExp(testTitle) }).first().click()
+      await prepareExamWindowForViewportCompliance(page)
+
+      await page.getByRole('button', { name: 'Start the Test' }).click()
+      await page.getByRole('button', { name: 'Start test' }).click()
+
+      const splitShell = page.locator('[data-testid="student-test-split-container"]')
+      await expect(splitShell).toBeVisible({ timeout: 15_000 })
+
+      const responseBox = page.locator('textarea[placeholder="Write your response..."]')
+      await expect(responseBox).toBeVisible()
+      await responseBox.fill('Draft survives teacher-closed access.')
+      await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 20_000 })
+
+      await withTeacherPage(browser, async (teacherPage) => {
+        await updateStudentTestAccess(teacherPage, testId!, currentStudent.user.id, 'closed')
+      })
+
+      await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+      await expect(page.getByText('This test is closed.')).toBeVisible({ timeout: 15_000 })
+      await expect(page.getByText(/Your saved draft is preserved/)).toBeVisible()
+      await expect(responseBox).toBeHidden()
+
+      await withTeacherPage(browser, async (teacherPage) => {
+        await updateStudentTestAccess(teacherPage, testId!, currentStudent.user.id, 'open')
+      })
+
+      await page.reload({ waitUntil: 'domcontentloaded' })
+      await page.getByRole('button', { name: new RegExp(testTitle) }).first().click()
+      await prepareExamWindowForViewportCompliance(page)
+      await page.getByRole('button', { name: 'Start the Test' }).click()
+      await page.getByRole('button', { name: 'Start test' }).click()
+
+      await expect(splitShell).toBeVisible({ timeout: 15_000 })
+      await expect(responseBox).toBeVisible()
+      await expect(responseBox).toHaveValue('Draft survives teacher-closed access.')
     } finally {
       await cleanupTest(browser, testId)
     }

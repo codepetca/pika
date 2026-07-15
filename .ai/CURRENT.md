@@ -7,13 +7,17 @@ Read this at the start of every AI session. Use `.ai/SESSION-LOG.md` only for re
 - Product status: core classroom, assignment, quiz/test, and auth flows are live.
 - Maintenance focus: coverage expansion, API-route standardization, UI decomposition, and AI-guidance cleanup.
 - Feature inventory: `.ai/features.json` is the status authority for big epics; check it directly for current pass/fail state.
+- Classroom archives: production migrations 001-096, the read-only inventory, and the hosted catalog
+  audit are verified. Source and Gradex cleanup remain disabled. The named export/compact/immediate-
+  restore production canary and its post-run verification remain before rollout completion.
 
 ## Environment And Workflow Facts
 
 - Main hub checkout: `$HOME/Repos/pika`
 - New named Pika worktrees: `$HOME/.codex/worktrees/pika/<branch-name>`
 - Codex Desktop may also use app-managed worktrees: `$HOME/.codex/worktrees/<id>/pika`
-- Shared env file: `$HOME/Repos/.env/pika/.env.local`; each worktree must symlink `.env.local` to it before running the app
+- Maintainer shared env file: `$HOME/Repos/.env/pika/.env.local`; worktrees on that setup symlink `.env.local` to it before running the app
+- Collaborator setup may keep a checkout-local `.env.local` copied from `.env.example`
 - Runtime and package-manager requirements live in `.nvmrc`, `package.json`, and `scripts/verify-env.sh`
 - Worktree and shared-env setup are defined only in `docs/dev-workflow.md`
 
@@ -34,10 +38,3 @@ Read this at the start of every AI session. Use `.ai/SESSION-LOG.md` only for re
 - Keep `.ai/SESSION-LOG.md` rolling; immediately run `node scripts/trim-session-log.mjs` after each append
 - Do not run `supabase db push`, `supabase db reset`, or other migration-application commands as an AI agent
 - `main` accepts linear history only; `production` merges go through the protected PR flow
-
-## Recent Architectural Direction
-
-- Session startup now centers on `.ai/START-HERE.md`, this file, `docs/ai-instructions.md`, and `.ai/features.json`
-- `docs/dev-workflow.md` is the canonical source for worktrees and shared `.env.local` setup
-- The design system expects semantic tokens in app code and `@/ui` imports for primitives
-- Route and content drift hotspots are `withErrorHandler`, `fetchJSONWithCache`, and `parseContentField`

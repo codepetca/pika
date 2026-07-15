@@ -92,8 +92,9 @@ The `/ui` layer handles dark mode internally via CVA. App code uses semantic cla
 
 `dark:` classes are **only allowed** in:
 1. `/src/ui/` - CVA component definitions
-2. `/src/components/PikaLogo.tsx` - CSS filter transformation (exception)
-3. `/src/components/editor/RichText*.tsx` - Code block styling (intentional dark regardless of theme)
+2. `/src/components/editor/RichText*.tsx` - Code block styling (intentional dark regardless of theme)
+
+Brand asset filters belong in `src/styles/tokens.css` and should be applied through semantic classes such as `pika-logo`, not component-local `dark:` utilities.
 
 **All other code must use semantic tokens.**
 

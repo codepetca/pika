@@ -4,20 +4,36 @@ import { requireRole } from '@/lib/auth'
 import { canActivateTest } from '@/lib/tests'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { deleteTeacherTestAtomic } from '@/lib/server/test-deletion'
 import { normalizeTestDocuments, validateTestDocumentsPayload } from '@/lib/test-documents'
 import {
   getAssessmentDraftByType,
   isMissingAssessmentDraftsError,
   syncTestQuestionsFromDraft,
   updateAssessmentDraft,
-  validateTestDraftContent,
-  type TestDraftContent,
 } from '@/lib/server/assessment-drafts'
+import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import { withErrorHandler } from '@/lib/api-handler'
 import { withLegacyQuizKey } from '@/lib/test-api-contract'
+import type { TableRow } from '@/types/database'
+import type { TestDraftContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+type TestQuestionResponse = Omit<
+  TableRow<'test_questions'>,
+  | 'ai_reference_cache_answers'
+  | 'ai_reference_cache_generated_at'
+  | 'ai_reference_cache_key'
+  | 'ai_reference_cache_model'
+> & Partial<Pick<
+  TableRow<'test_questions'>,
+  | 'ai_reference_cache_answers'
+  | 'ai_reference_cache_generated_at'
+  | 'ai_reference_cache_key'
+  | 'ai_reference_cache_model'
+>>
 
 function isMissingCloseTestRpcError(error: {
   code?: string
@@ -61,7 +77,7 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
 
   let title = test.title
   let showResults = test.show_results
-  let responseQuestions = questions || []
+  let responseQuestions: TestQuestionResponse[] = questions || []
 
   const { draft, error: draftError } = await getAssessmentDraftByType<TestDraftContent>(
     supabase,
@@ -353,22 +369,6 @@ export const DELETE = withErrorHandler('DeleteTest', async (_request, context) =
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
   }
-  const supabase = getServiceRoleClient()
-
-  const { count: responsesCount } = await supabase
-    .from('test_responses')
-    .select('*', { count: 'exact', head: true })
-    .eq('test_id', id)
-
-  const { error } = await supabase
-    .from('tests')
-    .delete()
-    .eq('id', id)
-
-  if (error) {
-    console.error('Error deleting test:', error)
-    return NextResponse.json({ error: 'Failed to delete test' }, { status: 500 })
-  }
-
-  return NextResponse.json({ success: true, responses_count: responsesCount || 0 })
+  const result = await deleteTeacherTestAtomic({ testId: id, teacherId: user.id })
+  return NextResponse.json({ success: result.deleted, responses_count: result.responsesCount })
 })
