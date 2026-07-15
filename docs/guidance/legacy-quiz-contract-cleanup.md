@@ -9,8 +9,8 @@ The current product contract is:
 - Legacy quiz routes/tabs are removed from the product surface.
 - Some database tables, payload aliases, TypeScript aliases, package fields, and
   tests intentionally still use `quiz` names while compatibility is maintained.
-- AI agents may create migration files after approval, but humans apply
-  migrations manually.
+- AI agents may create migration files after approval. Application follows the
+  one-time authorization contract in the schema rollout checklist.
 
 ## Current Inventory
 
@@ -199,7 +199,7 @@ Requires a follow-up design and approval:
    - Follow `docs/guidance/schema-rollout-checklist.md`.
    - Include deterministic backfill, compatibility views or aliases if needed,
      regression tests for pre/post shapes, and rollback notes.
-   - Do not apply migrations as an AI agent.
+   - Apply only under the one-time target-and-migration authorization contract.
 
 ### Archive v1 gate
 

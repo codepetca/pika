@@ -10,15 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-10 — Auto-label new issues with needs-triage
-
-**Completed:**
-- Added .github/workflows/triage-label.yml: on issue `opened`, adds `needs-triage` if the issue has zero labels (leaves template/pre-labeled issues alone).
-- Dependency-free (uses pre-installed gh CLI, no pinned actions) and least-privilege (`permissions: issues: write` only, over the repo's read-only default).
-
-**Validation:**
-- YAML parse check; workflow runs only on issue events (no CI impact to validate here)
-
 ## 2026-07-11 — Teacher-ready blueprint classroom rollover
 
 **Completed:**
@@ -815,3 +806,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Pika pre-commit audit (no TypeScript files changed)
 - `git diff --check`
 - Database replay deferred to PR CI because local database history remains at 097 and AI did not apply migration 098
+
+## 2026-07-15 — Explicit AI migration authorization policy
+
+**Completed:**
+- Replaced the blanket AI migration-application prohibition with a human-controlled-by-default contract that permits one exact application only after a current-task instruction names the target environment and exact migration.
+- Required target verification, migration-list inspection, an explicit local/linked dry run, approved-set equality, applicable tests, and read-only post-application verification.
+- Kept reset, migration-history repair, rollback/down, seeding, data cleanup, Storage deletion, alternate database URLs, project relinking, and extra push flags outside ordinary migration approval.
+- Made failed or partial application attempts consume the permission and require renewed authorization before retry.
+- Updated active agent, architecture, project, schema, archive, and legacy-contract guidance and added a regression that prevents blanket prohibition or overbroad authorization from returning.
+- No migration or Supabase project state changed. During validation, a shell search expanded an inline command, but the unlinked worktree failed target resolution before preview or application; it was not retried.
+
+**Validation:**
+- Migration authorization and startup guidance suites (2 files / 29 tests)
+- `pnpm vitest run` (366 files / 3,349 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (600 modules / 0 allowances)
+- `git diff --check`
