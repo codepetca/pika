@@ -21,6 +21,8 @@ import {
   classroomArchiveProductionCanaryEvidenceDigest,
   classroomArchiveStorageIdentitySha256,
   createClassroomArchiveProductionCanaryPlan,
+  createClassroomArchiveProductionCanaryNormalizedEvidence,
+  createClassroomArchiveProductionCanaryVerifiedArchiveProjection,
   normalizeClassroomArchiveProductionCanaryCliArguments,
   runClassroomArchiveProductionCanary,
   verifyClassroomArchiveProductionCanaryPlan,
@@ -30,6 +32,7 @@ import {
   type ClassroomArchiveProductionCanaryFinalEvidence,
   type ClassroomArchiveProductionCanaryPlan,
   type ClassroomArchiveProductionCanaryState,
+  type ClassroomArchiveProductionCanaryStorageMapping,
 } from '@/lib/server/classroom-archive-production-canary'
 import { compactClassroomArchive } from '@/lib/server/classroom-archive-compaction'
 import {
@@ -414,9 +417,9 @@ async function mapWithConcurrency<T, R>(
 async function readCurrentEvidence(args: {
   supabase: SupabaseClient
   supabaseUrl: string
-  databaseSizeBytesBefore: number
   serviceRoleKey: string
   classroomId: string
+  storageMappings?: ClassroomArchiveProductionCanaryStorageMapping[]
 }): Promise<ClassroomArchiveProductionCanaryEvidence> {
   const reader = createSupabaseClassroomArchiveInventoryReader({
     supabase: args.supabase,
@@ -443,18 +446,29 @@ async function readCurrentEvidence(args: {
       }
     })
     const references = discoverClassroomStorageReferences(resources, args.supabaseUrl)
-    const storageDigests = await mapWithConcurrency(references, 4, async (reference) => {
+    const restoredIdentities = args.storageMappings
+      ? new Map(args.storageMappings.map((mapping) => [
+          `${mapping.bucket}\0${mapping.restorePath}`,
+          mapping.sourcePath,
+        ]))
+      : null
+    if (restoredIdentities && references.length !== args.storageMappings?.length) {
+      throw new Error('Production archive canary restored storage reference count differs')
+    }
+    const storageObjects = await mapWithConcurrency(references, 4, async (reference) => {
       const bytes = await downloadExactStorageBytes(
         args.supabase,
         reference.bucket,
         reference.path,
       )
+      const sourcePath = restoredIdentities?.get(`${reference.bucket}\0${reference.path}`)
+      if (restoredIdentities && !sourcePath) {
+        throw new Error('Production archive canary restored storage reference is unknown')
+      }
       return {
-        identity_sha256: classroomArchiveStorageIdentitySha256(
-          reference.bucket,
-          reference.path,
-        ),
-        byte_size: bytes.byteLength,
+        bucket: reference.bucket,
+        path: reference.path,
+        byteSize: bytes.byteLength,
         sha256: sha256Bytes(bytes),
       }
     })
@@ -462,10 +476,27 @@ async function readCurrentEvidence(args: {
       await reader.readRevision(args.classroomId),
     )
     if (revisionBefore !== revisionAfter) continue
+    if (args.storageMappings) {
+      return createClassroomArchiveProductionCanaryNormalizedEvidence({
+        sourceRevision: revisionAfter,
+        resources,
+        storageObjects,
+        storageMappings: args.storageMappings,
+        storagePathKind: 'restored',
+        supabaseUrl: args.supabaseUrl,
+      })
+    }
     return classroomArchiveProductionCanaryEvidenceDigest({
       sourceRevision: revisionAfter,
       resources: resourceDigests,
-      storageObjects: storageDigests,
+      storageObjects: storageObjects.map((object) => ({
+        identity_sha256: classroomArchiveStorageIdentitySha256(
+          object.bucket,
+          object.path,
+        ),
+        byte_size: object.byteSize,
+        sha256: object.sha256,
+      })),
     })
   }
   throw new Error('Production archive canary target changed during exact evidence capture')
@@ -615,27 +646,19 @@ async function readArchiveEvidence(args: {
       role: actor.role,
     })),
   })
-  const restoredEvidence = classroomArchiveProductionCanaryEvidenceDigest({
-    sourceRevision: metadata.source_revision,
-    resources: CLASSROOM_RELATIONAL_RESOURCES.map(({ table }) => {
-      const rows = restorePlan.resources[table] || []
-      const resource = resourceBytes(rows)
-      return {
-        table,
-        row_count: rows.length,
-        byte_size: resource.byteLength,
-        sha256: sha256Bytes(resource),
-      }
-    }),
-    storageObjects: restorePlan.storageObjects.map((object) => ({
-      identity_sha256: classroomArchiveStorageIdentitySha256(
-        object.bucket,
-        object.restorePath,
-      ),
-      byte_size: object.bytes.byteLength,
-      sha256: object.sha256,
-    })),
-  })
+  const plannedStoragePaths = restorePlan.storageObjects.map((object) => ({
+    bucket: object.bucket,
+    sourcePath: object.sourcePath,
+    restorePath: object.restorePath,
+  }))
+  const { restoredStorageMappings, restoredEvidence } =
+    createClassroomArchiveProductionCanaryVerifiedArchiveProjection({
+      verified,
+      sourceRevision: metadata.source_revision,
+      restoreOperationId: args.restoreOperationId,
+      supabaseUrl: args.supabaseUrl,
+      plannedStorageMappings: plannedStoragePaths,
+    })
   const restoredStorageDescriptors = restorePlan.storageObjects.map((object) => ({
     storage_bucket: object.bucket,
     storage_path: object.restorePath,
@@ -678,6 +701,7 @@ async function readArchiveEvidence(args: {
     },
     storageObjectCounts: metadata.storage_object_counts,
     restoreAdapterChain: restorePlan.adapterChain,
+    restoredStorageMappings,
     evidence,
     restoredEvidence,
   }
@@ -1030,6 +1054,13 @@ async function execute(planPath: string) {
         supabaseUrl,
         serviceRoleKey,
         classroomId: plan.classroom_id,
+      }),
+      readRestoredEvidence: (archive) => readCurrentEvidence({
+        supabase,
+        supabaseUrl,
+        serviceRoleKey,
+        classroomId: plan.classroom_id,
+        storageMappings: archive.restoredStorageMappings,
       }),
       readArchiveEvidence: archiveReader,
       readRestoreCompleted: () => readRestoreCompleted(supabase, plan),

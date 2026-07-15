@@ -451,20 +451,37 @@ begin
   end if;
 
   update public.classroom_archive_operations
-  set snapshot_expires_at = clock_timestamp() - interval '1 second'
+  set status = 'failed', error_code = 'restore_transport_failure', retryable = true
   where id = v_restore_id;
+  v_result := public.complete_classroom_archive_restore(
+    v_restore_id,
+    v_teacher_id,
+    '{}'::jsonb
+  );
+  if coalesce((v_result->>'retryable')::boolean, false) is not true
+    or v_result->>'error_code' <> 'restore_transport_failure'
+  then
+    raise exception 'Concurrent retryable restore failure became terminal: %', v_result;
+  end if;
+  if not exists (
+    select 1 from public.classroom_archive_operations
+    where id = v_restore_id and status = 'failed' and retryable is true
+  ) then
+    raise exception 'Concurrent finalization overwrote retryable restore state';
+  end if;
+
   v_result := public.begin_classroom_archive_restore(
-    v_concurrent_id,
+    v_restore_id,
     v_teacher_id,
     v_classroom_id,
     v_archive_id,
-    repeat('f', 64),
+    repeat('e', 64),
     '083_resumable_classroom_archive_restore',
     '["classroom-archive-v1-082-to-083"]'::jsonb,
     v_counts,
     jsonb_build_array(jsonb_build_object(
       'storage_bucket', 'assignment-artifacts',
-      'storage_path', format('restores/%s/%s/%s-%s', v_classroom_id, v_concurrent_id, repeat('a', 64), repeat('c', 64)),
+      'storage_path', format('restores/%s/%s/%s-%s', v_classroom_id, v_restore_id, repeat('a', 64), repeat('c', 64)),
       'expected_sha256', repeat('c', 64),
       'expected_byte_size', 10
     )),
@@ -473,22 +490,203 @@ begin
   if coalesce((v_result->>'ok')::boolean, false) is not true
     or v_result->>'operation_status' <> 'snapshot_ready'
   then
-    raise exception 'Expired restore operation still blocked a replacement: %', v_result;
+    raise exception 'Retryable restore operation did not replay: %', v_result;
   end if;
-  if not public.fail_classroom_archive_restore(
-    v_concurrent_id,
+
+  if not public.stage_classroom_archive_object_upload(
+    v_restore_id,
     v_teacher_id,
-    'restore_canary_replacement_complete',
-    false
+    'assignment-artifacts',
+    format(
+      'restores/%s/%s/%s-%s',
+      v_classroom_id,
+      v_restore_id,
+      repeat('a', 64),
+      repeat('c', 64)
+    ),
+    repeat('c', 64),
+    10
   ) then
-    raise exception 'Replacement restore operation could not be closed';
+    raise exception 'Expiry recovery upload intent could not be staged';
   end if;
   update public.classroom_archive_operations
-  set status = 'snapshot_ready',
-      error_code = null,
-      retryable = null,
-      snapshot_expires_at = clock_timestamp() + interval '24 hours'
+  set snapshot_expires_at = now() - interval '1 second'
   where id = v_restore_id;
+  perform public.cleanup_expired_classroom_archive_snapshots();
+  if not exists (
+    select 1 from public.classroom_archive_operations
+    where id = v_restore_id
+      and status = 'failed'
+      and retryable is false
+      and error_code = 'archive_snapshot_expired'
+  ) then
+    raise exception 'Restore expiry did not become durable';
+  end if;
+  if not exists (
+    select 1 from public.classroom_archive_object_upload_cleanup
+    where operation_id = v_restore_id and status = 'pending'
+  ) then
+    raise exception 'Restore expiry did not preserve cleanup authority';
+  end if;
+
+  update public.classroom_archive_object_upload_cleanup
+  set
+    status = 'processing',
+    lease_token = '88000000-0000-4000-8000-000000000008'::uuid,
+    lease_expires_at = clock_timestamp() + interval '5 minutes'
+  where operation_id = v_restore_id;
+
+  v_result := public.begin_classroom_archive_restore(
+    v_restore_id,
+    v_teacher_id,
+    v_classroom_id,
+    v_archive_id,
+    repeat('e', 64),
+    '083_resumable_classroom_archive_restore',
+    '["classroom-archive-v1-082-to-083"]'::jsonb,
+    v_counts,
+    jsonb_build_array(jsonb_build_object(
+      'storage_bucket', 'assignment-artifacts',
+      'storage_path', format('restores/%s/%s/%s-%s', v_classroom_id, v_restore_id, repeat('a', 64), repeat('c', 64)),
+      'expected_sha256', repeat('c', 64),
+      'expected_byte_size', 10
+    )),
+    2147483648
+  );
+  if v_result->>'error_code' <> 'restore_cleanup_in_progress'
+    or coalesce((v_result->>'retryable')::boolean, false) is not true
+  then
+    raise exception 'Expired restore ignored an active cleanup lease: %', v_result;
+  end if;
+  if not exists (
+    select 1 from public.classroom_archive_operations
+    where id = v_restore_id
+      and status = 'failed'
+      and retryable is false
+      and error_code = 'archive_snapshot_expired'
+  ) or not exists (
+    select 1 from public.classroom_archive_object_upload_cleanup
+    where operation_id = v_restore_id and status = 'processing'
+  ) then
+    raise exception 'Cleanup lease rejection changed durable expiry state';
+  end if;
+
+  update public.classroom_archive_object_upload_cleanup
+  set status = 'pending', lease_token = null, lease_expires_at = null
+  where operation_id = v_restore_id;
+
+  v_result := public.begin_classroom_archive_restore(
+    v_restore_id,
+    v_teacher_id,
+    v_classroom_id,
+    v_archive_id,
+    repeat('e', 64),
+    '083_resumable_classroom_archive_restore',
+    '["classroom-archive-v1-082-to-083"]'::jsonb,
+    v_counts,
+    jsonb_build_array(jsonb_build_object(
+      'storage_bucket', 'assignment-artifacts',
+      'storage_path', format('restores/%s/%s/%s-%s', v_classroom_id, v_restore_id, repeat('a', 64), repeat('c', 64)),
+      'expected_sha256', repeat('c', 64),
+      'expected_byte_size', 10
+    )),
+    1
+  );
+  if v_result->>'error_code' <> 'insufficient_database_headroom' then
+    raise exception 'Expired restore headroom rejection was not preserved: %', v_result;
+  end if;
+  if not exists (
+    select 1 from public.classroom_archive_operations
+    where id = v_restore_id
+      and status = 'failed'
+      and retryable is false
+      and error_code = 'archive_snapshot_expired'
+  ) or not exists (
+    select 1 from public.classroom_archive_object_upload_cleanup
+    where operation_id = v_restore_id and status = 'pending'
+  ) then
+    raise exception 'Rejected restore rearm committed transient state';
+  end if;
+
+  v_result := public.begin_classroom_archive_restore(
+    v_restore_id,
+    v_teacher_id,
+    v_classroom_id,
+    v_archive_id,
+    repeat('e', 64),
+    '083_resumable_classroom_archive_restore',
+    '["classroom-archive-v1-082-to-083"]'::jsonb,
+    v_counts,
+    jsonb_build_array(jsonb_build_object(
+      'storage_bucket', 'assignment-artifacts',
+      'storage_path', format('restores/%s/%s/%s-%s', v_classroom_id, v_restore_id, repeat('a', 64), repeat('c', 64)),
+      'expected_sha256', repeat('c', 64),
+      'expected_byte_size', 10
+    )),
+    2147483648
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true
+    or v_result->>'operation_status' <> 'snapshot_ready'
+    or coalesce((v_result->>'replayed')::boolean, false) is not true
+  then
+    raise exception 'Expired same-id restore operation did not rearm: %', v_result;
+  end if;
+  if exists (
+    select 1 from public.classroom_archive_object_upload_cleanup
+    where operation_id = v_restore_id
+  ) then
+    raise exception 'Expired restore rearm retained stale upload cleanup state';
+  end if;
+
+  if not public.stage_classroom_archive_object_upload(
+    v_restore_id,
+    v_teacher_id,
+    'assignment-artifacts',
+    format(
+      'restores/%s/%s/%s-%s',
+      v_classroom_id,
+      v_restore_id,
+      repeat('a', 64),
+      repeat('c', 64)
+    ),
+    repeat('c', 64),
+    10
+  ) then
+    raise exception 'Natural expiry upload intent could not be staged';
+  end if;
+  update public.classroom_archive_operations
+  set snapshot_expires_at = now() - interval '1 second'
+  where id = v_restore_id;
+
+  v_result := public.begin_classroom_archive_restore(
+    v_restore_id,
+    v_teacher_id,
+    v_classroom_id,
+    v_archive_id,
+    repeat('e', 64),
+    '083_resumable_classroom_archive_restore',
+    '["classroom-archive-v1-082-to-083"]'::jsonb,
+    v_counts,
+    jsonb_build_array(jsonb_build_object(
+      'storage_bucket', 'assignment-artifacts',
+      'storage_path', format('restores/%s/%s/%s-%s', v_classroom_id, v_restore_id, repeat('a', 64), repeat('c', 64)),
+      'expected_sha256', repeat('c', 64),
+      'expected_byte_size', 10
+    )),
+    2147483648
+  );
+  if coalesce((v_result->>'ok')::boolean, false) is not true
+    or v_result->>'operation_status' <> 'snapshot_ready'
+    or coalesce((v_result->>'replayed')::boolean, false) is not true
+  then
+    raise exception 'Natural restore expiry did not recover in one call: %', v_result;
+  end if;
+  if exists (
+    select 1 from public.classroom_archive_object_upload_cleanup
+    where operation_id = v_restore_id
+  ) then
+    raise exception 'Natural expiry recovery retained stale cleanup state';
+  end if;
 
   select jsonb_agg(row_data order by row_id) into v_rows
   from expected_restore_rows where table_name = 'classrooms';
