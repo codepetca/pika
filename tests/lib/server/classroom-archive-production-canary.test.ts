@@ -6,6 +6,7 @@ import {
   classroomArchiveProductionCanaryEvidenceDigest,
   createClassroomArchiveProductionCanaryPlan,
   deriveClassroomArchiveProductionCanaryOperationId,
+  normalizeClassroomArchiveProductionCanaryCliArguments,
   runClassroomArchiveProductionCanary,
   verifyClassroomArchiveProductionCanaryPlan,
   type ClassroomArchiveProductionCanaryDependencies,
@@ -244,6 +245,12 @@ function dependencies(options: {
 }
 
 describe('production classroom archive canary contract', () => {
+  it('accepts pnpm argument forwarding with or without its separator', () => {
+    const args = ['prepare', '--plan', '/private/plan.json']
+    expect(normalizeClassroomArchiveProductionCanaryCliArguments(args)).toEqual(args)
+    expect(normalizeClassroomArchiveProductionCanaryCliArguments(['--', ...args])).toEqual(args)
+  })
+
   it('derives stable, distinct operation IDs and verifies the immutable plan digest', () => {
     const ids = ['export', 'compact', 'restore'].map((phase) =>
       deriveClassroomArchiveProductionCanaryOperationId(
