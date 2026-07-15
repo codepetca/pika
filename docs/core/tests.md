@@ -132,6 +132,14 @@ Test password-based flows:
   forced transactional rollback, idempotent replay, concurrency rejection, strict verification,
   durable-but-ineligible cleanup staging, lease reclaim/backoff/completion, and service-role
   isolation.
+- Production canary contract tests prove immutable plan digests, deterministic and distinct phase
+  operation UUIDs, exact hosted target/credential/acknowledgement binding, cleanup-gate rejection,
+  complete 42-resource evidence, exact aggregate-digest validation, hot and cold crash resumption,
+  journal-failure-tolerant cold recovery, ambiguous export/compaction/restore reconciliation,
+  same-operation restore retry, deterministic restored-path projection, and post-restore row,
+  revision, and source-object drift rejection. The operator runner additionally verifies actual tar
+  bytes, full manifest identity, retained archive bytes, complete operation evidence, pre/post database
+  size, no tombstone, no ownership reservations, and the exact untouched cleanup descriptor set.
 - Teacher recovery-list tests prove tombstone queries are teacher-scoped, response rows are
   Zod-validated, missing migrations preserve the hot-archive response, unexpected failures fail
   closed, tombstone changes around the hot query trigger a bounded stable-read retry, restore remains

@@ -12,8 +12,9 @@ Migration `082_verified_classroom_archive_exports.sql` and
 `POST /api/teacher/classrooms/[id]/archives` implement the export-only rollout stage. They create a
 private, read-back-verified archive while retaining every hot relational row and source object.
 They do not enable cold compaction, Gradex generation, or automatic export on the existing
-archive toggle. Current production behavior remains unchanged until a human applies the migration;
-`classrooms.archived_at` continues to make a classroom read-only while relational data stays hot.
+archive toggle. Applying or deploying the migration does not invoke an archive operation;
+`classrooms.archived_at` continues to make a classroom read-only while relational data stays hot
+until an explicitly authorized lifecycle operation runs.
 
 Migration `083_resumable_classroom_archive_restore.sql` and
 `POST /api/teacher/classrooms/[id]/archives/[archiveId]/restore` add the canary-only restore
@@ -221,6 +222,65 @@ headroom for indexes, MVCC, and vacuum; a refusal leaves the cold archive unchan
 On failure, roll back relational writes, remove operation-scoped temporary objects, retain the cold
 tombstone and original archive, and store a retryable error code. Never mark the classroom hot or
 active after a partial restore.
+
+### Named Production Round-Trip Canary
+
+`pnpm canary:classroom-archive-production` is the only supported operator runner for the first named
+production export, cold-compaction, and immediate restore. It is not a route, schedule, or general
+classroom command. Before use, migrations 082 through 096, the direct catalog audit, the read-only
+inventory, database headroom, and deployment of the exact runner commit must be independently
+verified.
+
+Preparation is read-only and writes a new mode-0600 plan outside the repository:
+
+```bash
+pnpm canary:classroom-archive-production -- prepare --plan "$HOME/.pika/archive-canary.json"
+```
+
+The environment must provide the exact hosted project ref, one teacher UUID, one archived-hot
+classroom UUID with no prior lifecycle operation, and the actual database quota as
+`CLASSROOM_ARCHIVE_PRODUCTION_CANARY_EXPECTED_PROJECT_REF`,
+`CLASSROOM_ARCHIVE_PRODUCTION_CANARY_TEACHER_ID`,
+`CLASSROOM_ARCHIVE_PRODUCTION_CANARY_CLASSROOM_ID`, and
+`CLASSROOM_ARCHIVE_PRODUCTION_CANARY_DATABASE_BUDGET_BYTES`. The ordinary hosted Supabase URL and
+matching service-role JWT are also required. Preparation captures the clean git commit, stable source
+revision, all 42 canonical resource row/byte/SHA-256 descriptors, every referenced source object's
+byte/SHA-256 descriptor, the Management API's current database size, deterministic phase operation
+UUIDs, and a digest over the complete plan. `SUPABASE_ACCESS_TOKEN` is required for the read-only
+pre/post `pg_database_size` evidence. Paths and classroom content are not printed.
+
+Execution requires the same clean deployed commit and the exact target-specific acknowledgement
+printed by preparation:
+
+```bash
+pnpm canary:classroom-archive-production -- execute --plan "$HOME/.pika/archive-canary.json"
+```
+
+The runner exports, verifies the immutable archive, compacts, and immediately restores with the
+plan's same operation UUIDs. It rereads database size immediately before execution and again before
+compaction, requiring at least 100 MB of quota headroom and at least four times the actual
+uncompressed archive size when that is larger. It appends a mode-0600 JSONL event journal and
+atomically replaces a mode-0600 state file beside the plan. If the process ends after compaction or
+during restore, rerun
+`resume` with the same plan and acknowledgement; it reconciles hot/cold state and durable archive
+evidence before reusing the same operation UUIDs:
+
+```bash
+pnpm canary:classroom-archive-production -- resume --plan "$HOME/.pika/archive-canary.json"
+```
+
+Every source cleanup, staging cleanup, object cleanup, and Gradex cleanup gate must remain disabled.
+The runner sets them false in its own process and rejects an environment where any is enabled. It
+never calls a cleanup coordinator. Restore intentionally rewrites managed references to deterministic
+operation-scoped paths, so post-restore equality is checked against the archive-derived restore
+projection while every original source object is separately reread and byte-verified. Success also
+requires the exact archived source revision, a full canonical manifest digest, actual decompressed tar
+size, a restored archived-hot classroom, no cold tombstone, three identity- and verification-checked
+completed lifecycle operation rows, retained immutable archive bytes, database size below the plan's
+budget, no ownership reservation, and the exact cleanup descriptor set remaining unleased `pending`
+with zero attempts and zero deletions. Once cold state is durable, local journal write failure is
+non-blocking so immediate restore still runs. A failed run must be resumed until the classroom is
+confirmed hot; cleanup must not be used as recovery.
 
 ### Teacher Recovery Surface
 
