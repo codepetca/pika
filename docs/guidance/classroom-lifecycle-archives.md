@@ -223,11 +223,16 @@ On failure, roll back relational writes, remove operation-scoped temporary objec
 tombstone and original archive, and store a retryable error code. Never mark the classroom hot or
 active after a partial restore.
 
+The atomic cold-compaction finalizer has a function-scoped 60-second statement timeout. This is the
+maximum configurable timeout for Supabase client/API queries and does not widen role, database, or
+ordinary user-query timeouts. A timeout rolls back the transition and remains retryable under the
+same operation id.
+
 ### Named Production Round-Trip Canary
 
 `pnpm canary:classroom-archive-production` is the only supported operator runner for the first named
 production export, cold-compaction, and immediate restore. It is not a route, schedule, or general
-classroom command. Before use, migrations 082 through 096, the direct catalog audit, the read-only
+classroom command. Before use, migrations 082 through 098, the direct catalog audit, the read-only
 inventory, database headroom, and deployment of the exact runner commit must be independently
 verified.
 
