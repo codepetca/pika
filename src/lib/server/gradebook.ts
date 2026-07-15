@@ -771,10 +771,8 @@ export async function loadTeacherGradebook(opts: {
     const calc = calculateFinalPercent({
       useWeights: false,
       assignmentsWeight: DEFAULT_SETTINGS.assignments_weight,
-      quizzesWeight: DEFAULT_SETTINGS.quizzes_weight,
       testsWeight: DEFAULT_SETTINGS.tests_weight,
       assignments: assignmentRows,
-      quizzes: [],
       tests: testRows,
     })
     const assignmentTotals = assignmentRows.reduce(
@@ -803,7 +801,7 @@ export async function loadTeacherGradebook(opts: {
       assignments_percent: calc.assignmentsPercent,
       quizzes_earned: null,
       quizzes_possible: null,
-      quizzes_percent: calc.quizzesPercent,
+      quizzes_percent: null,
       tests_earned: testTotals.possible > 0 ? round2(testTotals.earned) : null,
       tests_possible: testTotals.possible > 0 ? round2(testTotals.possible) : null,
       tests_percent: calc.testsPercent,

@@ -7,16 +7,13 @@ export interface GradebookCategoryInput {
 export interface GradebookCalculationInput {
   useWeights: boolean
   assignmentsWeight: number
-  quizzesWeight: number
   testsWeight: number
   assignments: GradebookCategoryInput[]
-  quizzes: GradebookCategoryInput[]
   tests: GradebookCategoryInput[]
 }
 
 export interface GradebookCalculationResult {
   assignmentsPercent: number | null
-  quizzesPercent: number | null
   testsPercent: number | null
   finalPercent: number | null
 }
@@ -52,13 +49,11 @@ function toPercent(rows: GradebookCategoryInput[]): number | null {
 
 export function calculateFinalPercent(input: GradebookCalculationInput): GradebookCalculationResult {
   const assignmentsPercent = toPercent(input.assignments)
-  const quizzesPercent = toPercent(input.quizzes)
   const testsPercent = toPercent(input.tests)
 
-  if (assignmentsPercent == null && quizzesPercent == null && testsPercent == null) {
+  if (assignmentsPercent == null && testsPercent == null) {
     return {
       assignmentsPercent: null,
-      quizzesPercent: null,
       testsPercent: null,
       finalPercent: null,
     }
@@ -66,10 +61,9 @@ export function calculateFinalPercent(input: GradebookCalculationInput): Gradebo
 
   // Unweighted: blend all scored items by points.
   if (!input.useWeights) {
-    const all = [...input.assignments, ...input.quizzes, ...input.tests]
+    const all = [...input.assignments, ...input.tests]
     return {
       assignmentsPercent,
-      quizzesPercent,
       testsPercent,
       finalPercent: toPercent(all),
     }
@@ -80,17 +74,14 @@ export function calculateFinalPercent(input: GradebookCalculationInput): Gradebo
   if (assignmentsPercent != null && input.assignmentsWeight > 0) {
     components.push({ percent: assignmentsPercent, weight: input.assignmentsWeight })
   }
-  if (quizzesPercent != null && input.quizzesWeight > 0) {
-    components.push({ percent: quizzesPercent, weight: input.quizzesWeight })
-  }
   if (testsPercent != null && input.testsWeight > 0) {
     components.push({ percent: testsPercent, weight: input.testsWeight })
   }
 
   if (components.length === 0) {
     // fall back when scores exist but configured weights are zero
-    const fallback = assignmentsPercent ?? quizzesPercent ?? testsPercent
-    return { assignmentsPercent, quizzesPercent, testsPercent, finalPercent: fallback ?? null }
+    const fallback = assignmentsPercent ?? testsPercent
+    return { assignmentsPercent, testsPercent, finalPercent: fallback ?? null }
   }
 
   const weightTotal = components.reduce((sum, c) => sum + c.weight, 0)
@@ -98,7 +89,6 @@ export function calculateFinalPercent(input: GradebookCalculationInput): Gradebo
 
   return {
     assignmentsPercent,
-    quizzesPercent,
     testsPercent,
     finalPercent: round2(weighted),
   }

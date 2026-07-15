@@ -18,14 +18,17 @@ The current product contract is:
 
 Retain until an approved schema migration exists:
 
-- Legacy quiz tables and columns referenced by server routes and tests:
+- Legacy quiz tables and columns referenced by archive contracts, legacy-only
+  helpers, and tests:
   `quizzes`, `quiz_questions`, `quiz_responses`, `quiz_student_scores`,
   `quiz_id`, and quiz update functions/policies.
 - Historical migrations that created or hardened quiz tables, indexes, and RLS.
 - `assessment_drafts.assessment_type = 'quiz' | 'test'`, because historical or
   imported drafts may still carry `quiz`.
-- Gradebook quiz fields and settings, including `quizzes_weight`,
-  `quizzes_percent`, `GradebookQuizDetail`, and quiz override routes.
+- Gradebook database columns and response tombstones, including
+  `quizzes_weight`, `quizzes_percent`, and empty `quizzes` arrays. These remain
+  compatibility data only; active gradebook calculations and persistence must
+  not read legacy quiz tables.
 
 Do not rename these in app code as a cosmetic cleanup. They require a planned
 migration, deterministic backfill, compatibility reads, rollback notes, and
@@ -70,8 +73,12 @@ Retain for compatibility or schema-backed behavior:
 - `src/lib/server/assessments.ts` access aliases.
 - `src/lib/quiz-markdown.ts` and `tests/lib/quiz-markdown.test.ts`, which cover
   legacy quiz markdown import/export aliases.
-- Gradebook and notification server code that reads quiz tables separately from
-  active Tests.
+- Gradebook response tombstones for older clients. The active gradebook server
+  must never read quiz tables or include quiz rows in calculations.
+
+The active Tests, gradebook, and student-notification workflows do not query
+legacy quiz tables. Legacy-only server helpers and type aliases may be removed
+in isolated passes once an import audit proves they have no runtime callers.
 
 ### UI Compatibility Wrappers
 
@@ -94,7 +101,8 @@ Remaining quiz references usually fall into one of these groups:
 - Compatibility regressions for legacy response keys, props, route params, or
   helper aliases.
 - Database-shaped mocks that must still use `quiz_id` or legacy table names.
-- Gradebook tests that cover legacy quiz rows and quiz category behavior.
+- Gradebook tests that prove legacy quiz response fields remain inert and the
+  active server never queries quiz tables.
 - Course blueprint/package tests that cover persisted `quizzes` package fields.
 - UI absence tests that assert "Quizzes" is not visible.
 
@@ -175,12 +183,14 @@ Requires a follow-up design and approval:
    - Rollback: restore aliases; no data rollback required.
 
 5. **Gradebook and course package decision**
-   - Decide whether legacy quiz gradebook categories remain as archival data or
-     merge into Tests.
-   - Decide whether exported course packages keep `quizzes` for backward
-     compatibility or introduce a package format version bump.
-   - These decisions may need compatibility readers for old packages and
-     response payloads.
+   - Decision: legacy quiz gradebook rows are archival compatibility data, not
+     an active category. Keep database columns and null/empty response
+     tombstones until production verification permits their removal.
+   - Decision: version 3 course packages keep the `quizzes` site-config key for
+     backward compatibility, always normalized to `false`. Remove it only in a
+     future package version with an old-package reader.
+   - Executable architecture tests must prevent quiz-table reads from returning
+     to the gradebook workflow and package tests must keep the legacy flag off.
 
 6. **Schema migration**
    - Only after explicit approval, create migrations for table/column/function
@@ -189,6 +199,25 @@ Requires a follow-up design and approval:
    - Include deterministic backfill, compatibility views or aliases if needed,
      regression tests for pre/post shapes, and rollback notes.
    - Do not apply migrations as an AI agent.
+
+### Archive v1 gate
+
+The four legacy quiz tables cannot be dropped while classroom archive format
+v1 lists them as resources. Export and restore dynamically replay that resource
+contract, including `quiz_student_scores`; dropping a table or silently
+discarding those rows would break existing archives and can lose historical
+grades.
+
+Before any schema retirement:
+
+- Add a versioned archive adapter that preserves or maps all four quiz
+  resources for existing archives.
+- Prove a restore round trip with non-empty quiz, question, response, and manual
+  override rows.
+- Verify production row counts for all four tables, legacy quiz drafts and
+  blueprint assessments, plus non-empty quiz resource counts in stored archive
+  manifests.
+- Keep the existing archive-v1 reader after introducing any newer format.
 
 ## Validation Checklist
 
@@ -210,13 +239,16 @@ For each implementation pass:
 
 ## Next Implementation Pass
 
-The next safe pass should continue fixture-only cleanup in tests that still use
-arbitrary "Quiz" titles while not exercising a legacy fallback. Start with:
+The gradebook/course-package decision is complete. The next safe pass should
+continue fixture-only cleanup in tests that still use arbitrary "Quiz" titles
+while not exercising a legacy fallback. Start with:
 
 - `tests/lib/quiz-markdown.test.ts` only if the test is rewritten to clearly say
   it covers legacy quiz markdown compatibility.
-- Gradebook/course blueprint tests only after deciding whether their quiz rows
-  are archival compatibility data or active categories.
+- Gradebook tests may remove dead quiz-table mocks, but must retain assertions
+  for null/empty compatibility response fields.
+- Course blueprint tests must retain the version 3 `quizzes: false` package
+  contract.
 
-Do not start payload or schema removal until the payload deprecation and
-gradebook/course package decisions are approved.
+Payload and schema removal remain blocked until the deprecation window and
+production verification prove the compatibility aliases are no longer needed.

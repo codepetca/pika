@@ -58,6 +58,49 @@ values (
   clock_timestamp()
 );
 
+insert into public.quizzes (
+  id, classroom_id, title, status, show_results, created_by, points_possible
+) values (
+  '28000000-0000-4000-8000-000000000001',
+  '21000000-0000-4000-8000-000000000001',
+  'Historical restore quiz',
+  'closed',
+  true,
+  '11000000-0000-4000-8000-000000000001',
+  10
+);
+
+insert into public.quiz_questions (
+  id, quiz_id, question_text, options, correct_option, position
+) values (
+  '28000000-0000-4000-8000-000000000011',
+  '28000000-0000-4000-8000-000000000001',
+  'Historical restore question',
+  '["First", "Second"]'::jsonb,
+  1,
+  0
+);
+
+insert into public.quiz_responses (
+  id, quiz_id, question_id, student_id, selected_option
+) values (
+  '28000000-0000-4000-8000-000000000021',
+  '28000000-0000-4000-8000-000000000001',
+  '28000000-0000-4000-8000-000000000011',
+  '11000000-0000-4000-8000-000000000002',
+  1
+);
+
+insert into public.quiz_student_scores (
+  id, quiz_id, student_id, manual_override_score, graded_by
+) values (
+  '28000000-0000-4000-8000-000000000031',
+  '28000000-0000-4000-8000-000000000001',
+  '11000000-0000-4000-8000-000000000002',
+  9,
+  'teacher'
+);
+
 insert into public.tests (id, classroom_id, title, status, points_possible, created_by)
 values (
   '27000000-0000-4000-8000-000000000001',

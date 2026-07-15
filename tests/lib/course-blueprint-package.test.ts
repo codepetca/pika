@@ -172,6 +172,37 @@ describe('course blueprint package', () => {
     expect(parsed.lesson_templates).toHaveLength(1)
   })
 
+  it('keeps the version 3 quizzes site flag serialized but permanently disabled', () => {
+    const bundle = buildCourseBlueprintExportBundle({
+      ...DETAIL,
+      planned_site_config: {
+        ...DETAIL.planned_site_config,
+        quizzes: true,
+      },
+    })
+
+    expect(bundle.manifest.version).toBe('3')
+    expect(bundle.manifest.planned_site_config?.quizzes).toBe(false)
+
+    const archive = encodeCourseBlueprintPackageArchive(bundle)
+    const decoded = decodeCourseBlueprintPackageArchive(archive)
+    expect(decoded?.manifest.planned_site_config?.quizzes).toBe(false)
+
+    const legacyArchive = encodeCourseBlueprintPackageArchive({
+      ...bundle,
+      manifest: {
+        ...bundle.manifest,
+        planned_site_config: {
+          ...bundle.manifest.planned_site_config,
+          quizzes: true,
+        },
+      },
+    })
+    const parsed = parseCourseBlueprintImportArchive(legacyArchive)
+
+    expect(parsed.blueprint.planned_site_config.quizzes).toBe(false)
+  })
+
   it('analyzes missing blueprint areas', () => {
     const analysis = analyzeCourseBlueprintCompleteness({
       ...DETAIL,

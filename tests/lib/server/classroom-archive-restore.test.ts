@@ -64,6 +64,30 @@ function verifiedFixture() {
           url: 'https://project.supabase.co/storage/v1/object/public/test-documents/teacher/test/source.pdf',
         }],
       }],
+      quizzes: [{
+        id: '60000000-0000-4000-8000-000000000001',
+        classroom_id: CLASSROOM_ID,
+        created_by: TEACHER_ID,
+        title: 'Historical quiz',
+      }],
+      quiz_questions: [{
+        id: '60000000-0000-4000-8000-000000000002',
+        quiz_id: '60000000-0000-4000-8000-000000000001',
+        question_text: 'Historical question',
+      }],
+      quiz_responses: [{
+        id: '60000000-0000-4000-8000-000000000003',
+        quiz_id: '60000000-0000-4000-8000-000000000001',
+        question_id: '60000000-0000-4000-8000-000000000002',
+        student_id: STUDENT_ID,
+        selected_option: 1,
+      }],
+      quiz_student_scores: [{
+        id: '60000000-0000-4000-8000-000000000004',
+        quiz_id: '60000000-0000-4000-8000-000000000001',
+        student_id: STUDENT_ID,
+        manual_override_score: 9,
+      }],
     },
     actors: [
       { id: TEACHER_ID, email: 'teacher@example.test', role: 'teacher', profile: null },
@@ -140,6 +164,17 @@ const currentActors = [
 ]
 
 describe('classroom archive restore planning', () => {
+  it('freezes the legacy quiz resources into the archive v1 contract', () => {
+    const resourceNames = CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)
+
+    expect(resourceNames).toEqual(expect.arrayContaining([
+      'quizzes',
+      'quiz_questions',
+      'quiz_responses',
+      'quiz_student_scores',
+    ]))
+  })
+
   it('requires explicit outer artifact checksum evidence', () => {
     expect(() => buildClassroomArchiveRestorePlan({
       verified: verifiedFixture(),
@@ -179,6 +214,18 @@ describe('classroom archive restore planning', () => {
     expect(JSON.stringify(plan.resources.tests[0].documents)).not.toContain(
       'teacher/test/snapshot.html',
     )
+    expect(plan.resources.quizzes).toEqual([
+      expect.objectContaining({ title: 'Historical quiz' }),
+    ])
+    expect(plan.resources.quiz_questions).toEqual([
+      expect.objectContaining({ question_text: 'Historical question' }),
+    ])
+    expect(plan.resources.quiz_responses).toEqual([
+      expect.objectContaining({ student_id: STUDENT_ID, selected_option: 1 }),
+    ])
+    expect(plan.resources.quiz_student_scores).toEqual([
+      expect.objectContaining({ student_id: STUDENT_ID, manual_override_score: 9 }),
+    ])
   })
 
   it('fails closed when an archived actor cannot be reconciled', () => {
