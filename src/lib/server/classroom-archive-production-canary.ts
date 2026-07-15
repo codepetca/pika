@@ -1,7 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
-import { canonicalJsonStringify } from '@/lib/server/classroom-archive-format'
+import {
+  canonicalJsonStringify,
+  decodeClassroomArchiveData,
+  type VerifiedClassroomArchiveBundle,
+} from '@/lib/server/classroom-archive-format'
 import type { ClassroomArchiveCompactionResult } from '@/lib/server/classroom-archive-compaction'
 import type { ClassroomArchiveExportResult } from '@/lib/server/classroom-archive-operations'
 import type { ClassroomArchiveRestoreResult } from '@/lib/server/classroom-archive-restore-operations'
@@ -136,6 +140,34 @@ export type ClassroomArchiveProductionCanaryState =
   | { phase: 'hot'; teacherId: string; archivedAt: string }
   | { phase: 'cold'; teacherId: string; archiveId: string }
 
+export type ClassroomArchiveProductionCanaryStorageMapping = {
+  bucket: string
+  sourcePath: string
+  restorePath: string
+}
+
+export function assertClassroomArchiveProductionCanaryStorageMappingsEqual(args: {
+  independent: ClassroomArchiveProductionCanaryStorageMapping[]
+  planned: ClassroomArchiveProductionCanaryStorageMapping[]
+}): void {
+  const normalize = (mappings: ClassroomArchiveProductionCanaryStorageMapping[]) =>
+    mappings.map((mapping) => ({
+      bucket: z.string().min(1).parse(mapping.bucket),
+      sourcePath: z.string().min(1).parse(mapping.sourcePath),
+      restorePath: z.string().min(1).parse(mapping.restorePath),
+    })).sort((left, right) => (
+      left.bucket.localeCompare(right.bucket) ||
+      left.sourcePath.localeCompare(right.sourcePath) ||
+      left.restorePath.localeCompare(right.restorePath)
+    ))
+  if (
+    canonicalJsonStringify(normalize(args.independent)) !==
+    canonicalJsonStringify(normalize(args.planned))
+  ) {
+    throw new Error('Production archive canary independent restored paths differ')
+  }
+}
+
 export type ClassroomArchiveProductionArchiveEvidence = {
   archiveId: string
   teacherId: string
@@ -148,6 +180,7 @@ export type ClassroomArchiveProductionArchiveEvidence = {
   operationRequestSha256: { export: string; compact: string; restore: string }
   storageObjectCounts: Record<string, unknown>
   restoreAdapterChain: string[]
+  restoredStorageMappings: ClassroomArchiveProductionCanaryStorageMapping[]
   evidence: ClassroomArchiveProductionCanaryEvidence
   restoredEvidence: ClassroomArchiveProductionCanaryEvidence
 }
@@ -191,6 +224,9 @@ export type ClassroomArchiveProductionCanaryEvent = {
 export type ClassroomArchiveProductionCanaryDependencies = {
   readState(): Promise<ClassroomArchiveProductionCanaryState>
   readCurrentEvidence(): Promise<ClassroomArchiveProductionCanaryEvidence>
+  readRestoredEvidence(
+    archive: ClassroomArchiveProductionArchiveEvidence,
+  ): Promise<ClassroomArchiveProductionCanaryEvidence>
   readArchiveEvidence(): Promise<ClassroomArchiveProductionArchiveEvidence | null>
   readRestoreCompleted(): Promise<boolean>
   exportArchive(): Promise<ClassroomArchiveExportResult>
@@ -205,6 +241,269 @@ export type ClassroomArchiveProductionCanaryDependencies = {
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex')
+}
+
+export function deriveClassroomArchiveProductionCanaryRestoredStoragePath(args: {
+  classroomId: string
+  operationId: string
+  sha256: string
+  sourcePath: string
+  contentType: string | null
+}): string {
+  const objectIdentity = sha256(
+    `${z.string().min(1).parse(args.sourcePath)}\0${args.contentType ?? '<null>'}`,
+  )
+  return [
+    'restores',
+    uuidSchema.parse(args.classroomId),
+    uuidSchema.parse(args.operationId),
+    `${objectIdentity}-${sha256Schema.parse(args.sha256)}`,
+  ].join('/')
+}
+
+function normalizeCanaryStorageMappings(
+  mappings: ClassroomArchiveProductionCanaryStorageMapping[],
+  storagePathKind: 'source' | 'restored',
+): Map<string, string> {
+  const paths = new Map<string, string>()
+  for (const mapping of mappings) {
+    const bucket = z.string().min(1).parse(mapping.bucket)
+    const sourcePath = z.string().min(1).parse(mapping.sourcePath)
+    const restorePath = z.string().min(1).parse(mapping.restorePath)
+    const identity = sha256(`${bucket}\0${sourcePath}`)
+    const path = storagePathKind === 'source' ? sourcePath : restorePath
+    const key = `${bucket}\0${path}`
+    const existing = paths.get(key)
+    if (existing && existing !== identity) {
+      throw new Error('Production canary storage normalization is ambiguous')
+    }
+    paths.set(key, identity)
+  }
+  return paths
+}
+
+function normalizeCanaryManagedUrls(
+  value: string,
+  supabaseOrigin: string,
+  paths: Map<string, string>,
+  storagePathKind: 'source' | 'restored',
+): string {
+  return value.replace(/https?:\/\/[^\s<>"'`]+/gi, (candidate) => {
+    const stripped = candidate.replace(/[),.;:!?]+$/, '')
+    const suffix = candidate.slice(stripped.length)
+    try {
+      const url = new URL(stripped)
+      if (url.origin !== supabaseOrigin) return candidate
+      const match = url.pathname.match(
+        /^\/storage\/v1\/object\/(public|sign|authenticated)\/([^/]+)\/(.+)$/,
+      )
+      if (!match) return candidate
+      const bucket = decodeURIComponent(match[2])
+      const path = decodeURIComponent(match[3])
+      if (storagePathKind === 'restored') {
+        const canonicalPath = [
+          '',
+          'storage',
+          'v1',
+          'object',
+          'public',
+          encodeURIComponent(bucket),
+          ...path.split('/').map((segment) => encodeURIComponent(segment)),
+        ].join('/')
+        if (stripped !== `${supabaseOrigin}${canonicalPath}`) return candidate
+      }
+      const identity = paths.get(`${bucket}\0${path}`)
+      return identity ? `pika-storage-object:${identity}${suffix}` : candidate
+    } catch {
+      return candidate
+    }
+  })
+}
+
+function normalizeCanaryResourceValue(args: {
+  value: unknown
+  table: string
+  key?: string
+  inTestDocuments?: boolean
+  supabaseOrigin: string
+  paths: Map<string, string>
+  storagePathKind: 'source' | 'restored'
+}): unknown {
+  if (typeof args.value === 'string') {
+    const directBucket = args.table === 'assignment_submission_artifacts' &&
+      args.key === 'storage_path'
+      ? 'assignment-artifacts'
+      : args.table === 'tests' && args.inTestDocuments && args.key === 'snapshot_path'
+        ? 'test-documents'
+        : null
+    if (directBucket) {
+      const identity = args.paths.get(`${directBucket}\0${args.value}`)
+      return identity ? `pika-storage-object:${identity}` : args.value
+    }
+    return normalizeCanaryManagedUrls(
+      args.value,
+      args.supabaseOrigin,
+      args.paths,
+      args.storagePathKind,
+    )
+  }
+  if (Array.isArray(args.value)) {
+    return args.value.map((value) => normalizeCanaryResourceValue({ ...args, value }))
+  }
+  if (!args.value || typeof args.value !== 'object') return args.value
+  return Object.fromEntries(Object.entries(args.value).map(([key, value]) => [
+    key,
+    normalizeCanaryResourceValue({
+      ...args,
+      value,
+      key,
+      inTestDocuments: args.inTestDocuments ||
+        (args.table === 'tests' && key === 'documents'),
+    }),
+  ]))
+}
+
+export function normalizeClassroomArchiveProductionCanaryResources(args: {
+  resources: Record<string, Array<Record<string, unknown>>>
+  storageMappings: ClassroomArchiveProductionCanaryStorageMapping[]
+  storagePathKind: 'source' | 'restored'
+  supabaseUrl: string
+}): Record<string, Array<Record<string, unknown>>> {
+  const supabaseOrigin = new URL(args.supabaseUrl).origin
+  const paths = normalizeCanaryStorageMappings(args.storageMappings, args.storagePathKind)
+  return Object.fromEntries(Object.entries(args.resources).map(([table, rows]) => [
+    table,
+    rows.map((row) => normalizeCanaryResourceValue({
+      value: row,
+      table,
+      supabaseOrigin,
+      paths,
+      storagePathKind: args.storagePathKind,
+    }) as Record<string, unknown>),
+  ]))
+}
+
+export function createClassroomArchiveProductionCanaryNormalizedEvidence(args: {
+  sourceRevision: number
+  resources: Record<string, Array<Record<string, unknown>>>
+  storageObjects: Array<{
+    bucket: string
+    path: string
+    byteSize: number
+    sha256: string
+  }>
+  storageMappings: ClassroomArchiveProductionCanaryStorageMapping[]
+  storagePathKind: 'source' | 'restored'
+  supabaseUrl: string
+}): ClassroomArchiveProductionCanaryEvidence {
+  if (args.storageObjects.length !== args.storageMappings.length) {
+    throw new Error('Production canary normalized storage object count differs')
+  }
+  const sourcePaths = new Map(args.storageMappings.map((mapping) => [
+    `${mapping.bucket}\0${
+      args.storagePathKind === 'source' ? mapping.sourcePath : mapping.restorePath
+    }`,
+    mapping.sourcePath,
+  ]))
+  const seenSourceIdentities = new Set<string>()
+  const storageObjects = args.storageObjects.map((object) => {
+    const sourcePath = sourcePaths.get(`${object.bucket}\0${object.path}`)
+    if (!sourcePath) {
+      throw new Error(
+        `Production canary ${args.storagePathKind} storage object path is unknown`,
+      )
+    }
+    const identitySha256 = sha256(`${object.bucket}\0${sourcePath}`)
+    if (seenSourceIdentities.has(identitySha256)) {
+      throw new Error('Production canary normalized storage object identity is duplicated')
+    }
+    seenSourceIdentities.add(identitySha256)
+    return {
+      identity_sha256: identitySha256,
+      byte_size: z.number().int().nonnegative().parse(object.byteSize),
+      sha256: sha256Schema.parse(object.sha256),
+    }
+  })
+  const resources = normalizeClassroomArchiveProductionCanaryResources({
+    resources: args.resources,
+    storageMappings: args.storageMappings,
+    storagePathKind: args.storagePathKind,
+    supabaseUrl: args.supabaseUrl,
+  })
+  return classroomArchiveProductionCanaryEvidenceDigest({
+    sourceRevision: args.sourceRevision,
+    resources: CLASSROOM_RELATIONAL_RESOURCES.map(({ table }) => {
+      const rows = resources[table] || []
+      const bytes = Buffer.from(
+        rows.map((row) => `${canonicalJsonStringify(row)}\n`).join(''),
+        'utf8',
+      )
+      return {
+        table,
+        row_count: rows.length,
+        byte_size: bytes.byteLength,
+        sha256: sha256(bytes),
+      }
+    }),
+    storageObjects,
+  })
+}
+
+export function createClassroomArchiveProductionCanaryArchiveProjection(args: {
+  verified: Extract<VerifiedClassroomArchiveBundle, { ok: true }>
+  sourceRevision: number
+  restoreOperationId: string
+  supabaseUrl: string
+}): {
+  restoredStorageMappings: ClassroomArchiveProductionCanaryStorageMapping[]
+  restoredEvidence: ClassroomArchiveProductionCanaryEvidence
+} {
+  const decoded = decodeClassroomArchiveData(args.verified)
+  const restoredStorageMappings = args.verified.manifest.storage_objects.map((object) => ({
+    bucket: object.bucket,
+    sourcePath: object.source_path,
+    restorePath: deriveClassroomArchiveProductionCanaryRestoredStoragePath({
+      classroomId: args.verified.manifest.classroom_id,
+      operationId: args.restoreOperationId,
+      sha256: object.sha256,
+      sourcePath: object.source_path,
+      contentType: object.content_type,
+    }),
+  }))
+  return {
+    restoredStorageMappings,
+    restoredEvidence: createClassroomArchiveProductionCanaryNormalizedEvidence({
+      sourceRevision: args.sourceRevision,
+      resources: decoded.resources,
+      storageObjects: args.verified.manifest.storage_objects.map((object) => ({
+        bucket: object.bucket,
+        path: object.source_path,
+        byteSize: object.byte_size,
+        sha256: object.sha256,
+      })),
+      storageMappings: restoredStorageMappings,
+      storagePathKind: 'source',
+      supabaseUrl: args.supabaseUrl,
+    }),
+  }
+}
+
+export function createClassroomArchiveProductionCanaryVerifiedArchiveProjection(args: {
+  verified: Extract<VerifiedClassroomArchiveBundle, { ok: true }>
+  sourceRevision: number
+  restoreOperationId: string
+  supabaseUrl: string
+  plannedStorageMappings: ClassroomArchiveProductionCanaryStorageMapping[]
+}): {
+  restoredStorageMappings: ClassroomArchiveProductionCanaryStorageMapping[]
+  restoredEvidence: ClassroomArchiveProductionCanaryEvidence
+} {
+  const projection = createClassroomArchiveProductionCanaryArchiveProjection(args)
+  assertClassroomArchiveProductionCanaryStorageMappingsEqual({
+    independent: projection.restoredStorageMappings,
+    planned: args.plannedStorageMappings,
+  })
+  return projection
 }
 
 function decodeJwtClaims(value: string): unknown {
@@ -485,7 +784,9 @@ export async function runClassroomArchiveProductionCanary(args: {
     const completedArchive = archive !== null && await dependencies.readRestoreCompleted()
       ? archive
       : null
-    const currentEvidence = await dependencies.readCurrentEvidence()
+    const currentEvidence = completedArchive
+      ? await dependencies.readRestoredEvidence(completedArchive)
+      : await dependencies.readCurrentEvidence()
     assertClassroomArchiveProductionCanaryEvidenceEqual({
       expected: completedArchive?.restoredEvidence || plan.pre_evidence,
       actual: currentEvidence,
@@ -593,31 +894,60 @@ export async function runClassroomArchiveProductionCanary(args: {
   await recordEvent({ phase: 'restore', status: 'started' })
   let restored: ClassroomArchiveRestoreResult | null = null
   let restoreReconciled = false
+  let restoreCallError: unknown = null
   let restoreAttempts = 0
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     restoreAttempts = attempt
-    restored = await dependencies.restoreArchive()
+    try {
+      restored = await dependencies.restoreArchive()
+    } catch (error) {
+      restoreCallError = error
+      let stateAfterThrownRestore: ClassroomArchiveProductionCanaryState | null = null
+      try {
+        stateAfterThrownRestore = await readStateWithRetry()
+      } catch {
+        // Retry the fixed operation id; a later attempt can reconcile durable state.
+      }
+      if (stateAfterThrownRestore) assertStateIdentity(stateAfterThrownRestore, plan)
+      if (stateAfterThrownRestore?.phase === 'hot') {
+        const reconciledEvidence = await dependencies.readRestoredEvidence(archive)
+        assertClassroomArchiveProductionCanaryEvidenceEqual({
+          expected: archive.restoredEvidence,
+          actual: reconciledEvidence,
+          compareRevision: true,
+        })
+        restoreReconciled = true
+        break
+      }
+      continue
+    }
     if (restored.operation_id !== plan.operation_ids.restore) {
       throw new Error('Production archive restore operation identity does not match the plan')
     }
     if (restored.ok || !restored.retryable) break
   }
   if (!restored || !restored.ok) {
-    const errorCode = restored?.error_code || 'restore_result_missing'
-    const stateAfterRestore = await readStateWithRetry()
-    assertStateIdentity(stateAfterRestore, plan)
-    if (stateAfterRestore.phase !== 'hot') {
-      await recordEvent({ phase: 'restore', status: 'failed', errorCode })
-      if (!restored) throw new Error('Production archive restore did not return a result')
-      throw operationFailure('Production archive restore', restored)
+    const errorCode = restored?.error_code || (restoreCallError
+      ? 'restore_call_threw'
+      : 'restore_result_missing')
+    if (!restoreReconciled) {
+      const stateAfterRestore = await readStateWithRetry()
+      assertStateIdentity(stateAfterRestore, plan)
+      if (stateAfterRestore.phase !== 'hot') {
+        await recordEvent({ phase: 'restore', status: 'failed', errorCode })
+        if (!restored) {
+          throw restoreCallError || new Error('Production archive restore did not return a result')
+        }
+        throw operationFailure('Production archive restore', restored)
+      }
+      const reconciledEvidence = await dependencies.readRestoredEvidence(archive)
+      assertClassroomArchiveProductionCanaryEvidenceEqual({
+        expected: archive.restoredEvidence,
+        actual: reconciledEvidence,
+        compareRevision: true,
+      })
+      restoreReconciled = true
     }
-    const reconciledEvidence = await dependencies.readCurrentEvidence()
-    assertClassroomArchiveProductionCanaryEvidenceEqual({
-      expected: archive.restoredEvidence,
-      actual: reconciledEvidence,
-      compareRevision: true,
-    })
-    restoreReconciled = true
     await recordEvent({ phase: 'restore', status: 'reconciled', errorCode })
   } else {
     if (
@@ -631,7 +961,7 @@ export async function runClassroomArchiveProductionCanary(args: {
   }
 
   await recordEvent({ phase: 'verify', status: 'started' })
-  const postEvidence = await dependencies.readCurrentEvidence()
+  const postEvidence = await dependencies.readRestoredEvidence(archive)
   assertClassroomArchiveProductionCanaryEvidenceEqual({
     expected: archive.restoredEvidence,
     actual: postEvidence,

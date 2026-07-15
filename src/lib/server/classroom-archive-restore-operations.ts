@@ -250,7 +250,15 @@ async function loadArchiveMetadata(args: {
     .eq('classroom_id', args.classroomId)
     .eq('teacher_id', args.teacherId)
     .single()
-  if (response.error || !response.data) {
+  if (response.error && response.error.code !== 'PGRST116') {
+    throw new ClassroomArchiveRestoreError(
+      'classroom_archive_metadata_read_failed',
+      'Classroom archive metadata could not be read',
+      503,
+      true,
+    )
+  }
+  if (!response.data) {
     throw new ClassroomArchiveRestoreError(
       'classroom_archive_not_found',
       'Classroom archive not found',
@@ -323,7 +331,12 @@ async function uploadAndVerifyRestoreObject(args: {
   object: ClassroomArchiveRestorePlan['storageObjects'][number]
 }): Promise<boolean> {
   const bucket = args.supabase.storage.from(args.object.bucket)
-  let bytes = await readStorageBytes((await bucket.download(args.object.restorePath)).data)
+  let bytes: Uint8Array | null = null
+  try {
+    bytes = await readStorageBytes((await bucket.download(args.object.restorePath)).data)
+  } catch {
+    // An upload conflict plus read-back below can still reconcile an existing object.
+  }
   let uploaded = false
   if (!bytes) {
     const upload = await bucket.upload(args.object.restorePath, args.object.bytes, {
@@ -332,8 +345,11 @@ async function uploadAndVerifyRestoreObject(args: {
       upsert: false,
     })
     if (upload.error) {
-      bytes = await readStorageBytes((await bucket.download(args.object.restorePath)).data)
-      if (!bytes) {
+      try {
+        const readBack = await bucket.download(args.object.restorePath)
+        bytes = await readStorageBytes(readBack.data)
+        if (readBack.error || !bytes) throw new Error('read-back unavailable')
+      } catch {
         throw new ClassroomArchiveRestoreError(
           'restore_storage_upload_failed',
           'A classroom archive object could not be restored',
@@ -343,11 +359,28 @@ async function uploadAndVerifyRestoreObject(args: {
       }
     } else {
       uploaded = true
-      bytes = await readStorageBytes((await bucket.download(args.object.restorePath)).data)
+      try {
+        const readBack = await bucket.download(args.object.restorePath)
+        bytes = await readStorageBytes(readBack.data)
+        if (readBack.error || !bytes) throw new Error('read-back unavailable')
+      } catch {
+        throw new ClassroomArchiveRestoreError(
+          'restore_storage_readback_failed',
+          'A restored classroom object could not be read back for verification',
+          503,
+          true,
+        )
+      }
     }
   }
-  if (!bytes || sha256Bytes(bytes) !== args.object.sha256) {
-    if (uploaded) await bucket.remove([args.object.restorePath])
+  if (sha256Bytes(bytes) !== args.object.sha256) {
+    if (uploaded) {
+      try {
+        await bucket.remove([args.object.restorePath])
+      } catch {
+        // The staged upload intent leaves cleanup durable if best-effort removal fails.
+      }
+    }
     throw new ClassroomArchiveRestoreError(
       'restore_storage_checksum_mismatch',
       'A restored classroom object failed checksum verification',
@@ -364,13 +397,17 @@ async function recordRestoreFailure(args: {
   teacherId: string
   error: ClassroomArchiveRestoreError
 }): Promise<boolean> {
-  const response = await args.supabase.rpc('fail_classroom_archive_restore', {
-    p_operation_id: args.operationId,
-    p_teacher_id: args.teacherId,
-    p_error_code: args.error.code,
-    p_retryable: args.error.retryable,
-  })
-  return !response.error && response.data === true
+  try {
+    const response = await args.supabase.rpc('fail_classroom_archive_restore', {
+      p_operation_id: args.operationId,
+      p_teacher_id: args.teacherId,
+      p_error_code: args.error.code,
+      p_retryable: args.error.retryable,
+    })
+    return !response.error && response.data === true
+  } catch {
+    return false
+  }
 }
 
 function emitRestoreMetric(result: ClassroomArchiveRestoreResult, startedAt: number) {
@@ -399,6 +436,7 @@ export async function restoreClassroomArchive(args: {
   let operationStarted = false
   let finalizationAttempted = false
   let plan: ClassroomArchiveRestorePlan | null = null
+  const uploadedStorageObjects: Array<{ bucket: string; path: string }> = []
 
   try {
     const metadata = await loadArchiveMetadata(args)
@@ -556,7 +594,10 @@ export async function restoreClassroomArchive(args: {
           true,
         )
       }
-      await uploadAndVerifyRestoreObject({ supabase: args.supabase, object })
+      const uploaded = await uploadAndVerifyRestoreObject({ supabase: args.supabase, object })
+      if (uploaded) {
+        uploadedStorageObjects.push({ bucket: object.bucket, path: object.restorePath })
+      }
     }
     for (const table of getClassroomResourceOrder('restore')) {
       const rows = plan.resources[table] || []
@@ -654,10 +695,10 @@ export async function restoreClassroomArchive(args: {
     const error = cause instanceof ClassroomArchiveRestoreError
       ? cause
       : new ClassroomArchiveRestoreError(
-          'classroom_archive_restore_contract_invalid',
-          'Classroom archive restore failed contract validation',
-          500,
-          false,
+          'classroom_archive_restore_unexpected_failure',
+          'Classroom archive restore encountered a transient unexpected failure',
+          503,
+          true,
         )
     const cleanupAuthorized = operationStarted
       ? await recordRestoreFailure({
@@ -667,23 +708,35 @@ export async function restoreClassroomArchive(args: {
         error,
       })
       : false
-    if (!error.retryable && !finalizationAttempted && plan && cleanupAuthorized) {
+    const reportedError = operationStarted && !cleanupAuthorized
+      ? new ClassroomArchiveRestoreError(
+          'classroom_archive_restore_failure_recording_failed',
+          'Classroom archive restore failure state could not be confirmed',
+          503,
+          true,
+        )
+      : error
+    if (!reportedError.retryable && !finalizationAttempted && cleanupAuthorized) {
       const pathsByBucket = new Map<string, Set<string>>()
-      for (const object of plan.storageObjects) {
+      for (const object of uploadedStorageObjects) {
         const paths = pathsByBucket.get(object.bucket) || new Set<string>()
-        paths.add(object.restorePath)
+        paths.add(object.path)
         pathsByBucket.set(object.bucket, paths)
       }
       for (const [bucket, paths] of pathsByBucket) {
-        await args.supabase.storage.from(bucket).remove([...paths])
+        try {
+          await args.supabase.storage.from(bucket).remove([...paths])
+        } catch {
+          // Durable cleanup owns any object that cannot be removed best-effort here.
+        }
       }
     }
     const result = publicFailure({
       operationId: args.operationId,
-      code: error.code,
-      message: error.message,
-      status: error.status,
-      retryable: error.retryable,
+      code: reportedError.code,
+      message: reportedError.message,
+      status: reportedError.status,
+      retryable: reportedError.retryable,
     })
     emitRestoreMetric(result, startedAt)
     return result

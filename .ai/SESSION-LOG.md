@@ -10,20 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-10 — Repo cleanup and /repo-tidy skill
-
-**Completed:**
-- Deleted 101 stale remote branches (95 merged/closed-PR + 6 from closing stalled PRs) and ~140 local branches; pruned phantom `origin/pr/672` ref.
-- Removed 20 stale worktrees and 2 orphan directories; tagged 9 scratch-branch tips as `rescue/*` (local-only) before deleting.
-- Closed stalled PRs #298, #323, #328, #341, #568, #739. Rescued uncommitted work from an unattended worktree into PR #838.
-- Enabled `delete_branch_on_merge` on the repo so merged PR branches self-clean.
-- Added `scripts/repo-tidy.sh` (read-only hygiene report) plus `/repo-tidy` command in `.claude/commands/` and `.codex/prompts/`, and documented it in `docs/dev-workflow.md`.
-
-**Validation:**
-- `bash scripts/repo-tidy.sh` (clean run against the tidied repo)
-- `pnpm test tests/unit/ai-startup-docs.test.ts` (26/26 passed)
-- `pnpm lint`
-
 ## 2026-07-10 — Issue backlog triage + CONTRIBUTING "Finding work" section
 
 **Completed:**
@@ -789,3 +775,28 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm check:architecture` (599 modules / 0 allowances)
 - Pika pre-commit audit
 - `git diff --check`
+
+## 2026-07-15 — Production archive canary retry and recovery hardening
+
+**Completed:**
+- Hardened restore storage read-back, unexpected transport failures, durable failure recording, and terminal best-effort cleanup so retries retain the fixed operation ID without deleting reused objects.
+- Added an independent archive-to-restored evidence oracle covering all resource rows, nested storage references, canonical public URLs, object identity, byte size, and SHA-256 bindings; the production canary no longer verifies restore output from its own restore plan.
+- Made the canary reconcile thrown restore calls against durable hot/cold state and retry the fixed operation ID up to three times.
+- Added migration 097 to preserve concurrent retryable restore failures and safely rearm exact expired requests. Expiry recovery now fences active cleanup leases, rolls back transient rearm state when delegated begin fails, and recovers a naturally expired snapshot in one call.
+- Expanded the database contract drill for same-ID finalization races, active cleanup leases, delegated-failure rollback, and expiry recovery. Completed repeated independent review/fix loops covering restore safety, equality evidence, SQL concurrency, privilege boundaries, and cleanup ownership.
+- No production canary, source cleanup, Gradex cleanup, or migration application was performed.
+
+**Deployment obligation:**
+- Apply migration 097 before deploying or running the production canary.
+- Keep source cleanup and Gradex cleanup disabled. Prepare a fresh named canary plan after production is on the reviewed commit; do not reuse the obsolete local plan.
+
+**Validation:**
+- Focused archive restore/canary/migration suites (4 files / 37 tests)
+- `pnpm vitest run` (364 files / 3,345 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm check:architecture` (600 modules / 0 allowances)
+- Bash syntax validation for the restore database contract drill
+- Pika pre-commit audit
+- `git diff --check`
+- `pnpm db:types:check` intentionally blocked because local database history remains at 096 and AI did not apply migration 097
