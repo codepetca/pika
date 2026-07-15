@@ -1356,6 +1356,7 @@ export type Database = {
           next_attempt_at: string
           operation_id: string
           ownership_verified: boolean
+          ownership_verified_at: string | null
           status: string
           storage_bucket: string
           storage_path: string
@@ -1375,6 +1376,7 @@ export type Database = {
           next_attempt_at?: string
           operation_id: string
           ownership_verified?: boolean
+          ownership_verified_at?: string | null
           status?: string
           storage_bucket: string
           storage_path: string
@@ -1394,6 +1396,7 @@ export type Database = {
           next_attempt_at?: string
           operation_id?: string
           ownership_verified?: boolean
+          ownership_verified_at?: string | null
           status?: string
           storage_bucket?: string
           storage_path?: string
@@ -1409,6 +1412,35 @@ export type Database = {
           },
           {
             foreignKeyName: "classroom_archive_source_object_cleanup_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "classroom_archive_operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classroom_archive_source_object_reservations: {
+        Row: {
+          operation_id: string | null
+          reserved_at: string
+          storage_bucket: string
+          storage_path_sha256: string
+        }
+        Insert: {
+          operation_id?: string | null
+          reserved_at?: string
+          storage_bucket: string
+          storage_path_sha256: string
+        }
+        Update: {
+          operation_id?: string | null
+          reserved_at?: string
+          storage_bucket?: string
+          storage_path_sha256?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_archive_source_object_reservations_operation_id_fkey"
             columns: ["operation_id"]
             isOneToOne: false
             referencedRelation: "classroom_archive_operations"
@@ -3970,6 +4002,24 @@ export type Database = {
           storage_path: string
         }[]
       }
+      claim_due_classroom_archive_source_object_cleanup_v2: {
+        Args: {
+          p_lease_seconds?: number
+          p_lease_token: string
+          p_limit?: number
+          p_operation_id: string
+        }
+        Returns: {
+          archive_id: string
+          attempt_count: number
+          classroom_id: string
+          expected_byte_size: number
+          expected_sha256: string
+          operation_id: string
+          storage_bucket: string
+          storage_path: string
+        }[]
+      }
       claim_due_classroom_gradex_extract_cleanup: {
         Args: {
           p_lease_seconds?: number
@@ -4021,6 +4071,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      classroom_archive_source_object_path_sha256: {
+        Args: { p_storage_bucket: string; p_storage_path: string }
+        Returns: string
       }
       cleanup_expired_classroom_archive_snapshots: {
         Args: never
@@ -4314,6 +4368,10 @@ export type Database = {
           p_student_ids: string[]
           p_test_id: string
         }
+        Returns: Json
+      }
+      get_classroom_archive_source_object_presence: {
+        Args: { p_storage_bucket: string; p_storage_path: string }
         Returns: Json
       }
       get_teacher_log_history_preview: {
@@ -4618,6 +4676,10 @@ export type Database = {
           p_suggested_agent: string
           p_title: string
         }
+        Returns: Json
+      }
+      verify_and_reserve_classroom_archive_source_objects: {
+        Args: { p_limit: number; p_operation_id: string }
         Returns: Json
       }
     }

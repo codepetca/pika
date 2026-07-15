@@ -111,25 +111,83 @@ describe('classroom archive source cleanup cron route', () => {
   })
 
   it.each(['GET', 'POST'] as const)(
-    'keeps destructive cleanup unavailable through %s until ownership fencing exists',
+    'runs the one-operation canary through %s after both gates pass',
     async (method) => {
       const response = method === 'GET'
         ? await GET(request(method))
         : await POST(request(method))
 
-      expect(response.status).toBe(503)
-      await expect(response.json()).resolves.toEqual({
-        ok: false,
-        status: 503,
-        lease_token: LEASE_TOKEN,
-        error_code: 'classroom_archive_source_cleanup_ownership_verifier_required',
-        error: 'Classroom archive source cleanup ownership verification is not implemented',
-        retryable: false,
+      expect(response.status).toBe(200)
+      await expect(response.json()).resolves.toEqual(successfulResult())
+      expect(mocks.getServiceRoleClient).toHaveBeenCalledOnce()
+      expect(mocks.resolveOperationId).toHaveBeenCalledWith(OPERATION_ID)
+      expect(mocks.runCleanup).toHaveBeenCalledWith({
+        supabase,
+        leaseToken: LEASE_TOKEN,
+        operationId: OPERATION_ID,
+        limit: 1,
+        leaseSeconds: 300,
       })
-      expect(mocks.getServiceRoleClient).not.toHaveBeenCalled()
-      expect(mocks.runCleanup).not.toHaveBeenCalled()
     },
   )
+
+  it('fails closed when no exact canary operation is configured', async () => {
+    vi.stubEnv('CLASSROOM_ARCHIVE_SOURCE_CLEANUP_OPERATION_ID', '')
+
+    const response = await POST(request('POST'))
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual(expect.objectContaining({
+      error_code: 'classroom_archive_source_cleanup_operation_not_configured',
+    }))
+    expect(mocks.getServiceRoleClient).not.toHaveBeenCalled()
+    expect(mocks.runCleanup).not.toHaveBeenCalled()
+  })
+
+  it('propagates an exact worker failure status and contract', async () => {
+    const workerFailure = {
+      ok: false,
+      status: 409,
+      lease_token: LEASE_TOKEN,
+      error_code: 'classroom_archive_source_object_still_referenced',
+      error: 'Source path is still referenced',
+      retryable: false,
+    }
+    mocks.runCleanup.mockResolvedValue(workerFailure)
+
+    const response = await POST(request('POST'))
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toEqual(workerFailure)
+  })
+
+  it('fails closed when a batch lacks durable retry evidence', async () => {
+    const unhealthyBatch = successfulResult({
+      claimed: 1,
+      failed: 1,
+      retry_recording_failed: 1,
+      results: [{
+        object_ref: 'opaque-ref',
+        attempt_count: 1,
+        status: 'failed',
+        error_code: 'archive_source_object_read_failed',
+        retry_recorded: false,
+      }],
+    })
+    mocks.runCleanup.mockResolvedValue(unhealthyBatch)
+
+    const response = await GET(request())
+
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      status: 503,
+      error_code: 'archive_source_cleanup_batch_unhealthy',
+      error: 'Classroom archive source cleanup completed without durable evidence for every claim',
+      retryable: true,
+      batch: unhealthyBatch,
+    })
+  })
 
   it('is not registered for automatic invocation in Vercel', () => {
     const config = JSON.parse(readFileSync('vercel.json', 'utf8'))

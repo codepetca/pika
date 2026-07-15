@@ -7,11 +7,7 @@ export const CLASSROOM_ARCHIVE_SOURCE_CLEANUP_MAX_CLAIMS = 10
 export const CLASSROOM_ARCHIVE_SOURCE_CLEANUP_DEFAULT_LEASE_SECONDS = 300
 
 const uuidSchema = z.string().uuid()
-const storageBucketSchema = z.enum([
-  'assignment-artifacts',
-  'submission-images',
-  'test-documents',
-])
+const storageBucketSchema = z.literal('assignment-artifacts')
 const storagePathSchema = z.string().min(1).superRefine((path, context) => {
   if (
     path.startsWith('/')
@@ -41,6 +37,32 @@ const runOptionsSchema = z.object({
   leaseSeconds: z.number().int().min(30).max(1800).optional(),
 }).strict()
 const booleanRpcSchema = z.boolean()
+const objectPresenceSchema = z.object({
+  bucket_exists: z.boolean(),
+  object_exists: z.boolean(),
+}).strict()
+const ownershipVerificationSchema = z.discriminatedUnion('ok', [
+  z.object({
+    ok: z.literal(true),
+    status: z.literal(200),
+    operation_id: uuidSchema,
+    verified: z.number().int().nonnegative(),
+    preserved: z.number().int().nonnegative(),
+    replayed: z.boolean(),
+  }).strict(),
+  z.object({
+    ok: z.literal(false),
+    status: z.literal(409),
+    operation_id: uuidSchema,
+    error_code: z.enum([
+      'classroom_archive_source_ownership_not_compacted',
+      'classroom_archive_source_object_still_referenced',
+      'classroom_archive_source_object_competing_claim',
+      'classroom_archive_source_object_already_reserved',
+    ]),
+    error: z.string().min(1),
+  }).strict(),
+])
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 type CleanupClaim = z.infer<typeof claimSchema>
@@ -66,7 +88,7 @@ export type ClassroomArchiveSourceCleanupResult =
     }
   | {
       ok: false
-      status: 500 | 503
+      status: 409 | 500 | 503
       lease_token: string
       error_code: string
       error: string
@@ -77,6 +99,29 @@ type ObjectReadResult =
   | { status: 'present'; bytes: Uint8Array }
   | { status: 'absent' }
   | { status: 'uncertain' }
+
+async function confirmExactObjectAbsence(
+  supabase: SupabaseClient,
+  bucketName: CleanupClaim['storage_bucket'],
+  path: string,
+): Promise<boolean> {
+  try {
+    const response = await supabase.rpc(
+      'get_classroom_archive_source_object_presence',
+      {
+        p_storage_bucket: bucketName,
+        p_storage_path: path,
+      },
+    )
+    if (response.error) return false
+    const presence = objectPresenceSchema.safeParse(response.data)
+    return presence.success
+      && presence.data.bucket_exists
+      && !presence.data.object_exists
+  } catch {
+    return false
+  }
+}
 
 export function isClassroomArchiveSourceCleanupEnabled(): boolean {
   return process.env.CLASSROOM_ARCHIVE_SOURCE_CLEANUP_ENABLED?.trim().toLowerCase() === 'true'
@@ -102,7 +147,9 @@ function isMissingCleanupRpc(error: { code?: string; message?: string } | null |
   if (!error) return false
   const message = (error.message || '').toLowerCase()
   return error.code === '42883' || error.code === 'PGRST202' || (
-    message.includes('claim_due_classroom_archive_source_object_cleanup')
+    message.includes('claim_due_classroom_archive_source_object_cleanup_v2')
+    || message.includes('verify_and_reserve_classroom_archive_source_objects')
+    || message.includes('get_classroom_archive_source_object_presence')
     || message.includes('renew_classroom_archive_source_object_cleanup_lease')
     || message.includes('complete_classroom_archive_source_object_cleanup')
     || message.includes('fail_classroom_archive_source_object_cleanup')
@@ -168,25 +215,15 @@ async function readObject(
     }
     const evidence = missingStorageObjectEvidence(response.error)
     if (evidence === 'object') return { status: 'absent' }
-    if (evidence === 'generic') {
-      const bucketResponse = await supabase.storage.getBucket(bucketName)
-      if (!bucketResponse.error && bucketResponse.data?.id === bucketName) {
-        return { status: 'absent' }
-      }
+    if (await confirmExactObjectAbsence(supabase, bucketName, path)) {
+      return { status: 'absent' }
     }
     return { status: 'uncertain' }
   } catch (error) {
     const evidence = missingStorageObjectEvidence(error)
     if (evidence === 'object') return { status: 'absent' }
-    if (evidence === 'generic') {
-      try {
-        const bucketResponse = await supabase.storage.getBucket(bucketName)
-        if (!bucketResponse.error && bucketResponse.data?.id === bucketName) {
-          return { status: 'absent' }
-        }
-      } catch {
-        // A missing or unreadable bucket is not evidence that the exact key was deleted.
-      }
+    if (await confirmExactObjectAbsence(supabase, bucketName, path)) {
+      return { status: 'absent' }
     }
     return { status: 'uncertain' }
   }
@@ -429,8 +466,56 @@ export async function runClassroomArchiveSourceCleanup(args: {
   }
 
   try {
+    const verificationResponse = await args.supabase.rpc(
+      'verify_and_reserve_classroom_archive_source_objects',
+      { p_operation_id: operationId, p_limit: limit },
+    )
+    if (verificationResponse.error) {
+      const migrationRequired = isMissingCleanupRpc(verificationResponse.error)
+      const result: ClassroomArchiveSourceCleanupResult = {
+        ok: false,
+        status: 503,
+        lease_token: leaseToken,
+        error_code: migrationRequired
+          ? 'classroom_archive_source_ownership_fence_migration_required'
+          : 'archive_source_ownership_verification_failed',
+        error: migrationRequired
+          ? 'Classroom archive source cleanup requires migration 096'
+          : 'Classroom archive source ownership could not be verified',
+        retryable: true,
+      }
+      emitCleanupMetric(result, startedAt)
+      return result
+    }
+
+    const verification = ownershipVerificationSchema.safeParse(verificationResponse.data)
+    if (!verification.success || verification.data.operation_id !== operationId) {
+      const result: ClassroomArchiveSourceCleanupResult = {
+        ok: false,
+        status: 500,
+        lease_token: leaseToken,
+        error_code: 'archive_source_ownership_verification_contract_invalid',
+        error: 'Classroom archive source ownership verification returned an invalid contract',
+        retryable: false,
+      }
+      emitCleanupMetric(result, startedAt)
+      return result
+    }
+    if (!verification.data.ok) {
+      const result: ClassroomArchiveSourceCleanupResult = {
+        ok: false,
+        status: verification.data.status,
+        lease_token: leaseToken,
+        error_code: verification.data.error_code,
+        error: verification.data.error,
+        retryable: false,
+      }
+      emitCleanupMetric(result, startedAt)
+      return result
+    }
+
     const response = await args.supabase.rpc(
-      'claim_due_classroom_archive_source_object_cleanup',
+      'claim_due_classroom_archive_source_object_cleanup_v2',
       {
         p_lease_token: leaseToken,
         p_operation_id: operationId,
@@ -445,10 +530,10 @@ export async function runClassroomArchiveSourceCleanup(args: {
         status: 503,
         lease_token: leaseToken,
         error_code: migrationRequired
-          ? 'classroom_archive_source_cleanup_migration_required'
+          ? 'classroom_archive_source_ownership_fence_migration_required'
           : 'archive_source_cleanup_claim_failed',
         error: migrationRequired
-          ? 'Classroom archive source cleanup requires migration 086'
+          ? 'Classroom archive source cleanup requires migration 096'
           : 'Classroom archive source cleanup work could not be claimed',
         retryable: true,
       }

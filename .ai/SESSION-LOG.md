@@ -10,19 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-11 — Collaborator-local env startup guidance
-
-**Completed:**
-- Aligned the remaining startup/env guidance drift so collaborator-owned `.env.local` files are explicitly valid outside the maintainer symlink setup.
-- Updated `AGENTS.md`, `.ai/CURRENT.md`, `.codex/prompts/session-start.md`, `.claude/commands/session-start.md`, and `docs/core/project-context.md` to describe the maintainer symlink as the default on that machine, while allowing collaborators to copy `.env.example`.
-- Replaced the `ai-startup-docs` invariant that enforced a universal symlink requirement with a dual-path check that requires both the maintainer shared-env path and collaborator-local setup guidance.
-- No product code, runtime behavior, migrations, or dependencies changed.
-
-**Validation:**
-- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm vitest run tests/unit/ai-startup-docs.test.ts`
-- `git diff --check`
-
 ## 2026-07-10 — Bump GitHub Actions off deprecated Node 20
 
 **Completed:**
@@ -750,6 +737,33 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm vitest run` (361 files / 3,307 tests)
 - `pnpm build`
 - `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (599 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-15 — Classroom archive source ownership fence
+
+**Completed:**
+- Added migration 096 to make assignment-artifact source deletion require a bounded, transactional ownership verification and a permanent SHA-256 path reservation.
+- Serialized verification against artifact references, Storage writes, cleanup-ledger staging, and stale-worker deletion; reset pre-fence leases and rejected unreconciled historical deletions.
+- Restricted cleanup claims, lease transitions, and exact Storage presence checks to service-owned database contracts with explicit privilege tests.
+- Kept source cleanup manual, default-off, unscheduled, operation-scoped, and limited to one object per invocation; submission images and test documents remain preserved until they have authoritative relational registries.
+- Expanded the database harness with live multi-session races and the recovery drill with exact export, cleanup, byte-identical restore, replay, and deidentified-fence retention checks.
+- Completed repeated runtime and database review/fix rounds. No production state was read or modified by this phase.
+
+**Deployment obligation:**
+- Apply migration 096 before deploying this app version.
+- Run hosted catalog audit and named canaries read-only before enabling any source cleanup; keep cleanup disabled unless both explicit gates and an exact completed operation ID are supplied.
+
+**Validation:**
+- Classroom archive source-cleanup route/server/migration suites (33 tests)
+- `pnpm vitest run` (362 files / 3,317 tests)
+- Classroom archive compaction database contract harness, including concurrent verifier/reference/Storage/staging races
+- Classroom archive full recovery drill (42 resource tables; exact restore and replay)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm db:types:check`
 - `pnpm lint`
 - `pnpm check:architecture` (599 modules / 0 allowances)
 - Pika pre-commit audit

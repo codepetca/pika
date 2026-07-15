@@ -19,6 +19,10 @@ const archiveMetadataSchema = z.object({
   storage_bucket: z.literal('classroom-archives'),
   storage_path: z.string().min(1),
 }).passthrough()
+const sourceObjectPresenceSchema = z.object({
+  bucket_exists: z.boolean(),
+  object_exists: z.boolean(),
+}).strict()
 
 const fixtureTables = [
   'classrooms',
@@ -106,6 +110,29 @@ async function readStorageBytes(
     throw new Error(`Recovery drill object is unavailable in ${bucket}`)
   }
   return new Uint8Array(await response.data.arrayBuffer())
+}
+
+async function assertStorageObjectAbsent(
+  supabase: SupabaseClient,
+  bucket: string,
+  path: string,
+) {
+  const response = await supabase.storage.from(bucket).download(path)
+  if (response.data) {
+    throw new Error(`Recovery drill expected no object in ${bucket}`)
+  }
+  const presenceResponse = await supabase.rpc(
+    'get_classroom_archive_source_object_presence',
+    { p_storage_bucket: bucket, p_storage_path: path },
+  )
+  const presence = sourceObjectPresenceSchema.safeParse(presenceResponse.data)
+  if (
+    !presenceResponse.error
+    && presence.success
+    && presence.data.bucket_exists
+    && !presence.data.object_exists
+  ) return
+  throw new Error(`Recovery drill could not verify object absence in ${bucket}`)
 }
 
 async function assertRowAbsent(
@@ -215,6 +242,18 @@ async function removeFixture(args: {
   archiveObjectPath?: string
 }) {
   const failures: string[] = []
+  const pathHashResponse = await args.supabase.rpc(
+    'classroom_archive_source_object_path_sha256',
+    {
+      p_storage_bucket: 'assignment-artifacts',
+      p_storage_path: args.sourceObjectPath,
+    },
+  )
+  const sourcePathHash = typeof pathHashResponse.data === 'string'
+    ? pathHashResponse.data
+    : null
+  if (pathHashResponse.error || !sourcePathHash) failures.push('reservation:path-hash')
+
   const removeObjects = async (bucket: string, paths: string[]) => {
     const response = await args.supabase.storage.from(bucket).remove(paths)
     if (response.error) failures.push(`storage:${bucket}`)
@@ -228,11 +267,6 @@ async function removeFixture(args: {
     const response = await args.supabase.from(table).delete().in(column, values)
     if (response.error) failures.push(`table:${table}:${response.error.code}`)
   }
-  await deleteRows(
-    'classroom_archive_source_object_cleanup',
-    'operation_id',
-    [args.ids.compactionOperation],
-  )
   await deleteRows('classroom_cold_tombstones', 'classroom_id', [args.ids.classrooms])
   await deleteRows(
     'classroom_archive_operations',
@@ -243,6 +277,22 @@ async function removeFixture(args: {
   await deleteRows('classroom_archive_operations', 'id', [args.ids.exportOperation])
   await deleteRows('classrooms', 'id', [args.ids.classrooms])
   await deleteRows('users', 'id', [args.ids.student, args.ids.teacher])
+
+  if (sourcePathHash) {
+    const reservation = await args.supabase
+      .from('classroom_archive_source_object_reservations')
+      .select('storage_bucket,storage_path_sha256,operation_id')
+      .eq('storage_bucket', 'assignment-artifacts')
+      .eq('storage_path_sha256', sourcePathHash)
+      .maybeSingle()
+    if (
+      reservation.error
+      || reservation.data?.storage_path_sha256 !== sourcePathHash
+      || reservation.data.operation_id !== null
+    ) {
+      failures.push('reservation:deidentified-fence')
+    }
+  }
 
   for (const [table, column, value] of [
     ['classroom_archive_operations', 'id', args.ids.exportOperation],
@@ -343,17 +393,14 @@ async function runRecoveryDrill() {
       leaseSeconds: 300,
     })
     if (!cleaned.ok) operationFailure('Archive source cleanup', cleaned)
-    if (cleaned.claimed !== 0 || cleaned.deleted !== 0 || cleaned.failed !== 0) {
-      throw new Error('Unverified archive source ownership became cleanup-eligible')
+    if (cleaned.claimed !== 1 || cleaned.deleted !== 1 || cleaned.failed !== 0) {
+      throw new Error('Ownership-fenced archive source cleanup did not delete exactly one object')
     }
-    const retainedSourceBytes = await readStorageBytes(
+    await assertStorageObjectAbsent(
       supabase,
       'assignment-artifacts',
       sourceObjectPath,
     )
-    if (sha256Bytes(retainedSourceBytes) !== sourceObjectSha256) {
-      throw new Error('Ownership-gated archive source object changed')
-    }
 
     const restored = await restoreClassroomArchive({
       supabase,
@@ -448,7 +495,8 @@ async function runRecoveryDrill() {
       resource_table_count: Object.keys(exported.resource_counts).length,
       representative_rows_verified: fixtureTables.length,
       storage_objects_verified: 1,
-      source_cleanup_ownership_gate_verified: true,
+      source_cleanup_deletion_verified: true,
+      deidentified_source_fence_retained: true,
       immutable_archive_retained: true,
       cold_tombstone_removed: true,
       idempotent_replays_verified: 4,

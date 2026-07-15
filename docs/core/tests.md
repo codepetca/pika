@@ -142,17 +142,24 @@ Test password-based flows:
   idempotent cleanup staging, atomic-finalization ordering, completed replay, and fail-closed handling
   when a completion response cannot prove its committed state. No route or schedule invokes it.
 - Source-object cleanup worker tests prove strict claim validation, full-byte checksum and size
-  verification before removal, authoritative exact-key absence afterward, stale-lease rejection,
-  durable retry evidence, independent claim containment, and privacy-safe metrics.
+  verification before removal, ownership reservation before v2 claims, authoritative exact-key
+  absence afterward through a definitive download response or exact database presence check,
+  stale-lease rejection, durable retry evidence, independent claim containment, and privacy-safe
+  metrics.
 - Source-object cleanup trigger tests prove cron-secret authentication, independent worker/trigger
-  gates, one-claim bounds, GET/POST parity, exact status propagation, and unhealthy batch signaling;
-  they also lock out automatic Vercel scheduling during the manual-canary stage.
+  gates, an exact operation canary, one-claim bounds, GET/POST parity, exact status propagation, and
+  unhealthy batch signaling; they also lock out automatic Vercel scheduling during the manual-canary
+  stage. The PostgreSQL contract proves bounded SHA-256 path reservations, separate relational and
+  Storage write races, concurrent cleanup-staging serialization, stale pre-fence lease and delete
+  rejection, exact presence-RPC semantics, boolean-only evidence rejection, and revocation of the
+  unfenced claim RPC.
 - Ephemeral full-stack CI starts local Supabase REST and Storage, creates a synthetic archived
   classroom with submitted work and a managed object, and invokes the real export, compaction,
   source-cleanup, and restore coordinators. The rehearsal proves representative row equality,
-  restored object-byte equality, cold tombstone removal, immutable archive retention, idempotent
-  replay, and complete synthetic-fixture teardown. Its guard rejects non-loopback targets and
-  non-local service-role credentials before any write.
+  fenced source deletion, restored object-byte equality, cold tombstone removal, immutable archive
+  retention, idempotent replay, fixture-row teardown, and clearing of the operation id from the
+  retained one-way path fence. Its guard rejects non-loopback targets and non-local service-role
+  credentials before any write.
 - Gradex runtime coordinator tests prove the internal feature gate, source archive identity/checksum
   binding, HMAC-key-bound idempotency, private no-overwrite upload, complete read-back verification,
   finalization ordering, deterministic retry reuse, and terminal-versus-retryable object cleanup.

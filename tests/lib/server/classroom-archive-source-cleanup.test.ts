@@ -50,6 +50,8 @@ function claim(
 function createSupabaseMock(options: {
   claims?: Claim[]
   claimError?: { code?: string; message?: string }
+  verificationError?: { code?: string; message?: string }
+  verificationResult?: Record<string, unknown>
   completeResult?: boolean
   failResult?: boolean
   renewResult?: boolean
@@ -61,6 +63,7 @@ function createSupabaseMock(options: {
   noSuchBucketPaths?: string[]
   useLocalNotFoundShape?: boolean
   bucketLookupError?: boolean
+  existenceProbeErrorPaths?: string[]
   unwrappedBadRequestPaths?: string[]
 } = {}) {
   const claims = options.claims ?? [claim()]
@@ -73,7 +76,35 @@ function createSupabaseMock(options: {
 
   const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
     calls.push(`rpc:${name}`)
-    if (name === 'claim_due_classroom_archive_source_object_cleanup') {
+    if (name === 'verify_and_reserve_classroom_archive_source_objects') {
+      return options.verificationError
+        ? { data: null, error: options.verificationError }
+        : {
+            data: options.verificationResult ?? {
+              ok: true,
+              status: 200,
+              operation_id: OPERATION_ID,
+              verified: claims.length,
+              preserved: 0,
+              replayed: false,
+            },
+            error: null,
+          }
+    }
+    if (name === 'get_classroom_archive_source_object_presence') {
+      const path = String(args.p_storage_path)
+      if (options.existenceProbeErrorPaths?.includes(path)) {
+        return { data: null, error: { status: 503, message: 'Presence lookup failed' } }
+      }
+      return {
+        data: {
+          bucket_exists: !(options.bucketLookupError || options.noSuchBucketPaths?.includes(path)),
+          object_exists: objects.has(path),
+        },
+        error: null,
+      }
+    }
+    if (name === 'claim_due_classroom_archive_source_object_cleanup_v2') {
       return options.claimError
         ? { data: null, error: options.claimError }
         : { data: claims, error: null }
@@ -140,8 +171,17 @@ function createSupabaseMock(options: {
     }
     return { data: [{ name: path }], error: null }
   })
-  const storageFrom = vi.fn(() => ({ download, remove }))
-  const getBucket = vi.fn(async () => options.bucketLookupError
+  const exists = vi.fn(async (path: string) => {
+    if (options.existenceProbeErrorPaths?.includes(path)) {
+      throw new Error('Existence probe failed')
+    }
+    return {
+      data: objects.has(path),
+      error: objects.has(path) ? null : { name: 'StorageUnknownError' },
+    }
+  })
+  const storageFrom = vi.fn(() => ({ download, exists, remove }))
+  const getBucket = vi.fn(async () => options.bucketLookupError || options.noSuchBucketPaths?.length
     ? { data: null, error: { status: 404, statusCode: 'NoSuchBucket' } }
     : { data: { id: 'assignment-artifacts' }, error: null })
 
@@ -149,6 +189,7 @@ function createSupabaseMock(options: {
     calls,
     client: { rpc, storage: { from: storageFrom, getBucket } } as any,
     download,
+    exists,
     getBucket,
     objects,
     remove,
@@ -216,7 +257,15 @@ describe('classroom archive source-object cleanup', () => {
     }))
     expect(mock.rpc).toHaveBeenNthCalledWith(
       1,
-      'claim_due_classroom_archive_source_object_cleanup',
+      'verify_and_reserve_classroom_archive_source_objects',
+      {
+        p_operation_id: OPERATION_ID,
+        p_limit: CLASSROOM_ARCHIVE_SOURCE_CLEANUP_MAX_CLAIMS,
+      },
+    )
+    expect(mock.rpc).toHaveBeenNthCalledWith(
+      2,
+      'claim_due_classroom_archive_source_object_cleanup_v2',
       {
         p_lease_token: LEASE_TOKEN,
         p_operation_id: OPERATION_ID,
@@ -225,7 +274,8 @@ describe('classroom archive source-object cleanup', () => {
       },
     )
     expect(mock.calls).toEqual([
-      'rpc:claim_due_classroom_archive_source_object_cleanup',
+      'rpc:verify_and_reserve_classroom_archive_source_objects',
+      'rpc:claim_due_classroom_archive_source_object_cleanup_v2',
       `download:${PATH}`,
       'rpc:renew_classroom_archive_source_object_cleanup_lease',
       `remove:${PATH}`,
@@ -255,8 +305,25 @@ describe('classroom archive source-object cleanup', () => {
     )
   })
 
-  it('does not treat a wrapped Storage 400 as authoritative absence', async () => {
+  it('confirms wrapped Storage 400 absence with an exact database presence lookup', async () => {
     const mock = createSupabaseMock({ useLocalNotFoundShape: true })
+    const result = await run(mock)
+
+    expect(result).toEqual(expect.objectContaining({ deleted: 1, failed: 0 }))
+    expect(mock.rpc).toHaveBeenCalledWith(
+      'get_classroom_archive_source_object_presence',
+      {
+        p_storage_bucket: 'assignment-artifacts',
+        p_storage_path: PATH,
+      },
+    )
+  })
+
+  it('does not trust a wrapped Storage 400 when the exact existence probe fails', async () => {
+    const mock = createSupabaseMock({
+      useLocalNotFoundShape: true,
+      existenceProbeErrorPaths: [PATH],
+    })
     const result = await run(mock)
 
     expect(result).toEqual(expect.objectContaining({ deleted: 0, failed: 1 }))
@@ -264,7 +331,10 @@ describe('classroom archive source-object cleanup', () => {
       'fail_classroom_archive_source_object_cleanup',
       expect.objectContaining({ p_storage_path: PATH }),
     )
-    expect(mock.getBucket).not.toHaveBeenCalled()
+    expect(mock.rpc).not.toHaveBeenCalledWith(
+      'complete_classroom_archive_source_object_cleanup',
+      expect.anything(),
+    )
   })
 
   it('does not treat an unwrapped generic 400 as object absence', async () => {
@@ -275,7 +345,10 @@ describe('classroom archive source-object cleanup', () => {
       status: 'failed',
       error_code: 'archive_source_object_read_failed',
     }))
-    expect(mock.getBucket).not.toHaveBeenCalled()
+    expect(mock.rpc).toHaveBeenCalledWith(
+      'get_classroom_archive_source_object_presence',
+      expect.objectContaining({ p_storage_path: PATH }),
+    )
     expect(mock.rpc).not.toHaveBeenCalledWith(
       'complete_classroom_archive_source_object_cleanup',
       expect.anything(),
@@ -408,11 +481,15 @@ describe('classroom archive source-object cleanup', () => {
     const oversized = createSupabaseMock({
       claims: [claim(), claim(OPERATION_ID, PATH_TWO)],
     })
+    const unsupportedBucket = createSupabaseMock({
+      claims: [claim(OPERATION_ID, PATH, { storage_bucket: 'submission-images' })],
+    })
 
     for (const [mock, overrides] of [
       [malformed, {}],
       [duplicate, { limit: 2 }],
       [oversized, { limit: 1 }],
+      [unsupportedBucket, {}],
     ] as const) {
       const result = await run(mock, overrides)
       expect(result).toEqual(expect.objectContaining({
@@ -423,19 +500,45 @@ describe('classroom archive source-object cleanup', () => {
     }
   })
 
-  it('maps missing cleanup RPCs to migration 086 and validates runtime bounds', async () => {
+  it('maps a missing ownership fence to migration 096 and validates runtime bounds', async () => {
     const mock = createSupabaseMock({
-      claimError: { code: 'PGRST202', message: 'Function was not found' },
+      verificationError: {
+        code: 'PGRST202',
+        message: 'verify_and_reserve_classroom_archive_source_objects was not found',
+      },
     })
     const result = await run(mock)
 
     expect(result).toEqual(expect.objectContaining({
       ok: false,
-      error_code: 'classroom_archive_source_cleanup_migration_required',
-      error: 'Classroom archive source cleanup requires migration 086',
+      error_code: 'classroom_archive_source_ownership_fence_migration_required',
+      error: 'Classroom archive source cleanup requires migration 096',
     }))
     await expect(run(createSupabaseMock(), { limit: 0 })).rejects.toThrow()
     await expect(run(createSupabaseMock(), { leaseSeconds: 29 })).rejects.toThrow()
+  })
+
+  it('does not claim or touch storage when ownership verification rejects the operation', async () => {
+    const mock = createSupabaseMock({
+      verificationResult: {
+        ok: false,
+        status: 409,
+        operation_id: OPERATION_ID,
+        error_code: 'classroom_archive_source_object_still_referenced',
+        error: 'Source path is still referenced',
+      },
+    })
+
+    const result = await run(mock)
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      status: 409,
+      error_code: 'classroom_archive_source_object_still_referenced',
+      retryable: false,
+    }))
+    expect(mock.rpc).toHaveBeenCalledTimes(1)
+    expect(mock.storageFrom).not.toHaveBeenCalled()
   })
 
   it('keeps paths, checksums, and classroom identity out of results and metrics', async () => {
