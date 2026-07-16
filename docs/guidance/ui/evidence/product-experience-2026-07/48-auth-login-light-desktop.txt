@@ -1,0 +1,14 @@
+- heading "Login to Pika" [level=1]
+- paragraph: Dev Quick Login
+- button "Teacher"
+- button "Student 1"
+- button "Student 2"
+- generic: School Email*
+- textbox "School Email*"
+- generic: Password*
+- textbox "Password*"
+- button "Forgot password?"
+- button "Login" [disabled]
+- paragraph:
+  - text: Don't have an account?
+  - button "Sign up"

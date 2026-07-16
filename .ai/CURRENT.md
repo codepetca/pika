@@ -10,6 +10,9 @@ Read this at the start of every AI session. Use `.ai/SESSION-LOG.md` only for re
 - Classroom archives: production migrations 001-098, hosted audits, and the named round-trip canary
   are verified. The archive was retained and the classroom restored hot; source and Gradex cleanup
   remain disabled.
+- Product experience architecture program: Phase 1 audit and evidence are in
+  `docs/guidance/ui/product-experience-audit-2026-07.md`. The next reviewed slice is the Safety Wave
+  guard against permanent hot-archive deletion; shared foundation and product phases 2-6 remain active.
 
 ## Environment And Workflow Facts
 

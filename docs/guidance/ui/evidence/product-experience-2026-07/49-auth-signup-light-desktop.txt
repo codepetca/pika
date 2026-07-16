@@ -1,0 +1,10 @@
+- alert
+- heading "Sign Up for Pika" [level=1]
+- paragraph: Enter your email to create an account. We'll send you a verification code.
+- generic: School Email*
+- textbox "School Email*":
+  - /placeholder: email@gapps.yrdsb.ca
+- button "Send Verification Code" [disabled]
+- paragraph:
+  - text: Already have an account?
+  - button "Login"

@@ -1,0 +1,76 @@
+- alert
+- banner:
+  - button "Open classroom navigation":
+  - link "Home":
+    - /url: /classrooms
+    - img "Pika"
+  - generic: Test Classroom
+  - button "Enter fullscreen":
+  - button "User menu":
+    - generic: S
+  - menu:
+    - generic: S
+    - paragraph: Student1 Test
+    - paragraph: student1@example.com
+    - paragraph: student
+    - menuitem:
+      - text: Light mode
+    - menuitem:
+      - text: Send Feedback
+    - menuitem:
+      - text: Logout
+- main:
+  - main:
+    - generic: What did you do today?
+    - generic: Saved
+    - generic "Main content area, start typing to enter text.":
+      - paragraph: Write something...
+    - heading "Past logs" [level=2]
+    - button "Expand log from Fri Jul 17":
+      - paragraph: Fri Jul 17
+      - paragraph: Submitted today with a short demo of the working feature. I am happy with the progress, but I still want to refactor one repeated block tomorrow.
+    - button "Expand log from Thu Jul 16":
+      - paragraph: Thu Jul 16
+      - paragraph: Tested the project in a smaller browser width and found two text wrapping problems. I fixed one and wrote a note for the other.
+    - button "Expand log from Tue Jul 14":
+      - paragraph: Tue Jul 14
+      - paragraph: Today I worked on my persuasive letter about bike lanes. I'm having trouble with Student2 because we disagree on the topic. I think the city should prioritize cycling infrastructure, but I'm not sure how to structure my argument. Can the teacher give us some examples of strong thesis statements? I also spent time reading about urban planning which was really interesting.
+    - button "Expand log from Mon Jul 13":
+      - paragraph: Mon Jul 13
+      - paragraph: Finished the lesson on functions and parameters. I can explain the difference between passing a value and returning a value more clearly now.
+    - button "Expand log from Fri Jul 10":
+      - paragraph: Fri Jul 10
+      - paragraph: "I spent most of class revising a project log after peer feedback. The first version only listed what I did, so I rewrote it to explain what changed, why it changed, and what evidence showed the change worked. I included the bug where my empty state showed at the wrong time, then described how I traced it to a stale boolean. This was a useful reminder that a log is more helpful when it captures a decision, not just a task list. I also added a short note about what I would do differently next time: write the empty, loading, and loaded states before styling the page."
+    - button "Expand log from Thu Jul 9":
+      - paragraph: Thu Jul 9
+      - paragraph: Worked on an async example that fetches data and shows loading, success, and error states. I had to test the error state twice to make sure it actually appeared.
+    - button "Expand log from Wed Jul 8":
+      - paragraph: Wed Jul 8
+      - paragraph: Reviewed array methods with map, filter, and reduce. Reduce is still the trickiest because I have to track the accumulator carefully.
+    - button "Expand log from Tue Jul 7":
+      - paragraph: Tue Jul 7
+      - paragraph: "Today I wrote a longer reflection on debugging. I started with a layout bug that looked like a CSS problem, but it turned out the data I expected was never reaching the component. I used console output first, then narrowed the issue by checking one function at a time. The important part was writing down what I expected before changing code. I also helped compare two approaches for the same task: one with repeated conditionals and one with a small helper function. The helper version was easier to read because it named the decision directly. My next step is to practice explaining the cause of a bug in one sentence before I fix it, because that makes the fix less random."
+    - button "Expand log from Mon Jul 6":
+      - paragraph: Mon Jul 6
+      - paragraph: Built a small checklist page and connected the buttons to state. I still need to clean up the naming, but the interaction works now.
+    - button "Expand log from Fri Jul 3":
+      - paragraph: Fri Jul 3
+      - paragraph: Practiced variables, conditionals, and trace tables. The trace table helped me slow down and catch a mistake before I ran the code.
+    - button "Expand log from Thu Jul 2":
+      - paragraph: Thu Jul 2
+      - paragraph: Set up the course notebook, checked the classroom resources, and made sure my development tools were ready for the term.
+    - heading "Today" [level=3]
+    - 'heading "Day 2: Sample Lesson" [level=2]'
+    - paragraph: This is a sample lesson plan for 2026-07-15.
+    - list:
+      - paragraph: Learning objective 1
+      - paragraph: Learning objective 2
+    - paragraph
+    - heading "Yesterday" [level=3]
+    - generic: Tue Jul 14
+    - 'heading "Day 1: Sample Lesson" [level=2]'
+    - paragraph: This is a sample lesson plan for 2026-07-14.
+    - list:
+      - paragraph: Learning objective 1
+      - paragraph: Learning objective 2
+    - paragraph
