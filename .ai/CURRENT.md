@@ -7,9 +7,9 @@ Read this at the start of every AI session. Use `.ai/SESSION-LOG.md` only for re
 - Product status: core classroom, assignment, quiz/test, and auth flows are live.
 - Maintenance focus: coverage expansion, API-route standardization, UI decomposition, and AI-guidance cleanup.
 - Feature inventory: `.ai/features.json` is the status authority for big epics; check it directly for current pass/fail state.
-- Classroom archives: production migrations 001-097 and hosted audits are verified. The named export
-  completed, but compaction rolled back on timeout. Apply migration 098, then resume the same fixed
-  operation. Cleanup remains disabled; immediate restore verification remains.
+- Classroom archives: production migrations 001-098, hosted audits, and the named round-trip canary
+  are verified. The archive was retained and the classroom restored hot; source and Gradex cleanup
+  remain disabled.
 
 ## Environment And Workflow Facts
 

@@ -287,6 +287,15 @@ with zero attempts and zero deletions. Once cold state is durable, local journal
 non-blocking so immediate restore still runs. A failed run must be resumed until the classroom is
 confirmed hot; cleanup must not be used as recovery.
 
+The first named production round trip completed on July 15, 2026 after migration 098 added the
+function-scoped timeout required by the atomic finalizer. The same immutable plan replayed its
+verified export, compacted 42 resource tables containing 20,184 rows, and restored the classroom on
+the first restore attempt. The retained archive contains 20 source objects and is 2,489,962 bytes
+compressed from 13,359,104 bytes. Independent hosted-state verification found one archived-hot
+classroom, no cold tombstone, one retained verified archive, three completed operations, and all 20
+source cleanup rows still pending with zero attempts, ownership claims, reservations, or deletions.
+Source and Gradex cleanup remain disabled.
+
 ### Teacher Recovery Surface
 
 The teacher Archived view combines two representations without pretending they have the same access
