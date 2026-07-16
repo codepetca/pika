@@ -826,7 +826,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Validation:**
 - Focused deletion-retirement and audit suites (5 files / 67 tests)
-- `pnpm test` (366 files / 3,351 tests)
+- `pnpm run test:coverage` (366 files / 3,353 tests)
+- Teacher calendar readiness suite repeated 50 times after CI race hardening
 - `pnpm build`
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
