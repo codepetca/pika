@@ -217,6 +217,17 @@ describe('Teacher dashboard page', () => {
     )
   })
 
+  it('does not expose permanent classroom deletion', async () => {
+    const fetchMock = installFetchMock()
+
+    renderDashboard()
+
+    expect(await screen.findByText('student@example.com')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Delete classroom')).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+  })
+
   it('loads entry details fresh when a present cell is opened', async () => {
     const fetchMock = installFetchMock()
 

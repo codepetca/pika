@@ -307,7 +307,7 @@ Students: join classroom (code) -> daily entries -> open assignment -> autosave 
 
 **Teacher**
 - `GET/POST /api/teacher/classrooms`
-- `GET/PATCH/DELETE /api/teacher/classrooms/[id]`
+- `GET/PATCH /api/teacher/classrooms/[id]`
 - `POST /api/teacher/classrooms/[id]/roster` (upload/manage roster)
 - `GET /api/teacher/class-days`
 - `GET /api/teacher/attendance`

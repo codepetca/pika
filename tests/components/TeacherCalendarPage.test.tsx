@@ -153,7 +153,7 @@ describe('Teacher calendar page', () => {
 
     renderCalendarPage()
 
-    expect(await screen.findByText('Create Calendar')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Create Calendar')).toBeInTheDocument())
     expect(fetchJSONWithCache).toHaveBeenCalledWith(
       'teacher-classrooms:teacher-1:active-list',
       expect.any(Function),
@@ -164,6 +164,17 @@ describe('Teacher calendar page', () => {
       expect.any(Function),
       20_000,
     )
+  })
+
+  it('does not expose permanent classroom deletion', async () => {
+    const fetchMock = installFetchMock()
+
+    renderCalendarPage()
+
+    await waitFor(() => expect(screen.getByText('Create Calendar')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Delete classroom')).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
   })
 
   it('invalidates classroom and class-day reads after generating a calendar', async () => {

@@ -107,6 +107,24 @@ describe('TeacherClassroomsIndex', () => {
     expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
   })
 
+  it('keeps archived classrooms restore-only and never issues classroom DELETE requests', async () => {
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [
+        createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' }),
+      ],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+
+    expect(await screen.findByRole('button', { name: 'Restore' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+  })
+
   it('hides the create button after the first classroom unless edit mode is enabled', async () => {
     const classrooms = [createMockClassroom({ id: 'c1', title: 'Math 101' })]
     renderTeacherClassroomsIndex(classrooms)
