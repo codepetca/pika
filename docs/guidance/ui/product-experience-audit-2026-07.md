@@ -6,7 +6,7 @@ Pika should evolve through small vertical changes, not a replacement architectur
 
 The first implementation work should protect user data before visual consolidation:
 
-1. Prevent permanent classroom deletion unless a verified recoverable archive exists.
+1. Disable the legacy permanent classroom Delete route and UI. Any future hot-data removal must run exclusively through the verified archive compaction state machine.
 2. Prevent assignment submission when the latest document save failed.
 3. Correct the legacy teacher dashboard entry-detail authorization path.
 4. Reconcile the blueprint runtime/package-doc v3 contract with the shared transfer/lifecycle v2 contract.
@@ -16,14 +16,14 @@ The first implementation work should protect user data before visual consolidati
 - Environment: seeded local Supabase only. Production was not queried or modified.
 - Desktop viewport: `1440x900`.
 - Mobile viewport: `390x844`.
-- Visual evidence: `artifacts/product-experience-audit/00-41*.png`; authenticated product states have matching DOM snapshots, while the initial login capture is image-only.
+- Visual evidence: ignored local product captures `01-50` with credential-bearing login capture `48` removed, plus Open Design board-QA captures `51-52`; every retained image has a matching DOM snapshot.
 - Roles: teacher and student.
 - Evidence types: rendered screens, DOM/accessibility snapshots, route/component/API/domain/database tracing, migration contracts, and existing test inventory.
-- Open Design: project `Pika Product Experience Audit` (`ec89fd79-1229-4143-8f69-cf24842c6584`), generation run `879efda2-651b-4b5c-aeba-111e43e0cab4`, review run `b503a4ba-f0c0-41df-85a5-6b349588c7e7`. A read-only Pika worktree and the screenshot set were supplied to produce a visual evidence board. The corrected board was browser-verified at `1440x900` and `390x844`; the mobile document had no horizontal overflow. The repo document remains the authoritative engineering backlog.
+- Open Design: project `Pika Product Experience Audit` (`ec89fd79-1229-4143-8f69-cf24842c6584`), generation run `879efda2-651b-4b5c-aeba-111e43e0cab4`, review run `b503a4ba-f0c0-41df-85a5-6b349588c7e7`. A read-only Pika worktree and the screenshot set were supplied to produce a visual evidence board. The corrected board was browser-verified at `1440x900` and `390x844`; committed captures `51-52` preserve those states because the preview itself is maintainer-local. The mobile document had no horizontal overflow. The repo document remains the authoritative engineering backlog.
 
 The full screenshot set remains in ignored local audit artifacts. A representative review set is committed with the evidence manifest. Together they include classroom indexes, every classroom navigation family, assignment and test grading, gradebook, roster, settings, utility dashboard/calendar/history, blueprints, archived classrooms, authentication entry states, and representative teacher/student mobile and light-theme states.
 
-The durable evidence inventory is [`product-experience-evidence-2026-07.md`](/docs/guidance/ui/product-experience-evidence-2026-07.md). It records role, route family, viewport, theme, state, screenshot/DOM identity, and the reviewable evidence copy used by Open Design.
+The durable evidence inventory is [`product-experience-evidence-2026-07.md`](./product-experience-evidence-2026-07.md). It records role, route family, viewport, theme, state, screenshot/DOM identity, and the reviewable evidence copy used by Open Design.
 
 ## Product Topology
 
@@ -41,7 +41,7 @@ The classroom shell is the strongest base. Teacher and student utility layouts d
 
 | Finding | Evidence | Required outcome |
 | --- | --- | --- |
-| A hot-archived classroom can be permanently deleted from the normal Archived UI without a verified archive record. Archiving itself only sets `archived_at`; it does not create a recoverable cold archive. | `TeacherClassroomsIndex.tsx`, `api/teacher/classrooms/[id]/route.ts`, screenshots `40` and `41` | Remove or gate the legacy Delete path. Permanent removal must require verified archive metadata and an explicit lifecycle policy. |
+| A hot-archived classroom can be permanently deleted from the normal Archived UI. Archiving itself only sets `archived_at`, and the legacy route bypasses compaction source-revision, actor, row-count, object, tombstone, and atomic-deletion guarantees. | `TeacherClassroomsIndex.tsx`, `api/teacher/classrooms/[id]/route.ts`, migration `085`, screenshots `40` and `41` | Disable the legacy Delete route and UI. Future hot-data removal must be available only through the verified archive compaction state machine and its explicit lifecycle policy. |
 | Assignment submission can continue after the pre-submit save fails because `saveContent` catches the error instead of rejecting. The API can receive an older database document. | `StudentAssignmentEditor.tsx`; no regression test covers this path | Submission stops, preserves the draft, exposes a retryable error, and has a regression test proving no stale submission. |
 
 ### P1: Correctness, Accessibility, And Product Architecture
@@ -94,6 +94,8 @@ The classroom shell is the strongest base. Teacher and student utility layouts d
 | Legacy dashboard | `/teacher/dashboard` | teacher attendance/export plus an incorrect student entry call; classroom/roster/class-day/entry data | Component and API coverage exists but the component test mocks an unauthorized call as success. | Entry detail is functionally broken for teachers. The shell differs from classrooms and the matrix has unbounded mobile width. |
 | Top-level teacher calendar | `/teacher/calendar` | teacher classroom/lesson-plan/calendar routes and classroom/class-day/lesson data | Calendar component/API behavior has focused coverage; evidence `43` and `44` adds a dedicated utility-route browser review. | Delete is offered for active classrooms even though the API rejects it. Mobile evidence shows horizontal overflow; keyboard, empty, and failure states still need direct verification. |
 | Blueprints | `/teacher/blueprints` | blueprint CRUD/import/export/instantiate/merge/AI routes; operation/package modules; blueprint tables and atomic RPCs | Server, API, package, migration, and focused component suites exist. No browser round trip exists. | Client retries lack stable idempotency, overflow is ignored, navigation has no dirty-state guard, and legacy tabs/shell/modal semantics drift from shared primitives. |
+| Public planned-course site | `/planned/[slug]`, opened from Blueprints | public planned-course loader and publishing contract; blueprint publication metadata and course content | Publishing/domain tests cover source selection and availability; no durable browser capture exists yet. | Public not-found, responsive layout, keyboard traversal, and content-exposure boundaries require browser verification before Phase 5 exits. |
+| Standalone test preview | `/classrooms/[classroomId]/tests/[testId]/preview` | teacher preview page plus test authorization/detail contracts | Test authorization and authoring suites cover related behavior; no durable full-screen browser capture exists yet. | The separate full-screen shell, authorization failure, keyboard flow, and mobile framing require browser verification in the Tests slice. |
 | Archive lifecycle | classroom index plus operator routes | inventory/export/restore/compaction/cleanup modules; archive operation/manifest/tombstone tables and private storage | Low-level, migration, recovery, database-contract, and named canary coverage is unusually strong. | Teacher-visible export/verification/retention/quota/purge states are absent. Hot archive Delete is unsafe; cleanup remains correctly fenced and disabled. |
 | Gradex | assignment AI grading and internal extract paths | assignment AI-run and Gradex extract modules; run/extract/cleanup operation tables and private storage | Backend suites cover adapter, payload, persistence, privacy, archive extraction, and cleanup ledgers. | No scoped rollout, durable worker progression, teacher audit/status/retry surface, named production grading canary, or downstream extract-consumer evidence. |
 
@@ -140,11 +142,11 @@ The classroom shell is the strongest base. Teacher and student utility layouts d
 3. Record limitations explicitly: local seeded data, no production inspection, representative rather than exhaustive light-theme captures, and no assistive-technology user study.
 4. Select the first Safety Wave PR and carry its acceptance criteria into the implementation brief.
 
-Exit evidence: merged audit, reviewable Open Design artifact, evidence manifest, reviewer findings resolved, and the first implementation PR scoped.
+Exit evidence: merged audit, reviewable Open Design artifact, durable workflow/viewport coverage matrix with an explicit reason and owning phase for every uncaptured state, reviewer findings resolved, and the first implementation PR scoped. A maintainer-local Open Design URL alone is not durable evidence.
 
 ### Safety Wave: Immediate Correctness
 
-1. Gate archived-classroom deletion on verified recovery metadata and add API/UI regression tests.
+1. Disable the legacy archived-classroom Delete endpoint and UI with API/UI regression tests. Design any future removal control only around the compaction state machine.
 2. Make pre-submit assignment save failures reject submission and add data-loss regression coverage.
 3. Replace the dashboard student endpoint call with a teacher-owned contract and correct its tests.
 4. Resolve blueprint package v2/v3 drift in runtime, docs, fixtures, and compatibility tests.
@@ -169,7 +171,7 @@ Exit evidence: canonical primitive tests prove keyboard/focus/ARIA behavior; all
 ### Phase 3: Vertical Product Slices
 
 1. Assignments: save/submit integrity, error states, mobile workspace modes, Gradex status boundary.
-2. Tests: list errors, authoring/grading mode separation, mobile navigation, accessible flags/save status.
+2. Tests: list errors, authoring/grading mode separation, standalone preview authorization/framing, mobile navigation, accessible flags/save status.
 3. Daily and attendance: explicit failures, mobile history/table modes, Toronto timestamp verification.
 4. Dashboard: teacher-owned entry detail, responsive summary-first attendance, and removal of invalid classroom commands.
 5. Roster: mobile row detail, keyboard table behavior, bulk-action recovery, and counselor-field access.
@@ -179,6 +181,7 @@ Exit evidence: canonical primitive tests prove keyboard/focus/ARIA behavior; all
 9. Gradebook: narrow-screen navigation, selected-student detail, and direct table keyboard tests.
 10. Syllabus/resources: iframe sizing, nested scroll, theme, keyboard traversal, and legacy resource-path disposition.
 11. Authentication and history utility routes: shared shell/page states, session-expiry recovery, and an evidence-based migrate/redirect/retire decision for `/student/history`.
+12. Settings and student grades/profile: organize the mixed settings surface, verify field/error behavior, and record the product decision for aggregate grades and profile editing before implementing or explicitly declining those surfaces.
 
 Each numbered slice is independently releasable and reviewed for both affected roles. Exit evidence: focused component/API/domain tests, explicit error-state coverage, keyboard checks for composite controls, and accepted desktop/mobile screenshots in both themes when the workflow supports them.
 
@@ -199,11 +202,12 @@ Exit evidence: scoped rollout controls, durable runs that progress without an op
 1. Productize end-of-course rollover: capture a reusable blueprint, preview included/excluded content, version it, and create the next classroom without students, submissions, grades, attendance, or runtime publication state.
 2. Preserve blueprint idempotency keys across client retries; expose lesson-calendar overflow and require due-date/release-state review before teachers publish classwork.
 3. Add dirty-state protection, package compatibility evidence, and browser-tested classroom-to-blueprint-to-new-classroom round trips.
-4. Define explicit archive eligibility and hot-to-cold policy: verified export, retention approval, recoverability evidence, quota headroom, and no active operation conflicts.
-5. Productize background export/verification/compaction status while retaining hot data until every gate passes.
-6. Keep hot and gated cold restore, adding availability, progress, retry, and failure evidence. Prove restored relational counts, actor reconciliation, object bytes/checksums, and URL bindings against an independent oracle.
-7. Add retention, quota, completed-archive purge, and remaining storage-ownership policy backed by durable operation records.
-8. Canary manual cleanup repeatedly before scheduling it; require separate authorization for each production cleanup stage and keep cleanup disabled otherwise.
+4. Verify the public `/planned/[slug]` output at desktop/mobile, including not-found and content-exposure boundaries.
+5. Define explicit archive eligibility and hot-to-cold policy: verified export, retention approval, recoverability evidence, quota headroom, and no active operation conflicts.
+6. Productize background export/verification/compaction status while retaining hot data until every gate passes.
+7. Keep hot and gated cold restore, adding availability, progress, retry, and failure evidence. Prove restored relational counts, actor reconciliation, object bytes/checksums, and URL bindings against an independent oracle.
+8. Add retention, quota, completed-archive purge, and remaining storage-ownership policy backed by durable operation records.
+9. Canary manual cleanup repeatedly before scheduling it; require separate authorization for each production cleanup stage and keep cleanup disabled otherwise.
 
 Exit evidence: browser-tested rollover and date/release review; idempotent operation evidence; a documented hot-to-cold state machine; teacher-visible operation and restore states; database contract/recovery drills proving equality; named production canaries; and separately approved cleanup evidence, if cleanup is enabled at all.
 
@@ -231,4 +235,4 @@ Each implementation PR must:
 - Keep migrations human-controlled unless exact one-time target and migration permission is granted.
 - Avoid production writes unless explicitly authorized.
 
-Phase 1 is complete only when the Open Design evidence board is reviewed, this backlog is merged, and the first Safety Wave PR is selected. The broader goal remains active until all six phases are implemented and verified.
+Phase 1 is complete only when the reviewed Open Design board and its durable verification captures, this backlog, and the workflow/viewport coverage matrix are merged; reviewer findings are resolved; and the first Safety Wave implementation PR is scoped and selected. The broader goal remains active until all six phases are implemented and verified.

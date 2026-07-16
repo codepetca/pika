@@ -1,0 +1,19 @@
+Product experience audit capture target and archive reset record
+Recorded: 2026-07-16T13:50:52Z
+
+Application origin observed in the seeded fixture: http://localhost:3001
+Configured NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+Local Supabase API_URL readback: http://127.0.0.1:54321
+
+Read-only archive reset query:
+  select title, class_code, coalesce(archived_at::text, 'NULL')
+  from public.classrooms
+  where class_code = 'TEST01';
+
+Readback:
+  Test Classroom | TEST01 | NULL
+
+This record contains no keys or tokens. It verifies the configured capture target and
+the post-capture state of the seeded local fixture. It is not evidence about production
+data, and the audit makes no production-data claim beyond recording that production was
+not queried or modified during the audit session.
