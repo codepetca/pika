@@ -223,11 +223,16 @@ On failure, roll back relational writes, remove operation-scoped temporary objec
 tombstone and original archive, and store a retryable error code. Never mark the classroom hot or
 active after a partial restore.
 
+The atomic cold-compaction finalizer has a function-scoped 60-second statement timeout. This is the
+maximum configurable timeout for Supabase client/API queries and does not widen role, database, or
+ordinary user-query timeouts. A timeout rolls back the transition and remains retryable under the
+same operation id.
+
 ### Named Production Round-Trip Canary
 
 `pnpm canary:classroom-archive-production` is the only supported operator runner for the first named
 production export, cold-compaction, and immediate restore. It is not a route, schedule, or general
-classroom command. Before use, migrations 082 through 096, the direct catalog audit, the read-only
+classroom command. Before use, migrations 082 through 098, the direct catalog audit, the read-only
 inventory, database headroom, and deployment of the exact runner commit must be independently
 verified.
 
@@ -281,6 +286,15 @@ budget, no ownership reservation, and the exact cleanup descriptor set remaining
 with zero attempts and zero deletions. Once cold state is durable, local journal write failure is
 non-blocking so immediate restore still runs. A failed run must be resumed until the classroom is
 confirmed hot; cleanup must not be used as recovery.
+
+The first named production round trip completed on July 15, 2026 after migration 098 added the
+function-scoped timeout required by the atomic finalizer. The same immutable plan replayed its
+verified export, compacted 42 resource tables containing 20,184 rows, and restored the classroom on
+the first restore attempt. The retained archive contains 20 source objects and is 2,489,962 bytes
+compressed from 13,359,104 bytes. Independent hosted-state verification found one archived-hot
+classroom, no cold tombstone, one retained verified archive, three completed operations, and all 20
+source cleanup rows still pending with zero attempts, ownership claims, reservations, or deletions.
+Source and Gradex cleanup remain disabled.
 
 ### Teacher Recovery Surface
 
@@ -452,7 +466,7 @@ restore rollback, and archives without a successful read-back check.
    relationships with the contract. No writes.
 3. **Export only:** create private archives for selected archived classrooms but retain all hot data.
    Compare counts/checksums and measure compression. Migration 082 and the teacher-only API implement
-   this stage; rollout still requires human migration application and selected production canaries.
+   this stage; rollout still requires authorized migration application and selected production canaries.
 4. **Restore canary:** use migration 083's rollback-only database contract first. A teacher-approved
    cold canary may then use the gated restore endpoint; compare all rows/objects and preserve the
    immutable source archive. Production compaction remains disabled.
@@ -466,7 +480,8 @@ restore rollback, and archives without a successful read-back check.
    remaining readers/writers and every retained archive has a tested adapter.
 
 Production database access for inventory and verification is read-only unless a human explicitly
-approves a named canary operation. Migrations are applied by humans.
+approves a named canary operation. Migration application follows the schema rollout authorization
+contract.
 
 Run the production inventory only after verifying the linked project. The command validates the
 expected project ref against `NEXT_PUBLIC_SUPABASE_URL`, compares the deployed 42-resource archive

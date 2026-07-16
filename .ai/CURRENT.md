@@ -7,9 +7,9 @@ Read this at the start of every AI session. Use `.ai/SESSION-LOG.md` only for re
 - Product status: core classroom, assignment, quiz/test, and auth flows are live.
 - Maintenance focus: coverage expansion, API-route standardization, UI decomposition, and AI-guidance cleanup.
 - Feature inventory: `.ai/features.json` is the status authority for big epics; check it directly for current pass/fail state.
-- Classroom archives: production migrations 001-096, the read-only inventory, and the hosted catalog
-  audit are verified. Source and Gradex cleanup remain disabled. The named export/compact/immediate-
-  restore production canary and its post-run verification remain before rollout completion.
+- Classroom archives: production migrations 001-098, hosted audits, and the named round-trip canary
+  are verified. The archive was retained and the classroom restored hot; source and Gradex cleanup
+  remain disabled.
 
 ## Environment And Workflow Facts
 
@@ -29,12 +29,12 @@ Read this at the start of every AI session. Use `.ai/SESSION-LOG.md` only for re
 - Repeated client-side reads use `fetchJSONWithCache` from `@/lib/request-cache`
 - Tiptap content parsing uses `parseContentField` from `@/lib/tiptap-content`
 - App code uses semantic tokens and `@/ui` primitives, not raw `dark:` classes or `@/components` UI imports
-- AI may create or edit migration files, but humans apply migrations manually
+- AI applies migrations only with one-time permission naming the target and migration
 
 ## Known Hazards
 
 - Do not work in the hub checkout for non-trivial changes; create or open a dedicated worktree first
 - Do not tail `.ai/JOURNAL-ARCHIVE.md` by default; it is intentionally large
 - Keep `.ai/SESSION-LOG.md` rolling; immediately run `node scripts/trim-session-log.mjs` after each append
-- Do not run `supabase db push`, `supabase db reset`, or other migration-application commands as an AI agent
+- Migration approval never covers reset, repair, rollback, seeding, or cleanup
 - `main` accepts linear history only; `production` merges go through the protected PR flow

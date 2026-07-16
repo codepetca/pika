@@ -10,40 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-10 — Issue backlog triage + CONTRIBUTING "Finding work" section
-
-**Completed:**
-- Triaged 61 open issues → 46. Closed 10 delivered-by-merged-PR (#86/#87/#88/#99/#144/#418/#431/#460/#523/#417), 2 duplicates (#451→#152, #366→#362), 1 abandoned (#252), 2 out-of-direction Clerk auth (#434/#449).
-- Labeled all 46 survivors (0 unlabeled): 14 bug, 29 enhancement, 4 good-first-issue, 2 needs-triage (new label).
-- Added a "Finding something to work on" section to CONTRIBUTING.md pointing collaborators at label filters and noting big ideas (e.g. gamification #205) vs ad-hoc feature work.
-
-**Validation:**
-- `gh issue list` label coverage check (0 unlabeled)
-
-## 2026-07-10 — Auto-label new issues with needs-triage
-
-**Completed:**
-- Added .github/workflows/triage-label.yml: on issue `opened`, adds `needs-triage` if the issue has zero labels (leaves template/pre-labeled issues alone).
-- Dependency-free (uses pre-installed gh CLI, no pinned actions) and least-privilege (`permissions: issues: write` only, over the repo's read-only default).
-
-**Validation:**
-- YAML parse check; workflow runs only on issue events (no CI impact to validate here)
-
-## 2026-07-11 — Teacher-ready blueprint classroom rollover
-
-**Completed:**
-- Preserved assignment due timing as Toronto-local offsets from the source classroom start date.
-- Made assignments and tests created from blueprints explicitly unpublished for teacher review.
-- Added a realistic blueprint-to-classroom acceptance regression covering resources, assignments, submission requirements, tests/questions, lesson plans, relative due dates, and excluded student records.
-- Added migration 080 and course-package v3 support to preserve assignment/test point scales, gradebook weights, and final-grade inclusion, including validation and backward-compatible defaults for older packages.
-- Documented the classroom rollover contract.
-
-**Validation:**
-- Blueprint-focused Vitest suite (36/36 passed)
-- `pnpm lint`
-- `pnpm build`
-- Pika audit
-
 ## 2026-07-13 — Blueprint architecture stabilization
 
 **Completed:**
@@ -800,3 +766,63 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Pika pre-commit audit
 - `git diff --check`
 - `pnpm db:types:check` intentionally blocked because local database history remains at 096 and AI did not apply migration 097
+
+## 2026-07-15 — Production archive canary timeout hardening
+
+**Completed:**
+- Verified production migrations 001-097, released the reviewed archive recovery changes, and prepared a fresh named canary against the exact production deployment.
+- Completed the approved production export for one archived-hot classroom: 42 relational resources and 20 source objects were captured in a 2,489,962-byte compressed archive with independent evidence.
+- Kept the classroom hot after two same-operation compaction attempts rolled back atomically. No source or Gradex cleanup ran; all 20 source cleanup rows remain staged and no ownership verification or deletion attempt was recorded.
+- Correlated both failures with PostgreSQL SQLSTATE `57014` in hosted logs: `complete_classroom_archive_compaction` exceeded the default statement timeout while finalizing the transition.
+- Added migration 098 to set `statement_timeout = '60s'` only on the service-only compaction finalizer. Added source and replayed-database assertions that reject role- or database-wide timeout changes.
+- Left migration application and the existing canary resume to a human. Independent subagent review was unavailable due to the account usage limit; local SQL review found no additional issue.
+
+**Deployment obligation:**
+- Apply migration 098 before resuming the existing fixed canary operation from its approved runner commit.
+- Keep source cleanup and Gradex cleanup disabled. Resume the same plan; do not prepare a replacement operation or release a different runner before the round trip completes.
+
+**Validation:**
+- Focused archive timeout/compaction/migration suites (3 files / 11 tests)
+- `pnpm vitest run` (365 files / 3,346 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm check:architecture` (600 modules / 0 allowances)
+- Bash syntax validation for the compaction database contract harness
+- Pika pre-commit audit (no TypeScript files changed)
+- `git diff --check`
+- Database replay deferred to PR CI because local database history remains at 097 and AI did not apply migration 098
+
+## 2026-07-15 — Explicit AI migration authorization policy
+
+**Completed:**
+- Replaced the blanket AI migration-application prohibition with a human-controlled-by-default contract that permits one exact application only after a current-task instruction names the target environment and exact migration.
+- Required target verification, migration-list inspection, an explicit local/linked dry run, approved-set equality, applicable tests, and read-only post-application verification.
+- Kept reset, migration-history repair, rollback/down, seeding, data cleanup, Storage deletion, alternate database URLs, project relinking, and extra push flags outside ordinary migration approval.
+- Made failed or partial application attempts consume the permission and require renewed authorization before retry.
+- Updated active agent, architecture, project, schema, archive, and legacy-contract guidance and added a regression that prevents blanket prohibition or overbroad authorization from returning.
+- No migration or Supabase project state changed. During validation, a shell search expanded an inline command, but the unlinked worktree failed target resolution before preview or application; it was not retried.
+
+**Validation:**
+- Migration authorization and startup guidance suites (2 files / 29 tests)
+- `pnpm vitest run` (366 files / 3,349 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (600 modules / 0 allowances)
+- `git diff --check`
+
+## 2026-07-15 — Production archive round-trip canary completion
+
+**Completed:**
+- Applied the explicitly authorized migration 098 to the verified production target after a linked dry run proved it was the only pending migration. Production history is 001-098, and a hosted schema read-back confirmed `statement_timeout = '60s'` only on the atomic compaction finalizer.
+- Resumed the existing immutable canary plan from its exact approved production commit and reused all three fixed operation IDs; no replacement plan or operation was created.
+- Replayed the verified export, compacted 42 tables containing 20,184 rows in about 57 seconds, and restored the classroom on the first restore attempt in about 38 seconds. The retained archive contains 20 source objects and is 2,489,962 bytes compressed from 13,359,104 bytes.
+- Passed the runner's independent archive/restored evidence oracle and a separate hosted-state query: one archived-hot classroom, no cold tombstone, one retained verified archive, three completed operations, and no restore residue.
+- Kept all source and Gradex cleanup gates disabled. All 20 source cleanup rows remain pending with zero attempts, ownership verification, reservations, or deletions.
+- Marked `epic-classroom-lifecycle-archives` passing; the feature inventory is now 13/13. A Gradex generation canary remains a separately approved optional rollout action, not an archive-epic completion requirement.
+
+**Validation:**
+- Production migration list and post-application dry run
+- Hosted schema dump verification of the finalizer timeout, security, search path, comment, and service-role grant
+- Named production export/compact/immediate-restore runner final evidence
+- Independent Management API read-only lifecycle, operation, cleanup, reservation, and staging verification
+- Source and Gradex cleanup remained disabled throughout

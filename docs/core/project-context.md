@@ -54,8 +54,11 @@ Package manager: pnpm (recommended via Corepack; `package.json#packageManager`)
    - Maintainer default: symlink the worktree’s `.env.local` to `$HOME/Repos/.env/pika/.env.local`
    - Collaborator default: `cp .env.example .env.local`, then fill in the required values
    - Exception-only: use a branch-specific env file when intentionally isolating backend state
-3. Ensure pending migrations have been applied by a human before runtime work that depends on them.
-   - AI agents may create or edit migration files, but must not run `supabase db push`, `supabase db reset`, or similar migration commands
+3. Ensure pending migrations have been applied before runtime work that depends on them.
+   - Migration application is human-controlled by default. AI requires the one-time, exact target
+     and migration authorization defined in
+     [`docs/guidance/schema-rollout-checklist.md`](../guidance/schema-rollout-checklist.md); reset,
+     repair, rollback, seeding, and cleanup require separate approval.
 4. `pnpm dev` and open http://localhost:3000
 5. Optional: `pnpm seed`
    - To wipe + reseed against a specific env file: `ENV_FILE=.env.custom.local ALLOW_DB_WIPE=true pnpm seed:fresh`
@@ -166,7 +169,7 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 ## Deployment
 
 - Host on Vercel; configure env vars in dashboard; set `ENABLE_MOCK_EMAIL=false` and add real email provider before production.
-- Supabase Cloud for DB; enable connection pooling; treat migrations as a separate human-controlled deploy step.
+- Supabase Cloud for DB; enable connection pooling; treat migrations as a separately authorized deploy step.
 - If using cron, configure schedules in `vercel.json` or the Vercel dashboard for production. On the Hobby plan, Vercel cron jobs must run at most once per day, so do not add sub-daily schedules. Current repo-managed schedules: nightly log summaries at `0 6 * * *` (06:00 UTC) and history cleanup at `0 7 * * *` (07:00 UTC).
 
 ---

@@ -65,7 +65,9 @@ Adopt a specialized agent role based on your task type. All agents must first re
 
 **Responsibilities**: Design tables and relationships. Write Supabase migrations (SQL). Implement RLS policies. Ensure proper indexing. Document schema changes.
 
-**Must NOT**: Run or apply migrations (human does this). Skip RLS policies. Create tables without constraints. Use raw SQL in app code.
+**Must NOT**: Apply migrations without the one-time target-and-migration authorization in the
+schema rollout checklist. Skip RLS policies. Create tables without constraints. Use raw SQL in app
+code.
 
 ---
 

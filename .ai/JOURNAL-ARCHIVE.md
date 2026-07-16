@@ -13687,3 +13687,37 @@
 - `bash scripts/repo-tidy.sh` (clean run against the tidied repo)
 - `pnpm test tests/unit/ai-startup-docs.test.ts` (26/26 passed)
 - `pnpm lint`
+
+## 2026-07-10 — Issue backlog triage + CONTRIBUTING "Finding work" section
+
+**Completed:**
+- Triaged 61 open issues → 46. Closed 10 delivered-by-merged-PR (#86/#87/#88/#99/#144/#418/#431/#460/#523/#417), 2 duplicates (#451→#152, #366→#362), 1 abandoned (#252), 2 out-of-direction Clerk auth (#434/#449).
+- Labeled all 46 survivors (0 unlabeled): 14 bug, 29 enhancement, 4 good-first-issue, 2 needs-triage (new label).
+- Added a "Finding something to work on" section to CONTRIBUTING.md pointing collaborators at label filters and noting big ideas (e.g. gamification #205) vs ad-hoc feature work.
+
+**Validation:**
+- `gh issue list` label coverage check (0 unlabeled)
+
+## 2026-07-10 — Auto-label new issues with needs-triage
+
+**Completed:**
+- Added .github/workflows/triage-label.yml: on issue `opened`, adds `needs-triage` if the issue has zero labels (leaves template/pre-labeled issues alone).
+- Dependency-free (uses pre-installed gh CLI, no pinned actions) and least-privilege (`permissions: issues: write` only, over the repo's read-only default).
+
+**Validation:**
+- YAML parse check; workflow runs only on issue events (no CI impact to validate here)
+
+## 2026-07-11 — Teacher-ready blueprint classroom rollover
+
+**Completed:**
+- Preserved assignment due timing as Toronto-local offsets from the source classroom start date.
+- Made assignments and tests created from blueprints explicitly unpublished for teacher review.
+- Added a realistic blueprint-to-classroom acceptance regression covering resources, assignments, submission requirements, tests/questions, lesson plans, relative due dates, and excluded student records.
+- Added migration 080 and course-package v3 support to preserve assignment/test point scales, gradebook weights, and final-grade inclusion, including validation and backward-compatible defaults for older packages.
+- Documented the classroom rollover contract.
+
+**Validation:**
+- Blueprint-focused Vitest suite (36/36 passed)
+- `pnpm lint`
+- `pnpm build`
+- Pika audit

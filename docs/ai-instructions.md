@@ -47,7 +47,7 @@ Inspect or edit source only after startup and routed docs.
 - Repeated client-side reads: use `fetchJSONWithCache` from `@/lib/request-cache`
 - Tiptap content parsing: import `parseContentField` from `@/lib/tiptap-content`
 - UI primitives: import from `@/ui`; use semantic tokens in app code instead of raw `dark:` classes
-- Migrations: AI may create or edit migration files, but humans apply them manually
+- Migrations: require one-time permission naming target and migration; follow the schema rollout checklist
 - Workflow: use a worktree; include `Model recommendation: <model> - <reason>`; append `.ai/SESSION-LOG.md`; run `node scripts/trim-session-log.mjs`
 - Risk profile: declare `none`, `workspace-state`, `async-grading`, `exam-mode`, or `runtime-platform`
 

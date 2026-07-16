@@ -26,7 +26,39 @@ Use this checklist for migrations, Supabase query-shape changes, compatibility s
 - Constraints/defaults match the intended application behavior
 - Migration numbering does not collide with `origin/main`
 - Any compatibility window is documented in the PR notes
-- AI does not apply migrations locally; humans do
+- Migration application remains human-controlled unless the authorization contract below is satisfied
+
+## AI Migration Application Authorization
+
+Migration application is human-controlled by default. An AI agent may execute it only when the user
+gives a direct, one-time instruction in the current task that names both the target environment
+(`local`, `staging`, or `production`) and the exact migration number(s) or filename(s). Broad requests
+such as "apply migrations", "continue", or approval from an earlier task are not authorization.
+Permission expires after one attempted non-dry-run application command and cannot be reused for a
+retry or a different target.
+
+Before applying an authorized migration:
+
+1. Resolve the repository root and verify the checkout containing the approved migration.
+2. Verify the Supabase target binding without printing credentials or secrets.
+3. Run `supabase migration list` and then `supabase db push --dry-run` with the explicit `--local` or
+   `--linked` target. Stop if the preview includes any unapproved migration or history drift.
+4. Confirm applicable tests and migration replay checks passed. If the migration contains destructive
+   or irreversible SQL, the permission must explicitly acknowledge that impact.
+
+During and after application:
+
+- Apply reviewed migration files through `supabase db push` with the verified target flag. Do not
+  paste migration SQL into the Dashboard SQL editor or `psql` unless separately authorized.
+- Apply only the approved migration set to the approved target. Do not add `--include-all`,
+  `--include-roles`, `--include-seed`, change the linked project, or use an alternate `--db-url`
+  without separate permission.
+- Migration approval never authorizes `supabase db reset`, migration history repair, rollback/down
+  operations, seeding, data cleanup, or Storage deletion. Each requires separate explicit approval.
+- Stop on unexpected prompts, target mismatches, extra migrations, or partial failure. Report the
+  durable state and obtain new permission before retrying.
+- Re-run `supabase migration list`, verify the relevant database contract with read-only checks, and
+  report the target, applied migration numbers, and verification result without exposing secrets.
 
 ## Generated Database Contract
 
