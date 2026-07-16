@@ -13737,3 +13737,23 @@
 - `pnpm lint`
 - Pika audit
 - `git diff --check`
+
+## 2026-07-13 — Atomic and observable blueprint round trips
+
+**Completed:**
+- Replaced compensating-delete package import, classroom capture, and classroom instantiation with single transactional RPC boundaries and a service-role-only idempotency/failure ledger.
+- Added stable classroom and blueprint revision snapshots, including child-table triggers, final read checks, and transaction-time source locks to reject mixed-version write plans.
+- Preserved assignment submission requirements during classroom capture and kept new classroom assignments/tests unpublished for teacher review.
+- Added strict Zod write-plan/RPC response contracts, structured operation metrics, caller idempotency keys, failure metadata, and migration-required fail-closed behavior.
+- Made generated class codes/default themes deterministic from the operation ID and added stable query tie-breakers so retries rebuild an identical write plan.
+- Added ephemeral Supabase contract checks for malformed plans, child-write rollback, stale capture rejection, and successful replay; documented rollout, rollback, recovery, retention, privacy, and observability.
+
+**Validation:**
+- `pnpm test` (314 files, 2,808 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- Pika audit
+- `bash -n scripts/check-atomic-blueprint-operations.sh`
+- `git diff --check`
+- Ephemeral Supabase migration/behavior check pending PR CI

@@ -10,26 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-13 — Atomic and observable blueprint round trips
-
-**Completed:**
-- Replaced compensating-delete package import, classroom capture, and classroom instantiation with single transactional RPC boundaries and a service-role-only idempotency/failure ledger.
-- Added stable classroom and blueprint revision snapshots, including child-table triggers, final read checks, and transaction-time source locks to reject mixed-version write plans.
-- Preserved assignment submission requirements during classroom capture and kept new classroom assignments/tests unpublished for teacher review.
-- Added strict Zod write-plan/RPC response contracts, structured operation metrics, caller idempotency keys, failure metadata, and migration-required fail-closed behavior.
-- Made generated class codes/default themes deterministic from the operation ID and added stable query tie-breakers so retries rebuild an identical write plan.
-- Added ephemeral Supabase contract checks for malformed plans, child-write rollback, stale capture rejection, and successful replay; documented rollout, rollback, recovery, retention, privacy, and observability.
-
-**Validation:**
-- `pnpm test` (314 files, 2,808 tests)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- Pika audit
-- `bash -n scripts/check-atomic-blueprint-operations.sh`
-- `git diff --check`
-- Ephemeral Supabase migration/behavior check pending PR CI
-
 ## 2026-07-13 — Canonical classroom lifecycle and archive contracts
 
 **Completed:**
@@ -832,4 +812,26 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm run test:coverage` (366 files, 3349 tests)
 - Pika pre-commit audit (no TypeScript files changed)
+- `git diff --check`
+
+## 2026-07-16 — Safety Wave: retire legacy classroom deletion
+
+**Completed:**
+- Removed the classroom-level `DELETE /api/teacher/classrooms/[id]` handler and the archived-index, legacy-dashboard, and top-level-calendar deletion controls. Deleted the orphaned `useDeleteClassroom` hook.
+- Preserved archive, hot restore, cold restore, and verified compaction behavior. Permanent hot-data removal remains exclusive to the archive compaction state machine.
+- Added API and component regressions proving the route exports no `DELETE` handler, archived classrooms are restore-only, and teacher utility surfaces issue no classroom deletion request.
+- Corrected the Pika audit matcher so route-specific tests for generic `page.tsx` files are recognized only through exact static/dynamic imports. Added negative coverage for prefix collisions and line, trailing, and block comments.
+- Browser-verified teacher archived, dashboard, and calendar states plus the student classroom index at desktop/mobile widths and light/dark archived states. Populated legacy utility captures reconfirmed the already-ranked mobile overflow findings; this PR did not broaden into that Phase 2 work. Restored the seeded classroom to active afterward.
+- Completed repeated independent review/fix loops. Both final reviewers reported no actionable findings. No production system was read or modified.
+
+**Validation:**
+- Focused deletion-retirement and audit suites (5 files / 67 tests)
+- `pnpm run test:coverage` (366 files / 3,353 tests)
+- Teacher calendar readiness suite repeated 50 times after CI race hardening
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (599 modules / 0 allowances)
+- Bash syntax validation for the Pika audit script
+- Pika pre-commit audit
 - `git diff --check`

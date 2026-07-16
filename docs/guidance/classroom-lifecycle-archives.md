@@ -301,8 +301,9 @@ Source and Gradex cleanup remain disabled.
 The teacher Archived view combines two representations without pretending they have the same access
 semantics:
 
-- `archived_hot` classrooms remain ordinary classroom rows and retain the existing open, restore,
-  and delete controls.
+- `archived_hot` classrooms remain ordinary classroom rows and retain open and restore controls.
+  Permanent removal is not available through the classroom route or teacher UI; future hot-data
+  removal must run only through the verified compaction state machine.
 - `archived_cold` classrooms are listed from teacher-scoped `classroom_cold_tombstones` metadata as
   **Stored archive** rows. Their submissions, grades, and files are not queryable through the normal
   classroom routes until the archive is restored to `archived_hot`.

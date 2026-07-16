@@ -50,6 +50,35 @@ function renderCalendarPage() {
   )
 }
 
+function waitForCalendarWizard() {
+  return waitFor(
+    () => {
+      expect(fetchJSONWithCache).toHaveBeenCalledWith(
+        'class-days:c1',
+        expect.any(Function),
+        20_000,
+      )
+      expect(screen.queryByText('Loading...')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Semester 2/ })).toBeInTheDocument()
+    },
+    { timeout: 5_000 },
+  )
+}
+
+async function generateSemester2Calendar() {
+  await waitForCalendarWizard()
+
+  await waitFor(() => {
+    fireEvent.click(screen.getByRole('button', { name: /Semester 2/ }))
+  }, { timeout: 5_000 })
+
+  await waitFor(() => {
+    const generateButton = screen.getByRole('button', { name: 'Generate Calendar' })
+    expect(generateButton).toBeEnabled()
+    fireEvent.click(generateButton)
+  }, { timeout: 5_000 })
+}
+
 function jsonResponse(body: unknown, ok = true): Response {
   return {
     ok,
@@ -153,7 +182,7 @@ describe('Teacher calendar page', () => {
 
     renderCalendarPage()
 
-    expect(await screen.findByText('Create Calendar')).toBeInTheDocument()
+    await waitForCalendarWizard()
     expect(fetchJSONWithCache).toHaveBeenCalledWith(
       'teacher-classrooms:teacher-1:active-list',
       expect.any(Function),
@@ -166,14 +195,23 @@ describe('Teacher calendar page', () => {
     )
   })
 
+  it('does not expose permanent classroom deletion', async () => {
+    const fetchMock = installFetchMock()
+
+    renderCalendarPage()
+
+    await waitForCalendarWizard()
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Delete classroom')).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+  })
+
   it('invalidates classroom and class-day reads after generating a calendar', async () => {
     const fetchMock = installFetchMock()
 
     renderCalendarPage()
 
-    expect(await screen.findByText('Create Calendar')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Semester 2/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Calendar' }))
+    await generateSemester2Calendar()
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
