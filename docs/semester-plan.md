@@ -106,7 +106,7 @@ esac
                       │
 ┌─────────────────────▼───────────────────────────────────┐
 │ 4. APPLY                                                │
-│    - Human applies migration via Supabase Dashboard     │
+│    - Authorized operator applies the migration          │
 │    - Verify via quick smoke test                        │
 └─────────────────────┬───────────────────────────────────┘
                       │

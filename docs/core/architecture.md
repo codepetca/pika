@@ -87,7 +87,7 @@ tests/                             # Vitest unit + API suites
 - `src/types/database.ts` composes the generated schema with application-owned JSON, status, and RPC result contracts that PostgreSQL metadata cannot express precisely.
 - Both central clients in `src/lib/supabase.ts` use the composed `Database` type. New server data access should flow through those factories.
 - Use `TableRow`, `TableInsert`, and `TableUpdate` from `@/types/database` for persisted payloads instead of generic records or local copies of table shapes.
-- After changing a migration, start the local Supabase stack through the documented human workflow and run `pnpm run db:types:generate`. CI replays migrations in an ephemeral database and runs `pnpm run db:types:check` to reject drift.
+- After changing a migration, start the local Supabase stack through the authorized migration workflow and run `pnpm run db:types:generate`. CI replays migrations in an ephemeral database and runs `pnpm run db:types:check` to reject drift.
 
 ### Enforced Module Boundaries
 - Run `pnpm check:architecture` before committing changes that move code across layers.
