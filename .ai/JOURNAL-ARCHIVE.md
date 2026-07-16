@@ -13721,3 +13721,19 @@
 - `pnpm lint`
 - `pnpm build`
 - Pika audit
+
+## 2026-07-13 — Blueprint architecture stabilization
+
+**Completed:**
+- Split published classroom syllabus loading from the teacher-authoring blueprint extractor, with explicit public projections that exclude classroom ownership and draft assessment content.
+- Kept draft tests in reusable blueprints and batched test-question/draft loading to remove the per-test query loop.
+- Preserved fractional assignment/test points and negative relative due offsets through Markdown, course-package bundle, and tar round trips.
+- Scoped blueprint grading metadata parsing to the test header so matching prompt content is not stripped or interpreted as configuration.
+- Updated migration 080 to use the runtime-compatible `numeric(6,2)` point scale and verified that 080 remains the next migration after `origin/main`.
+
+**Validation:**
+- `pnpm test` (311 files, 2,790 tests)
+- `npx tsc --noEmit`
+- `pnpm lint`
+- Pika audit
+- `git diff --check`

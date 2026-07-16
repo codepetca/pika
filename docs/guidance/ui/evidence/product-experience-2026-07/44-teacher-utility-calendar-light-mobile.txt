@@ -1,0 +1,221 @@
+- navigation:
+  - link "Pika":
+    - /url: /classrooms
+    - img "Pika"
+  - link "Classrooms":
+    - /url: /classrooms
+  - link "Blueprints":
+    - /url: /teacher/blueprints
+  - link "Calendar":
+    - /url: /teacher/calendar
+  - link "Logout":
+    - /url: /logout
+- main:
+  - heading "Classes" [level=3]
+  - button "+ New"
+  - button "Test Classroom TEST01":
+    - generic: Test Classroom
+    - generic: TEST01
+  - button:
+  - generic: Test Classroom
+  - generic: TEST01 • 91 class days
+  - button "Open actions menu":
+  - heading "July 2026" [level=3]
+  - generic: S
+  - generic: M
+  - generic: T
+  - generic: W
+  - generic: T
+  - generic: F
+  - generic: S
+  - button "1" [disabled]
+  - button "2" [disabled]
+  - button "3" [disabled]
+  - button "4" [disabled]
+  - button "5" [disabled]
+  - button "6" [disabled]
+  - button "7" [disabled]
+  - button "8" [disabled]
+  - button "9" [disabled]
+  - button "10" [disabled]
+  - button "11" [disabled]
+  - button "12" [disabled]
+  - button "13" [disabled]
+  - button "14" [disabled]
+  - button "15" [disabled]
+  - button "16"
+  - button "17"
+  - button "18"
+  - button "19"
+  - button "20"
+  - button "21"
+  - button "22"
+  - button "23"
+  - button "24"
+  - button "25"
+  - button "26"
+  - button "27"
+  - button "28"
+  - button "29"
+  - button "30"
+  - button "31"
+  - heading "August 2026" [level=3]
+  - generic: S
+  - generic: M
+  - generic: T
+  - generic: W
+  - generic: T
+  - generic: F
+  - generic: S
+  - button "1"
+  - button "2"
+  - button "3"
+  - button "4"
+  - button "5"
+  - button "6"
+  - button "7"
+  - button "8"
+  - button "9"
+  - button "10"
+  - button "11"
+  - button "12"
+  - button "13"
+  - button "14"
+  - button "15"
+  - button "16"
+  - button "17"
+  - button "18"
+  - button "19"
+  - button "20"
+  - button "21"
+  - button "22"
+  - button "23"
+  - button "24"
+  - button "25"
+  - button "26"
+  - button "27"
+  - button "28"
+  - button "29"
+  - button "30"
+  - button "31"
+  - heading "September 2026" [level=3]
+  - generic: S
+  - generic: M
+  - generic: T
+  - generic: W
+  - generic: T
+  - generic: F
+  - generic: S
+  - button "1"
+  - button "2"
+  - button "3"
+  - button "4"
+  - button "5"
+  - button "6"
+  - button "7"
+  - button "8"
+  - button "9"
+  - button "10"
+  - button "11"
+  - button "12"
+  - button "13"
+  - button "14"
+  - button "15"
+  - button "16"
+  - button "17"
+  - button "18"
+  - button "19"
+  - button "20"
+  - button "21"
+  - button "22"
+  - button "23"
+  - button "24"
+  - button "25"
+  - button "26"
+  - button "27"
+  - button "28"
+  - button "29"
+  - button "30"
+  - heading "October 2026" [level=3]
+  - generic: S
+  - generic: M
+  - generic: T
+  - generic: W
+  - generic: T
+  - generic: F
+  - generic: S
+  - button "1"
+  - button "2"
+  - button "3"
+  - button "4"
+  - button "5"
+  - button "6"
+  - button "7"
+  - button "8"
+  - button "9"
+  - button "10"
+  - button "11"
+  - button "12"
+  - button "13"
+  - button "14"
+  - button "15"
+  - button "16"
+  - button "17"
+  - button "18"
+  - button "19"
+  - button "20"
+  - button "21"
+  - button "22"
+  - button "23"
+  - button "24"
+  - button "25"
+  - button "26"
+  - button "27"
+  - button "28"
+  - button "29"
+  - button "30"
+  - button "31"
+  - heading "November 2026" [level=3]
+  - generic: S
+  - generic: M
+  - generic: T
+  - generic: W
+  - generic: T
+  - generic: F
+  - generic: S
+  - button "1"
+  - button "2"
+  - button "3"
+  - button "4"
+  - button "5"
+  - button "6"
+  - button "7"
+  - button "8"
+  - button "9"
+  - button "10"
+  - button "11"
+  - button "12"
+  - button "13" [disabled]
+  - button "14" [disabled]
+  - button "15" [disabled]
+  - button "16" [disabled]
+  - button "17" [disabled]
+  - button "18" [disabled]
+  - button "19" [disabled]
+  - button "20" [disabled]
+  - button "21" [disabled]
+  - button "22" [disabled]
+  - button "23" [disabled]
+  - button "24" [disabled]
+  - button "25" [disabled]
+  - button "26" [disabled]
+  - button "27" [disabled]
+  - button "28" [disabled]
+  - button "29" [disabled]
+  - button "30" [disabled]
+  - heading "Legend" [level=4]
+  - generic: Class Day
+  - generic: Non-Class Day
+  - generic: Weekend
+  - generic: Holiday
+- alert

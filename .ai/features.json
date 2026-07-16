@@ -1,13 +1,13 @@
 {
   "meta": {
     "project": "pika",
-    "lastUpdated": "2026-07-15",
-    "phase": "Classroom Archives",
+    "lastUpdated": "2026-07-16",
+    "phase": "Product Experience Architecture",
     "DO_NOT_DELETE_FEATURES": "APPEND-ONLY. Never delete entries.",
     "deletionPolicy": "PROHIBITED",
-    "totalFeatures": 13,
+    "totalFeatures": 14,
     "passing": 13,
-    "failing": 0
+    "failing": 1
   },
   "features": [
     {
@@ -149,6 +149,16 @@
       "blockedBy": [],
       "addedDate": "2026-07-13",
       "completedDate": "2026-07-15"
+    },
+    {
+      "id": "epic-product-experience-architecture",
+      "phase": "Product Experience Architecture",
+      "description": "Six-phase teacher/student product audit, shared experience foundation, vertical workflow improvements, Gradex integration, blueprint/archive productization, and final verification",
+      "passes": false,
+      "verification": "Complete the exit evidence in docs/guidance/ui/product-experience-audit-2026-07.md",
+      "issueRefs": ["#889"],
+      "blockedBy": [],
+      "addedDate": "2026-07-16"
     }
   ]
 }

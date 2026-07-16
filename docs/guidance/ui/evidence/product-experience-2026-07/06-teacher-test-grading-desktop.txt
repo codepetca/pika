@@ -1,0 +1,134 @@
+- alert
+- banner:
+  - link "Home":
+    - /url: /classrooms
+    - img "Pika"
+  - generic: Test Classroom
+  - button "Enter fullscreen":
+  - generic: Wed Jul 15
+  - generic: 11:24 PM
+  - button "User menu":
+    - generic: T
+  - menu:
+    - generic: T
+    - paragraph: teacher@example.com
+    - paragraph: teacher
+    - menuitem:
+      - text: Light mode
+    - menuitem:
+      - text: Send Feedback
+    - menuitem:
+      - text: Logout
+- main:
+  - complementary:
+    - navigation:
+      - link "Daily":
+        - /url: /classrooms/8ae4f009-3f57-470c-9224-b9c2ddbe772d?tab=attendance
+        - generic: Daily
+      - link "Classwork":
+        - /url: /classrooms/8ae4f009-3f57-470c-9224-b9c2ddbe772d?tab=assignments
+        - generic: Classwork
+      - link "Tests":
+        - /url: /classrooms/8ae4f009-3f57-470c-9224-b9c2ddbe772d?tab=tests
+        - generic: Tests
+      - link "Gradebook":
+        - /url: /classrooms/8ae4f009-3f57-470c-9224-b9c2ddbe772d?tab=gradebook
+        - generic: Gradebook
+      - link "Calendar":
+        - /url: /classrooms/8ae4f009-3f57-470c-9224-b9c2ddbe772d?tab=calendar
+        - generic: Calendar
+      - link "Syllabus":
+        - /url: /classrooms/8ae4f009-3f57-470c-9224-b9c2ddbe772d?tab=resources
+        - generic: Syllabus
+      - link "Announcements":
+        - /url: /classrooms/8ae4f009-3f57-470c-9224-b9c2ddbe772d?tab=announcements
+        - generic: Announcements
+      - link "Roster":
+        - /url: /classrooms/8ae4f009-3f57-470c-9224-b9c2ddbe772d?tab=roster
+        - generic: Roster
+      - link "Settings":
+        - /url: /classrooms/8ae4f009-3f57-470c-9224-b9c2ddbe772d?tab=settings
+        - generic: Settings
+    - button "Collapse sidebar":
+  - main:
+    - button "Open All":
+      - generic: Open All
+    - button "More test actions":
+    - button "Edit Test":
+    - table:
+      - rowgroup:
+        - row "Select all students Sort students by first name Status Access Score Last Exits column Away column":
+          - columnheader "Select all students":
+            - checkbox "Select all students"
+          - columnheader "Sort students by first name":
+            - button "Sort students by first name":
+              - generic: Student
+              - generic: Last
+          - columnheader "Status"
+          - columnheader "Access"
+          - columnheader "Score"
+          - columnheader "Last"
+          - columnheader "Exits column":
+            - generic "Exits column":
+          - columnheader "Away column":
+            - generic "Away column":
+      - rowgroup:
+        - row "Select Student1 Test Student1 Test Status Submitted. Mark Student1 Test unsubmitted Access closed, inherited from test status. Open access for Student1 Test 2/20 11:21 Exits 0. Away/focus 0, in-app exits 0, window/full-screen exits 0. Away time 0:00. Away from test route for 0:00 total." [selected]:
+          - cell "Select Student1 Test":
+            - checkbox "Select Student1 Test"
+          - cell "Student1 Test":
+            - generic: Student1 Test
+          - cell "Status Submitted. Mark Student1 Test unsubmitted":
+            - button "Status Submitted. Mark Student1 Test unsubmitted":
+          - cell "Access closed, inherited from test status. Open access for Student1 Test":
+            - button "Access closed, inherited from test status. Open access for Student1 Test":
+          - cell "2/20"
+          - cell "11:21"
+          - cell "Exits 0. Away/focus 0, in-app exits 0, window/full-screen exits 0.": "0"
+          - cell "Away time 0:00. Away from test route for 0:00 total.": 0:00
+        - row "Select Student2 Test Student2 Test Status Submitted. Mark Student2 Test unsubmitted Access closed, inherited from test status. Open access for Student2 Test 0/20 11:21 Exits 0. Away/focus 0, in-app exits 0, window/full-screen exits 0. Away time 0:00. Away from test route for 0:00 total.":
+          - cell "Select Student2 Test":
+            - checkbox "Select Student2 Test"
+          - cell "Student2 Test":
+            - generic: Student2 Test
+          - cell "Status Submitted. Mark Student2 Test unsubmitted":
+            - button "Status Submitted. Mark Student2 Test unsubmitted":
+          - cell "Access closed, inherited from test status. Open access for Student2 Test":
+            - button "Access closed, inherited from test status. Open access for Student2 Test":
+          - cell "0/20"
+          - cell "11:21"
+          - cell "Exits 0. Away/focus 0, in-app exits 0, window/full-screen exits 0.": "0"
+          - cell "Away time 0:00. Away from test route for 0:00 total.": 0:00
+    - separator "Resize grading and student response panes"
+    - paragraph: Q1 MC
+    - paragraph: Which time complexity is linear?
+    - list "Multiple choice answer options":
+      - generic: A
+      - generic: O(1)
+      - generic "Your answer, correct": ✓
+      - generic: B
+      - generic: O(n)
+      - generic: C
+      - generic: O(n^2)
+      - generic: D
+      - generic: O(log n)
+    - spinbutton "Q1 score": "2"
+    - generic: "2"
+    - paragraph: Q2 Open
+    - paragraph: In 2-4 sentences, explain what an API is and why idempotency matters for PUT requests.
+    - paragraph: An API is a contract that defines requests and responses between systems. Idempotent PUT calls matter because retrying the same request should keep the resource in the same state instead of creating extra side effects.
+    - textbox "Comment (optional)"
+    - spinbutton "Q2 score"
+    - generic: "5"
+    - paragraph: Q3 Open
+    - paragraph: Describe one practical trade-off of static typing in larger codebases.
+    - paragraph: Static typing catches many integration errors before runtime, but it can slow early prototyping because types need to be modeled up front.
+    - textbox "Comment (optional)"
+    - spinbutton "Q3 score"
+    - generic: "5"
+    - paragraph: Q4 Open
+    - paragraph: "JavaScript: write a function that returns the first duplicate number in an array, or -1 if none."
+    - paragraph: "function firstDuplicate(values) { const seen = new Set(); for (const value of values) { if (seen.has(value)) return value; seen.add(value); } return -1; }"
+    - textbox "Comment (optional)"
+    - spinbutton "Q4 score"
+    - generic: "8"
