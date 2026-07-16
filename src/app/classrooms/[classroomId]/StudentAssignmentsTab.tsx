@@ -459,6 +459,7 @@ export function StudentAssignmentsTab({
               />
             ) : (
               <StudentAssignmentEditor
+                key={selectedAssignment.id}
                 ref={editorRef}
                 classroomId={classroom.id}
                 assignmentId={selectedAssignment.id}

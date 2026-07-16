@@ -239,9 +239,11 @@ while IFS= read -r file; do
   fi
 
   # c) Duplicated parseContentField function
-  while IFS=: read -r lineno _; do
-    report_violation "duplicate-parseContentField" "$file:$lineno" "import parseContentField from @/lib/tiptap-content instead"
-  done < <(grep -nE '(function|const) parseContentField' "$FULL" 2>/dev/null || true)
+  if [[ "$file" != "src/lib/tiptap-content.ts" ]]; then
+    while IFS=: read -r lineno _; do
+      report_violation "duplicate-parseContentField" "$file:$lineno" "import parseContentField from @/lib/tiptap-content instead"
+    done < <(grep -nE '(function|const) parseContentField' "$FULL" 2>/dev/null || true)
+  fi
 
   # d) console.log in production code (not tests)
   if [[ "$file" != *.test.ts && "$file" != *.spec.ts && "$file" != *.test.tsx && "$file" != *.spec.tsx ]]; then

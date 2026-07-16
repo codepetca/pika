@@ -42,6 +42,12 @@ jobs:
       - name: Verify atomic assignment feedback returns
         run: bash scripts/check-atomic-assignment-feedback-returns.sh
 
+      - name: Verify atomic assignment draft and submission integrity
+        run: bash scripts/check-atomic-assignment-submissions.sh
+
+      - name: Verify assignment submission concurrency
+        run: bash scripts/check-assignment-submission-concurrency.sh
+
       - name: Verify atomic student test submission
         run: bash scripts/check-atomic-test-submit.sh
 

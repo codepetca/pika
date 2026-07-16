@@ -196,6 +196,8 @@ describe('classroom archive restore planning', () => {
 
     expect(plan.targetSchemaMigration).toBe(CLASSROOM_ARCHIVE_RESTORE_TARGET_MIGRATION)
     expect(plan.adapterChain).toEqual(['classroom-archive-v1-082-to-083'])
+    expect(plan.resources.assignment_docs[0]).not.toHaveProperty('save_session_id')
+    expect(plan.resources.assignment_docs[0]).not.toHaveProperty('save_sequence')
     expect(plan.preflight.unresolved_actor_ids).toEqual([])
     expect(plan.storageObjects).toHaveLength(4)
     expect(plan.storageObjects.every((object) =>

@@ -20,15 +20,14 @@ import {
   submissionArtifactsToAssignmentArtifacts,
 } from '@/lib/assignment-submission-requirements'
 import {
-  collectAssignmentImageArtifactStoragePaths,
-  collectRemovedImageArtifactStoragePaths,
   loadAssignmentSubmissionArtifactsForDocs,
   loadAssignmentSubmissionRequirements,
-  removeAssignmentArtifactStorageObjects,
-  replaceAssignmentSubmissionRequirements,
+  updateAssignmentWithSubmissionRequirementsAtomic,
 } from '@/lib/server/assignment-submission-artifacts'
+import { runAssignmentArtifactStorageCleanup } from '@/lib/server/assignment-artifact-storage-cleanup'
 import type { AssignmentDoc, AssignmentSubmissionArtifact } from '@/types'
 import type { TableRow } from '@/types/database'
+import { teacherAssignmentPatchSchema } from '@/lib/validations/assignment-authoring'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -350,16 +349,15 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
 export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, context) => {
   const user = await requireRole('teacher')
   const { id } = await context.params
-  const body = await request.json()
-  const { title, instructions_markdown, rich_instructions, due_at, is_draft, released_at, submission_requirements } = body as {
-    title?: string
-    instructions_markdown?: string
-    rich_instructions?: unknown
-    due_at?: string
-    is_draft?: boolean
-    released_at?: string | null
-    submission_requirements?: unknown
-  }
+  const {
+    title,
+    instructions_markdown,
+    rich_instructions,
+    due_at,
+    is_draft,
+    released_at,
+    submission_requirements,
+  } = teacherAssignmentPatchSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
 
@@ -495,7 +493,7 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
     )
   }
 
-  const hasSubmissionRequirementsUpdate = Array.isArray(submission_requirements)
+  const hasSubmissionRequirementsUpdate = submission_requirements !== undefined
   if (Object.keys(updates).length === 0 && !hasSubmissionRequirementsUpdate) {
     return NextResponse.json(
       { error: 'No updates provided' },
@@ -503,12 +501,49 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
     )
   }
 
-  const removedRequirementImageStoragePaths = hasSubmissionRequirementsUpdate
-    ? await collectRemovedImageArtifactStoragePaths(supabase, id, submission_requirements as any[])
-    : []
+  if (hasSubmissionRequirementsUpdate) {
+    const { data: submittedDoc, error: submittedDocError } = await supabase
+      .from('assignment_docs')
+      .select('id')
+      .eq('assignment_id', id)
+      .eq('is_submitted', true)
+      .limit(1)
+      .maybeSingle()
+
+    if (submittedDocError) {
+      console.error('Error checking submitted assignment documents:', submittedDocError)
+      return NextResponse.json(
+        { error: 'Failed to verify assignment submissions' },
+        { status: 500 }
+      )
+    }
+
+    if (submittedDoc) {
+      return NextResponse.json(
+        { error: 'Submission requirements cannot be changed after a student submits.' },
+        { status: 409 }
+      )
+    }
+  }
 
   let assignment: TableRow<'assignments'> = existing
-  if (Object.keys(updates).length > 0) {
+  let submissionRequirements
+  if (hasSubmissionRequirementsUpdate) {
+    const atomicUpdate = await updateAssignmentWithSubmissionRequirementsAtomic({
+      supabase,
+      assignmentId: id,
+      updates,
+      requirements: submission_requirements,
+    })
+    if (!atomicUpdate.ok) {
+      return NextResponse.json(
+        { error: atomicUpdate.error },
+        { status: atomicUpdate.status }
+      )
+    }
+    assignment = atomicUpdate.assignment
+    submissionRequirements = atomicUpdate.submissionRequirements
+  } else if (Object.keys(updates).length > 0) {
     const { data: updatedAssignment, error } = await supabase
       .from('assignments')
       .update(updates)
@@ -524,18 +559,17 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
       )
     }
     assignment = updatedAssignment
+    submissionRequirements = await loadAssignmentSubmissionRequirements(supabase, id)
+  } else {
+    submissionRequirements = await loadAssignmentSubmissionRequirements(supabase, id)
   }
 
-  const submissionRequirements = hasSubmissionRequirementsUpdate
-    ? await replaceAssignmentSubmissionRequirements(supabase, id, submission_requirements as any[])
-    : await loadAssignmentSubmissionRequirements(supabase, id)
-
-  if (hasSubmissionRequirementsUpdate && removedRequirementImageStoragePaths.length > 0) {
-    await removeAssignmentArtifactStorageObjects(
-      supabase,
-      removedRequirementImageStoragePaths,
-      `assignment:${id}:removed-submission-requirements`
-    )
+  if (hasSubmissionRequirementsUpdate) {
+    try {
+      await runAssignmentArtifactStorageCleanup({ supabase, limit: 50 })
+    } catch (cleanupError) {
+      console.error('Failed to process queued assignment artifact cleanup:', cleanupError)
+    }
   }
 
   return NextResponse.json({
@@ -586,8 +620,6 @@ export const DELETE = withErrorHandler('DeleteTeacherAssignment', async (request
     )
   }
 
-  const assignmentImageStoragePaths = await collectAssignmentImageArtifactStoragePaths(supabase, id)
-
   const { error } = await supabase
     .from('assignments')
     .delete()
@@ -601,12 +633,10 @@ export const DELETE = withErrorHandler('DeleteTeacherAssignment', async (request
     )
   }
 
-  if (assignmentImageStoragePaths.length > 0) {
-    await removeAssignmentArtifactStorageObjects(
-      supabase,
-      assignmentImageStoragePaths,
-      `assignment:${id}:delete`
-    )
+  try {
+    await runAssignmentArtifactStorageCleanup({ supabase, limit: 50 })
+  } catch (cleanupError) {
+    console.error('Failed to process queued assignment artifact cleanup:', cleanupError)
   }
 
   return NextResponse.json({ success: true })

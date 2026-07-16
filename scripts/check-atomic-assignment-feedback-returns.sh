@@ -521,18 +521,18 @@ AI_RUN_DOC_ID="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X 
 AI_RUN_EXPECTED="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
   "select updated_at from public.assignment_docs where id = '$AI_RUN_DOC_ID';")"
 
-docker exec -e PGAPPNAME=atomic-student-autosave-holder -i "$DB_CONTAINER" \
+docker exec -e PGAPPNAME=atomic-doc-revision-holder -i "$DB_CONTAINER" \
   psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL' &
 begin;
 update public.assignment_docs
-set content = '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"New student work"}]}]}'::jsonb
+set teacher_feedback_draft = 'Concurrent revision'
 where assignment_id = 'd0000000-0000-4000-8000-000000000016'
   and student_id = 'd0000000-0000-4000-8000-000000000005';
 select pg_sleep(3);
 commit;
 SQL
 STUDENT_UPDATE_PID=$!
-wait_for_application_event atomic-student-autosave-holder PgSleep
+wait_for_application_event atomic-doc-revision-holder PgSleep
 
 set +e
 docker exec -e PGAPPNAME=atomic-ai-run-create-worker -i "$DB_CONTAINER" \
@@ -564,7 +564,7 @@ wait "$AI_RUN_CREATE_PID"
 AI_RUN_CREATE_STATUS=$?
 set -e
 if [[ "$AI_RUN_CREATE_STATUS" -eq 0 ]]; then
-  echo "Expected AI-run creation to reject a concurrent student document update." >&2
+  echo "Expected AI-run creation to reject a concurrent assignment document update." >&2
   exit 1
 fi
 
@@ -617,7 +617,7 @@ begin
     and student_id = 'd0000000-0000-4000-8000-000000000003';
 
   update public.assignment_docs
-  set content = '{"type":"doc","content":[{"type":"paragraph"}]}'::jsonb
+  set teacher_feedback_draft = 'Concurrent grade revision'
   where assignment_id = 'd0000000-0000-4000-8000-000000000017'
     and student_id = 'd0000000-0000-4000-8000-000000000003';
 
@@ -900,7 +900,7 @@ begin
   where assignment_id = 'd0000000-0000-4000-8000-000000000021'
     and student_id = 'd0000000-0000-4000-8000-000000000005';
 
-  update public.assignment_docs set content = '{"type":"doc","content":[{"type":"paragraph"}]}'::jsonb
+  update public.assignment_docs set teacher_feedback_draft = 'Concurrent repo review revision'
   where assignment_id = 'd0000000-0000-4000-8000-000000000021'
     and student_id = 'd0000000-0000-4000-8000-000000000005';
 

@@ -71,11 +71,12 @@ export function safeSessionGetJson<T>(key: string): T | null {
 }
 
 export function safeSessionSetJson(key: string, value: unknown) {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined') return false
   try {
     window.sessionStorage.setItem(key, JSON.stringify(value))
+    return true
   } catch {
-    // Ignore sessionStorage quota/unavailable errors.
+    return false
   }
 }
 
@@ -85,5 +86,35 @@ export function safeSessionRemove(key: string) {
     window.sessionStorage.removeItem(key)
   } catch {
     // Ignore sessionStorage unavailable errors.
+  }
+}
+
+export function safeLocalGetJson<T>(key: string): T | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return null
+    return JSON.parse(raw) as T
+  } catch {
+    return null
+  }
+}
+
+export function safeLocalSetJson(key: string, value: unknown) {
+  if (typeof window === 'undefined') return false
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value))
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function safeLocalRemove(key: string) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(key)
+  } catch {
+    // Ignore localStorage unavailable errors.
   }
 }

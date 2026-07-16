@@ -1039,6 +1039,13 @@ where storage_bucket = 'assignment-artifacts'
       'assignment-artifacts', :'staging_race_path'
     )
   );
+delete from public.classrooms
+where id = '21000000-0000-4000-8000-000000000030'::uuid;
+delete from public.users
+where id in (
+  '11000000-0000-4000-8000-000000000029'::uuid,
+  '11000000-0000-4000-8000-000000000030'::uuid
+);
 SQL
   rm -f "$RACE_OUTPUT"
 }
@@ -1053,6 +1060,45 @@ docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=
   -v storage_path="$RACE_PATH" \
   -v storage_race_path="$RACE_STORAGE_PATH" \
   -v staging_race_path="$RACE_STAGING_PATH" <<'SQL' >/dev/null
+insert into public.users (id, email, role)
+values
+  ('11000000-0000-4000-8000-000000000029', 'archive-race-teacher@example.test', 'teacher'),
+  ('11000000-0000-4000-8000-000000000030', 'archive-race-student@example.test', 'student');
+
+insert into public.classrooms (id, teacher_id, title, class_code)
+values (
+  '21000000-0000-4000-8000-000000000030',
+  '11000000-0000-4000-8000-000000000029',
+  'Archive ownership race hot classroom',
+  'CMP029'
+);
+
+insert into public.assignments (id, classroom_id, title, description, due_at, created_by)
+values (
+  '22000000-0000-4000-8000-000000000029',
+  '21000000-0000-4000-8000-000000000030',
+  'Archive ownership race assignment',
+  'Keeps the concurrent artifact write relationally valid',
+  clock_timestamp() + interval '1 day',
+  '11000000-0000-4000-8000-000000000029'
+);
+
+insert into public.assignment_docs (id, assignment_id, student_id, content)
+values (
+  '23000000-0000-4000-8000-000000000029',
+  '22000000-0000-4000-8000-000000000029',
+  '11000000-0000-4000-8000-000000000030',
+  '{"type":"doc","content":[]}'::jsonb
+);
+
+insert into public.assignment_submission_requirements (id, assignment_id, type, label)
+values (
+  '27000000-0000-4000-8000-000000000029',
+  '22000000-0000-4000-8000-000000000029',
+  'image',
+  'Archive ownership race evidence'
+);
+
 insert into public.classroom_archive_operations (
   id, teacher_id, classroom_id, operation_type, request_sha256, status,
   source_revision, source_schema_migration, source_app_commit, retention,
@@ -1145,7 +1191,7 @@ if [[ "${LOCK_COUNT:-0}" -eq 0 ]]; then
 fi
 
 RACE_WRITE_OUTPUT="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
-  -c "set statement_timeout = '10s'; insert into public.assignment_submission_artifacts (assignment_doc_id, requirement_id, student_id, type, storage_path) values ('23000000-0000-4000-8000-000000000029', '27000000-0000-4000-8000-000000000029', '11000000-0000-4000-8000-000000000029', 'image', '$RACE_PATH');" 2>&1)" && RACE_WRITE_STATUS=0 || RACE_WRITE_STATUS=$?
+  -c "set statement_timeout = '10s'; insert into public.assignment_submission_artifacts (assignment_doc_id, requirement_id, student_id, type, storage_path) values ('23000000-0000-4000-8000-000000000029', '27000000-0000-4000-8000-000000000029', '11000000-0000-4000-8000-000000000030', 'image', '$RACE_PATH');" 2>&1)" && RACE_WRITE_STATUS=0 || RACE_WRITE_STATUS=$?
 wait "$RACE_VERIFIER_PID"
 
 RACE_BOUND_COUNTS="$(docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \

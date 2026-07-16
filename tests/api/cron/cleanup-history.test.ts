@@ -93,18 +93,26 @@ function createDeleteTable(
   log: QueryLog,
   error: unknown = null
 ) {
+  let preservedTrigger: string | null = null
+  const query = {
+    neq: vi.fn((column: string, value: string) => {
+      if (column === 'trigger') preservedTrigger = value
+      return query
+    }),
+    in: vi.fn(async (column: string, values: string[]) => {
+      const stringValues = values.map(String)
+      log.deleteCalls.push({ table, column, values: stringValues })
+      if (error) return { count: null, error }
+      const count = rows.filter((row) =>
+        column === parentColumn
+        && stringValues.includes(String(row[parentColumn]))
+        && (!preservedTrigger || row.trigger !== preservedTrigger)
+      ).length
+      return { count, error: null }
+    }),
+  }
   return {
-    delete: vi.fn(() => ({
-      in: vi.fn(async (column: string, values: string[]) => {
-        const stringValues = values.map(String)
-        log.deleteCalls.push({ table, column, values: stringValues })
-        if (error) return { count: null, error }
-        const count = rows.filter((row) =>
-          column === parentColumn && stringValues.includes(String(row[parentColumn]))
-        ).length
-        return { count, error: null }
-      }),
-    })),
+    delete: vi.fn(() => query),
   }
 }
 
@@ -235,6 +243,22 @@ describe('cron cleanup-history route', () => {
     await expect(response.json()).resolves.toEqual({ status: 'ok', deleted: 0 })
     expect(mock.from).toHaveBeenCalledTimes(1)
     expect(log.rangeCalls).toEqual([{ table: 'classrooms', from: 0, to: 999 }])
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'cleanup_assignment_doc_save_operations',
+      { p_completed_before: expect.any(String) }
+    )
+  })
+
+  it('fails when assignment save operation retention cannot be recorded', async () => {
+    vi.stubEnv('CRON_SECRET', 'secret')
+    mockSupabaseClient.rpc.mockResolvedValueOnce({ data: null, error: { message: 'failed' } })
+
+    const response = await GET(cronRequest())
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({
+      error: 'Failed to clean assignment save operations',
+    })
   })
 
   it('cleans expired archive staging through the authenticated daily cron when enabled', async () => {
