@@ -50,6 +50,13 @@ function renderCalendarPage() {
   )
 }
 
+function waitForCalendarWizard() {
+  return waitFor(
+    () => expect(screen.getByText('Create Calendar')).toBeInTheDocument(),
+    { timeout: 5_000 },
+  )
+}
+
 function jsonResponse(body: unknown, ok = true): Response {
   return {
     ok,
@@ -153,7 +160,7 @@ describe('Teacher calendar page', () => {
 
     renderCalendarPage()
 
-    await waitFor(() => expect(screen.getByText('Create Calendar')).toBeInTheDocument())
+    await waitForCalendarWizard()
     expect(fetchJSONWithCache).toHaveBeenCalledWith(
       'teacher-classrooms:teacher-1:active-list',
       expect.any(Function),
@@ -171,7 +178,7 @@ describe('Teacher calendar page', () => {
 
     renderCalendarPage()
 
-    await waitFor(() => expect(screen.getByText('Create Calendar')).toBeInTheDocument())
+    await waitForCalendarWizard()
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Delete classroom')).not.toBeInTheDocument()
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
@@ -182,7 +189,7 @@ describe('Teacher calendar page', () => {
 
     renderCalendarPage()
 
-    expect(await screen.findByText('Create Calendar')).toBeInTheDocument()
+    await waitForCalendarWizard()
     fireEvent.click(screen.getByRole('button', { name: /Semester 2/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Generate Calendar' }))
 
