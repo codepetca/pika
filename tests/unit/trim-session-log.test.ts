@@ -263,6 +263,50 @@ describe('trim-session-log script', () => {
     }
   })
 
+  it('does not duplicate archived entries when the output write is retried', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'pika-session-log-output-retry-'))
+
+    try {
+      const sourcePath = join(repoRoot, 'source.md')
+      const outputPath = join(repoRoot, 'missing', 'SESSION-LOG.md')
+      const archivePath = join(repoRoot, 'JOURNAL-ARCHIVE.md')
+      const source = [
+        '# Pika Session Log',
+        '',
+        '## 2026-05-01 - First',
+        'first entry',
+        '',
+        '## 2026-05-02 - Second',
+        'second entry',
+        '',
+      ].join('\n')
+
+      writeFileSync(sourcePath, source)
+
+      const failedRun = spawnSync(
+        'node',
+        [scriptPath, '--source', sourcePath, '--output', outputPath, '--archive', archivePath, '--keep', '1'],
+        { cwd: repoRoot, encoding: 'utf8' },
+      )
+
+      expect(failedRun.status).toBe(1)
+      expect(readFileSync(sourcePath, 'utf8')).toBe(source)
+      expect(readFileSync(archivePath, 'utf8').match(/^## 2026-05-01 - First$/gm)).toHaveLength(1)
+
+      mkdirSync(dirname(outputPath), { recursive: true })
+      execFileSync(
+        'node',
+        [scriptPath, '--source', sourcePath, '--output', outputPath, '--archive', archivePath, '--keep', '1'],
+        { cwd: repoRoot },
+      )
+
+      expect(readFileSync(outputPath, 'utf8')).toContain('## 2026-05-02 - Second')
+      expect(readFileSync(archivePath, 'utf8').match(/^## 2026-05-01 - First$/gm)).toHaveLength(1)
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
   it('defaults to a weekly evidence-sized retention window', () => {
     const script = readFileSync(scriptPath, 'utf8')
 

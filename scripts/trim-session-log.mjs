@@ -156,9 +156,25 @@ function appendToArchive(archivePath, entries) {
     '',
   ].join('\n')
   const existing = existsSync(archivePath) ? readFileSync(archivePath, 'utf8') : ''
+  const archivedEntries = new Set(extractEntries(existing))
+  const entriesToAppend = entries.filter((entry) => {
+    if (archivedEntries.has(entry)) {
+      return false
+    }
+
+    archivedEntries.add(entry)
+    return true
+  })
+
+  if (entriesToAppend.length === 0) {
+    return 0
+  }
+
   const base = existing.trim().length > 0 ? `${existing.replace(/\n+$/, '')}\n\n` : archiveHeader
 
-  writeFileSync(archivePath, `${base}${entries.join('\n\n')}\n`)
+  writeFileSync(archivePath, `${base}${entriesToAppend.join('\n\n')}\n`)
+
+  return entriesToAppend.length
 }
 
 function trimSessionLog({ keep, source, output, archive }) {
@@ -175,8 +191,9 @@ function trimSessionLog({ keep, source, output, archive }) {
   const retainedEntries = orderedEntries.slice(-keep)
   const removedEntries = orderedEntries.slice(0, orderedEntries.length - retainedEntries.length)
 
+  let archivedEntries = 0
   if (archive && removedEntries.length > 0) {
-    appendToArchive(resolve(repoRoot, archive), removedEntries)
+    archivedEntries = appendToArchive(resolve(repoRoot, archive), removedEntries)
   }
 
   writeFileSync(outputPath, buildSessionLog(retainedEntries))
@@ -187,7 +204,7 @@ function trimSessionLog({ keep, source, output, archive }) {
     archive,
     total: entries.length,
     retained: retainedEntries.length,
-    archived: archive ? removedEntries.length : 0,
+    archived: archivedEntries,
   }
 }
 

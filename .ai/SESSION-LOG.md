@@ -845,11 +845,12 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Completed:**
 - Updated the session-log trimmer to order ISO-dated entries chronologically before retaining or archiving them, while preserving source order for same-day entries and leaving undated legacy entries in place.
 - Made check mode reject chronological drift so CI catches future merge-order mistakes.
+- Made archive appends idempotent by exact entry content so a failed output write can be retried without duplicating history; added a forced-failure recovery regression after independent review.
 - Repaired the rolling log's existing July 13-15 ordering drift and added focused regression coverage.
 
 **Validation:**
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts` (2 files / 38 tests)
+- `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts` (2 files / 40 tests)
 - `pnpm lint`
 - `node --check scripts/trim-session-log.mjs`
 - `node scripts/trim-session-log.mjs --check`
