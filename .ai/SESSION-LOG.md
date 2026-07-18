@@ -846,7 +846,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Completed:**
 - Updated the session-log trimmer to order ISO-dated entries chronologically before retaining or archiving them while preserving source order for same-day entries.
 - Made check mode reject chronological drift so CI catches future merge-order mistakes.
-- Made archive appends idempotent with deterministic per-trim batch markers so a failed output write can be retried without duplicating history or collapsing identical entries; added forced-failure and duplicate-entry recovery coverage after independent review.
+- Made archive appends idempotent with deterministic path-normalized per-trim batch markers so failed output writes can be retried without duplicating history or collapsing identical entries; added forced-failure, duplicate-entry, and equivalent-path recovery coverage after independent review.
 - Made trim and check modes reject undated or invalid entry headings instead of guessing whether they belong in the latest retention window; aligned startup guidance after independent review.
 - Repaired the rolling log's existing July 13-15 ordering drift and added focused regression coverage.
 

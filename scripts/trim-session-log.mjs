@@ -205,8 +205,15 @@ function trimSessionLog({ keep, source, output, archive }) {
 
   let archivedEntries = 0
   if (archive && removedEntries.length > 0) {
-    const batchId = createArchiveBatchId({ archive, entries, keep, output, source })
-    archivedEntries = appendToArchive(resolve(repoRoot, archive), removedEntries, batchId)
+    const archivePath = resolve(repoRoot, archive)
+    const batchId = createArchiveBatchId({
+      archive: archivePath,
+      entries,
+      keep,
+      output: outputPath,
+      source: sourcePath,
+    })
+    archivedEntries = appendToArchive(archivePath, removedEntries, batchId)
   }
 
   writeFileSync(outputPath, buildSessionLog(retainedEntries))

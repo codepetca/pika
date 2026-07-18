@@ -310,6 +310,9 @@ describe('trim-session-log script', () => {
       const sourcePath = join(repoRoot, 'source.md')
       const outputPath = join(repoRoot, 'missing', 'SESSION-LOG.md')
       const archivePath = join(repoRoot, 'JOURNAL-ARCHIVE.md')
+      const equivalentSourcePath = `${repoRoot}/./source.md`
+      const equivalentOutputPath = `${repoRoot}/missing/./SESSION-LOG.md`
+      const equivalentArchivePath = `${repoRoot}/./JOURNAL-ARCHIVE.md`
       const source = [
         '# Pika Session Log',
         '',
@@ -339,7 +342,13 @@ describe('trim-session-log script', () => {
       mkdirSync(dirname(outputPath), { recursive: true })
       execFileSync(
         'node',
-        [scriptPath, '--source', sourcePath, '--output', outputPath, '--archive', archivePath, '--keep', '1'],
+        [
+          scriptPath,
+          '--source', equivalentSourcePath,
+          '--output', equivalentOutputPath,
+          '--archive', equivalentArchivePath,
+          '--keep', '1',
+        ],
         { cwd: repoRoot },
       )
 
