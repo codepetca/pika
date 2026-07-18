@@ -215,6 +215,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const [githubIdentity, setGithubIdentity] = useState<UserGitHubIdentity | null>(null)
   const [content, setContent] = useState<TiptapContent>({ type: 'doc', content: [] })
   const [preservedRecoveryContent, setPreservedRecoveryContent] = useState<TiptapContent | null>(null)
+  const preservedRecoveryContentRef = useRef<TiptapContent | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saveError, setSaveError] = useState('')
@@ -252,6 +253,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const draftBeforePreviewRef = useRef<TiptapContent | null>(null)
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const isMountedRef = useRef(true)
+
+  const updatePreservedRecoveryContent = useCallback((nextContent: TiptapContent | null) => {
+    preservedRecoveryContentRef.current = nextContent
+    setPreservedRecoveryContent(nextContent)
+  }, [])
 
   // Input tracking for authenticity
   const pasteWordCountRef = useRef(0)
@@ -398,7 +404,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       uncertainSaveRef.current = recoveredPendingSave
       shouldReplayRecoveredSaveRef.current = false
       if (!data.doc?.is_submitted && recoveredContent && recoveredContentStr !== serverContentStr) {
-        setPreservedRecoveryContent(null)
+        updatePreservedRecoveryContent(null)
         setContent(recoveredContent)
         pendingContentRef.current = recoveredContent
         setSaveStatus('unsaved')
@@ -406,7 +412,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
           setSaveError('A local draft was recovered after the saved version changed. Review it before continuing.')
         }
       } else if (data.doc?.is_submitted && recoveredContent && recoveredContentStr !== serverContentStr) {
-        setPreservedRecoveryContent(recoveredContent)
+        updatePreservedRecoveryContent(recoveredContent)
         setContent(serverContent)
         pendingContentRef.current = serverContent
         setSaveStatus('saved')
@@ -416,7 +422,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
             : 'A newer local draft is preserved below for review. This returned submission cannot be unsubmitted.'
         )
       } else {
-        setPreservedRecoveryContent(null)
+        updatePreservedRecoveryContent(null)
         setContent(serverContent)
         pendingContentRef.current = serverContent
         if (!data.doc?.is_submitted && recoveredPendingSave) {
@@ -438,13 +444,13 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     } finally {
       setLoading(false)
     }
-  }, [assignmentId, clearLocalDraft, notifications, readRecoveryDraft])
+  }, [assignmentId, clearLocalDraft, notifications, readRecoveryDraft, updatePreservedRecoveryContent])
 
   const applyUnsubmittedDoc = useCallback((nextDoc: AssignmentDoc) => {
     const serverContent = nextDoc.content || { type: 'doc', content: [] }
     const serverContentStr = JSON.stringify(serverContent)
     setDoc(nextDoc)
-    setPreservedRecoveryContent(null)
+    updatePreservedRecoveryContent(null)
     lastSavedContentRef.current = serverContentStr
     lastSavedRevisionRef.current = nextDoc.updated_at ?? null
 
@@ -462,7 +468,57 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     setSaveStatus('saved')
     setSaveError('')
     clearLocalDraft()
-  }, [clearLocalDraft, readRecoveryDraft])
+  }, [clearLocalDraft, readRecoveryDraft, updatePreservedRecoveryContent])
+
+  const applySubmittedDoc = useCallback((
+    nextDoc: AssignmentDoc,
+    latestLocalContent: TiptapContent,
+    source: 'current-tab' | 'other-tab',
+  ) => {
+    const serverContent = nextDoc.content || { type: 'doc', content: [] }
+    const serverContentStr = JSON.stringify(serverContent)
+    const localContentToPreserve = preservedRecoveryContentRef.current ?? latestLocalContent
+    const hasNewerLocalContent = JSON.stringify(localContentToPreserve) !== serverContentStr
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+      saveTimeoutRef.current = null
+    }
+    if (throttledSaveTimeoutRef.current) {
+      clearTimeout(throttledSaveTimeoutRef.current)
+      throttledSaveTimeoutRef.current = null
+    }
+
+    setDoc(nextDoc)
+    setContent(serverContent)
+    pendingContentRef.current = serverContent
+    lastSavedContentRef.current = serverContentStr
+    lastSavedRevisionRef.current = nextDoc.updated_at ?? lastSavedRevisionRef.current
+    setSaveStatus('saved')
+
+    if (!hasNewerLocalContent) {
+      setSaveError('')
+      updatePreservedRecoveryContent(null)
+      clearLocalDraft()
+      return
+    }
+
+    persistLocalDraft(localContentToPreserve)
+    updatePreservedRecoveryContent(localContentToPreserve)
+    setSaveError(
+      source === 'other-tab'
+        ? (
+            canUnsubmitAssignmentDoc(nextDoc)
+              ? 'Another tab submitted different work. Your local draft is preserved; unsubmit to review it.'
+              : 'Another tab submitted different work. Your local draft is preserved below for review.'
+          )
+        : (
+            canUnsubmitAssignmentDoc(nextDoc)
+              ? 'Your assignment was submitted, but newer local edits arrived before submission completed. They are preserved; unsubmit to review them.'
+              : 'Your assignment was submitted, but newer local edits arrived before submission completed. They are preserved below for review.'
+          )
+    )
+  }, [clearLocalDraft, persistLocalDraft, updatePreservedRecoveryContent])
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true)
@@ -488,7 +544,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     }
   }, [assignmentId])
 
-  const refreshAfterRevisionConflict = useCallback(async (localDraft: TiptapContent) => {
+  const refreshAfterRevisionConflict = useCallback(async (
+    localDraft: TiptapContent,
+    options?: { definitiveConflict?: boolean },
+  ) => {
     try {
       const data = await fetchJSONWithCache<AssignmentDocResponse>(
         `assignment-doc:${assignmentId}`,
@@ -509,14 +568,44 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       if (!data.doc) return false
 
       const serverContent = data.doc.content || { type: 'doc', content: [] }
-      const draftToPreserve = pendingContentRef.current ?? localDraft
+      const draftToPreserve = preservedRecoveryContentRef.current
+        ?? pendingContentRef.current
+        ?? localDraft
       setDoc(data.doc)
       lastSavedContentRef.current = JSON.stringify(serverContent)
       lastSavedRevisionRef.current = data.doc.updated_at ?? null
+      const draftMatchesServer = JSON.stringify(draftToPreserve) === lastSavedContentRef.current
+      const claimedDraft = claimedRecoveryDraftRef.current
+      if (
+        options?.definitiveConflict
+        && draftMatchesServer
+        && claimedDraft
+        && JSON.stringify(claimedDraft.content) === lastSavedContentRef.current
+      ) {
+        if (
+          lastSavedRevisionRef.current
+          && (pasteWordCountRef.current > 0 || keystrokeCountRef.current > 0)
+        ) {
+          const replacementAttempt: SaveAttempt = {
+            content: draftToPreserve,
+            sessionId: saveSessionIdRef.current,
+            sequence: nextSaveSequence(),
+            metricSessionId: claimedDraft.pending_save?.metricSessionId ?? metricSessionIdRef.current,
+            expectedUpdatedAt: lastSavedRevisionRef.current,
+            trigger: claimedDraft.pending_save?.trigger ?? 'autosave',
+            pasteWordCount: pasteWordCountRef.current,
+            keystrokeCount: keystrokeCountRef.current,
+          }
+          uncertainSaveRef.current = replacementAttempt
+          persistLocalDraft(draftToPreserve, replacementAttempt)
+        } else {
+          clearLocalDraft(claimedDraft)
+        }
+      }
       if (data.doc.is_submitted) {
-        if (JSON.stringify(draftToPreserve) !== lastSavedContentRef.current) {
+        if (!draftMatchesServer) {
           persistLocalDraft(draftToPreserve, uncertainSaveRef.current ?? undefined)
-          setPreservedRecoveryContent(draftToPreserve)
+          updatePreservedRecoveryContent(draftToPreserve)
         }
         setContent(serverContent)
         pendingContentRef.current = serverContent
@@ -529,11 +618,14 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         await loadHistory()
         return true
       }
-      setPreservedRecoveryContent(null)
+      updatePreservedRecoveryContent(null)
       setContent(draftToPreserve)
       pendingContentRef.current = draftToPreserve
+      if (!draftMatchesServer) {
+        persistLocalDraft(draftToPreserve, uncertainSaveRef.current ?? undefined)
+      }
       setSaveStatus(
-        JSON.stringify(draftToPreserve) === lastSavedContentRef.current
+        draftMatchesServer
           ? 'saved'
           : 'unsaved'
       )
@@ -543,7 +635,15 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       console.error('Error refreshing assignment after revision conflict:', refreshError)
       return false
     }
-  }, [SAVE_REQUEST_TIMEOUT_MS, assignmentId, loadHistory, persistLocalDraft])
+  }, [
+    SAVE_REQUEST_TIMEOUT_MS,
+    assignmentId,
+    clearLocalDraft,
+    loadHistory,
+    nextSaveSequence,
+    persistLocalDraft,
+    updatePreservedRecoveryContent,
+  ])
 
   useEffect(() => {
     loadAssignment()
@@ -619,6 +719,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       activeSaveControllerRef.current = controller
       inFlightSaveRef.current = saveAttempt
       const attemptRecoveryDraft = persistLocalDraft(newContent, saveAttempt)
+      let reconciledAfterConflict = false
 
       try {
         const response = await fetch(`/api/assignment-docs/${assignmentId}`, {
@@ -648,10 +749,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
               uncertainSaveRef.current = null
             }
             metricSessionIdRef.current = globalThis.crypto.randomUUID()
-            const refreshed = await refreshAfterRevisionConflict(newContent)
+            const refreshed = await refreshAfterRevisionConflict(newContent, { definitiveConflict: true })
             if (!refreshed) {
               throw new Error('The saved version could not be reloaded. Reload this assignment before retrying.')
             }
+            reconciledAfterConflict = true
             if (JSON.stringify(newContent) !== lastSavedContentRef.current) {
               throw new Error('A newer saved version exists. Review your preserved draft before retrying.')
             }
@@ -667,10 +769,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
             uncertainSaveRef.current = null
           }
           if (response.status === 409 || response.status === 403) {
-            const refreshed = await refreshAfterRevisionConflict(newContent)
+            const refreshed = await refreshAfterRevisionConflict(newContent, { definitiveConflict: true })
             if (!refreshed) {
               throw new Error('The saved version could not be reloaded. Reload this assignment before retrying.')
             }
+            reconciledAfterConflict = true
             if (response.status === 403) {
               throw new Error('This assignment was submitted in another tab. Your local draft is preserved for review.')
             }
@@ -728,8 +831,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
             uncertainSaveRef.current = saveAttempt
             persistLocalDraft(newContent, saveAttempt)
           }
-        } else if (!isSubmittedRef.current) {
-          persistLocalDraft(newContent, uncertainSaveRef.current ?? undefined)
+        } else if (!reconciledAfterConflict && !isSubmittedRef.current) {
+          persistLocalDraft(
+            pendingContentRef.current ?? newContent,
+            uncertainSaveRef.current ?? undefined,
+          )
         }
         const saveError = didTimeOut
           ? new Error('Save timed out. Check your connection and try again.')
@@ -1012,7 +1118,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
       if (!response.ok) {
         if (response.status === 409) {
-          const refreshed = await refreshAfterRevisionConflict(submissionContent)
+          const refreshed = await refreshAfterRevisionConflict(submissionContent, { definitiveConflict: true })
           if (!refreshed) {
             throw new Error('The saved version could not be reloaded. Reload this assignment before retrying.')
           }
@@ -1020,12 +1126,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         throw new Error(data.error || 'Failed to submit')
       }
 
-      setDoc(data.doc)
-      lastSavedContentRef.current = JSON.stringify(submissionContent)
-      lastSavedRevisionRef.current = data.doc?.updated_at ?? lastSavedRevisionRef.current
-      setSaveStatus('saved')
-      setSaveError('')
-      clearLocalDraft()
+      applySubmittedDoc(
+        data.doc,
+        pendingContentRef.current ?? submissionContent,
+        'current-tab',
+      )
     } catch (err: any) {
       console.error('Error submitting:', err)
       try {
@@ -1037,28 +1142,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         )
         if (refreshResponse.ok && refreshData.doc?.is_submitted) {
           const submittedDoc = refreshData.doc as AssignmentDoc
-          const serverContent = submittedDoc.content || { type: 'doc', content: [] }
-          const serverContentStr = JSON.stringify(serverContent)
           const latestLocalContent = pendingContentRef.current ?? submissionContent
-          setDoc(submittedDoc)
-          setContent(serverContent)
-          pendingContentRef.current = serverContent
-          lastSavedContentRef.current = serverContentStr
-          lastSavedRevisionRef.current = submittedDoc.updated_at ?? lastSavedRevisionRef.current
-          setSaveStatus('saved')
-          if (serverContentStr === JSON.stringify(latestLocalContent)) {
-            setSaveError('')
-            setPreservedRecoveryContent(null)
-            clearLocalDraft()
-          } else {
-            persistLocalDraft(latestLocalContent, uncertainSaveRef.current ?? undefined)
-            setPreservedRecoveryContent(latestLocalContent)
-            setSaveError(
-              canUnsubmitAssignmentDoc(submittedDoc)
-                ? 'Another tab submitted different work. Your local draft is preserved; unsubmit to review it.'
-                : 'Another tab submitted different work. Your local draft is preserved below for review.'
-            )
-          }
+          applySubmittedDoc(submittedDoc, latestLocalContent, 'other-tab')
           setError('')
           return
         }
@@ -1069,7 +1154,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     } finally {
       setSubmitting(false)
     }
-  }, [SAVE_REQUEST_TIMEOUT_MS, assignmentId, clearLocalDraft, content, persistLocalDraft, refreshAfterRevisionConflict, saveContent])
+  }, [SAVE_REQUEST_TIMEOUT_MS, applySubmittedDoc, assignmentId, content, refreshAfterRevisionConflict, saveContent])
 
   const handleUnsubmit = useCallback(async () => {
     setSubmitting(true)

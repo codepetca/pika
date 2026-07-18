@@ -1301,6 +1301,201 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     })
     expect(screen.getByTestId('editor-content')).toHaveTextContent('Latest unsaved answer')
     expect(screen.getByText('Unsaved')).toBeInTheDocument()
+    const recovery = JSON.parse(String(window.localStorage.getItem(
+      'assignment-draft:student-1:assignment-1'
+    )))
+    expect(recovery.content).toEqual(latestDraft)
+  })
+
+  it('preserves edits that arrive while a successful submission is in flight', async () => {
+    let resolveSubmit: ((response: any) => void) | undefined
+    const submitResponse = new Promise<any>((resolve) => {
+      resolveSubmit = resolve
+    })
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/history')) return { ok: true, json: async () => ({ history: [] }) }
+      if (url.endsWith('/assignment-docs/assignment-1') && !init?.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            assignment: makeAssignment(),
+            doc: makeDoc(),
+            feedback_entries: [],
+            submission_requirements: [],
+            submission_artifacts: [],
+            wasFirstView: false,
+          }),
+        }
+      }
+      if (url.endsWith('/assignment-docs/assignment-1') && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body))
+        return {
+          ok: true,
+          json: async () => ({
+            doc: {
+              ...makeDoc(),
+              content: body.content,
+              updated_at: '2026-07-01T12:01:00.000Z',
+            },
+            historyEntry: null,
+          }),
+        }
+      }
+      if (url.endsWith('/assignment-docs/assignment-1/submit')) return submitResponse
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    const ref = createRef<StudentAssignmentEditorHandle>()
+    const user = userEvent.setup()
+    render(
+      <StudentAssignmentEditor
+        ref={ref}
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        variant="embedded"
+      />,
+    )
+
+    await screen.findByText('Assignment Title')
+    await user.click(screen.getByRole('button', { name: 'Edit response' }))
+    let submitPromise: Promise<void> | undefined
+    await act(async () => {
+      submitPromise = ref.current?.submit()
+      await Promise.resolve()
+    })
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/submit'))).toHaveLength(1)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit older response' }))
+    resolveSubmit?.({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        doc: {
+          ...makeDoc(),
+          content: latestDraft,
+          is_submitted: true,
+          submitted_at: '2026-07-01T12:02:00.000Z',
+          updated_at: '2026-07-01T12:02:00.000Z',
+        },
+      }),
+    })
+    await act(async () => {
+      await submitPromise
+    })
+
+    expect(ref.current?.isSubmitted).toBe(true)
+    expect(screen.getByTestId('editor-content')).toHaveTextContent('Latest unsaved answer')
+    expect(screen.getByRole('alert')).toHaveTextContent(/newer local edits.*preserved/i)
+    const recovery = JSON.parse(String(window.localStorage.getItem(
+      'assignment-draft:student-1:assignment-1'
+    )))
+    expect(recovery.content).toEqual(olderInFlightDraft)
+  })
+
+  it('keeps a queued-save recovery draft after the earlier submission response succeeds', async () => {
+    let resolveSubmit: ((response: any) => void) | undefined
+    const submitResponse = new Promise<any>((resolve) => {
+      resolveSubmit = resolve
+    })
+    let docReads = 0
+    let patchCount = 0
+    const submittedDoc = {
+      ...makeDoc(),
+      content: latestDraft,
+      is_submitted: true,
+      submitted_at: '2026-07-01T12:02:00.000Z',
+      updated_at: '2026-07-01T12:02:00.000Z',
+    }
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/history')) return { ok: true, json: async () => ({ history: [] }) }
+      if (url.endsWith('/assignment-docs/assignment-1') && !init?.method) {
+        docReads += 1
+        return {
+          ok: true,
+          json: async () => ({
+            assignment: makeAssignment(),
+            doc: docReads === 1 ? makeDoc() : submittedDoc,
+            feedback_entries: [],
+            submission_requirements: [],
+            submission_artifacts: [],
+            wasFirstView: false,
+          }),
+        }
+      }
+      if (url.endsWith('/assignment-docs/assignment-1') && init?.method === 'PATCH') {
+        patchCount += 1
+        const body = JSON.parse(String(init.body))
+        if (patchCount === 1) {
+          return {
+            ok: true,
+            json: async () => ({
+              doc: {
+                ...makeDoc(),
+                content: body.content,
+                updated_at: '2026-07-01T12:01:00.000Z',
+              },
+              historyEntry: null,
+            }),
+          }
+        }
+        return {
+          ok: false,
+          status: 403,
+          json: async () => ({ error: 'Cannot edit a submitted document' }),
+        }
+      }
+      if (url.endsWith('/assignment-docs/assignment-1/submit')) return submitResponse
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    const ref = createRef<StudentAssignmentEditorHandle>()
+    const user = userEvent.setup()
+    render(
+      <StudentAssignmentEditor
+        ref={ref}
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        variant="embedded"
+      />,
+    )
+
+    await screen.findByText('Assignment Title')
+    await user.click(screen.getByRole('button', { name: 'Edit response' }))
+    let submitPromise: Promise<void> | undefined
+    await act(async () => {
+      submitPromise = ref.current?.submit()
+      await Promise.resolve()
+    })
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/submit'))).toHaveLength(1)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit older response' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Blur response' }))
+    await waitFor(() => expect(patchCount).toBe(2))
+    await waitFor(() => expect(docReads).toBe(2))
+
+    resolveSubmit?.({
+      ok: true,
+      status: 200,
+      json: async () => ({ doc: submittedDoc }),
+    })
+    await act(async () => {
+      await submitPromise
+    })
+
+    expect(ref.current?.isSubmitted).toBe(true)
+    expect(screen.getByTestId('editor-content')).toHaveTextContent('Latest unsaved answer')
+    const recovery = JSON.parse(String(window.localStorage.getItem(
+      'assignment-draft:student-1:assignment-1'
+    )))
+    expect(recovery.content).toEqual(olderInFlightDraft)
   })
 
   it('uses a keepalive save for the latest draft on pagehide', async () => {
@@ -1742,6 +1937,112 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     }))
     await screen.findByText('Saved')
     expect(window.localStorage.getItem('assignment-draft:student-1:assignment-1')).toBeNull()
+  })
+
+  it('replaces an equal-content recovered operation after a definitive conflict', async () => {
+    const pendingSave = {
+      content: savedDraft,
+      sessionId: '10000000-0000-4000-8000-000000000081',
+      sequence: 5,
+      metricSessionId: '10000000-0000-4000-8000-000000000082',
+      expectedUpdatedAt: makeDoc().updated_at,
+      trigger: 'blur',
+      pasteWordCount: 0,
+      keystrokeCount: 1,
+    }
+    window.localStorage.setItem('assignment-draft:student-1:assignment-1', JSON.stringify({
+      draft_id: '10000000-0000-4000-8000-000000000083',
+      generation: Date.now() * 1_000,
+      content: savedDraft,
+      base_revision: makeDoc().updated_at,
+      paste_word_count: 0,
+      keystroke_count: 1,
+      pending_save: pendingSave,
+      saved_at: new Date().toISOString(),
+    }))
+    let docReads = 0
+    const patchBodies: any[] = []
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/history')) return { ok: true, json: async () => ({ history: [] }) }
+      if (url.endsWith('/assignment-docs/assignment-1') && !init?.method) {
+        docReads += 1
+        return {
+          ok: true,
+          json: async () => ({
+            assignment: makeAssignment(),
+            doc: {
+              ...makeDoc(),
+              updated_at: docReads === 1
+                ? makeDoc().updated_at
+                : '2026-07-01T12:01:00.000Z',
+            },
+            feedback_entries: [],
+            submission_requirements: [], submission_artifacts: [], wasFirstView: false,
+          }),
+        }
+      }
+      if (url.endsWith('/assignment-docs/assignment-1') && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body))
+        patchBodies.push(body)
+        if (patchBodies.length > 1) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              doc: {
+                ...makeDoc(),
+                updated_at: '2026-07-01T12:02:00.000Z',
+              },
+              historyEntry: null,
+            }),
+          }
+        }
+        return {
+          ok: false,
+          status: 409,
+          json: async () => ({ error: 'This draft changed elsewhere.' }),
+        }
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    render(
+      <StudentAssignmentEditor
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        variant="embedded"
+      />,
+    )
+    await waitFor(() => expect(patchBodies).toHaveLength(1))
+    let replacement: any
+    await waitFor(() => {
+      replacement = JSON.parse(String(window.localStorage.getItem(
+        'assignment-draft:student-1:assignment-1'
+      )))
+      expect(replacement.pending_save.sessionId).not.toBe(pendingSave.sessionId)
+    })
+    expect(replacement.pending_save.expectedUpdatedAt).toBe('2026-07-01T12:01:00.000Z')
+    expect(replacement.pending_save.keystrokeCount).toBe(1)
+    expect(replacement.pending_save.metricSessionId).toBe(pendingSave.metricSessionId)
+
+    render(
+      <StudentAssignmentEditor
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        variant="embedded"
+      />,
+    )
+    await waitFor(() => expect(patchBodies).toHaveLength(2))
+    expect(patchBodies[1]).toEqual(expect.objectContaining({
+      save_session_id: replacement.pending_save.sessionId,
+      expected_updated_at: '2026-07-01T12:01:00.000Z',
+      keystroke_count: 1,
+    }))
+    await waitFor(() => {
+      expect(window.localStorage.getItem('assignment-draft:student-1:assignment-1')).toBeNull()
+    })
   })
 
   it('expires recovery records without a valid timestamp', async () => {

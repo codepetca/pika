@@ -10,30 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-13 — Verified export-only classroom archives
-
-**Completed:**
-- Added migration 082 and a fail-closed teacher API for private, immutable, deterministic classroom archive exports without deleting any hot row or source object.
-- Added idempotent snapshot/finalization RPCs, revision triggers for all 41 descendants, durable operation evidence, strict actor snapshots, 50 MB private archive/Gradex buckets, full upload read-back verification, and terminal/retry recovery behavior.
-- Added canonical tar+gzip and NDJSON serialization with strict manifest, row/byte/checksum, actor, storage-object, content, and outer-artifact verification.
-- Extended the 42-resource schema contract to audit actual primary keys and every direct actor foreign key; actor capture now uses only those explicit columns and rejects arbitrary user UUIDs in free text.
-- Restricted storage discovery by source context: assignment artifacts from relational paths, submission images from embedded content, and test documents only from `tests.documents`.
-- Added a server-only export enable flag plus teacher UUID allowlist, future-retention validation, structured privacy-safe metrics, database CI, recovery guidance, and adversarial regressions.
-- Kept the archive epic unfinished: restore, Gradex extract generation, cold compaction, cleanup automation, teacher UI, and production canaries remain pending.
-
-**Validation:**
-- `pnpm test` (320 files, 2,844 tests)
-- `pnpm lint`
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- Pika audit
-- Fresh isolated Supabase replay through migrations 080/081/082
-- Atomic blueprint database contract
-- Verified archive database contract, including stale-source, terminal replay, unrelated-UUID privacy, retention, grants, and immutable metadata checks
-- Classroom schema audit (102 public foreign-key relationships)
-- `bash -n scripts/check-classroom-archive-database.sh`
-- `git diff --check`
-
 ## 2026-07-13 — Resumable and version-aware classroom archive restore
 
 **Completed:**
@@ -866,3 +842,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining before merge:**
 - Push the review fix, wait for PR checks, and rereview PR #891. Migration 099 must still be applied and verified before the application version is deployed.
+
+## 2026-07-18 — Assignment submit/recovery race review fixes
+
+**Completed:**
+- Ran independent Sol/high database, client-state, and integration reviews of PR #891 after CI passed. The client review found and fixed four ordering/recovery defects: a conflict catch overwriting a newer durable draft, edits arriving during a successful submit being shown or cleared incorrectly, queued save reconciliation being cleared by a later submit response, and a definitively rejected equal-content recovered operation retaining a stale writer fence.
+- Added a synchronous preserved-draft reference so the submitted server snapshot remains authoritative while newer local content survives save/submit response reordering and can be restored after unsubmit.
+- Replaced stale recovered operations with a fresh mount-local writer identity and refreshed revision while retaining the original metric-session identity and cumulative counters for database deduplication.
+- Added behavior regressions for all four races. Final independent rereviews reported no findings and confirmed the tests fail against the prior implementation.
+- No production data, Storage, migration history, deployment, or visible layout was modified.
+
+**Validation:**
+- `pnpm test` (375 files / 3,487 tests)
+- Focused assignment integrity suites (3 files / 71 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm run check:architecture` (604 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`
+
+**Remaining before merge:**
+- Push the final review fixes and wait for PR checks. Migration 099 still requires exact one-time target authorization and must be applied and verified before this application version is deployed.

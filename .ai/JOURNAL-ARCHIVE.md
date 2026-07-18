@@ -13789,3 +13789,27 @@
 - `pnpm build`
 - `pnpm exec vitest run tests/lib/contracts/classroom-lifecycle.test.ts tests/lib/contracts/classroom-artifacts.test.ts` (15 tests)
 - Read-only local catalog audit: `CLASSROOM_SCHEMA_AUDIT_DATABASE_URL=... pnpm exec tsx scripts/check-classroom-resource-schema.ts` (97 public foreign-key relationships)
+
+## 2026-07-13 — Verified export-only classroom archives
+
+**Completed:**
+- Added migration 082 and a fail-closed teacher API for private, immutable, deterministic classroom archive exports without deleting any hot row or source object.
+- Added idempotent snapshot/finalization RPCs, revision triggers for all 41 descendants, durable operation evidence, strict actor snapshots, 50 MB private archive/Gradex buckets, full upload read-back verification, and terminal/retry recovery behavior.
+- Added canonical tar+gzip and NDJSON serialization with strict manifest, row/byte/checksum, actor, storage-object, content, and outer-artifact verification.
+- Extended the 42-resource schema contract to audit actual primary keys and every direct actor foreign key; actor capture now uses only those explicit columns and rejects arbitrary user UUIDs in free text.
+- Restricted storage discovery by source context: assignment artifacts from relational paths, submission images from embedded content, and test documents only from `tests.documents`.
+- Added a server-only export enable flag plus teacher UUID allowlist, future-retention validation, structured privacy-safe metrics, database CI, recovery guidance, and adversarial regressions.
+- Kept the archive epic unfinished: restore, Gradex extract generation, cold compaction, cleanup automation, teacher UI, and production canaries remain pending.
+
+**Validation:**
+- `pnpm test` (320 files, 2,844 tests)
+- `pnpm lint`
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- Pika audit
+- Fresh isolated Supabase replay through migrations 080/081/082
+- Atomic blueprint database contract
+- Verified archive database contract, including stale-source, terminal replay, unrelated-UUID privacy, retention, grants, and immutable metadata checks
+- Classroom schema audit (102 public foreign-key relationships)
+- `bash -n scripts/check-classroom-archive-database.sh`
+- `git diff --check`
