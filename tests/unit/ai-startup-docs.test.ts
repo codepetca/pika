@@ -107,6 +107,7 @@ describe('AI startup docs', () => {
   })
 
   it('keeps the rolling session log bounded while preserving weekly evidence', () => {
+    const startHere = readRepoFile('.ai/START-HERE.md')
     const sessionLog = readRepoFile('.ai/SESSION-LOG.md')
     const entryCount = sessionLog.match(/^## /gm)?.length ?? 0
 
@@ -114,7 +115,10 @@ describe('AI startup docs', () => {
     expect(sessionLog).toContain('CI allows at most 60 entries')
     expect(sessionLog).toContain('compacts to the latest 40 entries')
     expect(sessionLog).toContain('immediately run `node scripts/trim-session-log.mjs`')
+    expect(sessionLog).toContain('valid ISO date (`## YYYY-MM-DD ...`)')
     expect(sessionLog).toContain('node scripts/trim-session-log.mjs --check')
+    expect(startHere).toContain('valid ISO-date heading (`## YYYY-MM-DD ...`)')
+    expect(startHere).toContain('verify heading dates, chronological order, and the cap')
     expect(entryCount).toBeGreaterThan(0)
     if (entryCount > 60) {
       throw new Error(

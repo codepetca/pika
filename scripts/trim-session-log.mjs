@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -63,7 +64,7 @@ function usage() {
     '',
     'Keeps the latest session entries, where each entry starts with a markdown "## " heading.',
     'Trimmed entries are appended to the archive file so history is preserved; pass --no-archive to discard them instead.',
-    'Use --check to fail when the source has more entries than the check cap.',
+    'Use --check to fail when dated entries are out of order or the source has more entries than the check cap.',
   ].join('\n')
 }
 
@@ -78,6 +79,64 @@ function extractEntries(markdown) {
   })
 }
 
+function extractEntryDate(entry) {
+  const match = /^## (\d{4})-(\d{2})-(\d{2})(?:\s|$)/.exec(entry)
+
+  if (!match) {
+    return null
+  }
+
+  const [, year, month, day] = match
+  const parsed = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)))
+  const isoDate = parsed.toISOString().slice(0, 10)
+  const headingDate = `${year}-${month}-${day}`
+
+  return isoDate === headingDate ? headingDate : null
+}
+
+function assertDatedEntries(entries, source) {
+  const invalidEntry = entries.find((entry) => extractEntryDate(entry) === null)
+
+  if (invalidEntry) {
+    const heading = invalidEntry.split('\n', 1)[0]
+    throw new Error(
+      `${source} entry headings must start with a valid ISO date (YYYY-MM-DD); found: ${heading}`,
+    )
+  }
+}
+
+function orderEntriesChronologically(entries) {
+  const records = entries.map((entry, index) => ({
+    date: extractEntryDate(entry),
+    entry,
+    index,
+  }))
+  const datedRecords = records
+    .filter((record) => record.date !== null)
+    .sort((left, right) => left.date.localeCompare(right.date) || left.index - right.index)
+  let datedIndex = 0
+
+  // Same-day entries retain source order through the explicit index tie-breaker.
+  return records.map((record) => record.date === null ? record.entry : datedRecords[datedIndex++].entry)
+}
+
+function entriesAreChronological(entries) {
+  let previousDate = null
+
+  for (const entry of entries) {
+    const date = extractEntryDate(entry)
+
+    if (date !== null && previousDate !== null && date < previousDate) {
+      return false
+    }
+    if (date !== null) {
+      previousDate = date
+    }
+  }
+
+  return true
+}
+
 function buildSessionLog(entries) {
   const header = [
     '# Pika Session Log',
@@ -86,8 +145,9 @@ function buildSessionLog(entries) {
     '',
     '**Rules:**',
     '- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.',
+    '- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.',
     '- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.',
-    '- Use `node scripts/trim-session-log.mjs --check` to verify the log is within the 60-entry cap.',
+    '- Use `node scripts/trim-session-log.mjs --check` to verify the log is chronological and within the 60-entry cap.',
     '- Keep enough recent entries for weekly automations to inspect roughly the last week of work.',
     '- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.',
     '- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.',
@@ -98,7 +158,13 @@ function buildSessionLog(entries) {
   return `${header}${entries.join('\n\n')}\n`
 }
 
-function appendToArchive(archivePath, entries) {
+function createArchiveBatchId({ archive, entries, keep, output, source }) {
+  return createHash('sha256')
+    .update(JSON.stringify({ archive, entries, keep, output, source }))
+    .digest('hex')
+}
+
+function appendToArchive(archivePath, entries, batchId) {
   const archiveHeader = [
     '# Pika Project Journal',
     '',
@@ -109,9 +175,17 @@ function appendToArchive(archivePath, entries) {
     '',
   ].join('\n')
   const existing = existsSync(archivePath) ? readFileSync(archivePath, 'utf8') : ''
+  const batchMarker = `<!-- pika-session-log-archive-batch:${batchId} -->`
+
+  if (existing.includes(batchMarker)) {
+    return 0
+  }
+
   const base = existing.trim().length > 0 ? `${existing.replace(/\n+$/, '')}\n\n` : archiveHeader
 
-  writeFileSync(archivePath, `${base}${entries.join('\n\n')}\n`)
+  writeFileSync(archivePath, `${base}${batchMarker}\n${entries.join('\n\n')}\n`)
+
+  return entries.length
 }
 
 function trimSessionLog({ keep, source, output, archive }) {
@@ -124,11 +198,22 @@ function trimSessionLog({ keep, source, output, archive }) {
     throw new Error(`No session entries found in ${source}`)
   }
 
-  const retainedEntries = entries.slice(-keep)
-  const removedEntries = entries.slice(0, entries.length - retainedEntries.length)
+  assertDatedEntries(entries, source)
+  const orderedEntries = orderEntriesChronologically(entries)
+  const retainedEntries = orderedEntries.slice(-keep)
+  const removedEntries = orderedEntries.slice(0, orderedEntries.length - retainedEntries.length)
 
+  let archivedEntries = 0
   if (archive && removedEntries.length > 0) {
-    appendToArchive(resolve(repoRoot, archive), removedEntries)
+    const archivePath = resolve(repoRoot, archive)
+    const batchId = createArchiveBatchId({
+      archive: archivePath,
+      entries,
+      keep,
+      output: outputPath,
+      source: sourcePath,
+    })
+    archivedEntries = appendToArchive(archivePath, removedEntries, batchId)
   }
 
   writeFileSync(outputPath, buildSessionLog(retainedEntries))
@@ -139,7 +224,7 @@ function trimSessionLog({ keep, source, output, archive }) {
     archive,
     total: entries.length,
     retained: retainedEntries.length,
-    archived: archive ? removedEntries.length : 0,
+    archived: archivedEntries,
   }
 }
 
@@ -150,6 +235,13 @@ function checkSessionLog({ maxEntries, source }) {
 
   if (entries.length === 0) {
     throw new Error(`No session entries found in ${source}`)
+  }
+
+  assertDatedEntries(entries, source)
+  if (!entriesAreChronological(entries)) {
+    throw new Error(
+      `${source} dated entries are not in chronological order; run node scripts/trim-session-log.mjs to repair the order.`,
+    )
   }
 
   if (entries.length > maxEntries) {
