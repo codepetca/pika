@@ -316,6 +316,9 @@ describe('trim-session-log script', () => {
         '## 2026-05-01 - First',
         'first entry',
         '',
+        '## 2026-05-01 - First',
+        'first entry',
+        '',
         '## 2026-05-02 - Second',
         'second entry',
         '',
@@ -331,7 +334,7 @@ describe('trim-session-log script', () => {
 
       expect(failedRun.status).toBe(1)
       expect(readFileSync(sourcePath, 'utf8')).toBe(source)
-      expect(readFileSync(archivePath, 'utf8').match(/^## 2026-05-01 - First$/gm)).toHaveLength(1)
+      expect(readFileSync(archivePath, 'utf8').match(/^## 2026-05-01 - First$/gm)).toHaveLength(2)
 
       mkdirSync(dirname(outputPath), { recursive: true })
       execFileSync(
@@ -341,7 +344,7 @@ describe('trim-session-log script', () => {
       )
 
       expect(readFileSync(outputPath, 'utf8')).toContain('## 2026-05-02 - Second')
-      expect(readFileSync(archivePath, 'utf8').match(/^## 2026-05-01 - First$/gm)).toHaveLength(1)
+      expect(readFileSync(archivePath, 'utf8').match(/^## 2026-05-01 - First$/gm)).toHaveLength(2)
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
     }

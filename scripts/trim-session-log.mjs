@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -157,7 +158,13 @@ function buildSessionLog(entries) {
   return `${header}${entries.join('\n\n')}\n`
 }
 
-function appendToArchive(archivePath, entries) {
+function createArchiveBatchId({ archive, entries, keep, output, source }) {
+  return createHash('sha256')
+    .update(JSON.stringify({ archive, entries, keep, output, source }))
+    .digest('hex')
+}
+
+function appendToArchive(archivePath, entries, batchId) {
   const archiveHeader = [
     '# Pika Project Journal',
     '',
@@ -168,25 +175,17 @@ function appendToArchive(archivePath, entries) {
     '',
   ].join('\n')
   const existing = existsSync(archivePath) ? readFileSync(archivePath, 'utf8') : ''
-  const archivedEntries = new Set(extractEntries(existing))
-  const entriesToAppend = entries.filter((entry) => {
-    if (archivedEntries.has(entry)) {
-      return false
-    }
+  const batchMarker = `<!-- pika-session-log-archive-batch:${batchId} -->`
 
-    archivedEntries.add(entry)
-    return true
-  })
-
-  if (entriesToAppend.length === 0) {
+  if (existing.includes(batchMarker)) {
     return 0
   }
 
   const base = existing.trim().length > 0 ? `${existing.replace(/\n+$/, '')}\n\n` : archiveHeader
 
-  writeFileSync(archivePath, `${base}${entriesToAppend.join('\n\n')}\n`)
+  writeFileSync(archivePath, `${base}${batchMarker}\n${entries.join('\n\n')}\n`)
 
-  return entriesToAppend.length
+  return entries.length
 }
 
 function trimSessionLog({ keep, source, output, archive }) {
@@ -206,7 +205,8 @@ function trimSessionLog({ keep, source, output, archive }) {
 
   let archivedEntries = 0
   if (archive && removedEntries.length > 0) {
-    archivedEntries = appendToArchive(resolve(repoRoot, archive), removedEntries)
+    const batchId = createArchiveBatchId({ archive, entries, keep, output, source })
+    archivedEntries = appendToArchive(resolve(repoRoot, archive), removedEntries, batchId)
   }
 
   writeFileSync(outputPath, buildSessionLog(retainedEntries))
