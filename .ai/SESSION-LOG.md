@@ -10,30 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-13 — Resumable and version-aware classroom archive restore
-
-**Completed:**
-- Added migration 083 with cold tombstones outside the classroom ownership graph, bounded idempotent JSONB staging, conservative database-capacity preflight, concurrent-operation rejection, service-role-only RPCs, and one atomic 42-resource finalization transaction.
-- Added strict archive decoding, source-to-target adapter selection, actor reconciliation, exact storage-reference matching, deterministic operation-scoped object paths, managed-reference rewriting, and outer/read-back checksum verification.
-- Added a separately gated teacher restore endpoint requiring an enable flag, teacher UUID allowlist, idempotency key, and explicit database-budget setting; applying the migration alone does not expose restore or enable compaction.
-- Preserved exact archived values by suppressing blueprint/archive touch triggers only inside the transaction-local restore context and restoring the archived revision explicitly; PostgreSQL records final referential-integrity evidence after inserts pass.
-- Added rollback-only database coverage for capacity refusal, schema drift, unresolved actors, concurrent restores, expired-operation replacement, idempotent staging/completion, exact JSONB row equality, revision preservation, tombstone cleanup, and browser-role denial.
-- Corrected restore concurrency so only unexpired snapshots block a replacement operation; expired operations can no longer strand a cold classroom while awaiting cleanup automation.
-- Kept the archive epic unfinished: cold compaction, separate deidentified Gradex extract generation, cleanup automation, teacher UI, and production canaries remain pending. No production database, migration, row, or storage object was modified.
-
-**Validation:**
-- `pnpm test` (324 files, 2,866 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- Pika audit
-- Fresh isolated Supabase replay through migrations 080/081/082/083 with matching source/copy migration hashes
-- Verified export and restore database contracts executed as `service_role`
-- Post-review focused restore suite (4 files, 21 tests) and fresh rollback-only restore canary, including expired-operation replacement
-- Classroom schema audit (105 public foreign-key relationships)
-- Supabase lint: one existing migration-082 false positive for the function-local `classroom_archive_actor_ids` temporary table; both executable database contracts pass
-- `git diff --check`
-
 ## 2026-07-13 — Deidentified Gradex artifact transformer
 
 **Completed:**
@@ -863,3 +839,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining before merge:**
 - Push the final review fixes and wait for PR checks. Migration 099 still requires exact one-time target authorization and must be applied and verified before this application version is deployed.
+
+## 2026-07-18 — Production assignment integrity migration
+
+**Completed:**
+- Applied only migration `099_assignment_submission_integrity_guards.sql` to the linked production Pika project after exact one-time authorization and a clean dry run.
+- Verified production migration history is aligned through 099, both new ledger tables have RLS enabled, the writer-fence columns are present, and the four application RPCs exist with execution granted to `service_role` but denied to `anon` and `authenticated`.
+- No reset, repair, rollback, seed, cleanup, Storage deletion, or application deployment was performed.
+
+**Validation:**
+- `supabase migration list --linked` records migrations 001-099
+- Read-only production catalog checks for RPC signatures, role grants, RLS, save RPC overload count, and assignment document columns
+- PR #891 CI: architecture/database contracts, full test/build, and UI policy checks passed before application
+
+**Remaining:**
+- Merge PR #891 to deploy the application version that uses migration 099, then continue the product-experience program.

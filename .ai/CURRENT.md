@@ -5,10 +5,9 @@ Read this at session start. `.ai/features.json` is the epic status authority; `.
 ## Current Focus
 
 - Core classroom, assignment, test, and auth flows are live.
-- Production migrations 001-098 and the named archive round-trip canary are verified. The classroom is hot-restored; source and Gradex cleanup remain disabled.
+- Production migrations 001-099 and the named archive round-trip canary are verified. The classroom is hot-restored; source and Gradex cleanup remain disabled.
 - The product-experience program is tracked in `.ai/features.json`; Phase 1 evidence is in `docs/guidance/ui/product-experience-audit-2026-07.md`.
-- PR #891 assignment integrity is active: atomic writes, recovery-safe retries, mount-local writer fences, cleanup, concurrency checks, and final client race reviews are green. Production remains at migration 098.
-- Before merge/deploy: wait for CI on the final review fixes, then apply and verify migration 099 before deploying the app version.
+- PR #891 assignment integrity is reviewed and green: atomic writes, recovery-safe retries, mount-local writer fences, cleanup, and concurrency checks. Migration 099 is verified in production; merge and deploy the application version next.
 
 ## Environment
 
