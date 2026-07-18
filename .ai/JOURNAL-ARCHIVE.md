@@ -13837,3 +13837,18 @@
 - Classroom schema audit (105 public foreign-key relationships)
 - Supabase lint: one existing migration-082 false positive for the function-local `classroom_archive_actor_ids` temporary table; both executable database contracts pass
 - `git diff --check`
+
+## 2026-07-13 — Deidentified Gradex artifact transformer
+
+**Completed:**
+- Added a server-only pure transformer that derives a deterministic Gradex tar+gzip artifact only from a strictly verified classroom archive.
+- Added explicit projections for every allowlisted assignment/test resource, per-extract HMAC relationship references, relative structured timestamps, shared direct-identifier redaction plus known-actor redaction, and exclusion of storage/external references.
+- Added independent verification for canonical manifests/NDJSON, resource/content checksums, HMAC shapes, projected relationships, exact resource inventory, and zero detected direct identifiers.
+- Capped version 1 extract retention at 90 days and documented that runtime operations, upload/finalization, deletion automation, and production canaries remain unfinished.
+
+**Validation:**
+- Focused Gradex, artifact-contract, and startup-policy suites (43 tests)
+- `pnpm test`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`

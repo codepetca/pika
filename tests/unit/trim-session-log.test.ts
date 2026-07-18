@@ -61,6 +61,57 @@ describe('trim-session-log script', () => {
     }
   })
 
+  it('orders entries chronologically before retaining the latest entries', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'pika-session-log-order-'))
+
+    try {
+      const sourcePath = join(repoRoot, 'source.md')
+      const outputPath = join(repoRoot, 'SESSION-LOG.md')
+      const archivePath = join(repoRoot, 'JOURNAL-ARCHIVE.md')
+
+      writeFileSync(
+        sourcePath,
+        [
+          '# Pika Session Log',
+          '',
+          '## 2026-05-03 - Third',
+          'third entry',
+          '',
+          '## 2026-05-01 - First',
+          'first entry',
+          '',
+          '## 2026-05-02 - Second A',
+          'second entry A',
+          '',
+          '## 2026-05-02 - Second B',
+          'second entry B',
+          '',
+        ].join('\n'),
+      )
+
+      execFileSync(
+        'node',
+        [scriptPath, '--source', sourcePath, '--output', outputPath, '--archive', archivePath, '--keep', '3'],
+        { cwd: repoRoot },
+      )
+
+      const output = readFileSync(outputPath, 'utf8')
+      const archived = readFileSync(archivePath, 'utf8')
+
+      expect(output).not.toContain('## 2026-05-01 - First')
+      expect(output.indexOf('## 2026-05-02 - Second A')).toBeLessThan(
+        output.indexOf('## 2026-05-02 - Second B'),
+      )
+      expect(output.indexOf('## 2026-05-02 - Second B')).toBeLessThan(
+        output.indexOf('## 2026-05-03 - Third'),
+      )
+      expect(archived).toContain('## 2026-05-01 - First')
+      expect(archived).not.toContain('## 2026-05-03 - Third')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
   it('defaults to compacting below the CI cap', () => {
     const repoRoot = mkdtempSync(join(tmpdir(), 'pika-session-log-buffer-'))
 
@@ -68,8 +119,8 @@ describe('trim-session-log script', () => {
       const sourcePath = join(repoRoot, 'source.md')
       const outputPath = join(repoRoot, 'SESSION-LOG.md')
       const entries = Array.from({ length: 61 }, (_, index) => {
-        const day = String((index % 28) + 1).padStart(2, '0')
-        return [`## 2026-05-${day} - Entry ${index + 1}`, `entry ${index + 1}`].join('\n')
+        const date = new Date(Date.UTC(2026, 4, index + 1)).toISOString().slice(0, 10)
+        return [`## ${date} - Entry ${index + 1}`, `entry ${index + 1}`].join('\n')
       })
 
       writeFileSync(sourcePath, ['# Pika Session Log', '', ...entries].join('\n\n'))
@@ -259,6 +310,38 @@ describe('trim-session-log script', () => {
       })
 
       expect(output).toContain('source.md is within cap: 3/3 entries')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a session log whose dated entries are out of order', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'pika-session-log-order-check-'))
+
+    try {
+      const sourcePath = join(repoRoot, 'source.md')
+      const original = [
+        '# Pika Session Log',
+        '',
+        '## 2026-05-02 - Second',
+        'second entry',
+        '',
+        '## 2026-05-01 - First',
+        'first entry',
+        '',
+      ].join('\n')
+
+      writeFileSync(sourcePath, original)
+
+      const result = spawnSync('node', [scriptPath, '--check', '--source', sourcePath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('dated entries are not in chronological order')
+      expect(result.stderr).toContain('run node scripts/trim-session-log.mjs')
+      expect(readFileSync(sourcePath, 'utf8')).toBe(original)
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
     }

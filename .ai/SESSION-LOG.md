@@ -5,25 +5,10 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Rules:**
 - Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
 - CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
-- Use `node scripts/trim-session-log.mjs --check` to verify the log is within the 60-entry cap.
+- Use `node scripts/trim-session-log.mjs --check` to verify the log is chronological and within the 60-entry cap.
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
-
-## 2026-07-13 — Deidentified Gradex artifact transformer
-
-**Completed:**
-- Added a server-only pure transformer that derives a deterministic Gradex tar+gzip artifact only from a strictly verified classroom archive.
-- Added explicit projections for every allowlisted assignment/test resource, per-extract HMAC relationship references, relative structured timestamps, shared direct-identifier redaction plus known-actor redaction, and exclusion of storage/external references.
-- Added independent verification for canonical manifests/NDJSON, resource/content checksums, HMAC shapes, projected relationships, exact resource inventory, and zero detected direct identifiers.
-- Capped version 1 extract retention at 90 days and documented that runtime operations, upload/finalization, deletion automation, and production canaries remain unfinished.
-
-**Validation:**
-- Focused Gradex, artifact-contract, and startup-policy suites (43 tests)
-- `pnpm test`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
 
 ## 2026-07-13 — Durable Gradex operations and cleanup contract
 
@@ -113,56 +98,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm build`
 - Pika pre-commit audit
-- `git diff --check`
-
-## 2026-07-15 — Production classroom archive canary runner
-
-**Completed:**
-- Added a production-only prepare/execute/resume CLI bound to one hosted project, teacher,
-  archived-hot classroom, immutable mode-0600 plan, clean deployed commit, exact acknowledgement,
-  and deterministic export/compact/restore operation UUIDs.
-- Added exact pre/archive/restored-projection evidence across all 42 classroom resources and every
-  source object, full manifest and operation metadata auditing, original/restored object byte checks,
-  source-revision equality, pre/post database sizing, and a conservative restore safety margin.
-- Kept every source/Gradex cleanup gate disabled and proved cleanup rows, reservations, restore
-  staging, and upload-cleanup state remain untouched or empty after immediate restore.
-- Added crash recovery for cold state, transient state/archive reads, ambiguous coordinator results,
-  journal failure, and hot state after restore completion. Evidence files reject symlink traversal and
-  unsafe permissions.
-- Updated lifecycle/testing/operator documentation and current context. Production migrations 001-096,
-  read-only inventory, and hosted catalog audit were previously verified; no mutation canary ran in
-  this branch.
-- Completed repeated independent production-safety/data-integrity review and fix rounds.
-
-**Validation:**
-- Production canary contract suite (14 tests)
-- `pnpm vitest run` (363 files / 3,329 tests)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm db:types:check`
-- `pnpm lint`
-- `pnpm check:architecture` (600 modules / 0 allowances)
-- Pika pre-commit audit
-- `git diff --check`
-
-## 2026-07-14 — Atomic test grading contracts
-
-**Completed:**
-- Moved manual, bulk-clear, unanswered, and AI test grading writes behind typed atomic database RPCs with optimistic response/item revisions, exact-cohort validation, deterministic lock ordering, leases, and signed AI provenance.
-- Added shared test-scoped advisory locking and an atomic test-deletion boundary so grading, finalization, and deletion serialize without deadlocks or partial writes.
-- Added bounded client conflict recovery that reloads canonical revisions while preserving the teacher's latest draft, plus Zod validation at changed API/server boundaries.
-- Hardened classroom archive restore context scoping and added database-backed CI coverage for both grading concurrency and archive restore contracts.
-- Added migrations `089` through `095`, generated Supabase types, rollout guidance, focused API/server/component/architecture tests, and multi-session database regression harnesses.
-
-**Validation:**
-- `pnpm exec supabase db reset --local`
-- `pnpm run db:types:check`
-- `bash scripts/check-atomic-test-grading.sh`
-- `bash scripts/check-classroom-archive-restore-database.sh`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm lint`
-- `pnpm vitest run` (359 files, 3,287 tests)
-- `pnpm build`
 - `git diff --check`
 
 ## 2026-07-13 — Atomic classroom cold-compaction database contract
@@ -295,37 +230,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 - CI pending after push
 
-## 2026-07-14 — Archive stack review findings fixed
-
-**Completed:**
-- Ran repeated independent SQL, runtime, Gradex, and cross-layer review loops and fixed every actionable finding.
-- Hardened export/restore upload cleanup, exact restore object descriptors, actor-role reconciliation, transactional compaction dry runs, canonical paths, expiry/retry state transitions, and fail-closed source cleanup.
-- Tightened Gradex v2 with strict per-table Zod contracts, required relationships and projected fields, safe analytic enum preservation, Unicode-aware identifier scanning, pseudonymized unknown tokens, exact cleanup canaries, and retention fences.
-- Updated database contract drills, lifecycle guidance, cron integration, and environment documentation. No production database, migration, row, object, environment, deployment, or schedule was read or modified.
-
-**Validation:**
-- Fresh local Supabase reset through migrations 001–086
-- Archive export, restore, compaction, and Gradex database contract scripts
-- Full Vitest suite (339 files / 3,037 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- Pika pre-commit audit
-- `git diff --check`
-
-## 2026-07-14 — Archive stack consolidation CI fix
-
-**Completed:**
-- Fast-forward merged reviewed archive PRs 852–866 into the final stack base without changing commit history.
-- Fixed the consolidated recovery drill after CI exposed a stale duplicate of the restore object-path algorithm; the drill now calls the production canonical path helper.
-- Kept PR 851 unmerged from `main` until its refreshed required checks pass. No production state was accessed or modified.
-
-**Validation:**
-- Local full archive recovery drill passed twice, including row equality, object equality, and idempotent replays
-- Focused restore unit suite (1 file / 9 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-
 ## 2026-07-13 — Phase 1 API boundary validation foundation
 
 **Risk profile:** runtime-platform
@@ -366,6 +270,57 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm run lint`
 - `pnpm run db:types:check` preflight rejected the intentionally mismatched shared stack (`database=080`, worktree missing `080`)
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
+
+## 2026-07-14 — Atomic test grading contracts
+
+**Completed:**
+- Moved manual, bulk-clear, unanswered, and AI test grading writes behind typed atomic database RPCs with optimistic response/item revisions, exact-cohort validation, deterministic lock ordering, leases, and signed AI provenance.
+- Added shared test-scoped advisory locking and an atomic test-deletion boundary so grading, finalization, and deletion serialize without deadlocks or partial writes.
+- Added bounded client conflict recovery that reloads canonical revisions while preserving the teacher's latest draft, plus Zod validation at changed API/server boundaries.
+- Hardened classroom archive restore context scoping and added database-backed CI coverage for both grading concurrency and archive restore contracts.
+- Added migrations `089` through `095`, generated Supabase types, rollout guidance, focused API/server/component/architecture tests, and multi-session database regression harnesses.
+
+**Validation:**
+- `pnpm exec supabase db reset --local`
+- `pnpm run db:types:check`
+- `bash scripts/check-atomic-test-grading.sh`
+- `bash scripts/check-classroom-archive-restore-database.sh`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm lint`
+- `pnpm vitest run` (359 files, 3,287 tests)
+- `pnpm build`
+- `git diff --check`
+
+## 2026-07-14 — Archive stack review findings fixed
+
+**Completed:**
+- Ran repeated independent SQL, runtime, Gradex, and cross-layer review loops and fixed every actionable finding.
+- Hardened export/restore upload cleanup, exact restore object descriptors, actor-role reconciliation, transactional compaction dry runs, canonical paths, expiry/retry state transitions, and fail-closed source cleanup.
+- Tightened Gradex v2 with strict per-table Zod contracts, required relationships and projected fields, safe analytic enum preservation, Unicode-aware identifier scanning, pseudonymized unknown tokens, exact cleanup canaries, and retention fences.
+- Updated database contract drills, lifecycle guidance, cron integration, and environment documentation. No production database, migration, row, object, environment, deployment, or schedule was read or modified.
+
+**Validation:**
+- Fresh local Supabase reset through migrations 001–086
+- Archive export, restore, compaction, and Gradex database contract scripts
+- Full Vitest suite (339 files / 3,037 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-14 — Archive stack consolidation CI fix
+
+**Completed:**
+- Fast-forward merged reviewed archive PRs 852–866 into the final stack base without changing commit history.
+- Fixed the consolidated recovery drill after CI exposed a stale duplicate of the restore object-path algorithm; the drill now calls the production canonical path helper.
+- Kept PR 851 unmerged from `main` until its refreshed required checks pass. No production state was accessed or modified.
+
+**Validation:**
+- Local full archive recovery drill passed twice, including row equality, object equality, and idempotent replays
+- Focused restore unit suite (1 file / 9 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
 
 ## 2026-07-14 — Read-only production classroom archive inventory
 
@@ -518,6 +473,36 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm lint`
 - `pnpm check:architecture` (596 modules / 0 allowances)
 - `bash -n` and `shellcheck` for the database harness
+- Pika pre-commit audit
+- `git diff --check`
+
+## 2026-07-15 — Production classroom archive canary runner
+
+**Completed:**
+- Added a production-only prepare/execute/resume CLI bound to one hosted project, teacher,
+  archived-hot classroom, immutable mode-0600 plan, clean deployed commit, exact acknowledgement,
+  and deterministic export/compact/restore operation UUIDs.
+- Added exact pre/archive/restored-projection evidence across all 42 classroom resources and every
+  source object, full manifest and operation metadata auditing, original/restored object byte checks,
+  source-revision equality, pre/post database sizing, and a conservative restore safety margin.
+- Kept every source/Gradex cleanup gate disabled and proved cleanup rows, reservations, restore
+  staging, and upload-cleanup state remain untouched or empty after immediate restore.
+- Added crash recovery for cold state, transient state/archive reads, ambiguous coordinator results,
+  journal failure, and hot state after restore completion. Evidence files reject symlink traversal and
+  unsafe permissions.
+- Updated lifecycle/testing/operator documentation and current context. Production migrations 001-096,
+  read-only inventory, and hosted catalog audit were previously verified; no mutation canary ran in
+  this branch.
+- Completed repeated independent production-safety/data-integrity review and fix rounds.
+
+**Validation:**
+- Production canary contract suite (14 tests)
+- `pnpm vitest run` (363 files / 3,329 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm db:types:check`
+- `pnpm lint`
+- `pnpm check:architecture` (600 modules / 0 allowances)
 - Pika pre-commit audit
 - `git diff --check`
 
@@ -854,3 +839,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Merge PR #891 to deploy the application version that uses migration 099, then continue the product-experience program.
+
+## 2026-07-18 — Enforce chronological session-log retention
+
+**Completed:**
+- Updated the session-log trimmer to order ISO-dated entries chronologically before retaining or archiving them, while preserving source order for same-day entries and leaving undated legacy entries in place.
+- Made check mode reject chronological drift so CI catches future merge-order mistakes.
+- Repaired the rolling log's existing July 13-15 ordering drift and added focused regression coverage.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts` (2 files / 38 tests)
+- `pnpm lint`
+- `node --check scripts/trim-session-log.mjs`
+- `node scripts/trim-session-log.mjs --check`
+- `git diff --check`
