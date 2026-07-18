@@ -93,6 +93,17 @@ function extractEntryDate(entry) {
   return isoDate === headingDate ? headingDate : null
 }
 
+function assertDatedEntries(entries, source) {
+  const invalidEntry = entries.find((entry) => extractEntryDate(entry) === null)
+
+  if (invalidEntry) {
+    const heading = invalidEntry.split('\n', 1)[0]
+    throw new Error(
+      `${source} entry headings must start with a valid ISO date (YYYY-MM-DD); found: ${heading}`,
+    )
+  }
+}
+
 function orderEntriesChronologically(entries) {
   const records = entries.map((entry, index) => ({
     date: extractEntryDate(entry),
@@ -104,7 +115,7 @@ function orderEntriesChronologically(entries) {
     .sort((left, right) => left.date.localeCompare(right.date) || left.index - right.index)
   let datedIndex = 0
 
-  // Leave legacy undated entries in place instead of guessing where they belong.
+  // Same-day entries retain source order through the explicit index tie-breaker.
   return records.map((record) => record.date === null ? record.entry : datedRecords[datedIndex++].entry)
 }
 
@@ -133,6 +144,7 @@ function buildSessionLog(entries) {
     '',
     '**Rules:**',
     '- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.',
+    '- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.',
     '- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.',
     '- Use `node scripts/trim-session-log.mjs --check` to verify the log is chronological and within the 60-entry cap.',
     '- Keep enough recent entries for weekly automations to inspect roughly the last week of work.',
@@ -187,6 +199,7 @@ function trimSessionLog({ keep, source, output, archive }) {
     throw new Error(`No session entries found in ${source}`)
   }
 
+  assertDatedEntries(entries, source)
   const orderedEntries = orderEntriesChronologically(entries)
   const retainedEntries = orderedEntries.slice(-keep)
   const removedEntries = orderedEntries.slice(0, orderedEntries.length - retainedEntries.length)
@@ -217,6 +230,7 @@ function checkSessionLog({ maxEntries, source }) {
     throw new Error(`No session entries found in ${source}`)
   }
 
+  assertDatedEntries(entries, source)
   if (!entriesAreChronological(entries)) {
     throw new Error(
       `${source} dated entries are not in chronological order; run node scripts/trim-session-log.mjs to repair the order.`,

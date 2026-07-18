@@ -112,6 +112,46 @@ describe('trim-session-log script', () => {
     }
   })
 
+  it('rejects undated entries instead of guessing whether they are latest', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'pika-session-log-undated-'))
+
+    try {
+      const sourcePath = join(repoRoot, 'source.md')
+      const outputPath = join(repoRoot, 'SESSION-LOG.md')
+      const archivePath = join(repoRoot, 'JOURNAL-ARCHIVE.md')
+      const source = [
+        '# Pika Session Log',
+        '',
+        '## 2026-05-01 - First',
+        'first entry',
+        '',
+        '## 2026-05-02 - Second',
+        'second entry',
+        '',
+        '## Legacy heading',
+        'unknown date',
+        '',
+      ].join('\n')
+
+      writeFileSync(sourcePath, source)
+
+      const result = spawnSync(
+        'node',
+        [scriptPath, '--source', sourcePath, '--output', outputPath, '--archive', archivePath, '--keep', '2'],
+        { cwd: repoRoot, encoding: 'utf8' },
+      )
+
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('entry headings must start with a valid ISO date (YYYY-MM-DD)')
+      expect(result.stderr).toContain('## Legacy heading')
+      expect(readFileSync(sourcePath, 'utf8')).toBe(source)
+      expect(existsSync(outputPath)).toBe(false)
+      expect(existsSync(archivePath)).toBe(false)
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
   it('defaults to compacting below the CI cap', () => {
     const repoRoot = mkdtempSync(join(tmpdir(), 'pika-session-log-buffer-'))
 

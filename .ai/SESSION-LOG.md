@@ -4,6 +4,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Rules:**
 - Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
 - CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
 - Use `node scripts/trim-session-log.mjs --check` to verify the log is chronological and within the 60-entry cap.
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
@@ -846,11 +847,12 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Updated the session-log trimmer to order ISO-dated entries chronologically before retaining or archiving them, while preserving source order for same-day entries and leaving undated legacy entries in place.
 - Made check mode reject chronological drift so CI catches future merge-order mistakes.
 - Made archive appends idempotent by exact entry content so a failed output write can be retried without duplicating history; added a forced-failure recovery regression after independent review.
+- Made trim and check modes reject undated or invalid entry headings instead of guessing whether they belong in the latest retention window; aligned startup guidance after independent review.
 - Repaired the rolling log's existing July 13-15 ordering drift and added focused regression coverage.
 
 **Validation:**
 - `bash .codex/skills/pika-session-start/scripts/session_start.sh`
-- `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts` (2 files / 40 tests)
+- `pnpm test tests/unit/trim-session-log.test.ts tests/unit/ai-startup-docs.test.ts` (2 files / 41 tests)
 - `pnpm lint`
 - `node --check scripts/trim-session-log.mjs`
 - `node scripts/trim-session-log.mjs --check`
