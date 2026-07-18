@@ -105,11 +105,6 @@ type AssignmentRecoveryDraft = {
   saved_at?: string
 }
 
-type AssignmentTabWriter = {
-  session_id: string
-  sequence: number
-}
-
 const RECOVERY_DRAFT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const MAX_PASTE_WORD_COUNT = 32_767
@@ -159,15 +154,6 @@ function isSaveAttempt(value: unknown): value is SaveAttempt {
     && Number.isInteger(attempt.keystrokeCount)
     && (attempt.keystrokeCount ?? -1) >= 0
     && (attempt.keystrokeCount ?? Number.POSITIVE_INFINITY) <= MAX_KEYSTROKE_COUNT
-}
-
-function isAssignmentTabWriter(value: unknown): value is AssignmentTabWriter {
-  if (!value || typeof value !== 'object') return false
-  const writer = value as Partial<AssignmentTabWriter>
-  return typeof writer.session_id === 'string'
-    && UUID_PATTERN.test(writer.session_id)
-    && Number.isInteger(writer.sequence)
-    && (writer.sequence ?? -1) >= 0
 }
 
 function isAmbiguousSaveStatus(status: number): boolean {
@@ -254,6 +240,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const inFlightSaveRef = useRef<SaveAttempt | null>(null)
   const uncertainSaveRef = useRef<SaveAttempt | null>(null)
   const activeSaveControllerRef = useRef<AbortController | null>(null)
+  // This identity must stay mount-local because sessionStorage can be cloned into another tab.
   const saveSessionIdRef = useRef(globalThis.crypto.randomUUID())
   const metricSessionIdRef = useRef(globalThis.crypto.randomUUID())
   const claimedRecoveryDraftRef = useRef<AssignmentRecoveryDraft | null>(null)
@@ -275,36 +262,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     return studentId ? `assignment-draft:${studentId}:${assignmentId}` : null
   }, [assignmentId])
 
-  const getTabWriterStorageKey = useCallback(() => {
-    const studentId = studentIdRef.current
-    return studentId ? `assignment-save-writer:${studentId}:${assignmentId}` : null
-  }, [assignmentId])
-
-  const persistTabWriter = useCallback(() => {
-    const key = getTabWriterStorageKey()
-    if (!key) return
-    safeSessionSetJson(key, {
-      session_id: saveSessionIdRef.current,
-      sequence: saveSequenceRef.current,
-    } satisfies AssignmentTabWriter)
-  }, [getTabWriterStorageKey])
-
-  const restoreTabWriter = useCallback(() => {
-    const key = getTabWriterStorageKey()
-    const writer = key ? safeSessionGetJson<AssignmentTabWriter>(key) : null
-    if (isAssignmentTabWriter(writer)) {
-      saveSessionIdRef.current = writer.session_id
-      saveSequenceRef.current = writer.sequence
-      return
-    }
-    persistTabWriter()
-  }, [getTabWriterStorageKey, persistTabWriter])
-
   const nextSaveSequence = useCallback(() => {
     saveSequenceRef.current += 1
-    persistTabWriter()
     return saveSequenceRef.current
-  }, [persistTabWriter])
+  }, [])
 
   const readRecoveryDraft = useCallback(() => {
     const key = getDraftStorageKey()
@@ -422,7 +383,6 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       setSubmissionArtifacts(data.submission_artifacts || [])
       setGithubIdentity(data.github_identity || null)
       studentIdRef.current = data.doc?.student_id ?? data.student_id ?? null
-      restoreTabWriter()
       const serverContent = data.doc?.content || { type: 'doc', content: [] }
       const serverContentStr = JSON.stringify(serverContent)
       lastSavedRevisionRef.current = data.doc?.updated_at ?? null
@@ -478,7 +438,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     } finally {
       setLoading(false)
     }
-  }, [assignmentId, clearLocalDraft, notifications, readRecoveryDraft, restoreTabWriter])
+  }, [assignmentId, clearLocalDraft, notifications, readRecoveryDraft])
 
   const applyUnsubmittedDoc = useCallback((nextDoc: AssignmentDoc) => {
     const serverContent = nextDoc.content || { type: 'doc', content: [] }

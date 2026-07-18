@@ -2220,7 +2220,7 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     expect(window.localStorage.getItem('assignment-draft:student-1:assignment-1')).toBe(newerGeneration)
   })
 
-  it('keeps the writer fence and sequence across remounts in the same tab', async () => {
+  it('uses a fresh writer fence after remount even when tab writer state was cloned', async () => {
     const patchBodies: any[] = []
     const fetchMock = global.fetch as ReturnType<typeof vi.fn>
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -2262,6 +2262,13 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     await user.click(screen.getByRole('button', { name: 'Blur response' }))
     await waitFor(() => expect(patchBodies).toHaveLength(1))
     first.unmount()
+    window.sessionStorage.setItem(
+      'assignment-save-writer:student-1:assignment-1',
+      JSON.stringify({
+        session_id: patchBodies[0].save_session_id,
+        sequence: patchBodies[0].save_sequence,
+      })
+    )
 
     render(
       <StudentAssignmentEditor
@@ -2275,8 +2282,8 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     await user.click(screen.getByRole('button', { name: 'Blur response' }))
     await waitFor(() => expect(patchBodies).toHaveLength(2))
 
-    expect(patchBodies[1].save_session_id).toBe(patchBodies[0].save_session_id)
-    expect(patchBodies.map((body) => body.save_sequence)).toEqual([1, 2])
+    expect(patchBodies[1].save_session_id).not.toBe(patchBodies[0].save_session_id)
+    expect(patchBodies.map((body) => body.save_sequence)).toEqual([1, 1])
   })
 
   it('refreshes the saved revision after a pre-submit save conflict so retry can succeed', async () => {
