@@ -10,86 +10,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-13 — Canonical classroom lifecycle and archive contracts
-
-**Completed:**
-- Added strict Zod-derived contracts for active, hot-archived, and cold-archived lifecycle states, with separate verified evidence for compaction and completed restore.
-- Encoded the current 42-table classroom ownership graph, all restore dependencies, privacy classes, parent-first restore order, child-first cleanup order, and a deidentified Gradex allowlist.
-- Added strict version 1 classroom archive and Gradex extract manifests with canonical file paths, row/byte counts, SHA-256 checksums, retention metadata, actor snapshots, managed storage descriptors, and restore preflight gates.
-- Defined the existing course package as a reusable, student-free, non-recoverable artifact; defined private archive/Gradex destinations and referenced-only discovery for the three current source buckets.
-- Added a read-only PostgreSQL catalog audit that fails on untracked/stale classroom resources, missing restore dependencies, or invalid selection keys, plus recovery, observability, compatibility, and production-canary guidance.
-- Added the unfinished `epic-classroom-lifecycle-archives` entry to the append-only feature inventory so repository status reflects the remaining implementation and production verification work.
-- Removed a duplicated architectural-direction section from `.ai/CURRENT.md` to keep the required startup context below its 16,000-character budget after adding the epic.
-- No application runtime path, database migration, database row, storage object, dependency, or production environment changed.
-
-**Validation:**
-
-## 2026-07-13 — Enforce architecture dependency boundaries
-
-**Completed:**
-- Added a TypeScript import-graph analyzer for runtime-aware imports, re-exports, dynamic imports, and CommonJS `require`, with independent traversal from every `'use client'` entry.
-- Enforced dependency direction between domain, UI, presentation, API, server-only, and shared type layers; blocked browser reachability to server modules, Supabase runtime clients, Next.js server APIs, and Node built-ins.
-- Added a deletion-only baseline for four existing client paths that reach `src/lib/server/assessment-drafts.ts` through assessment markdown helpers. New violations and obsolete baseline entries fail the check.
-- Replaced the duplicated browser Supabase parser with the shared analyzer, documented the boundaries, and added `pnpm check:architecture` to CI.
-- No runtime product behavior, database migrations, dependencies, or production data changed.
-
-**Validation:**
-- `pnpm run check:architecture` (556 modules; 4 deletion-only allowances)
-- `pnpm test`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- `pnpm exec vitest run tests/lib/contracts/classroom-lifecycle.test.ts tests/lib/contracts/classroom-artifacts.test.ts` (15 tests)
-- Read-only local catalog audit: `CLASSROOM_SCHEMA_AUDIT_DATABASE_URL=... pnpm exec tsx scripts/check-classroom-resource-schema.ts` (97 public foreign-key relationships)
-
-## 2026-07-13 — Verified export-only classroom archives
-
-**Completed:**
-- Added migration 082 and a fail-closed teacher API for private, immutable, deterministic classroom archive exports without deleting any hot row or source object.
-- Added idempotent snapshot/finalization RPCs, revision triggers for all 41 descendants, durable operation evidence, strict actor snapshots, 50 MB private archive/Gradex buckets, full upload read-back verification, and terminal/retry recovery behavior.
-- Added canonical tar+gzip and NDJSON serialization with strict manifest, row/byte/checksum, actor, storage-object, content, and outer-artifact verification.
-- Extended the 42-resource schema contract to audit actual primary keys and every direct actor foreign key; actor capture now uses only those explicit columns and rejects arbitrary user UUIDs in free text.
-- Restricted storage discovery by source context: assignment artifacts from relational paths, submission images from embedded content, and test documents only from `tests.documents`.
-- Added a server-only export enable flag plus teacher UUID allowlist, future-retention validation, structured privacy-safe metrics, database CI, recovery guidance, and adversarial regressions.
-- Kept the archive epic unfinished: restore, Gradex extract generation, cold compaction, cleanup automation, teacher UI, and production canaries remain pending.
-
-**Validation:**
-- `pnpm test` (320 files, 2,844 tests)
-- `pnpm lint`
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- Pika audit
-- Fresh isolated Supabase replay through migrations 080/081/082
-- Atomic blueprint database contract
-- Verified archive database contract, including stale-source, terminal replay, unrelated-UUID privacy, retention, grants, and immutable metadata checks
-- Classroom schema audit (102 public foreign-key relationships)
-- `bash -n scripts/check-classroom-archive-database.sh`
-- `git diff --check`
-
-## 2026-07-13 — Resumable and version-aware classroom archive restore
-
-**Completed:**
-- Added migration 083 with cold tombstones outside the classroom ownership graph, bounded idempotent JSONB staging, conservative database-capacity preflight, concurrent-operation rejection, service-role-only RPCs, and one atomic 42-resource finalization transaction.
-- Added strict archive decoding, source-to-target adapter selection, actor reconciliation, exact storage-reference matching, deterministic operation-scoped object paths, managed-reference rewriting, and outer/read-back checksum verification.
-- Added a separately gated teacher restore endpoint requiring an enable flag, teacher UUID allowlist, idempotency key, and explicit database-budget setting; applying the migration alone does not expose restore or enable compaction.
-- Preserved exact archived values by suppressing blueprint/archive touch triggers only inside the transaction-local restore context and restoring the archived revision explicitly; PostgreSQL records final referential-integrity evidence after inserts pass.
-- Added rollback-only database coverage for capacity refusal, schema drift, unresolved actors, concurrent restores, expired-operation replacement, idempotent staging/completion, exact JSONB row equality, revision preservation, tombstone cleanup, and browser-role denial.
-- Corrected restore concurrency so only unexpired snapshots block a replacement operation; expired operations can no longer strand a cold classroom while awaiting cleanup automation.
-- Kept the archive epic unfinished: cold compaction, separate deidentified Gradex extract generation, cleanup automation, teacher UI, and production canaries remain pending. No production database, migration, row, or storage object was modified.
-
-**Validation:**
-- `pnpm test` (324 files, 2,866 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- Pika audit
-- Fresh isolated Supabase replay through migrations 080/081/082/083 with matching source/copy migration hashes
-- Verified export and restore database contracts executed as `service_role`
-- Post-review focused restore suite (4 files, 21 tests) and fresh rollback-only restore canary, including expired-operation replacement
-- Classroom schema audit (105 public foreign-key relationships)
-- Supabase lint: one existing migration-082 false positive for the function-local `classroom_archive_actor_ids` temporary table; both executable database contracts pass
-- `git diff --check`
-
 ## 2026-07-13 — Deidentified Gradex artifact transformer
 
 **Completed:**
@@ -835,3 +755,102 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Bash syntax validation for the Pika audit script
 - Pika pre-commit audit
 - `git diff --check`
+
+## 2026-07-16 — Phase 2 assignment save and submission integrity
+
+**In progress:**
+- Replaced split assignment draft, submit, unsubmit, and combined assignment/requirement writes with migration-first atomic RPC contracts, revision fences, advisory-lock ordering, durable save-operation replay evidence, and bounded authenticity metric checkpoints.
+- Hardened the student editor for immutable retry payloads, response and body timeouts, exact ambiguity reconciliation, persistent tab writer identity, monotonic recovery generations, 30-day recovery expiry, same-content metric replay, stale page-exit responses, and restore deferral.
+- Added authoritative submit-history enforcement, submitted-content and artifact immutability guards, legacy-writer compatibility, archive-restore normalization, and a 35-day save-ledger cleanup while preserving the 42-resource archive contract.
+- Added durable provisional evidence and a leased cleanup cron for assignment image Storage objects. Upload and row-commit ambiguity are reference-aware; shared paths are not deleted; failed cleanup remains retryable.
+- Added strict Zod request boundaries and validating, additive-compatible RPC response decoders that strip unknown future fields before returning older app shapes.
+- Added migration 099, atomic and live-concurrency SQL harnesses, CI database-contract gates, rollout guidance, generated type coverage, and a narrow Pika-audit exemption for the canonical `parseContentField` implementation.
+- Multiple review rounds found and fixed retry, metric, recovery, artifact cleanup, RPC compatibility, migration-upgrade, lock-order, privilege, timeout, and test-coverage issues. Final client, API, and database rereviews returned no actionable findings.
+- Opened PR #891. Its first architecture-database run exposed three stale-revision setups in the pre-existing feedback-return harness that directly edited submitted content. Replaced those setup writes with allowed feedback-draft revisions so the harness continues testing serialization without violating migration 099's submitted-content guard.
+- The next CI run exposed a synthetic archive ownership race row that referenced no assignment document. Rebuilt the fixture with a real active classroom, assignment, unsubmitted document, and requirement so migration 099's document guard runs normally and the existing archive path reservation still proves serialization.
+- Closed the remaining assignment utility coverage branches for default release clocks and returned documents missing a submission timestamp. The full coverage gate is back to 100% for `src/lib/assignments.ts`.
+- The subsequent real archive round-trip exposed an empty-`search_path` restore wrapper resolving its deferred constraint by an unqualified name. Schema-qualified the migration 099 constraint flush and tightened its migration contract test.
+- The full recovery drill then exposed a stale fixture sequence that inserted a submitted document before its required artifact. The drill now creates an unsubmitted document, attaches its requirement and artifact, and only then submits through the guarded update path. It also verifies submit-history source/restore equality and removes and checks its artifact-cleanup ledger during teardown; a source contract preserves those checks.
+- No production data, Storage, migration history, or deployment was read or modified.
+
+**Deployment obligation:**
+- Apply and verify migration 099 before deploying this application version. Leave migration 099 in place if the app rolls back; do not deploy the new writers before it.
+- Migration application remains human-controlled and requires exact one-time permission naming the target and migration 099.
+
+**Validation:**
+- Focused assignment client/API/server suites, including 46 editor save/submit tests and additive-schema/ambiguous-upload regressions
+- `pnpm test:coverage` (375 files / 3,483 tests; `src/lib/assignments.ts` at 100%)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm run check:architecture` (604 modules / 0 allowances)
+- Atomic assignment SQL transaction harness
+- Assignment concurrency harness against a disposable 001-099 database replay
+- Atomic feedback-return harness against a disposable 001-099 database replay after the CI compatibility fix
+- Classroom archive compaction database contract against a disposable 001-099 database replay after the relational race-fixture fix
+- Real classroom compaction and resumable restore round trip against a disposable 001-099 database replay after the schema-qualified constraint fix
+- Recovery-drill fixture ordering contract plus TypeScript validation after the migration 099 compatibility fix
+- Generated database types match the normalized disposable 001-099 schema
+- Pika pre-commit audit
+- `git diff --check`
+- Local Playwright verification on the assignment surfaces: student editor and restore dialog on desktop/mobile in light/dark; teacher assignment list on desktop/mobile in light/dark
+- The student autosave response was mocked in-browser because local migration 099 is intentionally unapplied; final captures had no console errors and no database write was sent
+
+**Remaining before merge:**
+- Push the CI compatibility and integration-fixture fixes, wait for PR checks and review, then merge only after the required migration-first deployment obligation is clear.
+
+## 2026-07-17 — Assignment cloned-tab writer-fence review fix
+
+**Completed:**
+- Fixed the PR #891 review finding where a live assignment save-session identity persisted in cloneable `sessionStorage` could be inherited by a duplicated tab. A stale page-exit save from that tab could otherwise be mistaken for a same-editor superseding save and bypass the database revision conflict.
+- Made each mounted student assignment editor use a fresh writer identity and sequence. Exact uncertain operations still retain and replay their original immutable save identity from durable recovery evidence.
+- Replaced the cross-remount identity-reuse test with a regression proving copied writer state is ignored and a remounted editor starts a distinct fence at sequence one.
+- Did not read or modify production, apply migration 099, merge the PR, or advance the broader phased product-experience goal.
+
+**Validation:**
+- `pnpm test` (375 files / 3,484 tests)
+- Focused assignment integrity suites (3 files / 68 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm run check:architecture` (604 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`
+
+**Remaining before merge:**
+- Push the review fix, wait for PR checks, and rereview PR #891. Migration 099 must still be applied and verified before the application version is deployed.
+
+## 2026-07-18 — Assignment submit/recovery race review fixes
+
+**Completed:**
+- Ran independent Sol/high database, client-state, and integration reviews of PR #891 after CI passed. The client review found and fixed four ordering/recovery defects: a conflict catch overwriting a newer durable draft, edits arriving during a successful submit being shown or cleared incorrectly, queued save reconciliation being cleared by a later submit response, and a definitively rejected equal-content recovered operation retaining a stale writer fence.
+- Added a synchronous preserved-draft reference so the submitted server snapshot remains authoritative while newer local content survives save/submit response reordering and can be restored after unsubmit.
+- Replaced stale recovered operations with a fresh mount-local writer identity and refreshed revision while retaining the original metric-session identity and cumulative counters for database deduplication.
+- Added behavior regressions for all four races. Final independent rereviews reported no findings and confirmed the tests fail against the prior implementation.
+- No production data, Storage, migration history, deployment, or visible layout was modified.
+
+**Validation:**
+- `pnpm test` (375 files / 3,487 tests)
+- Focused assignment integrity suites (3 files / 71 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm run check:architecture` (604 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`
+
+**Remaining before merge:**
+- Push the final review fixes and wait for PR checks. Migration 099 still requires exact one-time target authorization and must be applied and verified before this application version is deployed.
+
+## 2026-07-18 — Production assignment integrity migration
+
+**Completed:**
+- Applied only migration `099_assignment_submission_integrity_guards.sql` to the linked production Pika project after exact one-time authorization and a clean dry run.
+- Verified production migration history is aligned through 099, both new ledger tables have RLS enabled, the writer-fence columns are present, and the four application RPCs exist with execution granted to `service_role` but denied to `anon` and `authenticated`.
+- No reset, repair, rollback, seed, cleanup, Storage deletion, or application deployment was performed.
+
+**Validation:**
+- `supabase migration list --linked` records migrations 001-099
+- Read-only production catalog checks for RPC signatures, role grants, RLS, save RPC overload count, and assignment document columns
+- PR #891 CI: architecture/database contracts, full test/build, and UI policy checks passed before application
+
+**Remaining:**
+- Merge PR #891 to deploy the application version that uses migration 099, then continue the product-experience program.

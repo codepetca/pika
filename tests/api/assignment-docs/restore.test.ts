@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { POST } from '@/app/api/assignment-docs/[id]/restore/route'
 import { NextRequest } from 'next/server'
+import { saveAssignmentDocAtomic } from '@/lib/server/assignment-doc-submissions'
 
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'student-1', role: 'student' })) }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
@@ -10,8 +11,12 @@ vi.mock('@/lib/server/classrooms', () => ({
     classroom: { id: 'class-1', archived_at: null },
   })),
 }))
+vi.mock('@/lib/server/assignment-doc-submissions', () => ({
+  saveAssignmentDocAtomic: vi.fn(),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
+const HISTORY_ID = '10000000-0000-4000-8000-000000000001'
 
 describe('POST /api/assignment-docs/[id]/restore', () => {
   it('returns 400 when history_id is missing', async () => {
@@ -24,13 +29,27 @@ describe('POST /api/assignment-docs/[id]/restore', () => {
     expect(response.status).toBe(400)
   })
 
+  it('returns 400 when history_id is not a UUID', async () => {
+    const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-1/restore', {
+      method: 'POST',
+      body: JSON.stringify({ history_id: 'history-1' })
+    })
+
+    const response = await POST(request, { params: { id: 'assign-1' } })
+    expect(response.status).toBe(400)
+  })
+
   it('records a restore snapshot after restoring', async () => {
     const restoredContent = {
       type: 'doc',
       content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Restored' }] }],
     }
 
-    const historyInsert = vi.fn().mockResolvedValue({ data: null, error: null })
+    vi.mocked(saveAssignmentDocAtomic).mockResolvedValueOnce({
+      ok: true,
+      doc: { id: 'doc-1', content: restoredContent } as any,
+      historyEntry: null,
+    })
 
     const mockFrom = vi.fn((table: string) => {
       if (table === 'assignments') {
@@ -58,19 +77,14 @@ describe('POST /api/assignment-docs/[id]/restore', () => {
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
             single: vi.fn().mockResolvedValue({
-              data: { id: 'doc-1', is_submitted: false },
+              data: {
+                id: 'doc-1',
+                is_submitted: false,
+                content: { type: 'doc', content: [] },
+                updated_at: '2025-01-01T00:00:00.000Z',
+              },
               error: null,
             }),
-          })),
-          update: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              select: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'doc-1', content: restoredContent },
-                  error: null,
-                }),
-              })),
-            })),
           })),
         }
       }
@@ -81,7 +95,7 @@ describe('POST /api/assignment-docs/[id]/restore', () => {
               order: vi.fn().mockResolvedValue({
                 data: [
                   {
-                    id: 'history-1',
+                    id: HISTORY_ID,
                     assignment_doc_id: 'doc-1',
                     patch: null,
                     snapshot: restoredContent,
@@ -95,7 +109,6 @@ describe('POST /api/assignment-docs/[id]/restore', () => {
               }),
             })),
           })),
-          insert: historyInsert,
         }
       }
     })
@@ -103,17 +116,17 @@ describe('POST /api/assignment-docs/[id]/restore', () => {
 
     const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-1/restore', {
       method: 'POST',
-      body: JSON.stringify({ history_id: 'history-1' })
+      body: JSON.stringify({ history_id: HISTORY_ID })
     })
 
     const response = await POST(request, { params: { id: 'assign-1' } })
     expect(response.status).toBe(200)
-    expect(historyInsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assignment_doc_id: 'doc-1',
-        snapshot: restoredContent,
-        trigger: 'restore',
-      })
-    )
+    expect(saveAssignmentDocAtomic).toHaveBeenCalledWith(expect.objectContaining({
+      assignmentId: 'assign-1',
+      previousContent: { type: 'doc', content: [] },
+      content: restoredContent,
+      expectedUpdatedAt: '2025-01-01T00:00:00.000Z',
+      trigger: 'restore',
+    }))
   })
 })

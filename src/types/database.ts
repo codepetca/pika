@@ -253,6 +253,51 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  save_assignment_doc_atomic: {
+    Args: {
+      p_assignment_id: string
+      p_student_id: string
+      p_content: Json
+      p_expected_updated_at: string | null
+      p_trigger: string
+      p_paste_word_count: number
+      p_keystroke_count: number
+      p_patch: Json | null
+      p_snapshot: Json | null
+      p_word_count: number
+      p_char_count: number
+      p_save_session_id: string
+      p_save_sequence: number
+      p_metric_session_id: string
+    }
+    Returns: Json
+  }
+  submit_assignment_doc_atomic: {
+    Args: {
+      p_assignment_id: string
+      p_student_id: string
+      p_content: Json
+      p_expected_updated_at: string
+      p_word_count: number
+      p_char_count: number
+    }
+    Returns: Json
+  }
+  unsubmit_assignment_doc_atomic: {
+    Args: {
+      p_assignment_id: string
+      p_student_id: string
+    }
+    Returns: Json
+  }
+  update_assignment_with_submission_requirements_atomic: {
+    Args: {
+      p_assignment_id: string
+      p_updates: Json
+      p_requirements: Json
+    }
+    Returns: Json
+  }
   claim_assignment_ai_grading_run: FunctionContract<
     'claim_assignment_ai_grading_run',
     TableOverrides['assignment_ai_grading_runs']['Row'][]

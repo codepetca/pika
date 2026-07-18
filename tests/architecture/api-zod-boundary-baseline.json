@@ -1,8 +1,5 @@
 [
   "src/app/api/account/github-identity/route.ts",
-  "src/app/api/assignment-docs/[id]/artifacts/[requirementId]/route.ts",
-  "src/app/api/assignment-docs/[id]/restore/route.ts",
-  "src/app/api/assignment-docs/[id]/route.ts",
   "src/app/api/classrooms/[classroomId]/class-days/route.ts",
   "src/app/api/feedback/route.ts",
   "src/app/api/student/classrooms/join/route.ts",
@@ -11,7 +8,6 @@
   "src/app/api/student/tests/[id]/focus-events/route.ts",
   "src/app/api/teacher/assignments/[id]/release/route.ts",
   "src/app/api/teacher/assignments/[id]/repo-targets/[studentId]/route.ts",
-  "src/app/api/teacher/assignments/[id]/route.ts",
   "src/app/api/teacher/assignments/bulk/route.ts",
   "src/app/api/teacher/assignments/reorder/route.ts",
   "src/app/api/teacher/assignments/route.ts",

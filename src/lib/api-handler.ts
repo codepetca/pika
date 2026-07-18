@@ -46,6 +46,24 @@ function isAuthorizationError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AuthorizationError'
 }
 
+function mapRequestJsonSyntaxErrors(request: NextRequest | undefined): void {
+  if (!request || typeof request.json !== 'function') return
+  const parseJson = request.json.bind(request)
+  Object.defineProperty(request, 'json', {
+    configurable: true,
+    value: async () => {
+      try {
+        return await parseJson()
+      } catch (error) {
+        if (error instanceof SyntaxError) {
+          throw new ApiError(400, 'Malformed JSON body')
+        }
+        throw error
+      }
+    },
+  })
+}
+
 /**
  * Maps known error types to HTTP status codes.
  */
@@ -109,6 +127,7 @@ function mapErrorToResponse(error: unknown, routeName: string): NextResponse {
 export function withErrorHandler(routeName: string, handler: RouteHandler): RouteHandler {
   return async (request, context) => {
     try {
+      mapRequestJsonSyntaxErrors(request)
       return await handler(request, context)
     } catch (error) {
       return mapErrorToResponse(error, routeName)

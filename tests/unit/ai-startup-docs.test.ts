@@ -397,6 +397,36 @@ describe('AI startup docs', () => {
     }
   })
 
+  it('allows the canonical parseContentField definition to change', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+    const canonicalPath = join(repoRoot, 'src/lib/tiptap-content.ts')
+    const canonicalFunction = 'parseContent' + 'Field'
+
+    mkdirSync(join(repoRoot, 'src/lib'), { recursive: true })
+    writeFileSync(
+      canonicalPath,
+      `export function ${canonicalFunction}(content: unknown) { return content }\n`,
+    )
+    commitAll(repoRoot, 'add canonical content parser')
+    writeFileSync(
+      canonicalPath,
+      `export function ${canonicalFunction}(content: unknown) { return content ?? null }\n`,
+    )
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(result.status).toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain('duplicate-parseContentField')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
   it('makes the audit script reject risky changes with only unrelated changed tests', () => {
     const repoRoot = makeFixtureWorktree()
     const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')

@@ -41,6 +41,7 @@ type PersistOptions<TContent extends JsonObject> = {
 type LastHistoryRow = {
   id: string
   created_at: string
+  trigger: string
   paste_word_count?: number | null
   keystroke_count?: number | null
 }
@@ -115,7 +116,7 @@ export async function persistVersionedHistory<TContent extends JsonObject>(
 
   const { data: lastHistory, error: lastHistoryError } = await opts.supabase
     .from(opts.table)
-    .select('id, created_at, paste_word_count, keystroke_count')
+    .select('id, created_at, trigger, paste_word_count, keystroke_count')
     .eq(opts.ownerColumn, opts.ownerId)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -143,7 +144,10 @@ export async function persistVersionedHistory<TContent extends JsonObject>(
 
   const lastCreatedAt = new Date(last.created_at).getTime()
   const nowMs = Date.now()
-  const isRateLimited = nowMs - lastCreatedAt < opts.historyMinIntervalMs
+  const isRateLimited = (
+    last.trigger !== 'submit'
+    && nowMs - lastCreatedAt < opts.historyMinIntervalMs
+  )
 
   if (isRateLimited) {
     const { data, error } = await opts.supabase

@@ -16,6 +16,7 @@ export const revalidate = 0
 const TIMEZONE = 'America/Toronto'
 const DELETE_CHUNK_SIZE = 200
 const CLEANUP_PAGE_SIZE = 1000
+const SAVE_OPERATION_RETENTION_DAYS = 35
 
 type IdRow = { id: string }
 
@@ -70,15 +71,19 @@ async function deleteHistoryByParentIds(
   supabase: any,
   table: string,
   parentColumn: string,
-  parentIds: string[]
+  parentIds: string[],
+  preservedTrigger?: string
 ): Promise<{ deleted: number; error: any }> {
   let deleted = 0
 
   for (const parentIdChunk of chunkValues(parentIds, DELETE_CHUNK_SIZE)) {
-    const { count, error } = await supabase
+    let deleteQuery = supabase
       .from(table)
       .delete({ count: 'exact' })
-      .in(parentColumn, parentIdChunk)
+    if (preservedTrigger) {
+      deleteQuery = deleteQuery.neq('trigger', preservedTrigger)
+    }
+    const { count, error } = await deleteQuery.in(parentColumn, parentIdChunk)
 
     if (error) return { deleted, error }
     deleted += count ?? 0
@@ -149,6 +154,25 @@ async function handle(request: NextRequest) {
     }
   }
 
+  const saveOperationCutoff = subDays(new Date(), SAVE_OPERATION_RETENTION_DAYS).toISOString()
+  const saveOperationCleanup = await supabase.rpc(
+    'cleanup_assignment_doc_save_operations',
+    { p_completed_before: saveOperationCutoff }
+  )
+  const saveOperationCleanupCount = saveOperationCleanup.data
+  if (
+    saveOperationCleanup.error
+    || typeof saveOperationCleanupCount !== 'number'
+    || !Number.isSafeInteger(saveOperationCleanupCount)
+    || saveOperationCleanupCount < 0
+  ) {
+    console.error('Error cleaning assignment save operation digests:', saveOperationCleanup.error)
+    return NextResponse.json(
+      { error: 'Failed to clean assignment save operations' },
+      { status: 500 }
+    )
+  }
+
   const { ids: classroomIds, error: classroomsError } = await loadExpiredClassroomIds(
     supabase,
     cutoffDate
@@ -212,7 +236,8 @@ async function handle(request: NextRequest) {
       supabase,
       'assignment_doc_history',
       'assignment_doc_id',
-      assignmentDocIds
+      assignmentDocIds,
+      'submit'
     )
 
   if (assignmentHistoryError) {

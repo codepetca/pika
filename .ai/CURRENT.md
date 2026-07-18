@@ -1,12 +1,13 @@
 # Pika Current Context
 
-Read this at session start. `.ai/features.json` is the big-epic status authority; `.ai/SESSION-LOG.md` is recent handoff context. Read `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+Read this at session start. `.ai/features.json` is the epic status authority; `.ai/SESSION-LOG.md` holds recent handoff context.
 
 ## Current Focus
 
 - Core classroom, assignment, test, and auth flows are live.
-- Production migrations 001-098 and the named archive round-trip canary are verified. The classroom is hot-restored; source and Gradex cleanup remain disabled.
-- The active product-experience program is tracked in `.ai/features.json`. Phase 1 evidence lives in `docs/guidance/ui/product-experience-audit-2026-07.md`; the next slice disables legacy permanent hot-archive deletion.
+- Production migrations 001-099 and the named archive round-trip canary are verified. The classroom is hot-restored; source and Gradex cleanup remain disabled.
+- The product-experience program is tracked in `.ai/features.json`; Phase 1 evidence is in `docs/guidance/ui/product-experience-audit-2026-07.md`.
+- PR #891 assignment integrity is reviewed and green: atomic writes, recovery-safe retries, mount-local writer fences, cleanup, and concurrency checks. Migration 099 is verified in production; merge and deploy the application version next.
 
 ## Environment
 

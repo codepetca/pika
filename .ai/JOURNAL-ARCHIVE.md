@@ -13757,3 +13757,83 @@
 - `bash -n scripts/check-atomic-blueprint-operations.sh`
 - `git diff --check`
 - Ephemeral Supabase migration/behavior check pending PR CI
+
+## 2026-07-13 — Canonical classroom lifecycle and archive contracts
+
+**Completed:**
+- Added strict Zod-derived contracts for active, hot-archived, and cold-archived lifecycle states, with separate verified evidence for compaction and completed restore.
+- Encoded the current 42-table classroom ownership graph, all restore dependencies, privacy classes, parent-first restore order, child-first cleanup order, and a deidentified Gradex allowlist.
+- Added strict version 1 classroom archive and Gradex extract manifests with canonical file paths, row/byte counts, SHA-256 checksums, retention metadata, actor snapshots, managed storage descriptors, and restore preflight gates.
+- Defined the existing course package as a reusable, student-free, non-recoverable artifact; defined private archive/Gradex destinations and referenced-only discovery for the three current source buckets.
+- Added a read-only PostgreSQL catalog audit that fails on untracked/stale classroom resources, missing restore dependencies, or invalid selection keys, plus recovery, observability, compatibility, and production-canary guidance.
+- Added the unfinished `epic-classroom-lifecycle-archives` entry to the append-only feature inventory so repository status reflects the remaining implementation and production verification work.
+- Removed a duplicated architectural-direction section from `.ai/CURRENT.md` to keep the required startup context below its 16,000-character budget after adding the epic.
+- No application runtime path, database migration, database row, storage object, dependency, or production environment changed.
+
+**Validation:**
+
+## 2026-07-13 — Enforce architecture dependency boundaries
+
+**Completed:**
+- Added a TypeScript import-graph analyzer for runtime-aware imports, re-exports, dynamic imports, and CommonJS `require`, with independent traversal from every `'use client'` entry.
+- Enforced dependency direction between domain, UI, presentation, API, server-only, and shared type layers; blocked browser reachability to server modules, Supabase runtime clients, Next.js server APIs, and Node built-ins.
+- Added a deletion-only baseline for four existing client paths that reach `src/lib/server/assessment-drafts.ts` through assessment markdown helpers. New violations and obsolete baseline entries fail the check.
+- Replaced the duplicated browser Supabase parser with the shared analyzer, documented the boundaries, and added `pnpm check:architecture` to CI.
+- No runtime product behavior, database migrations, dependencies, or production data changed.
+
+**Validation:**
+- `pnpm run check:architecture` (556 modules; 4 deletion-only allowances)
+- `pnpm test`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm exec vitest run tests/lib/contracts/classroom-lifecycle.test.ts tests/lib/contracts/classroom-artifacts.test.ts` (15 tests)
+- Read-only local catalog audit: `CLASSROOM_SCHEMA_AUDIT_DATABASE_URL=... pnpm exec tsx scripts/check-classroom-resource-schema.ts` (97 public foreign-key relationships)
+
+## 2026-07-13 — Verified export-only classroom archives
+
+**Completed:**
+- Added migration 082 and a fail-closed teacher API for private, immutable, deterministic classroom archive exports without deleting any hot row or source object.
+- Added idempotent snapshot/finalization RPCs, revision triggers for all 41 descendants, durable operation evidence, strict actor snapshots, 50 MB private archive/Gradex buckets, full upload read-back verification, and terminal/retry recovery behavior.
+- Added canonical tar+gzip and NDJSON serialization with strict manifest, row/byte/checksum, actor, storage-object, content, and outer-artifact verification.
+- Extended the 42-resource schema contract to audit actual primary keys and every direct actor foreign key; actor capture now uses only those explicit columns and rejects arbitrary user UUIDs in free text.
+- Restricted storage discovery by source context: assignment artifacts from relational paths, submission images from embedded content, and test documents only from `tests.documents`.
+- Added a server-only export enable flag plus teacher UUID allowlist, future-retention validation, structured privacy-safe metrics, database CI, recovery guidance, and adversarial regressions.
+- Kept the archive epic unfinished: restore, Gradex extract generation, cold compaction, cleanup automation, teacher UI, and production canaries remain pending.
+
+**Validation:**
+- `pnpm test` (320 files, 2,844 tests)
+- `pnpm lint`
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- Pika audit
+- Fresh isolated Supabase replay through migrations 080/081/082
+- Atomic blueprint database contract
+- Verified archive database contract, including stale-source, terminal replay, unrelated-UUID privacy, retention, grants, and immutable metadata checks
+- Classroom schema audit (102 public foreign-key relationships)
+- `bash -n scripts/check-classroom-archive-database.sh`
+- `git diff --check`
+
+## 2026-07-13 — Resumable and version-aware classroom archive restore
+
+**Completed:**
+- Added migration 083 with cold tombstones outside the classroom ownership graph, bounded idempotent JSONB staging, conservative database-capacity preflight, concurrent-operation rejection, service-role-only RPCs, and one atomic 42-resource finalization transaction.
+- Added strict archive decoding, source-to-target adapter selection, actor reconciliation, exact storage-reference matching, deterministic operation-scoped object paths, managed-reference rewriting, and outer/read-back checksum verification.
+- Added a separately gated teacher restore endpoint requiring an enable flag, teacher UUID allowlist, idempotency key, and explicit database-budget setting; applying the migration alone does not expose restore or enable compaction.
+- Preserved exact archived values by suppressing blueprint/archive touch triggers only inside the transaction-local restore context and restoring the archived revision explicitly; PostgreSQL records final referential-integrity evidence after inserts pass.
+- Added rollback-only database coverage for capacity refusal, schema drift, unresolved actors, concurrent restores, expired-operation replacement, idempotent staging/completion, exact JSONB row equality, revision preservation, tombstone cleanup, and browser-role denial.
+- Corrected restore concurrency so only unexpired snapshots block a replacement operation; expired operations can no longer strand a cold classroom while awaiting cleanup automation.
+- Kept the archive epic unfinished: cold compaction, separate deidentified Gradex extract generation, cleanup automation, teacher UI, and production canaries remain pending. No production database, migration, row, or storage object was modified.
+
+**Validation:**
+- `pnpm test` (324 files, 2,866 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika audit
+- Fresh isolated Supabase replay through migrations 080/081/082/083 with matching source/copy migration hashes
+- Verified export and restore database contracts executed as `service_role`
+- Post-review focused restore suite (4 files, 21 tests) and fresh rollback-only restore canary, including expired-operation replacement
+- Classroom schema audit (105 public foreign-key relationships)
+- Supabase lint: one existing migration-082 false positive for the function-local `classroom_archive_actor_ids` temporary table; both executable database contracts pass
+- `git diff --check`

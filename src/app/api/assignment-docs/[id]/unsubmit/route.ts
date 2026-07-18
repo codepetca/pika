@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
-import { canUnsubmitAssignmentDoc, isAssignmentVisibleToStudents } from '@/lib/assignments'
+import { canUnsubmitAssignmentDoc, isAssignmentVisibleToStudents, sanitizeDocForStudent } from '@/lib/assignments'
 import { parseContentField } from '@/lib/tiptap-content'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { TiptapContent } from '@/types'
+import { unsubmitAssignmentDocAtomic } from '@/lib/server/assignment-doc-submissions'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -78,33 +79,27 @@ export const POST = withErrorHandler('PostAssignmentDocUnsubmit', async (request
   if (!canUnsubmitAssignmentDoc(existingDoc)) {
     return NextResponse.json(
       { error: 'Returned submissions cannot be unsubmitted' },
-      { status: 400 }
+      { status: 409 }
     )
   }
 
-  // Update to unsubmitted state
-  const { data: doc, error } = await supabase
-    .from('assignment_docs')
-    .update({
-      is_submitted: false,
-      submitted_at: null
-    })
-    .eq('id', existingDoc.id)
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Error unsubmitting assignment:', error)
+  const unsubmitResult = await unsubmitAssignmentDocAtomic({
+    supabase,
+    assignmentId,
+    studentId: user.id,
+  })
+  if (!unsubmitResult.ok) {
     return NextResponse.json(
-      { error: 'Failed to unsubmit' },
-      { status: 500 }
+      { error: unsubmitResult.error },
+      { status: unsubmitResult.status }
     )
   }
+  const doc = unsubmitResult.doc
 
   // Parse content if it's a string (for backwards compatibility)
   if (doc) {
     doc.content = parseContentField(doc.content)
   }
 
-  return NextResponse.json({ doc })
+  return NextResponse.json({ doc: sanitizeDocForStudent(doc) })
 })
