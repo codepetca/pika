@@ -13872,3 +13872,20 @@
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - Pika pre-commit audit
+
+<!-- pika-session-log-archive-batch:7b6d256d00e97656782a9b602c89c04a8f56a23bc16bc5b0a24f5bccf4e70322 -->
+## 2026-07-13 — Gated Gradex runtime coordinator
+
+**Completed:**
+- Added a server-only coordinator that verifies immutable classroom archives before building Gradex extracts, then performs private no-overwrite upload, full read-back, independent integrity/privacy verification, and exact durable finalization.
+- Added explicit enablement, teacher allowlisting, a minimum-strength HMAC secret, HMAC-key fingerprint request binding, deterministic operation paths, strict Zod RPC contracts, and privacy-safe metrics.
+- Added safe replay, concurrent-upload reuse, terminal cleanup, and transient-finalization retry behavior without exposing any API, cron, or production execution path.
+- Documented the runtime boundary and configuration while keeping deletion automation, cold compaction, teacher UI, and production canaries unfinished. No production database, migration, row, or storage object was modified.
+
+**Validation:**
+- Full Vitest suite (327 files / 2,889 tests)
+- Focused archive/Gradex/runtime suites (4 files / 36 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
