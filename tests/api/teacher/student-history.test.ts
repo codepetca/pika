@@ -46,6 +46,12 @@ describe('GET /api/teacher/student-history', () => {
       new NextRequest('http://localhost:3000/api/teacher/student-history?classroom_id=c1&student_id=s1&date=03-16-2026')
     )
     expect(invalidExactDate.status).toBe(400)
+
+    const ambiguousDate = await GET(new NextRequest(
+      'http://localhost:3000/api/teacher/student-history?classroom_id=c1&student_id=s1&date=2026-03-15&before_date=2026-03-16',
+    ))
+    expect(ambiguousDate.status).toBe(400)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 
   it('returns 403 when the classroom belongs to another teacher', async () => {
@@ -73,6 +79,7 @@ describe('GET /api/teacher/student-history', () => {
   })
 
   it('returns paged entries for an enrolled student', async () => {
+    let entryLimit: ReturnType<typeof vi.fn> | undefined
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classrooms') {
         return {
@@ -114,6 +121,7 @@ describe('GET /api/teacher/student-history', () => {
             )
           ),
         }
+        entryLimit = entryQuery.limit
         return entryQuery
       }
       throw new Error(`Unexpected table: ${table}`)
@@ -127,6 +135,51 @@ describe('GET /api/teacher/student-history', () => {
     expect(response.status).toBe(200)
     expect(data.entries).toHaveLength(1)
     expect(data.entries[0].id).toBe('e1')
+    expect(entryLimit).toHaveBeenCalledWith(5)
+  })
+
+  it('caps oversized history limits at 50 for compatibility', async () => {
+    let entryLimit: ReturnType<typeof vi.fn> | undefined
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { teacher_id: 'teacher-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      if (table === 'classroom_enrollments') {
+        const enrollmentQuery: any = {
+          eq: vi.fn(() => enrollmentQuery),
+          single: vi.fn().mockResolvedValue({ data: { student_id: 's1' }, error: null }),
+        }
+        return { select: vi.fn(() => enrollmentQuery) }
+      }
+      if (table === 'entries') {
+        const entryQuery: any = {
+          select: vi.fn(() => entryQuery),
+          eq: vi.fn(() => entryQuery),
+          order: vi.fn(() => entryQuery),
+          limit: vi.fn(() => entryQuery),
+          then: vi.fn((resolve: any) => Promise.resolve(resolve({ data: [], error: null }))),
+        }
+        entryLimit = entryQuery.limit
+        return entryQuery
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(new NextRequest(
+      'http://localhost:3000/api/teacher/student-history?classroom_id=c1&student_id=s1&limit=500',
+    ))
+
+    expect(response.status).toBe(200)
+    expect(entryLimit).toHaveBeenCalledWith(50)
   })
 
   it('returns only the requested student entry for an exact date', async () => {

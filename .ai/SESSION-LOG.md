@@ -850,6 +850,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Replaced the teacher dashboard's unauthorized `/api/student/entries` read with an exact student/day query through the teacher-owned student-history route.
 - Added a named Zod query contract for classroom, student, exact/paged date, and bounded limit inputs while preserving authentication-first handling.
 - Kept classroom ownership and enrollment checks ahead of entry access, and added regressions for foreign classrooms, unenrolled students, exact-date filtering, and the dashboard endpoint choice.
+- Preserved the existing 50-row cap for oversized history limits and rejected ambiguous exact/paged date filters after independent review.
 - Verified the route against local Supabase with a teacher session: the teacher endpoint returned the selected entry and the old student endpoint returned HTTP 403.
 - No schema, migration, production data, or visible UI layout changed.
 
