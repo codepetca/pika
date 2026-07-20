@@ -26,7 +26,6 @@
   "src/app/api/teacher/classrooms/[id]/roster/bulk-delete/route.ts",
   "src/app/api/teacher/classrooms/[id]/roster/upload-csv/route.ts",
   "src/app/api/teacher/classrooms/reorder/route.ts",
-  "src/app/api/teacher/course-blueprints/import/route.ts",
   "src/app/api/teacher/surveys/[id]/questions/[qid]/route.ts",
   "src/app/api/teacher/surveys/[id]/questions/route.ts",
   "src/app/api/teacher/surveys/[id]/route.ts",

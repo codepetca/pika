@@ -22,7 +22,11 @@ A course package is a tar archive with these root files:
 
 `manifest.json` stores package metadata and planned-site publishing settings. The Markdown files store the editable teacher-authored course content.
 
-The current manifest version is `3`. The version identifies the portable content contract; it is independent of the database migration number.
+The canonical export manifest version is `3`. Pika imports versions `2` and `3`, and rejects other
+versions. Version `2` packages may contain the retired `quizzes.md` file; Pika imports their reusable
+course, assignment, test, and lesson-plan content but intentionally ignores that legacy quiz content.
+The version identifies the portable content contract; it is independent of the database migration
+number.
 
 ## Included
 

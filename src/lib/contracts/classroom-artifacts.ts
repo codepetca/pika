@@ -3,6 +3,12 @@ import {
   CLASSROOM_RELATIONAL_RESOURCES,
   GRADEX_RESOURCE_TABLES,
 } from '@/lib/contracts/classroom-data'
+import {
+  COURSE_BLUEPRINT_PACKAGE_EXTENSION,
+  COURSE_BLUEPRINT_PACKAGE_FORMAT,
+  COURSE_BLUEPRINT_PACKAGE_VERSION,
+  COURSE_BLUEPRINT_SUPPORTED_PACKAGE_VERSIONS,
+} from '@/lib/contracts/course-blueprint-package'
 
 export const CLASSROOM_ARCHIVE_FORMAT = 'pika.classroom-archive' as const
 export const CLASSROOM_ARCHIVE_VERSION = 1 as const
@@ -274,9 +280,10 @@ export function isClassroomArchiveRestoreReady(
 }
 
 export const COURSE_BLUEPRINT_TRANSFER_CONTRACT = {
-  format: 'pika.course-package',
-  extension: '.course-package.tar',
-  manifest_version: '2',
+  format: COURSE_BLUEPRINT_PACKAGE_FORMAT,
+  extension: COURSE_BLUEPRINT_PACKAGE_EXTENSION,
+  manifest_version: COURSE_BLUEPRINT_PACKAGE_VERSION,
+  supported_import_versions: COURSE_BLUEPRINT_SUPPORTED_PACKAGE_VERSIONS,
   recoverable_classroom_backup: false,
   included_data: [
     'course_metadata',

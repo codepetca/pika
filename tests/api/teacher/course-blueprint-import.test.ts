@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/course-blueprints/import/route'
+import { COURSE_BLUEPRINT_PACKAGE_MAX_BYTES } from '@/lib/contracts/course-blueprint-package'
 
 const operationId = '10000000-0000-4000-8000-000000000030'
 const mockImportBundle = vi.fn()
@@ -85,5 +86,31 @@ describe('POST /api/teacher/course-blueprints/import', () => {
       error_code: 'create_blueprint_assignments_failed',
       retryable: true,
     })
+  })
+
+  it('rejects package bodies over the byte limit before invoking the import service', async () => {
+    const response = await POST(new NextRequest('http://localhost/api/teacher/course-blueprints/import', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': String(COURSE_BLUEPRINT_PACKAGE_MAX_BYTES + 1),
+      },
+      body: '{}',
+    }))
+
+    expect(response.status).toBe(413)
+    expect(mockImportBundle).not.toHaveBeenCalled()
+    expect(mockImportArchive).not.toHaveBeenCalled()
+  })
+
+  it('maps malformed bounded JSON to a client error', async () => {
+    const response = await POST(new NextRequest('http://localhost/api/teacher/course-blueprints/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{',
+    }))
+
+    expect(response.status).toBe(400)
+    expect(mockImportBundle).not.toHaveBeenCalled()
   })
 })

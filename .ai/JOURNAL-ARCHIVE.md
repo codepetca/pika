@@ -13889,3 +13889,24 @@
 - `pnpm lint`
 - `pnpm build`
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:c3f9f86aa9f27904900f14beea4412846508e3db3437a54eccfce7f9df60dfb0 -->
+## 2026-07-13 — Doubly gated Gradex teacher trigger
+
+**Completed:**
+- Added a teacher-authenticated Gradex generation route requiring an explicit UUID idempotency key and a future deletion timestamp bounded by the 90-day artifact contract.
+- Kept deployment fail-closed behind both the existing teacher coordinator allowlist and a separate exact source-archive canary flag/allowlist; no UI, cron, or automatic caller was added.
+- Delegated generation, immutable archive ownership, transformation, storage, read-back, privacy verification, and durable finalization to the existing coordinator and migration 084 boundaries.
+- Extended the rollback-only database contract and static migration guard to reject foreign-teacher and wrong-classroom archive requests without creating an operation.
+- Updated environment, lifecycle, test, and current-context documentation. No production database, migration, row, storage object, or environment setting was modified.
+
+**Validation:**
+- Full Vitest suite (328 files / 2,899 tests)
+- Focused trigger/coordinator/transformer/artifact/startup suites (5 files / 67 tests)
+- Focused route/coordinator/migration suite after ownership review (3 files / 29 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `bash -n scripts/check-classroom-gradex-database.sh`
+- Local executable database contract unavailable because the running Supabase container predates migration 082; migrations were not applied or modified
+- `git diff --check`
