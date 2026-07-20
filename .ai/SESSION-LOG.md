@@ -873,4 +873,4 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 
 **Remaining:**
-- Review and merge the semantic-token contrast PR. Then implement Phase 2's shared modal-layer contract as a separate slice.
+- Review and merge PR #896. Then implement Phase 2's shared modal-layer contract as a separate slice.
