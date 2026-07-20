@@ -82,11 +82,14 @@ The `/ui` layer handles dark mode internally via CVA. App code uses semantic cla
 | `border-border` | gray-200 | gray-700 | Default borders |
 | `border-border-strong` | gray-300 | gray-600 | Emphasized borders |
 | `text-text-default` | gray-900 | gray-100 | Primary text |
-| `text-text-muted` | gray-500 | gray-400 | Secondary text |
-| `text-text-inverse` | white | gray-900 | Text on colored backgrounds |
-| `text-primary` | blue-600 | blue-400 | Links, primary actions |
-| `text-danger` | red-600 | red-400 | Error text |
-| `text-success` | green-600 | green-400 | Success text |
+| `text-text-muted` | gray-600 | gray-400 | Secondary text |
+| `text-text-inverse` | white | white | Text on solid semantic fills |
+| `text-primary` | blue-700 | blue-400 | Links and primary accents |
+| `text-danger` | red-800 | red-400 | Error text |
+| `text-success` | green-800 | green-400 | Success text |
+| `bg-primary-solid` | blue-600 | blue-600 | Solid primary fills carrying inverse text |
+| `bg-danger-solid` | red-600 | red-600 | Solid danger fills carrying inverse text |
+| `bg-success-solid` | green-700 | green-700 | Solid success fills carrying inverse text |
 
 ### When to Use `dark:` Classes
 
@@ -107,14 +110,14 @@ Brand asset filters belong in `src/styles/tokens.css` and should be applied thro
 #### Status Colors
 ```css
 /* Attendance status */
---color-success: #22c55e  /* green-500 - Present */
---color-danger: #ef4444   /* red-500 - Absent/Error */
---color-warning: #f59e0b  /* amber-500 */
---color-info: #3b82f6     /* blue-500 */
+--color-success: #4ade80  /* green-400 - Present in dark mode */
+--color-danger: #f87171   /* red-400 - Absent/Error in dark mode */
+--color-warning: #fbbf24  /* amber-400 in dark mode */
+--color-info: #60a5fa     /* blue-400 in dark mode */
 
-/* Action colors */
---color-primary: #3b82f6  /* blue-500 */
---color-primary-hover: #2563eb  /* blue-600 */
+/* Solid fills are separate from foreground/accent colors. */
+--color-primary-solid: #2563eb
+--color-primary-solid-hover: #1d4ed8
 ```
 
 #### Neutral Colors (defined in `/src/styles/tokens.css`)

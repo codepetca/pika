@@ -227,8 +227,11 @@ const buttonVariants = cva('...', {
 | `border-border` | gray-200 | gray-700 | Default borders |
 | `border-border-strong` | gray-300 | gray-600 | Emphasized borders |
 | `text-text-default` | gray-900 | gray-100 | Primary text |
-| `text-text-muted` | gray-500 | gray-400 | Secondary text |
-| `text-text-inverse` | white | gray-900 | Text on colored backgrounds |
+| `text-text-muted` | gray-600 | gray-400 | Secondary text |
+| `text-text-inverse` | white | white | Text on solid semantic fills |
+| `bg-primary-solid` | blue-600 | blue-600 | Solid primary fills carrying inverse text |
+| `bg-success-solid` | green-700 | green-700 | Solid success fills carrying inverse text |
+| `bg-danger-solid` | red-600 | red-600 | Solid danger fills carrying inverse text |
 
 ### Border Radius
 

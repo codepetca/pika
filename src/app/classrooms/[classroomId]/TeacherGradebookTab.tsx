@@ -1099,7 +1099,9 @@ function AssessmentMatrixTable({
                   className={[
                     'group transition-colors',
                     isSelectable ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary' : '',
-                    isSelected ? 'bg-surface-selected hover:bg-surface-selected' : 'hover:bg-surface-hover',
+                    isSelected
+                      ? 'border-l-2 border-l-primary bg-surface-selected hover:bg-surface-selected'
+                      : 'hover:bg-surface-hover',
                   ].join(' ')}
                   onClick={(event) => {
                     if (!isSelectable) return

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { applyMarkdownShortcut, LessonDayCell } from '@/components/LessonDayCell'
 import { TooltipProvider } from '@/ui'
-import type { Announcement, LessonPlan, TiptapContent } from '@/types'
+import type { Announcement, Assignment, LessonPlan, TiptapContent } from '@/types'
 
 const content: TiptapContent = {
   type: 'doc',
@@ -182,6 +182,27 @@ describe('LessonDayCell', () => {
     )
 
     expect(screen.getByText('Lesson text').closest('.calendar-day-text')).toBeTruthy()
+  })
+
+  it('uses the accessible solid fill for assignment due dates', () => {
+    renderWithTooltip(
+      <LessonDayCell
+        date="2026-03-13"
+        day={new Date('2026-03-13T12:00:00.000Z')}
+        lessonPlan={lessonPlan}
+        assignments={[{ id: 'assignment-1', title: 'Essay', is_draft: false } as Assignment]}
+        isWeekend={false}
+        isToday={false}
+        editable={false}
+        compact={false}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Due: Essay' })).toHaveClass(
+      'bg-primary-solid',
+      'hover:bg-primary-solid-hover',
+      'text-text-inverse'
+    )
   })
 
   it('applies bold shortcut to the selected markdown range', () => {

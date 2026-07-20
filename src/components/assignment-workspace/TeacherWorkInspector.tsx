@@ -115,7 +115,7 @@ function ScoreInput({
                 className={[
                   'inline-flex h-6 w-[clamp(0.5rem,calc(100%/11),1.5rem)] flex-none items-center justify-center rounded border px-0 text-[10px] font-semibold leading-none transition-colors',
                   isActive
-                    ? 'border-primary bg-primary text-text-inverse'
+                    ? 'border-primary bg-primary-solid text-text-inverse'
                     : 'border-border bg-surface text-text-default hover:bg-surface-hover',
                 ].join(' ')}
                 aria-label={`Set ${label} score to ${score}`}

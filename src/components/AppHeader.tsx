@@ -189,7 +189,7 @@ export function AppHeader({
                 className={[
                   'inline-flex items-center gap-1 rounded-md border px-2 py-1 transition-all duration-300',
                   exitCountPulseActive
-                    ? 'motion-safe:scale-[1.03] border-warning bg-warning font-semibold text-text-inverse shadow-sm ring-2 ring-warning'
+                    ? 'motion-safe:scale-[1.03] border-warning bg-warning-bg font-semibold text-warning shadow-sm ring-2 ring-warning'
                     : 'border-transparent text-text-muted',
                 ].join(' ')}
                 aria-label={`Exits ${examModeHeader.exitsCount}`}

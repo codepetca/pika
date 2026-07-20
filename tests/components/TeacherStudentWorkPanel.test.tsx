@@ -371,6 +371,9 @@ describe('TeacherStudentWorkPanel', () => {
     expect(screen.queryByRole('button', { name: 'Repo' })).not.toBeInTheDocument()
 
     expect(screen.getByLabelText('Completion score')).toBeInTheDocument()
+    const completionQuickScore = screen.getByRole('button', { name: 'Set Completion score to 6' })
+    fireEvent.click(completionQuickScore)
+    expect(completionQuickScore).toHaveClass('bg-primary-solid', 'text-text-inverse')
     expect(screen.getByPlaceholderText('Teacher comment draft')).toBeInTheDocument()
     expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
     expect(screen.queryByText('Contribution')).not.toBeInTheDocument()

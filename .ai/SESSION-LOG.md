@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-13 — Verified Gradex retention cleanup runtime
-
-**Completed:**
-- Added a server-only, disabled-by-default cleanup coordinator over migration 084's lease claim, completion, and retry RPCs without adding an HTTP route, cron entry, or automatic caller.
-- Bounded each invocation to 10 claims and strictly validated the private bucket, canonical teacher/classroom/extract path shape, extract id binding, claim uniqueness, attempts, and lease inputs with Zod.
-- Required exact post-delete read-back evidence: only authoritative object-key absence can complete the current lease; missing buckets, present objects, uncertain Storage results, stale leases, and malformed RPC responses fail closed.
-- Added durable per-claim retry recording, stale-lease non-mutation, independent failure containment, privacy-safe aggregate metrics, and idempotent already-absent handling.
-- Updated environment, lifecycle, test, and current-context documentation. No production database, migration, row, storage object, route, schedule, or environment setting was modified.
-
-**Validation:**
-- Full Vitest suite (329 files / 2,915 tests)
-- Focused cleanup/generation/transformer/artifact/migration/startup suites (6 files / 80 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- `git diff --check`
-
 ## 2026-07-13 — Manual Gradex cleanup canary trigger
 
 **Completed:**
@@ -868,3 +851,26 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Merge PR #895 after required checks/review. Phase 2 begins after that merge.
+
+## 2026-07-20 — Phase 2 semantic-token contrast contract
+
+**Completed:**
+- Merged PR #895, completing the Product Experience Safety Wave and beginning Phase 2.
+- Added a WCAG AA contract that evaluates semantic foreground/background pairs in both themes, including translucent selected and status surfaces.
+- Split semantic foreground colors from opaque solid action fills, migrated filled controls to the new solid tokens, and corrected failing muted, status, accent, and selected-state combinations.
+- Preserved a persistent selected-row cue in the gradebook after reducing the dark selected-surface opacity.
+- Resolved all findings from two independent reviews, including omitted hover/subtle pairs, solid-fill opacity enforcement, inverse-text bypasses, and missing direct component coverage.
+- Visually verified representative teacher and student routes at desktop/mobile sizes in light/dark themes, plus selected gradebook rows in both themes. No overflow, overlap, console, or page errors were found.
+
+**Validation:**
+- `pnpm test` (378 files / 3,523 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms`
+- Custom Playwright teacher/student desktop/mobile light/dark matrix and gradebook selected-row checks
+- `git diff --check`
+
+**Remaining:**
+- Review and merge the semantic-token contrast PR. Then implement Phase 2's shared modal-layer contract as a separate slice.

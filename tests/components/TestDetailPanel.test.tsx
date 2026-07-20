@@ -707,7 +707,7 @@ describe('TestDetailPanel', () => {
         expect(within(editorPane).getByRole('button', { name: 'Duplicate question 1' })).toBeInTheDocument()
         expect(within(editorPane).getByRole('button', { name: 'Delete question 1' })).toBeInTheDocument()
       })
-      expect(within(editorPane).getByRole('button', { name: '+ MC Question' })).toHaveClass('bg-primary')
+      expect(within(editorPane).getByRole('button', { name: '+ MC Question' })).toHaveClass('bg-primary-solid')
       expect(within(editorPane).getByRole('button', { name: 'Choose question type' })).toBeInTheDocument()
       expect(within(editorPane).getByLabelText('Question 1 points')).toHaveValue(6)
       expect(within(editorPane).getByLabelText('Question 1 code response')).toBeChecked()

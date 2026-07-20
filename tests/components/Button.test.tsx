@@ -31,9 +31,14 @@ describe('Button component', () => {
     expect(handleClick).not.toHaveBeenCalled()
   })
 
-  it('should apply variant styles', () => {
-    const { container } = render(<Button variant="primary">Primary</Button>)
-    expect(container.querySelector('button')).toHaveClass('bg-primary')
+  it.each([
+    ['primary', 'bg-primary-solid', 'hover:bg-primary-solid-hover'],
+    ['success', 'bg-success-solid', 'hover:bg-success-solid-hover'],
+    ['danger', 'bg-danger-solid', 'hover:bg-danger-solid-hover'],
+  ] as const)('should apply accessible solid fills to the %s variant', (variant, fill, hoverFill) => {
+    render(<Button variant={variant}>{variant}</Button>)
+
+    expect(screen.getByRole('button', { name: variant })).toHaveClass(fill, hoverFill, 'text-text-inverse')
   })
 
   it('should apply size styles', () => {
