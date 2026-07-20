@@ -13852,3 +13852,23 @@
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm build`
+
+<!-- pika-session-log-archive-batch:bc6705b3b8c0bf7e482293cd4ece0e38d4f85f3af416f0ec7786a9d190614c46 -->
+## 2026-07-13 — Durable Gradex operations and cleanup contract
+
+**Completed:**
+- Added stacked migration 084 with a service-role-only Gradex resource allowlist, idempotent begin/finalize/fail operations, immutable verified extract metadata, and a separate mutable retention-cleanup ledger.
+- Serialized generation per immutable source archive, capped retention and file size, required exact resource counts and verification evidence, and scheduled older extracts immediately when superseded.
+- Added lease-based cleanup claiming, stale-lease rejection, exponential retry, and durable deletion evidence without deleting audit metadata.
+- Tightened final review invariants for typed verification evidence, bounded verification timestamps, conflicting finalization replays, failure metadata, and cleanup lease inputs.
+- Kept the database contract unreachable from browser roles and added no API, cron, upload, deletion, or production execution path.
+
+**Validation:**
+- Fresh isolated Supabase replay through migration 084
+- Expanded rollback-only service-role Gradex database contract
+- Focused migration, transformer, artifact-contract, and startup-policy suites (47 tests)
+- Full Vitest suite (326 files / 2,874 tests)
+- `bash -n scripts/check-classroom-gradex-database.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- Pika pre-commit audit

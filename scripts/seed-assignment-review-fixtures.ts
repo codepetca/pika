@@ -1,4 +1,5 @@
 import type { TiptapContent } from '../src/types'
+import { ensureSeedTimestampAfter } from './lib/assignment-history-seed'
 
 type SupabaseLike = {
   from: (table: string) => {
@@ -53,8 +54,17 @@ export async function seedAssignmentReviewFixtures(opts: {
   students: SeedStudent[]
   assignments: SeedAssignments
   now: Date
+  narrativeStudent1SubmittedAt?: string
 }) {
-  const { supabase, classroomId, teacherId, students, assignments, now } = opts
+  const {
+    supabase,
+    classroomId,
+    teacherId,
+    students,
+    assignments,
+    now,
+    narrativeStudent1SubmittedAt,
+  } = opts
   const [student1, student2] = students
   if (!student1 || !student2) {
     throw new Error('seedAssignmentReviewFixtures requires two students')
@@ -70,6 +80,9 @@ export async function seedAssignmentReviewFixtures(opts: {
   const threeDaysAgoIso = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString()
   const fourDaysAgoIso = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString()
   const fiveDaysAgoIso = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString()
+  const student1FirstFeedbackAt = narrativeStudent1SubmittedAt
+    ? ensureSeedTimestampAfter(fourDaysAgoIso, narrativeStudent1SubmittedAt)
+    : fourDaysAgoIso
 
   const letterStudent1Content: TiptapContent = {
     type: 'doc',
@@ -205,7 +218,7 @@ export async function seedAssignmentReviewFixtures(opts: {
           entry_kind: 'teacher_feedback',
           author_type: 'teacher',
           body: 'Your first draft had a strong voice. Revise the ending so it reflects more directly on what you learned.',
-          returned_at: fourDaysAgoIso,
+          returned_at: student1FirstFeedbackAt,
           created_by: teacherId,
         },
         {
