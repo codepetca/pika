@@ -753,19 +753,6 @@ export interface CourseBlueprintDetail extends CourseBlueprint {
   linked_classrooms: LinkedBlueprintClassroom[]
 }
 
-export interface CoursePackageManifest {
-  version: string
-  exported_at: string
-  title: string
-  subject: string
-  grade_level: string
-  course_code: string
-  term_template: string
-  planned_site_slug?: string | null
-  planned_site_published?: boolean
-  planned_site_config?: PlannedCourseSiteConfig
-}
-
 export interface CreateClassroomFromBlueprintInput {
   blueprintId: string
   title: string

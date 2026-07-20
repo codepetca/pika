@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   analyzeCourseBlueprintCompleteness,
@@ -7,7 +10,16 @@ import {
   parseCourseBlueprintImportArchive,
   parseCourseBlueprintImportBundle,
 } from '@/lib/course-blueprint-package'
+import {
+  COURSE_BLUEPRINT_PACKAGE_MAX_BYTES,
+  COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES,
+} from '@/lib/contracts/course-blueprint-package'
 import type { CourseBlueprintDetail } from '@/types'
+
+const testDir = dirname(fileURLToPath(import.meta.url))
+const V2_BUNDLE = JSON.parse(
+  readFileSync(resolve(testDir, '../fixtures/course-blueprint-package-v2.json'), 'utf8')
+)
 
 const DETAIL: CourseBlueprintDetail = {
   id: 'blueprint-1',
@@ -201,6 +213,107 @@ describe('course blueprint package', () => {
     const parsed = parseCourseBlueprintImportArchive(legacyArchive)
 
     expect(parsed.blueprint.planned_site_config.quizzes).toBe(false)
+  })
+
+  it('imports version 2 packages while ignoring retired quiz content', () => {
+    const parsed = parseCourseBlueprintImportBundle(V2_BUNDLE)
+
+    expect(parsed.errors).toEqual([])
+    expect(parsed.blueprint.title).toBe('Legacy Computer Science')
+    expect(parsed.blueprint.planned_site_config.quizzes).toBe(false)
+    expect(parsed.assessments).toEqual([])
+  })
+
+  it('decodes a version 2 tar package while ignoring retired quiz content', () => {
+    const archive = encodeCourseBlueprintPackageArchive(V2_BUNDLE)
+    const decoded = decodeCourseBlueprintPackageArchive(archive)
+    const parsed = parseCourseBlueprintImportArchive(archive)
+
+    expect(decoded?.manifest.version).toBe('2')
+    expect(decoded?.files).not.toHaveProperty('quizzes.md')
+    expect(parsed.errors).toEqual([])
+    expect(parsed.blueprint.title).toBe('Legacy Computer Science')
+    expect(parsed.assessments).toEqual([])
+  })
+
+  it.each(['1', '4'])('rejects unsupported package version %s', (version) => {
+    const parsed = parseCourseBlueprintImportBundle({
+      ...V2_BUNDLE,
+      manifest: { ...V2_BUNDLE.manifest, version },
+    })
+
+    expect(parsed.errors).toEqual(['Invalid course package bundle'])
+  })
+
+  it.each(['quizzes.md', 'notes.md'])('rejects undeclared version 3 file %s', (fileName) => {
+    const bundle = buildCourseBlueprintExportBundle(DETAIL)
+    const parsed = parseCourseBlueprintImportBundle({
+      ...bundle,
+      files: { ...bundle.files, [fileName]: 'Unexpected content' },
+    })
+
+    expect(parsed.errors).toEqual(['Invalid course package bundle'])
+  })
+
+  it('rejects an archive with an unsupported manifest version', () => {
+    const archive = encodeCourseBlueprintPackageArchive(buildCourseBlueprintExportBundle(DETAIL))
+    const versionMarker = new TextEncoder().encode('"version": "3"')
+    const markerOffset = archive.findIndex((byte, index) =>
+      versionMarker.every((markerByte, markerIndex) => archive[index + markerIndex] === markerByte)
+    )
+    expect(markerOffset).toBeGreaterThanOrEqual(0)
+    archive[markerOffset + versionMarker.length - 2] = '4'.charCodeAt(0)
+
+    expect(decodeCourseBlueprintPackageArchive(archive)).toBeNull()
+    expect(parseCourseBlueprintImportArchive(archive).errors).toEqual(['Invalid course package archive'])
+  })
+
+  it('rejects oversized archives and oversized package files', () => {
+    expect(decodeCourseBlueprintPackageArchive(
+      new Uint8Array(COURSE_BLUEPRINT_PACKAGE_MAX_BYTES + 1)
+    )).toBeNull()
+
+    const bundle = buildCourseBlueprintExportBundle(DETAIL)
+    const oversizedBundle = parseCourseBlueprintImportBundle({
+      ...bundle,
+      files: {
+        ...bundle.files,
+        'course-overview.md': 'é'.repeat(Math.floor(COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES / 2) + 1),
+      },
+    })
+    expect(oversizedBundle.errors).toEqual(['Invalid course package bundle'])
+
+    const archive = encodeCourseBlueprintPackageArchive(bundle)
+    const fileName = new TextEncoder().encode('course-overview.md')
+    const headerOffset = archive.findIndex((byte, index) =>
+      fileName.every((fileByte, fileIndex) => archive[index + fileIndex] === fileByte)
+    )
+    expect(headerOffset).toBeGreaterThanOrEqual(0)
+    const oversizedOctal = (COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES + 1).toString(8).padStart(11, '0')
+    archive.set(new TextEncoder().encode(oversizedOctal), headerOffset + 124)
+    archive[headerOffset + 135] = 0
+    expect(decodeCourseBlueprintPackageArchive(archive)).toBeNull()
+  })
+
+  it('rejects unexpected tar entries before decoding their content', () => {
+    const archive = encodeCourseBlueprintPackageArchive(buildCourseBlueprintExportBundle(DETAIL))
+    const fileName = new TextEncoder().encode('tests.md')
+    const fileOffset = archive.findIndex((byte, index) =>
+      fileName.every((fileByte, fileIndex) => archive[index + fileIndex] === fileByte)
+    )
+    expect(fileOffset).toBeGreaterThanOrEqual(0)
+    archive[fileOffset] = 'x'.charCodeAt(0)
+
+    expect(decodeCourseBlueprintPackageArchive(archive)).toBeNull()
+  })
+
+  it('rejects malformed package manifests at the import boundary', () => {
+    const parsed = parseCourseBlueprintImportBundle({
+      ...V2_BUNDLE,
+      manifest: { ...V2_BUNDLE.manifest, exported_at: 'not-a-date' },
+    })
+
+    expect(parsed.errors).toEqual(['Invalid course package bundle'])
   })
 
   it('analyzes missing blueprint areas', () => {

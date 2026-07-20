@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-13 — Doubly gated Gradex teacher trigger
-
-**Completed:**
-- Added a teacher-authenticated Gradex generation route requiring an explicit UUID idempotency key and a future deletion timestamp bounded by the 90-day artifact contract.
-- Kept deployment fail-closed behind both the existing teacher coordinator allowlist and a separate exact source-archive canary flag/allowlist; no UI, cron, or automatic caller was added.
-- Delegated generation, immutable archive ownership, transformation, storage, read-back, privacy verification, and durable finalization to the existing coordinator and migration 084 boundaries.
-- Extended the rollback-only database contract and static migration guard to reject foreign-teacher and wrong-classroom archive requests without creating an operation.
-- Updated environment, lifecycle, test, and current-context documentation. No production database, migration, row, storage object, or environment setting was modified.
-
-**Validation:**
-- Full Vitest suite (328 files / 2,899 tests)
-- Focused trigger/coordinator/transformer/artifact/startup suites (5 files / 67 tests)
-- Focused route/coordinator/migration suite after ownership review (3 files / 29 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- `bash -n scripts/check-classroom-gradex-database.sh`
-- Local executable database contract unavailable because the running Supabase container predates migration 082; migrations were not applied or modified
-- `git diff --check`
-
 ## 2026-07-13 — Verified Gradex retention cleanup runtime
 
 **Completed:**
@@ -865,3 +845,26 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Independently review PR #894. After merge, reconcile the blueprint package v2/v3 contract as the final uncompleted Safety Wave item before Phase 2.
+
+## 2026-07-20 — Blueprint package version contract reconciliation
+
+**Completed:**
+- Merged PR #894, fast-forwarded the hub to `origin/main`, and removed its clean feature worktree and local branch.
+- Made course package version 3 the shared canonical export and lifecycle contract while explicitly retaining version 2 import compatibility.
+- Added a focused Zod boundary for package manifests and files so malformed and unsupported versions fail before operation planning; server operations now consume validated manifest metadata rather than the original request value.
+- Preserved legacy version 2 course content while intentionally ignoring retired `quizzes.md` content, with a checked-in compatibility fixture and bundle/tar regressions.
+- Made v3 file membership strict, bounded HTTP and tar input size/counts, and rejected unknown or duplicate archive entries after independent review; removed the import route from the API validation debt baseline.
+- Added byte-aware per-file limits for both JSON and tar imports after rereview; the final independent rereview reported no actionable findings.
+- Updated package and classroom lifecycle guidance to agree on current and supported versions. No database migration, production access, or visible UI change was required.
+
+**Validation:**
+- `pnpm test` (376 files / 3,514 tests)
+- Focused package, artifact, server, API, documentation, and route-standard suites (6 files / 52 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (606 modules / 0 allowances)
+- `pnpm build`
+- `git diff --check`
+
+**Remaining:**
+- Merge PR #895 after required checks/review. Phase 2 begins after that merge.

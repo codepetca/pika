@@ -14,8 +14,15 @@ import type {
   CourseBlueprintAssessment,
   CourseBlueprintDetail,
   CourseBlueprintLessonTemplate,
-  CoursePackageManifest,
 } from '@/types'
+import {
+  COURSE_BLUEPRINT_PACKAGE_MAX_BYTES,
+  COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES,
+  COURSE_BLUEPRINT_PACKAGE_MAX_FILE_COUNT,
+  COURSE_BLUEPRINT_PACKAGE_VERSION,
+  coursePackageBundleSchema,
+  type CoursePackageManifest,
+} from '@/lib/contracts/course-blueprint-package'
 import {
   DEFAULT_PLANNED_COURSE_SITE_CONFIG,
   normalizePlannedCourseSiteConfig,
@@ -24,7 +31,7 @@ import {
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
 
-export const COURSE_BLUEPRINT_PACKAGE_VERSION = '3' as const
+export { COURSE_BLUEPRINT_PACKAGE_VERSION } from '@/lib/contracts/course-blueprint-package'
 
 export const COURSE_BLUEPRINT_PACKAGE_FILE_NAMES = [
   'course-overview.md',
@@ -35,6 +42,12 @@ export const COURSE_BLUEPRINT_PACKAGE_FILE_NAMES = [
   'lesson-plans.md',
 ] as const
 
+const COURSE_BLUEPRINT_PACKAGE_ACCEPTED_ARCHIVE_FILE_NAMES = new Set<string>([
+  'manifest.json',
+  ...COURSE_BLUEPRINT_PACKAGE_FILE_NAMES,
+  'quizzes.md',
+])
+
 export type CourseBlueprintPackageFileName =
   (typeof COURSE_BLUEPRINT_PACKAGE_FILE_NAMES)[number]
 
@@ -44,6 +57,7 @@ export type CourseBlueprintPackageBundle = {
 }
 
 export type CourseBlueprintImportResult = {
+  manifest: CoursePackageManifest | null
   blueprint: Pick<
     CourseBlueprint,
     | 'title'
@@ -150,12 +164,17 @@ function isZeroTarBlock(block: Uint8Array): boolean {
 }
 
 export function encodeCourseBlueprintPackageArchive(bundle: CourseBlueprintPackageBundle): Uint8Array {
+  const parsedBundle = coursePackageBundleSchema.parse(bundle)
+  const legacyQuizFile = 'quizzes.md' in parsedBundle.files
+    ? [{ name: 'quizzes.md', content: parsedBundle.files['quizzes.md'] }]
+    : []
   const files: Array<{ name: string; content: string }> = [
-    { name: 'manifest.json', content: JSON.stringify(bundle.manifest, null, 2) },
+    { name: 'manifest.json', content: JSON.stringify(parsedBundle.manifest, null, 2) },
     ...COURSE_BLUEPRINT_PACKAGE_FILE_NAMES.map((fileName) => ({
       name: fileName,
-      content: bundle.files[fileName] ?? '',
+      content: parsedBundle.files[fileName],
     })),
+    ...legacyQuizFile,
   ]
 
   const parts: Uint8Array[] = []
@@ -186,8 +205,11 @@ export function decodeCourseBlueprintPackageArchive(
   input: ArrayBuffer | Uint8Array
 ): CourseBlueprintPackageBundle | null {
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input)
+  if (bytes.byteLength > COURSE_BLUEPRINT_PACKAGE_MAX_BYTES) return null
+
   const extractedFiles = new Map<string, string>()
   let offset = 0
+  let fileCount = 0
 
   while (offset + 512 <= bytes.length) {
     const header = bytes.slice(offset, offset + 512)
@@ -198,7 +220,18 @@ export function decodeCourseBlueprintPackageArchive(
     const fullName = prefix ? `${prefix}/${name}` : name
     const size = parseTarOctal(header, 124, 12)
 
+    fileCount += 1
+    if (
+      fileCount > COURSE_BLUEPRINT_PACKAGE_MAX_FILE_COUNT ||
+      !COURSE_BLUEPRINT_PACKAGE_ACCEPTED_ARCHIVE_FILE_NAMES.has(fullName) ||
+      extractedFiles.has(fullName) ||
+      size > COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES
+    ) {
+      return null
+    }
+
     offset += 512
+    if (offset + size > bytes.length) return null
     const content = bytes.slice(offset, offset + size)
     extractedFiles.set(fullName, textDecoder.decode(content))
     offset += Math.ceil(size / 512) * 512
@@ -208,12 +241,12 @@ export function decodeCourseBlueprintPackageArchive(
   if (!manifestRaw) return null
 
   try {
-    const manifest = JSON.parse(manifestRaw) as CoursePackageManifest
-    const files = Object.fromEntries(
-      COURSE_BLUEPRINT_PACKAGE_FILE_NAMES.map((fileName) => [fileName, extractedFiles.get(fileName) ?? ''])
-    ) as Record<CourseBlueprintPackageFileName, string>
-
-    return { manifest, files }
+    return normalizeBundle({
+      manifest: JSON.parse(manifestRaw),
+      files: Object.fromEntries(
+        [...extractedFiles.entries()].filter(([fileName]) => fileName !== 'manifest.json')
+      ),
+    })
   } catch {
     return null
   }
@@ -269,11 +302,15 @@ export function buildCourseBlueprintExportBundle(detail: CourseBlueprintDetail):
 }
 
 function normalizeBundle(input: unknown): CourseBlueprintPackageBundle | null {
-  if (typeof input !== 'object' || input === null) return null
-  const record = input as Record<string, unknown>
-  if (typeof record.manifest !== 'object' || record.manifest === null) return null
-  if (typeof record.files !== 'object' || record.files === null) return null
-  return record as CourseBlueprintPackageBundle
+  const parsed = coursePackageBundleSchema.safeParse(input)
+  if (!parsed.success) return null
+
+  return {
+    manifest: parsed.data.manifest,
+    files: Object.fromEntries(
+      COURSE_BLUEPRINT_PACKAGE_FILE_NAMES.map((fileName) => [fileName, parsed.data.files[fileName]])
+    ) as Record<CourseBlueprintPackageFileName, string>,
+  }
 }
 
 export function parseCourseBlueprintImportArchive(
@@ -282,6 +319,7 @@ export function parseCourseBlueprintImportArchive(
   const bundle = decodeCourseBlueprintPackageArchive(input)
   if (!bundle) {
     return {
+      manifest: null,
       blueprint: {
         title: '',
         subject: '',
@@ -309,6 +347,7 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
   const bundle = normalizeBundle(input)
   if (!bundle) {
     return {
+      manifest: null,
       blueprint: {
         title: '',
         subject: '',
@@ -336,6 +375,7 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
   const lessonResult = markdownToCourseBlueprintLessonTemplates(files['lesson-plans.md'] ?? '', [])
 
   return {
+    manifest,
     blueprint: {
       title: manifest.title ?? '',
       subject: manifest.subject ?? '',
