@@ -863,4 +863,4 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 
 **Remaining:**
-- Open and independently review the focused PR. After merge, reconcile the blueprint package v2/v3 contract as the final uncompleted Safety Wave item before Phase 2.
+- Independently review PR #894. After merge, reconcile the blueprint package v2/v3 contract as the final uncompleted Safety Wave item before Phase 2.
