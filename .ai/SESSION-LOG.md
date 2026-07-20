@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-13 — Durable Gradex operations and cleanup contract
-
-**Completed:**
-- Added stacked migration 084 with a service-role-only Gradex resource allowlist, idempotent begin/finalize/fail operations, immutable verified extract metadata, and a separate mutable retention-cleanup ledger.
-- Serialized generation per immutable source archive, capped retention and file size, required exact resource counts and verification evidence, and scheduled older extracts immediately when superseded.
-- Added lease-based cleanup claiming, stale-lease rejection, exponential retry, and durable deletion evidence without deleting audit metadata.
-- Tightened final review invariants for typed verification evidence, bounded verification timestamps, conflicting finalization replays, failure metadata, and cleanup lease inputs.
-- Kept the database contract unreachable from browser roles and added no API, cron, upload, deletion, or production execution path.
-
-**Validation:**
-- Fresh isolated Supabase replay through migration 084
-- Expanded rollback-only service-role Gradex database contract
-- Focused migration, transformer, artifact-contract, and startup-policy suites (47 tests)
-- Full Vitest suite (326 files / 2,874 tests)
-- `bash -n scripts/check-classroom-gradex-database.sh`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- Pika pre-commit audit
-
 ## 2026-07-13 — Gated Gradex runtime coordinator
 
 **Completed:**
@@ -857,3 +838,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `node --check scripts/trim-session-log.mjs`
 - `node scripts/trim-session-log.mjs --check`
 - `git diff --check`
+
+## 2026-07-20 — Migration 099 local seed compatibility
+
+**Completed:**
+- Fixed `pnpm seed` for databases with migration 099 by creating assignment documents as editable, inserting their baseline/autosave/blur history, and only then finalizing submitted documents.
+- Let migration 099's deferred constraint trigger create each authoritative submit snapshot, preserving the database invariant that editable history cannot be written after submission.
+- Aligned the synthetic writing timelines with the existing 4-day and 2-day submission dates so grading fixtures remain chronologically valid.
+- Added unit and source-order regression coverage for history partitioning and seed lifecycle ordering.
+- Derived the earliest returned-feedback timestamp from the generated submission time after review found an early-day chronology edge case.
+- Re-ran `pnpm seed` against the authorized loopback database; the complete classroom, assignment-review, and test fixtures now seed successfully. No production resources were accessed or modified.
+
+**Validation:**
+- `pnpm test` (376 files / 3,495 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm seed` against the loopback Supabase database through migration 099
+- Direct loopback database checks: one submit row per submitted document, matching content snapshots, all editable history before submission, and returned feedback after submission
+- `git diff --check`
+
+**Audit note:**
+- The Pika pre-commit audit reports the existing CLI progress `console.log` calls throughout `scripts/seed.ts` after that file is touched. No new production logging path was introduced; this is a whole-file false positive for the development seed CLI.
