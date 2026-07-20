@@ -156,7 +156,7 @@
       "description": "Six-phase teacher/student product audit, shared experience foundation, vertical workflow improvements, Gradex integration, blueprint/archive productization, and final verification",
       "passes": false,
       "verification": "Complete the exit evidence in docs/guidance/ui/product-experience-audit-2026-07.md",
-      "issueRefs": ["#889", "#890", "#891", "#893", "#894"],
+      "issueRefs": ["#889", "#890", "#891", "#893", "#894", "#895"],
       "blockedBy": [],
       "addedDate": "2026-07-16"
     }

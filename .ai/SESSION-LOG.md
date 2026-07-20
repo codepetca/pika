@@ -867,4 +867,4 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 
 **Remaining:**
-- Complete independent review and broad verification, then publish and merge the blueprint contract PR. Phase 2 begins after that merge.
+- Merge PR #895 after required checks/review. Phase 2 begins after that merge.
