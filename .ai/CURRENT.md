@@ -7,7 +7,8 @@ Read this at session start. `.ai/features.json` is the epic status authority; `.
 - Core classroom, assignment, test, and auth flows are live.
 - Production migrations 001-099 and the named archive round-trip canary are verified. The classroom is hot-restored; source and Gradex cleanup remain disabled.
 - The product-experience program is tracked in `.ai/features.json`; Phase 1 evidence is in `docs/guidance/ui/product-experience-audit-2026-07.md`.
-- PR #891 assignment integrity is reviewed and green: atomic writes, recovery-safe retries, mount-local writer fences, cleanup, and concurrency checks. Migration 099 is verified in production; merge and deploy the application version next.
+- Product-experience Safety Wave progress: legacy classroom deletion is retired (#890), assignment submission integrity and migration 099 are deployed (#891), and local seeding is migration-099 compatible (#893).
+- The current Safety Wave slice replaces the teacher dashboard's student-only entry read with an owned teacher contract. Blueprint package v2/v3 reconciliation remains before Phase 2 shared experience foundation work.
 
 ## Environment
 

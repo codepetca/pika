@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-13 — Gated Gradex runtime coordinator
-
-**Completed:**
-- Added a server-only coordinator that verifies immutable classroom archives before building Gradex extracts, then performs private no-overwrite upload, full read-back, independent integrity/privacy verification, and exact durable finalization.
-- Added explicit enablement, teacher allowlisting, a minimum-strength HMAC secret, HMAC-key fingerprint request binding, deterministic operation paths, strict Zod RPC contracts, and privacy-safe metrics.
-- Added safe replay, concurrent-upload reuse, terminal cleanup, and transient-finalization retry behavior without exposing any API, cron, or production execution path.
-- Documented the runtime boundary and configuration while keeping deletion automation, cold compaction, teacher UI, and production canaries unfinished. No production database, migration, row, or storage object was modified.
-
-**Validation:**
-- Full Vitest suite (327 files / 2,889 tests)
-- Focused archive/Gradex/runtime suites (4 files / 36 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- `git diff --check`
-
 ## 2026-07-13 — Doubly gated Gradex teacher trigger
 
 **Completed:**
@@ -859,3 +843,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Audit note:**
 - The Pika pre-commit audit reports the existing CLI progress `console.log` calls throughout `scripts/seed.ts` after that file is touched. No new production logging path was introduced; this is a whole-file false positive for the development seed CLI.
+
+## 2026-07-20 — Teacher dashboard entry authorization contract
+
+**Completed:**
+- Replaced the teacher dashboard's unauthorized `/api/student/entries` read with an exact student/day query through the teacher-owned student-history route.
+- Added a named Zod query contract for classroom, student, exact/paged date, and bounded limit inputs while preserving authentication-first handling.
+- Kept classroom ownership and enrollment checks ahead of entry access, and added regressions for foreign classrooms, unenrolled students, exact-date filtering, and the dashboard endpoint choice.
+- Verified the route against local Supabase with a teacher session: the teacher endpoint returned the selected entry and the old student endpoint returned HTTP 403.
+- No schema, migration, production data, or visible UI layout changed.
+
+**Validation:**
+- `pnpm test` (376 files / 3,501 tests)
+- Focused dashboard, teacher entry/history, consumer, and API boundary suites (5 files / 23 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (605 modules / 0 allowances)
+- Live loopback teacher authorization and exact-entry query
+- `git diff --check`
+
+**Remaining:**
+- Open and independently review the focused PR. After merge, reconcile the blueprint package v2/v3 contract as the final uncompleted Safety Wave item before Phase 2.

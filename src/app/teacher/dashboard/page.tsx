@@ -12,7 +12,7 @@ import { getAttendanceIcon } from '@/lib/attendance'
 import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
 import {
   fetchTeacherDashboardAttendance,
-  fetchTeacherDashboardEntries,
+  fetchTeacherDashboardEntry,
   invalidateTeacherDashboardAttendance,
 } from '@/lib/teacher-dashboard-client'
 import { fetchTeacherClassrooms, invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
@@ -96,11 +96,7 @@ export default function TeacherDashboardPage() {
     setLoadingEntry(true)
 
     try {
-      const entries = await fetchTeacherDashboardEntries(selectedClassroom.id)
-
-      const entry = entries.find(
-        (e: Entry) => e.student_id === studentId && e.date === date
-      )
+      const entry = await fetchTeacherDashboardEntry(selectedClassroom.id, studentId, date)
 
       if (entry) {
         setSelectedEntry({ ...entry, student_email: studentEmail })

@@ -41,6 +41,11 @@ describe('GET /api/teacher/student-history', () => {
       new NextRequest('http://localhost:3000/api/teacher/student-history?classroom_id=c1&student_id=s1&before_date=03-16-2026')
     )
     expect(invalidDate.status).toBe(400)
+
+    const invalidExactDate = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/student-history?classroom_id=c1&student_id=s1&date=03-16-2026')
+    )
+    expect(invalidExactDate.status).toBe(400)
   })
 
   it('returns 403 when the classroom belongs to another teacher', async () => {
@@ -122,5 +127,88 @@ describe('GET /api/teacher/student-history', () => {
     expect(response.status).toBe(200)
     expect(data.entries).toHaveLength(1)
     expect(data.entries[0].id).toBe('e1')
+  })
+
+  it('returns only the requested student entry for an exact date', async () => {
+    const entryQuery: any = {
+      select: vi.fn(() => entryQuery),
+      eq: vi.fn(() => entryQuery),
+      order: vi.fn(() => entryQuery),
+      limit: vi.fn(() => entryQuery),
+      then: vi.fn((resolve: any) => Promise.resolve(resolve({
+        data: [{ id: 'e1', student_id: 's1', date: '2026-03-15', text: 'Worked hard' }],
+        error: null,
+      }))),
+    }
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { teacher_id: 'teacher-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      if (table === 'classroom_enrollments') {
+        const enrollmentQuery: any = {
+          eq: vi.fn(() => enrollmentQuery),
+          single: vi.fn().mockResolvedValue({ data: { student_id: 's1' }, error: null }),
+        }
+        return { select: vi.fn(() => enrollmentQuery) }
+      }
+      if (table === 'entries') return entryQuery
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(new NextRequest(
+      'http://localhost:3000/api/teacher/student-history?classroom_id=c1&student_id=s1&date=2026-03-15&limit=1',
+    ))
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.entries).toEqual([
+      { id: 'e1', student_id: 's1', date: '2026-03-15', text: 'Worked hard' },
+    ])
+    expect(entryQuery.eq).toHaveBeenCalledWith('student_id', 's1')
+    expect(entryQuery.eq).toHaveBeenCalledWith('classroom_id', 'c1')
+    expect(entryQuery.eq).toHaveBeenCalledWith('date', '2026-03-15')
+    expect(entryQuery.limit).toHaveBeenCalledWith(1)
+  })
+
+  it('returns 404 before querying entries when the student is not enrolled', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { teacher_id: 'teacher-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      if (table === 'classroom_enrollments') {
+        const enrollmentQuery: any = {
+          eq: vi.fn(() => enrollmentQuery),
+          single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+        }
+        return { select: vi.fn(() => enrollmentQuery) }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(new NextRequest(
+      'http://localhost:3000/api/teacher/student-history?classroom_id=c1&student_id=other-student&date=2026-03-15&limit=1',
+    ))
+
+    expect(response.status).toBe(404)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('entries')
   })
 })

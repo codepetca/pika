@@ -166,17 +166,23 @@ function installFetchMock(options?: {
       }))
     }
 
-    if (url.startsWith('/api/student/entries?classroom_id=') && method === 'GET') {
-      const classroomId = new URL(url, 'http://localhost').searchParams.get('classroom_id') || ''
+    if (url.startsWith('/api/teacher/student-history?') && method === 'GET') {
+      const searchParams = new URL(url, 'http://localhost').searchParams
+      const classroomId = searchParams.get('classroom_id') || ''
+      const studentId = searchParams.get('student_id')
+      const date = searchParams.get('date')
+      const entries = options?.entriesByClassroom?.[classroomId] ?? [
+        entry({
+          studentId: 's1',
+          classroomId,
+          date: '2026-06-01',
+          text: 'Focused entry text',
+        }),
+      ]
       return Promise.resolve(jsonResponse({
-        entries: options?.entriesByClassroom?.[classroomId] ?? [
-          entry({
-            studentId: 's1',
-            classroomId,
-            date: '2026-06-01',
-            text: 'Focused entry text',
-          }),
-        ],
+        entries: entries.filter(candidate => (
+          candidate.student_id === studentId && candidate.date === date
+        )),
       }))
     }
 
@@ -237,7 +243,11 @@ describe('Teacher dashboard page', () => {
     fireEvent.click(screen.getByText('🟢'))
 
     expect(await screen.findByText('Focused entry text')).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledWith('/api/student/entries?classroom_id=c1')
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/teacher/student-history?classroom_id=c1&student_id=s1&date=2026-06-01&limit=1',
+    )
+    expect(fetchMock.mock.calls.some(([input]) => String(input).startsWith('/api/student/entries')))
+      .toBe(false)
   })
 
   it('invalidates and reloads attendance after roster upload', async () => {
