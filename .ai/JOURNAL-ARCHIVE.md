@@ -13928,3 +13928,22 @@
 - `pnpm lint`
 - `pnpm build`
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:811d38b1bc260bf9757c5ca281b154fd16028dc677f0383951b95f9d46f96305 -->
+## 2026-07-13 — Manual Gradex cleanup canary trigger
+
+**Completed:**
+- Added a `CRON_SECRET`-authenticated GET/POST cleanup endpoint behind an independent disabled-by-default trigger gate while preserving the cleanup worker's separate gate.
+- Bounded the manual canary to one claim per invocation and delegated lease, storage deletion, exact read-back, completion, and retry behavior to the existing cleanup coordinator.
+- Kept durably recorded item retries healthy while returning `503` when any claim lacks durable retry evidence; responses expose no storage paths or content.
+- Added tests that lock the route out of `vercel.json`; no schedule, UI caller, migration, dependency, production database, row, storage object, or environment setting was changed.
+- Updated environment, lifecycle, test, and current-context documentation.
+
+**Validation:**
+- Full Vitest suite (330 files / 2,925 tests)
+- Focused trigger/cleanup/extract/operations/artifact/startup suites (6 files / 85 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika pre-commit audit
+- `git diff --check`
