@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-13 — Manual classroom source cleanup canary
-
-**Completed:**
-- Added a `CRON_SECRET`-authenticated GET/POST canary route around the source-object cleanup worker with a separate disabled-by-default trigger gate.
-- Bounded every manual invocation to one lease and preserved the worker's independent enablement, checksum-before-remove, authoritative absence, stale-lease, and durable retry contracts.
-- Kept durably recorded item failures healthy while returning `503` when any claim lacks durable retry evidence; responses expose opaque object references but no storage paths, checksums, classroom ids, or content.
-- Locked the route out of `vercel.json` and documented both cleanup gates as disabled. No production setting, database, row, Storage object, UI caller, or schedule was changed.
-- Corrected stale lifecycle/test documentation that still described the source cleanup worker as unfinished.
-
-**Validation:**
-- Full Vitest suite (335 files / 2,977 tests)
-- Focused cleanup worker/trigger suites (2 files / 22 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- `git diff --check`
-
 ## 2026-07-13 — Local full-stack classroom archive recovery rehearsal
 
 **Completed:**
@@ -906,3 +889,27 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Merge the independently reviewed page-state PR after required checks. Then continue Phase 2 with shared table, menu, tabs, segmented-control, and split-pane contracts.
+
+## 2026-07-21 — Phase 2 composite-control contracts
+
+**Completed:**
+- Merged PR #900 and started Phase 2 item 6 from current `main` in a dedicated worktree.
+- Promoted canonical `DataTable` and `Tabs` primitives into `@/ui`, retained the legacy table export for incremental compatibility, and migrated teacher Attendance, Assignments, Tests, Gradebook, Roster, document-editor, and work-surface callers.
+- Standardized automatic tabs, roving segmented controls, Home/End menu navigation, keyboard table selection, stable row identity, split-pane and column-resize separators, focus-visible treatment, 44px interaction targets, and narrow-screen tab overflow.
+- Fixed independent-review findings covering failed Attendance refreshes, legacy `aria-label` compatibility, extra tab-panel stops, mobile tab overflow, row-focus semantics and cancellation races, remount-safe Attendance focus restoration, and resize target sizing.
+- Added governed composite-control guidance plus direct primitive and integration regressions. No schema, migration, API, production, or data change was made.
+- Opened PR #902 after independent architecture and accessibility re-reviews reported no remaining actionable findings.
+
+**Validation:**
+- `pnpm test --run` (390 files / 3,578 tests)
+- Focused DataTable and Attendance regressions (2 files / 20 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (612 modules / 0 allowances)
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- Teacher/student desktop/mobile light/dark visual matrix plus live Attendance ArrowDown selection, row focus, Escape deselection/focus restoration, and overflow checks
+- `git diff --cached --check`
+
+**Remaining:**
+- Merge PR #902 after required CI. Then continue Phase 2 with the next scoped shared-experience slice from the product-experience audit.
