@@ -530,7 +530,7 @@ export default function TeacherBlueprintsPage() {
   }
 
   return (
-    <PageLayout className="mx-auto max-w-7xl">
+    <PageLayout width="wide">
       <PageActionBar
         primary={
           <div>

@@ -72,7 +72,7 @@ export function AppShell({
       )}
       <main
         className={[
-          'flex-1 min-h-0',
+          'flex-1 min-h-0 w-full',
           shouldConstrainViewport ? 'lg:overflow-hidden' : '',
           mainClassName || 'max-w-7xl mx-auto px-4 py-3',
         ].filter(Boolean).join(' ')}

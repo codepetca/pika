@@ -118,6 +118,32 @@ interface CardProps {
 }
 ```
 
+### Page structure
+
+Use the page primitives from `@/ui` instead of feature-local width, gutter, heading, or action-bar
+wrappers:
+
+```tsx
+<PageLayout density="teacher" width="standard">
+  <PageActionBar
+    primary={<PageHeading title="Assignments" />}
+    actions={actions}
+  />
+  <PageContent>
+    <PageStack>{content}</PageStack>
+  </PageContent>
+</PageLayout>
+```
+
+- `PageLayout` owns the `reading`, `standard`, `wide`, and `full` content-width contract.
+- `density="teacher"` preserves Pika's compact operational spacing; `student` provides the
+  standard content rhythm. The default remains compact for compatibility while callers migrate.
+- `PageHeading` owns page/section heading level and typography. Do not add feature-local page-title
+  sizes.
+- `PageActionBar` keeps primary context and actions on one row, renders full actions on desktop,
+  and uses the keyboard-accessible overflow menu on mobile.
+- Action-bar controls and menu items preserve the shared 44px target and focus-visible treatment.
+
 ### EmptyState
 
 ```typescript

@@ -1,0 +1,22 @@
+import { render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { AppShell } from '@/components/AppShell'
+
+vi.mock('@/components/AppHeader', () => ({
+  AppHeader: () => <header>Header</header>,
+}))
+
+vi.mock('@/components/AuthSessionWatcher', () => ({
+  AuthSessionWatcher: () => null,
+}))
+
+describe('AppShell', () => {
+  it('keeps the main content region full width with default and custom page classes', () => {
+    const { rerender } = render(<AppShell>Default content</AppShell>)
+
+    expect(screen.getByRole('main')).toHaveClass('w-full', 'max-w-7xl')
+
+    rerender(<AppShell mainClassName="max-w-none px-0 py-0">Custom content</AppShell>)
+    expect(screen.getByRole('main')).toHaveClass('w-full', 'max-w-none', 'px-0', 'py-0')
+  })
+})
