@@ -14006,3 +14006,21 @@
 - Pika pre-commit audit
 - Local migration replay intentionally not run; GitHub's ephemeral Supabase database job is the execution authority
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:d81304c88ca887cb6f2378b6d71aa0ef8640b7a9e4fc9d622b6c206aab339708 -->
+## 2026-07-13 — Manual classroom source cleanup canary
+
+**Completed:**
+- Added a `CRON_SECRET`-authenticated GET/POST canary route around the source-object cleanup worker with a separate disabled-by-default trigger gate.
+- Bounded every manual invocation to one lease and preserved the worker's independent enablement, checksum-before-remove, authoritative absence, stale-lease, and durable retry contracts.
+- Kept durably recorded item failures healthy while returning `503` when any claim lacks durable retry evidence; responses expose opaque object references but no storage paths, checksums, classroom ids, or content.
+- Locked the route out of `vercel.json` and documented both cleanup gates as disabled. No production setting, database, row, Storage object, UI caller, or schedule was changed.
+- Corrected stale lifecycle/test documentation that still described the source cleanup worker as unfinished.
+
+**Validation:**
+- Full Vitest suite (335 files / 2,977 tests)
+- Focused cleanup worker/trigger suites (2 files / 22 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`

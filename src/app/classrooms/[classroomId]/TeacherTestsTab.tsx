@@ -24,15 +24,6 @@ import {
   AssessmentStatusIndicator,
   getTestGradingWorkStatusDisplay,
 } from '@/components/AssessmentStatusIndicator'
-import {
-  DataTable,
-  DataTableBody,
-  DataTableCell,
-  DataTableHead,
-  DataTableHeaderCell,
-  DataTableRow,
-  KeyboardNavigableTable,
-} from '@/components/DataTable'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import {
@@ -70,7 +61,26 @@ import {
   type TestWorkspaceTab as WorkspaceTab,
   type UpdateSearchParamsFn,
 } from '@/hooks/useTestWorkspaceNavigation'
-import { Button, ConfirmDialog, DialogPanel, EmptyState, RefreshingIndicator, Select, SplitButton, Tooltip, useAppMessage, useOverlayMessage, type SplitButtonProps } from '@/ui'
+import {
+  Button,
+  ConfirmDialog,
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderCell,
+  DataTableRow,
+  DialogPanel,
+  EmptyState,
+  KeyboardNavigableTable,
+  RefreshingIndicator,
+  Select,
+  SplitButton,
+  Tooltip,
+  useAppMessage,
+  useOverlayMessage,
+  type SplitButtonProps,
+} from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
   AssessmentWorkspaceSummaryPatch,
@@ -79,6 +89,8 @@ import type {
   TestAssessmentWithStats,
   TestAiGradingRunSummary,
 } from '@/types'
+
+const getTestGradingStudentRowId = (studentId: string) => `test-grading-student-row-${studentId}`
 
 interface Props {
   classroom: Classroom
@@ -1944,10 +1956,12 @@ export function TeacherTestsTab({
         />
       ) : (
         <KeyboardNavigableTable
+          ariaLabel="Test grading students"
           ref={gradingStudentTableScrollRef}
           rowKeys={gradingRowIds}
           selectedKey={selectedStudentId}
           onSelectKey={handleGradingStudentSelect}
+          getRowId={getTestGradingStudentRowId}
           className="min-h-0 w-full flex-1 overflow-auto rounded-md border border-border bg-surface"
           data-testid="test-grading-student-scroll-pane"
           onScroll={preserveGradingStudentTableScrollPosition}
@@ -2071,6 +2085,8 @@ export function TeacherTestsTab({
                 return (
                   <DataTableRow
                     key={student.student_id}
+                    id={getTestGradingStudentRowId(student.student_id)}
+                    tabIndex={-1}
                     data-test-grading-student-row=""
                     data-test-grading-student-row-id={student.student_id}
                     data-testid={`test-grading-student-row-${student.student_id}`}

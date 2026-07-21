@@ -1452,6 +1452,10 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
 
     const studentScrollPane = await screen.findByTestId('test-grading-student-scroll-pane')
+    expect(screen.getByRole('region', { name: 'Test grading students' })).toHaveAttribute(
+      'aria-keyshortcuts',
+      'ArrowUp ArrowDown Home End Escape',
+    )
     const table = within(studentScrollPane).getByRole('table')
     expect(table).toHaveClass('table-fixed')
     expect(table).toHaveClass('lg:table-auto')
@@ -1482,6 +1486,13 @@ describe('TeacherTestsTab', () => {
     await waitFor(() => {
       expect(screen.getByTestId('mock-test-grading-panel')).toBeInTheDocument()
     })
+    const selectedRow = screen.getByTestId('test-grading-student-row-student-1')
+    expect(selectedRow).toHaveAttribute('id', 'test-grading-student-row-student-1')
+    expect(selectedRow).toHaveAttribute('tabindex', '-1')
+    expect(selectedRow).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
 
     fireEvent.keyDown(window, { key: 'Escape' })
 

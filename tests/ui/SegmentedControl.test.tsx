@@ -24,6 +24,8 @@ describe('SegmentedControl', () => {
     expect(group).toContainElement(edit)
     expect(edit).toHaveAttribute('aria-pressed', 'true')
     expect(preview).toHaveAttribute('aria-pressed', 'false')
+    expect(edit).toHaveAttribute('tabindex', '0')
+    expect(preview).toHaveAttribute('tabindex', '-1')
     expect(edit).toHaveClass('min-h-11', 'min-w-11', 'focus-visible:ring-2')
 
     fireEvent.click(preview)
@@ -48,5 +50,38 @@ describe('SegmentedControl', () => {
 
     expect(screen.getByRole('button', { name: 'List view' })).toHaveClass('h-11', 'w-11')
     expect(screen.getByRole('button', { name: 'Grid view' })).toHaveClass('h-11', 'w-11')
+  })
+
+  it('uses roving arrow, Home, and End navigation while skipping disabled options', () => {
+    const onChange = vi.fn()
+    render(
+      <SegmentedControl
+        ariaLabel="View"
+        value="list"
+        options={[
+          { value: 'list', label: 'List' },
+          { value: 'board', label: 'Board', disabled: true },
+          { value: 'grid', label: 'Grid' },
+        ]}
+        onChange={onChange}
+      />,
+    )
+
+    const list = screen.getByRole('button', { name: 'List' })
+    const grid = screen.getByRole('button', { name: 'Grid' })
+
+    fireEvent.keyDown(list, { key: 'ArrowRight' })
+    expect(onChange).toHaveBeenLastCalledWith('grid')
+    expect(grid).toHaveFocus()
+
+    fireEvent.keyDown(grid, { key: 'ArrowRight' })
+    expect(onChange).toHaveBeenLastCalledWith('list')
+    expect(list).toHaveFocus()
+
+    fireEvent.keyDown(list, { key: 'End' })
+    expect(onChange).toHaveBeenLastCalledWith('grid')
+
+    fireEvent.keyDown(grid, { key: 'Home' })
+    expect(onChange).toHaveBeenLastCalledWith('list')
   })
 })

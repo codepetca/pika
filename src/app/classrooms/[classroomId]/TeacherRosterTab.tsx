@@ -2,7 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { Button, ConfirmDialog, useAppMessage } from '@/ui'
+import {
+  Button,
+  ConfirmDialog,
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderCell,
+  DataTableRow,
+  EmptyStateRow,
+  KeyboardNavigableTable,
+  SortableHeaderCell,
+  TableCard,
+  useAppMessage,
+} from '@/ui'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
@@ -12,18 +26,6 @@ import {
   type TeacherWorkSurfaceActionItem,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
-import {
-  DataTable,
-  DataTableBody,
-  DataTableCell,
-  DataTableHead,
-  DataTableRow,
-  DataTableHeaderCell,
-  EmptyStateRow,
-  KeyboardNavigableTable,
-  SortableHeaderCell,
-  TableCard,
-} from '@/components/DataTable'
 import type { Classroom, RosterJoinSource } from '@/types'
 import { Check, Copy, Mail, Pencil, Plus, Settings, X } from 'lucide-react'
 import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
@@ -33,6 +35,8 @@ import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 
 type Role = 'student' | 'teacher'
+
+const getRosterStudentRowId = (rosterId: string) => `roster-student-row-${rosterId}`
 
 interface RosterRow {
   id: string
@@ -557,10 +561,12 @@ export function TeacherRosterTab({ classroom }: Props) {
         )}
 
         <KeyboardNavigableTable
+          ariaLabel="Classroom roster"
           rowKeys={rosterIds}
           selectedKey={selectedRosterId}
           onSelectKey={selectRosterId}
           onDeselect={() => selectRosterId(null)}
+          getRowId={getRosterStudentRowId}
         >
           <DataTable density="tight">
             <DataTableHead>
@@ -603,6 +609,9 @@ export function TeacherRosterTab({ classroom }: Props) {
                 return (
                   <DataTableRow
                     key={row.id}
+                    id={getRosterStudentRowId(row.id)}
+                    aria-selected={isSelected}
+                    tabIndex={-1}
                     className={[
                       'cursor-pointer transition-colors',
                       isSelected ? 'bg-info-bg hover:bg-info-bg-hover' : 'hover:bg-surface-hover',

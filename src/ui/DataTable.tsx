@@ -1,0 +1,356 @@
+'use client'
+
+import { createContext, forwardRef, useCallback, useContext, useEffect, useRef, type HTMLAttributes, type KeyboardEvent, type ReactNode, type Ref, type TdHTMLAttributes, type ThHTMLAttributes } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
+
+export type DataTableDensity = 'tight' | 'compact' | 'normal'
+export type SortDirection = 'asc' | 'desc'
+
+const DensityContext = createContext<DataTableDensity>('compact')
+
+function useDensity(override?: DataTableDensity): DataTableDensity {
+  const ctx = useContext(DensityContext)
+  return override ?? ctx
+}
+
+function densityPadding(density: DataTableDensity) {
+  if (density === 'tight') return 'px-3 py-1'
+  if (density === 'compact') return 'px-4 py-2'
+  return 'px-4 py-3'
+}
+
+export function TableCard({
+  children,
+  overflowX = false,
+  chrome = 'default',
+}: {
+  children: ReactNode
+  overflowX?: boolean
+  chrome?: 'default' | 'flush'
+}) {
+  return (
+    <div
+      className={
+        chrome === 'flush'
+          ? 'overflow-hidden'
+          : 'overflow-hidden rounded-lg border border-border bg-surface'
+      }
+    >
+      <div className={overflowX ? 'overflow-x-auto' : undefined}>{children}</div>
+    </div>
+  )
+}
+
+export function DataTable({
+  children,
+  density,
+  className = '',
+}: {
+  children: ReactNode
+  density?: DataTableDensity
+  className?: string
+}) {
+  const table = <table className={['w-full', className].filter(Boolean).join(' ')}>{children}</table>
+  return density ? <DensityContext.Provider value={density}>{table}</DensityContext.Provider> : table
+}
+
+export function DataTableHead({ children }: { children: ReactNode }) {
+  return (
+    <thead
+      className="border-b border-border bg-surface-2"
+    >
+      {children}
+    </thead>
+  )
+}
+
+export function DataTableBody({ children }: { children: ReactNode }) {
+  return <tbody className="divide-y divide-border">{children}</tbody>
+}
+
+export function DataTableRow({
+  children,
+  className = '',
+  ...props
+}: { children: ReactNode; className?: string } & HTMLAttributes<HTMLTableRowElement>) {
+  return (
+    <tr className={className} {...props}>
+      {children}
+    </tr>
+  )
+}
+
+export function DataTableHeaderCell({
+  children,
+  density: densityProp,
+  align = 'left',
+  className = '',
+  ...props
+}: {
+  children: ReactNode
+  density?: DataTableDensity
+  align?: 'left' | 'center' | 'right'
+  className?: string
+} & ThHTMLAttributes<HTMLTableCellElement>) {
+  const density = useDensity(densityProp)
+  const alignClass =
+    align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left'
+  return (
+    <th
+      className={[
+        densityPadding(density),
+        alignClass,
+        'text-sm font-medium text-text-muted',
+        className,
+      ].join(' ')}
+      {...props}
+    >
+      {children}
+    </th>
+  )
+}
+
+export function SortableHeaderCell({
+  label,
+  isActive,
+  direction,
+  onClick,
+  density: densityProp,
+  align = 'left',
+  className = '',
+  trailing,
+}: {
+  label: string
+  isActive: boolean
+  direction: SortDirection
+  onClick: () => void
+  density?: DataTableDensity
+  align?: 'left' | 'center' | 'right'
+  className?: string
+  trailing?: React.ReactNode
+}) {
+  const density = useDensity(densityProp)
+  const alignClass =
+    align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : 'justify-start'
+  const ariaSort = isActive ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'
+  const Icon = direction === 'asc' ? ChevronUp : ChevronDown
+
+  return (
+    <DataTableHeaderCell density={density} align={align} className={['!p-0', className].join(' ')} aria-sort={ariaSort}>
+      <button
+        type="button"
+        onClick={onClick}
+        className={[
+          densityPadding(density),
+          'flex min-h-11 w-full items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
+          alignClass,
+          'hover:bg-surface-hover transition-colors',
+        ].join(' ')}
+      >
+        <span className="truncate">{label}</span>
+        <Icon
+          className={[
+            'h-4 w-4 flex-shrink-0',
+            isActive ? 'text-text-muted' : 'opacity-0',
+          ].join(' ')}
+          aria-hidden="true"
+        />
+        {trailing}
+      </button>
+    </DataTableHeaderCell>
+  )
+}
+
+export function DataTableCell({
+  children,
+  density: densityProp,
+  align = 'left',
+  className = '',
+  ...props
+}: {
+  children: ReactNode
+  density?: DataTableDensity
+  align?: 'left' | 'center' | 'right'
+  className?: string
+} & TdHTMLAttributes<HTMLTableCellElement>) {
+  const density = useDensity(densityProp)
+  const alignClass =
+    align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left'
+  return (
+    <td
+      className={[
+        densityPadding(density),
+        alignClass,
+        'text-sm text-text-default',
+        className,
+      ].join(' ')}
+      {...props}
+    >
+      {children}
+    </td>
+  )
+}
+
+export function EmptyStateRow({
+  colSpan,
+  message,
+}: {
+  colSpan: number
+  message: string
+}) {
+  return (
+    <DataTableRow>
+      <td colSpan={colSpan} className="py-12 text-center text-sm text-text-muted">
+        {message}
+      </td>
+    </DataTableRow>
+  )
+}
+
+/**
+ * Wrapper component that adds keyboard navigation (↑/↓ arrows) to a table.
+ * Use this to wrap TableCard when you need row selection with keyboard support.
+ */
+type KeyboardNavigableTableProps<K extends string> = {
+  children: ReactNode
+  /** Accessible name for the keyboard-selectable table region. Prefer this over aria-label. */
+  ariaLabel?: string
+  /** Array of row keys in display order */
+  rowKeys: K[]
+  /** Currently selected row key */
+  selectedKey: K | null
+  /** Callback when selection changes */
+  onSelectKey: (key: K) => void
+  /** Callback when selection is cleared (Escape key) */
+  onDeselect?: () => void
+  /** Whether to wrap around at the ends (default: true) */
+  wrap?: boolean
+  /** Returns the DOM id of a row so assistive technology can track keyboard selection. */
+  getRowId?: (key: K) => string
+} & Omit<HTMLAttributes<HTMLDivElement>, 'onKeyDown' | 'onSelect'>
+
+export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable<K extends string>({
+  children,
+  ariaLabel,
+  'aria-label': ariaLabelAttribute,
+  rowKeys,
+  selectedKey,
+  onSelectKey,
+  onDeselect,
+  wrap = true,
+  getRowId,
+  className = '',
+  tabIndex,
+  ...props
+}: KeyboardNavigableTableProps<K>, ref: Ref<HTMLDivElement>) {
+  const pendingFocusTimeoutRef = useRef<number | null>(null)
+  const pendingFocusKeyRef = useRef<K | null>(null)
+  const selectedKeyRef = useRef(selectedKey)
+  selectedKeyRef.current = selectedKey
+
+  const cancelPendingRowFocus = useCallback(() => {
+    if (pendingFocusTimeoutRef.current !== null) {
+      window.clearTimeout(pendingFocusTimeoutRef.current)
+      pendingFocusTimeoutRef.current = null
+    }
+    pendingFocusKeyRef.current = null
+  }, [])
+
+  useEffect(() => cancelPendingRowFocus, [cancelPendingRowFocus])
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLDivElement>) => {
+      const eventTarget = e.target
+      const isTableNavigationTarget = eventTarget === e.currentTarget || (
+        eventTarget instanceof HTMLElement
+        && (eventTarget.tagName === 'TR' || eventTarget.getAttribute('role') === 'row')
+      )
+      if (!isTableNavigationTarget) return
+
+      if (
+        e.key === 'Escape'
+        && onDeselect
+        && (selectedKey !== null || pendingFocusKeyRef.current !== null)
+      ) {
+        e.preventDefault()
+        cancelPendingRowFocus()
+        onDeselect()
+        e.currentTarget.focus()
+        return
+      }
+
+      if (rowKeys.length === 0) return
+      if (
+        e.key !== 'ArrowUp'
+        && e.key !== 'ArrowDown'
+        && e.key !== 'Home'
+        && e.key !== 'End'
+      ) return
+
+      e.preventDefault()
+
+      const currentIndex = selectedKey ? rowKeys.indexOf(selectedKey) : -1
+      let nextIndex: number
+
+      if (e.key === 'Home') {
+        nextIndex = 0
+      } else if (e.key === 'End') {
+        nextIndex = rowKeys.length - 1
+      } else if (e.key === 'ArrowDown') {
+        if (currentIndex === -1) {
+          nextIndex = 0
+        } else if (currentIndex === rowKeys.length - 1) {
+          nextIndex = wrap ? 0 : currentIndex
+        } else {
+          nextIndex = currentIndex + 1
+        }
+      } else {
+        // ArrowUp
+        if (currentIndex === -1) {
+          nextIndex = rowKeys.length - 1
+        } else if (currentIndex === 0) {
+          nextIndex = wrap ? rowKeys.length - 1 : currentIndex
+        } else {
+          nextIndex = currentIndex - 1
+        }
+      }
+
+      if (nextIndex !== currentIndex) {
+        const nextKey = rowKeys[nextIndex]
+        onSelectKey(nextKey)
+        if (getRowId) {
+          cancelPendingRowFocus()
+          pendingFocusKeyRef.current = nextKey
+          pendingFocusTimeoutRef.current = window.setTimeout(() => {
+            if (pendingFocusKeyRef.current !== nextKey) return
+            if (selectedKeyRef.current !== nextKey) {
+              cancelPendingRowFocus()
+              return
+            }
+            document.getElementById(getRowId(nextKey))?.focus()
+            pendingFocusKeyRef.current = null
+            pendingFocusTimeoutRef.current = null
+          }, 0)
+        }
+      }
+    },
+    [cancelPendingRowFocus, getRowId, rowKeys, selectedKey, onSelectKey, onDeselect, wrap]
+  )
+
+  return (
+    <div
+      {...props}
+      ref={ref}
+      role="region"
+      aria-label={ariaLabel ?? ariaLabelAttribute}
+      aria-keyshortcuts="ArrowUp ArrowDown Home End Escape"
+      tabIndex={tabIndex ?? 0}
+      onKeyDown={handleKeyDown}
+      className={['rounded-card outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface', className].filter(Boolean).join(' ')}
+    >
+      {children}
+    </div>
+  )
+}) as <K extends string>(props: KeyboardNavigableTableProps<K> & {
+  ref?: Ref<HTMLDivElement>
+}) => ReactNode

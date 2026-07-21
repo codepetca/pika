@@ -95,4 +95,24 @@ describe('ui guidance docs and prompts', () => {
     expect(stableGuidance).toContain('PageState')
     expect(uiReadme).toContain('page-state-conventions.md')
   })
+
+  it('keeps composite-control ownership and keyboard contracts explicit', () => {
+    const stableGuidance = readRepoFile('docs/guidance/ui/stable.md')
+    const compositeGuidance = readRepoFile(
+      'docs/guidance/ui/composite-control-conventions.md',
+    )
+    const uiReadme = readRepoFile('src/ui/README.md')
+
+    for (const contract of ['## Tabs', '## Menus', '## Segmented Controls', '## Tables', '## Split Panes']) {
+      expect(compositeGuidance).toContain(contract)
+    }
+
+    expect(compositeGuidance).toContain('Home')
+    expect(compositeGuidance).toContain('End')
+    expect(compositeGuidance).toContain('aria-valuenow')
+    expect(compositeGuidance).toContain('moves focus to that row')
+    expect(compositeGuidance).toContain('44px pointer target')
+    expect(stableGuidance).toContain('composite-control-conventions.md')
+    expect(uiReadme).toContain('Tabs` plus `TabPanel')
+  })
 })

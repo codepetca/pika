@@ -14,7 +14,11 @@ describe('WorkspaceSplitPane', () => {
         divider={{
           label: 'Resize panes',
           onPointerDown,
+          onKeyDown: vi.fn(),
           onDoubleClick,
+          ariaValueMin: 20,
+          ariaValueMax: 80,
+          ariaValueNow: 50,
         }}
       />,
     )
@@ -32,6 +36,7 @@ describe('WorkspaceSplitPane', () => {
   })
 
   it('makes a keyboard-controlled divider focusable and reports its value', () => {
+    const onKeyDown = vi.fn()
     render(
       <WorkspaceSplitPane
         left={<div>Left pane</div>}
@@ -39,7 +44,7 @@ describe('WorkspaceSplitPane', () => {
         divider={{
           label: 'Resize panes',
           onPointerDown: vi.fn(),
-          onKeyDown: vi.fn(),
+          onKeyDown,
           ariaValueMin: 20,
           ariaValueMax: 80,
           ariaValueNow: 45,
@@ -52,6 +57,8 @@ describe('WorkspaceSplitPane', () => {
     expect(separator).toHaveAttribute('aria-valuemin', '20')
     expect(separator).toHaveAttribute('aria-valuemax', '80')
     expect(separator).toHaveAttribute('aria-valuenow', '45')
+    fireEvent.keyDown(separator, { key: 'ArrowRight' })
+    expect(onKeyDown).toHaveBeenCalledOnce()
   })
 
   it('omits the right pane when rightVisible is false', () => {

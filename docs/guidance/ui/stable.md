@@ -87,6 +87,26 @@ Source grounding:
 - [`src/app/teacher/dashboard/page.tsx`](/src/app/teacher/dashboard/page.tsx)
 - [`src/app/student/history/page.tsx`](/src/app/student/history/page.tsx)
 
+### 3c. Composite controls keep behavior in their shared owner
+
+- Use `Tabs` for tabpanel navigation and `SegmentedControl` for peer mode/display options without
+  tabpanels; do not reproduce either behavior with feature-local buttons.
+- Product menus use the shared dropdown-navigation contract, including disabled-item skipping,
+  first/last movement, Escape close, and focus restoration.
+- Import governed table primitives from `@/ui`; name keyboard-selectable table regions and keep
+  sortable-header state semantic.
+- Every visible split-pane drag divider must also expose separator values and keyboard resizing.
+- Run the composite-widget checklist and direct role/focus/keyboard tests whenever these contracts
+  change.
+
+Source grounding:
+
+- [`docs/guidance/ui/composite-control-conventions.md`](/docs/guidance/ui/composite-control-conventions.md)
+- [`src/ui/Tabs.tsx`](/src/ui/Tabs.tsx)
+- [`src/ui/DataTable.tsx`](/src/ui/DataTable.tsx)
+- [`src/hooks/use-dropdown-nav.ts`](/src/hooks/use-dropdown-nav.ts)
+- [`src/components/WorkspaceSplitPane.tsx`](/src/components/WorkspaceSplitPane.tsx)
+
 ### 4. Attendance stays presence-first and scan-friendly
 
 - Attendance UI is optimized for quick scanning and teacher drill-down, not extra status taxonomy.
