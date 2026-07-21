@@ -8,7 +8,7 @@ Read this at session start. `.ai/features.json` is the epic status authority; `.
 - Production migrations 001-099 and the named archive round-trip canary are verified. The classroom is hot-restored; source and Gradex cleanup remain disabled.
 - The product-experience program is tracked in `.ai/features.json`; Phase 1 evidence is in `docs/guidance/ui/product-experience-audit-2026-07.md`.
 - The Safety Wave is complete through PRs #890, #891, and #893-#895.
-- Phase 2 is active. PRs #896-#898 merged contrast, modal, control-target, focus, and form contracts. The page-structure slice now defines governed width, density, heading, spacing, and responsive action placement in `@/ui`; independent review is next.
+- Phase 2 is active. PRs #896-#898 merged contrast, modal, control-target, focus, and form contracts. PR #899 defines governed width, density, heading, spacing, and responsive action placement in `@/ui`; initial review is complete and remediation is in progress.
 
 ## Environment
 

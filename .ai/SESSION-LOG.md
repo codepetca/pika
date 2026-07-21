@@ -877,6 +877,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Corrected the shared `AppShell` main region so default pages fill the available width instead of accidentally shrinking to their contents.
 - Removed action-bar overrides that reduced shared controls below 44px and gave mobile menu items explicit target and focus-visible treatment.
 - Visually verified teacher and student classroom indexes at desktop/mobile sizes in light/dark themes, including the open mobile menu. All eight role/viewport/theme cases had exact viewport width, no console/page errors, and focused 44px menu items.
+- Opened PR #899. Initial independent architecture review found no actionable issues; accessibility review prompted additional disabled-item, ArrowUp, Home, and End menu coverage plus reconciliation of stale promotion guidance.
 
 **Validation:**
 - Full `pnpm test` suite
@@ -892,4 +893,4 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 
 **Remaining:**
-- Publish and independently review the page-structure slice. Then continue Phase 2 with page-level loading, error, empty, and forbidden contracts.
+- Complete targeted remediation review and merge PR #899 after required checks. Then continue Phase 2 with page-level loading, error, empty, and forbidden contracts.

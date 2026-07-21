@@ -68,6 +68,7 @@ describe('PageActionBar', () => {
   it('supports keyboard navigation and returns focus to the trigger on escape', async () => {
     renderActionBar([
       { id: 'archive', label: 'Archive', onSelect: vi.fn() },
+      { id: 'disabled', label: 'Disabled', disabled: true, onSelect: vi.fn() },
       { id: 'delete', label: 'Delete', destructive: true, onSelect: vi.fn() },
     ])
 
@@ -86,6 +87,12 @@ describe('PageActionBar', () => {
     expect(deleteItem).toHaveFocus()
 
     fireEvent.keyDown(window, { key: 'ArrowDown' })
+    expect(archiveItem).toHaveFocus()
+
+    fireEvent.keyDown(window, { key: 'ArrowUp' })
+    expect(deleteItem).toHaveFocus()
+
+    fireEvent.keyDown(window, { key: 'Home' })
     expect(archiveItem).toHaveFocus()
 
     fireEvent.keyDown(window, { key: 'End' })
