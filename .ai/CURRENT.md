@@ -7,7 +7,8 @@ Read this at session start. `.ai/features.json` is the epic status authority; `.
 - Core classroom, assignment, test, and auth flows are live.
 - Production migrations 001-099 and the named archive round-trip canary are verified. The classroom is hot-restored; source and Gradex cleanup remain disabled.
 - The product-experience program is tracked in `.ai/features.json`; Phase 1 evidence is in `docs/guidance/ui/product-experience-audit-2026-07.md`.
-- Safety Wave: classroom deletion is retired (#890), assignment integrity is deployed (#891), local seeding supports migration 099 (#893), and the dashboard teacher-entry contract is merged (#894). Blueprint package v3 reconciliation is in PR #895 as the final item before Phase 2.
+- The Safety Wave is complete through PRs #890, #891, and #893-#895.
+- Phase 2 is active. PR #896 enforces semantic-token contrast; the shared modal-layer contract is next.
 
 ## Environment
 

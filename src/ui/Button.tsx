@@ -9,12 +9,12 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'border-transparent bg-primary text-text-inverse hover:bg-primary-hover',
+        primary: 'border-transparent bg-primary-solid text-text-inverse hover:bg-primary-solid-hover',
         secondary: 'border-border bg-surface-2 hover:bg-surface-hover text-text-default',
         surface: 'border-border bg-surface hover:bg-surface-hover text-text-default',
         subtle: 'border-primary bg-info-bg hover:bg-info-bg-hover text-text-default',
-        danger: 'border-transparent bg-danger hover:bg-danger-hover text-text-inverse',
-        success: 'border-transparent bg-success hover:bg-success-hover text-text-inverse',
+        danger: 'border-transparent bg-danger-solid hover:bg-danger-solid-hover text-text-inverse',
+        success: 'border-transparent bg-success-solid hover:bg-success-solid-hover text-text-inverse',
         ghost: 'border-transparent bg-transparent text-text-muted hover:bg-surface-hover hover:text-text-default',
       },
       size: {

@@ -63,10 +63,14 @@ const config: Config = {
         primary: {
           DEFAULT: 'var(--color-primary)',
           hover: 'var(--color-primary-hover)',
+          solid: 'var(--color-primary-solid)',
+          'solid-hover': 'var(--color-primary-solid-hover)',
         },
         success: {
           DEFAULT: 'var(--color-success)',
           hover: 'var(--color-success-hover)',
+          solid: 'var(--color-success-solid)',
+          'solid-hover': 'var(--color-success-solid-hover)',
           bg: {
             DEFAULT: 'var(--color-success-bg)',
             muted: 'var(--color-success-bg-muted)',
@@ -76,6 +80,8 @@ const config: Config = {
         danger: {
           DEFAULT: 'var(--color-danger)',
           hover: 'var(--color-danger-hover)',
+          solid: 'var(--color-danger-solid)',
+          'solid-hover': 'var(--color-danger-solid-hover)',
           bg: {
             DEFAULT: 'var(--color-danger-bg)',
             hover: 'var(--color-danger-bg-hover)',

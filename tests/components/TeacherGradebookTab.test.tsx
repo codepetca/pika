@@ -268,7 +268,10 @@ describe('TeacherGradebookTab', () => {
     gradebookMenu = openGradebookActions()
     expect(within(gradebookMenu).getByRole('menuitemcheckbox', { name: 'Column controls' })).toHaveAttribute('aria-checked', 'false')
 
-    fireEvent.click(screen.getByRole('row', { name: /Ada Lovelace.*80% 100% 90% 85\.0%/ }))
+    const adaRow = screen.getByRole('row', { name: /Ada Lovelace.*80% 100% 90% 85\.0%/ })
+    fireEvent.click(adaRow)
+    expect(adaRow).toHaveAttribute('aria-selected', 'true')
+    expect(adaRow).toHaveClass('border-l-2', 'border-l-primary', 'bg-surface-selected')
     const detailPanel = screen.getByRole('region', { name: 'Ada Lovelace assessment details' })
     expect(within(detailPanel).getByText('1001')).toBeInTheDocument()
     expect(within(detailPanel).getByText('Essay')).toBeInTheDocument()

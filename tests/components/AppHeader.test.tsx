@@ -37,7 +37,7 @@ describe('AppHeader exam mode', () => {
 
     rerender(<AppHeader examModeHeader={{ testTitle: 'Unit Test', exitsCount: 2, awayTotalSeconds: 0 }} />)
 
-    expect(screen.getByLabelText('Exits 2')).toHaveClass('bg-warning')
+    expect(screen.getByLabelText('Exits 2')).toHaveClass('bg-warning-bg', 'text-warning')
     expect(screen.getByText('Exit detected')).toHaveClass('sr-only')
 
     rerender(<AppHeader examModeHeader={{ testTitle: 'Unit Test', exitsCount: 1, awayTotalSeconds: 0 }} />)
@@ -47,7 +47,7 @@ describe('AppHeader exam mode', () => {
 
     rerender(<AppHeader examModeHeader={{ testTitle: 'Unit Test', exitsCount: 2, awayTotalSeconds: 0 }} />)
 
-    expect(screen.getByLabelText('Exits 2')).toHaveClass('bg-warning')
+    expect(screen.getByLabelText('Exits 2')).toHaveClass('bg-warning-bg', 'text-warning')
     expect(screen.getByText('Exit detected')).toHaveClass('sr-only')
 
     act(() => {

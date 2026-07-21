@@ -13910,3 +13910,21 @@
 - `bash -n scripts/check-classroom-gradex-database.sh`
 - Local executable database contract unavailable because the running Supabase container predates migration 082; migrations were not applied or modified
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:5906846349320a170ff42564401b65db97adf5a3ce418eaf3d35c0066b878a4c -->
+## 2026-07-13 — Verified Gradex retention cleanup runtime
+
+**Completed:**
+- Added a server-only, disabled-by-default cleanup coordinator over migration 084's lease claim, completion, and retry RPCs without adding an HTTP route, cron entry, or automatic caller.
+- Bounded each invocation to 10 claims and strictly validated the private bucket, canonical teacher/classroom/extract path shape, extract id binding, claim uniqueness, attempts, and lease inputs with Zod.
+- Required exact post-delete read-back evidence: only authoritative object-key absence can complete the current lease; missing buckets, present objects, uncertain Storage results, stale leases, and malformed RPC responses fail closed.
+- Added durable per-claim retry recording, stale-lease non-mutation, independent failure containment, privacy-safe aggregate metrics, and idempotent already-absent handling.
+- Updated environment, lifecycle, test, and current-context documentation. No production database, migration, row, storage object, route, schedule, or environment setting was modified.
+
+**Validation:**
+- Full Vitest suite (329 files / 2,915 tests)
+- Focused cleanup/generation/transformer/artifact/migration/startup suites (6 files / 80 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`
