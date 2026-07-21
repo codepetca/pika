@@ -912,6 +912,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Preserved the existing `Classrooms` and `History` destinations plus the original `max-w-4xl px-4 py-8` content geometry. This slice does not redirect, retire, or consolidate `/student/history`, and does not change classroom navigation.
 - Added a direct student-layout regression and expanded the durable application-navigation Playwright contract with student desktop-light and mobile-dark checks for active state, inset focus, rendered target size, spacing, and overflow.
 - Visually inspected populated student History at desktop and mobile widths; the two-column desktop layout and stacked mobile workflow remain intact with the cleaned shared header.
+- Opened PR #904 for independent review.
 
 **Validation:**
 - `pnpm test --run` (393 files / 3,585 tests)
