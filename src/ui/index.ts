@@ -23,6 +23,25 @@ export { TabContentTransition } from './TabContentTransition'
 export { SegmentedControl, type SegmentedControlOption, type SegmentedControlProps } from './SegmentedControl'
 export { SplitButton, type SplitButtonProps, type SplitButtonOption } from './SplitButton'
 export {
+  PageActionBar,
+  PageContent,
+  PageDensityProvider,
+  PageHeading,
+  PageLayout,
+  PageStack,
+  ACTIONBAR_BUTTON_CLASSNAME,
+  ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
+  ACTIONBAR_BUTTON_SECONDARY_CLASSNAME,
+  ACTIONBAR_ICON_BUTTON_CLASSNAME,
+  ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME,
+  type ActionBarItem,
+  type PageActionBarProps,
+  type PageDensity,
+  type PageHeadingProps,
+  type PageLayoutProps,
+  type PageWidth,
+} from './Page'
+export {
   AppMessageFallback,
   AppMessageProvider,
   useAppMessage,

@@ -24,9 +24,8 @@ import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { ColdClassroomArchiveRow } from '@/components/ColdClassroomArchiveRow'
 import { FloatingActionCluster } from '@/components/FloatingActionCluster'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
-import { Button, ConfirmDialog, SegmentedControl } from '@/ui'
+import { Button, ConfirmDialog, PageContent, PageLayout, SegmentedControl } from '@/ui'
 import { Spinner } from '@/components/Spinner'
-import { PageContent, PageLayout } from '@/components/PageLayout'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import type { Classroom } from '@/types'
 import type { ClassroomColdArchiveSummary } from '@/lib/contracts/classroom-lifecycle'
@@ -345,7 +344,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   }, [router])
 
   return (
-    <PageLayout className="mx-auto max-w-2xl">
+    <PageLayout density="teacher" width="reading">
       <PageContent className="pb-24">
         {error && (
           <div className="mb-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">

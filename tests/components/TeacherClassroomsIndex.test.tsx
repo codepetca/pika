@@ -59,6 +59,15 @@ describe('TeacherClassroomsIndex', () => {
     vi.restoreAllMocks()
   })
 
+  it('uses the governed compact reading-width page frame', () => {
+    renderTeacherClassroomsIndex([
+      createMockClassroom({ id: 'c1', title: 'Math 101' }),
+    ])
+
+    const pageFrame = screen.getByTestId('classroom-card').closest('.max-w-2xl')
+    expect(pageFrame).toHaveClass('mx-auto', 'w-full', 'max-w-2xl')
+  })
+
   it('does not refetch classrooms on initial mount (#302)', async () => {
     const classrooms = [createMockClassroom({ id: 'c1', title: 'Math 101' })]
     renderTeacherClassroomsIndex(classrooms)

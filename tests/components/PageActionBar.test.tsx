@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { PageActionBar, type ActionBarItem } from '@/components/PageLayout'
+import { PageActionBar, type ActionBarItem } from '@/ui'
 
 function renderActionBar(actions: ActionBarItem[], actionsAlign: 'start' | 'end' = 'end') {
   return render(
@@ -28,6 +28,7 @@ describe('PageActionBar', () => {
     expect(menuButton).toHaveAttribute('aria-controls')
     expect(menuButton).toHaveAttribute('aria-expanded', 'false')
     expect(menuButton.parentElement?.parentElement).toHaveClass('sm:hidden')
+    expect(menuButton).toHaveClass('h-11', 'w-11')
   })
 
   it('opens mobile actions, groups destructive items last, and closes after selection', async () => {
@@ -50,6 +51,7 @@ describe('PageActionBar', () => {
     const menuItems = within(menu).getAllByRole('menuitem')
     expect(menuItems.map((item) => item.textContent)).toEqual(['Archive', 'Delete'])
     expect(menuItems[1].parentElement).toHaveClass('border-t', 'border-border')
+    expect(menuItems[0]).toHaveClass('min-h-11', 'focus-visible:ring-2')
     await waitFor(() => {
       expect(within(menu).getByRole('menuitem', { name: 'Archive' })).toHaveFocus()
     })

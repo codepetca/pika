@@ -13968,3 +13968,20 @@
 - Pika pre-commit audit
 - Local migration replay intentionally not run; GitHub's ephemeral Supabase database job is the execution authority
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:a0d39262143590d2c6c3f7ba304dae559d6dfdf232d563cff7d98f8bfd47aadb -->
+## 2026-07-13 — Gated classroom cold-compaction runtime coordinator
+
+**Completed:**
+- Added a server-only compaction coordinator over migration 085 with independent enablement, exact teacher allowlisting, and exact immutable-archive allowlisting; no route, UI, cron, or automatic caller was added.
+- Required canonical private archive paths, outer checksum equality, strict manifest/read-back verification, exact teacher/classroom/archive identity, exact relational and storage inventories, and bounded idempotent source-object cleanup staging before atomic finalization.
+- Added fail-closed completion handling that validates durable evidence and counts, never reports an ambiguous committed response as success, records terminal versus retryable operation failures, and returns completed replays without rereading Storage.
+- Documented disabled-by-default configuration and the remaining lease-based source-object cleanup worker. No production database, migration, row, object, schedule, or environment setting was modified.
+
+**Validation:**
+- Full Vitest suite (332 files / 2,950 tests)
+- Focused compaction/archive/lifecycle/restore/startup suites (6 files / 68 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `git diff --check`

@@ -51,6 +51,24 @@ Source grounding:
 - [`src/components/layout/ThreePanelShell.tsx`](/src/components/layout/ThreePanelShell.tsx)
 - [`src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`](/src/app/classrooms/[classroomId]/ClassroomPageClient.tsx)
 
+### 3a. Page structure comes from `@/ui`
+
+- Use `PageLayout`, `PageHeading`, `PageActionBar`, `PageContent`, and `PageStack` for page framing.
+- Select a named width instead of adding feature-local `max-w-*` values.
+- Use teacher density for scan-heavy operational surfaces and student density for standard content
+  rhythm; density must not hide data or replace a narrow-screen workflow mode.
+- Keep page context and actions in one responsive row. Secondary actions collapse into the shared
+  mobile overflow menu; do not duplicate feature-local menu behavior.
+- Preserve the compact classroom shell and table-first teacher workflows. These primitives govern
+  alignment and rhythm, not product information architecture.
+
+Source grounding:
+
+- [`src/ui/Page.tsx`](/src/ui/Page.tsx)
+- [`src/ui/README.md`](/src/ui/README.md)
+- [`src/app/classrooms/TeacherClassroomsIndex.tsx`](/src/app/classrooms/TeacherClassroomsIndex.tsx)
+- [`src/app/classrooms/StudentClassroomsIndex.tsx`](/src/app/classrooms/StudentClassroomsIndex.tsx)
+
 ### 4. Attendance stays presence-first and scan-friendly
 
 - Attendance UI is optimized for quick scanning and teacher drill-down, not extra status taxonomy.

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { StudentClassroomsIndex } from '@/app/classrooms/StudentClassroomsIndex'
 import { createMockClassroom } from '../helpers/mocks'
@@ -37,5 +37,23 @@ describe('StudentClassroomsIndex', () => {
     expect(openButton).toHaveClass('classroom-theme-card-interactive')
     expect(openButton).toHaveClass('border')
     expect(openButton).not.toHaveClass('border-l-4')
+  })
+
+  it('uses the governed page heading and keyboard-ready mobile actions menu', async () => {
+    render(<StudentClassroomsIndex initialClassrooms={[]} />)
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Classrooms' })).toHaveClass(
+      'text-2xl',
+      'font-semibold',
+    )
+
+    const menuButton = screen.getByRole('button', { name: 'Open actions menu' })
+    fireEvent.click(menuButton)
+
+    const joinItem = within(screen.getByRole('menu')).getByRole('menuitem', {
+      name: '+ Join classroom',
+    })
+    await waitFor(() => expect(joinItem).toHaveFocus())
+    expect(joinItem).toHaveClass('min-h-11', 'focus-visible:ring-2')
   })
 })
