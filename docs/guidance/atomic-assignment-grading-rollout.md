@@ -47,3 +47,14 @@ five-minute schedule consumes GitHub Actions minutes; provider charges occur onl
 Gradex work reaches the provider. Disable the Actions variable after the bounded pilot if another
 durable scheduler is not selected. Browser polling remains useful for immediate feedback, but it is
 no longer the only available progression mechanism.
+
+Apply Gradex migration `0009_even_morlun.sql` and deploy Gradex's idempotent async-create contract
+before enabling this worker. Pika uses one pseudonymous, stable key per local run, so a lost Gradex
+create response can be retried without creating duplicate provider work. Gradex rejects reuse of
+that key for a changed payload.
+
+After Gradex accepts a run, transient polling failures no longer consume Pika's three grading
+attempts. Pika keeps the local items in `processing`, polls at a bounded cadence, and reconciles the
+remote terminal result for up to one hour. Crossing that deadline produces
+`gradex_reconciliation_deadline_exceeded`, completes the local run with errors, and makes the worker
+invocation unhealthy for scheduler alerting.

@@ -238,7 +238,10 @@ describe('Gradex assignment grading processor', () => {
     await submitOrPollGradexAssignmentRun({
       supabase: supabase.client,
       assignment: assignment(),
-      run: run({ gradex_run_id: 'gradex-run-1' }),
+      run: run({
+        gradex_run_id: 'gradex-run-1',
+        gradex_submitted_at: '2026-06-01T10:00:00.000Z',
+      }),
       items: [item({ status: 'processing' })],
     })
 
@@ -319,33 +322,114 @@ describe('Gradex assignment grading processor', () => {
     expect(supabase.runUpdates).toEqual([])
   })
 
-  it('queues a retry instead of throwing when a Gradex poll request is retryable', async () => {
+  it('reconciles more than three transient Gradex poll failures without consuming grading attempts', async () => {
     const supabase = buildSupabase()
-    const fetchImpl = vi.fn<typeof fetch>(async () =>
-      jsonResponse(429, {
-        error: { message: 'Rate limited' },
+    let pollCount = 0
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/api/v1/grading-runs/gradex-run-1')) {
+        pollCount += 1
+        if (pollCount <= 4) {
+          return jsonResponse(429, { error: { message: 'Rate limited' } })
+        }
+        return jsonResponse(200, {
+          id: 'gradex-run-1',
+          status: 'completed',
+          counts: { requested: 1, processed: 1, completed: 1, failed: 0, skipped: 0, pending: 0 },
+          provider: 'openai',
+          model: 'gpt-5-nano',
+          tier: 'tier_1',
+          policy_version: 'gradex-routing-policy-v1',
+          prompt_version: 'gradex-essay-rubric-v1',
+          items: [{ id: 'gradex-item-1', status: 'completed', external_submission_id: 'pika-submission-safe', external_student_id: 'pika-student-safe', error: null }],
+        })
+      }
+      return jsonResponse(200, {
+        id: 'gradex-item-1',
+        status: 'completed',
+        external_submission_id: 'pika-submission-safe',
+        external_student_id: 'pika-student-safe',
+        error: null,
+        result: {
+          provider: 'openai',
+          model: 'gpt-5-nano',
+          tier: 'tier_1',
+          policy_version: 'gradex-routing-policy-v1',
+          prompt_version: 'gradex-essay-rubric-v1',
+          audit_id: 'audit-1',
+          token_usage: null,
+        },
       })
-    )
+    })
     vi.stubGlobal('fetch', fetchImpl)
+    mockMapGradexItemsToPikaGradeRecords.mockReturnValue([{
+      assignment_doc_id: 'doc-1',
+      student_id: 'student-1',
+      pika_grade_record_ref: 'pika-grade-safe',
+      pika_submission_ref: 'pika-submission-safe',
+      gradex_submission_id: 'pika-submission-safe',
+      gradex_item_id: 'gradex-item-1',
+      status: 'completed',
+      score_completion: 8,
+      score_thinking: 7,
+      score_workflow: 9,
+      feedback: 'Strength: clear work. Next step: add one example.',
+      provider: 'openai',
+      model: 'gpt-5-nano',
+      tier: 'tier_1',
+      audit_id: 'audit-1',
+    }])
+
+    for (let index = 0; index < 5; index += 1) {
+      await submitOrPollGradexAssignmentRun({
+        supabase: supabase.client,
+        assignment: assignment(),
+        run: run({
+          gradex_run_id: 'gradex-run-1',
+          gradex_submitted_at: new Date().toISOString(),
+        }),
+        items: [item({ status: 'processing', attempt_count: 2 })],
+      })
+    }
+
+    const reconciliationUpdates = supabase.itemUpdates.slice(0, 4)
+    expect(reconciliationUpdates).toHaveLength(4)
+    expect(reconciliationUpdates.every(({ payload }) =>
+      payload.status === 'processing' &&
+      payload.attempt_count === undefined &&
+      payload.completed_at === null &&
+      typeof payload.next_retry_at === 'string'
+    )).toBe(true)
+    expect(supabase.aiGradeCalls).toEqual([
+      expect.objectContaining({ p_item_id: 'item-1', p_attempt_count: 3 }),
+    ])
+  })
+
+  it('fails reconciliation after the submitted Gradex run exceeds its age deadline', async () => {
+    const supabase = buildSupabase()
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () =>
+      jsonResponse(503, { error: { message: 'Gradex temporarily unavailable' } })
+    ))
 
     await submitOrPollGradexAssignmentRun({
       supabase: supabase.client,
       assignment: assignment(),
-      run: run({ gradex_run_id: 'gradex-run-1' }),
-      items: [item({ status: 'processing' })],
+      run: run({
+        gradex_run_id: 'gradex-run-1',
+        gradex_submitted_at: '2026-06-01T10:00:00.000Z',
+      }),
+      items: [item({ status: 'processing', attempt_count: 2 })],
     })
 
-    expect(supabase.runUpdates).toEqual([])
     expect(supabase.itemUpdates).toEqual([
       expect.objectContaining({
         id: 'item-1',
         payload: expect.objectContaining({
-          status: 'queued',
-          attempt_count: 1,
-          last_error_code: 'gradex_retryable_http_error',
-          last_error_message: 'Rate limited',
-          next_retry_at: expect.any(String),
-          completed_at: null,
+          status: 'failed',
+          attempt_count: 2,
+          next_retry_at: null,
+          last_error_code: 'gradex_reconciliation_deadline_exceeded',
+          completed_at: expect.any(String),
         }),
       }),
     ])
@@ -456,6 +540,8 @@ function run(overrides: Partial<any> = {}) {
     triggered_by: 'teacher-1',
     model: GRADEX_ASSIGNMENT_RUN_MODEL,
     gradex_run_id: null,
+    gradex_submitted_at: new Date().toISOString(),
+    gradex_last_polled_at: null,
     requested_student_ids_json: ['student-1'],
     selection_hash: 'selection-hash',
     requested_count: 1,

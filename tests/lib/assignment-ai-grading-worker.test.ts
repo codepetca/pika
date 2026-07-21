@@ -73,4 +73,16 @@ describe('assignment AI grading worker', () => {
 
     expect(result).toEqual({ attempted: 1, claimed: 1, failed: 1 })
   })
+
+  it('reports a partially failed terminal run as unhealthy', async () => {
+    mocks.listRuns.mockResolvedValue([run('run-1')])
+    mocks.tickRun.mockResolvedValue({
+      claimed: true,
+      run: { ...run('run-1'), status: 'completed_with_errors' },
+    })
+
+    const result = await runAssignmentAiGradingWorker()
+
+    expect(result).toEqual({ attempted: 1, claimed: 1, failed: 1 })
+  })
 })

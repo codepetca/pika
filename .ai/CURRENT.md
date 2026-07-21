@@ -5,7 +5,9 @@ Read this at session start. `.ai/features.json` is the epic status authority; `.
 ## Current Focus
 
 - Core classroom, assignment, test, and auth flows are live.
-- Gradex Phase 1: the gated worker is implemented but unset; next prove durable grading with a scoped canary, 10-20 teacher reviews, and a versioned eval.
+- Gradex Phase 1: the gated worker is implemented but unset; deploy Gradex migration 0009 and its
+  idempotent create contract first, then prove durable grading with a scoped canary, 10-20 teacher
+  reviews, and a versioned eval.
 - Production migrations 001-099 and the named archive round-trip canary are verified. The classroom is hot-restored; source and Gradex cleanup remain disabled.
 - The product-experience program is tracked in `.ai/features.json`; Phase 1 evidence is in `docs/guidance/ui/product-experience-audit-2026-07.md`.
 - The Safety Wave is complete through PRs #890, #891, and #893-#895.

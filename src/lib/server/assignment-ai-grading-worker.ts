@@ -25,9 +25,9 @@ export async function runAssignmentAiGradingWorker(): Promise<AssignmentAiGradin
         runId: run.id,
       })
       if (result.claimed) claimed += 1
-      if (result.run.status === 'failed') {
+      if (result.run.status === 'failed' || result.run.status === 'completed_with_errors') {
         failed += 1
-        console.error('[assignment-ai-grading-worker] run reached terminal failure')
+        console.error('[assignment-ai-grading-worker] run reached an unhealthy terminal state')
       }
     } catch (error) {
       failed += 1

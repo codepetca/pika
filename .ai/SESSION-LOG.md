@@ -984,3 +984,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Complete targeted remediation review and required PR checks. Merge only when the cumulative diff is clean, then configure an explicitly authorized pilot.
+
+## 2026-07-21 - Gradex Cross-Repository Retry Contract
+
+**Completed:**
+- Separated retries for creating a Gradex run from reconciliation polling after the remote run ID is known.
+- Preserved Pika grading attempt counts through transient Gradex polling failures, added a one-hour reconciliation deadline, and made deadline or partial terminal outcomes unhealthy to the scheduler.
+- Added regressions for four transient poll failures followed by successful grading, deadline exhaustion, and `completed_with_errors` worker reporting.
+- Kept one final remote read at the reconciliation deadline so an already-completed Gradex run is accepted instead of falsely failed.
+- Documented that Gradex migration 0009 and the idempotent async-create deployment are prerequisites for worker activation. No scheduler, provider call, migration, or production setting was enabled.
+
+**Validation:**
+- `pnpm test` (390 files / 3,581 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (612 modules / 0 allowances)
+- `pnpm build`
+- Focused post-audit retry suites (2 files / 14 tests)
+- `git diff --check`
+
+**Remaining:**
+- Complete the final cross-repository review and required PR checks. Deploy Gradex before enabling an explicitly authorized Pika pilot.

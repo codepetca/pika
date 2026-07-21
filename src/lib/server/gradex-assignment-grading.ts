@@ -19,6 +19,8 @@ const TERMINAL_GRADEX_STATUSES = new Set(['completed', 'completed_with_errors', 
 const RETRYABLE_GRADEX_STATUS_CODES = new Set([408, 409, 425, 429, 500, 502, 503, 504])
 const GRADEX_ASSIGNMENT_MAX_ATTEMPTS = 3
 const GRADEX_ASSIGNMENT_RETRY_BACKOFF_SECONDS = [15, 60, 180]
+const GRADEX_RECONCILIATION_RETRY_SECONDS = 60
+const GRADEX_RECONCILIATION_DEADLINE_MS = 60 * 60 * 1000
 
 const gradexRunItemSummarySchema = z.object({
   id: z.string().min(1),
@@ -348,6 +350,49 @@ async function handleRetryableGradexError(opts: {
   })
 }
 
+function hasGradexReconciliationDeadlineElapsed(
+  run: Pick<AssignmentAiGradingRun, 'gradex_submitted_at' | 'created_at'>,
+  nowMs: number,
+): boolean {
+  const submittedAt = new Date(run.gradex_submitted_at ?? run.created_at).getTime()
+  return !Number.isFinite(submittedAt) || nowMs - submittedAt >= GRADEX_RECONCILIATION_DEADLINE_MS
+}
+
+async function scheduleGradexReconciliation(opts: {
+  supabase: ServiceRoleSupabase
+  run: Pick<AssignmentAiGradingRun, 'gradex_submitted_at' | 'created_at'>
+  items: AssignmentAiGradingRunItem[]
+  now: string
+  error?: GradexRetryableRequestError
+}): Promise<void> {
+  const deadlineElapsed = hasGradexReconciliationDeadlineElapsed(opts.run, new Date(opts.now).getTime())
+  const nextRetryAt = new Date(
+    new Date(opts.now).getTime() + GRADEX_RECONCILIATION_RETRY_SECONDS * 1000,
+  ).toISOString()
+
+  await Promise.all(
+    opts.items
+      .filter((item) => item.assignment_doc_id && (item.status === 'queued' || item.status === 'processing'))
+      .map((item) => updateRunItem(opts.supabase, item.id, deadlineElapsed
+        ? {
+            status: 'failed',
+            attempt_count: item.attempt_count,
+            next_retry_at: null,
+            last_error_code: 'gradex_reconciliation_deadline_exceeded',
+            last_error_message: 'Gradex run did not reach a reconcilable terminal state before the deadline',
+            completed_at: opts.now,
+          }
+        : {
+            status: 'processing',
+            next_retry_at: nextRetryAt,
+            last_error_code: opts.error?.code ?? null,
+            last_error_message: opts.error?.message ?? null,
+            completed_at: null,
+          }),
+      ),
+  )
+}
+
 async function failUnresolvedGradexItems(opts: {
   supabase: ServiceRoleSupabase
   items: AssignmentAiGradingRunItem[]
@@ -551,8 +596,9 @@ async function pollGradexAssignmentRun(opts: {
     })
   } catch (error) {
     if (isGradexRetryableRequestError(error)) {
-      await handleRetryableGradexError({
+      await scheduleGradexReconciliation({
         supabase: opts.supabase,
+        run: opts.run,
         items: dueItems,
         error,
         now,
@@ -568,6 +614,12 @@ async function pollGradexAssignmentRun(opts: {
   })
 
   if (!isTerminalGradexRun(gradexRun)) {
+    await scheduleGradexReconciliation({
+      supabase: opts.supabase,
+      run: opts.run,
+      items: dueItems,
+      now,
+    })
     return
   }
 
@@ -595,8 +647,9 @@ async function pollGradexAssignmentRun(opts: {
     )
   } catch (error) {
     if (isGradexRetryableRequestError(error)) {
-      await handleRetryableGradexError({
+      await scheduleGradexReconciliation({
         supabase: opts.supabase,
+        run: opts.run,
         items: dueItems,
         error,
         now,
