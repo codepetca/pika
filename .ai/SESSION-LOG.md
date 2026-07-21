@@ -882,4 +882,4 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 
 **Remaining:**
-- Publish and review this Phase 2 PR. Then continue Phase 2 with page structure, typography, spacing, action placement, and responsive density as a separate slice.
+- Merge reviewed PR #898 after required CI. Then continue Phase 2 with page structure, typography, spacing, action placement, and responsive density as a separate slice.
