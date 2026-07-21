@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-13 — Manual Gradex cleanup canary trigger
-
-**Completed:**
-- Added a `CRON_SECRET`-authenticated GET/POST cleanup endpoint behind an independent disabled-by-default trigger gate while preserving the cleanup worker's separate gate.
-- Bounded the manual canary to one claim per invocation and delegated lease, storage deletion, exact read-back, completion, and retry behavior to the existing cleanup coordinator.
-- Kept durably recorded item retries healthy while returning `503` when any claim lacks durable retry evidence; responses expose no storage paths or content.
-- Added tests that lock the route out of `vercel.json`; no schedule, UI caller, migration, dependency, production database, row, storage object, or environment setting was changed.
-- Updated environment, lifecycle, test, and current-context documentation.
-
-**Validation:**
-- Full Vitest suite (330 files / 2,925 tests)
-- Focused trigger/cleanup/extract/operations/artifact/startup suites (6 files / 85 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- Pika pre-commit audit
-- `git diff --check`
-
 ## 2026-07-13 — Atomic classroom cold-compaction database contract
 
 **Completed:**
@@ -874,3 +856,25 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Review and merge PR #896. Then implement Phase 2's shared modal-layer contract as a separate slice.
+
+## 2026-07-20 — Phase 2 shared modal-layer contract
+
+**Completed:**
+- Reviewed and merged PR #896, then fast-forwarded the hub and started the next Phase 2 slice from current `main`.
+- Added a portal-based `ModalLayer` that owns top-layer keyboard handling, initial focus, Tab containment, focus restoration, background inertness, scroll locking, stacking, Escape, and backdrop behavior.
+- Preserved the canonical `AlertDialog`, `ConfirmDialog`, `DialogPanel`, and `ContentDialog` APIs while routing them through the shared layer; migrated classroom mobile left/right drawers without changing their visual design.
+- Fixed independent-review findings for lifecycle churn while a confirmation becomes busy and reverse Tab containment when a custom panel owns focus; added regressions and narrowed documentation to migrated surfaces.
+- Visually verified open dialogs and navigation drawers for teacher/student roles at desktop/mobile sizes in light/dark themes, including focus, inert background, scroll lock, Escape cleanup, and focus restoration.
+- Opened PR #897. No schema migration or production data change was made.
+
+**Validation:**
+- `pnpm test` (381 files / 3,529 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- Custom Playwright teacher/student desktop/mobile light/dark open-state matrix
+- `git diff --check`
+
+**Remaining:**
+- Review and merge PR #897. Continue Phase 2 with shared button target sizing/focus-visible behavior and semantic form-field propagation.

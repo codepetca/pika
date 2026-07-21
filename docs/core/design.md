@@ -756,6 +756,7 @@ Use Tailwind's default breakpoints:
 - Logical tab order (follows visual order)
 - Visible focus indicators
 - Escape key closes modals/overlays
+- Canonical `@/ui` dialogs and classroom mobile drawers use `ModalLayer`; it owns initial focus, Tab containment, focus return, background inertness, scroll lock, stacking, Escape, and backdrop behavior
 
 ### ARIA Labels
 ```tsx
