@@ -931,3 +931,37 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Complete full repository verification, independent review, and merge for the student navigation slice. Then continue Phase 2 with specialized-control policy enforcement.
+## 2026-07-20 - Measured Gradex grading pilot goal
+
+**Completed:**
+- Made the immediate Gradex milestone a narrow measured assignment-grading pilot rather than broader extract or SaaS expansion.
+- Defined exit evidence covering durable progression, single-student and batch flows, a scoped deployed canary, 10-20 teacher-reviewed examples, captured corrections, and a rerunnable versioned eval baseline.
+- Deferred automatic student return, broad rollout, new grading profiles, and extract ingestion until the pilot demonstrates useful teacher-aligned grading.
+
+**Validation:**
+- `git diff --check`
+- Cross-repository roadmap and current-context consistency review
+
+**Remaining:**
+- Fix and verify the single-student async flow, add durable server-side progression, and run the authorized assignment-grading canary.
+
+## 2026-07-20 - Assignment grading background worker
+
+**Completed:**
+- Confirmed the supported one-student AI Grade action already uses the tested shared background-run UI and removed the unused stale inspector auto-grade handler.
+- Added a CRON-secret-authenticated, feature-gated worker endpoint that advances at most two assignment AI grading runs sequentially using existing database leases.
+- Added an inert-by-default five-minute GitHub Actions scheduler for the Phase 1 pilot; it skips before allocating a runner until its URL variable is configured.
+- Documented rollout gates, scheduler credentials, Actions usage, provider-charge behavior, and the browser polling fast path.
+
+**Validation:**
+- Focused assignment worker, route, run-domain, teacher assignment, and inspector suites: 96 tests passed.
+- Full `pnpm test`: 3,536 tests passed; the unchanged `StudentAssignmentsTab` instruction-modal test failed both in-suite and alone because its queried button is hidden behind an already-open modal. The test and component match `origin/main`.
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm run check:architecture`
+- `pnpm build`
+- Startup guidance contract: 29 tests passed and default context remains within budget.
+- `git diff --check`
+
+**Remaining:**
+- Review and publish this slice, configure the three deployment/scheduler gates for an authorized environment, then run the scoped assignment-grading canary.

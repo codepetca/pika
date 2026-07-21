@@ -187,15 +187,26 @@ Each numbered slice is independently releasable and reviewed for both affected r
 
 ### Phase 4: Gradex Integration
 
-1. Add teacher/classroom canary controls and stronger smoke target guards.
-2. Introduce durable background run progression with idempotent retries.
-3. Add teacher-visible run status, retry, audit, and privacy/retention information.
-4. Version the deidentified extract contract and prove direct-identifier exclusion, content sanitization, PII rejection, and private-object access controls.
-5. Define authenticated ingestion with schema compatibility checks, idempotency, replay handling, and durable receipt/error evidence.
-6. Enforce extract and ingestion retention with separately auditable deletion ledgers; keep all cleanup disabled by default.
-7. Run and record an exactly authorized assignment grading canary and a separate extract-to-ingestion canary with target identity, latency, result, privacy, and retention evidence.
+The immediate milestone is a measured assignment-grading pilot. Broader classroom extract ingestion
+is follow-on work and must not delay proving whether Gradex produces useful teacher-aligned results.
 
-Exit evidence: scoped rollout controls, durable runs that progress without an open page, teacher status/retry UX, passing deidentification and ingestion contract suites, recorded authorized production canaries, and cleanup still disabled unless a separate approval explicitly enables one exact action.
+1. Fix and verify both single-student and batch asynchronous grading flows.
+2. Introduce durable background run progression with idempotent retries so an open teacher page is not required.
+3. Add teacher/classroom canary controls, stronger smoke target guards, and teacher-visible run status and retry information.
+4. Run and record one exactly authorized deployed assignment-grading canary using sanitized examples.
+5. Have a teacher review 10-20 representative results before feedback is returned to students.
+6. Preserve each original Gradex suggestion and teacher-approved outcome as a deidentified calibration pair.
+7. Import the reviewed pairs into a versioned Gradex eval set and baseline criterion error, feedback acceptance/editing, failures, latency, and cost.
+8. Compare one prompt, rubric, profile, or model change at a time against the same set before promotion.
+
+Exit evidence: scoped rollout controls; durable runs that progress without an open page; passing
+single-student and batch browser flows; a recorded authorized deployed canary; teacher review of all
+pilot results; and a rerunnable versioned baseline. Automatic student return, broad rollout, new
+grading profiles, and extract-to-ingestion automation remain out of scope until this evidence exists.
+
+After the pilot exits, define authenticated classroom-extract ingestion, schema compatibility,
+idempotency, replay handling, retention, and durable receipt/deletion evidence. Existing extract and
+cleanup gates remain disabled unless a separate approval explicitly enables one exact action.
 
 ### Phase 5: Blueprints And Archives
 

@@ -225,7 +225,6 @@ export interface TeacherStudentWorkController {
   gradeSaving: boolean
   showDraftAutosavedNotice: boolean
   gradeError: string
-  autoGrading: boolean
   feedbackReturning: boolean
   feedbackEntries: AssignmentFeedbackEntry[]
   totalScore: number
@@ -244,7 +243,6 @@ export interface TeacherStudentWorkController {
   toggleSection: (section: InspectorSectionId) => void
   collapseAllSections: () => void
   toggleSectionVisibility: (section: InspectorSectionId) => void
-  handleAutoGrade: () => Promise<void>
   handleReturnFeedback: () => Promise<void>
   handleSetGradeMode: (mode: GradeSaveMode) => Promise<void>
 }
@@ -294,7 +292,6 @@ export function useTeacherStudentWorkController({
   const [gradeSaving, setGradeSaving] = useState(false)
   const [showDraftAutosavedNotice, setShowDraftAutosavedNotice] = useState(false)
   const [gradeError, setGradeError] = useState('')
-  const [autoGrading, setAutoGrading] = useState(false)
   const [feedbackReturning, setFeedbackReturning] = useState(false)
   const [expandedSections, setExpandedSections] = useState<InspectorSectionId[]>(() =>
     parseExpandedSections(readCookie(getInspectorSectionsCookieName(classroomId))),
@@ -778,38 +775,6 @@ export function useTeacherStudentWorkController({
     [feedbackReturning, gradeSaving, mutationsDisabled, persistGrade],
   )
 
-  const handleAutoGrade = useCallback(async () => {
-    if (!data || gradeSaving || feedbackReturning || mutationsDisabled) return
-
-    setAutoGrading(true)
-    setGradeError('')
-    try {
-      const response = await fetch(`/api/teacher/assignments/${assignmentId}/auto-grade`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_ids: [studentId] }),
-      })
-      const result = await response.json()
-      if (!response.ok) throw new Error(result.error || 'Auto-grade failed')
-      if (result.errors?.length) {
-        setGradeError(result.errors.join(', '))
-        return
-      }
-      if ((result.graded_count ?? 0) === 0) {
-        setGradeError('No gradable content found — the submission may be empty')
-        return
-      }
-      const refreshed = await loadStudentWork({
-        mergeFeedbackIntoDraftFrom: feedbackDraft.trim() ? feedbackDraft : null,
-      })
-      dispatchGradeUpdated(refreshed?.doc ?? null)
-    } catch (err: any) {
-      setGradeError(err.message || 'Auto-grade failed')
-    } finally {
-      setAutoGrading(false)
-    }
-  }, [assignmentId, data, dispatchGradeUpdated, feedbackDraft, feedbackReturning, gradeSaving, loadStudentWork, mutationsDisabled, studentId])
-
   const handleReturnFeedback = useCallback(async () => {
     if (!data || gradeSaving || feedbackReturning || mutationsDisabled) return
 
@@ -890,9 +855,9 @@ export function useTeacherStudentWorkController({
   useEffect(() => {
     onGradePersistenceStateChange?.({
       hasPendingChanges: hasPendingGradeChanges,
-      isSaving: gradeSaving || feedbackReturning || autoGrading,
+      isSaving: gradeSaving || feedbackReturning,
     })
-  }, [autoGrading, feedbackReturning, gradeSaving, hasPendingGradeChanges, onGradePersistenceStateChange])
+  }, [feedbackReturning, gradeSaving, hasPendingGradeChanges, onGradePersistenceStateChange])
 
   useEffect(() => {
     return () => onGradePersistenceStateChange?.({ hasPendingChanges: false, isSaving: false })
@@ -918,7 +883,6 @@ export function useTeacherStudentWorkController({
     gradeSaving,
     showDraftAutosavedNotice,
     gradeError,
-    autoGrading,
     feedbackReturning,
     feedbackEntries,
     totalScore,
@@ -937,7 +901,6 @@ export function useTeacherStudentWorkController({
     toggleSection,
     collapseAllSections,
     toggleSectionVisibility,
-    handleAutoGrade,
     handleReturnFeedback,
     handleSetGradeMode,
   }

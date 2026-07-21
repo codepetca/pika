@@ -1,0 +1,32 @@
+name: Assignment AI Grading Worker
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assignment-ai-grading-worker
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    if: ${{ vars.PIKA_ASSIGNMENT_AI_GRADING_WORKER_URL != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      WORKER_URL: ${{ vars.PIKA_ASSIGNMENT_AI_GRADING_WORKER_URL }}
+      WORKER_SECRET: ${{ secrets.PIKA_ASSIGNMENT_AI_GRADING_WORKER_SECRET }}
+    steps:
+      - name: Validate worker secret
+        run: test -n "$WORKER_SECRET"
+
+      - name: Invoke bounded grading worker
+        run: >-
+          curl --fail-with-body --silent --show-error
+          --request POST
+          --header "Authorization: Bearer ${WORKER_SECRET}"
+          "${WORKER_URL%/}/api/cron/assignment-ai-grading-runs"
