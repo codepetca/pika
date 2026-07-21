@@ -888,6 +888,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added cache invalidation before client retries and direct regressions for state semantics, route boundaries, error/empty separation, and retry recovery.
 - Documented the state decision table and App Router conventions in stable guidance.
 - Visually verified teacher/student loading, error, and empty states plus classroom unavailable states at desktop/mobile sizes in light/dark themes. Governed states had no overflow or page errors, and retry/route-away controls measured 44px.
+- Opened PR #900 for independent review; no schema, migration, API contract, or production data change was made.
 
 **Validation:**
 - `pnpm test` (387 files / 3,566 tests)
