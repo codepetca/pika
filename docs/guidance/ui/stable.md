@@ -69,6 +69,24 @@ Source grounding:
 - [`src/app/classrooms/TeacherClassroomsIndex.tsx`](/src/app/classrooms/TeacherClassroomsIndex.tsx)
 - [`src/app/classrooms/StudentClassroomsIndex.tsx`](/src/app/classrooms/StudentClassroomsIndex.tsx)
 
+### 3b. Page states distinguish pending, failed, empty, and unavailable data
+
+- Use `PageState` from `@/ui` for a route or primary work region.
+- A failed read must render an error state, not empty copy or stale zero counts.
+- Empty means a successful request returned no records.
+- Preserve the surrounding shell and offer a bounded retry when retrying is safe.
+- Keep protected-resource not-found and forbidden copy intentionally indistinguishable when needed
+  to avoid disclosing existence.
+- Use transient overlay loading only when usable content remains visible underneath it.
+
+Source grounding:
+
+- [`docs/guidance/ui/page-state-conventions.md`](/docs/guidance/ui/page-state-conventions.md)
+- [`src/ui/PageState.tsx`](/src/ui/PageState.tsx)
+- [`src/app/classrooms/[classroomId]/error.tsx`](/src/app/classrooms/[classroomId]/error.tsx)
+- [`src/app/teacher/dashboard/page.tsx`](/src/app/teacher/dashboard/page.tsx)
+- [`src/app/student/history/page.tsx`](/src/app/student/history/page.tsx)
+
 ### 4. Attendance stays presence-first and scan-friendly
 
 - Attendance UI is optimized for quick scanning and teacher drill-down, not extra status taxonomy.

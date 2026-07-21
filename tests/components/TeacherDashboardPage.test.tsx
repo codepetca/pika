@@ -123,6 +123,8 @@ function deferred<T>() {
 
 function installFetchMock(options?: {
   classrooms?: Classroom[]
+  classroomFailures?: number
+  attendanceFailuresByClassroom?: Record<string, number>
   attendanceByClassroom?: Record<string, AttendanceRecord[] | Promise<{ attendance: AttendanceRecord[]; dates: string[] }>>
   datesByClassroom?: Record<string, string[]>
   entriesByClassroom?: Record<string, Entry[]>
@@ -130,6 +132,8 @@ function installFetchMock(options?: {
   const classrooms = options?.classrooms ?? [
     createMockClassroom({ id: 'c1', title: 'Dashboard Class', class_code: 'DASH1' }),
   ]
+  let classroomFailures = options?.classroomFailures ?? 0
+  const attendanceFailuresByClassroom = { ...options?.attendanceFailuresByClassroom }
 
   const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
@@ -142,11 +146,19 @@ function installFetchMock(options?: {
     }
 
     if (url === '/api/teacher/classrooms' && method === 'GET') {
+      if (classroomFailures > 0) {
+        classroomFailures -= 1
+        return Promise.resolve(jsonResponse({ error: 'Classroom service unavailable' }, false))
+      }
       return Promise.resolve(jsonResponse({ classrooms }))
     }
 
     if (url.startsWith('/api/teacher/attendance?classroom_id=') && method === 'GET') {
       const classroomId = new URL(url, 'http://localhost').searchParams.get('classroom_id') || ''
+      if ((attendanceFailuresByClassroom[classroomId] ?? 0) > 0) {
+        attendanceFailuresByClassroom[classroomId] -= 1
+        return Promise.resolve(jsonResponse({ error: 'Attendance service unavailable' }, false))
+      }
       const payload = options?.attendanceByClassroom?.[classroomId] ?? [
         attendanceRecord({
           studentId: 's1',
@@ -223,6 +235,40 @@ describe('Teacher dashboard page', () => {
     )
   })
 
+  it('separates classroom load failures from empty state and retries', async () => {
+    installFetchMock({ classroomFailures: 1 })
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    renderDashboard()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load classrooms')
+    expect(screen.getByRole('heading', { level: 1, name: 'Could not load classrooms' })).toBeInTheDocument()
+    expect(screen.queryByText('No Classrooms Yet')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText('student@example.com')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Teacher dashboard' })).toHaveFocus()
+    expect(consoleError).toHaveBeenCalled()
+  })
+
+  it('separates attendance failures from an empty roster and retries', async () => {
+    installFetchMock({ attendanceFailuresByClassroom: { c1: 1 } })
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    renderDashboard()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load attendance')
+    expect(screen.queryByText('No students enrolled yet')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText('student@example.com')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Teacher dashboard' })).toHaveFocus()
+    expect(invalidateCachedJSON).toHaveBeenCalledWith('teacher-dashboard:attendance:c1')
+    expect(consoleError).toHaveBeenCalled()
+  })
+
   it('does not expose permanent classroom deletion', async () => {
     const fetchMock = installFetchMock()
 
@@ -267,6 +313,36 @@ describe('Teacher dashboard page', () => {
       expect.any(Function),
       20_000,
     )
+  })
+
+  it('shows a retryable attendance error when the roster-upload refresh fails', async () => {
+    installFetchMock()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let attendanceLoadCount = 0
+    vi.mocked(fetchJSONWithCache).mockImplementation((key, load) => {
+      if (key === 'teacher-dashboard:attendance:c1') {
+        attendanceLoadCount += 1
+        if (attendanceLoadCount === 2) {
+          return Promise.reject(new Error('Attendance refresh unavailable'))
+        }
+      }
+      return load()
+    })
+
+    renderDashboard()
+
+    await screen.findByText('student@example.com')
+    fireEvent.click(screen.getByRole('button', { name: 'Upload roster' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Complete roster upload' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load attendance')
+    expect(screen.queryByText('No students enrolled yet')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText('student@example.com')).toBeInTheDocument()
+    expect(attendanceLoadCount).toBe(3)
+    expect(consoleError).toHaveBeenCalled()
   })
 
   it('keeps roster-upload attendance fresher than older in-flight attendance', async () => {
@@ -369,5 +445,27 @@ describe('Teacher dashboard page', () => {
     expect(within(actionPrimary).getByText('Second Class')).toBeInTheDocument()
     expect(screen.getByText('second@example.com')).toBeInTheDocument()
     expect(screen.queryByText('first@example.com')).not.toBeInTheDocument()
+  })
+
+  it('does not show the prior roster when the newly selected classroom fails', async () => {
+    const firstClassroom = createMockClassroom({ id: 'c1', title: 'First Class', class_code: 'FIRST' })
+    const secondClassroom = createMockClassroom({ id: 'c2', title: 'Second Class', class_code: 'SECOND' })
+    installFetchMock({
+      classrooms: [firstClassroom, secondClassroom],
+      attendanceFailuresByClassroom: { c2: 1 },
+      attendanceByClassroom: {
+        c1: [attendanceRecord({ studentId: 's1', email: 'first@example.com', date: '2026-06-01' })],
+      },
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    renderDashboard()
+
+    expect(await screen.findByText('first@example.com')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Second Class/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load attendance')
+    expect(screen.queryByText('first@example.com')).not.toBeInTheDocument()
+    expect(screen.queryByText('No students enrolled yet')).not.toBeInTheDocument()
   })
 })

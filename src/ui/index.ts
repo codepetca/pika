@@ -17,6 +17,7 @@ export { AlertDialog, ConfirmDialog, ContentDialog, DialogPanel, type AlertDialo
 export { ModalLayer, type ModalLayerProps } from './ModalLayer'
 export { Card, type CardProps } from './Card'
 export { EmptyState, type EmptyStateProps } from './EmptyState'
+export { PageState, type PageStateKind, type PageStateProps } from './PageState'
 export { Tooltip, TooltipProvider, type TooltipProps } from './Tooltip'
 export { RefreshingIndicator } from './RefreshingIndicator'
 export { TabContentTransition } from './TabContentTransition'

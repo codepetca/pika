@@ -1,4 +1,5 @@
 import { AppShell } from '@/components/AppShell'
+import { PageState } from '@/ui'
 
 export default function ClassroomLoading() {
   return (
@@ -17,11 +18,14 @@ export default function ClassroomLoading() {
           </div>
         </aside>
 
-        {/* Main content skeleton */}
-        <main className="p-4 space-y-4">
-          <div className="h-8 w-48 bg-surface-hover rounded animate-pulse" />
-          <div className="h-32 bg-surface-hover rounded animate-pulse" />
-          <div className="h-32 bg-surface-hover rounded animate-pulse" />
+        <main className="min-w-0">
+          <PageState
+            kind="loading"
+            headingLevel="h1"
+            title="Loading classroom"
+            description="Getting the latest classroom information."
+            className="min-h-[calc(100vh-3rem)]"
+          />
         </main>
 
         {/* Right sidebar - empty/collapsed */}
