@@ -1,6 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react'
 import {
   DndContext,
   closestCenter,
@@ -107,6 +114,7 @@ const TEST_SUMMARY_DETAIL_LAYOUT = {
   defaultMarkdownWidth: 50,
   minMarkdownWidthPx: 360,
   minEditorWidthPx: 420,
+  keyboardStep: 2,
 } as const
 
 function roundPercent(value: number): number {
@@ -118,13 +126,9 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
-function clampSummaryDetailMarkdownWidthPercent(value: number, totalWidth: number): number {
-  if (!Number.isFinite(value)) {
-    return TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth
-  }
-
+function getSummaryDetailMarkdownWidthRange(totalWidth: number) {
   if (!Number.isFinite(totalWidth) || totalWidth <= 0) {
-    return roundPercent(value)
+    return { min: 0, max: 100 }
   }
 
   const minPercent =
@@ -134,7 +138,19 @@ function clampSummaryDetailMarkdownWidthPercent(value: number, totalWidth: numbe
     ((totalWidth - TEST_SUMMARY_DETAIL_LAYOUT.minEditorWidthPx) / totalWidth) * 100,
   )
 
-  return roundPercent(clampNumber(value, minPercent, maxPercent))
+  return {
+    min: roundPercent(minPercent),
+    max: roundPercent(maxPercent),
+  }
+}
+
+function clampSummaryDetailMarkdownWidthPercent(value: number, totalWidth: number): number {
+  if (!Number.isFinite(value)) {
+    return TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth
+  }
+
+  const range = getSummaryDetailMarkdownWidthRange(totalWidth)
+  return roundPercent(clampNumber(value, range.min, range.max))
 }
 
 function summarizeDraftContent(
@@ -576,6 +592,10 @@ export function TestDetailPanel({
         summaryDetailWorkspaceWidth
       ),
     [summaryDetailMarkdownWidthPercent, summaryDetailWorkspaceWidth]
+  )
+  const summaryDetailMarkdownWidthRange = useMemo(
+    () => getSummaryDetailMarkdownWidthRange(summaryDetailWorkspaceWidth),
+    [summaryDetailWorkspaceWidth],
   )
   const usesWideSummaryDetailLayout =
     (viewportWidth === 0 || viewportWidth >= DESKTOP_BREAKPOINT) &&
@@ -1420,6 +1440,34 @@ export function TestDetailPanel({
     setSummaryDetailMarkdownWidthPercent(TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth)
   }, [])
 
+  const handleSummaryDetailResizeKeyDown = useCallback((
+    event: ReactKeyboardEvent<HTMLDivElement>,
+  ) => {
+    let nextWidth: number | null = null
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextWidth = clampedSummaryDetailMarkdownWidthPercent
+        + TEST_SUMMARY_DETAIL_LAYOUT.keyboardStep
+    } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextWidth = clampedSummaryDetailMarkdownWidthPercent
+        - TEST_SUMMARY_DETAIL_LAYOUT.keyboardStep
+    } else if (event.key === 'Home') {
+      nextWidth = summaryDetailMarkdownWidthRange.min
+    } else if (event.key === 'End') {
+      nextWidth = summaryDetailMarkdownWidthRange.max
+    }
+
+    if (nextWidth === null) return
+    event.preventDefault()
+    setSummaryDetailMarkdownWidthPercent(
+      clampSummaryDetailMarkdownWidthPercent(nextWidth, summaryDetailWorkspaceWidth),
+    )
+  }, [
+    clampedSummaryDetailMarkdownWidthPercent,
+    summaryDetailMarkdownWidthRange.max,
+    summaryDetailMarkdownWidthRange.min,
+    summaryDetailWorkspaceWidth,
+  ])
+
   useEffect(() => {
     return () => {
       clearSummaryDetailResizeListeners()
@@ -2047,7 +2095,11 @@ export function TestDetailPanel({
         divider={{
           label: 'Resize question and markdown panes',
           onPointerDown: handleSummaryDetailResizeStart,
+          onKeyDown: handleSummaryDetailResizeKeyDown,
           onDoubleClick: handleSummaryDetailResizeReset,
+          ariaValueMin: summaryDetailMarkdownWidthRange.min,
+          ariaValueMax: summaryDetailMarkdownWidthRange.max,
+          ariaValueNow: clampedSummaryDetailMarkdownWidthPercent,
         }}
         left={testQuestionEditorPane}
         right={

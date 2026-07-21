@@ -104,6 +104,14 @@ export function useDropdownNav({
         e.preventDefault()
         setFocusedIndex((prev) => getNextEnabledIndex(prev - 1, -1))
         break
+      case 'Home':
+        e.preventDefault()
+        setFocusedIndex(getNextEnabledIndex(0, 1))
+        break
+      case 'End':
+        e.preventDefault()
+        setFocusedIndex(getNextEnabledIndex(itemCount - 1, -1))
+        break
       case 'Enter':
       case ' ':
         e.preventDefault()
@@ -130,6 +138,14 @@ export function useDropdownNav({
       case 'ArrowUp':
         e.preventDefault()
         setFocusedIndex((prev) => getNextEnabledIndex(prev - 1, -1))
+        break
+      case 'Home':
+        e.preventDefault()
+        setFocusedIndex(getNextEnabledIndex(0, 1))
+        break
+      case 'End':
+        e.preventDefault()
+        setFocusedIndex(getNextEnabledIndex(itemCount - 1, -1))
         break
       case 'Enter':
       case ' ':

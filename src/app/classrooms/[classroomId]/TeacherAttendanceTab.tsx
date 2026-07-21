@@ -24,11 +24,8 @@ import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import { entryHasContent, getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
 import { useClassDaysContext } from '@/hooks/useClassDays'
-import { Button, RefreshingIndicator, Tooltip } from '@/ui'
-import { useDelayedBusy } from '@/hooks/useDelayedBusy'
-import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
-import type { AttendanceStatus } from '@/types'
 import {
+  Button,
   DataTable,
   DataTableBody,
   DataTableCell,
@@ -37,11 +34,17 @@ import {
   DataTableRow,
   EmptyStateRow,
   KeyboardNavigableTable,
+  RefreshingIndicator,
   SortableHeaderCell,
   TableCard,
-} from '@/components/DataTable'
+  Tooltip,
+} from '@/ui'
+import { useDelayedBusy } from '@/hooks/useDelayedBusy'
+import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
+import type { AttendanceStatus } from '@/types'
 import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
+import { fetchCachedJSON } from '@/lib/request-cache'
 import type { Classroom, Entry } from '@/types'
 import { format, parseISO } from 'date-fns'
 
@@ -52,6 +55,7 @@ const SUMMARY_PANEL_COLLAPSED_HEIGHT = 40
 const SUMMARY_PANEL_MIN_HEIGHT = 140
 const SUMMARY_PANEL_MAX_HEIGHT = 420
 const SUMMARY_PANEL_KEYBOARD_STEP = 32
+const getAttendanceStudentRowId = (studentId: string) => `attendance-student-row-${studentId}`
 
 function getSummaryPanelMaxHeight() {
   if (typeof window === 'undefined') return SUMMARY_PANEL_MAX_HEIGHT
@@ -100,6 +104,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const selectedWorkspaceRef = useRef<HTMLDivElement | null>(null)
+  const studentTableNavigationRef = useRef<HTMLDivElement | null>(null)
+  const pendingKeyboardFocusStudentIdRef = useRef<string | null>(null)
+  const pendingKeyboardTableFocusRef = useRef(false)
   const onSelectEntryRef = useRef(onSelectEntry)
   const hasLoadedOnceRef = useRef(false)
   const loadRequestIdRef = useRef(0)
@@ -206,8 +213,11 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         setLoading(true)
       }
       try {
-        const res = await fetch(`/api/teacher/logs?classroom_id=${classroomId}&date=${date}`)
-        const data = await res.json()
+        const data = await fetchCachedJSON<{ logs?: LogRow[] }>(
+          `teacher-attendance:${classroomId}:${date}`,
+          `/api/teacher/logs?classroom_id=${classroomId}&date=${date}`,
+          { ttlMs: 0, errorMessage: 'Failed to load attendance' },
+        )
         if (!isCurrentLogsRequest(requestId, classroomId, date)) return
         const rawLogs = data.logs || []
         const mappedLogs = rawLogs.map((log: any) => ({
@@ -223,6 +233,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       } catch (err) {
         if (!isCurrentLogsRequest(requestId, classroomId, date)) return
         console.error('Error loading logs:', err)
+        setLogs([])
+        setSelectedStudentId(null)
+        onSelectEntryRef.current?.(null, '', null)
       } finally {
         if (!isCurrentLogsRequest(requestId, classroomId, date)) return
         setLoading(false)
@@ -323,23 +336,29 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   }
 
   const handleDeselect = useCallback(() => {
+    pendingKeyboardFocusStudentIdRef.current = null
     preserveStudentTableScrollPosition()
     setSelectedStudentId(null)
     onSelectEntry?.(null, '', null)
   }, [onSelectEntry, preserveStudentTableScrollPosition])
 
+  const handleKeyboardDeselect = useCallback(() => {
+    pendingKeyboardTableFocusRef.current = true
+    handleDeselect()
+  }, [handleDeselect])
+
   useEffect(() => {
     if (!selectedStudentId || !isActive) return
 
     function handleEscapeKey(event: KeyboardEvent) {
-      if (event.key !== 'Escape') return
+      if (event.key !== 'Escape' || event.defaultPrevented) return
       event.preventDefault()
-      handleDeselect()
+      handleKeyboardDeselect()
     }
 
     window.addEventListener('keydown', handleEscapeKey)
     return () => window.removeEventListener('keydown', handleEscapeKey)
-  }, [handleDeselect, isActive, selectedStudentId])
+  }, [handleKeyboardDeselect, isActive, selectedStudentId])
 
   useEffect(() => {
     if (!selectedStudentId || !isActive) return
@@ -387,6 +406,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     (studentId: string) => {
       const row = rows.find((r) => r.student_id === studentId)
       if (!row) return
+      pendingKeyboardFocusStudentIdRef.current = studentId
       selectStudentByRow(row)
     },
     [rows, selectStudentByRow]
@@ -404,6 +424,20 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     () => rows.find((row) => row.student_id === selectedStudentId) ?? null,
     [rows, selectedStudentId]
   )
+
+  useEffect(() => {
+    const pendingStudentId = pendingKeyboardFocusStudentIdRef.current
+    if (pendingStudentId && selectedStudentId === pendingStudentId) {
+      document.getElementById(getAttendanceStudentRowId(pendingStudentId))?.focus()
+      pendingKeyboardFocusStudentIdRef.current = null
+      return
+    }
+
+    if (!selectedStudentId && pendingKeyboardTableFocusRef.current) {
+      studentTableNavigationRef.current?.focus()
+      pendingKeyboardTableFocusRef.current = false
+    }
+  }, [selectedStudentId])
   const selectedStudentName = selectedRow
     ? [selectedRow.student_first_name, selectedRow.student_last_name].filter(Boolean).join(' ') ||
       selectedRow.email_username
@@ -540,10 +574,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
     return (
       <KeyboardNavigableTable
+        ref={studentTableNavigationRef}
+        ariaLabel="Attendance students"
         rowKeys={rowKeys}
         selectedKey={selectedStudentId}
         onSelectKey={handleKeyboardSelect}
-        onDeselect={handleDeselect}
+        onDeselect={handleKeyboardDeselect}
+        getRowId={getAttendanceStudentRowId}
       >
         <TableCard chrome="flush">
           {refreshing && (
@@ -616,6 +653,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 return (
                   <DataTableRow
                     key={row.student_id}
+                    id={getAttendanceStudentRowId(row.student_id)}
+                    aria-selected={isSelected}
+                    tabIndex={-1}
                     className={[
                       'cursor-pointer transition-colors',
                       isSelected

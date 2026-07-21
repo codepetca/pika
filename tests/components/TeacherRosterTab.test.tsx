@@ -1,6 +1,6 @@
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TeacherRosterTab } from '@/app/classrooms/[classroomId]/TeacherRosterTab'
 import type { Classroom } from '@/types'
@@ -231,6 +231,15 @@ describe('TeacherRosterTab', () => {
     renderRoster()
 
     expect(await screen.findByText('Ada')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Classroom roster' })).toHaveAttribute(
+      'aria-keyshortcuts',
+      'ArrowUp ArrowDown Home End Escape',
+    )
+    fireEvent.click(screen.getByText('Ada'))
+    const selectedRow = screen.getByRole('row', { name: /Ada Lovelace/ })
+    expect(selectedRow).toHaveAttribute('id', 'roster-student-row-roster-1')
+    expect(selectedRow).toHaveAttribute('aria-selected', 'true')
+    expect(selectedRow).toHaveAttribute('tabindex', '-1')
     expect(screen.queryByText('Roster Summary')).not.toBeInTheDocument()
     expect(screen.queryByRole('separator', { name: 'Resize Roster panes' })).not.toBeInTheDocument()
   })

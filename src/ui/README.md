@@ -166,6 +166,19 @@ failed request.
 - Route and retry rules live in
   [`page-state-conventions.md`](/docs/guidance/ui/page-state-conventions.md).
 
+### Composite controls
+
+- Use `Tabs` plus `TabPanel` for panel-switching navigation. The tab list owns roving focus,
+  automatic activation, arrow keys, `Home`/`End`, disabled-item skipping, narrow-width scrolling,
+  and 44px targets. Panels with interactive descendants are not additional tab stops.
+- Use `SegmentedControl` for a small selected group that does not own tabpanels. It exposes pressed
+  state and the same roving arrow/first/last keyboard behavior.
+- Import `DataTable`, `SortableHeaderCell`, `KeyboardNavigableTable`, and related table primitives
+  from `@/ui`; keyboard-selectable tables require a feature-specific accessible name and matching
+  row IDs so keyboard selection can move focus to the active row.
+- Menu and split-pane ownership, semantics, and verification requirements live in
+  [`composite-control-conventions.md`](/docs/guidance/ui/composite-control-conventions.md).
+
 ### EmptyState
 
 ```typescript

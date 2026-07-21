@@ -38,7 +38,11 @@ describe('SummaryDetailWorkspaceShell', () => {
         divider={{
           label: 'Resize panes',
           onPointerDown,
+          onKeyDown: vi.fn(),
           onDoubleClick,
+          ariaValueMin: 20,
+          ariaValueMax: 80,
+          ariaValueNow: 50,
         }}
       />,
     )
