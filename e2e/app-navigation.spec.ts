@@ -73,3 +73,36 @@ test.describe('teacher utility application navigation', () => {
     })
   }
 })
+
+test.describe('student utility application navigation', () => {
+  test.use({ storageState: '.auth/student.json' })
+
+  for (const testCase of [
+    { name: 'desktop light', viewport: { width: 1440, height: 900 }, theme: 'light' as const },
+    { name: 'mobile dark', viewport: { width: 390, height: 844 }, theme: 'dark' as const },
+  ]) {
+    test(`${testCase.name} /student/history`, async ({ page }) => {
+      await page.setViewportSize(testCase.viewport)
+      await setTheme(page, testCase.theme)
+      await page.goto('/student/history', { waitUntil: 'networkidle' })
+
+      const navigation = page.getByRole('navigation', { name: 'Student tools' })
+      await expect(navigation).toBeVisible()
+      await expect(navigation.getByRole('link')).toHaveCount(2)
+      await expect(navigation.getByRole('link', { name: 'History' })).toHaveAttribute('aria-current', 'page')
+
+      const classrooms = navigation.getByRole('link', { name: 'Classrooms' })
+      expect((await classrooms.boundingBox())?.height).toBeGreaterThanOrEqual(44)
+      await classrooms.focus()
+      await expect(classrooms).toBeFocused()
+      expect(await classrooms.evaluate((element) => getComputedStyle(element).boxShadow)).toContain('inset')
+
+      const main = page.getByRole('main')
+      await expect(main).toHaveCSS('padding-left', '16px')
+      await expect(main).toHaveCSS('padding-right', '16px')
+      await expect(main).toHaveCSS('padding-top', '32px')
+      await expect(main).toHaveCSS('padding-bottom', '32px')
+      expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false)
+    })
+  }
+})

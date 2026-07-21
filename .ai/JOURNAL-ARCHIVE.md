@@ -14045,3 +14045,23 @@
 - `bash -n scripts/check-classroom-archive-recovery-drill.sh`
 - Local full-stack drill intentionally not run because the existing local Supabase instance predates migrations 082-086; migrations were not applied or reset
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:f3792d5bda61ccb13f31db937b092caaf765b0429b69b85227f3e4d888f9f594 -->
+## 2026-07-13 — Teacher cold-archive recovery surface
+
+**Completed:**
+- Extended the teacher Archived API response with teacher-scoped, Zod-validated cold tombstone summaries while preserving the existing response when migration 083 is absent and failing closed on unexpected query or contract errors.
+- Added a distinct Stored archive row to the teacher classroom index; cold submissions, grades, and files remain inaccessible until the existing gated restore operation returns the classroom to `archived_hot`.
+- Reused the existing restore route and required server feature gate, exact teacher allowlist, and database budget before enabling the control. The client keeps one UUID idempotency key through request and list-refresh failures and discards it only after refreshed state is confirmed.
+- Added server, API, client, and component coverage for teacher scoping, rollout fallback, strict response validation, enabled/disabled controls, successful restore, and idempotent retries.
+- Visually verified teacher desktop/mobile in light/dark plus disabled, confirm, processing, error, and restored-hot states; student desktop/mobile remained unchanged. No production database, migration, row, object, environment, or schedule was read or modified.
+
+**Validation:**
+- Full Vitest suite (338 files / 3,009 tests)
+- Focused recovery list/API/client/component suites (5 files / 35 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika pre-commit audit
+- Local-only Playwright matrix with no overflow; intentional restore failure reused the same idempotency key on retry
+- `git diff --check`
