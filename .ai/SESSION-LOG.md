@@ -913,17 +913,19 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added a direct student-layout regression and expanded the durable application-navigation Playwright contract with student desktop-light and mobile-dark checks for active state, inset focus, rendered target size, spacing, and overflow.
 - Visually inspected populated student History at desktop and mobile widths; the two-column desktop layout and stacked mobile workflow remain intact with the cleaned shared header.
 - Opened PR #904 for independent review.
+- Accepted one independent accessibility finding: the newly activated shared header and account menu exposed sub-44px controls. Enlarged the Home, fullscreen, login, account, sidebar, and menu-item hit areas without changing icon sizes, removed the menu scale animation that temporarily shrank interactive rows, and added unit plus rendered-size keyboard regressions.
 
 **Validation:**
 - `pnpm test --run` (393 files / 3,585 tests)
 - Focused student-layout, application-navigation, app-shell, and student-history suites (4 files / 10 tests)
+- Focused remediation suite for the shared header, account menu, student shell, and navigation (6 files / 20 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm check:architecture` (613 modules / 0 allowances)
 - `pnpm build`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - Durable Playwright application-navigation suite (10 checks including auth setup)
-- Desktop and mobile student History screenshots
+- Desktop/mobile teacher and student screenshots, including open mobile-dark account menus
 - `node scripts/trim-session-log.mjs --check`
 - `git diff --check`
 

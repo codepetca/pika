@@ -99,7 +99,7 @@ export function UserMenu({ user }: UserMenuProps) {
     return (
       <Link
         href="/login"
-        className="text-sm text-text-muted hover:text-text-default font-medium"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center text-sm font-medium text-text-muted hover:text-text-default"
       >
         Login
       </Link>
@@ -120,7 +120,7 @@ export function UserMenu({ user }: UserMenuProps) {
         ref={triggerRef}
         onClick={handleTriggerClick}
         onKeyDown={handleTriggerKeyDown}
-        className="flex items-center justify-center w-8 h-8 rounded-full transition-all hover:ring-2 hover:ring-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        className="flex min-h-11 min-w-11 items-center justify-center rounded-full transition-all hover:ring-2 hover:ring-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         aria-label="User menu"
         aria-expanded={isOpen}
         aria-haspopup="menu"
@@ -138,10 +138,10 @@ export function UserMenu({ user }: UserMenuProps) {
       {/* Dropdown menu with animation */}
       <div
         id={menuId}
-        className={`absolute right-0 mt-2 w-64 bg-surface rounded-lg shadow-lg border border-border py-1 z-50 transition-all duration-200 origin-top-right ${
+        className={`absolute right-0 z-50 mt-2 w-64 rounded-lg border border-border bg-surface py-1 shadow-lg transition-all duration-200 ${
           isOpen
-            ? 'opacity-100 scale-100 translate-y-0'
-            : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'
+            ? 'translate-y-0 opacity-100'
+            : 'pointer-events-none -translate-y-1 opacity-0'
         }`}
         role="menu"
         aria-labelledby={triggerId}
@@ -180,7 +180,7 @@ export function UserMenu({ user }: UserMenuProps) {
           onClick={handleThemeToggle}
           onMouseEnter={() => setFocusedIndex(0)}
           onKeyDown={handleItemKeyDown}
-          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
+          className={`flex min-h-11 w-full items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
             focusedIndex === 0
               ? 'bg-surface-2'
               : 'hover:bg-surface-hover'
@@ -201,7 +201,7 @@ export function UserMenu({ user }: UserMenuProps) {
           onClick={() => { setIsOpen(false); setShowFeedback(true) }}
           onMouseEnter={() => setFocusedIndex(1)}
           onKeyDown={handleItemKeyDown}
-          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
+          className={`flex min-h-11 w-full items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
             focusedIndex === 1
               ? 'bg-surface-2'
               : 'hover:bg-surface-hover'
@@ -221,7 +221,7 @@ export function UserMenu({ user }: UserMenuProps) {
           onClick={() => setIsOpen(false)}
           onMouseEnter={() => setFocusedIndex(2)}
           onKeyDown={handleItemKeyDown}
-          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
+          className={`flex min-h-11 w-full items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
             focusedIndex === 2
               ? 'bg-surface-2'
               : 'hover:bg-surface-hover'

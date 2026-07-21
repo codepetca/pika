@@ -91,6 +91,31 @@ test.describe('student utility application navigation', () => {
       await expect(navigation.getByRole('link')).toHaveCount(2)
       await expect(navigation.getByRole('link', { name: 'History' })).toHaveAttribute('aria-current', 'page')
 
+      const header = page.getByRole('banner')
+      const home = header.getByRole('link', { name: 'Home' })
+      const fullscreen = header.getByRole('button', { name: /fullscreen/i })
+      const userMenu = header.getByRole('button', { name: 'User menu' })
+
+      for (const control of [home, fullscreen, userMenu]) {
+        const target = await control.boundingBox()
+        expect(target?.height).toBeGreaterThanOrEqual(44)
+        expect(target?.width).toBeGreaterThanOrEqual(44)
+        await control.focus()
+        await expect(control).toBeFocused()
+      }
+
+      await userMenu.press('Enter')
+      const menu = page.getByRole('menu')
+      await expect(menu).toBeVisible()
+      const menuItems = menu.getByRole('menuitem')
+      await expect(menuItems).toHaveCount(3)
+      for (let index = 0; index < 3; index += 1) {
+        expect((await menuItems.nth(index).boundingBox())?.height).toBeGreaterThanOrEqual(44)
+      }
+      await expect(menuItems.first()).toBeFocused()
+      await menuItems.first().press('Escape')
+      await expect(userMenu).toBeFocused()
+
       const classrooms = navigation.getByRole('link', { name: 'Classrooms' })
       expect((await classrooms.boundingBox())?.height).toBeGreaterThanOrEqual(44)
       await classrooms.focus()

@@ -86,6 +86,9 @@ describe('AppHeader classroom theme', () => {
     render(<AppHeader pageTitle="Classrooms" />, { wrapper: Wrapper })
 
     expect(screen.getByAltText('Pika')).toHaveClass('pika-logo')
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveClass('h-11', 'w-11')
+    expect(screen.getByRole('button', { name: 'Enter fullscreen' })).toHaveClass('min-h-11', 'min-w-11')
+    expect(screen.getByRole('link', { name: 'Login' })).toHaveClass('min-h-11', 'min-w-11')
   })
 
   it('themes the brand logo through design tokens instead of component dark utilities', () => {

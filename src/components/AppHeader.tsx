@@ -142,7 +142,7 @@ export function AppHeader({
             <button
               type="button"
               onClick={onOpenSidebar}
-            className="lg:hidden p-2 -ml-2 rounded-md text-text-muted hover:text-text-default hover:bg-surface-hover transition-colors"
+              className="-ml-2 flex min-h-11 min-w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-hover hover:text-text-default lg:hidden"
               aria-label="Open classroom navigation"
             >
               <Menu className="w-5 h-5" />
@@ -155,7 +155,7 @@ export function AppHeader({
           <Link
             href="/classrooms"
             aria-label="Home"
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center"
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center"
             onClick={(event) => {
               const allow = onNavigateHome?.('/classrooms')
               if (allow === false) {
@@ -219,7 +219,7 @@ export function AppHeader({
             <button
               type="button"
               onClick={() => void toggleFullscreen()}
-              className="mr-1 p-2 rounded-md text-text-muted hover:text-text-default hover:bg-surface-hover transition-colors"
+              className="mr-1 flex min-h-11 min-w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-hover hover:text-text-default"
               aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
             >
               {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
