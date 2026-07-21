@@ -14,7 +14,7 @@ describe('classroom route page states', () => {
 
     expect(screen.getByTestId('classroom-skeleton')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveAttribute('data-page-state', 'loading')
-    expect(screen.getByText('Loading classroom')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Loading classroom' })).toBeInTheDocument()
   })
 
   it('keeps missing and unauthorized classrooms intentionally indistinguishable', () => {

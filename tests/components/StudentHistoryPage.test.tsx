@@ -92,11 +92,13 @@ describe('HistoryPage', () => {
     render(<HistoryPage />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load your classrooms')
+    expect(screen.getByRole('heading', { level: 1, name: 'Could not load your classrooms' })).toBeInTheDocument()
     expect(screen.queryByText('No Classes Yet')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
 
     await waitFor(() => expect(screen.getAllByText('History Class')).toHaveLength(2))
+    expect(screen.getByRole('region', { name: 'Student history' })).toHaveFocus()
     expect(invalidateStudentClassrooms).toHaveBeenCalledOnce()
     expect(consoleError).toHaveBeenCalled()
   })
@@ -116,6 +118,7 @@ describe('HistoryPage', () => {
 
     expect(await screen.findByText('Fri May 9')).toBeInTheDocument()
     expect(screen.queryByText('Could not load attendance history')).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Student history' })).toHaveFocus()
     expect(invalidateClassDaysForClassroom).toHaveBeenCalledWith(classroom.id)
     expect(invalidateStudentEntriesForClassroom).toHaveBeenCalledWith(classroom.id)
     expect(consoleError).toHaveBeenCalled()

@@ -21,8 +21,9 @@ feedback with their owning feature controls instead.
   retrying a caught client read.
 - Use `not-found.tsx` or generic unavailable copy when distinguishing missing from forbidden would
   disclose protected-resource existence.
-- Preserve the normal app/classroom shell around route states so navigation and page dimensions do
-  not jump.
+- Preserve the normal app/classroom shell when its authenticated identity and navigation data are
+  available. A route boundary without that context must preserve the page geometry and offer a safe
+  route away instead of synthesizing role or classroom navigation from unavailable data.
 - Use `PageState compact` only for a primary region inside an established split workspace. Do not
   put `PageState` inside another card.
 - Keep successful zero-result handling separate from the `catch` path in client coordinators.
@@ -35,6 +36,8 @@ feedback with their owning feature controls instead.
 - Error and forbidden states use assertive alert semantics.
 - The state icon is decorative; the title and description carry the meaning in text.
 - Retry and route-away actions remain normal keyboard-reachable controls with shared 44px targets.
+- When retry replaces the initiating control, move focus to a stable named page or work-region
+  container so the refreshed result has a deterministic focus target.
 
 ## Reference Surfaces
 

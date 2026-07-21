@@ -21,6 +21,7 @@ export default function ClassroomLoading() {
         <main className="min-w-0">
           <PageState
             kind="loading"
+            headingLevel="h1"
             title="Loading classroom"
             description="Getting the latest classroom information."
             className="min-h-[calc(100vh-3rem)]"

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, FormEvent } from 'react'
+import { useState, useEffect, useRef, FormEvent } from 'react'
 import { Button, FormField, Input, PageContent, PageLayout, PageState } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { format, parse } from 'date-fns'
@@ -24,6 +24,7 @@ interface HistoryEntry {
 }
 
 export default function HistoryPage() {
+  const pageRegionRef = useRef<HTMLDivElement>(null)
   const [classrooms, setClassrooms] = useState<Classroom[]>([])
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null)
   const [loading, setLoading] = useState(true)
@@ -172,73 +173,101 @@ export default function HistoryPage() {
 
   if (loading) {
     return (
-      <PageLayout density="student" width="reading">
-        <PageContent>
-          <PageState
-            kind="loading"
-            title="Loading history"
-            description="Getting your classrooms and attendance history."
-          />
-        </PageContent>
-      </PageLayout>
+      <div
+        ref={pageRegionRef}
+        role="region"
+        aria-label="Student history"
+        tabIndex={-1}
+        className="focus:outline-none"
+      >
+        <PageLayout density="student" width="reading">
+          <PageContent>
+            <PageState
+              kind="loading"
+              headingLevel="h1"
+              title="Loading history"
+              description="Getting your classrooms and attendance history."
+            />
+          </PageContent>
+        </PageLayout>
+      </div>
     )
   }
 
   if (loadError) {
     return (
-      <PageLayout density="student" width="reading">
-        <PageContent>
-          <PageState
-            kind="error"
-            title="Could not load your classrooms"
-            description="Your saved history has not been changed, but it could not be retrieved right now."
-            action={
-              <Button
-                type="button"
-                onClick={() => {
-                  invalidateStudentClassrooms()
-                  setLoadAttempt((attempt) => attempt + 1)
-                }}
-              >
-                Try again
-              </Button>
-            }
-          />
-        </PageContent>
-      </PageLayout>
+      <div
+        ref={pageRegionRef}
+        role="region"
+        aria-label="Student history"
+        tabIndex={-1}
+        className="focus:outline-none"
+      >
+        <PageLayout density="student" width="reading">
+          <PageContent>
+            <PageState
+              kind="error"
+              headingLevel="h1"
+              title="Could not load your classrooms"
+              description="Your saved history has not been changed, but it could not be retrieved right now."
+              action={
+                <Button
+                  type="button"
+                  onClick={() => {
+                    pageRegionRef.current?.focus()
+                    invalidateStudentClassrooms()
+                    setLoadAttempt((attempt) => attempt + 1)
+                  }}
+                >
+                  Try again
+                </Button>
+              }
+            />
+          </PageContent>
+        </PageLayout>
+      </div>
     )
   }
 
   // Empty state - no classrooms
   if (classrooms.length === 0) {
     return (
-      <PageLayout density="student" width="reading">
-        <PageContent>
-          <PageState
-            kind="empty"
-            title="No Classes Yet"
-            description="Join a class to view your history."
-            action={
-              <form onSubmit={handleJoinClassroom} className="w-full space-y-4 text-left">
-                <FormField label="Class Code" error={error} required>
-                  <Input
-                    type="text"
-                    placeholder="Enter class code"
-                    value={joinCode}
-                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                    required
-                    disabled={joining}
-                  />
-                </FormField>
+      <div
+        ref={pageRegionRef}
+        role="region"
+        aria-label="Student history"
+        tabIndex={-1}
+        className="focus:outline-none"
+      >
+        <PageLayout density="student" width="reading">
+          <PageContent>
+            <PageState
+              kind="empty"
+              headingLevel="h1"
+              title="No Classes Yet"
+              description="Join a class to view your history."
+              action={
+                <form onSubmit={handleJoinClassroom} className="w-full space-y-4 text-left">
+                  <FormField label="Class Code" error={error} required>
+                    <Input
+                      type="text"
+                      placeholder="Enter class code"
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                      required
+                      disabled={joining}
+                    />
+                  </FormField>
 
-                <Button type="submit" disabled={joining || !joinCode} className="w-full">
-                  {joining ? 'Joining...' : 'Join Class'}
-                </Button>
-              </form>
-            }
-          />
-        </PageContent>
-      </PageLayout>
+                  <Button type="submit" disabled={joining || !joinCode} className="w-full">
+                    {joining ? 'Joining...' : 'Join Class'}
+                  </Button>
+                </form>
+              }
+            />
+          </PageContent>
+        </PageLayout>
+      </div>
     )
   }
 
@@ -248,9 +277,15 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="flex gap-6">
+    <div
+      ref={pageRegionRef}
+      role="region"
+      aria-label="Student history"
+      tabIndex={-1}
+      className="flex flex-col gap-4 focus:outline-none md:flex-row md:gap-6"
+    >
       {/* Classroom List Sidebar */}
-      <div className="w-64 flex-shrink-0">
+      <div className="w-full flex-shrink-0 md:w-64">
         <div className="bg-surface rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-text-default">My Classes</h3>
@@ -304,7 +339,7 @@ export default function HistoryPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         {historyError ? (
           <PageState
             kind="error"
@@ -315,6 +350,7 @@ export default function HistoryPage() {
               <Button
                 type="button"
                 onClick={() => {
+                  pageRegionRef.current?.focus()
                   if (selectedClassroom) {
                     invalidateClassDaysForClassroom(selectedClassroom.id)
                     invalidateStudentEntriesForClassroom(selectedClassroom.id)

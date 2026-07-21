@@ -883,23 +883,26 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Completed:**
 - Merged PR #899 and started Phase 2 item 5 from current `main` in a dedicated worktree.
 - Added canonical `PageState` loading, error, empty, and forbidden variants with explicit live-region semantics, text-backed icons, optional actions, and compact work-region support.
-- Added classroom route loading, error-boundary retry, and intentionally indistinguishable unavailable/access-denied states while preserving the classroom shell.
+- Added classroom route loading, error-boundary retry, and intentionally indistinguishable unavailable/access-denied states while preserving safe layout framing and route-away behavior.
 - Migrated teacher dashboard and student history initial loading/empty behavior; failed classroom/history reads now render explicit retryable errors instead of valid-looking empty data.
 - Added cache invalidation before client retries and direct regressions for state semantics, route boundaries, error/empty separation, and retry recovery.
 - Documented the state decision table and App Router conventions in stable guidance.
 - Visually verified teacher/student loading, error, and empty states plus classroom unavailable states at desktop/mobile sizes in light/dark themes. Governed states had no overflow or page errors, and retry/route-away controls measured 44px.
 - Opened PR #900 for independent review; no schema, migration, API contract, or production data change was made.
+- Fixed independent-review findings by separating attendance read failures from empty rosters, binding data to its owning classroom, routing roster-upload refresh through the same guarded coordinator, and rejecting stale entry-detail responses after class switches.
+- Added deterministic focus recovery and page-level heading semantics, clarified shell behavior when protected identity data is unavailable, and made the teacher dashboard and student history stack cleanly on mobile without changing their table-first desktop workflow.
 
 **Validation:**
-- `pnpm test` (387 files / 3,566 tests)
+- `pnpm test` (387 files / 3,569 tests)
 - Focused page-state, classroom-route, teacher-dashboard, student-history, UI-guidance, and startup-doc suites
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm check:architecture` (610 modules / 0 allowances)
 - `pnpm build`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Custom Playwright teacher/student desktop/mobile light/dark loading/error/empty/forbidden and keyboard-retry matrix
+- Composite-widget checklist reviewed; no composite widget behavior changed in this slice, while retry keyboard/focus behavior is covered directly.
+- Custom Playwright teacher/student desktop/mobile light/dark loading/error/empty/forbidden and keyboard-retry matrix; all remediation cases had no overflow or page errors, 44px retry controls, and stable post-retry focus
 - `git diff --check`
 
 **Remaining:**
-- Open, independently review, and merge the page-state PR. Then continue Phase 2 with shared table, menu, tabs, segmented-control, and split-pane contracts.
+- Merge the independently reviewed page-state PR after required checks. Then continue Phase 2 with shared table, menu, tabs, segmented-control, and split-pane contracts.

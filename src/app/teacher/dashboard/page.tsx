@@ -25,12 +25,17 @@ export default function TeacherDashboardPage() {
   const [loadError, setLoadError] = useState('')
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
   const [dates, setDates] = useState<string[]>([])
+  const [attendanceClassroomId, setAttendanceClassroomId] = useState<string | null>(null)
   const [loadingAttendance, setLoadingAttendance] = useState(false)
+  const [attendanceError, setAttendanceError] = useState('')
+  const [attendanceAttempt, setAttendanceAttempt] = useState(0)
   const [selectedEntry, setSelectedEntry] = useState<Entry & { student_email: string } | null>(null)
   const [loadingEntry, setLoadingEntry] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const attendanceRequestIdRef = useRef(0)
+  const entryRequestIdRef = useRef(0)
+  const pageRegionRef = useRef<HTMLDivElement>(null)
   const selectedClassroomIdRef = useRef<string | null>(null)
   selectedClassroomIdRef.current = selectedClassroom?.id ?? null
 
@@ -59,10 +64,19 @@ export default function TeacherDashboardPage() {
   useEffect(() => {
     if (!selectedClassroom) {
       attendanceRequestIdRef.current += 1
+      entryRequestIdRef.current += 1
       setAttendance([])
       setDates([])
+      setAttendanceClassroomId(null)
+      setAttendanceError('')
+      setSelectedEntry(null)
+      setLoadingEntry(false)
       return
     }
+
+    entryRequestIdRef.current += 1
+    setSelectedEntry(null)
+    setLoadingEntry(false)
 
     async function loadAttendance() {
       if (!selectedClassroom) return
@@ -71,15 +85,21 @@ export default function TeacherDashboardPage() {
       attendanceRequestIdRef.current = requestId
 
       setLoadingAttendance(true)
+      setAttendanceError('')
       try {
         const data = await fetchTeacherDashboardAttendance(classroomId)
 
         if (attendanceRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
         setAttendance(data.attendance || [])
         setDates(data.dates || [])
+        setAttendanceClassroomId(classroomId)
       } catch (err) {
         if (attendanceRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
         console.error('Error loading attendance:', err)
+        setAttendance([])
+        setDates([])
+        setAttendanceClassroomId(classroomId)
+        setAttendanceError('The attendance overview could not be retrieved.')
       } finally {
         if (attendanceRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
         setLoadingAttendance(false)
@@ -87,23 +107,35 @@ export default function TeacherDashboardPage() {
     }
 
     loadAttendance()
-  }, [selectedClassroom])
+  }, [attendanceAttempt, selectedClassroom])
 
   async function handleCellClick(studentId: string, studentEmail: string, date: string) {
     if (!selectedClassroom) return
+    const classroomId = selectedClassroom.id
+    const requestId = entryRequestIdRef.current + 1
+    entryRequestIdRef.current = requestId
 
     setLoadingEntry(true)
 
     try {
-      const entry = await fetchTeacherDashboardEntry(selectedClassroom.id, studentId, date)
+      const entry = await fetchTeacherDashboardEntry(classroomId, studentId, date)
 
-      if (entry) {
+      if (
+        entry
+        && entryRequestIdRef.current === requestId
+        && selectedClassroomIdRef.current === classroomId
+      ) {
         setSelectedEntry({ ...entry, student_email: studentEmail })
       }
     } catch (err) {
       console.error('Error loading entry:', err)
     } finally {
-      setLoadingEntry(false)
+      if (
+        entryRequestIdRef.current === requestId
+        && selectedClassroomIdRef.current === classroomId
+      ) {
+        setLoadingEntry(false)
+      }
     }
   }
 
@@ -134,78 +166,112 @@ export default function TeacherDashboardPage() {
 
   if (loading) {
     return (
-      <PageLayout density="teacher" width="reading">
-        <PageContent>
-          <PageState
-            kind="loading"
-            title="Loading classrooms"
-            description="Getting the latest classroom overview."
-          />
-        </PageContent>
-      </PageLayout>
+      <div
+        ref={pageRegionRef}
+        role="region"
+        aria-label="Teacher dashboard"
+        tabIndex={-1}
+        className="focus:outline-none"
+      >
+        <PageLayout density="teacher" width="reading">
+          <PageContent>
+            <PageState
+              kind="loading"
+              headingLevel="h1"
+              title="Loading classrooms"
+              description="Getting the latest classroom overview."
+            />
+          </PageContent>
+        </PageLayout>
+      </div>
     )
   }
 
   if (loadError) {
     return (
-      <PageLayout density="teacher" width="reading">
-        <PageContent>
-          <PageState
-            kind="error"
-            title="Could not load classrooms"
-            description="The dashboard could not retrieve your classrooms."
-            action={
-              <Button
-                type="button"
-                onClick={() => {
-                  invalidateTeacherClassrooms()
-                  void loadClassrooms()
-                }}
-              >
-                Try again
-              </Button>
-            }
-          />
-        </PageContent>
-      </PageLayout>
+      <div
+        ref={pageRegionRef}
+        role="region"
+        aria-label="Teacher dashboard"
+        tabIndex={-1}
+        className="focus:outline-none"
+      >
+        <PageLayout density="teacher" width="reading">
+          <PageContent>
+            <PageState
+              kind="error"
+              headingLevel="h1"
+              title="Could not load classrooms"
+              description="The dashboard could not retrieve your classrooms."
+              action={
+                <Button
+                  type="button"
+                  onClick={() => {
+                    pageRegionRef.current?.focus()
+                    invalidateTeacherClassrooms()
+                    void loadClassrooms()
+                  }}
+                >
+                  Try again
+                </Button>
+              }
+            />
+          </PageContent>
+        </PageLayout>
+      </div>
     )
   }
 
   // Empty state
   if (classrooms.length === 0) {
     return (
-      <PageLayout density="teacher" width="reading">
-        <PageContent>
-          <PageState
-            kind="empty"
-            title="No Classrooms Yet"
-            description="Create your first classroom or start from a course blueprint."
-            action={
-              <div className="flex flex-wrap justify-center gap-3">
-                <Button onClick={() => setShowCreateModal(true)}>
-                  Create Classroom
-                </Button>
-                <Button variant="secondary" onClick={() => router.push('/teacher/blueprints')}>
-                  Course Blueprints
-                </Button>
-              </div>
-            }
-          />
-        </PageContent>
+      <div
+        ref={pageRegionRef}
+        role="region"
+        aria-label="Teacher dashboard"
+        tabIndex={-1}
+        className="focus:outline-none"
+      >
+        <PageLayout density="teacher" width="reading">
+          <PageContent>
+            <PageState
+              kind="empty"
+              headingLevel="h1"
+              title="No Classrooms Yet"
+              description="Create your first classroom or start from a course blueprint."
+              action={
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Button onClick={() => setShowCreateModal(true)}>
+                    Create Classroom
+                  </Button>
+                  <Button variant="secondary" onClick={() => router.push('/teacher/blueprints')}>
+                    Course Blueprints
+                  </Button>
+                </div>
+              }
+            />
+          </PageContent>
 
-        <CreateClassroomModal
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={handleClassroomCreated}
-        />
-      </PageLayout>
+          <CreateClassroomModal
+            isOpen={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={handleClassroomCreated}
+          />
+        </PageLayout>
+      </div>
     )
   }
 
   return (
-    <div className="flex gap-6">
+    <div
+      ref={pageRegionRef}
+      role="region"
+      aria-label="Teacher dashboard"
+      tabIndex={-1}
+      className="flex flex-col gap-4 focus:outline-none md:flex-row md:gap-6"
+    >
       {/* Classroom List Sidebar */}
-      <div className="w-64 flex-shrink-0">
+      <div className="w-full flex-shrink-0 md:w-64">
         <div className="bg-surface rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-text-default">Classes</h3>
@@ -245,7 +311,7 @@ export default function TeacherDashboardPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         {selectedClassroom ? (
           <PageLayout>
             <PageActionBar
@@ -298,10 +364,30 @@ export default function TeacherDashboardPage() {
 
             <PageContent>
               {/* Attendance Dashboard */}
-              {loadingAttendance ? (
+              {loadingAttendance || attendanceClassroomId !== selectedClassroom.id ? (
                 <div className="flex justify-center py-12">
                   <Spinner size="lg" />
                 </div>
+              ) : attendanceError ? (
+                <PageState
+                  kind="error"
+                  compact
+                  title="Could not load attendance"
+                  description={attendanceError}
+                  action={
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        pageRegionRef.current?.focus()
+                        invalidateTeacherDashboardAttendance(selectedClassroom.id)
+                        setAttendanceClassroomId(null)
+                        setAttendanceAttempt((attempt) => attempt + 1)
+                      }}
+                    >
+                      Try again
+                    </Button>
+                  }
+                />
               ) : attendance.length === 0 ? (
                 <div className="bg-surface rounded-lg shadow-sm p-8 text-center text-text-muted">
                   No students enrolled yet
@@ -444,22 +530,10 @@ export default function TeacherDashboardPage() {
           isOpen={showUploadModal}
           onClose={() => setShowUploadModal(false)}
           classroomId={selectedClassroom.id}
-          onSuccess={async () => {
-            const classroomId = selectedClassroom.id
-            const requestId = attendanceRequestIdRef.current + 1
-            attendanceRequestIdRef.current = requestId
-            invalidateTeacherDashboardAttendance(classroomId)
-            setLoadingAttendance(true)
-            try {
-              const data = await fetchTeacherDashboardAttendance(classroomId)
-              if (attendanceRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
-              setAttendance(data.attendance)
-              setDates(data.dates)
-            } finally {
-              if (attendanceRequestIdRef.current === requestId && selectedClassroomIdRef.current === classroomId) {
-                setLoadingAttendance(false)
-              }
-            }
+          onSuccess={() => {
+            invalidateTeacherDashboardAttendance(selectedClassroom.id)
+            setAttendanceClassroomId(null)
+            setAttendanceAttempt((attempt) => attempt + 1)
           }}
         />
       )}
