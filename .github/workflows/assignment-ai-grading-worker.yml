@@ -14,11 +14,11 @@ concurrency:
 
 jobs:
   tick:
-    if: ${{ vars.PIKA_ASSIGNMENT_AI_GRADING_WORKER_URL != '' }}
+    if: ${{ vars.PIKA_ASSIGNMENT_AI_GRADING_WORKER_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
     env:
-      WORKER_URL: ${{ vars.PIKA_ASSIGNMENT_AI_GRADING_WORKER_URL }}
+      WORKER_URL: https://pika.codepet.ca
       WORKER_SECRET: ${{ secrets.PIKA_ASSIGNMENT_AI_GRADING_WORKER_SECRET }}
     steps:
       - name: Validate worker secret
@@ -29,4 +29,4 @@ jobs:
           curl --fail-with-body --silent --show-error
           --request POST
           --header "Authorization: Bearer ${WORKER_SECRET}"
-          "${WORKER_URL%/}/api/cron/assignment-ai-grading-runs"
+          "${WORKER_URL}/api/cron/assignment-ai-grading-runs"

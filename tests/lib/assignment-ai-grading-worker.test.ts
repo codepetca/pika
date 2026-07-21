@@ -39,43 +39,38 @@ describe('assignment AI grading worker', () => {
     vi.clearAllMocks()
   })
 
-  it('ticks a bounded runnable batch sequentially', async () => {
-    mocks.listRuns.mockResolvedValue([run('run-1'), run('run-2')])
-    const callOrder: string[] = []
-    mocks.tickRun.mockImplementation(async ({ runId }: { runId: string }) => {
-      callOrder.push(runId)
-      return { claimed: runId === 'run-1', run: run(runId) }
+  it('ticks one runnable Gradex run', async () => {
+    mocks.listRuns.mockResolvedValue([run('run-1')])
+    mocks.tickRun.mockResolvedValue({ claimed: true, run: run('run-1') })
+
+    const result = await runAssignmentAiGradingWorker()
+
+    expect(mocks.listRuns).toHaveBeenCalledWith(1)
+    expect(mocks.tickRun).toHaveBeenCalledWith({
+      assignmentId: 'assignment-run-1',
+      runId: 'run-1',
     })
-
-    const result = await runAssignmentAiGradingWorker({ limit: 2 })
-
-    expect(mocks.listRuns).toHaveBeenCalledWith(2)
-    expect(callOrder).toEqual(['run-1', 'run-2'])
-    expect(result).toEqual({ attempted: 2, claimed: 1, failed: 0 })
+    expect(result).toEqual({ attempted: 1, claimed: 1, failed: 0 })
   })
 
-  it('continues after one runnable run fails', async () => {
-    mocks.listRuns.mockResolvedValue([run('run-1'), run('run-2')])
-    mocks.tickRun
-      .mockRejectedValueOnce(new Error('provider unavailable'))
-      .mockResolvedValueOnce({ claimed: true, run: run('run-2') })
+  it('reports a thrown tick failure', async () => {
+    mocks.listRuns.mockResolvedValue([run('run-1')])
+    mocks.tickRun.mockRejectedValueOnce(new Error('provider unavailable'))
 
-    const result = await runAssignmentAiGradingWorker({ limit: 2 })
+    const result = await runAssignmentAiGradingWorker()
 
-    expect(mocks.tickRun).toHaveBeenNthCalledWith(2, {
-      assignmentId: 'assignment-run-2',
-      runId: 'run-2',
-    })
-    expect(result).toEqual({ attempted: 2, claimed: 1, failed: 1 })
+    expect(result).toEqual({ attempted: 1, claimed: 0, failed: 1 })
   })
 
-  it('rejects unbounded limits', async () => {
-    await expect(runAssignmentAiGradingWorker({ limit: 0 })).rejects.toThrow(
-      'Assignment AI grading worker limit must be between 1 and 2',
-    )
-    await expect(runAssignmentAiGradingWorker({ limit: 3 })).rejects.toThrow(
-      'Assignment AI grading worker limit must be between 1 and 2',
-    )
-    expect(mocks.listRuns).not.toHaveBeenCalled()
+  it('reports a terminal run returned by the tick', async () => {
+    mocks.listRuns.mockResolvedValue([run('run-1')])
+    mocks.tickRun.mockResolvedValue({
+      claimed: true,
+      run: { ...run('run-1'), status: 'failed' },
+    })
+
+    const result = await runAssignmentAiGradingWorker()
+
+    expect(result).toEqual({ attempted: 1, claimed: 1, failed: 1 })
   })
 })

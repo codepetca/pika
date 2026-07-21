@@ -47,7 +47,9 @@ export const ASSIGNMENT_AI_GRADING_RUN_CHUNK_SIZE = 4
 export const ASSIGNMENT_AI_GRADING_ITEM_CONCURRENCY = 2
 export const ASSIGNMENT_AI_GRADING_REQUEST_TIMEOUT_MS = 25_000
 export const ASSIGNMENT_AI_GRADING_MAX_ATTEMPTS = 3
-export const ASSIGNMENT_AI_GRADING_LEASE_SECONDS = 60
+// Vercel grading tick routes have a 60-second lifetime. Keep the lease longer so
+// an expired invocation cannot overlap a replacement owner.
+export const ASSIGNMENT_AI_GRADING_LEASE_SECONDS = 120
 
 type ServiceRoleSupabase = ReturnType<typeof getServiceRoleClient>
 
@@ -1080,10 +1082,14 @@ export async function listRunnableAssignmentAiGradingRuns(
   limit: number,
 ): Promise<AssignmentAiGradingRunSummary[]> {
   const supabase = getServiceRoleClient()
+  const now = new Date().toISOString()
   const { data, error } = await supabase
     .from('assignment_ai_grading_runs')
     .select('*')
     .in('status', ['queued', 'running'])
+    .eq('model', GRADEX_ASSIGNMENT_RUN_MODEL)
+    .or(`lease_expires_at.is.null,lease_expires_at.lte.${now}`)
+    .order('updated_at', { ascending: true })
     .order('created_at', { ascending: true })
     .limit(limit)
 

@@ -767,6 +767,41 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Remaining:**
 - Review and merge PR #897. Continue Phase 2 with shared button target sizing/focus-visible behavior and semantic form-field propagation.
 
+## 2026-07-20 - Measured Gradex grading pilot goal
+
+**Completed:**
+- Made the immediate Gradex milestone a narrow measured assignment-grading pilot rather than broader extract or SaaS expansion.
+- Defined exit evidence covering durable progression, single-student and batch flows, a scoped deployed canary, 10-20 teacher-reviewed examples, captured corrections, and a rerunnable versioned eval baseline.
+- Deferred automatic student return, broad rollout, new grading profiles, and extract ingestion until the pilot demonstrates useful teacher-aligned grading.
+
+**Validation:**
+- `git diff --check`
+- Cross-repository roadmap and current-context consistency review
+
+**Remaining:**
+- Fix and verify the single-student async flow, add durable server-side progression, and run the authorized assignment-grading canary.
+
+## 2026-07-20 - Assignment grading background worker
+
+**Completed:**
+- Confirmed the supported one-student AI Grade action already uses the tested shared background-run UI and removed the unused stale inspector auto-grade handler.
+- Added a dedicated-secret-authenticated, feature-gated worker endpoint that advances one fairly selected, unleased Gradex assignment run per invocation.
+- Added an inert-by-default five-minute GitHub Actions scheduler for the Phase 1 pilot; it skips before allocating a runner until its enable variable is set.
+- Documented rollout gates, scheduler credentials, Actions usage, provider-charge behavior, and the browser polling fast path.
+
+**Validation:**
+- Focused assignment worker, route, run-domain, teacher assignment, and inspector suites: 96 tests passed.
+- Full `pnpm test` after rebasing onto current `main`: 3,562 tests passed.
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm run check:architecture`
+- `pnpm build`
+- Startup guidance contract: 29 tests passed and default context remains within budget.
+- `git diff --check`
+
+**Remaining:**
+- Review and publish this slice, configure the deployment and scheduler gates for an authorized environment, then run the scoped assignment-grading canary.
+
 ## 2026-07-21 — Phase 2 shared control and form-field contract
 
 **Completed:**
@@ -932,36 +967,20 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Remaining:**
 - Complete full repository verification, independent review, and merge for the student navigation slice. Then continue Phase 2 with specialized-control policy enforcement.
 ## 2026-07-20 - Measured Gradex grading pilot goal
+## 2026-07-21 - Assignment grading worker PR review
 
 **Completed:**
-- Made the immediate Gradex milestone a narrow measured assignment-grading pilot rather than broader extract or SaaS expansion.
-- Defined exit evidence covering durable progression, single-student and batch flows, a scoped deployed canary, 10-20 teacher-reviewed examples, captured corrections, and a rerunnable versioned eval baseline.
-- Deferred automatic student return, broad rollout, new grading profiles, and extract ingestion until the pilot demonstrates useful teacher-aligned grading.
+- Opened PR #901 after rebasing onto current `main` and completing the full local validation suite.
+- Fixed the initial high-risk review findings by using a dedicated worker secret and fixed Pika production origin, restricting each invocation to one Gradex run, excluding active leases, rotating candidates by least-recently-updated order, extending leases beyond the route lifetime, and surfacing returned terminal failures as unhealthy scheduler responses.
+- Added regressions for the workflow destination, dedicated authorization, Gradex-only fair selection, lease duration, bounded single-run work, and terminal failure reporting. No deployment setting, secret, provider call, migration, or production state changed.
 
 **Validation:**
-- `git diff --check`
-- Cross-repository roadmap and current-context consistency review
-
-**Remaining:**
-- Fix and verify the single-student async flow, add durable server-side progression, and run the authorized assignment-grading canary.
-
-## 2026-07-20 - Assignment grading background worker
-
-**Completed:**
-- Confirmed the supported one-student AI Grade action already uses the tested shared background-run UI and removed the unused stale inspector auto-grade handler.
-- Added a CRON-secret-authenticated, feature-gated worker endpoint that advances at most two assignment AI grading runs sequentially using existing database leases.
-- Added an inert-by-default five-minute GitHub Actions scheduler for the Phase 1 pilot; it skips before allocating a runner until its URL variable is configured.
-- Documented rollout gates, scheduler credentials, Actions usage, provider-charge behavior, and the browser polling fast path.
-
-**Validation:**
-- Focused assignment worker, route, run-domain, teacher assignment, and inspector suites: 96 tests passed.
-- Full `pnpm test`: 3,536 tests passed; the unchanged `StudentAssignmentsTab` instruction-modal test failed both in-suite and alone because its queried button is hidden behind an already-open modal. The test and component match `origin/main`.
+- Focused worker, route, run-domain, and workflow suites: 20 tests passed.
+- `pnpm test` after review remediation: 388 files / 3,564 tests passed.
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
-- `pnpm run check:architecture`
+- `pnpm check:architecture` (610 modules / 0 allowances)
 - `pnpm build`
-- Startup guidance contract: 29 tests passed and default context remains within budget.
-- `git diff --check`
 
 **Remaining:**
-- Review and publish this slice, configure the three deployment/scheduler gates for an authorized environment, then run the scoped assignment-grading canary.
+- Complete targeted remediation review and required PR checks. Merge only when the cumulative diff is clean, then configure an explicitly authorized pilot.

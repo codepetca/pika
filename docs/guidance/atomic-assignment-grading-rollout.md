@@ -31,17 +31,19 @@ The teacher assignment page remains the low-latency progression path while it is
 Gradex pilot also provides `GET|POST /api/cron/assignment-ai-grading-runs` as a server-owned fallback
 so queued or running assignment grading work can progress after the teacher leaves the page.
 
-The endpoint requires `CRON_SECRET` authentication and
-`ASSIGNMENT_AI_GRADING_WORKER_ENABLED=true`. Each invocation processes at most
-`ASSIGNMENT_AI_GRADING_WORKER_LIMIT` runs, capped at two, sequentially. Existing database leases
-make overlapping page and worker ticks safe.
+The endpoint requires the dedicated `ASSIGNMENT_AI_GRADING_WORKER_SECRET` and
+`ASSIGNMENT_AI_GRADING_WORKER_ENABLED=true`. Each invocation processes at most one unleased Gradex
+run. Native provider runs are excluded. Runs are selected by least-recently-updated order so a
+nonterminal Gradex run cannot starve later work. The 120-second database lease exceeds the
+60-second route lifetime, preventing a terminated invocation from overlapping its replacement.
 
-`.github/workflows/assignment-ai-grading-worker.yml` invokes the endpoint every five minutes when
-the repository variable `PIKA_ASSIGNMENT_AI_GRADING_WORKER_URL` and repository secret
+`.github/workflows/assignment-ai-grading-worker.yml` invokes the fixed
+`https://pika.codepet.ca` endpoint every five minutes when the repository variable
+`PIKA_ASSIGNMENT_AI_GRADING_WORKER_ENABLED=true` and repository secret
 `PIKA_ASSIGNMENT_AI_GRADING_WORKER_SECRET` are configured. The secret must match the deployment's
-`CRON_SECRET`. Until those values and the server gate are configured, the workflow and endpoint are
-inert, and the scheduled job skips before allocating a runner when the URL variable is absent. Once
-configured, the five-minute schedule consumes GitHub Actions minutes; provider charges occur only
-when runnable grading work reaches the provider. Remove the URL variable or disable the workflow
-after the bounded pilot if another durable scheduler is not selected. Browser polling remains useful
-for immediate feedback, but it is no longer the only available progression mechanism.
+dedicated worker secret. Until those values and the server gate are configured, the workflow and
+endpoint are inert, and the scheduled job skips before allocating a runner. Once configured, the
+five-minute schedule consumes GitHub Actions minutes; provider charges occur only when runnable
+Gradex work reaches the provider. Disable the Actions variable after the bounded pilot if another
+durable scheduler is not selected. Browser polling remains useful for immediate feedback, but it is
+no longer the only available progression mechanism.

@@ -6,22 +6,12 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const maxDuration = 60
 
-const DEFAULT_WORKER_LIMIT = 2
-const MAX_WORKER_LIMIT = 2
-
-function resolveWorkerLimit() {
-  const parsed = Number(process.env.ASSIGNMENT_AI_GRADING_WORKER_LIMIT)
-  return Number.isInteger(parsed) && parsed >= 1 && parsed <= MAX_WORKER_LIMIT
-    ? parsed
-    : DEFAULT_WORKER_LIMIT
-}
-
 async function handle(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) {
-    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
+  const workerSecret = process.env.ASSIGNMENT_AI_GRADING_WORKER_SECRET
+  if (!workerSecret) {
+    return NextResponse.json({ error: 'Assignment AI grading worker secret not configured' }, { status: 500 })
   }
-  if (request.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+  if (request.headers.get('authorization') !== `Bearer ${workerSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   if (process.env.ASSIGNMENT_AI_GRADING_WORKER_ENABLED?.trim().toLowerCase() !== 'true') {
@@ -32,7 +22,7 @@ async function handle(request: NextRequest) {
     }, { status: 503 })
   }
 
-  const result = await runAssignmentAiGradingWorker({ limit: resolveWorkerLimit() })
+  const result = await runAssignmentAiGradingWorker()
   return NextResponse.json({ ok: result.failed === 0, ...result }, {
     status: result.failed === 0 ? 200 : 503,
   })

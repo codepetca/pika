@@ -28,6 +28,7 @@ vi.mock('@/lib/server/gradex-assignment-grading', () => ({
 
 import {
   createOrResumeAssignmentAiGradingRun,
+  listRunnableAssignmentAiGradingRuns,
   tickAssignmentAiGradingRun,
 } from '@/lib/server/assignment-ai-grading-runs'
 
@@ -716,6 +717,10 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       run: expect.objectContaining({ id: 'run-1', model: 'gradex:pika-assignment-v1' }),
       items: harness.items,
     })
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'claim_assignment_ai_grading_run',
+      expect.objectContaining({ p_lease_seconds: 120 }),
+    )
   })
 
   it('marks an empty-doc item failed when saving the Missing grade fails', async () => {
@@ -750,5 +755,31 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       last_error_code: 'save_missing_grade_failed',
       last_error_message: 'Failed to finalize AI assignment grade',
     }))
+  })
+})
+
+describe('listRunnableAssignmentAiGradingRuns', () => {
+  it('selects one unleased Gradex run using fair least-recently-updated ordering', async () => {
+    const query = {
+      in: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      or: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn(async () => ({ data: [], error: null })),
+    }
+    mockSupabaseClient.from.mockReturnValue({
+      select: vi.fn(() => query),
+    })
+
+    await listRunnableAssignmentAiGradingRuns(1)
+
+    expect(query.in).toHaveBeenCalledWith('status', ['queued', 'running'])
+    expect(query.eq).toHaveBeenCalledWith('model', 'gradex:pika-assignment-v1')
+    expect(query.or).toHaveBeenCalledWith(expect.stringMatching(
+      /^lease_expires_at\.is\.null,lease_expires_at\.lte\./,
+    ))
+    expect(query.order).toHaveBeenNthCalledWith(1, 'updated_at', { ascending: true })
+    expect(query.order).toHaveBeenNthCalledWith(2, 'created_at', { ascending: true })
+    expect(query.limit).toHaveBeenCalledWith(1)
   })
 })

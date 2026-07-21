@@ -22,9 +22,9 @@ describe('assignment AI grading worker cron', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.CRON_SECRET = 'cron-secret'
+    process.env.ASSIGNMENT_AI_GRADING_WORKER_SECRET = 'worker-secret'
     process.env.ASSIGNMENT_AI_GRADING_WORKER_ENABLED = 'true'
-    delete process.env.ASSIGNMENT_AI_GRADING_WORKER_LIMIT
-    mocks.runWorker.mockResolvedValue({ attempted: 2, claimed: 2, failed: 0 })
+    mocks.runWorker.mockResolvedValue({ attempted: 1, claimed: 1, failed: 0 })
   })
 
   it('rejects unauthorized requests before running work', async () => {
@@ -37,7 +37,7 @@ describe('assignment AI grading worker cron', () => {
   it('fails closed when the worker gate is disabled', async () => {
     process.env.ASSIGNMENT_AI_GRADING_WORKER_ENABLED = 'false'
 
-    const response = await GET(request('cron-secret'))
+    const response = await GET(request('worker-secret'))
     const data = await response.json()
 
     expect(response.status).toBe(503)
@@ -49,43 +49,39 @@ describe('assignment AI grading worker cron', () => {
     expect(mocks.runWorker).not.toHaveBeenCalled()
   })
 
-  it('runs a bounded batch through GET and POST', async () => {
-    process.env.ASSIGNMENT_AI_GRADING_WORKER_LIMIT = '1'
-
-    const getResponse = await GET(request('cron-secret'))
-    const postResponse = await POST(request('cron-secret', 'POST'))
+  it('runs one bounded tick through GET and POST', async () => {
+    const getResponse = await GET(request('worker-secret'))
+    const postResponse = await POST(request('worker-secret', 'POST'))
 
     expect(getResponse.status).toBe(200)
     expect(postResponse.status).toBe(200)
     expect(await getResponse.json()).toEqual({
       ok: true,
-      attempted: 2,
-      claimed: 2,
+      attempted: 1,
+      claimed: 1,
       failed: 0,
     })
-    expect(mocks.runWorker).toHaveBeenNthCalledWith(1, { limit: 1 })
-    expect(mocks.runWorker).toHaveBeenNthCalledWith(2, { limit: 1 })
+    expect(mocks.runWorker).toHaveBeenCalledTimes(2)
   })
 
   it('returns unhealthy when a runnable run fails', async () => {
-    mocks.runWorker.mockResolvedValueOnce({ attempted: 2, claimed: 1, failed: 1 })
+    mocks.runWorker.mockResolvedValueOnce({ attempted: 1, claimed: 1, failed: 1 })
 
-    const response = await GET(request('cron-secret'))
+    const response = await GET(request('worker-secret'))
 
     expect(response.status).toBe(503)
     expect(await response.json()).toEqual({
       ok: false,
-      attempted: 2,
+      attempted: 1,
       claimed: 1,
       failed: 1,
     })
   })
 
-  it('uses the safe default for an invalid configured limit', async () => {
-    process.env.ASSIGNMENT_AI_GRADING_WORKER_LIMIT = '99'
+  it('does not accept the shared cron secret', async () => {
+    const response = await GET(request('cron-secret'))
 
-    await GET(request('cron-secret'))
-
-    expect(mocks.runWorker).toHaveBeenCalledWith({ limit: 2 })
+    expect(response.status).toBe(401)
+    expect(mocks.runWorker).not.toHaveBeenCalled()
   })
 })
