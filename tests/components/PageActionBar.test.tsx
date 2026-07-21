@@ -145,20 +145,20 @@ describe('PageActionBar', () => {
     expect(menuButton).toHaveFocus()
   })
 
-  it('preserves disabled mobile actions without firing their handlers', () => {
+  it('disables the mobile overflow trigger when every action is unavailable', () => {
     const onArchive = vi.fn()
 
     renderActionBar([
       { id: 'archive', label: 'Archive', disabled: true, onSelect: onArchive },
     ])
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open actions menu' }))
-    const item = screen.getByRole('menuitem', { name: 'Archive' })
+    const menuButton = screen.getByRole('button', { name: 'Open actions menu' })
 
-    expect(item).toBeDisabled()
-    fireEvent.click(item)
+    expect(menuButton).toBeDisabled()
+    expect(menuButton).not.toHaveAttribute('aria-controls')
+    fireEvent.click(menuButton)
     expect(onArchive).not.toHaveBeenCalled()
-    expect(screen.getByRole('menu')).toBeInTheDocument()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
   it('supports start-aligned desktop action groups while retaining the mobile menu', () => {

@@ -198,6 +198,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
   const buttonRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const menuId = useId()
+  const hasEnabledItems = items.some((item) => !item.disabled)
 
   const getEnabledMenuItems = useCallback(() => {
     return Array.from(
@@ -279,7 +280,9 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
         ref={buttonRef}
         type="button"
         className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
+        disabled={!hasEnabledItems}
         onClick={() => {
+          if (!hasEnabledItems) return
           if (open) {
             closeMenu({ restoreFocus: true })
             return
@@ -288,13 +291,13 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
         }}
         aria-label="Open actions menu"
         aria-haspopup="menu"
-        aria-controls={menuId}
+        aria-controls={hasEnabledItems ? menuId : undefined}
         aria-expanded={open}
       >
         <MoreVertical className="h-5 w-5 text-text-default" aria-hidden="true" />
       </button>
 
-      {open && (
+      {open && hasEnabledItems && (
         <div
           id={menuId}
           ref={menuRef}

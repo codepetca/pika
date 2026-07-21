@@ -21,6 +21,13 @@ describe('Page primitives', () => {
     expect(screen.getByText('Content')).toHaveClass('max-w-4xl')
   })
 
+  it('preserves legacy className width overrides during migration', () => {
+    render(<PageLayout className="mx-auto max-w-7xl">Legacy width</PageLayout>)
+
+    expect(screen.getByText('Legacy width')).toHaveClass('mx-auto', 'max-w-7xl')
+    expect(screen.getByText('Legacy width')).not.toHaveClass('max-w-none')
+  })
+
   it('propagates the selected density to content gutters and stack spacing', () => {
     render(
       <PageLayout density="teacher">
