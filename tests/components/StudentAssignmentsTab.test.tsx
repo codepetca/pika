@@ -187,7 +187,7 @@ describe('StudentAssignmentsTab', () => {
 
     // Wait for the Instructions button to appear
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Instructions' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Instructions', hidden: true })).toBeInTheDocument()
     })
 
     // Modal can be opened by default; close it first.

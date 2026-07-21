@@ -516,7 +516,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         chrome="none"
         data-testid="classroom-bottom-controls"
       >
-        <div className="relative min-h-9">
+        <div className="relative min-h-[52px]">
           {isEditingClassrooms ? (
             <div className="absolute left-1/2 -translate-x-1/2">
               <SegmentedControl<ViewMode>

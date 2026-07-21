@@ -6,10 +6,11 @@ import { cn } from './utils'
 
 const selectVariants = cva(
   [
-    'w-full px-3 py-2 rounded-control',
+    'min-h-11 w-full rounded-control px-3 py-2',
     'bg-surface',
     'text-text-default',
-    'focus:ring-2 focus:ring-primary focus:border-primary',
+    'focus:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary',
+    'aria-[invalid=true]:border-danger',
     'disabled:bg-surface-2 disabled:cursor-not-allowed',
   ],
   {

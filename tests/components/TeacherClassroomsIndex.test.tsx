@@ -168,9 +168,11 @@ describe('TeacherClassroomsIndex', () => {
 
     const activeButton = screen.getByRole('button', { name: 'Active' })
     const archivedButton = screen.getByRole('button', { name: 'Archived' })
+    const bottomControls = screen.getByTestId('classroom-bottom-controls')
 
     expect(activeButton).toBeInTheDocument()
     expect(archivedButton).toBeInTheDocument()
+    expect(bottomControls.firstElementChild).toHaveClass('min-h-[52px]')
     expect(activeButton).not.toHaveAttribute('title')
     expect(archivedButton).not.toHaveAttribute('title')
     expect(screen.getByRole('button', { name: 'Drag to reorder Math 101' })).toBeInTheDocument()

@@ -257,9 +257,10 @@ import { FormField, Input, Select } from '@/ui'
 
 FormField handles:
 - Label rendering with proper `htmlFor` association
-- Error message display with `aria-invalid`
-- Hint text (hidden when error present)
-- Required indicator (*)
+- Error message display with `aria-invalid` and `aria-errormessage`
+- Hint and error description association without discarding caller-provided `aria-describedby`
+- Native and ARIA required state plus a visual required indicator
+- Preservation of a control-provided `id` unless `htmlFor` explicitly overrides it; pass exactly one form control as the child
 
 #### Textarea (native, wrapped by FormField)
 ```tsx
@@ -755,6 +756,7 @@ Use Tailwind's default breakpoints:
 - All interactive elements must be keyboard accessible
 - Logical tab order (follows visual order)
 - Visible focus indicators
+- Shared buttons, segmented controls, sortable table headers, menu items, and form controls use a `focus-visible` ring and maintain a minimum `44x44px` target where they are directly actionable
 - Escape key closes modals/overlays
 - Canonical `@/ui` dialogs and classroom mobile drawers use `ModalLayer`; it owns initial focus, Tab containment, focus return, background inertness, scroll lock, stacking, Escape, and backdrop behavior
 

@@ -23,11 +23,35 @@ describe('WorkspaceSplitPane', () => {
     expect(screen.getByText('Right pane')).toBeInTheDocument()
 
     const separator = screen.getByRole('separator', { name: 'Resize panes' })
+    expect(separator).toHaveClass('w-11', 'focus-visible:ring-2', 'focus-visible:ring-primary')
     fireEvent.pointerDown(separator)
     fireEvent.doubleClick(separator)
 
     expect(onPointerDown).toHaveBeenCalledTimes(1)
     expect(onDoubleClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('makes a keyboard-controlled divider focusable and reports its value', () => {
+    render(
+      <WorkspaceSplitPane
+        left={<div>Left pane</div>}
+        right={<div>Right pane</div>}
+        divider={{
+          label: 'Resize panes',
+          onPointerDown: vi.fn(),
+          onKeyDown: vi.fn(),
+          ariaValueMin: 20,
+          ariaValueMax: 80,
+          ariaValueNow: 45,
+        }}
+      />,
+    )
+
+    const separator = screen.getByRole('separator', { name: 'Resize panes' })
+    expect(separator).toHaveAttribute('tabindex', '0')
+    expect(separator).toHaveAttribute('aria-valuemin', '20')
+    expect(separator).toHaveAttribute('aria-valuemax', '80')
+    expect(separator).toHaveAttribute('aria-valuenow', '45')
   })
 
   it('omits the right pane when rightVisible is false', () => {

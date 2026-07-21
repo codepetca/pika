@@ -5,7 +5,7 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from './utils'
 
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 rounded-control border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+  'inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-control border font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50',
   {
     variants: {
       variant: {
@@ -57,12 +57,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       className={cn(buttonVariants({ variant, size, fullWidth }), className)}
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
       {...props}
     >
       {loading ? (
         <>
           <svg
             className="animate-spin -ml-1 mr-2 h-4 w-4"
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
