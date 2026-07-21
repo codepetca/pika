@@ -142,4 +142,30 @@ describe('TableCard', () => {
       vi.useRealTimers()
     }
   })
+
+  it('does not intercept table shortcuts from interactive row controls', () => {
+    const onSelectKey = vi.fn()
+    const onDeselect = vi.fn()
+
+    render(
+      <KeyboardNavigableTable
+        ariaLabel="Students"
+        rowKeys={['student-1']}
+        selectedKey="student-1"
+        onSelectKey={onSelectKey}
+        onDeselect={onDeselect}
+      >
+        <div>
+          <input aria-label="Counselor email" />
+        </div>
+      </KeyboardNavigableTable>,
+    )
+
+    const emailInput = screen.getByRole('textbox', { name: 'Counselor email' })
+    expect(fireEvent.keyDown(emailInput, { key: 'ArrowDown' })).toBe(true)
+    expect(fireEvent.keyDown(emailInput, { key: 'Home' })).toBe(true)
+    expect(fireEvent.keyDown(emailInput, { key: 'Escape' })).toBe(true)
+    expect(onSelectKey).not.toHaveBeenCalled()
+    expect(onDeselect).not.toHaveBeenCalled()
+  })
 })

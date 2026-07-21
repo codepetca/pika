@@ -218,7 +218,7 @@ describe('TeacherAttendanceTab', () => {
     })
   })
 
-  it('clears prior-date rows when a new attendance request fails', async () => {
+  it('shows a retryable error instead of prior-date or empty-roster data after a failed read', async () => {
     classDaysMock.classDays = [
       ...classDaysMock.defaultClassDays,
       {
@@ -241,7 +241,8 @@ describe('TeacherAttendanceTab', () => {
           history_preview: [],
         }],
       }))
-      .mockResolvedValueOnce(await mockJson({ error: 'Attendance unavailable' }, false)))
+      .mockResolvedValueOnce(await mockJson({ error: 'Attendance unavailable' }, false))
+      .mockResolvedValueOnce(await mockJson({ logs: [] })))
 
     render(<TeacherAttendanceTab classroom={classroom} />)
 
@@ -252,6 +253,13 @@ describe('TeacherAttendanceTab', () => {
       expect(screen.queryByText(longLogText)).not.toBeInTheDocument()
     })
     expect(screen.queryByText('Student1')).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Attendance unavailable')
+    expect(screen.queryByText('No students enrolled')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText('No students enrolled')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     consoleError.mockRestore()
   })
 

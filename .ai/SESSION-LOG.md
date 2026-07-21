@@ -898,17 +898,18 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Standardized automatic tabs, roving segmented controls, Home/End menu navigation, keyboard table selection, stable row identity, split-pane and column-resize separators, focus-visible treatment, 44px interaction targets, and narrow-screen tab overflow.
 - Fixed independent-review findings covering failed Attendance refreshes, legacy `aria-label` compatibility, extra tab-panel stops, mobile tab overflow, row-focus semantics and cancellation races, remount-safe Attendance focus restoration, and resize target sizing.
 - Added governed composite-control guidance plus direct primitive and integration regressions. No schema, migration, API, production, or data change was made.
-- Opened PR #902 after independent architecture and accessibility re-reviews reported no remaining actionable findings.
+- Opened PR #902 after independent architecture and accessibility re-reviews. The final cumulative review then caught bubbled table shortcuts overriding nested inputs and failed Attendance reads falling through to empty-roster copy; both now have direct regressions and remediated behavior.
+- Restored the startup-context budget after CI caught a 10-character overage in `.ai/CURRENT.md`.
 
 **Validation:**
-- `pnpm test --run` (390 files / 3,578 tests)
-- Focused DataTable and Attendance regressions (2 files / 20 tests)
+- `pnpm test --run` (390 files / 3,579 tests)
+- Focused DataTable, Attendance, and startup regressions (3 files / 50 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm check:architecture` (612 modules / 0 allowances)
 - `pnpm build`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
-- Teacher/student desktop/mobile light/dark visual matrix plus live Attendance ArrowDown selection, row focus, Escape deselection/focus restoration, and overflow checks
+- Teacher/student desktop/mobile light/dark visual matrix plus live Attendance ArrowDown selection, row focus, Escape deselection/focus restoration, retryable error desktop/mobile light/dark states, and overflow checks
 - `git diff --cached --check`
 
 **Remaining:**

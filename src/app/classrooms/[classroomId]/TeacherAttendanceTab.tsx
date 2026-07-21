@@ -34,6 +34,7 @@ import {
   DataTableRow,
   EmptyStateRow,
   KeyboardNavigableTable,
+  PageState,
   RefreshingIndicator,
   SortableHeaderCell,
   TableCard,
@@ -100,6 +101,8 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [logsError, setLogsError] = useState<string | null>(null)
+  const [logsRequestVersion, setLogsRequestVersion] = useState(0)
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
@@ -148,6 +151,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     setLogs([])
     setLoading(true)
     setRefreshing(false)
+    setLogsError(null)
     setSelectedDate('')
     setSelectedStudentId(null)
     onSelectEntryRef.current?.(null, '', null)
@@ -195,10 +199,12 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       const date = selectedDate
       const requestId = loadRequestIdRef.current + 1
       loadRequestIdRef.current = requestId
+      setLogsError(null)
 
       if (!isClassDayOnDate(classDays, date)) {
         if (!isCurrentLogsRequest(requestId, classroomId, date)) return
         setLogs([])
+        setLogsError(null)
         hasLoadedOnceRef.current = true
         setSelectedStudentId(null)
         onSelectEntryRef.current?.(null, '', null)
@@ -225,6 +231,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           email_username: log.student_email.split('@')[0],
         }))
         setLogs(mappedLogs)
+        setLogsError(null)
 
         // Clear selection when date changes so summary is visible
         setSelectedStudentId(null)
@@ -234,6 +241,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         if (!isCurrentLogsRequest(requestId, classroomId, date)) return
         console.error('Error loading logs:', err)
         setLogs([])
+        setLogsError('The class log could not be loaded for this date.')
         setSelectedStudentId(null)
         onSelectEntryRef.current?.(null, '', null)
       } finally {
@@ -243,7 +251,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       }
     }
     loadLogs()
-  }, [classroom.id, classDays, selectedDate, isActive, isCurrentLogsRequest])
+  }, [classroom.id, classDays, selectedDate, isActive, isCurrentLogsRequest, logsRequestVersion])
+
+  const retryLogs = useCallback(() => {
+    setLogsError(null)
+    setLoading(true)
+    setLogsRequestVersion((version) => version + 1)
+  }, [])
 
   const isClassDay = useMemo(() => {
     if (!selectedDate) return true
@@ -739,6 +753,18 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     <div className="flex justify-center py-12">
       <Spinner size="lg" />
     </div>
+  ) : logsError ? (
+    <PageState
+      kind="error"
+      title="Attendance unavailable"
+      description={logsError}
+      compact
+      action={(
+        <Button type="button" onClick={retryLogs}>
+          Try again
+        </Button>
+      )}
+    />
   ) : (
     selectedRow ? (
       <div ref={selectedWorkspaceRef} className="daily-workspace-enter flex min-h-0 flex-1">

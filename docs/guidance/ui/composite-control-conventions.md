@@ -44,6 +44,8 @@ the shared primitive or hook.
 - Sortable headers expose `aria-sort`, a normal button name, a 44px target, and a visible focus ring.
 - Wrap row-selectable tables in `KeyboardNavigableTable` with a feature-specific `ariaLabel`.
   `ArrowUp`/`ArrowDown`, `Home`, and `End` change selection; `Escape` clears it when supported.
+- Table shortcuts run only from the navigation region or a focused row; nested controls keep their
+  native keyboard behavior.
 - Supply `getRowId`, apply the matching ID, `tabIndex={-1}`, and `aria-selected` to each selectable
   row. Keyboard selection moves focus to that row so assistive technology announces its content;
   row key events bubble to the named region for continued navigation.

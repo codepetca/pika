@@ -260,6 +260,13 @@ export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
+      const eventTarget = e.target
+      const isTableNavigationTarget = eventTarget === e.currentTarget || (
+        eventTarget instanceof HTMLElement
+        && (eventTarget.tagName === 'TR' || eventTarget.getAttribute('role') === 'row')
+      )
+      if (!isTableNavigationTarget) return
+
       if (
         e.key === 'Escape'
         && onDeselect
