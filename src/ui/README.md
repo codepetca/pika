@@ -63,9 +63,11 @@ interface FormFieldProps {
   error?: string
   hint?: string
   required?: boolean
-  children: ReactNode  // Input, Select, Textarea, etc.
+  children: ReactElement  // Exactly one Input, Select, Textarea, etc.
 }
 ```
+
+`FormField` preserves a control-provided `id` unless an explicit `htmlFor` override is supplied, associates the label, propagates native `required` plus ARIA required/invalid state, and merges existing descriptions with hint and error ids. Hints remain available when an error is present. Pass exactly one form control as its child.
 
 ### AlertDialog
 
@@ -185,6 +187,7 @@ These rules ensure consistency across the codebase:
 | **Backgrounds** | Use `bg-page`, `bg-surface`, `bg-surface-2` in app code | Prevents inconsistent dark backgrounds across pages |
 | **Text/borders** | Use `text-text-default`, `text-text-muted`, `border-border` in app code | Consistent semantic naming |
 | **Form labels** | Always via `<FormField>`, never on Input/Select directly | One pattern to learn, one place for label styling |
+| **Targets and focus** | Shared buttons, segmented controls, and form controls provide a 44px minimum target and `focus-visible` ring | Mobile and keyboard access should not depend on feature-local classes |
 | **Token naming** | Intent-based only (`rounded-control`, not `rounded-8px`) | Prevents proliferation of one-off tokens |
 | **Tiptap** | Stays in `/components/tiptap*`, not `/ui` | Editor is a mini-platform; don't mix with app primitives |
 

@@ -1,9 +1,35 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { RichTextEditor } from '@/components/editor'
+import { FormField } from '@/ui/FormField'
 import type { TiptapContent } from '@/types'
 
 describe('RichTextEditor', () => {
+  it('forwards FormField naming and validation semantics to the editable area', async () => {
+    const onChange = vi.fn()
+    const content: TiptapContent = { type: 'doc', content: [] }
+
+    render(
+      <FormField
+        label="Content"
+        hint="Add links or instructions."
+        error="Content is required."
+        required
+      >
+        <RichTextEditor content={content} onChange={onChange} />
+      </FormField>,
+    )
+
+    const editor = await screen.findByRole('textbox', { name: 'Content' })
+    const describedBy = editor.getAttribute('aria-describedby')?.split(' ') ?? []
+
+    expect(editor.id).not.toBe('')
+    expect(editor).toHaveAttribute('aria-required', 'true')
+    expect(editor).toHaveAttribute('aria-invalid', 'true')
+    expect(editor).toHaveAttribute('aria-errormessage', `${editor.id}-error`)
+    expect(describedBy).toEqual([`${editor.id}-hint`, `${editor.id}-error`])
+  })
+
   it('does not emit duplicate extension warnings', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const onChange = vi.fn()

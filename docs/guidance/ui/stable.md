@@ -30,6 +30,8 @@ Source grounding:
 - Import primitives from `@/ui`, not from feature-local component paths.
 - Wrap labeled form controls in `FormField`.
 - Reuse `Button`, `Card`, dialogs, and other primitives before inventing feature-local base controls.
+- Preserve the shared 44px target and `focus-visible` treatment instead of shrinking controls with feature-local height classes.
+- Let `FormField` own label, required, hint, error, and description wiring; callers may provide an `id` or existing `aria-describedby`, which the primitive preserves.
 
 Source grounding:
 

@@ -69,7 +69,7 @@ export function WorkspaceSplitPane({
             aria-valuenow={divider.ariaValueNow}
             tabIndex={divider.onKeyDown ? 0 : undefined}
             className={cn(
-              'absolute inset-y-0 left-0 z-10 w-3 -translate-x-1/2 cursor-col-resize bg-transparent outline-none',
+              'absolute inset-y-0 left-0 z-10 w-11 -translate-x-1/2 cursor-col-resize bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
               divider.className,
             )}
             onPointerDown={divider.onPointerDown}

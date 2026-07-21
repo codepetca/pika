@@ -8,7 +8,7 @@ Read this at session start. `.ai/features.json` is the epic status authority; `.
 - Production migrations 001-099 and the named archive round-trip canary are verified. The classroom is hot-restored; source and Gradex cleanup remain disabled.
 - The product-experience program is tracked in `.ai/features.json`; Phase 1 evidence is in `docs/guidance/ui/product-experience-audit-2026-07.md`.
 - The Safety Wave is complete through PRs #890, #891, and #893-#895.
-- Phase 2 is active. PR #896 merged the semantic-token contrast contract. PR #897 adds the reviewed shared modal-layer contract; shared button targets/focus-visible behavior and semantic form fields are next.
+- Phase 2 is active. PRs #896-#897 merged contrast and modal contracts. PR #898 contains reviewed control targets, focus, and form semantics; page structure and responsive density follow.
 
 ## Environment
 

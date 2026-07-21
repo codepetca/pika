@@ -43,6 +43,25 @@ describe('Button component', () => {
 
   it('should apply size styles', () => {
     const { container } = render(<Button size="lg">Large</Button>)
-    expect(container.querySelector('button')).toHaveClass('px-6')
+    expect(container.querySelector('button')).toHaveClass('min-h-11', 'min-w-11', 'px-6')
+  })
+
+  it('uses a keyboard-only focus treatment', () => {
+    render(<Button>Continue</Button>)
+
+    expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass(
+      'focus:outline-none',
+      'focus-visible:ring-2',
+      'focus-visible:ring-primary',
+    )
+  })
+
+  it('exposes its loading state without announcing the spinner', () => {
+    const { container } = render(<Button loading>Save</Button>)
+    const button = screen.getByRole('button', { name: 'Save' })
+
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
   })
 })

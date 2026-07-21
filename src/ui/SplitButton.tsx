@@ -248,7 +248,7 @@ export function SplitButton({
                   handleOptionSelect(option.onSelect)
                 }}
                 className={cn(
-                  'w-full rounded-sm px-2 py-1.5 text-left text-sm text-text-default hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50',
+                  'min-h-11 w-full rounded-sm px-2 py-1.5 text-left text-sm text-text-default hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50',
                   option.destructive ? 'text-danger hover:bg-danger-bg' : ''
                 )}
               >

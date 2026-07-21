@@ -1,7 +1,17 @@
 'use client'
 
-import { ReactNode, useId, Children, cloneElement, isValidElement } from 'react'
+import { cloneElement, isValidElement, useId, type ReactElement } from 'react'
 import { cn } from './utils'
+
+type FormControlProps = {
+  id?: string
+  required?: boolean
+  'aria-required'?: boolean | 'true' | 'false'
+  'aria-invalid'?: boolean | 'true' | 'false' | 'grammar' | 'spelling'
+  'aria-describedby'?: string
+  'aria-errormessage'?: string
+  'aria-labelledby'?: string
+}
 
 export interface FormFieldProps {
   /** Label text displayed above the control */
@@ -10,14 +20,14 @@ export interface FormFieldProps {
   htmlFor?: string
   /** Error message displayed below the control */
   error?: string
-  /** Hint text displayed below the control (hidden if error is present) */
+  /** Hint text displayed below the control */
   hint?: string
   /** Show required indicator (*) after label */
   required?: boolean
   /** Keep the label available to assistive tech without showing it visually */
   hideLabel?: boolean
-  /** The form control (Input, Select, Textarea, etc.) */
-  children: ReactNode
+  /** Exactly one form control (Input, Select, Textarea, etc.) */
+  children: ReactElement<FormControlProps>
   /** Additional class names for the wrapper */
   className?: string
 }
@@ -27,6 +37,11 @@ const labelStyles = 'block text-sm font-medium text-text-default mb-1'
 const errorStyles = 'mt-1 text-sm text-danger'
 const hintStyles = 'mt-1 text-sm text-text-muted'
 const requiredMarkerStyles = 'text-danger ml-1'
+
+function mergeIdRefs(...values: Array<string | undefined>): string | undefined {
+  const ids = values.flatMap((value) => value?.split(/\s+/).filter(Boolean) ?? [])
+  return ids.length > 0 ? Array.from(new Set(ids)).join(' ') : undefined
+}
 
 /**
  * FormField wraps form controls with consistent label and error styling.
@@ -53,36 +68,41 @@ export function FormField({
   className,
 }: FormFieldProps) {
   const generatedId = useId()
-  const fieldId = htmlFor || generatedId
+  const child = isValidElement<FormControlProps>(children) ? children : null
+  const fieldId = htmlFor || child?.props.id || generatedId
+  const labelId = `${fieldId}-label`
+  const hintId = hint ? `${fieldId}-hint` : undefined
+  const errorId = error ? `${fieldId}-error` : undefined
+  const describedBy = mergeIdRefs(child?.props['aria-describedby'], hintId, errorId)
+  const labelledBy = mergeIdRefs(labelId, child?.props['aria-labelledby'])
 
-  // Clone child to inject id and hasError props
-  const enhancedChildren = Children.map(children, (child) => {
-    if (isValidElement(child)) {
-      return cloneElement(child, {
+  const enhancedChild = child
+    ? cloneElement(child, {
         id: fieldId,
-        hasError: !!error,
-        'aria-invalid': error ? 'true' : undefined,
-        'aria-describedby': error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined,
-      } as any)
-    }
-    return child
-  })
+        required: required || child.props.required || undefined,
+        'aria-required': required ? true : child.props['aria-required'],
+        'aria-invalid': error ? true : child.props['aria-invalid'],
+        'aria-describedby': describedBy,
+        'aria-errormessage': errorId ?? child.props['aria-errormessage'],
+        'aria-labelledby': labelledBy,
+      })
+    : children
 
   return (
     <div className={cn('w-full', className)}>
-      <label htmlFor={fieldId} className={cn(labelStyles, hideLabel && 'sr-only')}>
+      <label id={labelId} htmlFor={fieldId} className={cn(labelStyles, hideLabel && 'sr-only')}>
         {label}
-        {required && <span className={requiredMarkerStyles}>*</span>}
+        {required && <span className={requiredMarkerStyles} aria-hidden="true">*</span>}
       </label>
-      {enhancedChildren}
-      {error && (
-        <p id={`${fieldId}-error`} className={errorStyles} role="alert">
-          {error}
+      {enhancedChild}
+      {hint && (
+        <p id={hintId} className={hintStyles}>
+          {hint}
         </p>
       )}
-      {hint && !error && (
-        <p id={`${fieldId}-hint`} className={hintStyles}>
-          {hint}
+      {error && (
+        <p id={errorId} className={errorStyles} role="alert">
+          {error}
         </p>
       )}
     </div>

@@ -142,7 +142,7 @@ export function SortableHeaderCell({
         onClick={onClick}
         className={[
           densityPadding(density),
-          'w-full flex items-center gap-1',
+          'flex min-h-11 w-full items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
           alignClass,
           'hover:bg-surface-hover transition-colors',
         ].join(' ')}
@@ -284,7 +284,7 @@ export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable
       ref={ref}
       tabIndex={tabIndex ?? 0}
       onKeyDown={handleKeyDown}
-      className={['rounded-card outline-none', className].filter(Boolean).join(' ')}
+      className={['rounded-card outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface', className].filter(Boolean).join(' ')}
     >
       {children}
     </div>

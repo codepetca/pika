@@ -49,8 +49,8 @@ export function SegmentedControl<TValue extends string>({
             key={option.value}
             type="button"
             className={cn(
-              'inline-flex items-center justify-center gap-1.5 rounded-control text-xs font-medium transition-colors',
-              iconOnly ? 'h-8 w-8 px-0' : 'px-3 py-1 sm:text-sm',
+              'inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-control text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
+              iconOnly ? 'h-11 w-11 px-0' : 'px-3 py-1 sm:text-sm',
               capitalizeLabels && !iconOnly ? 'capitalize' : '',
               isActive
                 ? 'bg-info-bg text-primary'

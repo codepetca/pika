@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-13 — Atomic classroom cold-compaction database contract
-
-**Completed:**
-- Added migration 085 with idempotent begin/stage/complete/fail compaction RPCs, exact archive/source/count verification, one child-first deletion transaction, and service-role-only access.
-- Added a durable source-object cleanup ledger whose rows remain ineligible `staged` work until relational deletion and tombstone creation commit atomically, then become retryable `pending` work.
-- Strengthened lifecycle Zod evidence with archive identity, both checksums, fresh read-back proof, and transition-specific compaction cleanup evidence.
-- Added forced rollback, concurrency, idempotency, traversal rejection, security, replay, and real hot-to-cold-to-hot database contracts in ephemeral CI; restore no longer manufactures its tombstone.
-- Kept rollout database-only: no route, runtime caller, UI, schedule, environment gate, production migration application, row, or Storage object was changed.
-
-**Validation:**
-- Full Vitest suite (331 files / 2,931 tests)
-- Focused lifecycle/migration/archive/restore/startup suites (6 files / 45 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- `bash -n` for compaction and restore database contracts
-- Pika pre-commit audit
-- Local migration replay intentionally not run; GitHub's ephemeral Supabase database job is the execution authority
-- `git diff --check`
-
 ## 2026-07-13 — Gated classroom cold-compaction runtime coordinator
 
 **Completed:**
@@ -878,3 +858,28 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Review and merge PR #897. Continue Phase 2 with shared button target sizing/focus-visible behavior and semantic form-field propagation.
+
+## 2026-07-21 — Phase 2 shared control and form-field contract
+
+**Completed:**
+- Merged PR #897 and began the next Phase 2 slice from current `main`.
+- Standardized shared button, input, select, segmented-control, split-button, sortable-table, and split-pane interaction targets and focus-visible treatment without changing Pika's information-dense workflows.
+- Made `FormField` the semantic owner for label association, required state, hints, errors, `aria-describedby`, `aria-errormessage`, and `aria-invalid` while preserving child IDs and existing descriptions.
+- Kept hint and error content visible together, prevented custom props from leaking to native controls, and documented the one-control composition contract.
+- Fixed review findings by expanding the split-pane divider target, reconciling the `FormField` docs, reserving the full mobile classroom switcher height, and forwarding generated field naming and validation semantics to the rich-text editor.
+- Visually verified unauthenticated, teacher, and student surfaces across desktop/mobile and light/dark themes, including keyboard focus, form errors, the dense gradebook, and the student Today view. No overflow or layout regression was found.
+
+**Validation:**
+- `pnpm test` (383 files / 3,543 tests)
+- Focused shared-control and integration suites (8 files / 69 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (607 modules / 0 allowances)
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms/07e8da7d-9a2a-4e74-b516-f5fe2bab1bf8?tab=attendance`
+- Custom Playwright light/dark desktop/mobile focus, error, teacher, and student checks
+- `git diff --check`
+
+**Remaining:**
+- Merge reviewed PR #898 after required CI. Then continue Phase 2 with page structure, typography, spacing, action placement, and responsive density as a separate slice.
