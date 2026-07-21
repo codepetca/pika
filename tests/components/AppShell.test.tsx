@@ -19,4 +19,19 @@ describe('AppShell', () => {
     rerender(<AppShell mainClassName="max-w-none px-0 py-0">Custom content</AppShell>)
     expect(screen.getByRole('main')).toHaveClass('w-full', 'max-w-none', 'px-0', 'py-0')
   })
+
+  it('places optional application navigation between the header and main content', () => {
+    render(
+      <AppShell navigation={<nav aria-label="Teacher tools">Navigation</nav>}>
+        Content
+      </AppShell>,
+    )
+
+    const header = screen.getByRole('banner')
+    const navigation = screen.getByRole('navigation', { name: 'Teacher tools' })
+    const main = screen.getByRole('main')
+
+    expect(header.compareDocumentPosition(navigation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(navigation.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
 })
