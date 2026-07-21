@@ -904,6 +904,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Preserved the existing `Classrooms`, `Blueprints`, and `Calendar` destinations without adding a dashboard destination or changing classroom navigation, page content, API contracts, schema, production state, or data.
 - Added direct navigation, shell-order, and teacher-layout regressions plus stable guidance for incremental utility-family migration.
 - Browser-verified teacher Blueprints and Calendar at desktop/mobile widths in light/dark themes, including active-link focus and navigation-shell overflow isolation. The student mobile shell remained unchanged and overflow-free. Calendar's previously ranked narrow-screen content compression remains assigned to its Phase 3 vertical slice.
+- Opened PR #903 for independent review.
 
 **Validation:**
 - `pnpm test --run` (392 files / 3,584 tests)
