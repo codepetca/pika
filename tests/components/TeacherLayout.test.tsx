@@ -44,6 +44,7 @@ describe('TeacherLayout', () => {
     expect(screen.getByRole('link', { name: 'Blueprints' })).toHaveAttribute('href', '/teacher/blueprints')
     expect(screen.getByRole('link', { name: 'Calendar' })).toHaveAttribute('href', '/teacher/calendar')
     expect(screen.getByRole('link', { name: 'Calendar' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('main')).toHaveClass('max-w-7xl', 'mx-auto', 'px-4', 'pt-0', 'pb-8')
     expect(screen.getByRole('main')).toHaveTextContent('Teacher content')
   })
 })

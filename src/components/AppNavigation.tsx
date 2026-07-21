@@ -43,7 +43,7 @@ export function AppNavigation({ label, items, width = 'wide' }: AppNavigationPro
                 aria-current={isActive ? 'page' : undefined}
                 className={[
                   'inline-flex min-h-11 flex-none items-center border-b-2 px-3 text-sm font-medium transition-colors',
-                  'focus:outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary',
                   isActive
                     ? 'border-primary text-primary'
                     : 'border-transparent text-text-muted hover:border-border-strong hover:text-text-default',

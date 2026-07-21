@@ -48,7 +48,8 @@ describe('AppNavigation', () => {
     const classrooms = screen.getByRole('link', { name: 'Classrooms' })
 
     expect(scrollRegion).toHaveClass('overflow-x-auto', 'min-h-11')
-    expect(classrooms).toHaveClass('min-h-11', 'focus-visible:ring-2')
+    expect(classrooms).toHaveClass('min-h-11', 'focus-visible:ring-2', 'focus-visible:ring-inset')
+    expect(classrooms).not.toHaveClass('focus-visible:ring-offset-2')
 
     classrooms.focus()
     expect(classrooms).toHaveFocus()

@@ -905,6 +905,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added direct navigation, shell-order, and teacher-layout regressions plus stable guidance for incremental utility-family migration.
 - Browser-verified teacher Blueprints and Calendar at desktop/mobile widths in light/dark themes, including active-link focus and navigation-shell overflow isolation. The student mobile shell remained unchanged and overflow-free. Calendar's previously ranked narrow-screen content compression remains assigned to its Phase 3 vertical slice.
 - Opened PR #903 for independent review.
+- Accepted independent-review findings that the first implementation dropped the prior teacher-content gutters and used an outward focus ring that could be clipped by the navigation scroller. Restored the content geometry, moved focus treatment inside each link, and added a durable browser contract for every teacher utility route.
 
 **Validation:**
 - `pnpm test --run` (392 files / 3,584 tests)
@@ -915,6 +916,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm build`
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - Custom Playwright teacher desktop/mobile light/dark navigation matrix plus unchanged student mobile-dark regression (7 checks including auth setup)
+- Durable Playwright teacher dashboard/Blueprints/Calendar desktop-light and mobile-dark navigation contract
 - `node scripts/trim-session-log.mjs --check`
 - `git diff --check`
 
