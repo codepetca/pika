@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { PageActionBar, type ActionBarItem } from '@/ui'
 
@@ -100,6 +101,24 @@ describe('PageActionBar', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(menuButton).toHaveFocus()
+  })
+
+  it('activates the focused menu item with the keyboard and restores trigger focus', async () => {
+    const user = userEvent.setup()
+    const onArchive = vi.fn()
+    renderActionBar([{ id: 'archive', label: 'Archive', onSelect: onArchive }])
+
+    const menuButton = screen.getByRole('button', { name: 'Open actions menu' })
+    await user.click(menuButton)
+    const archiveItem = screen.getByRole('menuitem', { name: 'Archive' })
+    await waitFor(() => expect(archiveItem).toHaveFocus())
+
+    await user.keyboard('{Enter}')
+
+    expect(onArchive).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(menuButton).toHaveAttribute('aria-expanded', 'false')
     expect(menuButton).toHaveFocus()
   })
 
