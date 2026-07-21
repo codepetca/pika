@@ -1,13 +1,19 @@
 'use client'
 
 import { useState, useEffect, FormEvent } from 'react'
-import { Button, Input, FormField } from '@/ui'
+import { Button, FormField, Input, PageContent, PageLayout, PageState } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { format, parse } from 'date-fns'
 import type { Entry, ClassDay, AttendanceStatus, Classroom } from '@/types'
 import { entryHasContent, getAttendanceIcon, getAttendanceLabel } from '@/lib/attendance'
-import { fetchClassDaysForClassroom } from '@/lib/class-days-client'
-import { fetchStudentEntriesForClassroom } from '@/lib/student-entries-client'
+import {
+  fetchClassDaysForClassroom,
+  invalidateClassDaysForClassroom,
+} from '@/lib/class-days-client'
+import {
+  fetchStudentEntriesForClassroom,
+  invalidateStudentEntriesForClassroom,
+} from '@/lib/student-entries-client'
 import { fetchStudentClassrooms, invalidateStudentClassrooms } from '@/lib/student-classrooms-client'
 import { getTodayInToronto } from '@/lib/timezone'
 
@@ -21,7 +27,11 @@ export default function HistoryPage() {
   const [classrooms, setClassrooms] = useState<Classroom[]>([])
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [historyError, setHistoryError] = useState('')
+  const [historyAttempt, setHistoryAttempt] = useState(0)
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
   const [error, setError] = useState('')
@@ -33,25 +43,31 @@ export default function HistoryPage() {
 
   // Load classrooms
   useEffect(() => {
+    let cancelled = false
+
     async function loadClassrooms() {
+      setLoading(true)
+      setLoadError('')
       try {
         const nextClassrooms = await fetchStudentClassrooms()
+        if (cancelled) return
 
         setClassrooms(nextClassrooms)
-
-        // Auto-select first classroom
-        if (nextClassrooms.length > 0) {
-          setSelectedClassroom(nextClassrooms[0])
-        }
+        setSelectedClassroom(nextClassrooms[0] ?? null)
       } catch (err) {
         console.error('Error loading classrooms:', err)
+        if (cancelled) return
+        setLoadError(err instanceof Error ? err.message : 'Failed to load classrooms')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
-    loadClassrooms()
-  }, [])
+    void loadClassrooms()
+    return () => {
+      cancelled = true
+    }
+  }, [loadAttempt])
 
   // Load history when classroom selected
   useEffect(() => {
@@ -66,6 +82,7 @@ export default function HistoryPage() {
     async function loadHistory() {
       if (!selectedClassroom) return
       setLoadingHistory(true)
+      setHistoryError('')
       setHistory([])
       try {
         const [classDaysData, entries] = await Promise.all([
@@ -108,6 +125,7 @@ export default function HistoryPage() {
         console.error('Error loading history:', err)
         if (cancelled) return
         setHistory([])
+        setHistoryError(err instanceof Error ? err.message : 'Failed to load history')
       } finally {
         if (cancelled) return
         setLoadingHistory(false)
@@ -119,7 +137,7 @@ export default function HistoryPage() {
     return () => {
       cancelled = true
     }
-  }, [selectedClassroom])
+  }, [historyAttempt, selectedClassroom])
 
   async function handleJoinClassroom(e: FormEvent) {
     e.preventDefault()
@@ -154,38 +172,73 @@ export default function HistoryPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
+      <PageLayout density="student" width="reading">
+        <PageContent>
+          <PageState
+            kind="loading"
+            title="Loading history"
+            description="Getting your classrooms and attendance history."
+          />
+        </PageContent>
+      </PageLayout>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <PageLayout density="student" width="reading">
+        <PageContent>
+          <PageState
+            kind="error"
+            title="Could not load your classrooms"
+            description="Your saved history has not been changed, but it could not be retrieved right now."
+            action={
+              <Button
+                type="button"
+                onClick={() => {
+                  invalidateStudentClassrooms()
+                  setLoadAttempt((attempt) => attempt + 1)
+                }}
+              >
+                Try again
+              </Button>
+            }
+          />
+        </PageContent>
+      </PageLayout>
     )
   }
 
   // Empty state - no classrooms
   if (classrooms.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="max-w-md w-full bg-surface rounded-lg shadow-sm p-8 text-center">
-          <h2 className="text-2xl font-bold text-text-default mb-2">No Classes Yet</h2>
-          <p className="text-text-muted mb-6">Join a class to view your history</p>
+      <PageLayout density="student" width="reading">
+        <PageContent>
+          <PageState
+            kind="empty"
+            title="No Classes Yet"
+            description="Join a class to view your history."
+            action={
+              <form onSubmit={handleJoinClassroom} className="w-full space-y-4 text-left">
+                <FormField label="Class Code" error={error} required>
+                  <Input
+                    type="text"
+                    placeholder="Enter class code"
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    required
+                    disabled={joining}
+                  />
+                </FormField>
 
-          <form onSubmit={handleJoinClassroom} className="space-y-4">
-            <FormField label="Class Code" error={error} required>
-              <Input
-                type="text"
-                placeholder="Enter class code"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                required
-                disabled={joining}
-              />
-            </FormField>
-
-            <Button type="submit" disabled={joining || !joinCode} className="w-full">
-              {joining ? 'Joining...' : 'Join Class'}
-            </Button>
-          </form>
-        </div>
-      </div>
+                <Button type="submit" disabled={joining || !joinCode} className="w-full">
+                  {joining ? 'Joining...' : 'Join Class'}
+                </Button>
+              </form>
+            }
+          />
+        </PageContent>
+      </PageLayout>
     )
   }
 
@@ -252,7 +305,28 @@ export default function HistoryPage() {
 
       {/* Main Content */}
       <div className="flex-1">
-        {selectedClassroom ? (
+        {historyError ? (
+          <PageState
+            kind="error"
+            compact
+            title="Could not load attendance history"
+            description="The selected class history could not be retrieved."
+            action={
+              <Button
+                type="button"
+                onClick={() => {
+                  if (selectedClassroom) {
+                    invalidateClassDaysForClassroom(selectedClassroom.id)
+                    invalidateStudentEntriesForClassroom(selectedClassroom.id)
+                  }
+                  setHistoryAttempt((attempt) => attempt + 1)
+                }}
+              >
+                Try again
+              </Button>
+            }
+          />
+        ) : selectedClassroom ? (
           <div>
             <div className="bg-surface rounded-lg shadow-sm p-6 mb-6">
               <h2 className="text-2xl font-bold text-text-default mb-1">

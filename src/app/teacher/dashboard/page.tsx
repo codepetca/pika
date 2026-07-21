@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, AlertDialog } from '@/ui'
+import { AlertDialog, Button, PageState } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
@@ -22,6 +22,7 @@ export default function TeacherDashboardPage() {
   const [classrooms, setClassrooms] = useState<Classroom[]>([])
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
   const [dates, setDates] = useState<string[]>([])
   const [loadingAttendance, setLoadingAttendance] = useState(false)
@@ -35,26 +36,24 @@ export default function TeacherDashboardPage() {
 
   const { alertState, showSuccess, closeAlert } = useAlertDialog()
 
-  // Load classrooms
-  useEffect(() => {
-    async function loadClassrooms() {
-      try {
-        const nextClassrooms = await fetchTeacherClassrooms()
-        setClassrooms(nextClassrooms)
-
-        // Auto-select first classroom
-        if (nextClassrooms.length > 0) {
-          setSelectedClassroom(nextClassrooms[0])
-        }
-      } catch (err) {
-        console.error('Error loading classrooms:', err)
-      } finally {
-        setLoading(false)
-      }
+  const loadClassrooms = useCallback(async () => {
+    setLoading(true)
+    setLoadError('')
+    try {
+      const nextClassrooms = await fetchTeacherClassrooms()
+      setClassrooms(nextClassrooms)
+      setSelectedClassroom(nextClassrooms[0] ?? null)
+    } catch (err) {
+      console.error('Error loading classrooms:', err)
+      setLoadError(err instanceof Error ? err.message : 'Failed to load classrooms')
+    } finally {
+      setLoading(false)
     }
-
-    loadClassrooms()
   }, [])
+
+  useEffect(() => {
+    void loadClassrooms()
+  }, [loadClassrooms])
 
   // Load attendance when classroom selected
   useEffect(() => {
@@ -135,35 +134,71 @@ export default function TeacherDashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
+      <PageLayout density="teacher" width="reading">
+        <PageContent>
+          <PageState
+            kind="loading"
+            title="Loading classrooms"
+            description="Getting the latest classroom overview."
+          />
+        </PageContent>
+      </PageLayout>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <PageLayout density="teacher" width="reading">
+        <PageContent>
+          <PageState
+            kind="error"
+            title="Could not load classrooms"
+            description="The dashboard could not retrieve your classrooms."
+            action={
+              <Button
+                type="button"
+                onClick={() => {
+                  invalidateTeacherClassrooms()
+                  void loadClassrooms()
+                }}
+              >
+                Try again
+              </Button>
+            }
+          />
+        </PageContent>
+      </PageLayout>
     )
   }
 
   // Empty state
   if (classrooms.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-text-default mb-2">No Classrooms Yet</h2>
-          <p className="text-text-muted mb-6">Create your first classroom to get started</p>
-          <div className="flex items-center justify-center gap-3">
-            <Button onClick={() => setShowCreateModal(true)}>
-              Create Classroom
-            </Button>
-            <Button variant="secondary" onClick={() => router.push('/teacher/blueprints')}>
-              Course Blueprints
-            </Button>
-          </div>
-        </div>
+      <PageLayout density="teacher" width="reading">
+        <PageContent>
+          <PageState
+            kind="empty"
+            title="No Classrooms Yet"
+            description="Create your first classroom or start from a course blueprint."
+            action={
+              <div className="flex flex-wrap justify-center gap-3">
+                <Button onClick={() => setShowCreateModal(true)}>
+                  Create Classroom
+                </Button>
+                <Button variant="secondary" onClick={() => router.push('/teacher/blueprints')}>
+                  Course Blueprints
+                </Button>
+              </div>
+            }
+          />
+        </PageContent>
 
         <CreateClassroomModal
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleClassroomCreated}
         />
-      </div>
+      </PageLayout>
     )
   }
 

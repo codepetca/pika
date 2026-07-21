@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import HistoryPage from '@/app/student/history/page'
-import { fetchClassDaysForClassroom } from '@/lib/class-days-client'
+import { fetchClassDaysForClassroom, invalidateClassDaysForClassroom } from '@/lib/class-days-client'
 import { fetchStudentClassrooms, invalidateStudentClassrooms } from '@/lib/student-classrooms-client'
-import { fetchStudentEntriesForClassroom } from '@/lib/student-entries-client'
+import { fetchStudentEntriesForClassroom, invalidateStudentEntriesForClassroom } from '@/lib/student-entries-client'
 import type { Classroom } from '@/types'
 
 vi.mock('@/components/Spinner', () => ({
@@ -16,6 +16,7 @@ vi.mock('@/lib/timezone', () => ({
 
 vi.mock('@/lib/class-days-client', () => ({
   fetchClassDaysForClassroom: vi.fn(),
+  invalidateClassDaysForClassroom: vi.fn(),
 }))
 
 vi.mock('@/lib/student-classrooms-client', () => ({
@@ -25,6 +26,7 @@ vi.mock('@/lib/student-classrooms-client', () => ({
 
 vi.mock('@/lib/student-entries-client', () => ({
   fetchStudentEntriesForClassroom: vi.fn(),
+  invalidateStudentEntriesForClassroom: vi.fn(),
 }))
 
 const classroom: Classroom = {
@@ -58,6 +60,8 @@ describe('HistoryPage', () => {
     vi.mocked(fetchStudentEntriesForClassroom).mockResolvedValue([])
     vi.mocked(fetchStudentClassrooms).mockResolvedValue([classroom])
     vi.mocked(invalidateStudentClassrooms).mockClear()
+    vi.mocked(invalidateClassDaysForClassroom).mockClear()
+    vi.mocked(invalidateStudentEntriesForClassroom).mockClear()
     vi.stubGlobal('fetch', vi.fn())
   })
 
@@ -79,6 +83,42 @@ describe('HistoryPage', () => {
       expect(fetchClassDaysForClassroom).toHaveBeenCalledWith(classroom.id)
       expect(fetchStudentEntriesForClassroom).toHaveBeenCalledWith(classroom.id)
     })
+  })
+
+  it('separates classroom load failures from empty state and retries', async () => {
+    vi.mocked(fetchStudentClassrooms).mockRejectedValueOnce(new Error('Classrooms unavailable'))
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    render(<HistoryPage />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load your classrooms')
+    expect(screen.queryByText('No Classes Yet')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    await waitFor(() => expect(screen.getAllByText('History Class')).toHaveLength(2))
+    expect(invalidateStudentClassrooms).toHaveBeenCalledOnce()
+    expect(consoleError).toHaveBeenCalled()
+  })
+
+  it('shows an explicit history error with retry instead of an empty list', async () => {
+    vi.mocked(fetchClassDaysForClassroom).mockRejectedValueOnce(new Error('History unavailable'))
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    render(<HistoryPage />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not load attendance history',
+    )
+    expect(screen.queryByText('No class days yet')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText('Fri May 9')).toBeInTheDocument()
+    expect(screen.queryByText('Could not load attendance history')).not.toBeInTheDocument()
+    expect(invalidateClassDaysForClassroom).toHaveBeenCalledWith(classroom.id)
+    expect(invalidateStudentEntriesForClassroom).toHaveBeenCalledWith(classroom.id)
+    expect(consoleError).toHaveBeenCalled()
   })
 
   it('invalidates cached student classrooms after joining a class from the empty state', async () => {

@@ -123,6 +123,7 @@ function deferred<T>() {
 
 function installFetchMock(options?: {
   classrooms?: Classroom[]
+  classroomFailures?: number
   attendanceByClassroom?: Record<string, AttendanceRecord[] | Promise<{ attendance: AttendanceRecord[]; dates: string[] }>>
   datesByClassroom?: Record<string, string[]>
   entriesByClassroom?: Record<string, Entry[]>
@@ -130,6 +131,7 @@ function installFetchMock(options?: {
   const classrooms = options?.classrooms ?? [
     createMockClassroom({ id: 'c1', title: 'Dashboard Class', class_code: 'DASH1' }),
   ]
+  let classroomFailures = options?.classroomFailures ?? 0
 
   const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
@@ -142,6 +144,10 @@ function installFetchMock(options?: {
     }
 
     if (url === '/api/teacher/classrooms' && method === 'GET') {
+      if (classroomFailures > 0) {
+        classroomFailures -= 1
+        return Promise.resolve(jsonResponse({ error: 'Classroom service unavailable' }, false))
+      }
       return Promise.resolve(jsonResponse({ classrooms }))
     }
 
@@ -221,6 +227,21 @@ describe('Teacher dashboard page', () => {
       expect.any(Function),
       20_000,
     )
+  })
+
+  it('separates classroom load failures from empty state and retries', async () => {
+    installFetchMock({ classroomFailures: 1 })
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    renderDashboard()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load classrooms')
+    expect(screen.queryByText('No Classrooms Yet')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText('student@example.com')).toBeInTheDocument()
+    expect(consoleError).toHaveBeenCalled()
   })
 
   it('does not expose permanent classroom deletion', async () => {

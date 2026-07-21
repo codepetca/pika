@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-13 — Verified classroom source-object cleanup boundary
-
-**Completed:**
-- Added migration 086 with service-role-only, skip-locked claim/complete/fail RPCs over compaction source objects, explicit processing/failed/deleted states, bounded leases, expired-lease reclaim, exponential retry backoff, and immutable deletion evidence.
-- Restricted claims to completed compact operations with matching cold tombstones; stale, wrong, or expired leases cannot complete or fail work.
-- Added a disabled-by-default server worker that reads each exact key, verifies complete bytes against the archived SHA-256 and byte count before removal, and completes only after authoritative exact-key absence; missing buckets, mismatches, uncertain reads, and unconfirmed deletion fail closed.
-- Added strict Zod validation for RPC claims and runtime bounds, duplicate-object rejection, independent failure containment, and privacy-safe results/metrics with opaque object references.
-- Extended the ephemeral database contract for pre-compaction exclusion, active and expired leases, stale-token rejection, retry backoff, canonical inputs, completion evidence, and role security. No route, UI, schedule, production setting, database, row, or Storage object was changed.
-
-**Validation:**
-- Full Vitest suite (334 files / 2,968 tests)
-- Focused source cleanup runtime/migration suites (2 files / 18 tests)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- `bash -n scripts/check-classroom-archive-compaction-database.sh`
-- Pika pre-commit audit
-- Local migration replay intentionally not run; GitHub's ephemeral Supabase database job is the execution authority
-- `git diff --check`
-
 ## 2026-07-13 — Manual classroom source cleanup canary
 
 **Completed:**
@@ -897,3 +877,28 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Complete targeted remediation review and merge PR #899 after required checks. Then continue Phase 2 with page-level loading, error, empty, and forbidden contracts.
+
+## 2026-07-21 — Phase 2 governed page-state contract
+
+**Completed:**
+- Merged PR #899 and started Phase 2 item 5 from current `main` in a dedicated worktree.
+- Added canonical `PageState` loading, error, empty, and forbidden variants with explicit live-region semantics, text-backed icons, optional actions, and compact work-region support.
+- Added classroom route loading, error-boundary retry, and intentionally indistinguishable unavailable/access-denied states while preserving the classroom shell.
+- Migrated teacher dashboard and student history initial loading/empty behavior; failed classroom/history reads now render explicit retryable errors instead of valid-looking empty data.
+- Added cache invalidation before client retries and direct regressions for state semantics, route boundaries, error/empty separation, and retry recovery.
+- Documented the state decision table and App Router conventions in stable guidance.
+- Visually verified teacher/student loading, error, and empty states plus classroom unavailable states at desktop/mobile sizes in light/dark themes. Governed states had no overflow or page errors, and retry/route-away controls measured 44px.
+
+**Validation:**
+- `pnpm test` (387 files / 3,566 tests)
+- Focused page-state, classroom-route, teacher-dashboard, student-history, UI-guidance, and startup-doc suites
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (610 modules / 0 allowances)
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- Custom Playwright teacher/student desktop/mobile light/dark loading/error/empty/forbidden and keyboard-retry matrix
+- `git diff --check`
+
+**Remaining:**
+- Open, independently review, and merge the page-state PR. Then continue Phase 2 with shared table, menu, tabs, segmented-control, and split-pane contracts.

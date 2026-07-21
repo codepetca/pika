@@ -13985,3 +13985,24 @@
 - `pnpm lint`
 - `pnpm build`
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:49abe2963750316e82a2571bb76fc55e1accd3cb8e74c914aece3dfda8307822 -->
+## 2026-07-13 — Verified classroom source-object cleanup boundary
+
+**Completed:**
+- Added migration 086 with service-role-only, skip-locked claim/complete/fail RPCs over compaction source objects, explicit processing/failed/deleted states, bounded leases, expired-lease reclaim, exponential retry backoff, and immutable deletion evidence.
+- Restricted claims to completed compact operations with matching cold tombstones; stale, wrong, or expired leases cannot complete or fail work.
+- Added a disabled-by-default server worker that reads each exact key, verifies complete bytes against the archived SHA-256 and byte count before removal, and completes only after authoritative exact-key absence; missing buckets, mismatches, uncertain reads, and unconfirmed deletion fail closed.
+- Added strict Zod validation for RPC claims and runtime bounds, duplicate-object rejection, independent failure containment, and privacy-safe results/metrics with opaque object references.
+- Extended the ephemeral database contract for pre-compaction exclusion, active and expired leases, stale-token rejection, retry backoff, canonical inputs, completion evidence, and role security. No route, UI, schedule, production setting, database, row, or Storage object was changed.
+
+**Validation:**
+- Full Vitest suite (334 files / 2,968 tests)
+- Focused source cleanup runtime/migration suites (2 files / 18 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- `bash -n scripts/check-classroom-archive-compaction-database.sh`
+- Pika pre-commit audit
+- Local migration replay intentionally not run; GitHub's ephemeral Supabase database job is the execution authority
+- `git diff --check`

@@ -144,6 +144,28 @@ wrappers:
   and uses the keyboard-accessible overflow menu on mobile.
 - Action-bar controls and menu items preserve the shared 44px target and focus-visible treatment.
 
+### Page states
+
+Use `PageState` for the primary `loading`, `error`, `empty`, or `forbidden` state of a route or work
+region. Keep the surrounding app/classroom shell mounted, and never render an empty state from a
+failed request.
+
+```tsx
+<PageState
+  kind="error"
+  title="Could not load classrooms"
+  description="The classroom list could not be retrieved."
+  action={<Button onClick={retry}>Try again</Button>}
+/>
+```
+
+- Initial loading uses `kind="loading"`; non-blocking refreshes use `RefreshingIndicator`.
+- Error and forbidden states use assertive semantics; loading and empty states use polite status
+  semantics.
+- Use `compact` only when the state replaces a primary region in an existing workspace.
+- Route and retry rules live in
+  [`page-state-conventions.md`](/docs/guidance/ui/page-state-conventions.md).
+
 ### EmptyState
 
 ```typescript
