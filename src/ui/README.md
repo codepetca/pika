@@ -166,6 +166,16 @@ failed request.
 - Route and retry rules live in
   [`page-state-conventions.md`](/docs/guidance/ui/page-state-conventions.md).
 
+### Application navigation
+
+Authenticated route families use `AppShell` with an `AppNavigation` region instead of defining
+their own logo, account controls, link styling, or responsive navigation wrapper. Navigation items
+keep their existing product labels and route ownership; the shared mechanism supplies active-page
+semantics, keyboard focus treatment, 44px targets, and narrow-width horizontal overflow.
+
+Application navigation is app-specific composition and remains in `src/components/`, while its
+base controls and shell styling follow the `@/ui` contracts.
+
 ### Composite controls
 
 - Use `Tabs` plus `TabPanel` for panel-switching navigation. The tab list owns roving focus,

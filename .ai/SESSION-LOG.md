@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-13 — Local full-stack classroom archive recovery rehearsal
-
-**Completed:**
-- Added a local-only recovery drill guard requiring an exact destructive-operation acknowledgement, an HTTP loopback Supabase origin, and the Supabase local-demo service-role JWT before client construction.
-- Added a synthetic full-stack rehearsal that invokes the real export, compaction, source-object cleanup, and restore coordinators against local Supabase REST and Storage.
-- The rehearsal verifies representative row equality, restored object bytes, cold tombstone removal, immutable archive retention, idempotent operation replays, and complete synthetic-fixture teardown.
-- Upgraded architecture CI from database-only startup to an ephemeral reduced Supabase stack and added the rehearsal after the existing rollback-only database contracts and ownership audit.
-- Full-stack runs exposed a cleanup boundary mismatch: Node Storage `download()` wraps local missing-key responses in `StorageUnknownError.originalError`; the current SDK/local stack reports status 400, while other deployments can report 404. The worker accepts only that named bounded wrapper and requires a successful exact bucket lookup before treating it as object absence; explicit `NoSuchKey` remains direct evidence, unwrapped generic 400s and missing buckets fail closed.
-- Kept the archive epic unfinished because no production canary or teacher-visible recovery flow has been approved. No production database, migration, row, object, or environment setting was modified.
-
-**Validation:**
-- Recovery target and source-cleanup suites (30 tests)
-- Full Vitest suite
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm build`
-- `bash -n scripts/check-classroom-archive-recovery-drill.sh`
-- Local full-stack drill intentionally not run because the existing local Supabase instance predates migrations 082-086; migrations were not applied or reset
-- `git diff --check`
-
 ## 2026-07-13 — Teacher cold-archive recovery surface
 
 **Completed:**
@@ -914,3 +894,28 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Merge PR #902 after required CI. Then continue Phase 2 with the next scoped shared-experience slice from the product-experience audit.
+
+## 2026-07-21 — Phase 2 shared application navigation
+
+**Completed:**
+- Merged independently reviewed PR #902 as `14de9893`, fast-forwarded the hub, and started Phase 2 item 7 from current `main` in a dedicated worktree.
+- Added a shared `AppNavigation` route-family mechanism with active-page semantics, stable prefix matching, 44px link targets, visible keyboard focus, and narrow-width horizontal overflow.
+- Added an optional application-navigation region to `AppShell` and migrated the teacher utility layout from its duplicate logo/header/logout implementation to the canonical compact `AppHeader`, `UserMenu`, session watcher, and shared navigation band.
+- Preserved the existing `Classrooms`, `Blueprints`, and `Calendar` destinations without adding a dashboard destination or changing classroom navigation, page content, API contracts, schema, production state, or data.
+- Added direct navigation, shell-order, and teacher-layout regressions plus stable guidance for incremental utility-family migration.
+- Browser-verified teacher Blueprints and Calendar at desktop/mobile widths in light/dark themes, including active-link focus and navigation-shell overflow isolation. The student mobile shell remained unchanged and overflow-free. Calendar's previously ranked narrow-screen content compression remains assigned to its Phase 3 vertical slice.
+
+**Validation:**
+- `pnpm test --run` (392 files / 3,584 tests)
+- Focused application-navigation, app-shell, teacher-layout, and app-header suites (4 files / 12 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (613 modules / 0 allowances)
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- Custom Playwright teacher desktop/mobile light/dark navigation matrix plus unchanged student mobile-dark regression (7 checks including auth setup)
+- `node scripts/trim-session-log.mjs --check`
+- `git diff --check`
+
+**Remaining:**
+- Complete full repository verification, independent review, and merge for the teacher navigation slice. Then migrate the student utility family as a separate Phase 2 item 7 PR.

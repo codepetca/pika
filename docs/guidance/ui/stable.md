@@ -107,6 +107,23 @@ Source grounding:
 - [`src/hooks/use-dropdown-nav.ts`](/src/hooks/use-dropdown-nav.ts)
 - [`src/components/WorkspaceSplitPane.tsx`](/src/components/WorkspaceSplitPane.tsx)
 
+### 3d. Utility routes use the shared application-navigation mechanism
+
+- Keep the compact `AppHeader` and account controls owned by `AppShell`; utility layouts must not
+  recreate their own logo, logout, header, or responsive link wrapper.
+- Use `AppNavigation` for visible route-family links. Preserve the product's existing route labels
+  and information architecture while the utility families migrate incrementally.
+- The current page uses `aria-current="page"`, a semantic accent edge, and the same visible focus
+  and 44px target contracts as other shared controls.
+- Narrow screens scroll the link row horizontally instead of wrapping the app header or hiding
+  destinations in a new menu.
+
+Source grounding:
+
+- [`src/components/AppShell.tsx`](/src/components/AppShell.tsx)
+- [`src/components/AppNavigation.tsx`](/src/components/AppNavigation.tsx)
+- [`src/app/teacher/layout.tsx`](/src/app/teacher/layout.tsx)
+
 ### 4. Attendance stays presence-first and scan-friendly
 
 - Attendance UI is optimized for quick scanning and teacher drill-down, not extra status taxonomy.
