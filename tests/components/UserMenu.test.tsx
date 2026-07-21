@@ -24,12 +24,14 @@ describe('UserMenu', () => {
   it('keeps display preferences out of the account menu', async () => {
     renderUserMenu()
 
-    fireEvent.click(screen.getByRole('button', { name: 'User menu' }))
+    const trigger = screen.getByRole('button', { name: 'User menu' })
+    expect(trigger).toHaveClass('min-h-11', 'min-w-11')
+    fireEvent.click(trigger)
 
     expect(screen.queryByRole('menuitemcheckbox', { name: 'Show markdown' })).not.toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: /dark mode|light mode|toggle theme/i })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Send Feedback' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Logout' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /dark mode|light mode|toggle theme/i })).toHaveClass('min-h-11')
+    expect(screen.getByRole('menuitem', { name: 'Send Feedback' })).toHaveClass('min-h-11')
+    expect(screen.getByRole('menuitem', { name: 'Logout' })).toHaveClass('min-h-11')
   })
 
   it('closes with Escape and outside click while restoring focus to the trigger', () => {

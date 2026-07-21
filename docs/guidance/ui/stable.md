@@ -123,6 +123,7 @@ Source grounding:
 - [`src/components/AppShell.tsx`](/src/components/AppShell.tsx)
 - [`src/components/AppNavigation.tsx`](/src/components/AppNavigation.tsx)
 - [`src/app/teacher/layout.tsx`](/src/app/teacher/layout.tsx)
+- [`src/app/student/layout.tsx`](/src/app/student/layout.tsx)
 
 ### 4. Attendance stays presence-first and scan-friendly
 
