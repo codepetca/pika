@@ -230,7 +230,8 @@ describe('TeacherAttendanceTab', () => {
       },
     ]
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    vi.stubGlobal('fetch', vi.fn()
+    const retryRequest = deferred<any>()
+    const fetchMock = vi.fn()
       .mockResolvedValueOnce(await mockJson({
         logs: [{
           student_id: 'student-1',
@@ -242,7 +243,8 @@ describe('TeacherAttendanceTab', () => {
         }],
       }))
       .mockResolvedValueOnce(await mockJson({ error: 'Attendance unavailable' }, false))
-      .mockResolvedValueOnce(await mockJson({ logs: [] })))
+      .mockImplementationOnce(() => retryRequest.promise)
+    vi.stubGlobal('fetch', fetchMock)
 
     render(<TeacherAttendanceTab classroom={classroom} />)
 
@@ -257,6 +259,15 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.queryByText('No students enrolled')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+    })
+    expect(screen.queryByText('No students enrolled')).not.toBeInTheDocument()
+
+    await act(async () => {
+      retryRequest.resolve(await mockJson({ logs: [] }))
+    })
 
     expect(await screen.findByText('No students enrolled')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()

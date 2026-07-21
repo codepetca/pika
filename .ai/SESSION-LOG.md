@@ -898,7 +898,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Standardized automatic tabs, roving segmented controls, Home/End menu navigation, keyboard table selection, stable row identity, split-pane and column-resize separators, focus-visible treatment, 44px interaction targets, and narrow-screen tab overflow.
 - Fixed independent-review findings covering failed Attendance refreshes, legacy `aria-label` compatibility, extra tab-panel stops, mobile tab overflow, row-focus semantics and cancellation races, remount-safe Attendance focus restoration, and resize target sizing.
 - Added governed composite-control guidance plus direct primitive and integration regressions. No schema, migration, API, production, or data change was made.
-- Opened PR #902 after independent architecture and accessibility re-reviews. The final cumulative review then caught bubbled table shortcuts overriding nested inputs and failed Attendance reads falling through to empty-roster copy; both now have direct regressions and remediated behavior.
+- Opened PR #902 after independent architecture and accessibility re-reviews. The final cumulative review then caught bubbled table shortcuts overriding nested inputs, failed Attendance reads falling through to empty-roster copy, and empty copy flashing during retry; all now have direct regressions and remediated behavior.
 - Restored the startup-context budget after CI caught a 10-character overage in `.ai/CURRENT.md`.
 
 **Validation:**

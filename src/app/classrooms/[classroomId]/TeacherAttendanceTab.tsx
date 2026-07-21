@@ -749,10 +749,14 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     </div>
   )
 
-  const workspace = showBlockingSpinner ? (
-    <div className="flex justify-center py-12">
-      <Spinner size="lg" />
-    </div>
+  const workspace = loading ? (
+    showBlockingSpinner ? (
+      <div className="flex justify-center py-12">
+        <Spinner size="lg" />
+      </div>
+    ) : (
+      <div className="min-h-40" aria-hidden="true" />
+    )
   ) : logsError ? (
     <PageState
       kind="error"
