@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import {
   ACTIONBAR_BUTTON_CLASSNAME,
@@ -82,5 +83,30 @@ describe('Page primitives', () => {
 
     const item = within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Archive' })
     expect(item).toHaveClass('min-h-11', 'focus-visible:ring-2', 'focus-visible:ring-inset')
+  })
+
+  it('does not reclaim focus with menu keys after focus leaves the open menu', async () => {
+    const user = userEvent.setup()
+    render(
+      <>
+        <PageActionBar
+          primary="Actions"
+          actions={[{ id: 'archive', label: 'Archive', onSelect: vi.fn() }]}
+        />
+        <button type="button">After menu</button>
+      </>,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Open actions menu' }))
+    await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Archive' })).toHaveFocus())
+
+    await user.tab()
+    const nextAction = screen.getByRole('button', { name: 'After menu' })
+    expect(nextAction).toHaveFocus()
+
+    await user.keyboard('{ArrowDown}{Escape}')
+
+    expect(nextAction).toHaveFocus()
+    expect(screen.getByRole('menu')).toBeInTheDocument()
   })
 })

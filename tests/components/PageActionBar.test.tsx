@@ -84,22 +84,22 @@ describe('PageActionBar', () => {
       expect(archiveItem).toHaveFocus()
     })
 
-    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    fireEvent.keyDown(menu, { key: 'ArrowDown' })
     expect(deleteItem).toHaveFocus()
 
-    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    fireEvent.keyDown(menu, { key: 'ArrowDown' })
     expect(archiveItem).toHaveFocus()
 
-    fireEvent.keyDown(window, { key: 'ArrowUp' })
+    fireEvent.keyDown(menu, { key: 'ArrowUp' })
     expect(deleteItem).toHaveFocus()
 
-    fireEvent.keyDown(window, { key: 'Home' })
+    fireEvent.keyDown(menu, { key: 'Home' })
     expect(archiveItem).toHaveFocus()
 
-    fireEvent.keyDown(window, { key: 'End' })
+    fireEvent.keyDown(menu, { key: 'End' })
     expect(deleteItem).toHaveFocus()
 
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(menu, { key: 'Escape' })
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(menuButton).toHaveFocus()
   })
@@ -134,7 +134,7 @@ describe('PageActionBar', () => {
     await waitFor(() => {
       expect(screen.getByRole('menuitem', { name: 'Archive' })).toHaveFocus()
     })
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(menuButton).toHaveFocus()
 

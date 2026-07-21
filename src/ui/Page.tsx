@@ -1,6 +1,6 @@
 'use client'
 
-import type { ElementType, ReactNode } from 'react'
+import type { ElementType, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { MoreVertical } from 'lucide-react'
 import { buttonVariants } from './Button'
@@ -212,6 +212,36 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
     }
   }, [])
 
+  const handleMenuKeyDown = useCallback((e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Escape') {
+      closeMenu({ restoreFocus: true })
+      return
+    }
+
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return
+
+    const enabledItems = getEnabledMenuItems()
+    if (enabledItems.length === 0) return
+
+    e.preventDefault()
+    const currentIndex = enabledItems.indexOf(document.activeElement as HTMLButtonElement)
+    const lastIndex = enabledItems.length - 1
+    const nextIndex =
+      e.key === 'Home'
+        ? 0
+        : e.key === 'End'
+          ? lastIndex
+          : e.key === 'ArrowUp'
+            ? currentIndex <= 0
+              ? lastIndex
+              : currentIndex - 1
+            : currentIndex === -1 || currentIndex === lastIndex
+              ? 0
+              : currentIndex + 1
+
+    enabledItems[nextIndex]?.focus()
+  }, [closeMenu, getEnabledMenuItems])
+
   useEffect(() => {
     if (!open) return
 
@@ -225,41 +255,9 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
       }
     }
 
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        closeMenu({ restoreFocus: true })
-        return
-      }
-
-      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return
-
-      const enabledItems = getEnabledMenuItems()
-      if (enabledItems.length === 0) return
-
-      e.preventDefault()
-      const currentIndex = enabledItems.indexOf(document.activeElement as HTMLButtonElement)
-      const lastIndex = enabledItems.length - 1
-      const nextIndex =
-        e.key === 'Home'
-          ? 0
-          : e.key === 'End'
-            ? lastIndex
-            : e.key === 'ArrowUp'
-              ? currentIndex <= 0
-                ? lastIndex
-                : currentIndex - 1
-              : currentIndex === -1 || currentIndex === lastIndex
-                ? 0
-                : currentIndex + 1
-
-      enabledItems[nextIndex]?.focus()
-    }
-
     document.addEventListener('mousedown', onMouseDown)
-    window.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('mousedown', onMouseDown)
-      window.removeEventListener('keydown', onKeyDown)
     }
   }, [closeMenu, getEnabledMenuItems, open])
 
@@ -301,6 +299,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
           id={menuId}
           ref={menuRef}
           role="menu"
+          onKeyDown={handleMenuKeyDown}
           className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-md border border-border bg-surface shadow-lg"
         >
           {normalItems.map((item) => (
