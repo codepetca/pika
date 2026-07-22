@@ -5,7 +5,7 @@ Default handoff. Epic status: `.ai/features.json`; recent detail: `.ai/SESSION-L
 ## Current Focus
 
 - Migrations 001-099 and the archive canary are verified; classroom hot-restored; source/Gradex cleanup disabled.
-- Product experience: `.ai/features.json`; audit: `docs/guidance/ui/product-experience-audit-2026-07.md`. Safety Wave complete; browser CI matrix after PR #905 is Phase 2's final slice.
+- Product experience: `.ai/features.json`; audit: `docs/guidance/ui/product-experience-audit-2026-07.md`. Safety Wave and Phase 2 are complete; Phase 3 is in progress with the teacher/student Classwork list-state slice.
 
 ## Environment
 

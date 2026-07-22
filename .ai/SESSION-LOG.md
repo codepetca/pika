@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-13 — Generated Supabase database contract
-
-**Completed:**
-- Generated and committed the public Supabase schema contract in `src/types/database.generated.ts`; added `src/types/database.ts` for application-owned JSON/status/RPC refinements and typed both central Supabase client factories.
-- Added `db:types:generate` / `db:types:check`, plus a CI `Database Contract` job that starts an ephemeral database, replays migrations, and rejects generated-type drift.
-- Replaced generic persisted payload records exposed by the typed client with `TableRow`, `TableInsert`, and `TableUpdate` contracts; extracted assessment draft contracts into shared domain types.
-- Fixed blueprint instantiation when `points_possible` is null by omitting it so PostgreSQL applies the assignment default; added a regression for null and explicit point values.
-- Added documentation for generated types, custom refinements, compatibility exceptions, and the migration workflow.
-- CI's clean replay exposed migration `080` from another worktree in the shared local stack; aligned the generated file to this branch's `001-079` history and made generation reject mismatched worktree/database migration histories.
-- No production access or local migration-application command was used. Local type generation/checking only read the already-running development stack; CI used its own ephemeral database.
-
-**Validation:**
-- `pnpm test` (311 files, 2785 tests passed)
-- `pnpm build`
-- `pnpm exec tsc --noEmit --pretty false`
-- `pnpm run lint`
-- `pnpm run db:types:check` preflight rejected the intentionally mismatched shared stack (`database=080`, worktree missing `080`)
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-
 ## 2026-07-14 — Atomic test grading contracts
 
 **Completed:**
@@ -945,3 +926,28 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Publish, independently review, remediate, and merge the browser matrix PR. Then confirm Phase 2 exit evidence and begin Phase 3 with the first independently releasable vertical product slice.
+
+## 2026-07-21 — Phase 3 Classwork list states
+
+**Completed:**
+- Began Phase 3 with a narrow assignment slice that preserves the existing class-wide teacher workflow and student assignment list.
+- Replaced ambiguous initial loading and failed-read empty states with governed `PageState` loading, error, and successful-empty states for teacher and student Classwork.
+- Added bounded Retry actions that invalidate assignment, material, and survey list caches before reloading; failures never render "No classwork yet," and successful retry restores the normal list.
+- Added focused role regressions and browser-verified loading, error, empty, retry, and restored-list states at desktop/mobile widths in light/dark themes. No API, schema, migration, production state, or production data changed.
+- Independent review found that reactivating Classwork after a failed load used the content-preserving refresh path and could expose the empty state while retrying. Reactivation from an error now uses the blocking load path; both roles prove pending reactivation, repeated failure, and recovery.
+- Final cumulative review found the remaining survey-list exception could still turn survey failures into empty or partial Classwork. Survey reads now participate in the same required failure/retry contract, with teacher and student survey-specific recovery regressions.
+
+**Validation:**
+- Focused Classwork component suites (2 files / 61 tests)
+- `pnpm test --run` (397 files / 3,605 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (613 modules / 0 allowances)
+- `pnpm check:ui-policy` (215 controls / 67 files)
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+- Playwright forced-state matrix (16 checks across two focused local runs)
+
+**Remaining:**
+- Complete repository gates, independent review, and merge. Then continue the assignment slice with mobile workspace modes, save announcements/dialog semantics, and the Gradex status boundary.

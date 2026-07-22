@@ -170,6 +170,12 @@ Exit evidence: canonical primitive tests prove keyboard/focus/ARIA behavior; all
 
 ### Phase 3: Vertical Product Slices
 
+Assignment progress:
+
+- Save/submit integrity was completed in the Safety Wave with atomic persistence and stale-submit regression coverage.
+- The first Phase 3 assignment slice gives teacher and student Classwork lists explicit governed loading, error, and successful-empty states. Retry invalidates the classroom list caches before reloading, and role/viewport/theme browser verification covers failure and recovery without changing the normal class-wide workflow.
+- Remaining assignment work is mobile workspace modes, live save announcements and dialog semantics, and the Gradex status boundary.
+
 1. Assignments: save/submit integrity, error states, mobile workspace modes, Gradex status boundary.
 2. Tests: list errors, authoring/grading mode separation, standalone preview authorization/framing, mobile navigation, accessible flags/save status.
 3. Daily and attendance: explicit failures, mobile history/table modes, Toronto timestamp verification.

@@ -14107,3 +14107,23 @@
 - `pnpm test` (312 files, 2,788 tests passed)
 - `pnpm build`
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:aa6238bd7de766f3572cd84ebba5cc8124d2eb933c63fb23eef64238e8697b9c -->
+## 2026-07-13 — Generated Supabase database contract
+
+**Completed:**
+- Generated and committed the public Supabase schema contract in `src/types/database.generated.ts`; added `src/types/database.ts` for application-owned JSON/status/RPC refinements and typed both central Supabase client factories.
+- Added `db:types:generate` / `db:types:check`, plus a CI `Database Contract` job that starts an ephemeral database, replays migrations, and rejects generated-type drift.
+- Replaced generic persisted payload records exposed by the typed client with `TableRow`, `TableInsert`, and `TableUpdate` contracts; extracted assessment draft contracts into shared domain types.
+- Fixed blueprint instantiation when `points_possible` is null by omitting it so PostgreSQL applies the assignment default; added a regression for null and explicit point values.
+- Added documentation for generated types, custom refinements, compatibility exceptions, and the migration workflow.
+- CI's clean replay exposed migration `080` from another worktree in the shared local stack; aligned the generated file to this branch's `001-079` history and made generation reject mismatched worktree/database migration histories.
+- No production access or local migration-application command was used. Local type generation/checking only read the already-running development stack; CI used its own ephemeral database.
+
+**Validation:**
+- `pnpm test` (311 files, 2785 tests passed)
+- `pnpm build`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm run lint`
+- `pnpm run db:types:check` preflight rejected the intentionally mismatched shared stack (`database=080`, worktree missing `080`)
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
