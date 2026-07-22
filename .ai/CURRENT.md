@@ -1,28 +1,23 @@
 # Pika Current Context
 
-Read this at session start. `.ai/features.json` is the epic status authority; `.ai/SESSION-LOG.md` holds recent handoff context.
+Default handoff. Epic status: `.ai/features.json`; recent detail: `.ai/SESSION-LOG.md`.
 
 ## Current Focus
 
-- Core classroom, assignment, test, and auth flows are live.
-- Production migrations 001-099 and the named archive round-trip canary are verified. The classroom is hot-restored; source and Gradex cleanup remain disabled.
-- The product-experience program is tracked in `.ai/features.json`; Phase 1 evidence is in `docs/guidance/ui/product-experience-audit-2026-07.md`.
-- The Safety Wave is complete through PRs #890, #891, and #893-#895.
-- Phase 2 is active. PRs #896-#900 and #902-#904 merged the shared foundation through teacher/student utility navigation. Specialized-control policy enforcement is in PR #905.
+- Migrations 001-099 and the archive canary are verified; classroom hot-restored; source/Gradex cleanup disabled.
+- Product experience: `.ai/features.json`; audit: `docs/guidance/ui/product-experience-audit-2026-07.md`. Safety Wave complete; browser CI matrix after PR #905 is Phase 2's final slice.
 
 ## Environment
 
-- Hub: `$HOME/Repos/pika`
-- Named worktrees: `$HOME/.codex/worktrees/pika/<branch-name>`
-- App-managed worktrees: `$HOME/.codex/worktrees/<id>/pika`
-- Maintainer env: symlink `.env.local` to `$HOME/Repos/.env/pika/.env.local`
-- Collaborators may copy `.env.example` to a checkout-local `.env.local`
-- Full worktree/env rules: `docs/dev-workflow.md`
+- Hub: `$HOME/Repos/pika`.
+- Worktrees: `$HOME/.codex/worktrees/pika/` (named), `$HOME/.codex/worktrees/<id>/pika` (app-managed).
+- Maintainer env: `$HOME/Repos/.env/pika/.env.local`; collaborators use local `.env.example` copies.
+- Worktree/env rules: `docs/dev-workflow.md`.
 
 ## Invariants And Hazards
 
-- Use `America/Toronto` for deadline/attendance cutoffs; keep business logic in `src/lib/*` or server modules.
-- API routes use `withErrorHandler`; app UI uses semantic tokens and `@/ui`.
-- Migration application needs one-time permission naming target and migration; it never authorizes reset, repair, rollback, seeding, or cleanup.
-- Use a dedicated worktree for non-trivial changes. Keep the session log bounded with `node scripts/trim-session-log.mjs` after appending.
+- Deadlines/attendance use `America/Toronto`; business logic belongs in `src/lib/*` or server modules.
+- API routes use `withErrorHandler`; UI uses semantic tokens and `@/ui`.
+- Migrations need one-time target/migration permission; never infer reset, repair, rollback, seed, or cleanup permission.
+- Use dedicated worktrees. After session-log updates, run `node scripts/trim-session-log.mjs`.
 - `main` accepts linear history; `production` uses the protected PR flow.

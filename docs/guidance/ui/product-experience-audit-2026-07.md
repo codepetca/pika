@@ -67,7 +67,7 @@ The classroom shell is the strongest base. Teacher and student utility layouts d
 - Archived classroom discovery is hidden inside Organize mode. Once visible, Restore and Delete are presented as peer actions without recovery context.
 - Resolved in Phase 2 PR #905: the 21-import baseline and unclassified native controls now use the canonical `@/ui` barrel plus an AST-enforced, reasoned registry covering 215 controls across 67 files.
 - `EmptyState`, loading, menus, tabs, and tables have multiple local implementations. Composite ownership is unresolved in `docs/guidance/ui/legacy.md`.
-- Playwright defines one desktop project, CI does not run the browser suite, and existing visual snapshots contain no mobile coverage.
+- Playwright now defines explicit desktop/mobile and light/dark Chromium projects. CI runs a seeded, read-only teacher/student classroom and utility-shell contract across that matrix; the broader feature and manual visual suites remain desktop-light to control runtime. Durable mobile visual baselines remain a Phase 6 deliverable.
 - Student aggregate grades and profile editing are absent. These are product decisions to confirm, not automatic implementation defects.
 - Legacy resource and gradebook helpers remain tested but are not mounted in the current product. Student history is separately mounted under the utility shell and overlaps the classroom Today history model. Retire or consolidate only after caller and compatibility evidence.
 
@@ -164,7 +164,7 @@ Each item is a separate PR unless one shared route contract makes two inseparabl
 6. Establish shared table, menu, tabs, segmented-control, and split-pane contracts with direct keyboard/ARIA tests.
 7. Establish one shared application-navigation mechanism, migrating teacher and student utility routes one at a time.
 8. Strengthen UI policy enforcement with a specialized-control exception registry rather than banning valid native controls.
-9. Add mobile and light/dark Playwright projects plus CI coverage for representative teacher/student workflows.
+9. Completed: add mobile and light/dark Playwright projects plus seeded CI coverage for representative teacher/student classroom and utility workflows.
 
 Exit evidence: canonical primitive tests prove keyboard/focus/ARIA behavior; all semantic foreground/background pairs meet AA; representative classroom, teacher utility, and student utility routes use the governed page-state contracts; desktop/mobile and light/dark browser checks run in CI.
 
