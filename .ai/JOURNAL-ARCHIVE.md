@@ -14255,3 +14255,31 @@
 - `pnpm lint`
 - `pnpm check:architecture` (589 modules / 0 allowances)
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:2f834950debbe1d8d541240b2a62ad5ba3ed5f77974b187e5238d8416ed620b6 -->
+## 2026-07-14 — Atomic assignment grading and feedback expand release
+
+**Risk profile:** async-grading
+
+**Model recommendation:** GPT-5 Codex - transactional grading, concurrent roster changes, runtime response contracts, and rolling database deployment require cross-layer invariant analysis.
+
+**Completed:**
+- Added expand-only migration 087 with service-role atomic RPCs for manual and AI grades, AI run/item completion, repository review completion, and single/batch feedback returns.
+- Added optimistic document revisions, assignment/classroom locking, replay-safe terminal operations, final-score validation, and all-or-none grade/result persistence.
+- Routed native AI, Gradex, repository review, and teacher feedback flows through typed server boundaries; feedback returns now submit the browser-observed document revision.
+- Added Zod contracts for assignment identifiers, grading and return payloads, and successful Gradex runtime responses; malformed successful responses fail before grade persistence.
+- Added a live database/concurrency harness, migration contract tests, route/service tests, and completed teacher/student desktop/mobile visual verification.
+- Documented the migration-first expand deployment and the separately numbered contract migration required only after all old application instances are drained.
+- Completed repeated independent database and TypeScript reviews with no remaining findings. No production database or Storage changes were made.
+
+**Validation:**
+- `pnpm test` (350 files / 3,159 tests)
+- Atomic assignment database/concurrency harness
+- `pnpm build`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm db:types:check`
+- `pnpm check:architecture` (592 modules / 0 allowances)
+- Pika pre-commit audit
+- `bash scripts/verify-env.sh`
+- `git diff --check`

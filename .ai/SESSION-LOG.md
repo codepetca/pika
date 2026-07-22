@@ -1110,3 +1110,29 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Require fresh PR CI to replay migrations 001-104, verify generated type parity, and execute both atomic grading database harnesses.
 - Complete independent review and obtain external approval before merging the stacked grading PRs.
 - After the pilot collects 10-20 teacher-reviewed outcomes, add an explicit local-admin export of minimum sanitized grading inputs for paid candidate prompt/model comparisons.
+
+## 2026-07-22 — Enforced grading-core isolation
+
+**Risk profile:** async-grading, foundational architecture
+
+**Model recommendation:** GPT-5.4 - enforcing extraction boundaries requires repository-wide import analysis while preserving existing grading policy behavior.
+
+**Completed:**
+- Added an architecture rule that prevents every `src/lib/grading/**` module from importing Pika-owned database, server, route, UI, shared application, or type modules, including type-only imports.
+- Moved the canonical Pika test prompt guidelines into the versioned grading profile directory and retained the old application path as a compatibility re-export, preserving current consumers and prompt output.
+- Added a regression test proving the boundary rejects both runtime Supabase and type-only database dependencies while allowing grading-core imports.
+- Documented the enforced extraction boundary. No route, UI, schema, provider, prompt text, production state, or remote Gradex behavior changed.
+
+**Validation:**
+- `pnpm test` (407 files / 3,658 tests)
+- `pnpm check:architecture` (623 modules / 0 allowances)
+- focused architecture and test-grading suites (3 files / 43 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika audit
+- `git diff --check`
+
+**Remaining:**
+- Run the full repository gates and exact-head PR CI, then obtain the required external code-owner approval before merging the grading stack.
+- Apply migrations 100-104 only with explicit target permission, deploy with remote Gradex disabled, and collect 10-20 teacher-reviewed outcomes before adding paid replay comparisons.

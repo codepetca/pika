@@ -5,7 +5,7 @@ import {
   BULK_TEST_AI_PROMPT_GUIDELINE,
   DEFAULT_TEST_AI_PROMPT_GUIDELINE,
   GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE,
-} from '@/lib/test-ai-prompt-guideline'
+} from '@/lib/grading/profiles/pika-test-prompt-guidelines'
 
 export const PIKA_TEST_OPEN_RESPONSE_PROFILE_VERSION = 'pika-test-open-response-v1'
 export const PIKA_TEST_OPEN_RESPONSE_RUBRIC_VERSION = 'pika-test-open-response-rubric-v1'
