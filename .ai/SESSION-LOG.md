@@ -1019,7 +1019,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - No migration was applied locally, no live model call was made, and no production state changed.
 
 **Validation:**
-- `pnpm test` (397 files / 3,601 tests)
+- `pnpm test` (401 files / 3,619 tests after rebasing onto `origin/main`)
 - Focused grading, persistence, migration, Gradex compatibility, and database-contract suites (9 files / 64 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
