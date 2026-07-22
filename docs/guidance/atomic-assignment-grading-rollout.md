@@ -48,7 +48,7 @@ Gradex work reaches the provider. Disable the Actions variable after the bounded
 durable scheduler is not selected. Browser polling remains useful for immediate feedback, but it is
 no longer the only available progression mechanism.
 
-Apply Gradex migration `0009_even_morlun.sql` and deploy Gradex's idempotent async-create contract
+Apply Gradex migrations `0009_even_morlun.sql` and `0010_atomic_grading_run_creation.sql`, then deploy Gradex's idempotent async-create contract
 before enabling this worker. Pika uses one pseudonymous, stable key per local run, so a lost Gradex
 create response can be retried without creating duplicate provider work. Gradex rejects reuse of
 that key for a changed payload.

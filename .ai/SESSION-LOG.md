@@ -992,7 +992,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Preserved Pika grading attempt counts through transient Gradex polling failures, added a one-hour reconciliation deadline, and made deadline or partial terminal outcomes unhealthy to the scheduler.
 - Added regressions for four transient poll failures followed by successful grading, deadline exhaustion, and `completed_with_errors` worker reporting.
 - Kept one final remote read at the reconciliation deadline so an already-completed Gradex run is accepted instead of falsely failed.
-- Documented that Gradex migration 0009 and the idempotent async-create deployment are prerequisites for worker activation. No scheduler, provider call, migration, or production setting was enabled.
+- Documented that Gradex migrations 0009-0010 and the idempotent async-create deployment are prerequisites for worker activation. No scheduler, provider call, migration, or production setting was enabled.
 
 **Validation:**
 - `pnpm test` (390 files / 3,581 tests)
@@ -1023,4 +1023,4 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `git diff --check`
 
 **Remaining:**
-- Complete full validation and cross-repository review. Deploy Gradex migration 0009 before enabling an explicitly authorized Pika pilot.
+- Complete full validation and cross-repository review. Deploy Gradex migrations 0009-0010 before enabling an explicitly authorized Pika pilot.
