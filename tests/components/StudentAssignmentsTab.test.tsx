@@ -148,6 +148,9 @@ function mockJSONResponse(body: unknown) {
 describe('StudentAssignmentsTab', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
+    invalidateCachedJSONMatching('student-assignments:')
+    invalidateCachedJSONMatching('student-materials:')
+    invalidateCachedJSONMatching('student-surveys:')
     searchParamsMap = new Map()
     mockEditorState = {
       isSubmitted: false,
