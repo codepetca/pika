@@ -24,6 +24,7 @@
     "check:ui-policy": "tsx scripts/check-ui-policy.ts",
     "measure:ai-grading-prompts": "tsx scripts/measure-ai-grading-prompts.ts",
     "dev-feedback": "node scripts/dev-feedback.mjs",
+    "eval:grading-reviews": "tsx scripts/summarize-grading-reviews.ts",
     "eval:test-ai-grading-gold-set": "tsx scripts/eval-test-ai-grading-gold-set.ts",
     "smoke:gradex": "tsx scripts/gradex-smoke.ts",
     "docs:sync:test-markdown": "tsx scripts/sync-test-markdown-docs.ts",

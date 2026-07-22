@@ -1,0 +1,86 @@
+[
+  {
+    "schemaVersion": "grading-review-v1",
+    "assessmentKind": "assignment",
+    "reviewStatus": "reviewed",
+    "criteria": [
+      { "criterionId": "completion", "suggestedScore": 8, "finalScore": 8, "maxScore": 10 },
+      { "criterionId": "thinking", "suggestedScore": 7, "finalScore": 7, "maxScore": 10 },
+      { "criterionId": "workflow", "suggestedScore": 9, "finalScore": 9, "maxScore": 10 }
+    ],
+    "feedbackDisposition": "unchanged",
+    "reviewedAt": "2026-07-22T12:00:00.000Z",
+    "provenance": {
+      "provider": "openai",
+      "model": "fixture-model",
+      "policyVersion": "fixture-policy-v1",
+      "promptVersion": "fixture-prompt-v1",
+      "gradingProfileVersion": "fixture-assignment-profile-v1",
+      "rubricVersion": "fixture-assignment-rubric-v1",
+      "providerRequestCount": 1,
+      "tokenUsage": { "inputTokens": 100, "outputTokens": 20, "totalTokens": 120 }
+    }
+  },
+  {
+    "schemaVersion": "grading-review-v1",
+    "assessmentKind": "assignment",
+    "reviewStatus": "reviewed",
+    "criteria": [
+      { "criterionId": "completion", "suggestedScore": 8, "finalScore": 7, "maxScore": 10 },
+      { "criterionId": "thinking", "suggestedScore": 7, "finalScore": 6, "maxScore": 10 },
+      { "criterionId": "workflow", "suggestedScore": 9, "finalScore": 9, "maxScore": 10 }
+    ],
+    "feedbackDisposition": "edited",
+    "reviewedAt": "2026-07-22T12:05:00.000Z",
+    "provenance": {
+      "provider": "openai",
+      "model": "fixture-model",
+      "policyVersion": "fixture-policy-v1",
+      "promptVersion": "fixture-prompt-v1",
+      "gradingProfileVersion": "fixture-assignment-profile-v1",
+      "rubricVersion": "fixture-assignment-rubric-v1",
+      "providerRequestCount": 1,
+      "tokenUsage": { "inputTokens": 100, "outputTokens": 20, "totalTokens": 120 }
+    }
+  },
+  {
+    "schemaVersion": "grading-review-v1",
+    "assessmentKind": "test",
+    "reviewStatus": "dismissed",
+    "criteria": [
+      { "criterionId": "response", "suggestedScore": 3, "finalScore": null, "maxScore": 5 }
+    ],
+    "feedbackDisposition": "removed",
+    "reviewedAt": "2026-07-22T12:10:00.000Z",
+    "provenance": {
+      "provider": "openai",
+      "model": "fixture-model",
+      "policyVersion": "fixture-policy-v1",
+      "promptVersion": "fixture-prompt-v1",
+      "gradingProfileVersion": "fixture-test-profile-v1",
+      "rubricVersion": "fixture-test-rubric-v1",
+      "providerRequestCount": 1,
+      "tokenUsage": { "inputTokens": 80, "outputTokens": 15, "totalTokens": 95 }
+    }
+  },
+  {
+    "schemaVersion": "grading-review-v1",
+    "assessmentKind": "test",
+    "reviewStatus": "pending",
+    "criteria": [
+      { "criterionId": "response", "suggestedScore": 4, "finalScore": 4, "maxScore": 5 }
+    ],
+    "feedbackDisposition": "unchanged",
+    "reviewedAt": null,
+    "provenance": {
+      "provider": "openai",
+      "model": "fixture-model",
+      "policyVersion": "fixture-policy-v1",
+      "promptVersion": "fixture-prompt-v1",
+      "gradingProfileVersion": "fixture-test-profile-v1",
+      "rubricVersion": "fixture-test-rubric-v1",
+      "providerRequestCount": 1,
+      "tokenUsage": { "inputTokens": 80, "outputTokens": 15, "totalTokens": 95 }
+    }
+  }
+]

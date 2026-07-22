@@ -955,6 +955,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Complete repository gates, independent review, and merge. Then continue the assignment slice with mobile workspace modes, save announcements/dialog semantics, and the Gradex status boundary.
+
 ## 2026-07-21 — Internal grading core foundation
 
 **Risk profile:** async-grading
@@ -1082,3 +1083,87 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Remaining:**
 - Confirm migration 103 replay, database harness behavior, and generated-type parity in ephemeral PR CI; complete independent review and merge only after the assignment/test stack is approved.
 - Add teacher-correction evaluation capture and offline comparison metrics across assignment, test, and repository-review grading.
+
+## 2026-07-22 — Identity-free teacher grading reviews
+
+**Risk profile:** async-grading, database, privacy, grading-quality
+
+**Model recommendation:** GPT-5.4 - this slice crosses teacher outcome semantics, rolling-safe grading persistence, strict privacy contracts, and deterministic eval design.
+
+**Completed:**
+- Added a strict `grading-review-v1` core contract that cannot represent student identity, source assessment IDs, submission content, or raw feedback, plus deterministic summaries for criterion/overall score error, acceptance/edit rates, feedback dispositions, and model/profile counts.
+- Added migration 104 with bounded `ai_grading_review` snapshots on assignment documents and test responses. Provenance-aware AI writes initialize reviews; manual edits update final outcomes; assignment/test return marks reviews final; test grade clearing records dismissal; changed student work and legacy AI replacement clear stale reviews.
+- Kept repository-review grading on the assignment-document lifecycle, preserved existing routes and teacher UI, and prevented review-only test metadata updates from advancing response revisions.
+- Added synthetic accepted, edited, dismissed, and pending fixtures plus `pnpm eval:grading-reviews` for free offline evaluation. Remote Gradex remains disabled, the existing Gradex archive extract is unchanged, and no live model call was made.
+- Extended assignment/test database harnesses for suggestion preservation, correction capture, return finalization, dismissal, privacy rejection, legacy-writer clearing, and test revision stability; updated generated/refined types and rollout/privacy guidance.
+- No migration was applied locally or remotely. The local Docker database had no Pika schema, so fresh migration replay and database harness execution remain PR CI gates.
+
+**Validation:**
+- `pnpm test` (407 files / 3,657 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (622 modules / 0 allowances)
+- `pnpm eval:grading-reviews scripts/fixtures/grading-review-scenarios.json`
+- `git diff --check`
+
+**Remaining:**
+- Require fresh PR CI to replay migrations 001-104, verify generated type parity, and execute both atomic grading database harnesses.
+- Complete independent review and obtain external approval before merging the stacked grading PRs.
+- After the pilot collects 10-20 teacher-reviewed outcomes, add an explicit local-admin export of minimum sanitized grading inputs for paid candidate prompt/model comparisons.
+
+## 2026-07-22 — Enforced grading-core isolation
+
+**Risk profile:** async-grading, foundational architecture
+
+**Model recommendation:** GPT-5.4 - enforcing extraction boundaries requires repository-wide import analysis while preserving existing grading policy behavior.
+
+**Completed:**
+- Added an architecture rule that prevents every `src/lib/grading/**` module from importing Pika-owned database, server, route, UI, shared application, or type modules, including type-only imports.
+- Moved the canonical Pika test prompt guidelines into the versioned grading profile directory and retained the old application path as a compatibility re-export, preserving current consumers and prompt output.
+- Added a regression test proving the boundary rejects both runtime Supabase and type-only database dependencies while allowing grading-core imports.
+- Documented the enforced extraction boundary. No route, UI, schema, provider, prompt text, production state, or remote Gradex behavior changed.
+
+**Validation:**
+- `pnpm test` (407 files / 3,658 tests)
+- `pnpm check:architecture` (623 modules / 0 allowances)
+- focused architecture and test-grading suites (3 files / 43 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika audit
+- `git diff --check`
+
+**Remaining:**
+- Run the full repository gates and exact-head PR CI, then obtain the required external code-owner approval before merging the grading stack.
+- Apply migrations 100-104 only with explicit target permission, deploy with remote Gradex disabled, and collect 10-20 teacher-reviewed outcomes before adding paid replay comparisons.
+
+## 2026-07-22 — Corrected total-score grading eval error
+
+**Risk profile:** none
+
+**Model recommendation:** Current coding model - the correction is a small deterministic TypeScript aggregation change with focused regression coverage.
+
+**Completed:**
+- Changed overall grading-review error to compare the summed suggested score with the summed final score instead of adding absolute criterion errors.
+- Added a regression scenario where opposite criterion corrections leave the total score unchanged while criterion-level errors remain visible.
+- Preserved acceptance, feedback, and per-criterion metric behavior; no migration, provider, grading prompt, route, or production state changed.
+- Pushed the correction to PR 911 and completed a bounded cumulative self-review with no new findings; the existing independent-review budget for this stack was already exhausted.
+
+**Validation:**
+- `pnpm test` (407 files / 3,659 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (623 modules / 0 allowances)
+- `pnpm build`
+- Focused teacher-correction eval suite (1 file / 6 tests)
+- `pnpm eval:grading-reviews scripts/fixtures/grading-review-scenarios.json`
+- `node scripts/trim-session-log.mjs --check`
+- `git diff --check`
+- Pika changed-file audit
+- Vercel preview checks at `769059be`
+
+**CI note:**
+- GitHub Actions did not trigger for the correction because PR 911 targets the stacked feature branch `codex/internal-repo-review-grading`, while the workflows listen only for pull requests into `main` or `production`. Full CI passed at the immediately preceding PR head; all correction-affected gates passed locally at `769059be`.
+
+**Remaining:**
+- After the lower stack lands and PR 911 is retargeted to `main`, require exact-head GitHub Actions and the repository's external approval before merge.

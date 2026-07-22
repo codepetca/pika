@@ -14205,3 +14205,105 @@
 - `pnpm check:architecture`
 - `pnpm build`
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:cf9dc1e8af189187a3244ef9c16bd22707e25672ba9bb1aa859fe400993688d7 -->
+## 2026-07-14 — Assessment draft validation boundary
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - cross-module boundary extraction benefits from repository-wide import analysis and behavior-parity verification.
+
+**Completed:**
+- Moved browser-safe assessment draft validation into the feature-owned `@/lib/validations/assessment-drafts` module while keeping persistence and database synchronization in `@/lib/server/assessment-drafts`.
+- Split browser, blueprint, route, and server imports so pure modules no longer reach through the server boundary for validation contracts or draft types.
+- Removed all four remaining deletion-only architecture allowances; the architecture check now covers 588 modules with zero allowances.
+- Removed stale route-test validator stubs so invalid draft payload tests exercise the real validation boundary.
+- Deleted the unused `syncAssessmentMetadataFromDraft` server export after CI coverage exposed that production performs the richer test metadata update directly in the route.
+- No behavior, UI, database schema, dependency, migration, or production changes.
+
+**Validation:**
+- Focused assessment draft, route, and architecture suites (4 files / 34 tests)
+- `pnpm test` (345 files / 3,081 tests)
+- `pnpm vitest run --coverage --maxWorkers=1` (server assessment drafts: 66.67% lines, 95% functions, 65.74% statements)
+- `pnpm build`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm check:architecture`
+- `node scripts/trim-session-log.mjs --check`
+- `node scripts/features.mjs validate`
+- `git diff --check`
+
+## 2026-07-14 — Assignment grading request boundary
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - feature-boundary extraction requires repository-wide dependency analysis and exact API contract preservation.
+
+**Completed:**
+- Moved single-student and selected-student assignment grading request normalization into the feature-owned `@/lib/validations/assignment-grading` Zod contract.
+- Kept assignment ownership, enrollment checks, and grade persistence in `@/lib/server/assignment-grades`; both routes now consume parsed contract values.
+- Preserved legacy validation messages, ordering, score coercion, draft blanks, selected-ID filtering/deduplication, authentication-before-parse behavior, and the batch-only `apply_target` contract.
+- Removed both grading routes from the deletion-only API Zod baseline, reducing existing migration debt from 62 routes to 60.
+- Completed two independent review/fix rounds with no remaining findings.
+- No UI, database schema, migration, dependency, or production changes.
+
+**Validation:**
+- Focused grading, API handler, and architecture suites (6 files / 33 tests)
+- `pnpm vitest run --coverage --maxWorkers=1` (346 files / 3,098 tests; assignment grading validation: 96.36% lines, 100% functions)
+- `pnpm build`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm check:architecture` (589 modules / 0 allowances)
+- `git diff --check`
+
+<!-- pika-session-log-archive-batch:2f834950debbe1d8d541240b2a62ad5ba3ed5f77974b187e5238d8416ed620b6 -->
+## 2026-07-14 — Atomic assignment grading and feedback expand release
+
+**Risk profile:** async-grading
+
+**Model recommendation:** GPT-5 Codex - transactional grading, concurrent roster changes, runtime response contracts, and rolling database deployment require cross-layer invariant analysis.
+
+**Completed:**
+- Added expand-only migration 087 with service-role atomic RPCs for manual and AI grades, AI run/item completion, repository review completion, and single/batch feedback returns.
+- Added optimistic document revisions, assignment/classroom locking, replay-safe terminal operations, final-score validation, and all-or-none grade/result persistence.
+- Routed native AI, Gradex, repository review, and teacher feedback flows through typed server boundaries; feedback returns now submit the browser-observed document revision.
+- Added Zod contracts for assignment identifiers, grading and return payloads, and successful Gradex runtime responses; malformed successful responses fail before grade persistence.
+- Added a live database/concurrency harness, migration contract tests, route/service tests, and completed teacher/student desktop/mobile visual verification.
+- Documented the migration-first expand deployment and the separately numbered contract migration required only after all old application instances are drained.
+- Completed repeated independent database and TypeScript reviews with no remaining findings. No production database or Storage changes were made.
+
+**Validation:**
+- `pnpm test` (350 files / 3,159 tests)
+- Atomic assignment database/concurrency harness
+- `pnpm build`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm db:types:check`
+- `pnpm check:architecture` (592 modules / 0 allowances)
+- Pika pre-commit audit
+- `bash scripts/verify-env.sh`
+- `git diff --check`
+
+<!-- pika-session-log-archive-batch:a98793923af4c52e399ba1901ef885f33f2f9ac451e2e23369deeb33c61f30e0 -->
+## 2026-07-14 — Manual test grading workflow boundary
+
+**Risk profile:** async-grading
+
+**Model recommendation:** GPT-5 Codex - grading request compatibility and persistence extraction require exact cross-layer behavior analysis.
+
+**Completed:**
+- Replaced the handwritten manual test-grade decoder with a feature-owned Zod contract while preserving score coercion, rounding, trim behavior, clear semantics, AI audit metadata, and duplicate rejection.
+- Extracted teacher access, enrollment/question validation, existing-response preservation, grade row construction, and the legacy AI-column retry into `@/lib/server/test-grades`.
+- Kept the existing non-transactional persistence sequence unchanged for this behavior-preserving expand slice; atomic test grading remains a separately reviewed follow-up.
+- Made malformed JSON and JSON `null` fail deterministically with 400 responses instead of accidental internal errors.
+- Removed the route from the deletion-only API Zod baseline and added regressions for access arguments, archive protection, query failures, question scope, score caps, clear fields, timestamps, and failed compatibility retries.
+- Completed two independent review/fix rounds with no remaining findings. No UI, database schema, migration, dependency, or production changes.
+
+**Validation:**
+- Focused grading contract, route, and API architecture suites (3 files / 33 tests)
+- `pnpm test` (351 files / 3,186 tests)
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm check:architecture` (594 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`

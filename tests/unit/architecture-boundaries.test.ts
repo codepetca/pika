@@ -7,6 +7,24 @@ import {
 } from '../../scripts/lib/architecture-boundaries'
 
 describe('architecture boundary analyzer', () => {
+  it('keeps the grading core independent from Pika-owned modules', () => {
+    const graph = createSourceGraphFromSources({
+      'src/lib/grading/engine.ts': [
+        "import type { Database } from '@/types/database'",
+        "import { getServiceRoleClient } from '@/lib/supabase'",
+        "import type { GradingProfile } from '@/lib/grading/profiles/types'",
+      ].join('\n'),
+      'src/lib/grading/profiles/types.ts': 'export type GradingProfile = unknown',
+      'src/lib/supabase.ts': 'export const getServiceRoleClient = () => null',
+      'src/types/database.ts': 'export type Database = unknown',
+    })
+
+    expect(findLayerBoundaryViolations(graph).map((violation) => violation.id)).toEqual([
+      'layer:grading-core-isolated:src/lib/grading/engine.ts->src/lib/supabase.ts',
+      'layer:grading-core-isolated:src/lib/grading/engine.ts->src/types/database.ts',
+    ])
+  })
+
   it('detects forbidden lower-layer imports while allowing type-only type dependencies', () => {
     const graph = createSourceGraphFromSources({
       'src/lib/domain.ts': "import type { ButtonProps } from '@/ui'",
