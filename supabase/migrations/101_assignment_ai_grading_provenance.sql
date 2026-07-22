@@ -79,6 +79,47 @@ alter table public.assignment_docs
 comment on column public.assignment_docs.ai_grading_provenance is
   'Bounded, pseudonymous assignment-grading provenance; never contains student or roster identifiers.';
 
+create or replace function public.clear_stale_assignment_ai_grading_provenance()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.ai_grading_provenance is not distinct from old.ai_grading_provenance
+    and (
+      new.score_completion is distinct from old.score_completion
+      or new.score_thinking is distinct from old.score_thinking
+      or new.score_workflow is distinct from old.score_workflow
+      or new.ai_feedback_suggestion is distinct from old.ai_feedback_suggestion
+      or new.ai_feedback_suggested_at is distinct from old.ai_feedback_suggested_at
+      or new.ai_feedback_model is distinct from old.ai_feedback_model
+      or new.graded_at is distinct from old.graded_at
+      or new.graded_by is distinct from old.graded_by
+    )
+  then
+    new.ai_grading_provenance := null;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists clear_stale_assignment_ai_grading_provenance
+  on public.assignment_docs;
+create trigger clear_stale_assignment_ai_grading_provenance
+before update of
+  score_completion,
+  score_thinking,
+  score_workflow,
+  ai_feedback_suggestion,
+  ai_feedback_suggested_at,
+  ai_feedback_model,
+  graded_at,
+  graded_by
+on public.assignment_docs
+for each row
+execute function public.clear_stale_assignment_ai_grading_provenance();
+
 create or replace function public.save_assignment_ai_grade_with_provenance_atomic(
   p_assignment_id uuid,
   p_student_id uuid,

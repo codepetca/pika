@@ -1013,8 +1013,9 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Fixed the cumulative PR #906 review finding that versioned assignment grading metadata was computed but not durably persisted.
 - Added a strict, bounded, pseudonymous provenance contract containing only provider/model, profile/rubric/prompt/policy versions, provider request count, and nullable token usage.
 - Added migration 101 with an `assignment_docs.ai_grading_provenance` JSONB contract and additive service-role-only wrappers around the existing direct-grade and durable-item atomic RPCs, preserving rolling compatibility for old application instances.
+- Added a compatibility trigger that clears provenance whenever legacy direct, durable, batch, repository-review, manual-grade, or missing-work writers replace grade/audit fields without supplying replacement provenance.
 - Routed native Pika assignment grading through both provenance-aware persistence paths while legacy Gradex, missing-work, and repository-review callers write null provenance until their profiles migrate.
-- Extended the CI database harness to verify wrapper privileges, direct persistence, durable-item persistence, transactionality, and replay preservation; updated generated and refined database contracts.
+- Extended the CI database harness to verify wrapper privileges, direct persistence, durable-item persistence, transactionality, replay preservation, and stale-provenance clearing across old direct, durable, batch, and missing-work writers; updated generated and refined database contracts.
 - No migration was applied locally, no live model call was made, and no production state changed.
 
 **Validation:**
