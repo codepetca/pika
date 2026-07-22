@@ -54,6 +54,23 @@ export const gradingProvenanceSchema = z.object({
   tokenUsage: gradingTokenUsageSchema,
 }).strict()
 
+export const testGradingProvenanceSchema = z.object({
+  schemaVersion: z.literal('test-grading-provenance-v1'),
+  gradingRequestId: z.string().regex(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+  ),
+  provider: z.string().min(1).max(120),
+  model: z.string().min(1).max(200),
+  policyVersion: z.string().min(1).max(120),
+  promptVersion: z.string().min(1).max(120),
+  gradingProfileVersion: z.string().min(1).max(120),
+  rubricVersion: z.string().min(1).max(120),
+  operation: z.enum(['single', 'batch']),
+  batchSize: z.number().int().positive().max(20),
+  providerRequestCount: z.number().int().positive().max(10),
+  tokenUsage: gradingTokenUsageSchema,
+}).strict()
+
 export const gradingCriterionResultSchema = z.object({
   criterionId: z.string().min(1),
   score: z.number().finite(),
@@ -88,6 +105,7 @@ export const gradingResultSchema = z.object({
 export type GradingRubric = z.infer<typeof gradingRubricSchema>
 export type GradingTokenUsage = z.infer<typeof gradingTokenUsageSchema>
 export type GradingProvenance = z.infer<typeof gradingProvenanceSchema>
+export type TestGradingProvenance = z.infer<typeof testGradingProvenanceSchema>
 export type GradingResult = z.infer<typeof gradingResultSchema>
 
 export function toGradingProvenance(result: GradingResult): GradingProvenance {

@@ -1,6 +1,7 @@
 import {
   gradingResultSchema,
   gradingRubricSchema,
+  type GradingTokenUsage,
   type GradingResult,
 } from '@/lib/grading/contracts'
 import type { GradingProfile } from '@/lib/grading/profiles/types'
@@ -20,6 +21,65 @@ export interface GradingPolicy {
   reasoningEffort: 'minimal' | 'low' | 'medium' | 'high'
 }
 
+export interface StructuredOutputSpec {
+  schemaName: string
+  jsonSchema: Record<string, unknown>
+  initialMaxOutputTokens: number
+  fallbackMaxOutputTokens: number
+}
+
+export interface GradingExecutionMetadata {
+  provider: string
+  model: string
+  policyVersion: string
+  providerRequestCount: number
+  tokenUsage: GradingTokenUsage
+}
+
+export async function executeStructuredOutput<TOutput>(opts: {
+  provider: StructuredOutputProvider
+  policy: GradingPolicy
+  prompt: {
+    systemPrompt: string
+    userPrompt: string
+  }
+  output: StructuredOutputSpec
+  parseOutput(outputText: string): TOutput
+}): Promise<{ output: TOutput; execution: GradingExecutionMetadata }> {
+  const providerResponse = await opts.provider.generate({
+    model: opts.policy.model,
+    systemPrompt: opts.prompt.systemPrompt,
+    userPrompt: opts.prompt.userPrompt,
+    schemaName: opts.output.schemaName,
+    jsonSchema: opts.output.jsonSchema,
+    initialMaxOutputTokens: opts.output.initialMaxOutputTokens,
+    fallbackMaxOutputTokens: opts.output.fallbackMaxOutputTokens,
+    requestTimeoutMs: opts.policy.requestTimeoutMs,
+    reasoningEffort: opts.policy.reasoningEffort,
+  })
+
+  let output: TOutput
+  try {
+    output = opts.parseOutput(providerResponse.outputText)
+  } catch (error) {
+    throw new GradingOutputError(
+      error instanceof Error ? error.message : 'Grading provider returned invalid output',
+      { cause: error },
+    )
+  }
+
+  return {
+    output,
+    execution: {
+      provider: opts.provider.id,
+      model: opts.policy.model,
+      policyVersion: opts.policy.version,
+      providerRequestCount: providerResponse.requestCount,
+      tokenUsage: providerResponse.tokenUsage,
+    },
+  }
+}
+
 export async function executeGrading<TInput, TOutput>(opts: {
   input: TInput
   profile: GradingProfile<TInput, TOutput>
@@ -28,21 +88,17 @@ export async function executeGrading<TInput, TOutput>(opts: {
 }): Promise<GradingResult> {
   const rubric = gradingRubricSchema.parse(opts.profile.rubric)
   const prompt = opts.profile.buildPrompt(opts.input)
-  const providerResponse = await opts.provider.generate({
-    model: opts.policy.model,
-    systemPrompt: prompt.systemPrompt,
-    userPrompt: prompt.userPrompt,
-    schemaName: opts.profile.output.schemaName,
-    jsonSchema: opts.profile.output.jsonSchema,
-    initialMaxOutputTokens: opts.profile.output.initialMaxOutputTokens,
-    fallbackMaxOutputTokens: opts.profile.output.fallbackMaxOutputTokens,
-    requestTimeoutMs: opts.policy.requestTimeoutMs,
-    reasoningEffort: opts.policy.reasoningEffort,
+  const structured = await executeStructuredOutput({
+    provider: opts.provider,
+    policy: opts.policy,
+    prompt,
+    output: opts.profile.output,
+    parseOutput: opts.profile.parseOutput,
   })
 
   let normalized: ReturnType<typeof opts.profile.normalizeOutput>
   try {
-    normalized = opts.profile.normalizeOutput(opts.profile.parseOutput(providerResponse.outputText))
+    normalized = opts.profile.normalizeOutput(structured.output)
   } catch (error) {
     throw new GradingOutputError(
       error instanceof Error ? error.message : 'Grading provider returned invalid output',
@@ -101,14 +157,14 @@ export async function executeGrading<TInput, TOutput>(opts: {
       student: normalized.feedback.student.trim(),
       teacherNotes: normalized.feedback.teacherNotes,
     },
-    provider: opts.provider.id,
-    model: opts.policy.model,
-    policyVersion: opts.policy.version,
+    provider: structured.execution.provider,
+    model: structured.execution.model,
+    policyVersion: structured.execution.policyVersion,
     promptVersion: opts.profile.promptVersion,
     gradingProfileVersion: opts.profile.version,
     rubricVersion: rubric.version,
-    tokenUsage: providerResponse.tokenUsage,
-    providerRequestCount: providerResponse.requestCount,
+    tokenUsage: structured.execution.tokenUsage,
+    providerRequestCount: structured.execution.providerRequestCount,
   })
 }
 
