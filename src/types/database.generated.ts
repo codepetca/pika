@@ -4636,6 +4636,7 @@ export type Database = {
         Args: { p_mode: string }
         Returns: boolean
       }
+      is_valid_grading_review: { Args: { p_review: Json }; Returns: boolean }
       normalize_classroom_archive_restore_row: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json

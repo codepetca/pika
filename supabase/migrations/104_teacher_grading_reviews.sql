@@ -215,6 +215,14 @@ begin
   if new.ai_grading_provenance is distinct from old.ai_grading_provenance
     and new.ai_grading_provenance is not null
   then
+    if new.score_completion is null
+      or new.score_thinking is null
+      or new.score_workflow is null
+    then
+      new.ai_grading_review := null;
+      return new;
+    end if;
+
     new.ai_grading_review := jsonb_build_object(
       'schemaVersion', 'grading-review-v1',
       'assessmentKind', 'assignment',

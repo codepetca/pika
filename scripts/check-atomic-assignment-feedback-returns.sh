@@ -614,6 +614,16 @@ docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=
    where assignment_id = 'd0000000-0000-4000-8000-000000000016'
      and student_id = 'd0000000-0000-4000-8000-000000000005';" >/dev/null
 
+UNGRADED_REVIEW_COUNT="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+  "select count(*) from public.assignment_docs
+   where assignment_id = 'd0000000-0000-4000-8000-000000000016'
+     and student_id = 'd0000000-0000-4000-8000-000000000005'
+     and ai_grading_review is not null;")"
+if [[ "$UNGRADED_REVIEW_COUNT" != "0" ]]; then
+  echo "Expected provenance without completed scores to omit the grading review snapshot." >&2
+  exit 1
+fi
+
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
   "select public.create_assignment_ai_grading_run_atomic(
     'd0000000-0000-4000-8000-000000000016',
