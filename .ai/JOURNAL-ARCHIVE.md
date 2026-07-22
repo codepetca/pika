@@ -14543,3 +14543,26 @@
 - `pnpm vitest run` (361 files / 3,322 tests)
 - `pnpm build`
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:9c9a5f4da3a0fd81defea457a8bcfb1b7a400c1cc8f592d6b441b563c8a47681 -->
+## 2026-07-15 — Legacy quiz gradebook and archive compatibility decision
+
+**Completed:**
+- Removed the inactive quiz category from gradebook calculation inputs/results while retaining null/empty API response tombstones for older clients.
+- Added an architecture guard that allowlists gradebook dependencies and quiz tombstones, forbidding legacy quiz identifiers from active calculation and persistence code.
+- Classified legacy quiz gradebook rows as archival data and kept the version 3 course-package `quizzes` flag serialized but permanently normalized to `false`.
+- Removed dead quiz-table fixtures from gradebook tests and added encoded package compatibility regressions.
+- Expanded the archive database restore harness with non-empty quiz, question, response, and manual-override rows; the existing exact-table equality audit now proves they survive staging and final restore.
+- Documented that schema retirement remains blocked on an archive adapter, production inventory, and production verification. No production state or schema was changed.
+- Completed an independent review/fix loop; four guardrail findings were fixed and final rereview returned no findings.
+
+**Validation:**
+- Focused gradebook/package/archive suites (54 tests)
+- Classroom archive restore database contract harness
+- `pnpm vitest run` (361 files / 3,324 tests)
+- `pnpm build`
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (602 modules / 0 allowances)
+- `bash -n scripts/check-classroom-archive-restore-database.sh`
+- `git diff --check`

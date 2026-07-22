@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-15 — Legacy quiz gradebook and archive compatibility decision
-
-**Completed:**
-- Removed the inactive quiz category from gradebook calculation inputs/results while retaining null/empty API response tombstones for older clients.
-- Added an architecture guard that allowlists gradebook dependencies and quiz tombstones, forbidding legacy quiz identifiers from active calculation and persistence code.
-- Classified legacy quiz gradebook rows as archival data and kept the version 3 course-package `quizzes` flag serialized but permanently normalized to `false`.
-- Removed dead quiz-table fixtures from gradebook tests and added encoded package compatibility regressions.
-- Expanded the archive database restore harness with non-empty quiz, question, response, and manual-override rows; the existing exact-table equality audit now proves they survive staging and final restore.
-- Documented that schema retirement remains blocked on an archive adapter, production inventory, and production verification. No production state or schema was changed.
-- Completed an independent review/fix loop; four guardrail findings were fixed and final rereview returned no findings.
-
-**Validation:**
-- Focused gradebook/package/archive suites (54 tests)
-- Classroom archive restore database contract harness
-- `pnpm vitest run` (361 files / 3,324 tests)
-- `pnpm build`
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm check:architecture` (602 modules / 0 allowances)
-- `bash -n scripts/check-classroom-archive-restore-database.sh`
-- `git diff --check`
-
 ## 2026-07-15 — Legacy quiz alias retirement
 
 **Completed:**
@@ -987,3 +965,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Require independent rereview and exact-head PR CI before merge.
+
+## 2026-07-22 — Backported student classwork test isolation
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Terra (medium) - this is a localized test-only cache-isolation correction with no runtime behavior change.
+
+**Completed:**
+- Reset the student assignment, material, and survey request-cache namespaces before every `StudentAssignmentsTab` test.
+- Removed the obsolete workaround that expected an already-viewed assignment to open its instructions modal automatically.
+- Aligned `main` with the deterministic test behavior already proven on `production`; no application, schema, grading, or deployment behavior changed.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/StudentAssignmentsTab.test.tsx` (1 file / 12 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `git diff --check`
+
+**Remaining:**
+- Require exact-head PR CI and normal protected merge into `main`.
