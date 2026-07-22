@@ -129,9 +129,16 @@ function shouldInspectNativeControls(file: string) {
 }
 
 function getStaticInputKind(value: string): NativeControlKind {
-  return nativeControlKinds.includes(`input:${value}` as NativeControlKind)
-    ? (`input:${value}` as NativeControlKind)
+  const normalizedValue = value.toLowerCase()
+  return nativeControlKinds.includes(`input:${normalizedValue}` as NativeControlKind)
+    ? (`input:${normalizedValue}` as NativeControlKind)
     : 'input:dynamic'
+}
+
+function getStaticStringValue(expression: ts.Expression): string | null {
+  return ts.isStringLiteral(expression) || ts.isNoSubstitutionTemplateLiteral(expression)
+    ? expression.text
+    : null
 }
 
 function getJsxInputKind(node: ts.JsxOpeningLikeElement): NativeControlKind {
@@ -151,12 +158,9 @@ function getJsxInputKind(node: ts.JsxOpeningLikeElement): NativeControlKind {
       kind = getStaticInputKind(attribute.initializer.text)
       continue
     }
-    if (
-      ts.isJsxExpression(attribute.initializer)
-      && attribute.initializer.expression
-      && ts.isStringLiteral(attribute.initializer.expression)
-    ) {
-      kind = getStaticInputKind(attribute.initializer.expression.text)
+    if (ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression) {
+      const value = getStaticStringValue(attribute.initializer.expression)
+      kind = value === null ? 'input:dynamic' : getStaticInputKind(value)
       continue
     }
     kind = 'input:dynamic'
@@ -231,9 +235,8 @@ function getCreateElementInputKind(properties: ts.Expression | undefined): Nativ
     const name = property.name
     const propertyName = ts.isIdentifier(name) || ts.isStringLiteral(name) ? name.text : null
     if (propertyName !== 'type') continue
-    kind = ts.isStringLiteral(property.initializer)
-      ? getStaticInputKind(property.initializer.text)
-      : 'input:dynamic'
+    const value = getStaticStringValue(property.initializer)
+    kind = value === null ? 'input:dynamic' : getStaticInputKind(value)
   }
 
   return kind
@@ -365,8 +368,14 @@ function auditImports(sourceFiles: SourceFiles): UiPolicyViolation[] {
       ) {
         auditModulePath(node.moduleReference.expression.text)
       } else if (
+        ts.isImportTypeNode(node)
+        && ts.isLiteralTypeNode(node.argument)
+        && ts.isStringLiteral(node.argument.literal)
+      ) {
+        auditModulePath(node.argument.literal.text)
+      } else if (
         ts.isCallExpression(node)
-        && node.arguments.length === 1
+        && node.arguments.length >= 1
         && ts.isStringLiteral(node.arguments[0])
         && (
           node.expression.kind === ts.SyntaxKind.ImportKeyword

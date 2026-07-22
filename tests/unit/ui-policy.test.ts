@@ -75,8 +75,10 @@ describe('UI policy', () => {
         export function Inputs({ type }: { type: string }) {
           return <>
             <input type="checkbox" />
+            <input type="CHECKBOX" />
             <input />
             <input type="submit" />
+            <input type={\`submit\`} />
             <input type="reset" />
             <input type="button" />
             <input type="image" />
@@ -90,12 +92,12 @@ describe('UI policy', () => {
 
     expect(Object.fromEntries(inventory.get('src/components/Inputs.tsx') ?? [])).toEqual({
       'input:button': 1,
-      'input:checkbox': 1,
+      'input:checkbox': 2,
       'input:dynamic': 2,
       'input:email': 1,
       'input:image': 1,
       'input:reset': 1,
-      'input:submit': 1,
+      'input:submit': 2,
       'input:text': 1,
     })
   })
@@ -104,11 +106,13 @@ describe('UI policy', () => {
     const inventory = inventoryNativeControls({
       'src/components/Factories.tsx': `
         import React, { createElement as h } from 'react'
+        import * as ReactNamespace from 'react'
         export function Factories({ props }: { props: object }) {
           return React.createElement('div', null,
             React.createElement('button', null, 'Save'),
             h('input', { type: 'submit' }),
             h('input', { ...props }),
+            ReactNamespace.createElement('textarea'),
           )
         }
       `,
@@ -118,6 +122,7 @@ describe('UI policy', () => {
       button: 1,
       'input:dynamic': 1,
       'input:submit': 1,
+      textarea: 1,
     })
   })
 
@@ -127,7 +132,8 @@ describe('UI policy', () => {
         import { Button } from '@/components/Button'
         import LegacyTooltip = require('@/components/Tooltip')
         export { Card } from '@/ui/Card'
-        const loadDialog = () => import('@/ui/Dialog')
+        type InputProps = import('@/ui/Input').InputProps
+        const loadDialog = () => import('@/ui/Dialog', { with: { type: 'json' } })
         const LegacyInput = require('@/components/Input')
       `,
     }, registry([]))
@@ -140,6 +146,10 @@ describe('UI policy', () => {
       {
         file: 'src/components/BadImports.tsx',
         message: 'Import @/ui/Dialog through the canonical @/ui barrel.',
+      },
+      {
+        file: 'src/components/BadImports.tsx',
+        message: 'Import @/ui/Input through the canonical @/ui barrel.',
       },
       {
         file: 'src/components/BadImports.tsx',
@@ -191,9 +201,20 @@ describe('UI policy', () => {
   })
 
   it('excludes only the explicit design-system and existing Tiptap implementation roots', () => {
+    const tiptapRoots = [
+      'tiptap-extension',
+      'tiptap-icons',
+      'tiptap-node',
+      'tiptap-templates',
+      'tiptap-ui',
+      'tiptap-ui-primitive',
+    ]
     const inventory = inventoryNativeControls({
       'src/ui/Button.tsx': 'export function Button() { return <button /> }',
-      'src/components/tiptap-ui/Button.tsx': 'export function Button() { return <button /> }',
+      ...Object.fromEntries(tiptapRoots.map((root) => [
+        `src/components/${root}/Button.tsx`,
+        'export function Button() { return <button /> }',
+      ])),
       'src/components/tiptap-custom/Picker.tsx': 'export function Picker() { return <input /> }',
     })
 

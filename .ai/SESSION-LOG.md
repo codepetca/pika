@@ -927,6 +927,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Opened PR #905 for independent review.
 - Accepted initial review findings covering dynamic/CommonJS/import-equals bypasses, literal React factory controls, complete static input classification, and overly broad Tiptap exclusions; remediated them together with direct regression fixtures.
 - Kept roadmap ownership in `reviewBy` and `.ai/features.json` rather than introducing date-dependent CI expiry for source exceptions.
+- Targeted re-review found import-option/import-type bypasses, case/template static-input gaps, and missing namespace/root fixtures; closed all four in the second remediation batch.
 
 **Validation:**
 - `pnpm test --run` (full repository suite)
