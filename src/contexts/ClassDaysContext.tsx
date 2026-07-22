@@ -28,6 +28,14 @@ interface ClassDaysProviderProps {
  * Centralizes fetching and event listening to avoid multiple listeners.
  */
 export function ClassDaysProvider({ classroomId, children }: ClassDaysProviderProps) {
+  return (
+    <ClassDaysProviderState key={classroomId} classroomId={classroomId}>
+      {children}
+    </ClassDaysProviderState>
+  )
+}
+
+function ClassDaysProviderState({ classroomId, children }: ClassDaysProviderProps) {
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [error, setError] = useState<string | null>(null)
   const [hasLoadedSnapshot, setHasLoadedSnapshot] = useState(false)

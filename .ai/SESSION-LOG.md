@@ -968,8 +968,8 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Preserved the existing class-wide teacher table and student journal composition. Mobile workspace redesign and Gradex remained out of scope.
 
 **Validation:**
-- Focused Daily/Attendance and classroom integration suites (5 files / 71 tests)
-- Full exact-head repository suite (407 files / 3,670 tests)
+- Focused Daily/Attendance and classroom integration suites (5 files / 72 tests)
+- Full repository suite before the final provider-scope remediation (407 files / 3,670 tests); exact-head PR CI is required
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm check:architecture` (623 modules / 0 allowances)
@@ -977,7 +977,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Pika changed-file audit and composite-widget accessibility checklist
 - Playwright experience matrix (18 cases across both roles, desktop/mobile, light/dark)
 - Exact failure/stale-state screenshots for teacher and student; no horizontal overflow at 390px
-- Two independent review passes; four findings fixed; both remediation re-reviews clean
+- Three independent review passes; five findings fixed in two remediation batches; the first remediation re-reviews are clean and the final provider-scope re-review is pending
 
 **Remaining:**
 - Require exact-head PR CI and repository approval before merge.
