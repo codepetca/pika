@@ -34,6 +34,7 @@ if (process.argv.includes('--print-inventory')) {
     'input:datetime-local',
     'input:file',
     'input:hidden',
+    'input:image',
     'input:month',
     'input:radio',
     'input:range',

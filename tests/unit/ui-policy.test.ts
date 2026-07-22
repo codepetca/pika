@@ -69,19 +69,55 @@ describe('UI policy', () => {
     })
   })
 
-  it('tracks static, absent, and dynamic input types separately', () => {
+  it('tracks all static HTML input types and reserves dynamic for expressions or final spreads', () => {
     const inventory = inventoryNativeControls({
       'src/components/Inputs.tsx': `
         export function Inputs({ type }: { type: string }) {
-          return <><input type="checkbox" /><input /><input type={type} /></>
+          return <>
+            <input type="checkbox" />
+            <input />
+            <input type="submit" />
+            <input type="reset" />
+            <input type="button" />
+            <input type="image" />
+            <input type={type} />
+            <input type="email" {...{ type }} />
+            <input {...{ type }} type="email" />
+          </>
         }
       `,
     })
 
     expect(Object.fromEntries(inventory.get('src/components/Inputs.tsx') ?? [])).toEqual({
+      'input:button': 1,
       'input:checkbox': 1,
+      'input:dynamic': 2,
+      'input:email': 1,
+      'input:image': 1,
+      'input:reset': 1,
+      'input:submit': 1,
+      'input:text': 1,
+    })
+  })
+
+  it('inventories literal native controls created through imported React factories', () => {
+    const inventory = inventoryNativeControls({
+      'src/components/Factories.tsx': `
+        import React, { createElement as h } from 'react'
+        export function Factories({ props }: { props: object }) {
+          return React.createElement('div', null,
+            React.createElement('button', null, 'Save'),
+            h('input', { type: 'submit' }),
+            h('input', { ...props }),
+          )
+        }
+      `,
+    })
+
+    expect(Object.fromEntries(inventory.get('src/components/Factories.tsx') ?? [])).toEqual({
+      button: 1,
       'input:dynamic': 1,
-      'input:unspecified': 1,
+      'input:submit': 1,
     })
   })
 
@@ -89,7 +125,10 @@ describe('UI policy', () => {
     const violations = auditUiPolicy({
       'src/components/BadImports.tsx': `
         import { Button } from '@/components/Button'
+        import LegacyTooltip = require('@/components/Tooltip')
         export { Card } from '@/ui/Card'
+        const loadDialog = () => import('@/ui/Dialog')
+        const LegacyInput = require('@/components/Input')
       `,
     }, registry([]))
 
@@ -100,7 +139,19 @@ describe('UI policy', () => {
       },
       {
         file: 'src/components/BadImports.tsx',
+        message: 'Import @/ui/Dialog through the canonical @/ui barrel.',
+      },
+      {
+        file: 'src/components/BadImports.tsx',
         message: 'Legacy import @/components/Button is forbidden; import from @/ui.',
+      },
+      {
+        file: 'src/components/BadImports.tsx',
+        message: 'Legacy import @/components/Input is forbidden; import from @/ui.',
+      },
+      {
+        file: 'src/components/BadImports.tsx',
+        message: 'Legacy import @/components/Tooltip is forbidden; import from @/ui.',
       },
     ])
   })
@@ -139,13 +190,15 @@ describe('UI policy', () => {
     expect(stableGuidance).toContain('specialized-control-policy.md')
   })
 
-  it('excludes design-system and Tiptap implementation controls', () => {
+  it('excludes only the explicit design-system and existing Tiptap implementation roots', () => {
     const inventory = inventoryNativeControls({
       'src/ui/Button.tsx': 'export function Button() { return <button /> }',
       'src/components/tiptap-ui/Button.tsx': 'export function Button() { return <button /> }',
       'src/components/tiptap-custom/Picker.tsx': 'export function Picker() { return <input /> }',
     })
 
-    expect(inventory.size).toBe(0)
+    expect(inventory.size).toBe(1)
+    expect(Object.fromEntries(inventory.get('src/components/tiptap-custom/Picker.tsx') ?? []))
+      .toEqual({ 'input:text': 1 })
   })
 })

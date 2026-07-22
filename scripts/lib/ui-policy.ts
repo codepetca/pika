@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 export const nativeControlKinds = [
   'button',
+  'input:button',
   'input:checkbox',
   'input:color',
   'input:date',
@@ -11,16 +12,18 @@ export const nativeControlKinds = [
   'input:email',
   'input:file',
   'input:hidden',
+  'input:image',
   'input:month',
   'input:number',
   'input:password',
   'input:radio',
   'input:range',
+  'input:reset',
   'input:search',
+  'input:submit',
   'input:tel',
   'input:text',
   'input:time',
-  'input:unspecified',
   'input:url',
   'input:week',
   'select',
@@ -89,6 +92,7 @@ const nativeInputCapabilityKinds = new Set<NativeControlKind>([
   'input:datetime-local',
   'input:file',
   'input:hidden',
+  'input:image',
   'input:month',
   'input:radio',
   'input:range',
@@ -113,35 +117,52 @@ function isReasonValidForKind(
 function shouldInspectNativeControls(file: string) {
   if (!file.endsWith('.tsx')) return false
   if (!file.startsWith('src/app/') && !file.startsWith('src/components/')) return false
-  return !file.startsWith('src/components/tiptap-') && !file.startsWith('src/components/tiptap-ui/')
+  const excludedTiptapRoots = [
+    'src/components/tiptap-extension/',
+    'src/components/tiptap-icons/',
+    'src/components/tiptap-node/',
+    'src/components/tiptap-templates/',
+    'src/components/tiptap-ui/',
+    'src/components/tiptap-ui-primitive/',
+  ]
+  return !excludedTiptapRoots.some((root) => file.startsWith(root))
 }
 
-function getInputKind(node: ts.JsxOpeningLikeElement): NativeControlKind {
-  const typeAttribute = node.attributes.properties.find(
-    (attribute): attribute is ts.JsxAttribute =>
-      ts.isJsxAttribute(attribute) && attribute.name.text === 'type',
-  )
+function getStaticInputKind(value: string): NativeControlKind {
+  return nativeControlKinds.includes(`input:${value}` as NativeControlKind)
+    ? (`input:${value}` as NativeControlKind)
+    : 'input:dynamic'
+}
 
-  if (!typeAttribute?.initializer) return 'input:unspecified'
-  if (ts.isStringLiteral(typeAttribute.initializer)) {
-    const value = typeAttribute.initializer.text
-    return nativeControlKinds.includes(`input:${value}` as NativeControlKind)
-      ? (`input:${value}` as NativeControlKind)
-      : 'input:dynamic'
+function getJsxInputKind(node: ts.JsxOpeningLikeElement): NativeControlKind {
+  let kind: NativeControlKind = 'input:text'
+
+  for (const attribute of node.attributes.properties) {
+    if (ts.isJsxSpreadAttribute(attribute)) {
+      kind = 'input:dynamic'
+      continue
+    }
+    if (attribute.name.text !== 'type') continue
+    if (!attribute.initializer) {
+      kind = 'input:dynamic'
+      continue
+    }
+    if (ts.isStringLiteral(attribute.initializer)) {
+      kind = getStaticInputKind(attribute.initializer.text)
+      continue
+    }
+    if (
+      ts.isJsxExpression(attribute.initializer)
+      && attribute.initializer.expression
+      && ts.isStringLiteral(attribute.initializer.expression)
+    ) {
+      kind = getStaticInputKind(attribute.initializer.expression.text)
+      continue
+    }
+    kind = 'input:dynamic'
   }
 
-  if (
-    ts.isJsxExpression(typeAttribute.initializer)
-    && typeAttribute.initializer.expression
-    && ts.isStringLiteral(typeAttribute.initializer.expression)
-  ) {
-    const value = typeAttribute.initializer.expression.text
-    return nativeControlKinds.includes(`input:${value}` as NativeControlKind)
-      ? (`input:${value}` as NativeControlKind)
-      : 'input:dynamic'
-  }
-
-  return 'input:dynamic'
+  return kind
 }
 
 function getNativeControlKind(node: ts.JsxOpeningLikeElement): NativeControlKind | null {
@@ -151,7 +172,7 @@ function getNativeControlKind(node: ts.JsxOpeningLikeElement): NativeControlKind
     case 'button':
       return 'button'
     case 'input':
-      return getInputKind(node)
+      return getJsxInputKind(node)
     case 'select':
       return 'select'
     case 'textarea':
@@ -161,6 +182,86 @@ function getNativeControlKind(node: ts.JsxOpeningLikeElement): NativeControlKind
   }
 }
 
+type ReactCreateElementBindings = {
+  factories: Set<string>
+  namespaces: Set<string>
+}
+
+function getReactCreateElementBindings(sourceFile: ts.SourceFile): ReactCreateElementBindings {
+  const bindings: ReactCreateElementBindings = {
+    factories: new Set(),
+    namespaces: new Set(),
+  }
+
+  for (const statement of sourceFile.statements) {
+    if (
+      ts.isImportDeclaration(statement)
+      && ts.isStringLiteral(statement.moduleSpecifier)
+      && statement.moduleSpecifier.text === 'react'
+    ) {
+      const importClause = statement.importClause
+      if (importClause?.name) bindings.namespaces.add(importClause.name.text)
+      if (importClause?.namedBindings && ts.isNamespaceImport(importClause.namedBindings)) {
+        bindings.namespaces.add(importClause.namedBindings.name.text)
+      }
+      if (importClause?.namedBindings && ts.isNamedImports(importClause.namedBindings)) {
+        for (const element of importClause.namedBindings.elements) {
+          if ((element.propertyName ?? element.name).text === 'createElement') {
+            bindings.factories.add(element.name.text)
+          }
+        }
+      }
+    }
+  }
+
+  return bindings
+}
+
+function getCreateElementInputKind(properties: ts.Expression | undefined): NativeControlKind {
+  if (!properties || properties.kind === ts.SyntaxKind.NullKeyword) return 'input:text'
+  if (!ts.isObjectLiteralExpression(properties)) return 'input:dynamic'
+
+  let kind: NativeControlKind = 'input:text'
+  for (const property of properties.properties) {
+    if (ts.isSpreadAssignment(property)) {
+      kind = 'input:dynamic'
+      continue
+    }
+    if (!ts.isPropertyAssignment(property)) continue
+    const name = property.name
+    const propertyName = ts.isIdentifier(name) || ts.isStringLiteral(name) ? name.text : null
+    if (propertyName !== 'type') continue
+    kind = ts.isStringLiteral(property.initializer)
+      ? getStaticInputKind(property.initializer.text)
+      : 'input:dynamic'
+  }
+
+  return kind
+}
+
+function getCreateElementControlKind(
+  node: ts.CallExpression,
+  bindings: ReactCreateElementBindings,
+): NativeControlKind | null {
+  const isFactory =
+    (ts.isIdentifier(node.expression) && bindings.factories.has(node.expression.text))
+    || (
+      ts.isPropertyAccessExpression(node.expression)
+      && node.expression.name.text === 'createElement'
+      && ts.isIdentifier(node.expression.expression)
+      && bindings.namespaces.has(node.expression.expression.text)
+    )
+  if (!isFactory) return null
+
+  const tag = node.arguments[0]
+  if (!tag || !ts.isStringLiteral(tag)) return null
+  if (tag.text === 'input') return getCreateElementInputKind(node.arguments[1])
+  if (tag.text === 'button' || tag.text === 'select' || tag.text === 'textarea') {
+    return tag.text
+  }
+  return null
+}
+
 export function inventoryNativeControls(sourceFiles: SourceFiles) {
   const inventory = new Map<string, Map<NativeControlKind, number>>()
 
@@ -168,11 +269,16 @@ export function inventoryNativeControls(sourceFiles: SourceFiles) {
     if (!shouldInspectNativeControls(file)) continue
 
     const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+    const createElementBindings = getReactCreateElementBindings(sourceFile)
     const counts = new Map<NativeControlKind, number>()
 
     const visit = (node: ts.Node) => {
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
         const kind = getNativeControlKind(node)
+        if (kind) counts.set(kind, (counts.get(kind) ?? 0) + 1)
+      }
+      if (ts.isCallExpression(node)) {
+        const kind = getCreateElementControlKind(node, createElementBindings)
         if (kind) counts.set(kind, (counts.get(kind) ?? 0) + 1)
       }
       ts.forEachChild(node, visit)
@@ -227,11 +333,7 @@ function auditImports(sourceFiles: SourceFiles): UiPolicyViolation[] {
       file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
     )
 
-    for (const statement of sourceFile.statements) {
-      if (!ts.isImportDeclaration(statement) && !ts.isExportDeclaration(statement)) continue
-      if (!statement.moduleSpecifier || !ts.isStringLiteral(statement.moduleSpecifier)) continue
-
-      const modulePath = statement.moduleSpecifier.text
+    const auditModulePath = (modulePath: string) => {
       if (modulePath.startsWith('@/ui/')) {
         violations.push({
           file,
@@ -247,6 +349,37 @@ function auditImports(sourceFiles: SourceFiles): UiPolicyViolation[] {
         })
       }
     }
+
+    const visit = (node: ts.Node) => {
+      if (
+        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node))
+        && node.moduleSpecifier
+        && ts.isStringLiteral(node.moduleSpecifier)
+      ) {
+        auditModulePath(node.moduleSpecifier.text)
+      } else if (
+        ts.isImportEqualsDeclaration(node)
+        && ts.isExternalModuleReference(node.moduleReference)
+        && node.moduleReference.expression
+        && ts.isStringLiteral(node.moduleReference.expression)
+      ) {
+        auditModulePath(node.moduleReference.expression.text)
+      } else if (
+        ts.isCallExpression(node)
+        && node.arguments.length === 1
+        && ts.isStringLiteral(node.arguments[0])
+        && (
+          node.expression.kind === ts.SyntaxKind.ImportKeyword
+          || (ts.isIdentifier(node.expression) && node.expression.text === 'require')
+        )
+      ) {
+        auditModulePath(node.arguments[0].text)
+      }
+
+      ts.forEachChild(node, visit)
+    }
+
+    visit(sourceFile)
   }
 
   return violations

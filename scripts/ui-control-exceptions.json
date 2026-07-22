@@ -238,7 +238,7 @@
           "reason": "legacy-form-control"
         },
         {
-          "kind": "input:unspecified",
+          "kind": "input:text",
           "count": 1,
           "reason": "legacy-form-control"
         }
