@@ -106,7 +106,7 @@ export function StudentAssignmentsTab({
             `student-surveys:${classroom.id}`,
             `/api/student/surveys?classroom_id=${classroom.id}`,
             { ttlMs: 20_000, errorMessage: 'Failed to load surveys' },
-          ).catch(() => ({ surveys: [] })),
+          ),
         ])
         if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
         setAssignments(assignmentsData.assignments || [])

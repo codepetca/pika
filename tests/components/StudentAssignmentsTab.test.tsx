@@ -3,7 +3,7 @@ import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { forwardRef, useEffect, useImperativeHandle } from 'react'
 import { StudentAssignmentsTab } from '@/app/classrooms/[classroomId]/StudentAssignmentsTab'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
-import type { Classroom, AssignmentWithStatus, ClassworkMaterial } from '@/types'
+import type { Classroom, AssignmentWithStatus, ClassworkMaterial, StudentSurveyView } from '@/types'
 
 // --- Mocks ---
 
@@ -102,6 +102,24 @@ function makeMaterial(overrides: Partial<ClassworkMaterial> = {}): ClassworkMate
   }
 }
 
+function makeSurvey(overrides: Partial<StudentSurveyView> = {}): StudentSurveyView {
+  return {
+    id: 'survey-1',
+    classroom_id: classroom.id,
+    title: 'Class survey',
+    status: 'active',
+    opens_at: null,
+    show_results: true,
+    dynamic_responses: false,
+    position: 0,
+    created_by: 'teacher-1',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+    student_status: 'not_started',
+    ...overrides,
+  }
+}
+
 function mockFetchClasswork(assignments: AssignmentWithStatus[], materials: ClassworkMaterial[] = []) {
   ;(global.fetch as ReturnType<typeof vi.fn>)
     .mockResolvedValueOnce({
@@ -111,6 +129,10 @@ function mockFetchClasswork(assignments: AssignmentWithStatus[], materials: Clas
     .mockResolvedValueOnce({
       ok: true,
       json: async () => ({ materials }),
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ surveys: [] }),
     })
 }
 
@@ -187,6 +209,44 @@ describe('StudentAssignmentsTab', () => {
     expect(await screen.findByText('Restored assignment')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(consoleError).toHaveBeenCalledWith('Error loading assignments:', expect.any(Error))
+  })
+
+  it('treats a survey list failure as a retryable classwork failure', async () => {
+    const retryClassroom = { ...classroom, id: 'cls-survey-retry' }
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let surveysShouldFail = true
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/api/student/assignments')) return mockJSONResponse({ assignments: [] })
+        if (url.includes('/materials')) return mockJSONResponse({ materials: [] })
+        if (url.includes('/api/student/surveys')) {
+          if (surveysShouldFail) {
+            return {
+              ok: false,
+              json: async () => ({ error: 'Surveys unavailable' }),
+            }
+          }
+          return mockJSONResponse({
+            surveys: [makeSurvey({ classroom_id: retryClassroom.id, title: 'Recovered survey' })],
+          })
+        }
+        throw new Error(`Unexpected request: ${url}`)
+      }),
+    )
+
+    render(<StudentAssignmentsTab classroom={retryClassroom} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+    expect(screen.queryByText('No classwork yet')).not.toBeInTheDocument()
+
+    surveysShouldFail = false
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('Recovered survey')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('keeps failed classwork in a blocking state while reactivating the tab', async () => {

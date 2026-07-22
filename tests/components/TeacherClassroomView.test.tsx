@@ -680,6 +680,9 @@ describe('TeacherClassroomView', () => {
       if (key === `teacher-materials:${classroom.id}`) {
         return Promise.resolve({ materials: [] })
       }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
       return fetcher()
     })
     mockInvalidateCachedJSON.mockReset()
@@ -728,6 +731,33 @@ describe('TeacherClassroomView', () => {
     expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-materials:${classroom.id}`)
     expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-surveys:${classroom.id}`)
     expect(consoleError).toHaveBeenCalledWith('Error loading assignments:', expect.any(Error))
+  })
+
+  it('treats a survey list failure as a retryable classwork failure', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let surveysShouldFail = true
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) return Promise.resolve({ assignments: [] })
+      if (key === `teacher-materials:${classroom.id}`) return Promise.resolve({ materials: [] })
+      if (key === `teacher-surveys:${classroom.id}`) {
+        if (surveysShouldFail) return Promise.reject(new Error('Surveys unavailable'))
+        return Promise.resolve({
+          surveys: [makeSurveySummary('survey-restored', 'Recovered survey')],
+        })
+      }
+      return fetcher()
+    })
+
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+    expect(screen.queryByText('No classwork yet')).not.toBeInTheDocument()
+
+    surveysShouldFail = false
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByRole('button', { name: 'Recovered survey' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('keeps failed classwork in a blocking state while reactivating the tab', async () => {
@@ -1199,6 +1229,9 @@ describe('TeacherClassroomView', () => {
       if (key === `class-days:${classroom.id}`) {
         return Promise.resolve({ class_days: [] })
       }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
       return fetcher()
     })
 
@@ -1570,6 +1603,9 @@ describe('TeacherClassroomView', () => {
       if (key === `teacher-materials:${classroom.id}`) {
         return Promise.resolve({ materials: [] })
       }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
       return fetcher()
     })
     const updateSearchParams = vi.fn()
@@ -1608,6 +1644,9 @@ describe('TeacherClassroomView', () => {
       }
       if (key === `teacher-materials:${classroom.id}`) {
         return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
       }
       return fetcher()
     })
@@ -3467,6 +3506,9 @@ describe('TeacherClassroomView', () => {
       }
       if (key === `teacher-materials:${classroom.id}`) {
         return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
       }
       return fetcher()
     })

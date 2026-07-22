@@ -935,9 +935,10 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added bounded Retry actions that invalidate assignment, material, and survey list caches before reloading; failures never render "No classwork yet," and successful retry restores the normal list.
 - Added focused role regressions and browser-verified loading, error, empty, retry, and restored-list states at desktop/mobile widths in light/dark themes. No API, schema, migration, production state, or production data changed.
 - Independent review found that reactivating Classwork after a failed load used the content-preserving refresh path and could expose the empty state while retrying. Reactivation from an error now uses the blocking load path; both roles prove pending reactivation, repeated failure, and recovery.
+- Final cumulative review found the remaining survey-list exception could still turn survey failures into empty or partial Classwork. Survey reads now participate in the same required failure/retry contract, with teacher and student survey-specific recovery regressions.
 
 **Validation:**
-- Focused Classwork component suites (2 files / 59 tests)
+- Focused Classwork component suites (2 files / 61 tests)
 - `pnpm test --run` (397 files / 3,605 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`

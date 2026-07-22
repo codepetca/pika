@@ -747,7 +747,7 @@ export function TeacherClassroomView({
           `teacher-surveys:${classroom.id}`,
           `/api/teacher/surveys?classroom_id=${classroom.id}`,
           { errorMessage: 'Failed to load surveys', ttlMs: 20_000 },
-        ).catch(() => ({ surveys: [] })),
+        ),
         fetchClassDaysForClassroom(classroom.id).catch((err) => {
           console.error('Error loading class days:', err)
           return []
