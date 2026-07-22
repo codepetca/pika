@@ -11,6 +11,7 @@ import {
   sanitizeAiText,
   type AiSanitizationContext,
 } from '@/lib/ai-sanitization'
+import { toGradingProvenance, type GradingProvenance } from '@/lib/grading/contracts'
 import { executeGrading, GradingOutputError } from '@/lib/grading/engine'
 import {
   PIKA_ASSIGNMENT_GRADING_PROFILE,
@@ -156,6 +157,7 @@ export interface GradeResult {
     output_tokens: number | null
     total_tokens: number | null
   }
+  provenance: GradingProvenance
 }
 
 export interface AssignmentGradingRequest {
@@ -315,6 +317,7 @@ export async function gradeStudentWork(opts: {
         output_tokens: gradingResult.tokenUsage.outputTokens,
         total_tokens: gradingResult.tokenUsage.totalTokens,
       },
+      provenance: toGradingProvenance(gradingResult),
     }
   } catch (error) {
     const gradingError = toAssignmentAiGradingError(error)

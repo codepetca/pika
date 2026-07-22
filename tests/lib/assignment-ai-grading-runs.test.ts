@@ -173,7 +173,7 @@ function buildTickHarness(opts: {
     if (fn === 'claim_assignment_ai_grading_run') {
       return { data: true, error: null }
     }
-    if (fn === 'finalize_assignment_ai_grading_item_atomic') {
+    if (fn === 'finalize_assignment_ai_grading_item_with_provenance_atomic') {
       return { data: null, error: opts.upsertError }
     }
     throw new Error(`Unexpected rpc: ${fn}`)
@@ -680,7 +680,7 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       last_error_code: 'source_revision_unavailable',
     }))
     expect(mockSupabaseClient.rpc).not.toHaveBeenCalledWith(
-      'save_assignment_ai_grade_atomic',
+      'save_assignment_ai_grade_with_provenance_atomic',
       expect.anything(),
     )
   })

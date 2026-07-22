@@ -472,6 +472,7 @@ export type Database = {
           ai_feedback_model: string | null
           ai_feedback_suggested_at: string | null
           ai_feedback_suggestion: string | null
+          ai_grading_provenance: Json | null
           assignment_id: string
           authenticity_flags: Json | null
           authenticity_score: number | null
@@ -504,6 +505,7 @@ export type Database = {
           ai_feedback_model?: string | null
           ai_feedback_suggested_at?: string | null
           ai_feedback_suggestion?: string | null
+          ai_grading_provenance?: Json | null
           assignment_id: string
           authenticity_flags?: Json | null
           authenticity_score?: number | null
@@ -536,6 +538,7 @@ export type Database = {
           ai_feedback_model?: string | null
           ai_feedback_suggested_at?: string | null
           ai_feedback_suggestion?: string | null
+          ai_grading_provenance?: Json | null
           assignment_id?: string
           authenticity_flags?: Json | null
           authenticity_score?: number | null
@@ -4505,6 +4508,27 @@ export type Database = {
         }
         Returns: Json
       }
+      finalize_assignment_ai_grading_item_with_provenance_atomic: {
+        Args: {
+          p_ai_feedback_model: string
+          p_ai_feedback_suggestion: string
+          p_ai_grading_provenance: Json
+          p_apply_teacher_feedback_draft: boolean
+          p_attempt_count: number
+          p_feedback: string
+          p_graded_by: string
+          p_item_id: string
+          p_item_status: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_skip_reason: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       finalize_test_ai_grading_item_atomic: {
         Args: {
           p_ai_grading_basis: string
@@ -4690,6 +4714,26 @@ export type Database = {
         Args: {
           p_ai_feedback_model: string
           p_ai_feedback_suggestion: string
+          p_apply_teacher_feedback_draft: boolean
+          p_assignment_id: string
+          p_expected_doc_updated_at: string
+          p_feedback: string
+          p_graded_by: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      save_assignment_ai_grade_with_provenance_atomic: {
+        Args: {
+          p_ai_feedback_model: string
+          p_ai_feedback_suggestion: string
+          p_ai_grading_provenance: Json
           p_apply_teacher_feedback_draft: boolean
           p_assignment_id: string
           p_expected_doc_updated_at: string

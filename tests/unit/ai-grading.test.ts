@@ -56,6 +56,21 @@ describe('gradeStudentWork prompt rules', () => {
       output_tokens: 40,
       total_tokens: 160,
     })
+    expect(result.provenance).toEqual({
+      schemaVersion: 'assignment-grading-provenance-v1',
+      provider: 'openai',
+      model: 'gpt-5-nano',
+      policyVersion: 'pika-grading-policy-v1',
+      promptVersion: 'pika-assignment-prompt-v1',
+      gradingProfileVersion: 'pika-assignment-v1',
+      rubricVersion: 'pika-essay-ctw-v1',
+      providerRequestCount: 1,
+      tokenUsage: {
+        inputTokens: 120,
+        outputTokens: 40,
+        totalTokens: 160,
+      },
+    })
 
     const gradingRequest = fetchMock.mock.calls[0]?.[1]
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))

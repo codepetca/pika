@@ -42,6 +42,18 @@ export const gradingTokenUsageSchema = z.object({
   totalTokens: z.number().int().nonnegative().nullable(),
 })
 
+export const gradingProvenanceSchema = z.object({
+  schemaVersion: z.literal('assignment-grading-provenance-v1'),
+  provider: z.string().min(1).max(120),
+  model: z.string().min(1).max(200),
+  policyVersion: z.string().min(1).max(120),
+  promptVersion: z.string().min(1).max(120),
+  gradingProfileVersion: z.string().min(1).max(120),
+  rubricVersion: z.string().min(1).max(120),
+  providerRequestCount: z.number().int().positive().max(10),
+  tokenUsage: gradingTokenUsageSchema,
+}).strict()
+
 export const gradingCriterionResultSchema = z.object({
   criterionId: z.string().min(1),
   score: z.number().finite(),
@@ -75,4 +87,19 @@ export const gradingResultSchema = z.object({
 
 export type GradingRubric = z.infer<typeof gradingRubricSchema>
 export type GradingTokenUsage = z.infer<typeof gradingTokenUsageSchema>
+export type GradingProvenance = z.infer<typeof gradingProvenanceSchema>
 export type GradingResult = z.infer<typeof gradingResultSchema>
+
+export function toGradingProvenance(result: GradingResult): GradingProvenance {
+  return gradingProvenanceSchema.parse({
+    schemaVersion: 'assignment-grading-provenance-v1',
+    provider: result.provider,
+    model: result.model,
+    policyVersion: result.policyVersion,
+    promptVersion: result.promptVersion,
+    gradingProfileVersion: result.gradingProfileVersion,
+    rubricVersion: result.rubricVersion,
+    providerRequestCount: result.providerRequestCount,
+    tokenUsage: result.tokenUsage,
+  })
+}

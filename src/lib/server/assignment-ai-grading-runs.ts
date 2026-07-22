@@ -425,6 +425,7 @@ export async function gradeAssignmentDocWithAi({
         feedback: result.feedback,
         aiFeedbackSuggestion: result.feedback,
         aiFeedbackModel: result.model,
+        aiGradingProvenance: result.provenance,
         gradedBy,
       },
       attemptCount: runItem.attemptCount,
@@ -444,6 +445,7 @@ export async function gradeAssignmentDocWithAi({
       feedback: result.feedback,
       aiFeedbackSuggestion: result.feedback,
       aiFeedbackModel: result.model,
+      aiGradingProvenance: result.provenance,
       gradedBy,
       now,
     })
