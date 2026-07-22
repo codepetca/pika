@@ -1,8 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Card, ContentDialog, EmptyState, RefreshingIndicator } from '@/ui'
-import { Spinner } from '@/components/Spinner'
+import { Button, Card, ContentDialog, EmptyState, PageState, RefreshingIndicator } from '@/ui'
 import { PageActionBar, PageContent, PageLayout, PageStack } from '@/components/PageLayout'
 import {
   formatAssignmentTiming,
@@ -21,8 +20,7 @@ import { StudentAssignmentEditor, type StudentAssignmentEditorHandle } from '@/c
 import { RichTextViewer } from '@/components/editor'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { StudentSurveyPanel } from '@/components/surveys/StudentSurveyPanel'
-import { useDelayedBusy } from '@/hooks/useDelayedBusy'
-import { fetchCachedJSON } from '@/lib/request-cache'
+import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
 import { buildOrderedClassworkItems } from '@/lib/classwork-order'
 import { getStudentSurveyStatus, getSurveyStatusBadgeClass, getSurveyStatusLabel } from '@/lib/surveys'
 
@@ -54,6 +52,7 @@ export function StudentAssignmentsTab({
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [hasLoaded, setHasLoaded] = useState(false)
+  const [classworkLoadError, setClassworkLoadError] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
   const [editorState, setEditorState] = useState({
@@ -80,10 +79,6 @@ export function StudentAssignmentsTab({
     () => (hasCurrentClassroomData ? surveys : []),
     [hasCurrentClassroomData, surveys],
   )
-  const showBlockingSpinner = useDelayedBusy(
-    loading && currentAssignments.length === 0 && currentMaterials.length === 0 && currentSurveys.length === 0
-  )
-
   const loadAssignments = useCallback(
     async (options?: { preserveContent?: boolean }) => {
       const requestId = loadRequestIdRef.current + 1
@@ -94,6 +89,7 @@ export function StudentAssignmentsTab({
       } else {
         setLoading(true)
       }
+      setClassworkLoadError(false)
       try {
         const [assignmentsData, materialsData, surveysData] = await Promise.all([
           fetchCachedJSON<StudentAssignmentsResponse>(
@@ -118,6 +114,7 @@ export function StudentAssignmentsTab({
         setSurveys(surveysData.surveys || [])
         setLoadedClassroomId(classroom.id)
         setHasLoaded(true)
+        setClassworkLoadError(false)
       } catch (err) {
         if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
         setAssignments([])
@@ -125,6 +122,7 @@ export function StudentAssignmentsTab({
         setSurveys([])
         setLoadedClassroomId(classroom.id)
         setHasLoaded(true)
+        setClassworkLoadError(true)
         console.error('Error loading assignments:', err)
       } finally {
         if (loadRequestIdRef.current === requestId && currentClassroomIdRef.current === classroom.id) {
@@ -143,6 +141,7 @@ export function StudentAssignmentsTab({
     setSurveys([])
     setLoadedClassroomId(null)
     setHasLoaded(false)
+    setClassworkLoadError(false)
     setRefreshing(false)
   }, [classroom.id])
 
@@ -157,6 +156,13 @@ export function StudentAssignmentsTab({
     }
     wasActiveRef.current = isActive
   }, [hasLoaded, isActive, loadAssignments])
+
+  const retryLoadAssignments = useCallback(() => {
+    invalidateCachedJSON(`student-assignments:${classroom.id}`)
+    invalidateCachedJSON(`student-materials:${classroom.id}`)
+    invalidateCachedJSON(`student-surveys:${classroom.id}`)
+    void loadAssignments()
+  }, [classroom.id, loadAssignments])
 
   const selectedAssignment = useMemo(() => {
     if (!selectedAssignmentId) return null
@@ -322,15 +328,19 @@ export function StudentAssignmentsTab({
           {refreshing && (
             <RefreshingIndicator className="mb-2 px-0 py-0" />
           )}
-          {showBlockingSpinner ? (
-              <Card tone="panel" padding="lg">
-                <div className="flex justify-center py-8">
-                  <Spinner />
-                </div>
-              </Card>
-            ) : view === 'summary' ? (
+          {!hasLoaded || loading || !hasCurrentClassroomData ? (
+            <PageState kind="loading" title="Loading classwork" />
+          ) : classworkLoadError ? (
+            <PageState
+              kind="error"
+              title="Classwork couldn't load"
+              description="Pika couldn't load this classroom's classwork. Nothing was changed."
+              action={<Button onClick={retryLoadAssignments}>Retry</Button>}
+            />
+          ) : view === 'summary' ? (
               currentAssignments.length === 0 && currentMaterials.length === 0 && currentSurveys.length === 0 ? (
-                <EmptyState
+                <PageState
+                  kind="empty"
                   title="No classwork yet"
                   description="When your teacher posts assignments, materials, or surveys, they will show up here."
                 />

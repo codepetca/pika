@@ -141,6 +141,54 @@ describe('StudentAssignmentsTab', () => {
     vi.restoreAllMocks()
   })
 
+  it('shows a classwork error and restores the list after retry', async () => {
+    const retryClassroom = { ...classroom, id: 'cls-classwork-retry' }
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let assignmentsShouldFail = true
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/api/student/assignments')) {
+          if (assignmentsShouldFail) {
+            return {
+              ok: false,
+              json: async () => ({ error: 'Assignments unavailable' }),
+            }
+          }
+          return mockJSONResponse({
+            assignments: [
+              makeAssignment({
+                classroom_id: retryClassroom.id,
+                title: 'Restored assignment',
+              }),
+            ],
+          })
+        }
+        if (url.includes('/materials')) {
+          return mockJSONResponse({ materials: [] })
+        }
+        if (url.includes('/api/student/surveys')) {
+          return mockJSONResponse({ surveys: [] })
+        }
+        throw new Error(`Unexpected request: ${url}`)
+      }),
+    )
+
+    render(<StudentAssignmentsTab classroom={retryClassroom} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+    expect(screen.queryByText('No classwork yet')).not.toBeInTheDocument()
+
+    assignmentsShouldFail = false
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('Restored assignment')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(consoleError).toHaveBeenCalledWith('Error loading assignments:', expect.any(Error))
+  })
+
   it('first-time view: auto-shows instructions modal', async () => {
     const unviewed = makeAssignment({ doc: null })
     searchParamsMap.set('assignmentId', 'asgn-1')

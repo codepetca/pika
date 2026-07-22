@@ -693,6 +693,43 @@ describe('TeacherClassroomView', () => {
     clearAssignmentWorkspaceStudentCookie()
   })
 
+  it('shows a classwork error and restores the list after retry', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let assignmentsShouldFail = true
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        if (assignmentsShouldFail) {
+          return Promise.reject(new Error('Assignments unavailable'))
+        }
+        return Promise.resolve({
+          assignments: [makeAssignmentSummary('assignment-restored', 'Restored assignment')],
+        })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
+      return fetcher()
+    })
+
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+    expect(screen.queryByText('No classwork yet')).not.toBeInTheDocument()
+
+    assignmentsShouldFail = false
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByRole('button', { name: 'Restored assignment' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-assignments:${classroom.id}`)
+    expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-materials:${classroom.id}`)
+    expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-surveys:${classroom.id}`)
+    expect(consoleError).toHaveBeenCalledWith('Error loading assignments:', expect.any(Error))
+  })
+
   it('does not reopen a stale assignment cookie when URL selection is on summary', async () => {
     document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
 

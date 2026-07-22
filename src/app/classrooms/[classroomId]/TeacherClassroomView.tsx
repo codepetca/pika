@@ -38,8 +38,7 @@ import {
   Trash2,
   Unlock,
 } from 'lucide-react'
-import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
-import { useDelayedBusy } from '@/hooks/useDelayedBusy'
+import { Button, ConfirmDialog, ContentDialog, DialogPanel, FormField, Input, PageState, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
@@ -616,6 +615,7 @@ export function TeacherClassroomView({
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [loading, setLoading] = useState(true)
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
+  const [classworkLoadError, setClassworkLoadError] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false)
   const [isSurveyCreateModalOpen, setIsSurveyCreateModalOpen] = useState(false)
@@ -717,12 +717,6 @@ export function TeacherClassroomView({
     () => (hasCurrentClassroomData ? surveys : []),
     [hasCurrentClassroomData, surveys],
   )
-  const showSummarySpinner = useDelayedBusy(
-    (loading || !hasCurrentClassroomData)
-      && currentAssignments.length === 0
-      && currentMaterials.length === 0
-      && currentSurveys.length === 0
-  )
   const { showMessage } = useAppMessage()
   const {
     layout: assignmentGradingLayout,
@@ -736,6 +730,7 @@ export function TeacherClassroomView({
     if (!preserveContent) {
       setLoading(true)
     }
+    setClassworkLoadError(false)
     try {
       const [assignmentsData, materialsData, surveysData, classDaysData] = await Promise.all([
         fetchCachedJSON<TeacherAssignmentsResponse>(
@@ -765,6 +760,7 @@ export function TeacherClassroomView({
       setClassDays(classDaysData)
       setLoadedClassroomId(classroom.id)
       setHasLoadedOnce(true)
+      setClassworkLoadError(false)
       window.dispatchEvent(
         new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
           detail: { classroomId: classroom.id },
@@ -778,6 +774,7 @@ export function TeacherClassroomView({
       setClassDays([])
       setLoadedClassroomId(classroom.id)
       setHasLoadedOnce(true)
+      setClassworkLoadError(true)
       console.error('Error loading assignments:', err)
     } finally {
       if (loadRequestIdRef.current === requestId && currentClassroomIdRef.current === classroom.id) {
@@ -794,6 +791,7 @@ export function TeacherClassroomView({
     setClassDays([])
     setLoadedClassroomId(null)
     setHasLoadedOnce(false)
+    setClassworkLoadError(false)
     setSelection({ mode: 'summary' })
     setEditAssignment(null)
     setEditMaterial(null)
@@ -809,6 +807,13 @@ export function TeacherClassroomView({
   useEffect(() => {
     loadAssignments()
   }, [loadAssignments])
+
+  const retryLoadAssignments = useCallback(() => {
+    invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
+    invalidateCachedJSON(`teacher-materials:${classroom.id}`)
+    invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+    void loadAssignments()
+  }, [classroom.id, loadAssignments])
 
   const handleMaterialSaved = useCallback((material: ClassworkMaterial) => {
     invalidateCachedJSON(`teacher-materials:${classroom.id}`)
@@ -2625,14 +2630,21 @@ export function TeacherClassroomView({
     </>
   )
 
-  const summaryContent = showSummarySpinner ? (
-    <div className="flex justify-center py-8">
-      <Spinner />
-    </div>
+  const summaryContent = loading || !hasLoadedOnce || !hasCurrentClassroomData ? (
+    <PageState kind="loading" title="Loading classwork" />
+  ) : classworkLoadError ? (
+    <PageState
+      kind="error"
+      title="Classwork couldn't load"
+      description="Pika couldn't load this classroom's classwork. Nothing was changed."
+      action={<Button onClick={retryLoadAssignments}>Retry</Button>}
+    />
   ) : currentAssignments.length === 0 && currentMaterials.length === 0 && currentSurveys.length === 0 ? (
-    <div className="py-6 text-center text-sm text-text-muted">
-      No classwork yet
-    </div>
+    <PageState
+      kind="empty"
+      title="No classwork yet"
+      description={isReadOnly ? 'This classroom has no classwork.' : 'Create an assignment, material, or survey to get started.'}
+    />
   ) : (
     <TeacherWorkItemList>
       <DndContext
