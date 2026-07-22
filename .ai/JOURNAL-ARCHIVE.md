@@ -14084,3 +14084,26 @@
 - Pika pre-commit audit
 - `git diff --check`
 - CI pending after push
+
+<!-- pika-session-log-archive-batch:ed23e12229b47648d8e6694d413fb1faab49160aeaabc196d53dc85ede3f5e0f -->
+## 2026-07-13 — Phase 1 API boundary validation foundation
+
+**Risk profile:** runtime-platform
+
+**Model recommendation:** GPT-5 Codex - cross-cutting API contract and architecture-test work benefits from repository-wide reasoning and strict verification.
+
+**Completed:**
+- Moved course-blueprint request schemas out of the broad teacher validation module into a feature-owned `course-blueprints` contract module, with shared course-publishing primitives isolated separately.
+- Added full nested Zod validation to blueprint assignment, test, and lesson-template bulk mutation routes, reusing canonical test-draft and document validators.
+- Added route tests proving malformed nested payloads return `400` before mutation services run.
+- Added a deletion-only architecture baseline that blocks new body-reading API routes without a named Zod boundary and must shrink as existing routes migrate.
+- Documented boundary parsing, contract ownership, non-JSON decoder expectations, and baseline maintenance.
+- No database migrations, dependencies, UI changes, or production operations.
+
+**Validation:**
+- Focused blueprint and architecture suites: 21 tests passed
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm test` (312 files, 2,788 tests passed)
+- `pnpm build`
+- `git diff --check`
