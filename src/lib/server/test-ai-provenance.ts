@@ -1,10 +1,14 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
+import {
+  testGradingProvenanceSchema,
+  type TestGradingProvenance,
+} from '@/lib/grading/contracts'
 import type { TestQuestionGradingSnapshot } from '@/lib/test-grading-context'
 
 const MANUAL_TEST_AI_PROVENANCE_TTL_MS = 24 * 60 * 60 * 1000
 
-const manualTestAiProvenancePayloadSchema = z.object({
+const manualTestAiProvenancePayloadV1Schema = z.object({
   version: z.literal(1),
   teacher_id: z.string().min(1),
   test_id: z.string().min(1),
@@ -20,6 +24,16 @@ const manualTestAiProvenancePayloadSchema = z.object({
   expires_at_ms: z.number().int().positive(),
 }).strict()
 
+const manualTestAiProvenancePayloadV2Schema = manualTestAiProvenancePayloadV1Schema.extend({
+  version: z.literal(2),
+  grading_provenance_sha256: z.string().regex(/^[a-f0-9]{64}$/),
+}).strict()
+
+const manualTestAiProvenancePayloadSchema = z.discriminatedUnion('version', [
+  manualTestAiProvenancePayloadV1Schema,
+  manualTestAiProvenancePayloadV2Schema,
+])
+
 type ManualTestAiProvenancePayload = z.infer<typeof manualTestAiProvenancePayloadSchema>
 
 export type ManualTestAiProvenanceIdentity = {
@@ -33,6 +47,7 @@ export type ManualTestAiProvenanceIdentity = {
   suggestedScore: number
   suggestedFeedback: string
   questionGradingSnapshot: TestQuestionGradingSnapshot
+  gradingProvenance: TestGradingProvenance | null
 }
 
 function getSigningSecret(): string {
@@ -56,7 +71,7 @@ export function createManualTestAiProvenanceToken(
   nowMs = Date.now(),
 ): string {
   const payload: ManualTestAiProvenancePayload = {
-    version: 1,
+    version: 2,
     teacher_id: input.teacherId,
     test_id: input.testId,
     response_id: input.responseId,
@@ -67,6 +82,9 @@ export function createManualTestAiProvenanceToken(
     suggested_score: input.suggestedScore,
     suggested_feedback_sha256: hashCanonical(input.suggestedFeedback),
     question_grading_snapshot_sha256: hashCanonical(input.questionGradingSnapshot),
+    grading_provenance_sha256: hashCanonical(
+      testGradingProvenanceSchema.parse(input.gradingProvenance),
+    ),
     issued_at_ms: nowMs,
     expires_at_ms: nowMs + MANUAL_TEST_AI_PROVENANCE_TTL_MS,
   }
@@ -103,6 +121,9 @@ export function verifyManualTestAiProvenanceToken(input: {
 
   const nowMs = input.nowMs ?? Date.now()
   const expected = input.expected
+  const expectedProvenance = payload.version === 2
+    ? testGradingProvenanceSchema.safeParse(expected.gradingProvenance)
+    : null
   return payload.issued_at_ms <= nowMs
     && payload.expires_at_ms >= nowMs
     && payload.teacher_id === expected.teacherId
@@ -116,4 +137,8 @@ export function verifyManualTestAiProvenanceToken(input: {
     && payload.suggested_feedback_sha256 === hashCanonical(expected.suggestedFeedback)
     && payload.question_grading_snapshot_sha256
       === hashCanonical(expected.questionGradingSnapshot)
+    && (payload.version === 1
+      ? expected.gradingProvenance === null
+      : expectedProvenance?.success === true
+        && payload.grading_provenance_sha256 === hashCanonical(expectedProvenance.data))
 }

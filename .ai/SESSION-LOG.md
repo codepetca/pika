@@ -688,6 +688,30 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Remaining:**
 - Review and merge PR #897. Continue Phase 2 with shared button target sizing/focus-visible behavior and semantic form-field propagation.
 
+## 2026-07-21 — Internal test grading profile and provenance
+
+**Risk profile:** async-grading
+
+**Model recommendation:** GPT-5.4 - this phase crosses provider contracts, privacy boundaries, durable grading concurrency, revision fencing, and rolling database compatibility.
+
+**Completed:**
+- Moved test open-response prompts, strict output schemas, output budgets, and profile versions into the database-independent grading core while preserving Pika's sanitization, reference cache, score buckets, telemetry, and teacher workflows in the compatibility adapter.
+- Routed direct and durable test grading through the shared structured-output provider executor with bounded, pseudonymous per-request provenance and complete retry token accounting.
+- Added signed manual provenance propagation and migration `102` with service-role-only compatibility wrappers that atomically persist provenance without double-incrementing response revisions.
+- Preserved provenance for teacher corrections, cleared stale provenance for legacy AI replacements and grade clears, and kept durable replay idempotent.
+- Kept the remote Gradex worker disabled; no live provider calls, production changes, or local migration application were performed.
+
+**Validation:**
+- Focused grading/persistence suite (10 files / 114 tests)
+- Full Vitest suite (403 files / 3,632 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (620 modules / 0 allowances)
+- `pnpm build`
+- `bash -n scripts/check-atomic-test-grading.sh`
+- `git diff --check`
+- Migration replay, database harness, and generated-type drift check pending ephemeral CI
+
 ## 2026-07-21 — Phase 2 shared control and form-field contract
 
 **Completed:**

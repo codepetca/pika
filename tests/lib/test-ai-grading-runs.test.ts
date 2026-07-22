@@ -43,6 +43,21 @@ vi.mock('@/lib/ai-test-grading', () => ({
 
 import { tickTestAiGradingRun } from '@/lib/server/test-ai-grading-runs'
 
+const gradingProvenance = {
+  schemaVersion: 'test-grading-provenance-v1' as const,
+  gradingRequestId: '10000000-0000-4000-8000-000000000001',
+  provider: 'openai',
+  model: 'gpt-5-nano',
+  policyVersion: 'pika-test-open-response-policy-v1',
+  promptVersion: 'pika-test-open-response-bulk-prompt-v1',
+  gradingProfileVersion: 'pika-test-open-response-v1',
+  rubricVersion: 'pika-test-open-response-rubric-v1',
+  operation: 'batch' as const,
+  batchSize: 2,
+  providerRequestCount: 1,
+  tokenUsage: { inputTokens: 100, outputTokens: 20, totalTokens: 120 },
+}
+
 function buildPreparedContext() {
   return {
     model: 'gpt-5-nano',
@@ -210,7 +225,7 @@ function buildTickHarness(opts: {
       return { data: true, error: null }
     }
 
-    if (fn === 'finalize_test_ai_grading_item_atomic') {
+    if (fn === 'finalize_test_ai_grading_item_with_provenance_atomic') {
       if (opts.loseLeaseOnFinalize) {
         run.lease_token = 'replacement-lease'
         return { data: null, error: { code: '40001', message: 'Lease changed' } }
@@ -263,6 +278,7 @@ function buildTickHarness(opts: {
         ai_model: args.p_ai_model,
         ai_suggested_score: args.p_score,
         ai_suggested_feedback: args.p_feedback,
+        ai_grading_provenance: args.p_ai_grading_provenance,
         revision: response.revision + 1,
       })
       Object.assign(item, {
@@ -431,6 +447,7 @@ describe('tickTestAiGradingRun', () => {
         model: 'gpt-5-nano',
         grading_basis: 'teacher_key',
         reference_answers: ['Use a hash map.'],
+        provenance: gradingProvenance,
       },
       {
         responseId: 'response-2',
@@ -439,6 +456,7 @@ describe('tickTestAiGradingRun', () => {
         model: 'gpt-5-nano',
         grading_basis: 'teacher_key',
         reference_answers: ['Use a hash map.'],
+        provenance: gradingProvenance,
       },
     ])
 
@@ -468,6 +486,7 @@ describe('tickTestAiGradingRun', () => {
       expect.objectContaining({
         score: 5,
         feedback: 'Correct.',
+        ai_grading_provenance: gradingProvenance,
       }),
     )
     expect(suggestTestOpenResponseGradesBatchWithContext).toHaveBeenCalledTimes(1)
@@ -495,6 +514,7 @@ describe('tickTestAiGradingRun', () => {
       model: 'gpt-5-nano',
       grading_basis: 'teacher_key',
       reference_answers: ['Use a hash map.'],
+      provenance: gradingProvenance,
     })
 
     const result = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
@@ -528,6 +548,7 @@ describe('tickTestAiGradingRun', () => {
         model: 'gpt-5-nano',
         grading_basis: 'teacher_key',
         reference_answers: ['Use a hash map.'],
+        provenance: gradingProvenance,
       },
     ])
 
@@ -581,6 +602,7 @@ describe('tickTestAiGradingRun', () => {
         model: 'gpt-5-nano',
         grading_basis: 'teacher_key',
         reference_answers: ['Use a hash map.'],
+        provenance: gradingProvenance,
       },
     ])
 
@@ -635,6 +657,7 @@ describe('tickTestAiGradingRun', () => {
       model: 'gpt-5-nano',
       grading_basis: 'teacher_key',
       reference_answers: ['Use a hash map.'],
+      provenance: gradingProvenance,
     })
 
     const result = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
@@ -685,6 +708,7 @@ describe('tickTestAiGradingRun', () => {
       model: 'gpt-5-nano',
       grading_basis: 'teacher_key',
       reference_answers: ['Use a hash map.'],
+      provenance: gradingProvenance,
     })
 
     const result = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
@@ -713,6 +737,7 @@ describe('tickTestAiGradingRun', () => {
       model: 'gpt-5-nano',
       grading_basis: 'teacher_key',
       reference_answers: ['Use a hash map.'],
+      provenance: gradingProvenance,
     })
 
     const result = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
@@ -734,6 +759,7 @@ describe('tickTestAiGradingRun', () => {
       model: 'gpt-5-nano',
       grading_basis: 'teacher_key',
       reference_answers: ['Use a hash map.'],
+      provenance: gradingProvenance,
     })
 
     const result = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
@@ -766,6 +792,7 @@ describe('tickTestAiGradingRun', () => {
       model: 'gpt-5-nano',
       grading_basis: 'teacher_key',
       reference_answers: ['Use a hash map.'],
+      provenance: gradingProvenance,
     })
 
     const result = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })

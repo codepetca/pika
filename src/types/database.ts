@@ -2,7 +2,7 @@ import type {
   AssignmentSubmissionRequirementDraft,
   AssignmentSubmissionValidationPolicyJson,
 } from '@/lib/assignment-submission-requirements'
-import type { GradingProvenance } from '@/lib/grading/contracts'
+import type { GradingProvenance, TestGradingProvenance } from '@/lib/grading/contracts'
 import type { Database as GeneratedDatabase, Json } from '@/types/database.generated'
 import type {
   ActualCourseSiteConfig,
@@ -245,8 +245,14 @@ type TableOverrides = {
   >
   test_responses: TableContract<
     'test_responses',
-    { ai_reference_answers: string[] | null },
-    { ai_reference_answers?: string[] | null }
+    {
+      ai_grading_provenance: TestGradingProvenance | null
+      ai_reference_answers: string[] | null
+    },
+    {
+      ai_grading_provenance?: TestGradingProvenance | null
+      ai_reference_answers?: string[] | null
+    }
   >
   tests: TableContract<
     'tests',
@@ -355,6 +361,14 @@ type FunctionOverrides = {
       p_ai_reference_answers: string[] | null
     }>
   >
+  finalize_test_ai_grading_item_with_provenance_atomic: FunctionContract<
+    'finalize_test_ai_grading_item_with_provenance_atomic',
+    Json,
+    Replace<GeneratedFunctions['finalize_test_ai_grading_item_with_provenance_atomic']['Args'], {
+      p_ai_grading_provenance: TestGradingProvenance
+      p_ai_reference_answers: string[] | null
+    }>
+  >
   create_course_blueprint_atomic: FunctionContract<
     'create_course_blueprint_atomic',
     Json,
@@ -428,6 +442,14 @@ type FunctionOverrides = {
     'save_test_response_grades_atomic',
     Json,
     Replace<GeneratedFunctions['save_test_response_grades_atomic']['Args'], {
+      p_grade_rows: Json
+      p_student_id: string | null
+    }>
+  >
+  save_test_response_grades_with_provenance_atomic: FunctionContract<
+    'save_test_response_grades_with_provenance_atomic',
+    Json,
+    Replace<GeneratedFunctions['save_test_response_grades_with_provenance_atomic']['Args'], {
       p_grade_rows: Json
       p_student_id: string | null
     }>

@@ -14,6 +14,21 @@ const questionGradingSnapshot = {
   sample_solution: null,
 }
 
+const gradingProvenance = {
+  schemaVersion: 'test-grading-provenance-v1',
+  gradingRequestId: '10000000-0000-4000-8000-000000000001',
+  provider: 'openai',
+  model: 'gpt-5-nano',
+  policyVersion: 'pika-test-open-response-policy-v1',
+  promptVersion: 'pika-test-open-response-manual-prompt-v1',
+  gradingProfileVersion: 'pika-test-open-response-v1',
+  rubricVersion: 'pika-test-open-response-rubric-v1',
+  operation: 'single',
+  batchSize: 1,
+  providerRequestCount: 1,
+  tokenUsage: { inputTokens: 100, outputTokens: 20, totalTokens: 120 },
+}
+
 describe('saveStudentTestGradesSchema', () => {
   it('normalizes grade values, response revisions, and AI audit metadata', () => {
     expect(saveStudentTestGradesSchema.parse({
@@ -31,6 +46,7 @@ describe('saveStudentTestGradesSchema', () => {
           ai_provenance_token: 'signed-token',
           ai_suggested_score: 1.2,
           ai_suggested_feedback: 'Original AI feedback',
+          ai_grading_provenance: gradingProvenance,
         },
       ],
     })).toEqual({
@@ -49,6 +65,7 @@ describe('saveStudentTestGradesSchema', () => {
           ai_provenance_token: 'signed-token',
           ai_suggested_score: 1.2,
           ai_suggested_feedback: 'Original AI feedback',
+          ai_grading_provenance: gradingProvenance,
         },
       ],
     })
@@ -85,6 +102,7 @@ describe('saveStudentTestGradesSchema', () => {
           ai_provenance_token: null,
           ai_suggested_score: null,
           ai_suggested_feedback: null,
+          ai_grading_provenance: null,
         },
       ],
     })
