@@ -78,22 +78,6 @@ vi.mock('@/ui', async (importOriginal) => {
   return {
     ...actual,
     Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-    ConfirmDialog: ({
-      isOpen,
-      title,
-      description,
-      confirmLabel,
-      isCancelDisabled,
-      isConfirmDisabled,
-      onCancel,
-      onConfirm,
-    }: any) => isOpen ? (
-      <div role="dialog" aria-modal="true" aria-label={title}>
-        <p>{description}</p>
-        <button type="button" disabled={isCancelDisabled} onClick={onCancel}>Cancel</button>
-        <button type="button" disabled={isConfirmDisabled} onClick={onConfirm}>{confirmLabel}</button>
-      </div>
-    ) : null,
     Tooltip: ({ children }: any) => <>{children}</>,
   }
 })
@@ -216,7 +200,11 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
       expect.anything(),
     )
     expect(screen.getByTestId('editor-content')).toHaveTextContent('Latest unsaved answer')
-    expect(screen.getByTestId('assignment-save-status')).toHaveTextContent('Unsaved')
+    const saveStatus = screen.getByTestId('assignment-save-status')
+    expect(saveStatus).toHaveTextContent('Unsaved')
+    expect(saveStatus).toHaveAttribute('role', 'status')
+    expect(saveStatus).toHaveAttribute('aria-live', 'polite')
+    expect(saveStatus).toHaveAttribute('aria-atomic', 'true')
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent(/not submitted.*try again/i)
     })
@@ -3262,6 +3250,9 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     await user.click(screen.getAllByRole('button', { name: 'Restore' })[0])
     const restoreDialog = screen.getByRole('dialog', { name: 'Restore this version?' })
     expect(restoreDialog).toHaveAttribute('aria-modal', 'true')
+    await waitFor(() => {
+      expect(within(restoreDialog).getByRole('button', { name: 'Cancel' })).toHaveFocus()
+    })
     await user.click(within(restoreDialog).getByRole('button', { name: 'Restore' }))
 
     await waitFor(() => expect(operations).toEqual(['save', 'restore']))
