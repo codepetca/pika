@@ -473,6 +473,7 @@ export type Database = {
           ai_feedback_suggested_at: string | null
           ai_feedback_suggestion: string | null
           ai_grading_provenance: Json | null
+          ai_grading_review: Json | null
           assignment_id: string
           authenticity_flags: Json | null
           authenticity_score: number | null
@@ -506,6 +507,7 @@ export type Database = {
           ai_feedback_suggested_at?: string | null
           ai_feedback_suggestion?: string | null
           ai_grading_provenance?: Json | null
+          ai_grading_review?: Json | null
           assignment_id: string
           authenticity_flags?: Json | null
           authenticity_score?: number | null
@@ -539,6 +541,7 @@ export type Database = {
           ai_feedback_suggested_at?: string | null
           ai_feedback_suggestion?: string | null
           ai_grading_provenance?: Json | null
+          ai_grading_review?: Json | null
           assignment_id?: string
           authenticity_flags?: Json | null
           authenticity_score?: number | null
@@ -3647,6 +3650,7 @@ export type Database = {
         Row: {
           ai_grading_basis: string | null
           ai_grading_provenance: Json | null
+          ai_grading_review: Json | null
           ai_model: string | null
           ai_reference_answers: Json | null
           ai_suggested_feedback: string | null
@@ -3667,6 +3671,7 @@ export type Database = {
         Insert: {
           ai_grading_basis?: string | null
           ai_grading_provenance?: Json | null
+          ai_grading_review?: Json | null
           ai_model?: string | null
           ai_reference_answers?: Json | null
           ai_suggested_feedback?: string | null
@@ -3687,6 +3692,7 @@ export type Database = {
         Update: {
           ai_grading_basis?: string | null
           ai_grading_provenance?: Json | null
+          ai_grading_review?: Json | null
           ai_model?: string | null
           ai_reference_answers?: Json | null
           ai_suggested_feedback?: string | null

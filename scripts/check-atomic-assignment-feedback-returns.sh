@@ -710,6 +710,7 @@ declare
   v_legacy_item_id uuid;
   v_item_status text;
   v_provenance jsonb;
+  v_review jsonb;
 begin
   select updated_at into v_expected
   from public.assignment_docs
@@ -727,7 +728,7 @@ begin
     'teacher', now()
   );
 
-  select ai_grading_provenance into v_provenance
+  select ai_grading_provenance, ai_grading_review into v_provenance, v_review
   from public.assignment_docs
   where assignment_id = 'd0000000-0000-4000-8000-000000000017'
     and student_id = 'd0000000-0000-4000-8000-000000000003';
@@ -747,12 +748,15 @@ begin
     7, 7, 7, 'Old direct writer', true, true,
     'Old direct writer', 'old-model', 'teacher', now()
   );
-  select ai_grading_provenance into v_provenance
+  select ai_grading_provenance, ai_grading_review into v_provenance, v_review
   from public.assignment_docs
   where assignment_id = 'd0000000-0000-4000-8000-000000000017'
     and student_id = 'd0000000-0000-4000-8000-000000000003';
   if v_provenance is not null then
     raise exception 'Old direct AI writer retained stale provenance: %', v_provenance;
+  end if;
+  if v_review is not null then
+    raise exception 'Old direct AI writer retained a stale grading review: %', v_review;
   end if;
 
   select updated_at, score_completion into v_expected, v_score
@@ -1003,6 +1007,87 @@ begin
   end if;
 end;
 $contract$;
+SQL
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+do $grading_review_contract$
+declare
+  v_expected timestamptz;
+  v_review jsonb;
+  v_result jsonb;
+  v_rejected boolean := false;
+begin
+  select updated_at, ai_grading_review
+  into v_expected, v_review
+  from public.assignment_docs
+  where assignment_id = 'd0000000-0000-4000-8000-000000000019'
+    and student_id = 'd0000000-0000-4000-8000-000000000002';
+
+  if v_review->>'reviewStatus' <> 'pending'
+    or v_review->>'assessmentKind' <> 'assignment'
+    or v_review->'criteria'->0->>'criterionId' <> 'completion'
+    or (v_review->'criteria'->0->>'suggestedScore')::numeric <> 8
+    or (v_review->'criteria'->0->>'finalScore')::numeric <> 8
+    or v_review->'provenance'->>'gradingProfileVersion' <> 'profile-v1'
+  then
+    raise exception 'Assignment grading review did not preserve the AI suggestion: %', v_review;
+  end if;
+  if v_review ?| array[
+    'studentId', 'assignmentId', 'submissionText', 'suggestedFeedback', 'finalFeedback'
+  ] then
+    raise exception 'Assignment grading review retained forbidden identity fields: %', v_review;
+  end if;
+
+  perform public.save_assignment_grades_atomic(
+    'd0000000-0000-4000-8000-000000000019',
+    array['d0000000-0000-4000-8000-000000000002']::uuid[],
+    'd0000000-0000-4000-8000-000000000001',
+    jsonb_build_object('d0000000-0000-4000-8000-000000000002', v_expected),
+    true, 7, 7, 9, true, true, 'Teacher edited feedback', now()
+  );
+
+  select ai_grading_review into v_review
+  from public.assignment_docs
+  where assignment_id = 'd0000000-0000-4000-8000-000000000019'
+    and student_id = 'd0000000-0000-4000-8000-000000000002';
+  if (v_review->'criteria'->0->>'suggestedScore')::numeric <> 8
+    or (v_review->'criteria'->0->>'finalScore')::numeric <> 7
+    or v_review->>'feedbackDisposition' <> 'edited'
+  then
+    raise exception 'Assignment teacher correction was not captured: %', v_review;
+  end if;
+
+  v_result := public.return_assignment_docs_with_feedback_atomic(
+    'd0000000-0000-4000-8000-000000000019',
+    array['d0000000-0000-4000-8000-000000000002']::uuid[],
+    'd0000000-0000-4000-8000-000000000001',
+    now()
+  );
+  select ai_grading_review into v_review
+  from public.assignment_docs
+  where assignment_id = 'd0000000-0000-4000-8000-000000000019'
+    and student_id = 'd0000000-0000-4000-8000-000000000002';
+  if (v_result->>'returned_count')::integer <> 1
+    or v_review->>'reviewStatus' <> 'reviewed'
+    or v_review->>'reviewedAt' is null
+  then
+    raise exception 'Assignment grading review was not finalized on return: % / %',
+      v_result, v_review;
+  end if;
+
+  begin
+    update public.assignment_docs
+    set ai_grading_review = ai_grading_review || '{"studentId":"forbidden"}'::jsonb
+    where assignment_id = 'd0000000-0000-4000-8000-000000000019'
+      and student_id = 'd0000000-0000-4000-8000-000000000002';
+  exception when check_violation then
+    v_rejected := true;
+  end;
+  if not v_rejected then
+    raise exception 'Assignment grading review retained forbidden identity fields';
+  end if;
+end;
+$grading_review_contract$;
 SQL
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'

@@ -14205,3 +14205,53 @@
 - `pnpm check:architecture`
 - `pnpm build`
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:cf9dc1e8af189187a3244ef9c16bd22707e25672ba9bb1aa859fe400993688d7 -->
+## 2026-07-14 — Assessment draft validation boundary
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - cross-module boundary extraction benefits from repository-wide import analysis and behavior-parity verification.
+
+**Completed:**
+- Moved browser-safe assessment draft validation into the feature-owned `@/lib/validations/assessment-drafts` module while keeping persistence and database synchronization in `@/lib/server/assessment-drafts`.
+- Split browser, blueprint, route, and server imports so pure modules no longer reach through the server boundary for validation contracts or draft types.
+- Removed all four remaining deletion-only architecture allowances; the architecture check now covers 588 modules with zero allowances.
+- Removed stale route-test validator stubs so invalid draft payload tests exercise the real validation boundary.
+- Deleted the unused `syncAssessmentMetadataFromDraft` server export after CI coverage exposed that production performs the richer test metadata update directly in the route.
+- No behavior, UI, database schema, dependency, migration, or production changes.
+
+**Validation:**
+- Focused assessment draft, route, and architecture suites (4 files / 34 tests)
+- `pnpm test` (345 files / 3,081 tests)
+- `pnpm vitest run --coverage --maxWorkers=1` (server assessment drafts: 66.67% lines, 95% functions, 65.74% statements)
+- `pnpm build`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm check:architecture`
+- `node scripts/trim-session-log.mjs --check`
+- `node scripts/features.mjs validate`
+- `git diff --check`
+
+## 2026-07-14 — Assignment grading request boundary
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5 Codex - feature-boundary extraction requires repository-wide dependency analysis and exact API contract preservation.
+
+**Completed:**
+- Moved single-student and selected-student assignment grading request normalization into the feature-owned `@/lib/validations/assignment-grading` Zod contract.
+- Kept assignment ownership, enrollment checks, and grade persistence in `@/lib/server/assignment-grades`; both routes now consume parsed contract values.
+- Preserved legacy validation messages, ordering, score coercion, draft blanks, selected-ID filtering/deduplication, authentication-before-parse behavior, and the batch-only `apply_target` contract.
+- Removed both grading routes from the deletion-only API Zod baseline, reducing existing migration debt from 62 routes to 60.
+- Completed two independent review/fix rounds with no remaining findings.
+- No UI, database schema, migration, dependency, or production changes.
+
+**Validation:**
+- Focused grading, API handler, and architecture suites (6 files / 33 tests)
+- `pnpm vitest run --coverage --maxWorkers=1` (346 files / 3,098 tests; assignment grading validation: 96.36% lines, 100% functions)
+- `pnpm build`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm check:architecture` (589 modules / 0 allowances)
+- `git diff --check`

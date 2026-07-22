@@ -955,6 +955,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Complete repository gates, independent review, and merge. Then continue the assignment slice with mobile workspace modes, save announcements/dialog semantics, and the Gradex status boundary.
+
 ## 2026-07-21 — Internal grading core foundation
 
 **Risk profile:** async-grading
@@ -1082,3 +1083,30 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Remaining:**
 - Confirm migration 103 replay, database harness behavior, and generated-type parity in ephemeral PR CI; complete independent review and merge only after the assignment/test stack is approved.
 - Add teacher-correction evaluation capture and offline comparison metrics across assignment, test, and repository-review grading.
+
+## 2026-07-22 — Identity-free teacher grading reviews
+
+**Risk profile:** async-grading, database, privacy, grading-quality
+
+**Model recommendation:** GPT-5.4 - this slice crosses teacher outcome semantics, rolling-safe grading persistence, strict privacy contracts, and deterministic eval design.
+
+**Completed:**
+- Added a strict `grading-review-v1` core contract that cannot represent student identity, source assessment IDs, submission content, or raw feedback, plus deterministic summaries for criterion/overall score error, acceptance/edit rates, feedback dispositions, and model/profile counts.
+- Added migration 104 with bounded `ai_grading_review` snapshots on assignment documents and test responses. Provenance-aware AI writes initialize reviews; manual edits update final outcomes; assignment/test return marks reviews final; test grade clearing records dismissal; changed student work and legacy AI replacement clear stale reviews.
+- Kept repository-review grading on the assignment-document lifecycle, preserved existing routes and teacher UI, and prevented review-only test metadata updates from advancing response revisions.
+- Added synthetic accepted, edited, dismissed, and pending fixtures plus `pnpm eval:grading-reviews` for free offline evaluation. Remote Gradex remains disabled, the existing Gradex archive extract is unchanged, and no live model call was made.
+- Extended assignment/test database harnesses for suggestion preservation, correction capture, return finalization, dismissal, privacy rejection, legacy-writer clearing, and test revision stability; updated generated/refined types and rollout/privacy guidance.
+- No migration was applied locally or remotely. The local Docker database had no Pika schema, so fresh migration replay and database harness execution remain PR CI gates.
+
+**Validation:**
+- `pnpm test` (407 files / 3,657 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (622 modules / 0 allowances)
+- `pnpm eval:grading-reviews scripts/fixtures/grading-review-scenarios.json`
+- `git diff --check`
+
+**Remaining:**
+- Require fresh PR CI to replay migrations 001-104, verify generated type parity, and execute both atomic grading database harnesses.
+- Complete independent review and obtain external approval before merging the stacked grading PRs.
+- After the pilot collects 10-20 teacher-reviewed outcomes, add an explicit local-admin export of minimum sanitized grading inputs for paid candidate prompt/model comparisons.

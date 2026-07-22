@@ -1557,6 +1557,7 @@ declare
   );
   v_revision bigint;
   v_request_id text;
+  v_review jsonb;
   v_rejected boolean := false;
 begin
   if has_function_privilege(
@@ -1625,6 +1626,19 @@ begin
     'The write and audit commit together.',
     now()
   );
+  insert into public.test_attempts (
+    id, test_id, student_id, responses, is_submitted, submitted_at,
+    closed_for_grading_at, closed_for_grading_by
+  ) values (
+    'a9000000-0000-4000-8000-000000000707',
+    'a9000000-0000-4000-8000-000000000028',
+    'a9000000-0000-4000-8000-000000000002',
+    '{}'::jsonb,
+    true,
+    now(),
+    now(),
+    'a9000000-0000-4000-8000-000000000001'
+  );
 
   v_result := public.save_test_response_grades_with_provenance_atomic(
     'a9000000-0000-4000-8000-000000000028',
@@ -1665,6 +1679,20 @@ begin
     raise exception 'Manual test AI provenance did not persist atomically: % / % / %',
       v_result, v_revision, v_request_id;
   end if;
+  select ai_grading_review into v_review
+  from public.test_responses
+  where id = 'a9000000-0000-4000-8000-000000000219';
+  if v_review->>'reviewStatus' <> 'pending'
+    or v_review->>'assessmentKind' <> 'test'
+    or (v_review->'criteria'->0->>'suggestedScore')::numeric <> 4
+    or (v_review->'criteria'->0->>'finalScore')::numeric <> 4
+    or v_review->>'feedbackDisposition' <> 'unchanged'
+    or v_review ?| array[
+      'studentId', 'testId', 'submissionText', 'suggestedFeedback', 'finalFeedback'
+    ]
+  then
+    raise exception 'Test grading review did not capture a private-safe suggestion: %', v_review;
+  end if;
 
   perform public.save_test_response_grades_with_provenance_atomic(
     'a9000000-0000-4000-8000-000000000028',
@@ -1686,6 +1714,31 @@ begin
   where id = 'a9000000-0000-4000-8000-000000000219';
   if v_revision <> 3 or v_request_id <> 'a9000000-0000-4000-8000-000000000601' then
     raise exception 'Teacher correction erased test AI provenance: % / %', v_revision, v_request_id;
+  end if;
+  select ai_grading_review into v_review
+  from public.test_responses
+  where id = 'a9000000-0000-4000-8000-000000000219';
+  if (v_review->'criteria'->0->>'suggestedScore')::numeric <> 4
+    or (v_review->'criteria'->0->>'finalScore')::numeric <> 3
+    or v_review->>'feedbackDisposition' <> 'edited'
+  then
+    raise exception 'Test teacher correction was not captured: %', v_review;
+  end if;
+
+  perform public.return_test_attempts_atomic(
+    'a9000000-0000-4000-8000-000000000028',
+    array['a9000000-0000-4000-8000-000000000002']::uuid[],
+    'a9000000-0000-4000-8000-000000000001',
+    '{}'::jsonb
+  );
+  select revision, ai_grading_review into v_revision, v_review
+  from public.test_responses
+  where id = 'a9000000-0000-4000-8000-000000000219';
+  if v_revision <> 3 then
+    raise exception 'Test grading review changed the response revision: %', v_revision;
+  end if;
+  if v_review->>'reviewStatus' <> 'reviewed' or v_review->>'reviewedAt' is null then
+    raise exception 'Test grading review was not finalized on return: %', v_review;
   end if;
 
   perform public.save_test_response_grades_atomic(
@@ -1721,6 +1774,13 @@ begin
       and ai_grading_provenance is not null
   ) then
     raise exception 'legacy test grade write left stale AI provenance';
+  end if;
+  if exists (
+    select 1 from public.test_responses
+    where id = 'a9000000-0000-4000-8000-000000000219'
+      and ai_grading_review is not null
+  ) then
+    raise exception 'Legacy test grade write left a stale grading review';
   end if;
 
   insert into public.test_ai_grading_runs (
@@ -1826,6 +1886,16 @@ begin
       and ai_grading_provenance is not null
   ) then
     raise exception 'Legacy test grade clear left stale AI provenance';
+  end if;
+  select revision, ai_grading_review into v_revision, v_review
+  from public.test_responses
+  where id = 'a9000000-0000-4000-8000-000000000219';
+  if v_revision <> 6
+    or v_review->>'reviewStatus' <> 'dismissed'
+    or v_review->'criteria'->0->'finalScore' <> 'null'::jsonb
+  then
+    raise exception 'Test grading review dismissal was not captured: % / %',
+      v_revision, v_review;
   end if;
 
   begin

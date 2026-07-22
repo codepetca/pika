@@ -50,6 +50,12 @@ Migration `102` does not enable remote Gradex processing and does not change the
 teacher grading workflow.
 
 Before deployment, require the CI architecture/database-contract job to replay
-migrations `001` through `102`, confirm generated database types have no drift,
+migrations `001` through `104`, confirm generated database types have no drift,
 and pass `scripts/check-atomic-test-grading.sh`. A TypeScript-only or mocked RPC
 test is not sufficient evidence for this migration.
+
+Migration `104_teacher_grading_reviews.sql` adds the identity-free teacher-review eval snapshot. Existing
+manual and durable grading RPC signatures remain unchanged. AI suggestion persistence initializes the
+snapshot, teacher edits update its final outcome, test return marks it reviewed, and grade clearing marks it
+dismissed. Review-only metadata writes do not increment `test_responses.revision`. See
+`docs/guidance/teacher-grading-evals.md` for the privacy and eval contracts.

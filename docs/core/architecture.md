@@ -196,7 +196,7 @@ Before changing remaining `quiz` / `quizzes` names, load
 - **Draft validation**: browser-safe draft contracts live in `@/lib/validations/assessment-drafts`
 - **Draft persistence**: unified `assessment_drafts` table + JSON Patch via `@/lib/server/assessment-drafts`
 - **Scheduling**: `combineScheduleDateTimeToIso()` / `isScheduleIsoInFuture()` from `@/lib/scheduling`
-- **AI grading core**: `src/lib/grading/*` owns versioned assignment, test, and repository-review profiles, structured-output execution, provider adapters, and bounded provenance contracts.
+- **AI grading core**: `src/lib/grading/*` owns versioned assignment, test, and repository-review profiles, structured-output execution, provider adapters, bounded provenance contracts, and identity-free teacher-review eval metrics.
 - **Test grading compatibility adapter**: `src/lib/ai-test-grading.ts` owns roster-aware sanitization, reference-answer SHA-256 caching, score buckets, and pseudonymous batch mapping before invoking the internal core.
 - **Repository-review compatibility adapter**: `src/lib/repo-review-ai.ts` owns evidence sanitization, pseudonymous change references, deterministic fallback feedback, and Pika result formatting before invoking the internal core. GitHub fetching, identity mapping, metrics, run orchestration, and persistence remain Pika-owned.
 

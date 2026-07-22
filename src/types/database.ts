@@ -3,6 +3,7 @@ import type {
   AssignmentSubmissionValidationPolicyJson,
 } from '@/lib/assignment-submission-requirements'
 import type { GradingProvenance, TestGradingProvenance } from '@/lib/grading/contracts'
+import type { GradingReviewSnapshot } from '@/lib/grading/evals'
 import type { Database as GeneratedDatabase, Json } from '@/types/database.generated'
 import type {
   ActualCourseSiteConfig,
@@ -110,11 +111,13 @@ type TableOverrides = {
     'assignment_docs',
     {
       ai_grading_provenance: GradingProvenance | null
+      ai_grading_review: GradingReviewSnapshot | null
       authenticity_flags: AuthenticityFlag[] | null
       content: TiptapContent
     },
     {
       ai_grading_provenance?: GradingProvenance | null
+      ai_grading_review?: GradingReviewSnapshot | null
       authenticity_flags?: AuthenticityFlag[] | null
       content?: TiptapContent
     }
@@ -247,10 +250,12 @@ type TableOverrides = {
     'test_responses',
     {
       ai_grading_provenance: TestGradingProvenance | null
+      ai_grading_review: GradingReviewSnapshot | null
       ai_reference_answers: string[] | null
     },
     {
       ai_grading_provenance?: TestGradingProvenance | null
+      ai_grading_review?: GradingReviewSnapshot | null
       ai_reference_answers?: string[] | null
     }
   >

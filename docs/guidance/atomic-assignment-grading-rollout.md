@@ -41,3 +41,12 @@ Rolling back the application leaves migrations 101 and 103 in place. Older write
 clear stale assignment-document provenance when they replace AI grading fields without replacement audit
 metadata. Do not deploy the new application before migration 103 because repository-review completion will
 call the new wrapper.
+
+## Teacher Review Evaluation Expansion
+
+Migration `104_teacher_grading_reviews.sql` is additive and must be applied before deploying the
+teacher-review eval application version. It captures a bounded, identity-free suggestion/outcome snapshot
+through triggers on the existing atomic assignment writers and return RPC. Repository-review grades use the
+same assignment-document contract. It does not change route payloads, teacher workflows, or remote Gradex
+state. Require migration replay, generated type parity, and the assignment feedback-return database harness;
+see `docs/guidance/teacher-grading-evals.md`.
