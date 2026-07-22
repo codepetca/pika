@@ -14127,3 +14127,24 @@
 - `pnpm run lint`
 - `pnpm run db:types:check` preflight rejected the intentionally mismatched shared stack (`database=080`, worktree missing `080`)
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
+
+<!-- pika-session-log-archive-batch:a29853a0806d81e629328611af103853e4f80e3af8d3163e610c7318c3f9d7fa -->
+## 2026-07-14 — Atomic test grading contracts
+
+**Completed:**
+- Moved manual, bulk-clear, unanswered, and AI test grading writes behind typed atomic database RPCs with optimistic response/item revisions, exact-cohort validation, deterministic lock ordering, leases, and signed AI provenance.
+- Added shared test-scoped advisory locking and an atomic test-deletion boundary so grading, finalization, and deletion serialize without deadlocks or partial writes.
+- Added bounded client conflict recovery that reloads canonical revisions while preserving the teacher's latest draft, plus Zod validation at changed API/server boundaries.
+- Hardened classroom archive restore context scoping and added database-backed CI coverage for both grading concurrency and archive restore contracts.
+- Added migrations `089` through `095`, generated Supabase types, rollout guidance, focused API/server/component/architecture tests, and multi-session database regression harnesses.
+
+**Validation:**
+- `pnpm exec supabase db reset --local`
+- `pnpm run db:types:check`
+- `bash scripts/check-atomic-test-grading.sh`
+- `bash scripts/check-classroom-archive-restore-database.sh`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `pnpm lint`
+- `pnpm vitest run` (359 files, 3,287 tests)
+- `pnpm build`
+- `git diff --check`

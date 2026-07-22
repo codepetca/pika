@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-14 — Atomic test grading contracts
-
-**Completed:**
-- Moved manual, bulk-clear, unanswered, and AI test grading writes behind typed atomic database RPCs with optimistic response/item revisions, exact-cohort validation, deterministic lock ordering, leases, and signed AI provenance.
-- Added shared test-scoped advisory locking and an atomic test-deletion boundary so grading, finalization, and deletion serialize without deadlocks or partial writes.
-- Added bounded client conflict recovery that reloads canonical revisions while preserving the teacher's latest draft, plus Zod validation at changed API/server boundaries.
-- Hardened classroom archive restore context scoping and added database-backed CI coverage for both grading concurrency and archive restore contracts.
-- Added migrations `089` through `095`, generated Supabase types, rollout guidance, focused API/server/component/architecture tests, and multi-session database regression harnesses.
-
-**Validation:**
-- `pnpm exec supabase db reset --local`
-- `pnpm run db:types:check`
-- `bash scripts/check-atomic-test-grading.sh`
-- `bash scripts/check-classroom-archive-restore-database.sh`
-- `bash .codex/skills/pika-audit/scripts/audit.sh`
-- `pnpm lint`
-- `pnpm vitest run` (359 files, 3,287 tests)
-- `pnpm build`
-- `git diff --check`
-
 ## 2026-07-14 — Archive stack review findings fixed
 
 **Completed:**
@@ -1032,3 +1012,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Remaining:**
 - Confirm migration replay, generated-type parity, and the database-backed provenance contract in PR CI, then complete the final independent re-review.
 - Obtain required external approval before merge; continue with test and repository-review profile migration after this assignment foundation lands.
+
+## 2026-07-22 — Phase 3 assignment accessibility evidence
+
+**Completed:**
+- Audited the remaining non-mobile assignment backlog against current `main` and confirmed #891 already shipped polite atomic save announcements and the shared restore-confirmation dialog.
+- Replaced the assignment suite's hand-built confirmation stub with the real `ConfirmDialog`, added focused initial-focus coverage, and locked the visible save-status live-region attributes with regression assertions.
+- Updated the product audit and current context to remove completed assignment work from the backlog. No runtime UI, API, schema, migration, production state, or production data changed.
+
+**Validation:**
+- `pnpm test tests/components/StudentAssignmentEditor.save-submit.test.tsx tests/ui/ModalLayer.test.tsx` (2 files / 52 tests)
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm check:architecture` (613 modules / 0 allowances)
+- `pnpm check:ui-policy` (215 controls / 67 files)
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `node scripts/trim-session-log.mjs --check`
+- `git diff --check`
+
+**Remaining:**
+- Complete repository gates, independent review, and merge this evidence slice. Then start Daily/Attendance; assignment mobile UX remains deferred and Gradex remains owned by a separate session.

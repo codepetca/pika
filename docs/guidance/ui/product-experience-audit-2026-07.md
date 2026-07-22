@@ -174,7 +174,8 @@ Assignment progress:
 
 - Save/submit integrity was completed in the Safety Wave with atomic persistence and stale-submit regression coverage.
 - The first Phase 3 assignment slice gives teacher and student Classwork lists explicit governed loading, error, and successful-empty states. Retry invalidates the classroom list caches before reloading, and role/viewport/theme browser verification covers failure and recovery without changing the normal class-wide workflow.
-- Remaining assignment work is mobile workspace modes, live save announcements and dialog semantics, and the Gradex status boundary.
+- Accessible assignment save announcements and restore-dialog semantics were completed in #891. The visible save state is a polite atomic live region, and restore confirmation uses the shared modal-layer contract for focus containment, dismissal, background isolation, scroll locking, and focus return.
+- Remaining assignment work is limited to the deferred mobile workspace modes and the separately owned Gradex status boundary.
 
 1. Assignments: save/submit integrity, error states, mobile workspace modes, Gradex status boundary.
 2. Tests: list errors, authoring/grading mode separation, standalone preview authorization/framing, mobile navigation, accessible flags/save status.
