@@ -1,7 +1,7 @@
 'use client'
 
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
-import { cn } from '@/ui/utils'
+import { cn } from '@/ui'
 
 type AnnouncementContentTone = 'default' | 'muted'
 type AnnouncementContentSize = 'sm' | 'lg'

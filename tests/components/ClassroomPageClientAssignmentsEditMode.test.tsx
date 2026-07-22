@@ -163,18 +163,22 @@ vi.mock('@/lib/timezone', () => ({
   getTodayInToronto: () => '2026-05-12',
 }))
 
-vi.mock('@/ui', () => ({
-  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  ConfirmDialog: () => null,
-  DialogPanel: ({ isOpen, children, ariaLabelledBy }: any) => (
-    isOpen ? (
-      <div role="dialog" aria-labelledby={ariaLabelledBy}>
-        {children}
-      </div>
-    ) : null
-  ),
-  TabContentTransition: ({ children, isActive }: any) => (isActive ? <>{children}</> : null),
-}))
+vi.mock('@/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/ui')>()
+  return {
+    ...actual,
+    Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+    ConfirmDialog: () => null,
+    DialogPanel: ({ isOpen, children, ariaLabelledBy }: any) => (
+      isOpen ? (
+        <div role="dialog" aria-labelledby={ariaLabelledBy}>
+          {children}
+        </div>
+      ) : null
+    ),
+    TabContentTransition: ({ children, isActive }: any) => (isActive ? <>{children}</> : null),
+  }
+})
 
 vi.mock('@/lib/request-cache', () => ({
   fetchJSONWithCache: (...args: any[]) => mockFetchJSONWithCache(...args),

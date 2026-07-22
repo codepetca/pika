@@ -7,7 +7,7 @@ import { Button, SegmentedControl } from '@/ui'
 import { PageActionBar } from '@/components/PageLayout'
 import { TeacherWorkSurfaceActionBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionBar'
 import type { CalendarViewMode } from '@/components/LessonCalendar'
-import { cn } from '@/ui/utils'
+import { cn } from '@/ui'
 
 interface CalendarActionBarProps {
   viewMode: CalendarViewMode

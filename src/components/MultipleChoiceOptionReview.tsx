@@ -1,6 +1,6 @@
 'use client'
 
-import { cn } from '@/ui/utils'
+import { cn } from '@/ui'
 
 interface MultipleChoiceOptionReviewProps {
   options: string[]

@@ -1,7 +1,7 @@
 'use client'
 
 import type { CSSProperties, KeyboardEventHandler, ReactNode, PointerEventHandler } from 'react'
-import { cn } from '@/ui/utils'
+import { cn } from '@/ui'
 
 interface WorkspaceSplitDivider {
   label: string

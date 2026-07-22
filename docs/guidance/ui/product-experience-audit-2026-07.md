@@ -65,7 +65,7 @@ The classroom shell is the strongest base. Teacher and student utility layouts d
 - Assignment and test grading remain usable on mobile but compress dense tables and controls into a narrow operational surface. Screenshots `30` and `32` show the need for explicit mobile modes instead of desktop density scaled down.
 - Blueprints use a legacy shell, hand-built tabs, a passive empty detail pane, and duplicate create actions. Screenshots `13`, `37`, `37a`, and `38` show the inconsistency.
 - Archived classroom discovery is hidden inside Organize mode. Once visible, Restore and Delete are presented as peer actions without recovery context.
-- There are 21 `@/ui/*` subpath imports and many native controls with no exception registry. Current UI policy checks cannot distinguish intentional specialized controls from drift.
+- Resolved in Phase 2 PR #905: the 21-import baseline and unclassified native controls now use the canonical `@/ui` barrel plus an AST-enforced, reasoned registry covering 215 controls across 67 files.
 - `EmptyState`, loading, menus, tabs, and tables have multiple local implementations. Composite ownership is unresolved in `docs/guidance/ui/legacy.md`.
 - Playwright defines one desktop project, CI does not run the browser suite, and existing visual snapshots contain no mobile coverage.
 - Student aggregate grades and profile editing are absent. These are product decisions to confirm, not automatic implementation defects.

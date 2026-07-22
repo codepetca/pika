@@ -24,9 +24,13 @@ vi.mock('@/components/StudentNotificationsProvider', () => ({
   useStudentNotifications: () => mockNotifications,
 }))
 
-vi.mock('@/ui', () => ({
-  Tooltip: ({ children }: { children: ReactNode }) => <>{children}</>,
-}))
+vi.mock('@/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/ui')>()
+  return {
+    ...actual,
+    Tooltip: ({ children }: { children: ReactNode }) => <>{children}</>,
+  }
+})
 
 vi.mock('@/lib/cookies', () => ({
   writeCookie: vi.fn(),

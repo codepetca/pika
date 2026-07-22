@@ -14,7 +14,7 @@ import {
   type Ref,
 } from 'react'
 import { Button, Tooltip, type ButtonProps } from '@/ui'
-import { cn } from '@/ui/utils'
+import { cn } from '@/ui'
 
 export interface TeacherWorkSurfaceActionItem {
   id: string

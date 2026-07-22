@@ -125,6 +125,22 @@ Source grounding:
 - [`src/app/teacher/layout.tsx`](/src/app/teacher/layout.tsx)
 - [`src/app/student/layout.tsx`](/src/app/student/layout.tsx)
 
+### 3e. Specialized native controls are registered, not globally banned
+
+- Import base controls and utilities through the `@/ui` barrel; app code does not use `@/ui/*`
+  subpaths or legacy primitive paths.
+- Prefer canonical primitives for ordinary controls. Keep native controls where browser semantics
+  or composite behavior requires them.
+- Every native `button`, `input`, `select`, or `textarea` outside `src/ui` and isolated Tiptap
+  implementations has an exact, reasoned registry entry. New or stale counts fail UI policy CI.
+- Treat `legacy-form-control` entries as named migration debt, not precedent for new controls.
+
+Source grounding:
+
+- [`docs/guidance/ui/specialized-control-policy.md`](/docs/guidance/ui/specialized-control-policy.md)
+- [`scripts/check-ui-policy.ts`](/scripts/check-ui-policy.ts)
+- [`scripts/ui-control-exceptions.json`](/scripts/ui-control-exceptions.json)
+
 ### 4. Attendance stays presence-first and scan-friendly
 
 - Attendance UI is optimized for quick scanning and teacher drill-down, not extra status taxonomy.

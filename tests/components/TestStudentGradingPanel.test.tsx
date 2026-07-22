@@ -12,10 +12,14 @@ vi.mock('@/components/QuestionMarkdown', () => ({
   QuestionMarkdown: ({ content }: { content: string }) => <div>{content}</div>,
 }))
 
-vi.mock('@/ui', () => ({
-  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  Input: (props: any) => <input {...props} />,
-}))
+vi.mock('@/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/ui')>()
+  return {
+    ...actual,
+    Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+    Input: (props: any) => <input {...props} />,
+  }
+})
 
 function deferred<T>() {
   let resolve!: (value: T) => void

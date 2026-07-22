@@ -2,7 +2,7 @@
 
 import type { CSSProperties, HTMLAttributes, ReactNode, Ref } from 'react'
 import { forwardRef } from 'react'
-import { cn } from '@/ui/utils'
+import { cn } from '@/ui'
 
 export type TeacherWorkItemCardTone = 'default' | 'muted' | 'scheduled' | 'selected'
 

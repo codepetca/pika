@@ -23,18 +23,22 @@ vi.mock('@/components/editor', () => ({
   RichTextViewer: () => <div data-testid="rich-text-viewer" />,
 }))
 
-vi.mock('@/ui', () => ({
-  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  ContentDialog: ({ isOpen, title, children }: any) => isOpen ? <div role="dialog" aria-label={title}>{children}</div> : null,
-  FormField: ({ label, children }: any) => (
-    <label>
-      <span>{label}</span>
-      {children}
-    </label>
-  ),
-  Input: (props: any) => <input {...props} />,
-  Tooltip: ({ children }: any) => <>{children}</>,
-}))
+vi.mock('@/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/ui')>()
+  return {
+    ...actual,
+    Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+    ContentDialog: ({ isOpen, title, children }: any) => isOpen ? <div role="dialog" aria-label={title}>{children}</div> : null,
+    FormField: ({ label, children }: any) => (
+      <label>
+        <span>{label}</span>
+        {children}
+      </label>
+    ),
+    Input: (props: any) => <input {...props} />,
+    Tooltip: ({ children }: any) => <>{children}</>,
+  }
+})
 
 function makeAssignment() {
   return {
