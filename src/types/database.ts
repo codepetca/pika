@@ -2,6 +2,8 @@ import type {
   AssignmentSubmissionRequirementDraft,
   AssignmentSubmissionValidationPolicyJson,
 } from '@/lib/assignment-submission-requirements'
+import type { GradingProvenance, TestGradingProvenance } from '@/lib/grading/contracts'
+import type { GradingReviewSnapshot } from '@/lib/grading/evals'
 import type { Database as GeneratedDatabase, Json } from '@/types/database.generated'
 import type {
   ActualCourseSiteConfig,
@@ -107,8 +109,18 @@ type TableOverrides = {
   >
   assignment_docs: TableContract<
     'assignment_docs',
-    { authenticity_flags: AuthenticityFlag[] | null; content: TiptapContent },
-    { authenticity_flags?: AuthenticityFlag[] | null; content?: TiptapContent }
+    {
+      ai_grading_provenance: GradingProvenance | null
+      ai_grading_review: GradingReviewSnapshot | null
+      authenticity_flags: AuthenticityFlag[] | null
+      content: TiptapContent
+    },
+    {
+      ai_grading_provenance?: GradingProvenance | null
+      ai_grading_review?: GradingReviewSnapshot | null
+      authenticity_flags?: AuthenticityFlag[] | null
+      content?: TiptapContent
+    }
   >
   assignment_repo_review_results: TableContract<
     'assignment_repo_review_results',
@@ -236,8 +248,16 @@ type TableOverrides = {
   >
   test_responses: TableContract<
     'test_responses',
-    { ai_reference_answers: string[] | null },
-    { ai_reference_answers?: string[] | null }
+    {
+      ai_grading_provenance: TestGradingProvenance | null
+      ai_grading_review: GradingReviewSnapshot | null
+      ai_reference_answers: string[] | null
+    },
+    {
+      ai_grading_provenance?: TestGradingProvenance | null
+      ai_grading_review?: GradingReviewSnapshot | null
+      ai_reference_answers?: string[] | null
+    }
   >
   tests: TableContract<
     'tests',
@@ -253,6 +273,51 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  save_assignment_doc_atomic: {
+    Args: {
+      p_assignment_id: string
+      p_student_id: string
+      p_content: Json
+      p_expected_updated_at: string | null
+      p_trigger: string
+      p_paste_word_count: number
+      p_keystroke_count: number
+      p_patch: Json | null
+      p_snapshot: Json | null
+      p_word_count: number
+      p_char_count: number
+      p_save_session_id: string
+      p_save_sequence: number
+      p_metric_session_id: string
+    }
+    Returns: Json
+  }
+  submit_assignment_doc_atomic: {
+    Args: {
+      p_assignment_id: string
+      p_student_id: string
+      p_content: Json
+      p_expected_updated_at: string
+      p_word_count: number
+      p_char_count: number
+    }
+    Returns: Json
+  }
+  unsubmit_assignment_doc_atomic: {
+    Args: {
+      p_assignment_id: string
+      p_student_id: string
+    }
+    Returns: Json
+  }
+  update_assignment_with_submission_requirements_atomic: {
+    Args: {
+      p_assignment_id: string
+      p_updates: Json
+      p_requirements: Json
+    }
+    Returns: Json
+  }
   claim_assignment_ai_grading_run: FunctionContract<
     'claim_assignment_ai_grading_run',
     TableOverrides['assignment_ai_grading_runs']['Row'][]
@@ -283,10 +348,29 @@ type FunctionOverrides = {
       p_skip_reason: string | null
     }>
   >
+  finalize_assignment_ai_grading_item_with_provenance_atomic: FunctionContract<
+    'finalize_assignment_ai_grading_item_with_provenance_atomic',
+    Json,
+    Replace<GeneratedFunctions['finalize_assignment_ai_grading_item_with_provenance_atomic']['Args'], {
+      p_ai_feedback_model: string | null
+      p_ai_feedback_suggestion: string | null
+      p_ai_grading_provenance: GradingProvenance | null
+      p_graded_by: string | null
+      p_skip_reason: string | null
+    }>
+  >
   finalize_test_ai_grading_item_atomic: FunctionContract<
     'finalize_test_ai_grading_item_atomic',
     Json,
     Replace<GeneratedFunctions['finalize_test_ai_grading_item_atomic']['Args'], {
+      p_ai_reference_answers: string[] | null
+    }>
+  >
+  finalize_test_ai_grading_item_with_provenance_atomic: FunctionContract<
+    'finalize_test_ai_grading_item_with_provenance_atomic',
+    Json,
+    Replace<GeneratedFunctions['finalize_test_ai_grading_item_with_provenance_atomic']['Args'], {
+      p_ai_grading_provenance: TestGradingProvenance
       p_ai_reference_answers: string[] | null
     }>
   >
@@ -341,6 +425,17 @@ type FunctionOverrides = {
       p_graded_by: string | null
     }>
   >
+  save_assignment_ai_grade_with_provenance_atomic: FunctionContract<
+    'save_assignment_ai_grade_with_provenance_atomic',
+    Json,
+    Replace<GeneratedFunctions['save_assignment_ai_grade_with_provenance_atomic']['Args'], {
+      p_ai_feedback_model: string | null
+      p_ai_feedback_suggestion: string | null
+      p_ai_grading_provenance: GradingProvenance | null
+      p_expected_doc_updated_at: string | null
+      p_graded_by: string | null
+    }>
+  >
   save_test_attempt_atomic: FunctionContract<
     'save_test_attempt_atomic',
     Json,
@@ -352,6 +447,14 @@ type FunctionOverrides = {
     'save_test_response_grades_atomic',
     Json,
     Replace<GeneratedFunctions['save_test_response_grades_atomic']['Args'], {
+      p_grade_rows: Json
+      p_student_id: string | null
+    }>
+  >
+  save_test_response_grades_with_provenance_atomic: FunctionContract<
+    'save_test_response_grades_with_provenance_atomic',
+    Json,
+    Replace<GeneratedFunctions['save_test_response_grades_with_provenance_atomic']['Args'], {
       p_grade_rows: Json
       p_student_id: string | null
     }>

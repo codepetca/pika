@@ -24,9 +24,8 @@ import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { ColdClassroomArchiveRow } from '@/components/ColdClassroomArchiveRow'
 import { FloatingActionCluster } from '@/components/FloatingActionCluster'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
-import { Button, ConfirmDialog, SegmentedControl } from '@/ui'
+import { Button, ConfirmDialog, PageContent, PageLayout, SegmentedControl } from '@/ui'
 import { Spinner } from '@/components/Spinner'
-import { PageContent, PageLayout } from '@/components/PageLayout'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import type { Classroom } from '@/types'
 import type { ClassroomColdArchiveSummary } from '@/lib/contracts/classroom-lifecycle'
@@ -44,7 +43,8 @@ interface Props {
 type ViewMode = 'active' | 'archived'
 
 type PendingAction =
-  | { mode: 'archive' | 'restore-hot' | 'delete'; classroom: Classroom }
+  | { mode: 'archive'; classroom: Classroom }
+  | { mode: 'restore-hot'; classroom: Classroom }
   | { mode: 'restore-cold'; archive: ClassroomColdArchiveSummary }
   | null
 
@@ -296,45 +296,22 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     }
   }
 
-  async function deleteClassroom(classroom: Classroom) {
-    setIsProcessing(true)
-    setError('')
-    try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, { method: 'DELETE' })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to delete classroom')
-      }
-      invalidateTeacherClassrooms()
-      setArchivedClassrooms((prev) => prev.filter((c) => c.id !== classroom.id))
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete classroom')
-    } finally {
-      setIsProcessing(false)
-      setPendingAction(null)
-    }
-  }
-
   async function handleConfirmAction() {
     if (!pendingAction) return
-    const { mode } = pendingAction
 
-    if (mode === 'archive') {
+    if (pendingAction.mode === 'archive') {
       await archiveClassroom(pendingAction.classroom)
       return
     }
 
-    if (mode === 'restore-hot') {
+    if (pendingAction.mode === 'restore-hot') {
       await restoreHotClassroom(pendingAction.classroom)
       return
     }
 
-    if (mode === 'restore-cold') {
+    if (pendingAction.mode === 'restore-cold') {
       await restoreColdArchive(pendingAction.archive)
-      return
     }
-
-    await deleteClassroom(pendingAction.classroom)
   }
 
   const dialogTitle = pendingAction
@@ -342,9 +319,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       ? `Archive ${pendingAction.classroom.title}?`
       : pendingAction.mode === 'restore-hot'
         ? `Restore ${pendingAction.classroom.title}?`
-        : pendingAction.mode === 'restore-cold'
-          ? `Restore ${pendingAction.archive.title}?`
-          : `Delete ${pendingAction.classroom.title}?`
+        : `Restore ${pendingAction.archive.title}?`
     : ''
 
   const dialogDescription = pendingAction
@@ -352,20 +327,15 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       ? 'Students will lose access until the classroom is restored.'
       : pendingAction.mode === 'restore-hot'
         ? 'Students will regain access to this classroom.'
-        : pendingAction.mode === 'restore-cold'
-          ? 'The classroom will return to Archived with its submissions and files available.'
-          : 'This permanently deletes the classroom and all related data.'
+        : 'The classroom will return to Archived with its submissions and files available.'
     : undefined
 
   const dialogConfirmLabel = pendingAction
     ? pendingAction.mode === 'archive'
       ? 'Archive'
-      : pendingAction.mode === 'restore-hot' || pendingAction.mode === 'restore-cold'
-        ? 'Restore'
-        : 'Delete'
+      : 'Restore'
     : 'Confirm'
 
-  const dialogVariant = pendingAction?.mode === 'delete' ? 'danger' : 'default'
   const showCreateClassroomButton = view === 'active' && (activeClassrooms.length === 0 || isEditingClassrooms)
 
   const openClassroom = useCallback((classroom: Classroom) => {
@@ -374,7 +344,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   }, [router])
 
   return (
-    <PageLayout className="mx-auto max-w-2xl">
+    <PageLayout density="teacher" width="reading">
       <PageContent className="pb-24">
         {error && (
           <div className="mb-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
@@ -410,7 +380,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <p className="text-sm font-medium text-text-default">No archived classrooms</p>
               <p className="mt-1 text-sm text-text-muted">
-                Archived classrooms will appear here so you can restore or permanently remove them later.
+                Archived classrooms will appear here so you can restore them later.
               </p>
               {showCreateClassroomButton ? (
                 <Button
@@ -497,7 +467,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                           </div>
                         )}
                       </button>
-                      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                      <div className="flex items-center lg:justify-end">
                         <Button
                           type="button"
                           variant="surface"
@@ -506,16 +476,6 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                           disabled={openingClassroomId !== null}
                         >
                           Restore
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setPendingAction({ mode: 'delete', classroom: c })}
-                          className="text-danger hover:bg-danger-bg"
-                          disabled={openingClassroomId !== null}
-                        >
-                          Delete
                         </Button>
                       </div>
                     </div>
@@ -555,7 +515,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         chrome="none"
         data-testid="classroom-bottom-controls"
       >
-        <div className="relative min-h-9">
+        <div className="relative min-h-[52px]">
           {isEditingClassrooms ? (
             <div className="absolute left-1/2 -translate-x-1/2">
               <SegmentedControl<ViewMode>
@@ -612,7 +572,6 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         description={dialogDescription}
         confirmLabel={isProcessing ? 'Working…' : dialogConfirmLabel}
         cancelLabel="Cancel"
-        confirmVariant={dialogVariant}
         isConfirmDisabled={isProcessing}
         isCancelDisabled={isProcessing}
         onCancel={() => (isProcessing ? null : setPendingAction(null))}

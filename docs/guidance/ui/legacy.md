@@ -16,11 +16,16 @@ These patterns still exist in the repo, but they should not be treated as defaul
 - Example: the student assignment summary cards in [`src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`](/src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx) are locally styled `button` cards.
 - This is acceptable to preserve current behavior, but it should not automatically become a new default pattern.
 
-### 3. Shared classroom composition that lives outside `@/ui`
+### 3. Compatibility imports for the canonical page primitives
 
-- Attendance and teacher-assignment workflows rely on `PageLayout`, `PageActionBar`, `DataTable`, and related helpers in `src/components/`.
-- Those building blocks are useful, but they are not yet canonized at the same level as `@/ui`.
-- Preserve them when working inside those workflows, but do not assume they are promoted shared truth.
+- `PageLayout`, `PageHeading`, `PageActionBar`, `PageContent`, and `PageStack` are canonical in
+  `@/ui`.
+- `src/components/PageLayout.tsx` remains only as a compatibility export for active callers that
+  have not been migrated yet.
+- New work imports the page primitives from `@/ui`; migrate compatibility imports when their
+  owning surface is deliberately touched instead of creating an all-at-once churn PR.
+- `DataTable` and other workflow-specific composition helpers remain outside `@/ui` until their
+  separate Phase 2 contracts are decided.
 
 ## Legacy Guidance Rule
 

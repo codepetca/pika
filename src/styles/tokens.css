@@ -13,10 +13,10 @@
  * - gray-300: #d1d5db   gray-400: #9ca3af    gray-500: #6b7280
  * - gray-600: #4b5563   gray-700: #374151    gray-800: #1f2937
  * - gray-900: #111827   gray-950: #030712
- * - blue-500: #3b82f6   blue-600: #2563eb    blue-700: #1d4ed8
- * - green-500: #22c55e  green-600: #16a34a   green-700: #15803d
- * - red-500: #ef4444    red-600: #dc2626     red-700: #b91c1c
- * - yellow-400: #facc15 yellow-500: #eab308
+ * - blue-400: #60a5fa   blue-600: #2563eb    blue-700: #1d4ed8
+ * - green-400: #4ade80  green-700: #15803d   green-800: #166534
+ * - red-400: #f87171    red-600: #dc2626     red-800: #991b1b
+ * - amber-400: #fbbf24  amber-700: #b45309   amber-800: #92400e
  */
 
 :root {
@@ -36,29 +36,35 @@
 
   /* Text colors */
   --color-text-default: #111827;
-  --color-text-muted: #6b7280;
+  --color-text-muted: #4b5563;
   --color-text-inverse: #ffffff;
 
   /* Brand assets */
   --pika-logo-filter: none;
 
   /* Primary accent */
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
+  --color-primary: #1d4ed8;
+  --color-primary-hover: #1e40af;
+  --color-primary-solid: #2563eb;
+  --color-primary-solid-hover: #1d4ed8;
 
   /* Status colors */
-  --color-success: #16a34a;
-  --color-success-hover: #15803d;
+  --color-success: #166534;
+  --color-success-hover: #14532d;
+  --color-success-solid: #15803d;
+  --color-success-solid-hover: #166534;
   --color-success-bg: #dcfce7;
   --color-success-bg-muted: #ecfdf5;
   --color-success-bg-hover: #bbf7d0;
-  --color-danger: #dc2626;
-  --color-danger-hover: #b91c1c;
+  --color-danger: #991b1b;
+  --color-danger-hover: #7f1d1d;
+  --color-danger-solid: #dc2626;
+  --color-danger-solid-hover: #b91c1c;
   --color-danger-bg: #fee2e2;
   --color-danger-bg-hover: #fecaca;
-  --color-warning: #d97706;
+  --color-warning: #92400e;
   --color-warning-bg: #fef3c7;
-  --color-info: #2563eb;
+  --color-info: #1d4ed8;
   --color-info-bg: #dbeafe;
   --color-info-bg-hover: #bfdbfe;
 
@@ -92,7 +98,7 @@
   --color-surface-3: #1f2937;
   --color-surface-panel: #111827;
   --color-surface-accent: #1f2937;
-  --color-surface-selected: rgba(37, 99, 235, 0.58);
+  --color-surface-selected: rgba(37, 99, 235, 0.15);
   --color-surface-hover: #1f2937;
 
   /* Border colors - dark mode */
@@ -108,22 +114,28 @@
   --pika-logo-filter: brightness(0) hue-rotate(15deg) invert(1) saturate(0.3) sepia(1);
 
   /* Primary accent - dark mode */
-  --color-primary: #3b82f6;
-  --color-primary-hover: #2563eb;
+  --color-primary: #60a5fa;
+  --color-primary-hover: #93c5fd;
+  --color-primary-solid: #2563eb;
+  --color-primary-solid-hover: #1d4ed8;
 
   /* Status colors - dark mode */
-  --color-success: #22c55e;
-  --color-success-hover: #16a34a;
+  --color-success: #4ade80;
+  --color-success-hover: #86efac;
+  --color-success-solid: #15803d;
+  --color-success-solid-hover: #166534;
   --color-success-bg: rgba(22, 101, 52, 0.5);
   --color-success-bg-muted: rgba(22, 101, 52, 0.25);
   --color-success-bg-hover: rgba(22, 101, 52, 0.6);
-  --color-danger: #ef4444;
-  --color-danger-hover: #dc2626;
+  --color-danger: #f87171;
+  --color-danger-hover: #fca5a5;
+  --color-danger-solid: #dc2626;
+  --color-danger-solid-hover: #b91c1c;
   --color-danger-bg: rgba(127, 29, 29, 0.3);
   --color-danger-bg-hover: rgba(127, 29, 29, 0.5);
   --color-warning: #fbbf24;
   --color-warning-bg: rgba(120, 53, 15, 0.3);
-  --color-info: #3b82f6;
+  --color-info: #60a5fa;
   --color-info-bg: rgba(30, 58, 138, 0.3);
   --color-info-bg-hover: rgba(30, 58, 138, 0.4);
 

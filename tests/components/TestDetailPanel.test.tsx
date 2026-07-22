@@ -707,7 +707,7 @@ describe('TestDetailPanel', () => {
         expect(within(editorPane).getByRole('button', { name: 'Duplicate question 1' })).toBeInTheDocument()
         expect(within(editorPane).getByRole('button', { name: 'Delete question 1' })).toBeInTheDocument()
       })
-      expect(within(editorPane).getByRole('button', { name: '+ MC Question' })).toHaveClass('bg-primary')
+      expect(within(editorPane).getByRole('button', { name: '+ MC Question' })).toHaveClass('bg-primary-solid')
       expect(within(editorPane).getByRole('button', { name: 'Choose question type' })).toBeInTheDocument()
       expect(within(editorPane).getByLabelText('Question 1 points')).toHaveValue(6)
       expect(within(editorPane).getByLabelText('Question 1 code response')).toBeChecked()
@@ -1042,6 +1042,19 @@ describe('TestDetailPanel', () => {
       })
 
       expect(markdownPaneWrapper).toHaveStyle({ width: '50%', flexBasis: '50%' })
+      expect(separator).toHaveAttribute('tabindex', '0')
+      expect(separator).toHaveAttribute('aria-valuemin', '0')
+      expect(separator).toHaveAttribute('aria-valuemax', '100')
+      expect(separator).toHaveAttribute('aria-valuenow', '50')
+
+      fireEvent.keyDown(separator, { key: 'ArrowLeft' })
+      await waitFor(() => {
+        expect(markdownPaneWrapper).toHaveStyle({ width: '52%', flexBasis: '52%' })
+      })
+      fireEvent.keyDown(separator, { key: 'ArrowRight' })
+      await waitFor(() => {
+        expect(markdownPaneWrapper).toHaveStyle({ width: '50%', flexBasis: '50%' })
+      })
 
       vi.spyOn(layout, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 1200, 800))
 
@@ -3247,7 +3260,9 @@ Prompt:
 
       fireEvent.click(screen.getByRole('tab', { name: 'Documents' }))
       fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
-      fireEvent.click(screen.getByRole('tab', { name: 'Text' }))
+      fireEvent.keyDown(screen.getByRole('tab', { name: 'Link' }), { key: 'ArrowLeft' })
+      expect(screen.getByRole('tab', { name: 'Text' })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByRole('tabpanel', { name: 'Text' })).toBeInTheDocument()
       fireEvent.change(screen.getByPlaceholderText('Title'), {
         target: { value: 'Allowed formulas' },
       })

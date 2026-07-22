@@ -90,15 +90,54 @@ missing_risk_test_message() {
   printf '%s' 'risky server/runtime behavior changed without a relevant changed test'
 }
 
+strip_block_comments() {
+  awk '
+    BEGIN { in_block = 0 }
+    {
+      line = $0
+      while (1) {
+        if (in_block) {
+          end = index(line, "*/")
+          if (end == 0) {
+            line = ""
+            break
+          }
+          line = substr(line, end + 2)
+          in_block = 0
+          continue
+        }
+
+        start = index(line, "/*")
+        if (start == 0) break
+
+        suffix = substr(line, start + 2)
+        end = index(suffix, "*/")
+        if (end == 0) {
+          line = substr(line, 1, start - 1)
+          in_block = 1
+          break
+        }
+
+        line = substr(line, 1, start - 1) substr(suffix, end + 2)
+      }
+      print line
+    }
+  '
+}
+
 has_relevant_test_for_composite_file() {
   local file="$1"
-  local source_base source_stem source_stem_lower
+  local source_base source_stem source_stem_lower source_module source_alias source_alias_regex
   local test_file
-  local test_base test_stem test_stem_lower test_full
+  local test_base test_stem test_stem_lower test_full test_match_source
 
   source_base="$(basename "$file")"
   source_stem="${source_base%.*}"
   source_stem_lower="$(printf '%s' "$source_stem" | tr '[:upper:]' '[:lower:]')"
+  source_module="${file#src/}"
+  source_module="${source_module%.*}"
+  source_alias="@/${source_module}"
+  source_alias_regex="$(printf '%s' "$source_alias" | sed 's/[][\\.^$*+?{}()|]/\\&/g')"
 
   for test_file in "${TEST_FILES[@]}"; do
     if ! test_file_matches_any "$test_file" "tests/components/" "tests/ui/" "tests/integration/"; then
@@ -110,6 +149,13 @@ has_relevant_test_for_composite_file() {
     test_stem="${test_stem%%.spec.*}"
     test_stem_lower="$(printf '%s' "$test_stem" | tr '[:upper:]' '[:lower:]')"
     test_full="$WORKTREE/$test_file"
+
+    if [[ -f "$test_full" ]]; then
+      test_match_source="$(strip_block_comments < "$test_full")"
+      if printf '%s\n' "$test_match_source" | grep -Eq "^[[:space:]]*(import|export)[^'\"]*from[[:space:]]*['\"]${source_alias_regex}['\"]|^[[:space:]]*import[[:space:]]*['\"]${source_alias_regex}['\"]|^[[:space:]]*((const|let|var)[[:space:]]+[A-Za-z_$][A-Za-z0-9_$]*[[:space:]]*=[[:space:]]*)?(await[[:space:]]+)?import[[:space:]]*\\([[:space:]]*['\"]${source_alias_regex}['\"]"; then
+        return 0
+      fi
+    fi
 
     if is_generic_composite_stem "$source_stem"; then
       if [[ "$test_stem_lower" == "$source_stem_lower" ]]; then
@@ -193,9 +239,11 @@ while IFS= read -r file; do
   fi
 
   # c) Duplicated parseContentField function
-  while IFS=: read -r lineno _; do
-    report_violation "duplicate-parseContentField" "$file:$lineno" "import parseContentField from @/lib/tiptap-content instead"
-  done < <(grep -nE '(function|const) parseContentField' "$FULL" 2>/dev/null || true)
+  if [[ "$file" != "src/lib/tiptap-content.ts" ]]; then
+    while IFS=: read -r lineno _; do
+      report_violation "duplicate-parseContentField" "$file:$lineno" "import parseContentField from @/lib/tiptap-content instead"
+    done < <(grep -nE '(function|const) parseContentField' "$FULL" 2>/dev/null || true)
+  fi
 
   # d) console.log in production code (not tests)
   if [[ "$file" != *.test.ts && "$file" != *.spec.ts && "$file" != *.test.tsx && "$file" != *.spec.tsx ]]; then

@@ -5,6 +5,7 @@ import type { ClassroomThemeColor } from '@/lib/classroom-theme'
 
 interface AppShellProps {
   children: ReactNode
+  navigation?: ReactNode
   showHeader?: boolean
   user?: {
     email: string
@@ -39,6 +40,7 @@ interface AppShellProps {
  */
 export function AppShell({
   children,
+  navigation,
   showHeader = true,
   user,
   classrooms,
@@ -70,9 +72,10 @@ export function AppShell({
           pageTitle={pageTitle}
         />
       )}
+      {navigation}
       <main
         className={[
-          'flex-1 min-h-0',
+          'flex-1 min-h-0 w-full',
           shouldConstrainViewport ? 'lg:overflow-hidden' : '',
           mainClassName || 'max-w-7xl mx-auto px-4 py-3',
         ].filter(Boolean).join(' ')}

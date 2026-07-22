@@ -6,6 +6,7 @@ import { getTestExitCount } from '@/lib/tests'
 import { Button, Input } from '@/ui'
 import type { TestFocusSummary } from '@/types'
 import type { TestQuestionGradingSnapshot } from '@/lib/test-grading-context'
+import type { TestGradingProvenance } from '@/lib/grading/contracts'
 
 interface QuestionInfo {
   id: string
@@ -53,6 +54,7 @@ interface GradeDraft {
   aiProvenanceToken?: string
   aiSuggestedScore?: number
   aiSuggestedFeedback?: string
+  aiGradingProvenance?: TestGradingProvenance
 }
 
 interface TestStats {
@@ -229,6 +231,7 @@ export function TestIndividualResponses({
         aiProvenanceToken: data.ai_provenance_token,
         aiSuggestedScore: data.suggestion?.score,
         aiSuggestedFeedback: data.suggestion?.feedback,
+        aiGradingProvenance: data.suggestion?.provenance,
       })
       setGradingMessageState({
         scope: operationScope,
@@ -295,6 +298,7 @@ export function TestIndividualResponses({
                 ai_provenance_token: draft.aiProvenanceToken,
                 ai_suggested_score: draft.aiSuggestedScore,
                 ai_suggested_feedback: draft.aiSuggestedFeedback,
+                ai_grading_provenance: draft.aiGradingProvenance,
               }
             : {}),
         }),

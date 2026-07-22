@@ -59,6 +59,15 @@ describe('TeacherClassroomsIndex', () => {
     vi.restoreAllMocks()
   })
 
+  it('uses the governed compact reading-width page frame', () => {
+    renderTeacherClassroomsIndex([
+      createMockClassroom({ id: 'c1', title: 'Math 101' }),
+    ])
+
+    const pageFrame = screen.getByTestId('classroom-card').closest('.max-w-2xl')
+    expect(pageFrame).toHaveClass('mx-auto', 'w-full', 'max-w-2xl')
+  })
+
   it('does not refetch classrooms on initial mount (#302)', async () => {
     const classrooms = [createMockClassroom({ id: 'c1', title: 'Math 101' })]
     renderTeacherClassroomsIndex(classrooms)
@@ -107,6 +116,24 @@ describe('TeacherClassroomsIndex', () => {
     expect(screen.queryByRole('button', { name: 'New' })).not.toBeInTheDocument()
   })
 
+  it('keeps archived classrooms restore-only and never issues classroom DELETE requests', async () => {
+    vi.mocked(fetchTeacherArchivedClassroomState).mockResolvedValueOnce({
+      classrooms: [
+        createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' }),
+      ],
+      coldArchives: [],
+      coldArchiveRestoreEnabled: false,
+    })
+
+    renderTeacherClassroomsIndex([])
+    fireEvent.click(screen.getByRole('button', { name: 'Organize classrooms' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+
+    expect(await screen.findByRole('button', { name: 'Restore' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+  })
+
   it('hides the create button after the first classroom unless edit mode is enabled', async () => {
     const classrooms = [createMockClassroom({ id: 'c1', title: 'Math 101' })]
     renderTeacherClassroomsIndex(classrooms)
@@ -150,9 +177,11 @@ describe('TeacherClassroomsIndex', () => {
 
     const activeButton = screen.getByRole('button', { name: 'Active' })
     const archivedButton = screen.getByRole('button', { name: 'Archived' })
+    const bottomControls = screen.getByTestId('classroom-bottom-controls')
 
     expect(activeButton).toBeInTheDocument()
     expect(archivedButton).toBeInTheDocument()
+    expect(bottomControls.firstElementChild).toHaveClass('min-h-[52px]')
     expect(activeButton).not.toHaveAttribute('title')
     expect(archivedButton).not.toHaveAttribute('title')
     expect(screen.getByRole('button', { name: 'Drag to reorder Math 101' })).toBeInTheDocument()

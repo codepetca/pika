@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react'
 import { Pencil } from 'lucide-react'
 import { Button, Tooltip, type ButtonProps } from '@/ui'
-import { cn } from '@/ui/utils'
+import { cn } from '@/ui'
 
 interface TeacherEditModeControlsProps {
   active: boolean

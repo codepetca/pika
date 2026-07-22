@@ -1,12 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Button, ConfirmDialog, AlertDialog, Tooltip } from '@/ui'
+import { Button, AlertDialog } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
-import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
+import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { useAlertDialog } from '@/hooks/useAlertDialog'
-import { useDeleteClassroom } from '@/hooks/useDeleteClassroom'
 import type { ClassDay, Classroom } from '@/types'
 import { fetchClassDaysForClassroom, invalidateClassDaysForClassroom } from '@/lib/class-days-client'
 import { fetchTeacherClassrooms, invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
@@ -45,25 +44,7 @@ export default function CalendarPage() {
   const selectedClassroomIdRef = useRef<string | null>(null)
   selectedClassroomIdRef.current = selectedClassroom?.id ?? null
 
-  const { alertState, showError, showSuccess, closeAlert } = useAlertDialog()
-
-  const handleDeleteSuccess = useCallback((deletedId: string) => {
-    invalidateTeacherClassrooms()
-    invalidateClassDaysForClassroom(deletedId)
-    const updatedClassrooms = classrooms.filter(c => c.id !== deletedId)
-    setClassrooms(updatedClassrooms)
-    setSelectedClassroom(updatedClassrooms.length > 0 ? updatedClassrooms[0] : null)
-    showSuccess('Deleted', 'Classroom deleted successfully')
-  }, [classrooms, showSuccess])
-
-  const handleDeleteError = useCallback((message: string) => {
-    showError('Error', message)
-  }, [showError])
-
-  const { requestDelete, confirmDialogProps } = useDeleteClassroom({
-    onSuccess: handleDeleteSuccess,
-    onError: handleDeleteError,
-  })
+  const { alertState, showError, closeAlert } = useAlertDialog()
 
   // Helper function to calculate semester years based on current date
   function getSemesterYears() {
@@ -228,11 +209,6 @@ export default function CalendarPage() {
     invalidateClassDaysForClassroom(classroom.id)
     setClassrooms([classroom, ...classrooms])
     setSelectedClassroom(classroom)
-  }
-
-  function handleDeleteClassroom() {
-    if (!selectedClassroom) return
-    requestDelete(selectedClassroom)
   }
 
   function renderWizard() {
@@ -532,7 +508,7 @@ export default function CalendarPage() {
             {classrooms.map((classroom) => (
               <div
                 key={classroom.id}
-                className={`relative p-3 rounded transition border ${
+                className={`p-3 rounded transition border ${
                   selectedClassroom?.id === classroom.id
                     ? 'bg-info-bg border-primary'
                     : 'hover:bg-surface-hover border-transparent'
@@ -542,26 +518,13 @@ export default function CalendarPage() {
                   onClick={() => setSelectedClassroom(classroom)}
                   className="w-full text-left"
                 >
-                  <div className="font-medium text-text-default text-sm pr-6">
+                  <div className="font-medium text-text-default text-sm">
                     {classroom.title}
                   </div>
                   <div className="text-xs text-text-muted mt-1">
                     {classroom.class_code}
                   </div>
                 </button>
-                <Tooltip content="Delete classroom">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      requestDelete(classroom)
-                    }}
-                    className="absolute top-2 right-2 p-1 text-text-muted hover:text-danger hover:bg-danger-bg rounded transition"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </Tooltip>
               </div>
             ))}
           </div>
@@ -584,16 +547,6 @@ export default function CalendarPage() {
                     {classDays.filter(d => d.is_class_day).length} class days
                   </div>
                 </div>
-              }
-              actions={
-                [
-                  {
-                    id: 'delete-classroom',
-                    label: 'Delete',
-                    onSelect: handleDeleteClassroom,
-                    destructive: true,
-                  },
-                ] satisfies ActionBarItem[]
               }
             />
 
@@ -621,8 +574,6 @@ export default function CalendarPage() {
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleClassroomCreated}
       />
-
-      <ConfirmDialog {...confirmDialogProps} />
 
       <AlertDialog {...alertState} onClose={closeAlert} />
     </div>

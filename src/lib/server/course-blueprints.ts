@@ -8,7 +8,6 @@ import {
   encodeCourseBlueprintPackageArchive,
   parseCourseBlueprintImportBundle,
   parseCourseBlueprintImportArchive,
-  type CourseBlueprintPackageBundle,
 } from '@/lib/course-blueprint-package'
 import {
   DEFAULT_PLANNED_COURSE_SITE_CONFIG,
@@ -611,11 +610,11 @@ export async function exportCourseBlueprintArchive(teacherId: string, blueprintI
 
 export async function importCourseBlueprintBundle(
   teacherId: string,
-  bundle: CourseBlueprintPackageBundle,
+  bundle: unknown,
   options: BlueprintOperationOptions = {},
 ) {
   const parsed = parseCourseBlueprintImportBundle(bundle)
-  if (parsed.errors.length > 0) {
+  if (parsed.errors.length > 0 || !parsed.manifest) {
     return { ok: false as const, status: 400, error: 'Invalid course package', errors: parsed.errors }
   }
 
@@ -634,8 +633,8 @@ export async function importCourseBlueprintBundle(
       include_in_final: assessment.include_in_final !== false,
     })),
     lessonTemplates: parsed.lesson_templates,
-    manifestVersion: bundle.manifest.version,
-    sourcePackageExportedAt: bundle.manifest.exported_at,
+    manifestVersion: parsed.manifest.version,
+    sourcePackageExportedAt: parsed.manifest.exported_at,
   })
   const operation = await createCourseBlueprintAtomic({
     supabase,

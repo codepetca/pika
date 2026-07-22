@@ -32,26 +32,30 @@ vi.mock('@/components/HistoryList', () => ({
   ),
 }))
 
-vi.mock('@/ui', () => ({
-  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  SegmentedControl: ({ ariaLabel, value, options, onChange, testId }: any) => (
-    <div role="group" aria-label={ariaLabel} data-testid={testId}>
-      {options.map((option: any) => (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => onChange(option.value)}
-          disabled={option.disabled}
-          aria-pressed={option.value === value}
-          aria-label={option.label}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  ),
-  Tooltip: ({ children }: any) => <>{children}</>,
-}))
+vi.mock('@/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/ui')>()
+  return {
+    ...actual,
+    Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+    SegmentedControl: ({ ariaLabel, value, options, onChange, testId }: any) => (
+      <div role="group" aria-label={ariaLabel} data-testid={testId}>
+        {options.map((option: any) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            disabled={option.disabled}
+            aria-pressed={option.value === value}
+            aria-label={option.label}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    ),
+    Tooltip: ({ children }: any) => <>{children}</>,
+  }
+})
 
 function makeStudentWork(
   studentId: string,
@@ -371,6 +375,9 @@ describe('TeacherStudentWorkPanel', () => {
     expect(screen.queryByRole('button', { name: 'Repo' })).not.toBeInTheDocument()
 
     expect(screen.getByLabelText('Completion score')).toBeInTheDocument()
+    const completionQuickScore = screen.getByRole('button', { name: 'Set Completion score to 6' })
+    fireEvent.click(completionQuickScore)
+    expect(completionQuickScore).toHaveClass('bg-primary-solid', 'text-text-inverse')
     expect(screen.getByPlaceholderText('Teacher comment draft')).toBeInTheDocument()
     expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
     expect(screen.queryByText('Contribution')).not.toBeInTheDocument()

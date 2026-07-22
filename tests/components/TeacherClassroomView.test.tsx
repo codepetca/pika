@@ -59,100 +59,119 @@ vi.mock('@dnd-kit/utilities', () => ({
   },
 }))
 
-vi.mock('@/ui', () => ({
-  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  ConfirmDialog: ({ isOpen, title, description, confirmLabel, cancelLabel, onConfirm, onCancel, isConfirmDisabled, isCancelDisabled }: any) => (
-    isOpen ? (
+vi.mock('@/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/ui')>()
+  return {
+    ...actual,
+    Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+    ConfirmDialog: ({ isOpen, title, description, confirmLabel, cancelLabel, onConfirm, onCancel, isConfirmDisabled, isCancelDisabled }: any) => (
+      isOpen ? (
+        <div>
+          <div>{title}</div>
+          {description ? <div>{description}</div> : null}
+          <button type="button" onClick={onCancel} disabled={isCancelDisabled}>{cancelLabel}</button>
+          <button type="button" onClick={onConfirm} disabled={isConfirmDisabled}>{confirmLabel}</button>
+        </div>
+      ) : null
+    ),
+    ContentDialog: ({ isOpen, title, subtitle, children }: any) => (
+      isOpen ? (
+        <div role="dialog" aria-label={title}>
+          <div>{title}</div>
+          {subtitle ? <div>{subtitle}</div> : null}
+          {children}
+        </div>
+      ) : null
+    ),
+    DialogPanel: ({ isOpen, children }: any) => (
+      isOpen ? (
+        <div role="dialog">
+          {children}
+        </div>
+      ) : null
+    ),
+    FormField: ({ label, children }: any) => (
+      <label>
+        <span>{label}</span>
+        {children}
+      </label>
+    ),
+    Input: (props: any) => <input {...props} />,
+    Select: ({ options = [], ...props }: any) => (
+      <select {...props}>
+        {options.map((option: any) => (
+          <option key={option.value} value={option.value} disabled={option.disabled}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    ),
+    SplitButton: ({ label, onPrimaryClick, disabled, primaryButtonProps, options = [] }: any) => (
       <div>
-        <div>{title}</div>
-        {description ? <div>{description}</div> : null}
-        <button type="button" onClick={onCancel} disabled={isCancelDisabled}>{cancelLabel}</button>
-        <button type="button" onClick={onConfirm} disabled={isConfirmDisabled}>{confirmLabel}</button>
-      </div>
-    ) : null
-  ),
-  ContentDialog: ({ isOpen, title, subtitle, children }: any) => (
-    isOpen ? (
-      <div role="dialog" aria-label={title}>
-        <div>{title}</div>
-        {subtitle ? <div>{subtitle}</div> : null}
-        {children}
-      </div>
-    ) : null
-  ),
-  DialogPanel: ({ isOpen, children }: any) => (
-    isOpen ? (
-      <div role="dialog">
-        {children}
-      </div>
-    ) : null
-  ),
-  FormField: ({ label, children }: any) => (
-    <label>
-      <span>{label}</span>
-      {children}
-    </label>
-  ),
-  Input: (props: any) => <input {...props} />,
-  Select: ({ options = [], ...props }: any) => (
-    <select {...props}>
-      {options.map((option: any) => (
-        <option key={option.value} value={option.value} disabled={option.disabled}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  ),
-  SplitButton: ({ label, onPrimaryClick, disabled, primaryButtonProps, options = [] }: any) => (
-    <div>
-      <button
-        type="button"
-        onClick={onPrimaryClick}
-        disabled={disabled}
-        {...primaryButtonProps}
-      >
-        {label}
-      </button>
-      {options.map((option: any) => (
         <button
-          key={option.id}
           type="button"
-          onClick={option.onSelect}
-          disabled={option.disabled}
-          aria-pressed={option.checked}
-          onMouseEnter={() => option.onHoverChange?.(true)}
-          onMouseLeave={() => option.onHoverChange?.(false)}
-          onFocus={() => option.onHoverChange?.(true)}
-          onBlur={() => option.onHoverChange?.(false)}
+          onClick={onPrimaryClick}
+          disabled={disabled}
+          {...primaryButtonProps}
         >
-          {option.label}
+          {label}
         </button>
-      ))}
-    </div>
-  ),
-  SegmentedControl: ({ ariaLabel, value, options, onChange }: any) => (
-    <div role="group" aria-label={ariaLabel}>
-      {options.map((option: any) => (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => onChange(option.value)}
-          disabled={option.disabled}
-          aria-pressed={option.value === value}
-          aria-label={option.label}
-        >
-          {option.icon}
-          {option.label}
-        </button>
-      ))}
-    </div>
-  ),
-  Tooltip: ({ children, content }: any) => (
-    <span data-tooltip={typeof content === 'string' ? content : undefined}>{children}</span>
-  ),
-  useAppMessage: () => ({ showMessage: mockShowMessage, clearMessage: vi.fn() }),
-  useOverlayMessage: (...args: any[]) => mockUseOverlayMessage(...args),
-}))
+        {options.map((option: any) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={option.onSelect}
+            disabled={option.disabled}
+            aria-pressed={option.checked}
+            onMouseEnter={() => option.onHoverChange?.(true)}
+            onMouseLeave={() => option.onHoverChange?.(false)}
+            onFocus={() => option.onHoverChange?.(true)}
+            onBlur={() => option.onHoverChange?.(false)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    ),
+    SegmentedControl: ({ ariaLabel, value, options, onChange }: any) => (
+      <div role="group" aria-label={ariaLabel}>
+        {options.map((option: any) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            disabled={option.disabled}
+            aria-pressed={option.value === value}
+            aria-label={option.label}
+          >
+            {option.icon}
+            {option.label}
+          </button>
+        ))}
+      </div>
+    ),
+    DataTable: ({ children }: any) => <table><tbody>{children}</tbody></table>,
+    DataTableBody: ({ children }: any) => <>{children}</>,
+    DataTableCell: ({ children }: any) => <td>{children}</td>,
+    DataTableHead: ({ children }: any) => <>{children}</>,
+    DataTableHeaderCell: ({ children }: any) => <th>{children}</th>,
+    DataTableRow: ({ children, ...props }: any) => <tr {...props}>{children}</tr>,
+    EmptyStateRow: ({ message }: any) => <tr><td>{message}</td></tr>,
+    KeyboardNavigableTable: forwardRef<HTMLDivElement, any>(function KeyboardNavigableTableMock(
+      { children },
+      ref,
+    ) {
+      return <div ref={ref}>{children}</div>
+    }),
+    SortableHeaderCell: ({ label, onClick }: any) => <button type="button" onClick={onClick}>{label}</button>,
+    TableCard: ({ children }: any) => <div>{children}</div>,
+    Tooltip: ({ children, content }: any) => (
+      <span data-tooltip={typeof content === 'string' ? content : undefined}>{children}</span>
+    ),
+    useAppMessage: () => ({ showMessage: mockShowMessage, clearMessage: vi.fn() }),
+    useOverlayMessage: (...args: any[]) => mockUseOverlayMessage(...args),
+  }
+})
 
 vi.mock('@/hooks/useDelayedBusy', () => ({
   useDelayedBusy: (value: boolean) => value,
@@ -661,6 +680,9 @@ describe('TeacherClassroomView', () => {
       if (key === `teacher-materials:${classroom.id}`) {
         return Promise.resolve({ materials: [] })
       }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
       return fetcher()
     })
     mockInvalidateCachedJSON.mockReset()
@@ -672,6 +694,119 @@ describe('TeacherClassroomView', () => {
     window.sessionStorage.clear()
     clearSelectionCookie()
     clearAssignmentWorkspaceStudentCookie()
+  })
+
+  it('shows a classwork error and restores the list after retry', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let assignmentsShouldFail = true
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        if (assignmentsShouldFail) {
+          return Promise.reject(new Error('Assignments unavailable'))
+        }
+        return Promise.resolve({
+          assignments: [makeAssignmentSummary('assignment-restored', 'Restored assignment')],
+        })
+      }
+      if (key === `teacher-materials:${classroom.id}`) {
+        return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
+      return fetcher()
+    })
+
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+    expect(screen.queryByText('No classwork yet')).not.toBeInTheDocument()
+
+    assignmentsShouldFail = false
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByRole('button', { name: 'Restored assignment' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-assignments:${classroom.id}`)
+    expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-materials:${classroom.id}`)
+    expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-surveys:${classroom.id}`)
+    expect(consoleError).toHaveBeenCalledWith('Error loading assignments:', expect.any(Error))
+  })
+
+  it('treats a survey list failure as a retryable classwork failure', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let surveysShouldFail = true
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) return Promise.resolve({ assignments: [] })
+      if (key === `teacher-materials:${classroom.id}`) return Promise.resolve({ materials: [] })
+      if (key === `teacher-surveys:${classroom.id}`) {
+        if (surveysShouldFail) return Promise.reject(new Error('Surveys unavailable'))
+        return Promise.resolve({
+          surveys: [makeSurveySummary('survey-restored', 'Recovered survey')],
+        })
+      }
+      return fetcher()
+    })
+
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+    expect(screen.queryByText('No classwork yet')).not.toBeInTheDocument()
+
+    surveysShouldFail = false
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByRole('button', { name: 'Recovered survey' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('keeps failed classwork in a blocking state while reactivating the tab', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let assignmentAttempts = 0
+    let rejectReactivation: ((reason: Error) => void) | null = null
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        assignmentAttempts += 1
+        if (assignmentAttempts === 1) {
+          return Promise.reject(new Error('Assignments unavailable'))
+        }
+        if (assignmentAttempts === 2) {
+          return new Promise((_resolve, reject) => {
+            rejectReactivation = reject
+          })
+        }
+        return Promise.resolve({
+          assignments: [makeAssignmentSummary('assignment-recovered', 'Recovered after reactivation')],
+        })
+      }
+      if (key === `teacher-materials:${classroom.id}`) return Promise.resolve({ materials: [] })
+      if (key === `teacher-surveys:${classroom.id}`) return Promise.resolve({ surveys: [] })
+      return fetcher()
+    })
+
+    const view = render(
+      <TeacherClassroomView classroom={classroom} selectedAssignmentId={null} isActive />
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+
+    view.rerender(
+      <TeacherClassroomView classroom={classroom} selectedAssignmentId={null} isActive={false} />
+    )
+    view.rerender(
+      <TeacherClassroomView classroom={classroom} selectedAssignmentId={null} isActive />
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Loading classwork' })).toBeInTheDocument()
+    expect(screen.queryByText('No classwork yet')).not.toBeInTheDocument()
+    await waitFor(() => expect(rejectReactivation).toEqual(expect.any(Function)))
+
+    await act(async () => {
+      rejectReactivation?.(new Error('Assignments still unavailable'))
+    })
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByRole('button', { name: 'Recovered after reactivation' })).toBeInTheDocument()
   })
 
   it('does not reopen a stale assignment cookie when URL selection is on summary', async () => {
@@ -1094,6 +1229,9 @@ describe('TeacherClassroomView', () => {
       if (key === `class-days:${classroom.id}`) {
         return Promise.resolve({ class_days: [] })
       }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
       return fetcher()
     })
 
@@ -1465,6 +1603,9 @@ describe('TeacherClassroomView', () => {
       if (key === `teacher-materials:${classroom.id}`) {
         return Promise.resolve({ materials: [] })
       }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
+      }
       return fetcher()
     })
     const updateSearchParams = vi.fn()
@@ -1503,6 +1644,9 @@ describe('TeacherClassroomView', () => {
       }
       if (key === `teacher-materials:${classroom.id}`) {
         return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
       }
       return fetcher()
     })
@@ -3362,6 +3506,9 @@ describe('TeacherClassroomView', () => {
       }
       if (key === `teacher-materials:${classroom.id}`) {
         return Promise.resolve({ materials: [] })
+      }
+      if (key === `teacher-surveys:${classroom.id}`) {
+        return Promise.resolve({ surveys: [] })
       }
       return fetcher()
     })

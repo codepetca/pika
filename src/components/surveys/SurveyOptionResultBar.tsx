@@ -26,7 +26,7 @@ export function SurveyOptionResultBar({
         aria-label={`${option}: ${count} responses, ${roundedPercent}%`}
       >
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-primary"
+          className="absolute inset-y-0 left-0 rounded-full bg-primary-solid"
           style={{ width: `${percent}%` }}
         >
           {showPercentInFill ? (

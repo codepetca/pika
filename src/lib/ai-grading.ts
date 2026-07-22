@@ -4,7 +4,6 @@ import {
 } from '@/lib/assignment-artifacts'
 import {
   estimatePromptMetrics,
-  extractOpenAIResponseUsage,
   logAiPromptTelemetry,
 } from '@/lib/ai-prompt-metrics'
 import {
@@ -12,41 +11,19 @@ import {
   sanitizeAiText,
   type AiSanitizationContext,
 } from '@/lib/ai-sanitization'
+import { toGradingProvenance, type GradingProvenance } from '@/lib/grading/contracts'
+import { executeGrading, GradingOutputError } from '@/lib/grading/engine'
+import {
+  PIKA_ASSIGNMENT_GRADING_PROFILE,
+  PIKA_ASSIGNMENT_POLICY_VERSION,
+  type PikaAssignmentGradingInput,
+} from '@/lib/grading/profiles/pika-assignment'
+import { createOpenAiResponsesProvider } from '@/lib/grading/providers/openai-responses'
+import { GradingProviderError } from '@/lib/grading/providers/types'
 import { extractPlainText } from '@/lib/tiptap-content'
 import type { TiptapContent } from '@/types'
 
 const DEFAULT_MODEL = 'gpt-5-nano'
-const RETRYABLE_STATUS_CODES = new Set([408, 409, 429, 500, 502, 503, 504])
-const ASSIGNMENT_GRADING_MAX_OUTPUT_TOKENS = 220
-const ASSIGNMENT_GRADING_FALLBACK_MAX_OUTPUT_TOKENS = 420
-const ASSIGNMENT_GRADING_REASONING_EFFORT = 'minimal'
-
-const ASSIGNMENT_GRADE_JSON_SCHEMA = {
-  type: 'object',
-  properties: {
-    score_completion: {
-      type: 'integer',
-      minimum: 0,
-      maximum: 10,
-    },
-    score_thinking: {
-      type: 'integer',
-      minimum: 0,
-      maximum: 10,
-    },
-    score_workflow: {
-      type: 'integer',
-      minimum: 0,
-      maximum: 10,
-    },
-    feedback: {
-      type: 'string',
-      minLength: 1,
-    },
-  },
-  required: ['score_completion', 'score_thinking', 'score_workflow', 'feedback'],
-  additionalProperties: false,
-} as const
 
 export type AssignmentAiErrorKind =
   | 'config'
@@ -95,142 +72,6 @@ function getOpenAIKey(): string | null {
   const key = process.env.OPENAI_API_KEY
   if (!key) return null
   return key.trim() || null
-}
-
-function extractResponseOutputText(payload: any): string | null {
-  if (typeof payload?.output_text === 'string' && payload.output_text.trim()) {
-    return payload.output_text.trim()
-  }
-
-  if (payload?.output_parsed && typeof payload.output_parsed === 'object') {
-    return JSON.stringify(payload.output_parsed)
-  }
-
-  const output = payload?.output
-  if (!Array.isArray(output)) return null
-
-  const textParts: string[] = []
-
-  for (const item of output) {
-    const content = item?.content
-    if (!Array.isArray(content)) continue
-    for (const c of content) {
-      if (c?.type === 'output_text' && typeof c?.text === 'string' && c.text.trim()) {
-        textParts.push(c.text.trim())
-        continue
-      }
-      if (c?.parsed && typeof c.parsed === 'object') {
-        return JSON.stringify(c.parsed)
-      }
-      if (c?.json && typeof c.json === 'object') {
-        return JSON.stringify(c.json)
-      }
-    }
-  }
-
-  return textParts.length > 0 ? textParts.join('\n') : null
-}
-
-function isMaxOutputIncomplete(payload: any): boolean {
-  return (
-    payload?.status === 'incomplete' &&
-    payload?.incomplete_details?.reason === 'max_output_tokens'
-  )
-}
-
-function buildAssignmentGradingApiBody(
-  request: AssignmentGradingRequest,
-  maxOutputTokens: number,
-) {
-  return {
-    model: request.model,
-    store: false,
-    input: [
-      {
-        role: 'system',
-        content: [{ type: 'input_text', text: request.systemPrompt }],
-      },
-      {
-        role: 'user',
-        content: [{ type: 'input_text', text: request.userPrompt }],
-      },
-    ],
-    reasoning: {
-      effort: ASSIGNMENT_GRADING_REASONING_EFFORT,
-    },
-    max_output_tokens: maxOutputTokens,
-    text: {
-      format: {
-        type: 'json_schema',
-        name: 'assignment_grade',
-        strict: true,
-        schema: ASSIGNMENT_GRADE_JSON_SCHEMA,
-      },
-    },
-  }
-}
-
-async function fetchAssignmentGradingPayload(opts: {
-  apiKey: string
-  request: AssignmentGradingRequest
-  requestTimeoutMs?: number
-  maxOutputTokens: number
-}): Promise<any> {
-  let response: Response
-  try {
-    response = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${opts.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(buildAssignmentGradingApiBody(opts.request, opts.maxOutputTokens)),
-      signal:
-        opts.requestTimeoutMs && opts.requestTimeoutMs > 0
-          ? AbortSignal.timeout(opts.requestTimeoutMs)
-          : undefined,
-    })
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      (error.name === 'AbortError' || error.name === 'TimeoutError')
-    ) {
-      throw new AssignmentAiGradingError({
-        kind: 'timeout',
-        message: 'OpenAI grading request timed out',
-        retryable: true,
-      })
-    }
-
-    throw new AssignmentAiGradingError({
-      kind: 'network',
-      message: error instanceof Error ? error.message : 'OpenAI request failed',
-      retryable: true,
-    })
-  }
-
-  if (!response.ok) {
-    const bodyText = await response.text().catch(() => '')
-    const statusCode = response.status
-    const retryable = RETRYABLE_STATUS_CODES.has(statusCode)
-    const kind: AssignmentAiErrorKind =
-      statusCode === 429
-        ? 'rate_limit'
-        : retryable
-          ? 'server'
-          : statusCode === 401 || statusCode === 403
-            ? 'config'
-            : 'bad_response'
-
-    throw new AssignmentAiGradingError({
-      kind,
-      message: `OpenAI request failed (${statusCode}): ${bodyText}`,
-      retryable,
-      statusCode,
-    })
-  }
-
-  return response.json()
 }
 
 function formatArtifactLabel(artifact: AssignmentArtifact): string {
@@ -303,19 +144,27 @@ export interface GradeResult {
   score_thinking: number
   score_workflow: number
   feedback: string
+  provider: string
   model: string
   attempts: number
+  provider_request_count: number
+  policy_version: string
+  prompt_version: string
+  grading_profile_version: string
+  rubric_version: string
+  token_usage: {
+    input_tokens: number | null
+    output_tokens: number | null
+    total_tokens: number | null
+  }
+  provenance: GradingProvenance
 }
 
 export interface AssignmentGradingRequest {
   model: string
   systemPrompt: string
   userPrompt: string
-}
-
-interface AssignmentGradingApiResponse {
-  payload: any
-  outputText: string
+  input: PikaAssignmentGradingInput
 }
 
 export function buildAssignmentGradingRequest(opts: {
@@ -329,29 +178,17 @@ export function buildAssignmentGradingRequest(opts: {
   const studentSubmission = buildStudentSubmissionText(opts.studentWork, opts.submissionArtifacts)
   const assignmentTitle = sanitizeAiText(opts.assignmentTitle, opts.sanitizationContext ?? undefined)
   const instructions = sanitizeAiText(opts.instructions, opts.sanitizationContext ?? undefined)
+  const input = {
+    assignmentTitle,
+    instructions,
+    submission: sanitizeAiText(studentSubmission, opts.sanitizationContext ?? undefined),
+  }
+  const prompt = PIKA_ASSIGNMENT_GRADING_PROFILE.buildPrompt(input)
 
   return {
     model,
-    systemPrompt: `You are an assignment grader. Grade the student's work using this rubric:
-
-- **Completion** (0–10): Did the student complete all parts of the assignment?
-- **Thinking** (0–10): Does the work show depth of thought, analysis, or understanding?
-- **Workflow** (0–10): Is the work organized, clear, and well-presented?
-- Treat attached artifacts (links, repositories, images) as part of the student's submission. Do not say a required site or artifact is missing if it appears in the "Attached Artifacts" section.
-
-Respond with ONLY valid JSON in this format:
-{"score_completion":N,"score_thinking":N,"score_workflow":N,"feedback":"..."}
-
-Feedback rules:
-- feedback should be 1-3 sentences
-- include one sentence starting with "Strength:"
-- include one sentence starting with "Next Step:"
-- if total score is less than 30, include one sentence starting with "Improve:" and give one concrete improvement to reach full marks.`,
-    userPrompt: `Assignment: ${assignmentTitle}
-Instructions: ${instructions}
-
-Student Work:
-${sanitizeAiText(studentSubmission, opts.sanitizationContext ?? undefined)}`,
+    ...prompt,
+    input,
   }
 }
 
@@ -360,14 +197,20 @@ function toAssignmentAiGradingError(error: unknown): AssignmentAiGradingError {
     return error
   }
 
-  if (
-    error instanceof Error &&
-    (error.name === 'AbortError' || error.name === 'TimeoutError')
-  ) {
+  if (error instanceof GradingProviderError) {
     return new AssignmentAiGradingError({
-      kind: 'timeout',
-      message: 'OpenAI grading request timed out',
-      retryable: true,
+      kind: error.kind,
+      message: error.message,
+      retryable: error.retryable,
+      statusCode: error.statusCode,
+    })
+  }
+
+  if (error instanceof GradingOutputError) {
+    return new AssignmentAiGradingError({
+      kind: 'invalid_output',
+      message: error.message,
+      retryable: false,
     })
   }
 
@@ -384,97 +227,6 @@ function toAssignmentAiGradingError(error: unknown): AssignmentAiGradingError {
     message: 'Unknown grading error',
     retryable: false,
   })
-}
-
-async function callAssignmentGradingApi(opts: {
-  apiKey: string
-  request: AssignmentGradingRequest
-  requestTimeoutMs?: number
-}): Promise<AssignmentGradingApiResponse> {
-  let payload = await fetchAssignmentGradingPayload({
-    apiKey: opts.apiKey,
-    request: opts.request,
-    requestTimeoutMs: opts.requestTimeoutMs,
-    maxOutputTokens: ASSIGNMENT_GRADING_MAX_OUTPUT_TOKENS,
-  })
-
-  if (isMaxOutputIncomplete(payload)) {
-    payload = await fetchAssignmentGradingPayload({
-      apiKey: opts.apiKey,
-      request: opts.request,
-      requestTimeoutMs: opts.requestTimeoutMs,
-      maxOutputTokens: ASSIGNMENT_GRADING_FALLBACK_MAX_OUTPUT_TOKENS,
-    })
-  }
-
-  if (isMaxOutputIncomplete(payload)) {
-    throw new AssignmentAiGradingError({
-      kind: 'bad_response',
-      message: 'OpenAI response incomplete: max_output_tokens',
-      retryable: false,
-    })
-  }
-
-  const outputText = extractResponseOutputText(payload)
-  if (!outputText) {
-    throw new AssignmentAiGradingError({
-      kind: 'bad_response',
-      message: 'OpenAI response missing structured output',
-      retryable: false,
-    })
-  }
-
-  return {
-    payload,
-    outputText,
-  }
-}
-
-function parseAssignmentGradingResponse(outputText: string) {
-  let jsonText = outputText
-  const codeBlockMatch = outputText.match(/```(?:json)?\s*([\s\S]*?)```/)
-  if (codeBlockMatch) {
-    jsonText = codeBlockMatch[1].trim()
-  }
-
-  let parsed: any
-  try {
-    parsed = JSON.parse(jsonText)
-  } catch {
-    throw new AssignmentAiGradingError({
-      kind: 'invalid_output',
-      message: `Failed to parse grading response as JSON: ${outputText.slice(0, 200)}`,
-      retryable: false,
-    })
-  }
-
-  const sc = Number(parsed.score_completion)
-  const st = Number(parsed.score_thinking)
-  const sw = Number(parsed.score_workflow)
-
-  if ([sc, st, sw].some((n) => !Number.isInteger(n) || n < 0 || n > 10)) {
-    throw new AssignmentAiGradingError({
-      kind: 'invalid_output',
-      message: 'Scores must be integers 0–10',
-      retryable: false,
-    })
-  }
-
-  let feedback = sanitizeAiOutputText(String(parsed.feedback || '').trim())
-  if (!feedback) {
-    throw new AssignmentAiGradingError({
-      kind: 'invalid_output',
-      message: 'Feedback is empty',
-      retryable: false,
-    })
-  }
-
-  return {
-    score_completion: sc,
-    score_thinking: st,
-    score_workflow: sw,
-    feedback,
-  }
 }
 
 export async function gradeStudentWork(opts: {
@@ -504,13 +256,24 @@ export async function gradeStudentWork(opts: {
   })
   const promptMetrics = estimatePromptMetrics(request.systemPrompt, request.userPrompt)
   try {
-    const { payload, outputText } = await callAssignmentGradingApi({
-      apiKey,
-      request,
-      requestTimeoutMs: opts.requestTimeoutMs,
+    const gradingResult = await executeGrading({
+      input: request.input,
+      profile: PIKA_ASSIGNMENT_GRADING_PROFILE,
+      provider: createOpenAiResponsesProvider({ apiKey }),
+      policy: {
+        version: PIKA_ASSIGNMENT_POLICY_VERSION,
+        model: request.model,
+        requestTimeoutMs: opts.requestTimeoutMs,
+        reasoningEffort: 'minimal',
+      },
     })
-    const usage = extractOpenAIResponseUsage(payload)
-    const parsed = parseAssignmentGradingResponse(outputText)
+    const scores = new Map(
+      gradingResult.criteriaResults.map((criterion) => [criterion.criterionId, criterion.score]),
+    )
+    const feedback = sanitizeAiOutputText(gradingResult.feedback.student)
+    if (!feedback) {
+      throw new GradingOutputError('Feedback is empty')
+    }
 
     logAiPromptTelemetry({
       feature: opts.telemetry?.feature ?? 'assignment_auto_grade',
@@ -531,15 +294,30 @@ export async function gradeStudentWork(opts: {
       userChars: promptMetrics.userChars,
       promptChars: promptMetrics.totalChars,
       estimatedInputTokens: promptMetrics.estimatedInputTokens,
-      actualInputTokens: usage.inputTokens,
-      actualOutputTokens: usage.outputTokens,
-      actualTotalTokens: usage.totalTokens,
+      actualInputTokens: gradingResult.tokenUsage.inputTokens,
+      actualOutputTokens: gradingResult.tokenUsage.outputTokens,
+      actualTotalTokens: gradingResult.tokenUsage.totalTokens,
     })
 
     return {
-      ...parsed,
-      model: request.model,
+      score_completion: scores.get('completion')!,
+      score_thinking: scores.get('thinking')!,
+      score_workflow: scores.get('workflow')!,
+      feedback,
+      provider: gradingResult.provider,
+      model: gradingResult.model,
       attempts: 1,
+      provider_request_count: gradingResult.providerRequestCount,
+      policy_version: gradingResult.policyVersion,
+      prompt_version: gradingResult.promptVersion,
+      grading_profile_version: gradingResult.gradingProfileVersion,
+      rubric_version: gradingResult.rubricVersion,
+      token_usage: {
+        input_tokens: gradingResult.tokenUsage.inputTokens,
+        output_tokens: gradingResult.tokenUsage.outputTokens,
+        total_tokens: gradingResult.tokenUsage.totalTokens,
+      },
+      provenance: toGradingProvenance(gradingResult),
     }
   } catch (error) {
     const gradingError = toAssignmentAiGradingError(error)

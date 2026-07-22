@@ -75,7 +75,9 @@ vi.mock('@/components/layout', async () => {
 
   return {
     ThreePanelProvider: ({ children, routeKey }: any) => {
-      const [isRightOpen, setRightOpen] = React.useState(routeKey === 'today' || routeKey === 'assignments-teacher-list')
+      const [isRightOpen, setRightOpen] = React.useState(
+        routeKey === 'today' || routeKey === 'assignments-teacher-list' || routeKey === 'calendar-teacher'
+      )
       const [rightWidth, setRightWidth] = React.useState(320)
       const value = React.useMemo(
         () => ({
@@ -161,18 +163,22 @@ vi.mock('@/lib/timezone', () => ({
   getTodayInToronto: () => '2026-05-12',
 }))
 
-vi.mock('@/ui', () => ({
-  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  ConfirmDialog: () => null,
-  DialogPanel: ({ isOpen, children, ariaLabelledBy }: any) => (
-    isOpen ? (
-      <div role="dialog" aria-labelledby={ariaLabelledBy}>
-        {children}
-      </div>
-    ) : null
-  ),
-  TabContentTransition: ({ children, isActive }: any) => (isActive ? <>{children}</> : null),
-}))
+vi.mock('@/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/ui')>()
+  return {
+    ...actual,
+    Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+    ConfirmDialog: () => null,
+    DialogPanel: ({ isOpen, children, ariaLabelledBy }: any) => (
+      isOpen ? (
+        <div role="dialog" aria-labelledby={ariaLabelledBy}>
+          {children}
+        </div>
+      ) : null
+    ),
+    TabContentTransition: ({ children, isActive }: any) => (isActive ? <>{children}</> : null),
+  }
+})
 
 vi.mock('@/lib/request-cache', () => ({
   fetchJSONWithCache: (...args: any[]) => mockFetchJSONWithCache(...args),
@@ -257,10 +263,20 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherSettingsTab', () => ({
     </button>
   ),
 }))
-vi.mock('@/app/classrooms/[classroomId]/TeacherLessonCalendarTab', () => ({
-  TeacherLessonCalendarTab: () => <div />,
-  TeacherLessonCalendarSidebar: () => <div />,
-}))
+vi.mock('@/app/classrooms/[classroomId]/TeacherLessonCalendarTab', async () => {
+  const React = await import('react')
+
+  return {
+    TeacherLessonCalendarTab: ({ onSidebarStateChange }: any) => {
+      React.useEffect(() => {
+        onSidebarStateChange?.({ bulkSaving: false, onSave: vi.fn() })
+      }, [onSidebarStateChange])
+
+      return <div />
+    },
+    TeacherLessonCalendarSidebar: () => <div />,
+  }
+})
 vi.mock('@/app/classrooms/[classroomId]/StudentLessonCalendarTab', () => ({
   StudentLessonCalendarTab: () => <div />,
 }))
@@ -479,6 +495,18 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     renderClient({ initialTab: 'attendance', initialSearchParams: { tab: 'attendance' } })
 
     expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
+  })
+
+  it('uses the accessible solid fill for the calendar sidebar save action', async () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=calendar')
+
+    renderClient({ initialTab: 'calendar', initialSearchParams: { tab: 'calendar' } })
+
+    expect(await screen.findByRole('button', { name: 'Save' })).toHaveClass(
+      'bg-primary-solid',
+      'hover:bg-primary-solid-hover',
+      'text-text-inverse'
+    )
   })
 
   it('shows today and last class lesson plans in the student today sidebar', async () => {

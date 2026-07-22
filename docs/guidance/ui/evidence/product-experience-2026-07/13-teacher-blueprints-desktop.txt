@@ -1,0 +1,24 @@
+- navigation:
+  - link "Pika":
+    - /url: /classrooms
+    - img "Pika"
+  - link "Classrooms":
+    - /url: /classrooms
+  - link "Blueprints":
+    - /url: /teacher/blueprints
+  - link "Calendar":
+    - /url: /teacher/calendar
+  - generic: teacher@example.com
+  - link "Logout":
+    - /url: /logout
+- main:
+  - generic: Course Blueprints
+  - generic: Build, publish, export, and reuse course packages.
+  - button "Classrooms"
+  - button "New Course Blueprint"
+  - button "Import Course Package"
+  - complementary:
+    - paragraph: No course blueprints yet.
+    - button "Create Course Blueprint"
+  - generic: Select a course blueprint to edit its course package.
+- alert

@@ -7,10 +7,69 @@ import type {
   AssignmentSubmissionRequirement,
 } from '@/types'
 import { loadChunkedRows } from '@/lib/server/query-chunks'
+import type { TableRow } from '@/types/database'
+import { z } from 'zod'
+import { assignmentSubmissionContentSchema } from '@/lib/validations/assignment-doc-submissions'
 
 const ASSIGNMENT_ARTIFACTS_BUCKET = 'assignment-artifacts'
 const SIGNED_IMAGE_URL_EXPIRES_SECONDS = 60 * 60
 const STORAGE_REMOVE_CHUNK_SIZE = 1000
+const timestampSchema = z.string().datetime({ offset: true })
+
+const assignmentRowSchema = z.object({
+  classroom_id: z.string().min(1),
+  created_at: timestampSchema,
+  created_by: z.string().min(1),
+  description: z.string(),
+  due_at: timestampSchema,
+  gradebook_weight: z.number(),
+  id: z.string().min(1),
+  include_in_final: z.boolean(),
+  instructions_markdown: z.string().nullable(),
+  is_draft: z.boolean(),
+  points_possible: z.number(),
+  position: z.number().int(),
+  released_at: timestampSchema.nullable(),
+  rich_instructions: assignmentSubmissionContentSchema.nullable(),
+  title: z.string(),
+  track_authenticity: z.boolean(),
+  updated_at: timestampSchema,
+}).strip()
+
+const assignmentRequirementRowSchema = z.object({
+  assignment_id: z.string().min(1),
+  created_at: timestampSchema,
+  id: z.string().min(1),
+  instructions: z.string(),
+  label: z.string(),
+  position: z.number().int(),
+  required: z.boolean(),
+  type: z.enum(['repo_link', 'link', 'image']),
+  updated_at: timestampSchema,
+  validation_policy_json: z.record(z.string(), z.unknown()),
+}).strip()
+
+const assignmentRequirementsAtomicErrorSchema = z.object({
+  ok: z.literal(false),
+  status: z.number().int().min(400).max(599),
+  error_code: z.string().min(1),
+  error: z.string().min(1),
+}).strip()
+
+const assignmentRequirementsAtomicSuccessSchema = z.object({
+  ok: z.literal(true),
+  assignment: assignmentRowSchema,
+  submission_requirements: z.array(assignmentRequirementRowSchema),
+}).strip()
+
+const assignmentArtifactDeleteResultSchema = z.discriminatedUnion('ok', [
+  z.object({
+    ok: z.literal(true),
+    deleted: z.boolean(),
+    storage_path: z.string().nullable(),
+  }).strip(),
+  assignmentRequirementsAtomicErrorSchema,
+])
 
 type SupabaseClientLike = any
 type SupabaseSchemaError = {
@@ -287,6 +346,109 @@ export async function replaceAssignmentSubmissionRequirements(
   } catch (error) {
     if (isMissingAssignmentSubmissionSchemaError(error)) return []
     throw error
+  }
+}
+
+export async function updateAssignmentWithSubmissionRequirementsAtomic(input: {
+  supabase: SupabaseClientLike
+  assignmentId: string
+  updates: Record<string, unknown>
+  requirements: AssignmentSubmissionRequirementDraft[]
+}): Promise<
+  | {
+      ok: true
+      assignment: TableRow<'assignments'>
+      submissionRequirements: AssignmentSubmissionRequirement[]
+    }
+  | { ok: false; status: number; error: string }
+> {
+  const normalized = normalizeAssignmentSubmissionRequirementDrafts(input.requirements)
+  const { data, error } = await input.supabase.rpc(
+    'update_assignment_with_submission_requirements_atomic',
+    {
+      p_assignment_id: input.assignmentId,
+      p_updates: input.updates,
+      p_requirements: normalized,
+    }
+  )
+
+  if (error) {
+    if (error.code === 'PGRST202' || error.code === '42883') {
+      return { ok: false, status: 500, error: 'Assignment submission migration is required' }
+    }
+    if (
+      error.code === '23514'
+      && String(error.message).includes('assignment_requirements_submitted_documents_immutable')
+    ) {
+      return {
+        ok: false,
+        status: 409,
+        error: 'Submission requirements cannot be changed after a student submits.',
+      }
+    }
+    console.error('Error updating assignment and submission requirements atomically:', error)
+    return { ok: false, status: 500, error: 'Failed to update assignment' }
+  }
+
+  const parsedError = assignmentRequirementsAtomicErrorSchema.safeParse(data)
+  if (parsedError.success) {
+    return {
+      ok: false,
+      status: parsedError.data.status,
+      error: parsedError.data.error,
+    }
+  }
+
+  const parsed = assignmentRequirementsAtomicSuccessSchema.safeParse(data)
+  if (!parsed.success) {
+    console.error('Invalid assignment requirements atomic RPC result:', parsed.error)
+    return { ok: false, status: 500, error: 'Failed to update assignment' }
+  }
+
+  return {
+    ok: true,
+    assignment: parsed.data.assignment,
+    submissionRequirements: parsed.data.submission_requirements,
+  }
+}
+
+export async function deleteAssignmentSubmissionArtifactAtomic(input: {
+  supabase: SupabaseClientLike
+  assignmentId: string
+  studentId: string
+  requirementId: string
+}): Promise<
+  | { ok: true; deleted: boolean; storagePath: string | null }
+  | { ok: false; status: number; error: string }
+> {
+  const { data, error } = await input.supabase.rpc(
+    'delete_assignment_submission_artifact_atomic',
+    {
+      p_assignment_id: input.assignmentId,
+      p_student_id: input.studentId,
+      p_requirement_id: input.requirementId,
+    }
+  )
+  if (error) {
+    if (error.code === 'PGRST202' || error.code === '42883') {
+      return { ok: false, status: 503, error: 'Assignment submission migration is required' }
+    }
+    console.error('Failed to delete assignment submission artifact atomically:', error)
+    return { ok: false, status: 500, error: 'Failed to delete submission artifact' }
+  }
+
+  const parsed = assignmentArtifactDeleteResultSchema.safeParse(data)
+  if (!parsed.success) {
+    console.error('Invalid assignment artifact deletion RPC result:', parsed.error)
+    return { ok: false, status: 500, error: 'Failed to delete submission artifact' }
+  }
+  if (!parsed.data.ok) {
+    return { ok: false, status: parsed.data.status, error: parsed.data.error }
+  }
+  return {
+    ok: true,
+    deleted: parsed.data.deleted,
+    storagePath: parsed.data.storage_path,
   }
 }
 

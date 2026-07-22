@@ -3,35 +3,32 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import { teacherStudentHistoryQuerySchema } from '@/lib/validations/teacher-student-history'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 /**
  * GET /api/teacher/student-history?classroom_id=xxx&student_id=xxx&before_date=YYYY-MM-DD&limit=10
- * Returns past entries for a student in reverse chronological order.
+ * Returns entries for a student in reverse chronological order, optionally for one exact date.
  */
 export const GET = withErrorHandler('GetStudentHistory', async (request: NextRequest) => {
   const user = await requireRole('teacher')
   const { searchParams } = new URL(request.url)
-  const classroomId = searchParams.get('classroom_id')
-  const studentId = searchParams.get('student_id')
-  const beforeDate = searchParams.get('before_date')
-  const limit = Math.min(parseInt(searchParams.get('limit') || '10', 10) || 10, 50)
-
-  if (!classroomId || !studentId) {
-    return NextResponse.json(
-      { error: 'classroom_id and student_id are required' },
-      { status: 400 }
-    )
-  }
-
-  if (beforeDate && !/^\d{4}-\d{2}-\d{2}$/.test(beforeDate)) {
-    return NextResponse.json(
-      { error: 'Invalid before_date format (use YYYY-MM-DD)' },
-      { status: 400 }
-    )
-  }
+  const queryInput = teacherStudentHistoryQuerySchema.parse({
+    classroom_id: searchParams.get('classroom_id') ?? undefined,
+    student_id: searchParams.get('student_id') ?? undefined,
+    before_date: searchParams.get('before_date') ?? undefined,
+    date: searchParams.get('date') ?? undefined,
+    limit: searchParams.get('limit') ?? undefined,
+  })
+  const {
+    classroom_id: classroomId,
+    student_id: studentId,
+    before_date: beforeDate,
+    date,
+    limit,
+  } = queryInput
 
   const supabase = getServiceRoleClient()
   const ownership = await assertTeacherOwnsClassroom(user.id, classroomId, { supabase })
@@ -57,19 +54,21 @@ export const GET = withErrorHandler('GetStudentHistory', async (request: NextReq
     )
   }
 
-  let query = supabase
+  let entriesQuery = supabase
     .from('entries')
     .select('*')
     .eq('student_id', studentId)
     .eq('classroom_id', classroomId)
-    .order('date', { ascending: false })
-    .limit(limit)
 
-  if (beforeDate) {
-    query = query.lt('date', beforeDate)
+  if (date) {
+    entriesQuery = entriesQuery.eq('date', date)
+  } else if (beforeDate) {
+    entriesQuery = entriesQuery.lt('date', beforeDate)
   }
 
-  const { data: entries, error: entriesError } = await query
+  const { data: entries, error: entriesError } = await entriesQuery
+    .order('date', { ascending: false })
+    .limit(limit)
 
   if (entriesError) {
     console.error('Error fetching student history:', entriesError)

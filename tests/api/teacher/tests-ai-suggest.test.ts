@@ -52,6 +52,20 @@ vi.mock('@/lib/ai-test-grading', () => ({
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
+const gradingProvenance = {
+  schemaVersion: 'test-grading-provenance-v1',
+  gradingRequestId: '10000000-0000-4000-8000-000000000001',
+  provider: 'openai',
+  model: 'gpt-5-nano',
+  policyVersion: 'pika-test-open-response-policy-v1',
+  promptVersion: 'pika-test-open-response-manual-prompt-v1',
+  gradingProfileVersion: 'pika-test-open-response-v1',
+  rubricVersion: 'pika-test-open-response-rubric-v1',
+  operation: 'single',
+  batchSize: 1,
+  providerRequestCount: 1,
+  tokenUsage: { inputTokens: 100, outputTokens: 20, totalTokens: 120 },
+} as const
 
 describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () => {
   beforeEach(() => {
@@ -138,6 +152,7 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
       grading_basis: 'teacher_key',
       reference_answers: [],
       model: 'gpt-5-nano',
+      provenance: gradingProvenance,
     })
 
     setupResponseRow()
@@ -177,6 +192,7 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
       expect.objectContaining({
         grading_basis: 'teacher_key',
         model: 'gpt-5-nano',
+        provenance: gradingProvenance,
       })
     )
     expect(data.question_grading_snapshot).toEqual({
@@ -210,6 +226,7 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
       grading_basis: 'generated_reference',
       reference_answers: ['Generated answer'],
       model: 'gpt-5-nano',
+      provenance: gradingProvenance,
     })
     const { questionUpdate, questionUpdateChain } = setupResponseRow()
 

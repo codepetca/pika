@@ -202,7 +202,14 @@ Focus on **critical user flows**:
    - Create assignment and see student statuses update after submit/unsubmit
    - Export CSV
 
-**Tools**: Consider Playwright for 1-2 E2E tests (optional). Keep Playwright as the canonical E2E tool because tests need to be reproducible locally and in CI.
+**Tools**: Playwright is the canonical E2E tool because tests must be reproducible locally and in CI. The representative experience contract runs read-only teacher and student classroom and utility-shell workflows across desktop/mobile and light/dark Chromium projects. Broader feature E2E and visual snapshots remain on the desktop-light project so CI does not multiply the full suite.
+
+Run the CI browser contract locally against a seeded local Supabase stack:
+
+```bash
+pnpm seed
+pnpm e2e:matrix
+```
 
 ### UI Snapshot Runs (Playwright)
 
@@ -317,6 +324,9 @@ pnpm test:ui
 
 # Coverage report
 pnpm test:coverage
+
+# Representative desktop/mobile and light/dark browser contract
+pnpm e2e:matrix
 ```
 
 ---

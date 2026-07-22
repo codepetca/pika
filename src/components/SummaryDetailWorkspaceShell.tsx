@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ComponentProps, ReactNode } from 'react'
 import { WorkspaceSplitPane } from '@/components/WorkspaceSplitPane'
-import { cn } from '@/ui/utils'
+import { cn } from '@/ui'
 
 type WorkspaceSplitDivider = NonNullable<ComponentProps<typeof WorkspaceSplitPane>['divider']>
 

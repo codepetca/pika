@@ -536,7 +536,7 @@ describe('course-blueprints server helpers', () => {
 
     const result = await importCourseBlueprintBundle('teacher-1', {
       manifest: {
-        version: '1',
+        version: '2',
         exported_at: '2026-04-20T00:00:00Z',
         title: 'Imported blueprint',
         subject: '',
@@ -549,7 +549,6 @@ describe('course-blueprints server helpers', () => {
         'course-outline.md': '',
         'resources.md': '',
         'assignments.md': '# Assignment 1\n\n## Instructions\n\nBody\n',
-        'quizzes.md': '',
         'tests.md': '',
         'lesson-plans.md': '',
       },
@@ -561,6 +560,10 @@ describe('course-blueprints server helpers', () => {
       expect.objectContaining({
         p_operation_id: operationId,
         p_operation_type: 'import',
+        p_plan: expect.objectContaining({
+          manifest_version: '2',
+          source_package_exported_at: '2026-04-20T00:00:00Z',
+        }),
       }),
     )
     expect(deleteBuilder.delete).not.toHaveBeenCalled()

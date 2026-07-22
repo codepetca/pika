@@ -2273,7 +2273,8 @@ describe('StudentTestsTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Submit your answers?')).toBeInTheDocument()
     })
-    fireEvent.click(screen.getAllByRole('button', { name: 'Submit' })[1])
+    const submitDialog = screen.getByRole('dialog', { name: 'Submit your answers?' })
+    fireEvent.click(within(submitDialog).getByRole('button', { name: 'Submit' }))
 
     await waitFor(() => {
       expect(screen.getByText('Response Submitted')).toBeInTheDocument()

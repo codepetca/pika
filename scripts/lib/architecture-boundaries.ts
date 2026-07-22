@@ -207,6 +207,11 @@ type LayerRule = {
 
 const layerRules: LayerRule[] = [
   {
+    name: 'grading-core-isolated',
+    from: (filePath) => filePath.startsWith('src/lib/grading/'),
+    forbids: (filePath) => !filePath.startsWith('src/lib/grading/'),
+  },
+  {
     name: 'lib-no-presentation',
     from: (filePath) => filePath.startsWith('src/lib/'),
     forbids: (filePath) => /^src\/(app|components|hooks|ui)(\/|$)/.test(filePath),

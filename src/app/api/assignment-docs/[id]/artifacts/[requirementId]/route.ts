@@ -5,15 +5,25 @@ import { getImageValidationError } from '@/lib/image-upload'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import {
+  deleteAssignmentSubmissionArtifactAtomic,
   isMissingAssignmentSubmissionSchemaError,
   loadUserGitHubIdentity,
 } from '@/lib/server/assignment-submission-artifacts'
+import {
+  adoptProvisionalAssignmentArtifactStorageCleanup,
+  assignmentArtifactStoragePathIsReferenced,
+  createProvisionalAssignmentArtifactStorageCleanup,
+  enqueueAssignmentArtifactStorageCleanupPath,
+  removeQueuedAssignmentArtifactStoragePath,
+  type ProvisionalAssignmentArtifactStorageCleanup,
+} from '@/lib/server/assignment-artifact-storage-cleanup'
 import {
   getGitHubIdentityValidationFromArtifact,
   normalizeGitHubLogin,
   validateAssignmentSubmissionArtifactValue,
 } from '@/lib/server/assignment-submission-validation'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { assignmentArtifactPutRequestSchema } from '@/lib/validations/assignment-doc-submissions'
 import type { AssignmentSubmissionArtifact, AssignmentSubmissionRequirement } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -21,6 +31,73 @@ export const revalidate = 0
 
 const ASSIGNMENT_ARTIFACTS_BUCKET = 'assignment-artifacts'
 const SIGNED_IMAGE_URL_EXPIRES_SECONDS = 60 * 60
+
+function isSubmittedArtifactMutationError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const record = error as { code?: string; message?: string }
+  return (
+    record.code === '23514'
+    && record.message?.includes('assignment_artifact_submitted_document_immutable') === true
+  )
+}
+
+function submittedArtifactMutationResponse() {
+  return NextResponse.json(
+    { error: 'Cannot edit a submitted document' },
+    { status: 409 }
+  )
+}
+
+async function compensateUploadedArtifact(input: {
+  supabase: ReturnType<typeof getServiceRoleClient>
+  storagePath: string
+  provisionalCleanup: ProvisionalAssignmentArtifactStorageCleanup | null
+}): Promise<void> {
+  const isReferenced = await assignmentArtifactStoragePathIsReferenced(input)
+  if (isReferenced === true) {
+    if (input.provisionalCleanup) {
+      await adoptProvisionalAssignmentArtifactStorageCleanup({
+        supabase: input.supabase,
+        cleanup: input.provisionalCleanup,
+      })
+    }
+    return
+  }
+  if (isReferenced === null) {
+    if (!input.provisionalCleanup) {
+      await enqueueAssignmentArtifactStorageCleanupPath({
+        supabase: input.supabase,
+        storagePath: input.storagePath,
+      })
+    }
+    return
+  }
+
+  let removed = false
+  try {
+    const removal = await input.supabase.storage
+      .from(ASSIGNMENT_ARTIFACTS_BUCKET)
+      .remove([input.storagePath])
+    removed = !removal.error
+  } catch {
+    removed = false
+  }
+
+  if (removed && input.provisionalCleanup) {
+    await adoptProvisionalAssignmentArtifactStorageCleanup({
+      supabase: input.supabase,
+      cleanup: input.provisionalCleanup,
+    })
+    return
+  }
+
+  if (!removed && !input.provisionalCleanup) {
+    await enqueueAssignmentArtifactStorageCleanupPath({
+      supabase: input.supabase,
+      storagePath: input.storagePath,
+    })
+  }
+}
 
 async function loadStudentAssignmentContext(opts: {
   assignmentId: string
@@ -120,6 +197,7 @@ async function withSignedImageUrl(supabase: ReturnType<typeof getServiceRoleClie
 export const PUT = withErrorHandler('PutAssignmentSubmissionArtifact', async (request: NextRequest, context) => {
   const user = await requireRole('student')
   const { id: assignmentId, requirementId } = await context.params
+  const body = assignmentArtifactPutRequestSchema.parse(await request.json())
   const result = await loadStudentAssignmentContext({ assignmentId, requirementId, studentId: user.id })
   if (result.kind === 'response') return result.response
 
@@ -128,13 +206,12 @@ export const PUT = withErrorHandler('PutAssignmentSubmissionArtifact', async (re
     return NextResponse.json({ error: 'Use image upload for screenshot requirements.' }, { status: 400 })
   }
 
-  const body = await request.json()
-  const url = typeof body.url === 'string' ? body.url : ''
+  const url = body.url
   const identity = requirement.type === 'repo_link'
     ? await loadUserGitHubIdentity(supabase, user.id)
     : null
   const githubLogin = requirement.type === 'repo_link'
-    ? normalizeGitHubLogin(typeof body.github_login === 'string' ? body.github_login : identity?.github_login)
+    ? normalizeGitHubLogin(body.github_login ?? identity?.github_login)
     : null
 
   const validation = await validateAssignmentSubmissionArtifactValue({
@@ -167,6 +244,9 @@ export const PUT = withErrorHandler('PutAssignmentSubmissionArtifact', async (re
     .single()
 
   if (error || !artifact) {
+    if (isSubmittedArtifactMutationError(error)) {
+      return submittedArtifactMutationResponse()
+    }
     if (isMissingAssignmentSubmissionSchemaError(error)) {
       return NextResponse.json({ error: 'Submission artifacts are not available yet.' }, { status: 503 })
     }
@@ -211,15 +291,26 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
     return NextResponse.json({ error: validationError }, { status: 400 })
   }
 
-  const { data: previousArtifact } = await supabase
+  const { data: previousArtifact, error: previousArtifactError } = await supabase
     .from('assignment_submission_artifacts')
     .select('id, storage_path')
     .eq('assignment_doc_id', doc.id)
     .eq('requirement_id', requirement.id)
     .maybeSingle()
+  if (previousArtifactError) {
+    throw new Error('Failed to load the previous image artifact')
+  }
 
   const ext = file.name.split('.').pop() || 'png'
   const storagePath = `${user.id}/${assignmentId}/${requirement.id}-${Date.now()}-${crypto.randomUUID()}.${ext}`
+  const provisionalCleanup = await createProvisionalAssignmentArtifactStorageCleanup({
+    supabase,
+    storagePath,
+  })
+  if (!provisionalCleanup) {
+    throw new Error('Failed to protect image upload with durable cleanup evidence')
+  }
+
   const buffer = Buffer.from(await file.arrayBuffer())
   const { error: uploadError } = await supabase.storage
     .from(ASSIGNMENT_ARTIFACTS_BUCKET)
@@ -232,53 +323,69 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
     throw new Error('Failed to upload image')
   }
 
-  const signed = await supabase.storage
-    .from(ASSIGNMENT_ARTIFACTS_BUCKET)
-    .createSignedUrl(storagePath, SIGNED_IMAGE_URL_EXPIRES_SECONDS)
-  const signedUrl = signed.data?.signedUrl ?? null
+  let artifact: unknown = null
+  let error: unknown = null
+  try {
+    const signed = await supabase.storage
+      .from(ASSIGNMENT_ARTIFACTS_BUCKET)
+      .createSignedUrl(storagePath, SIGNED_IMAGE_URL_EXPIRES_SECONDS)
+    const signedUrl = signed.data?.signedUrl ?? null
 
-  const validation = await validateAssignmentSubmissionArtifactValue({
-    type: 'image',
-    storagePath,
-    url: signedUrl,
-  })
+    const validation = await validateAssignmentSubmissionArtifactValue({
+      type: 'image',
+      storagePath,
+      url: signedUrl,
+    })
 
-  const { data: artifact, error } = await supabase
-    .from('assignment_submission_artifacts')
-    .upsert({
-      assignment_doc_id: doc.id,
-      requirement_id: requirement.id,
-      student_id: user.id,
-      type: requirement.type,
-      url: null,
-      storage_path: storagePath,
-      metadata_json: {
-        file_name: file.name,
-        file_size: file.size,
-        content_type: file.type,
-      },
-      validation_status: validation.validation_status,
-      validation_message: validation.validation_message,
-      validated_at: new Date().toISOString(),
-    }, { onConflict: 'assignment_doc_id,requirement_id' })
-    .select('*')
-    .single()
+    const save = await supabase
+      .from('assignment_submission_artifacts')
+      .upsert({
+        assignment_doc_id: doc.id,
+        requirement_id: requirement.id,
+        student_id: user.id,
+        type: requirement.type,
+        url: null,
+        storage_path: storagePath,
+        metadata_json: {
+          file_name: file.name,
+          file_size: file.size,
+          content_type: file.type,
+        },
+        validation_status: validation.validation_status,
+        validation_message: validation.validation_message,
+        validated_at: new Date().toISOString(),
+      }, { onConflict: 'assignment_doc_id,requirement_id' })
+      .select('*')
+      .single()
+    artifact = save.data
+    error = save.error
+  } catch (saveError) {
+    await compensateUploadedArtifact({ supabase, storagePath, provisionalCleanup })
+    throw saveError
+  }
 
   if (error || !artifact) {
-    await supabase.storage
-      .from(ASSIGNMENT_ARTIFACTS_BUCKET)
-      .remove([storagePath])
+    await compensateUploadedArtifact({ supabase, storagePath, provisionalCleanup })
 
+    if (isSubmittedArtifactMutationError(error)) {
+      return submittedArtifactMutationResponse()
+    }
     if (isMissingAssignmentSubmissionSchemaError(error)) {
       return NextResponse.json({ error: 'Submission artifacts are not available yet.' }, { status: 503 })
     }
     throw new Error('Failed to save image artifact')
   }
 
+  await adoptProvisionalAssignmentArtifactStorageCleanup({
+    supabase,
+    cleanup: provisionalCleanup,
+  })
+
   if (previousArtifact?.storage_path && previousArtifact.storage_path !== storagePath) {
-    await supabase.storage
-      .from(ASSIGNMENT_ARTIFACTS_BUCKET)
-      .remove([previousArtifact.storage_path])
+    await removeQueuedAssignmentArtifactStoragePath({
+      supabase,
+      storagePath: previousArtifact.storage_path,
+    })
   }
 
   return NextResponse.json({ artifact: await withSignedImageUrl(supabase, artifact as AssignmentSubmissionArtifact) })
@@ -290,29 +397,26 @@ export const DELETE = withErrorHandler('DeleteAssignmentSubmissionArtifact', asy
   const result = await loadStudentAssignmentContext({ assignmentId, requirementId, studentId: user.id })
   if (result.kind === 'response') return result.response
 
-  const { supabase, doc } = result
-  const { data: existing } = await supabase
-    .from('assignment_submission_artifacts')
-    .select('id, storage_path')
-    .eq('assignment_doc_id', doc.id)
-    .eq('requirement_id', requirementId)
-    .maybeSingle()
-
-  if (existing?.storage_path) {
-    await supabase.storage
-      .from(ASSIGNMENT_ARTIFACTS_BUCKET)
-      .remove([existing.storage_path])
+  const { supabase } = result
+  const deletion = await deleteAssignmentSubmissionArtifactAtomic({
+    supabase,
+    assignmentId,
+    studentId: user.id,
+    requirementId,
+  })
+  if (!deletion.ok) {
+    return NextResponse.json({ error: deletion.error }, { status: deletion.status })
   }
 
-  const { error } = await supabase
-    .from('assignment_submission_artifacts')
-    .delete()
-    .eq('assignment_doc_id', doc.id)
-    .eq('requirement_id', requirementId)
+  const cleanup = deletion.storagePath
+    ? await removeQueuedAssignmentArtifactStoragePath({
+        supabase,
+        storagePath: deletion.storagePath,
+      })
+    : { completed: true }
 
-  if (error && !isMissingAssignmentSubmissionSchemaError(error)) {
-    throw new Error('Failed to delete submission artifact')
-  }
-
-  return NextResponse.json({ ok: true })
+  return NextResponse.json(
+    { ok: true, cleanup_pending: !cleanup.completed },
+    { status: cleanup.completed ? 200 : 202 }
+  )
 })

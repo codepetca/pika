@@ -191,6 +191,7 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
     suggestedScore: suggestion.score,
     suggestedFeedback: suggestion.feedback,
     questionGradingSnapshot,
+    gradingProvenance: suggestion.provenance,
   })
 
   return NextResponse.json({

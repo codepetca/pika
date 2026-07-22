@@ -342,6 +342,45 @@ export type Database = {
           },
         ]
       }
+      assignment_artifact_storage_cleanup: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          id: string
+          last_error: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          status: string
+          storage_path: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string
+          status?: string
+          storage_path: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_attempt_at?: string
+          status?: string
+          storage_path?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       assignment_doc_history: {
         Row: {
           assignment_doc_id: string
@@ -389,11 +428,52 @@ export type Database = {
           },
         ]
       }
+      assignment_doc_save_operations: {
+        Row: {
+          assignment_doc_id: string
+          completed_at: string
+          content_sha256: string
+          document_updated_at: string
+          id: string
+          keystroke_count: number
+          metric_session_id: string
+          paste_word_count: number
+          save_sequence: number
+          save_session_id: string
+        }
+        Insert: {
+          assignment_doc_id: string
+          completed_at?: string
+          content_sha256: string
+          document_updated_at: string
+          id?: string
+          keystroke_count: number
+          metric_session_id: string
+          paste_word_count: number
+          save_sequence: number
+          save_session_id: string
+        }
+        Update: {
+          assignment_doc_id?: string
+          completed_at?: string
+          content_sha256?: string
+          document_updated_at?: string
+          id?: string
+          keystroke_count?: number
+          metric_session_id?: string
+          paste_word_count?: number
+          save_sequence?: number
+          save_session_id?: string
+        }
+        Relationships: []
+      }
       assignment_docs: {
         Row: {
           ai_feedback_model: string | null
           ai_feedback_suggested_at: string | null
           ai_feedback_suggestion: string | null
+          ai_grading_provenance: Json | null
+          ai_grading_review: Json | null
           assignment_id: string
           authenticity_flags: Json | null
           authenticity_score: number | null
@@ -409,6 +489,8 @@ export type Database = {
           is_submitted: boolean
           repo_url: string | null
           returned_at: string | null
+          save_sequence: number | null
+          save_session_id: string | null
           score_completion: number | null
           score_thinking: number | null
           score_workflow: number | null
@@ -424,6 +506,8 @@ export type Database = {
           ai_feedback_model?: string | null
           ai_feedback_suggested_at?: string | null
           ai_feedback_suggestion?: string | null
+          ai_grading_provenance?: Json | null
+          ai_grading_review?: Json | null
           assignment_id: string
           authenticity_flags?: Json | null
           authenticity_score?: number | null
@@ -439,6 +523,8 @@ export type Database = {
           is_submitted?: boolean
           repo_url?: string | null
           returned_at?: string | null
+          save_sequence?: number | null
+          save_session_id?: string | null
           score_completion?: number | null
           score_thinking?: number | null
           score_workflow?: number | null
@@ -454,6 +540,8 @@ export type Database = {
           ai_feedback_model?: string | null
           ai_feedback_suggested_at?: string | null
           ai_feedback_suggestion?: string | null
+          ai_grading_provenance?: Json | null
+          ai_grading_review?: Json | null
           assignment_id?: string
           authenticity_flags?: Json | null
           authenticity_score?: number | null
@@ -469,6 +557,8 @@ export type Database = {
           is_submitted?: boolean
           repo_url?: string | null
           returned_at?: string | null
+          save_sequence?: number | null
+          save_session_id?: string | null
           score_completion?: number | null
           score_thinking?: number | null
           score_workflow?: number | null
@@ -569,6 +659,8 @@ export type Database = {
           draft_score_workflow: number | null
           evidence_json: Json
           github_login: string | null
+          grading_model: string | null
+          grading_provenance: Json | null
           id: string
           iteration_score: number
           relative_contribution_share: number
@@ -593,6 +685,8 @@ export type Database = {
           draft_score_workflow?: number | null
           evidence_json?: Json
           github_login?: string | null
+          grading_model?: string | null
+          grading_provenance?: Json | null
           id?: string
           iteration_score?: number
           relative_contribution_share?: number
@@ -617,6 +711,8 @@ export type Database = {
           draft_score_workflow?: number | null
           evidence_json?: Json
           github_login?: string | null
+          grading_model?: string | null
+          grading_provenance?: Json | null
           id?: string
           iteration_score?: number
           relative_contribution_share?: number
@@ -3553,6 +3649,8 @@ export type Database = {
       test_responses: {
         Row: {
           ai_grading_basis: string | null
+          ai_grading_provenance: Json | null
+          ai_grading_review: Json | null
           ai_model: string | null
           ai_reference_answers: Json | null
           ai_suggested_feedback: string | null
@@ -3572,6 +3670,8 @@ export type Database = {
         }
         Insert: {
           ai_grading_basis?: string | null
+          ai_grading_provenance?: Json | null
+          ai_grading_review?: Json | null
           ai_model?: string | null
           ai_reference_answers?: Json | null
           ai_suggested_feedback?: string | null
@@ -3591,6 +3691,8 @@ export type Database = {
         }
         Update: {
           ai_grading_basis?: string | null
+          ai_grading_provenance?: Json | null
+          ai_grading_review?: Json | null
           ai_model?: string | null
           ai_reference_answers?: Json | null
           ai_suggested_feedback?: string | null
@@ -3971,6 +4073,56 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_assignment_artifact_storage_cleanup: {
+        Args: {
+          p_lease_seconds: number
+          p_lease_token: string
+          p_limit: number
+        }
+        Returns: {
+          attempt_count: number
+          created_at: string
+          id: string
+          last_error: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          status: string
+          storage_path: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "assignment_artifact_storage_cleanup"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_assignment_artifact_storage_cleanup_path: {
+        Args: {
+          p_lease_seconds: number
+          p_lease_token: string
+          p_storage_path: string
+        }
+        Returns: {
+          attempt_count: number
+          created_at: string
+          id: string
+          last_error: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_attempt_at: string
+          status: string
+          storage_path: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "assignment_artifact_storage_cleanup"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_due_classroom_archive_object_upload_cleanup: {
         Args: {
           p_lease_seconds?: number
@@ -4076,6 +4228,10 @@ export type Database = {
         Args: { p_storage_bucket: string; p_storage_path: string }
         Returns: string
       }
+      cleanup_assignment_doc_save_operations: {
+        Args: { p_completed_before: string }
+        Returns: number
+      }
       cleanup_expired_classroom_archive_snapshots: {
         Args: never
         Returns: number
@@ -4094,7 +4250,24 @@ export type Database = {
         Args: { p_closed_by: string; p_test_id: string }
         Returns: Json
       }
+      complete_assignment_artifact_storage_cleanup: {
+        Args: { p_cleanup_id: string; p_lease_token: string }
+        Returns: boolean
+      }
       complete_assignment_repo_review_run_atomic: {
+        Args: {
+          p_grade_rows: Json
+          p_model: string
+          p_now: string
+          p_result_rows: Json
+          p_run_id: string
+          p_source_ref: string
+          p_teacher_id: string
+          p_warnings: Json
+        }
+        Returns: Json
+      }
+      complete_assignment_repo_review_run_with_provenance_atomic: {
         Args: {
           p_grade_rows: Json
           p_model: string
@@ -4251,6 +4424,14 @@ export type Database = {
         }
         Returns: Json
       }
+      delete_assignment_submission_artifact_atomic: {
+        Args: {
+          p_assignment_id: string
+          p_requirement_id: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
       delete_student_test_attempt_atomic: {
         Args: { p_student_id: string; p_test_id: string }
         Returns: Json
@@ -4262,6 +4443,14 @@ export type Database = {
       delete_test_atomic: {
         Args: { p_teacher_id: string; p_test_id: string }
         Returns: Json
+      }
+      enqueue_assignment_artifact_storage_cleanup_path: {
+        Args: { p_delay_seconds?: number; p_storage_path: string }
+        Returns: boolean
+      }
+      fail_assignment_artifact_storage_cleanup: {
+        Args: { p_cleanup_id: string; p_error: string; p_lease_token: string }
+        Returns: boolean
       }
       fail_classroom_archive_compaction: {
         Args: {
@@ -4347,9 +4536,46 @@ export type Database = {
         }
         Returns: Json
       }
+      finalize_assignment_ai_grading_item_with_provenance_atomic: {
+        Args: {
+          p_ai_feedback_model: string
+          p_ai_feedback_suggestion: string
+          p_ai_grading_provenance: Json
+          p_apply_teacher_feedback_draft: boolean
+          p_attempt_count: number
+          p_feedback: string
+          p_graded_by: string
+          p_item_id: string
+          p_item_status: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_skip_reason: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       finalize_test_ai_grading_item_atomic: {
         Args: {
           p_ai_grading_basis: string
+          p_ai_model: string
+          p_ai_reference_answers: Json
+          p_attempt_count: number
+          p_feedback: string
+          p_item_id: string
+          p_lease_token: string
+          p_now: string
+          p_score: number
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      finalize_test_ai_grading_item_with_provenance_atomic: {
+        Args: {
+          p_ai_grading_basis: string
+          p_ai_grading_provenance: Json
           p_ai_model: string
           p_ai_reference_answers: Json
           p_attempt_count: number
@@ -4410,6 +4636,7 @@ export type Database = {
         Args: { p_mode: string }
         Returns: boolean
       }
+      is_valid_grading_review: { Args: { p_review: Json }; Returns: boolean }
       normalize_classroom_archive_restore_row: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
@@ -4547,12 +4774,51 @@ export type Database = {
         }
         Returns: Json
       }
+      save_assignment_ai_grade_with_provenance_atomic: {
+        Args: {
+          p_ai_feedback_model: string
+          p_ai_feedback_suggestion: string
+          p_ai_grading_provenance: Json
+          p_apply_teacher_feedback_draft: boolean
+          p_assignment_id: string
+          p_expected_doc_updated_at: string
+          p_feedback: string
+          p_graded_by: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       save_assignment_ai_grades_atomic: {
         Args: {
           p_assignment_id: string
           p_grade_rows: Json
           p_now: string
           p_teacher_id: string
+        }
+        Returns: Json
+      }
+      save_assignment_doc_atomic: {
+        Args: {
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_keystroke_count: number
+          p_metric_session_id: string
+          p_paste_word_count: number
+          p_patch: Json
+          p_save_sequence: number
+          p_save_session_id: string
+          p_snapshot: Json
+          p_student_id: string
+          p_trigger: string
+          p_word_count: number
         }
         Returns: Json
       }
@@ -4578,6 +4844,16 @@ export type Database = {
         Returns: Json
       }
       save_test_response_grades_atomic: {
+        Args: {
+          p_grade_rows: Json
+          p_now: string
+          p_student_id: string
+          p_teacher_id: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
+      save_test_response_grades_with_provenance_atomic: {
         Args: {
           p_grade_rows: Json
           p_now: string
@@ -4635,6 +4911,17 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_assignment_doc_atomic: {
+        Args: {
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_student_id: string
+          p_word_count: number
+        }
+        Returns: Json
+      }
       submit_test_attempt_atomic: {
         Args: {
           p_responses: Json
@@ -4644,12 +4931,20 @@ export type Database = {
         }
         Returns: Json
       }
+      unsubmit_assignment_doc_atomic: {
+        Args: { p_assignment_id: string; p_student_id: string }
+        Returns: Json
+      }
       unsubmit_test_attempts_atomic: {
         Args: {
           p_student_ids: string[]
           p_test_id: string
           p_updated_by: string
         }
+        Returns: Json
+      }
+      update_assignment_with_submission_requirements_atomic: {
+        Args: { p_assignment_id: string; p_requirements: Json; p_updates: Json }
         Returns: Json
       }
       update_test_student_access_atomic: {

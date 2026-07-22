@@ -1,5 +1,6 @@
 import type { Operation } from 'fast-json-patch'
 import type { ClassroomThemeColor } from '@/lib/classroom-theme'
+import type { GradingProvenance } from '@/lib/grading/contracts'
 
 export type UserRole = 'student' | 'teacher'
 
@@ -279,6 +280,7 @@ export interface AssignmentDoc {
   ai_feedback_suggestion: string | null
   ai_feedback_suggested_at: string | null
   ai_feedback_model: string | null
+  ai_grading_provenance?: GradingProvenance | null
   teacher_cleared_at: string | null
   graded_at: string | null
   graded_by: string | null
@@ -751,19 +753,6 @@ export interface CourseBlueprintDetail extends CourseBlueprint {
   assessments: CourseBlueprintAssessment[]
   lesson_templates: CourseBlueprintLessonTemplate[]
   linked_classrooms: LinkedBlueprintClassroom[]
-}
-
-export interface CoursePackageManifest {
-  version: string
-  exported_at: string
-  title: string
-  subject: string
-  grade_level: string
-  course_code: string
-  term_template: string
-  planned_site_slug?: string | null
-  planned_site_published?: boolean
-  planned_site_config?: PlannedCourseSiteConfig
 }
 
 export interface CreateClassroomFromBlueprintInput {

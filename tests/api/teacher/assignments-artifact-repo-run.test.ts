@@ -131,7 +131,7 @@ function installRepoRunTables(opts: {
   })
 
   mockSupabaseClient.rpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
-    if (fn !== 'complete_assignment_repo_review_run_atomic') {
+    if (fn !== 'complete_assignment_repo_review_run_with_provenance_atomic') {
       throw new Error(`Unexpected RPC: ${fn}`)
     }
     aiGradeCalls.push(args)
@@ -281,6 +281,18 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
       score_workflow: 9,
       feedback: 'Solid repo activity.',
       confidence: 0.8,
+      model: 'gpt-5-nano',
+      provenance: {
+        schemaVersion: 'assignment-grading-provenance-v1',
+        provider: 'openai',
+        model: 'gpt-5-nano',
+        policyVersion: 'pika-repo-review-feedback-policy-v1',
+        promptVersion: 'pika-repo-review-feedback-prompt-v1',
+        gradingProfileVersion: 'pika-repo-review-feedback-v1',
+        rubricVersion: 'pika-repo-review-rubric-v1',
+        providerRequestCount: 1,
+        tokenUsage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
+      },
     })
     const harness = installRepoRunTables({
       enrollments: [{ student_id: 'b0000000-0000-4000-8000-000000000001', users: { email: 's1@example.com' } }],
@@ -346,6 +358,11 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
         draft_score_thinking: 7,
         draft_score_workflow: 9,
         draft_feedback: 'Solid repo activity.',
+        grading_model: 'gpt-5-nano',
+        grading_provenance: expect.objectContaining({
+          provider: 'openai',
+          model: 'gpt-5-nano',
+        }),
       }),
     ])
     expect(harness.aiGradeCalls).toEqual([
@@ -353,7 +370,7 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
         p_run_id: 'run-1',
         p_teacher_id: 'teacher-1',
         p_source_ref: 'main',
-        p_model: 'repo-review-v2',
+        p_model: 'gpt-5-nano',
         p_grade_rows: [expect.objectContaining({
           student_id: 'b0000000-0000-4000-8000-000000000001',
           expected_doc_updated_at: '2026-04-02T12:05:00.000Z',
@@ -363,7 +380,11 @@ describe('POST /api/teacher/assignments/[id]/artifact-repo/run', () => {
           apply_teacher_feedback_draft: false,
           mark_graded: false,
           ai_feedback_suggestion: 'Solid repo activity.',
-          ai_feedback_model: 'repo-review-v2',
+          ai_feedback_model: 'gpt-5-nano',
+          ai_grading_provenance: expect.objectContaining({
+            provider: 'openai',
+            model: 'gpt-5-nano',
+          }),
         })],
       }),
     ])

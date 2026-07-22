@@ -37,7 +37,7 @@ describe('AppHeader exam mode', () => {
 
     rerender(<AppHeader examModeHeader={{ testTitle: 'Unit Test', exitsCount: 2, awayTotalSeconds: 0 }} />)
 
-    expect(screen.getByLabelText('Exits 2')).toHaveClass('bg-warning')
+    expect(screen.getByLabelText('Exits 2')).toHaveClass('bg-warning-bg', 'text-warning')
     expect(screen.getByText('Exit detected')).toHaveClass('sr-only')
 
     rerender(<AppHeader examModeHeader={{ testTitle: 'Unit Test', exitsCount: 1, awayTotalSeconds: 0 }} />)
@@ -47,7 +47,7 @@ describe('AppHeader exam mode', () => {
 
     rerender(<AppHeader examModeHeader={{ testTitle: 'Unit Test', exitsCount: 2, awayTotalSeconds: 0 }} />)
 
-    expect(screen.getByLabelText('Exits 2')).toHaveClass('bg-warning')
+    expect(screen.getByLabelText('Exits 2')).toHaveClass('bg-warning-bg', 'text-warning')
     expect(screen.getByText('Exit detected')).toHaveClass('sr-only')
 
     act(() => {
@@ -86,6 +86,9 @@ describe('AppHeader classroom theme', () => {
     render(<AppHeader pageTitle="Classrooms" />, { wrapper: Wrapper })
 
     expect(screen.getByAltText('Pika')).toHaveClass('pika-logo')
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveClass('h-11', 'w-11')
+    expect(screen.getByRole('button', { name: 'Enter fullscreen' })).toHaveClass('min-h-11', 'min-w-11')
+    expect(screen.getByRole('link', { name: 'Login' })).toHaveClass('min-h-11', 'min-w-11')
   })
 
   it('themes the brand logo through design tokens instead of component dark utilities', () => {

@@ -193,6 +193,20 @@ describe('TestIndividualResponses', () => {
       answer_key: 'Expected result',
       sample_solution: null,
     }
+    const gradingProvenance = {
+      schemaVersion: 'test-grading-provenance-v1',
+      gradingRequestId: '10000000-0000-4000-8000-000000000001',
+      provider: 'openai',
+      model: 'gpt-5-nano',
+      policyVersion: 'pika-test-open-response-policy-v1',
+      promptVersion: 'pika-test-open-response-manual-prompt-v1',
+      gradingProfileVersion: 'pika-test-open-response-v1',
+      rubricVersion: 'pika-test-open-response-rubric-v1',
+      operation: 'single',
+      batchSize: 1,
+      providerRequestCount: 1,
+      tokenUsage: { inputTokens: 100, outputTokens: 20, totalTokens: 120 },
+    }
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
       if (url.endsWith('/api/teacher/tests/test-1/results')) {
@@ -207,6 +221,7 @@ describe('TestIndividualResponses', () => {
             grading_basis: 'teacher_key',
             reference_answers: [],
             model: 'gpt-5-nano',
+            provenance: gradingProvenance,
           },
           question_grading_snapshot: questionGradingSnapshot,
           ai_provenance_token: 'signed-token',
@@ -251,6 +266,7 @@ describe('TestIndividualResponses', () => {
       ai_provenance_token: 'signed-token',
       ai_suggested_score: 4,
       ai_suggested_feedback: 'Clear explanation.',
+      ai_grading_provenance: gradingProvenance,
     })
 
     await user.click(screen.getByRole('button', { name: 'Clear' }))

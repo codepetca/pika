@@ -63,9 +63,11 @@ interface FormFieldProps {
   error?: string
   hint?: string
   required?: boolean
-  children: ReactNode  // Input, Select, Textarea, etc.
+  children: ReactElement  // Exactly one Input, Select, Textarea, etc.
 }
 ```
+
+`FormField` preserves a control-provided `id` unless an explicit `htmlFor` override is supplied, associates the label, propagates native `required` plus ARIA required/invalid state, and merges existing descriptions with hint and error ids. Hints remain available when an error is present. Pass exactly one form control as its child.
 
 ### AlertDialog
 
@@ -98,6 +100,12 @@ interface ConfirmDialogProps {
 }
 ```
 
+### ModalLayer
+
+`ModalLayer` is the behavioral foundation for canonical dialogs and mobile drawers. Prefer `AlertDialog`, `ConfirmDialog`, `ContentDialog`, or `DialogPanel` for normal product work. Use `ModalLayer` directly only for a custom modal surface such as a navigation or inspector drawer.
+
+The primitive portals to `document.body`, focuses the requested initial control, contains Tab focus, restores the opener, makes background roots inert, locks page scroll, and ensures only the top nested layer handles Escape. Callers provide the panel layout and accessible label; they must not add separate global Escape or scroll-lock effects.
+
 ### Card
 
 ```typescript
@@ -109,6 +117,77 @@ interface CardProps {
   className?: string
 }
 ```
+
+### Page structure
+
+Use the page primitives from `@/ui` instead of feature-local width, gutter, heading, or action-bar
+wrappers:
+
+```tsx
+<PageLayout density="teacher" width="standard">
+  <PageActionBar
+    primary={<PageHeading title="Assignments" />}
+    actions={actions}
+  />
+  <PageContent>
+    <PageStack>{content}</PageStack>
+  </PageContent>
+</PageLayout>
+```
+
+- `PageLayout` owns the `reading`, `standard`, `wide`, and `full` content-width contract.
+- `density="teacher"` preserves Pika's compact operational spacing; `student` provides the
+  standard content rhythm. The default remains compact for compatibility while callers migrate.
+- `PageHeading` owns page/section heading level and typography. Do not add feature-local page-title
+  sizes.
+- `PageActionBar` keeps primary context and actions on one row, renders full actions on desktop,
+  and uses the keyboard-accessible overflow menu on mobile.
+- Action-bar controls and menu items preserve the shared 44px target and focus-visible treatment.
+
+### Page states
+
+Use `PageState` for the primary `loading`, `error`, `empty`, or `forbidden` state of a route or work
+region. Keep the surrounding app/classroom shell mounted, and never render an empty state from a
+failed request.
+
+```tsx
+<PageState
+  kind="error"
+  title="Could not load classrooms"
+  description="The classroom list could not be retrieved."
+  action={<Button onClick={retry}>Try again</Button>}
+/>
+```
+
+- Initial loading uses `kind="loading"`; non-blocking refreshes use `RefreshingIndicator`.
+- Error and forbidden states use assertive semantics; loading and empty states use polite status
+  semantics.
+- Use `compact` only when the state replaces a primary region in an existing workspace.
+- Route and retry rules live in
+  [`page-state-conventions.md`](/docs/guidance/ui/page-state-conventions.md).
+
+### Application navigation
+
+Authenticated route families use `AppShell` with an `AppNavigation` region instead of defining
+their own logo, account controls, link styling, or responsive navigation wrapper. Navigation items
+keep their existing product labels and route ownership; the shared mechanism supplies active-page
+semantics, keyboard focus treatment, 44px targets, and narrow-width horizontal overflow.
+
+Application navigation is app-specific composition and remains in `src/components/`, while its
+base controls and shell styling follow the `@/ui` contracts.
+
+### Composite controls
+
+- Use `Tabs` plus `TabPanel` for panel-switching navigation. The tab list owns roving focus,
+  automatic activation, arrow keys, `Home`/`End`, disabled-item skipping, narrow-width scrolling,
+  and 44px targets. Panels with interactive descendants are not additional tab stops.
+- Use `SegmentedControl` for a small selected group that does not own tabpanels. It exposes pressed
+  state and the same roving arrow/first/last keyboard behavior.
+- Import `DataTable`, `SortableHeaderCell`, `KeyboardNavigableTable`, and related table primitives
+  from `@/ui`; keyboard-selectable tables require a feature-specific accessible name and matching
+  row IDs so keyboard selection can move focus to the active row.
+- Menu and split-pane ownership, semantics, and verification requirements live in
+  [`composite-control-conventions.md`](/docs/guidance/ui/composite-control-conventions.md).
 
 ### EmptyState
 
@@ -179,6 +258,7 @@ These rules ensure consistency across the codebase:
 | **Backgrounds** | Use `bg-page`, `bg-surface`, `bg-surface-2` in app code | Prevents inconsistent dark backgrounds across pages |
 | **Text/borders** | Use `text-text-default`, `text-text-muted`, `border-border` in app code | Consistent semantic naming |
 | **Form labels** | Always via `<FormField>`, never on Input/Select directly | One pattern to learn, one place for label styling |
+| **Targets and focus** | Shared buttons, segmented controls, and form controls provide a 44px minimum target and `focus-visible` ring | Mobile and keyboard access should not depend on feature-local classes |
 | **Token naming** | Intent-based only (`rounded-control`, not `rounded-8px`) | Prevents proliferation of one-off tokens |
 | **Tiptap** | Stays in `/components/tiptap*`, not `/ui` | Editor is a mini-platform; don't mix with app primitives |
 
@@ -227,8 +307,11 @@ const buttonVariants = cva('...', {
 | `border-border` | gray-200 | gray-700 | Default borders |
 | `border-border-strong` | gray-300 | gray-600 | Emphasized borders |
 | `text-text-default` | gray-900 | gray-100 | Primary text |
-| `text-text-muted` | gray-500 | gray-400 | Secondary text |
-| `text-text-inverse` | white | gray-900 | Text on colored backgrounds |
+| `text-text-muted` | gray-600 | gray-400 | Secondary text |
+| `text-text-inverse` | white | white | Text on solid semantic fills |
+| `bg-primary-solid` | blue-600 | blue-600 | Solid primary fills carrying inverse text |
+| `bg-success-solid` | green-700 | green-700 | Solid success fills carrying inverse text |
+| `bg-danger-solid` | red-600 | red-600 | Solid danger fills carrying inverse text |
 
 ### Border Radius
 

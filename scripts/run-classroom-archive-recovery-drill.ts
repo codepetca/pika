@@ -35,6 +35,9 @@ const fixtureTables = [
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 type FixtureTable = typeof fixtureTables[number]
+type FixtureSnapshot = Record<FixtureTable, Record<string, unknown>> & {
+  assignment_doc_history: Record<string, unknown>
+}
 type FixtureIds = Record<FixtureTable, string> & {
   teacher: string
   student: string
@@ -91,13 +94,29 @@ async function loadFixtureRow(
 async function loadFixtureSnapshot(
   supabase: SupabaseClient,
   ids: FixtureIds,
-): Promise<Record<FixtureTable, Record<string, unknown>>> {
-  return Object.fromEntries(await Promise.all(
+): Promise<FixtureSnapshot> {
+  const rows = Object.fromEntries(await Promise.all(
     fixtureTables.map(async (table) => [
       table,
       await loadFixtureRow(supabase, table, ids[table]),
     ]),
   )) as Record<FixtureTable, Record<string, unknown>>
+  const historyResponse = await supabase
+    .from('assignment_doc_history')
+    .select('*')
+    .eq('assignment_doc_id', ids.assignment_docs)
+    .eq('trigger', 'submit')
+    .single()
+  if (historyResponse.error || !historyResponse.data) {
+    throw new Error(
+      `Fixture submit history is unavailable: ${historyResponse.error?.code || 'missing'}`,
+    )
+  }
+
+  return {
+    ...rows,
+    assignment_doc_history: z.record(z.string(), z.unknown()).parse(historyResponse.data),
+  }
 }
 
 async function readStorageBytes(
@@ -202,8 +221,8 @@ async function createFixture(args: {
         content: [{ type: 'text', text: 'Synthetic recovery answer' }],
       }],
     },
-    is_submitted: true,
-    submitted_at: '2026-07-13T13:00:00.000Z',
+    is_submitted: false,
+    submitted_at: null,
   })
   await insertFixtureRow(args.supabase, 'assignment_submission_requirements', {
     id: args.ids.assignment_submission_requirements,
@@ -232,6 +251,19 @@ async function createFixture(args: {
     validation_status: 'valid',
     validated_at: '2026-07-13T13:01:00.000Z',
   })
+
+  const submitResponse = await args.supabase
+    .from('assignment_docs')
+    .update({
+      is_submitted: true,
+      submitted_at: '2026-07-13T13:00:00.000Z',
+    })
+    .eq('id', args.ids.assignment_docs)
+    .select('id')
+    .single()
+  if (submitResponse.error) {
+    throw new Error(`Fixture submit failed for assignment_docs: ${submitResponse.error.code}`)
+  }
 }
 
 async function removeFixture(args: {
@@ -276,7 +308,22 @@ async function removeFixture(args: {
   await deleteRows('classroom_archives', 'id', [args.ids.exportOperation])
   await deleteRows('classroom_archive_operations', 'id', [args.ids.exportOperation])
   await deleteRows('classrooms', 'id', [args.ids.classrooms])
+  const cleanupPaths = [...new Set([args.sourceObjectPath, args.restoredObjectPath])]
+  await deleteRows('assignment_artifact_storage_cleanup', 'storage_path', cleanupPaths)
   await deleteRows('users', 'id', [args.ids.student, args.ids.teacher])
+
+  for (const cleanupPath of cleanupPaths) {
+    try {
+      await assertRowAbsent(
+        args.supabase,
+        'assignment_artifact_storage_cleanup',
+        'storage_path',
+        cleanupPath,
+      )
+    } catch {
+      failures.push('leftover:assignment_artifact_storage_cleanup')
+    }
+  }
 
   if (sourcePathHash) {
     const reservation = await args.supabase
@@ -493,7 +540,7 @@ async function runRecoveryDrill() {
       target: 'loopback-supabase',
       fixture_classroom_id: ids.classrooms,
       resource_table_count: Object.keys(exported.resource_counts).length,
-      representative_rows_verified: fixtureTables.length,
+      representative_rows_verified: fixtureTables.length + 1,
       storage_objects_verified: 1,
       source_cleanup_deletion_verified: true,
       deidentified_source_fence_retained: true,

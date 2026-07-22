@@ -1,0 +1,8 @@
+- alert
+- heading "Forgot Password" [level=1]
+- paragraph: Enter your email to receive a password reset code
+- generic: School Email*
+- textbox "School Email*":
+  - /placeholder: number@gapps.yrdsb.ca
+- button "Send Reset Code" [disabled]
+- button "Back to login"

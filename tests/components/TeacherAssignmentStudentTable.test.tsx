@@ -68,7 +68,22 @@ describe('TeacherAssignmentStudentTable', () => {
     expect(screen.queryByText('Last Name')).not.toBeInTheDocument()
     expect(screen.getByText('90')).toBeInTheDocument()
     expect(screen.getAllByText('Artifacts')).toHaveLength(2)
-    expect(screen.getByRole('separator', { name: 'Resize First column' })).toBeInTheDocument()
+    const tableRegion = screen.getByRole('region', { name: 'Assignment students' })
+    expect(tableRegion).toHaveAttribute(
+      'aria-keyshortcuts',
+      'ArrowUp ArrowDown Home End Escape',
+    )
+    const selectedRow = screen.getByRole('row', { name: /Ada Lovelace/ })
+    expect(selectedRow).toHaveAttribute('id', 'assignment-student-row-student-1')
+    expect(selectedRow).toHaveAttribute('aria-selected', 'true')
+    expect(selectedRow).toHaveAttribute('tabindex', '-1')
+    const firstResize = screen.getByRole('separator', { name: 'Resize First column' })
+    expect(firstResize).toHaveAttribute('aria-valuemin', '58')
+    expect(firstResize).toHaveAttribute('aria-valuemax', '160')
+    expect(firstResize).toHaveAttribute('aria-valuenow', '72')
+    expect(firstResize).toHaveClass('min-h-11', 'w-11')
+    fireEvent.keyDown(firstResize, { key: 'End' })
+    expect(firstResize).toHaveAttribute('aria-valuenow', '160')
     expect(screen.getByRole('separator', { name: 'Resize Last column' })).toBeInTheDocument()
     expect(screen.getByRole('separator', { name: 'Resize Status column' })).toBeInTheDocument()
     expect(screen.getByRole('separator', { name: 'Resize Grade column' })).toBeInTheDocument()

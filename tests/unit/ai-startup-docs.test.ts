@@ -107,6 +107,7 @@ describe('AI startup docs', () => {
   })
 
   it('keeps the rolling session log bounded while preserving weekly evidence', () => {
+    const startHere = readRepoFile('.ai/START-HERE.md')
     const sessionLog = readRepoFile('.ai/SESSION-LOG.md')
     const entryCount = sessionLog.match(/^## /gm)?.length ?? 0
 
@@ -114,7 +115,10 @@ describe('AI startup docs', () => {
     expect(sessionLog).toContain('CI allows at most 60 entries')
     expect(sessionLog).toContain('compacts to the latest 40 entries')
     expect(sessionLog).toContain('immediately run `node scripts/trim-session-log.mjs`')
+    expect(sessionLog).toContain('valid ISO date (`## YYYY-MM-DD ...`)')
     expect(sessionLog).toContain('node scripts/trim-session-log.mjs --check')
+    expect(startHere).toContain('valid ISO-date heading (`## YYYY-MM-DD ...`)')
+    expect(startHere).toContain('verify heading dates, chronological order, and the cap')
     expect(entryCount).toBeGreaterThan(0)
     if (entryCount > 60) {
       throw new Error(
@@ -394,6 +398,36 @@ describe('AI startup docs', () => {
       )
     } finally {
       rmSync(tempRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('allows the canonical parseContentField definition to change', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+    const canonicalPath = join(repoRoot, 'src/lib/tiptap-content.ts')
+    const canonicalFunction = 'parseContent' + 'Field'
+
+    mkdirSync(join(repoRoot, 'src/lib'), { recursive: true })
+    writeFileSync(
+      canonicalPath,
+      `export function ${canonicalFunction}(content: unknown) { return content }\n`,
+    )
+    commitAll(repoRoot, 'add canonical content parser')
+    writeFileSync(
+      canonicalPath,
+      `export function ${canonicalFunction}(content: unknown) { return content ?? null }\n`,
+    )
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(result.status).toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain('duplicate-parseContentField')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
     }
   })
 
@@ -824,6 +858,150 @@ describe('AI startup docs', () => {
         "describe('PageActionBar', () => {",
         "  it('still covers unrelated actions', () => {",
         '    expect(true).toBe(true)',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).toContain('missing-a11y-tests')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('allows generic page changes when a route-specific semantic test imports the exact page', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+
+    mkdirSync(join(repoRoot, 'src/app/teacher/dashboard'), { recursive: true })
+    mkdirSync(join(repoRoot, 'tests/components'), { recursive: true })
+    writeFileSync(
+      join(repoRoot, 'src/app/teacher/dashboard/page.tsx'),
+      [
+        'export default function TeacherDashboardPage() {',
+        '  return <button type="button" aria-expanded="false">Open</button>',
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/components/TeacherDashboardPage.test.tsx'),
+      [
+        "import TeacherDashboardPage from '@/app/teacher/dashboard/page'",
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('TeacherDashboardPage', () => {",
+        "  it('covers semantic state', () => {",
+        '    expect(TeacherDashboardPage).toBeTypeOf(\'function\')',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+    commitAll(repoRoot, 'add dashboard page and route-specific test')
+
+    writeFileSync(
+      join(repoRoot, 'src/app/teacher/dashboard/page.tsx'),
+      [
+        'export default function TeacherDashboardPage() {',
+        '  return <button type="button" aria-expanded="true">Open</button>',
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/components/TeacherDashboardPage.test.tsx'),
+      [
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('TeacherDashboardPage', () => {",
+        "  it('still covers semantic state', async () => {",
+        "    const page = await import('@/app/teacher/dashboard/page')",
+        '    expect(page.default).toBeTypeOf(\'function\')',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const result = spawnSync('bash', [scriptPath], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      })
+
+      expect(result.status).toBe(0)
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain('missing-a11y-tests')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects prefix-colliding imports for generic page changes', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-audit/scripts/audit.sh')
+
+    mkdirSync(join(repoRoot, 'src/app/teacher/dashboard'), { recursive: true })
+    mkdirSync(join(repoRoot, 'tests/components'), { recursive: true })
+    writeFileSync(
+      join(repoRoot, 'src/app/teacher/dashboard/page.tsx'),
+      [
+        'export default function TeacherDashboardPage() {',
+        '  return <button type="button" aria-expanded="false">Open</button>',
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/components/TeacherDashboardHelpers.test.tsx'),
+      [
+        "// '@/app/teacher/dashboard/page' is intentionally not imported here",
+        '/*',
+        "import TeacherDashboardPage from '@/app/teacher/dashboard/page'",
+        '*/',
+        "import { dashboardHelper } from '@/app/teacher/dashboard/page-helpers' // exported from '@/app/teacher/dashboard/page'",
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('dashboard helpers', () => {",
+        "  it('covers only the helper module', () => {",
+        '    expect(dashboardHelper).toBeDefined()',
+        '  })',
+        '})',
+        '',
+      ].join('\n'),
+    )
+    commitAll(repoRoot, 'add dashboard page and unrelated helper test')
+
+    writeFileSync(
+      join(repoRoot, 'src/app/teacher/dashboard/page.tsx'),
+      [
+        'export default function TeacherDashboardPage() {',
+        '  return <button type="button" aria-expanded="true">Open</button>',
+        '}',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoRoot, 'tests/components/TeacherDashboardHelpers.test.tsx'),
+      [
+        "// '@/app/teacher/dashboard/page' is intentionally not imported here",
+        '/*',
+        "import TeacherDashboardPage from '@/app/teacher/dashboard/page'",
+        '*/',
+        "import { dashboardHelper } from '@/app/teacher/dashboard/page-helpers' // exported from '@/app/teacher/dashboard/page'",
+        "import { describe, expect, it } from 'vitest'",
+        '',
+        "describe('dashboard helpers', () => {",
+        "  it('still covers only the helper module', () => {",
+        '    expect(dashboardHelper).toBeDefined()',
         '  })',
         '})',
         '',

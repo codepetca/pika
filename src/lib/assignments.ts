@@ -118,7 +118,11 @@ export function canUnsubmitAssignmentDoc(
 ): boolean {
   if (!doc?.is_submitted) return false
 
-  return !getAssignmentFullReturnAt(doc)
+  const fullReturnAt = getAssignmentFullReturnAt(doc)
+  if (!fullReturnAt) return true
+  if (!doc.submitted_at) return false
+
+  return new Date(doc.submitted_at).getTime() > new Date(fullReturnAt).getTime()
 }
 
 /**

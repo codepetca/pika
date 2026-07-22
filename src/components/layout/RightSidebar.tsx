@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { ArrowLeft, PanelRight, PanelRightClose } from 'lucide-react'
 import { useRightSidebar, useMobileDrawer, useThreePanel } from './ThreePanelProvider'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
-import { Tooltip } from '@/ui'
+import { ModalLayer, Tooltip } from '@/ui'
 
 export interface RightSidebarProps {
   children: ReactNode
@@ -40,30 +40,6 @@ export function RightSidebar({
   const { isOpen, enabled } = useRightSidebar()
   const { isRightOpen, close } = useMobileDrawer()
   const firstFocusableRef = useRef<HTMLButtonElement | null>(null)
-
-  // Escape key to close mobile drawer
-  useEffect(() => {
-    if (!isRightOpen) return
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close()
-    }
-
-    document.addEventListener('keydown', onKeyDown)
-    document.body.style.overflow = 'hidden'
-
-    return () => {
-      document.removeEventListener('keydown', onKeyDown)
-      document.body.style.overflow = ''
-    }
-  }, [isRightOpen, close])
-
-  // Focus first element when mobile drawer opens
-  useEffect(() => {
-    if (isRightOpen) {
-      firstFocusableRef.current?.focus()
-    }
-  }, [isRightOpen])
 
   // Don't render anything if right sidebar is disabled for this view
   if (!enabled) {
@@ -103,66 +79,57 @@ export function RightSidebar({
       )}
 
       {/* Mobile drawer */}
-      {isRightOpen && (
-        <div className="lg:hidden fixed inset-0 z-50">
-          {/* Backdrop */}
-          <button
-            type="button"
-            aria-label="Close panel"
-            className="absolute inset-0 bg-black/40"
-            onClick={close}
-          />
-
-          {/* Drawer panel - slides in from right */}
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={mobileAriaLabel}
-            className={[
-              'absolute inset-y-0 right-0 w-full max-w-md',
-              'bg-surface',
-              'border-l border-border',
-              'shadow-xl',
-              'flex flex-col',
-            ].join(' ')}
-          >
-            {minimalMobileHeader ? (
-              <div className="flex justify-end p-3">
-                <button
-                  ref={firstFocusableRef}
-                  type="button"
-                  onClick={close}
-                  className="p-2 rounded-md text-text-muted hover:bg-surface-hover"
-                  aria-label="Back"
-                >
-                  <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between p-3 border-b border-border">
-                <span className="text-sm font-semibold text-text-default truncate flex-1">
-                  {title}
-                </span>
-                {headerActions && (
-                  <div className="flex items-center gap-1 mx-2">{headerActions}</div>
-                )}
-                <button
-                  ref={firstFocusableRef}
-                  type="button"
-                  onClick={close}
-                  className="p-2 rounded-md text-text-muted hover:bg-surface-hover"
-                  aria-label="Back"
-                >
-                  <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-                </button>
-              </div>
-            )}
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto">{children}</div>
+      <ModalLayer
+        isOpen={isRightOpen}
+        onClose={close}
+        ariaLabel={mobileAriaLabel}
+        initialFocusRef={firstFocusableRef}
+        backdropLabel="Close panel"
+        rootClassName="lg:hidden"
+        backdropClassName="bg-black/40"
+        panelClassName={[
+          'absolute inset-y-0 right-0 w-full max-w-md',
+          'bg-surface',
+          'border-l border-border',
+          'shadow-xl',
+          'flex flex-col',
+        ].join(' ')}
+      >
+        {minimalMobileHeader ? (
+          <div className="flex justify-end p-3">
+            <button
+              ref={firstFocusableRef}
+              type="button"
+              onClick={close}
+              className="p-2 rounded-md text-text-muted hover:bg-surface-hover"
+              aria-label="Back"
+            >
+              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+            </button>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="flex items-center justify-between p-3 border-b border-border">
+            <span className="text-sm font-semibold text-text-default truncate flex-1">
+              {title}
+            </span>
+            {headerActions && (
+              <div className="flex items-center gap-1 mx-2">{headerActions}</div>
+            )}
+            <button
+              ref={firstFocusableRef}
+              type="button"
+              onClick={close}
+              className="p-2 rounded-md text-text-muted hover:bg-surface-hover"
+              aria-label="Back"
+            >
+              <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">{children}</div>
+      </ModalLayer>
     </>
   )
 }

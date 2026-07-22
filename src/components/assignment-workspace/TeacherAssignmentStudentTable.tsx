@@ -17,10 +17,10 @@ import {
   EmptyStateRow,
   KeyboardNavigableTable,
   TableCard,
-} from '@/components/DataTable'
+  Tooltip,
+} from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { ChevronDown, ChevronUp } from 'lucide-react'
-import { Tooltip } from '@/ui'
 import {
   hasDraftSavedGrade,
 } from '@/lib/assignments'
@@ -89,6 +89,8 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   grade: COLUMN_LIMITS.grade.defaultWidth,
 }
 
+const getAssignmentStudentRowId = (studentId: string) => `assignment-student-row-${studentId}`
+
 function getRowClassName(isSelected: boolean): string {
   if (isSelected) {
     return 'cursor-pointer border-l-2 border-l-primary bg-surface-selected shadow-sm'
@@ -143,9 +145,19 @@ function ResizeHandle({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLSpanElement>) {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
     event.preventDefault()
     event.stopPropagation()
+
+    if (event.key === 'Home') {
+      onResize(column, COLUMN_LIMITS[column].min)
+      return
+    }
+    if (event.key === 'End') {
+      onResize(column, COLUMN_LIMITS[column].max)
+      return
+    }
+
     onResize(column, width + (event.key === 'ArrowRight' ? 8 : -8))
   }
 
@@ -154,11 +166,20 @@ function ResizeHandle({
       role="separator"
       aria-label={`Resize ${label} column`}
       aria-orientation="vertical"
+      aria-valuemin={COLUMN_LIMITS[column].min}
+      aria-valuemax={COLUMN_LIMITS[column].max}
+      aria-valuenow={width}
+      aria-keyshortcuts="ArrowLeft ArrowRight Home End"
       tabIndex={0}
       onPointerDown={handlePointerDown}
       onKeyDown={handleKeyDown}
-      className="absolute inset-y-1 right-0 z-10 w-2 cursor-col-resize rounded-sm outline-none transition-colors hover:bg-border-strong focus:bg-primary"
-    />
+      className="absolute inset-y-0 right-0 z-10 flex min-h-11 w-11 translate-x-1/2 cursor-col-resize touch-none items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      <span
+        aria-hidden="true"
+        className="h-5 w-px rounded-full bg-border-strong opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+      />
+    </span>
   )
 }
 
@@ -184,7 +205,7 @@ function ResizableSortableHeaderCell({
 
   return (
     <DataTableHeaderCell
-      className="relative !p-0"
+      className="group relative !p-0"
       style={getColumnStyle(width)}
       aria-sort={ariaSort}
     >
@@ -220,7 +241,7 @@ function ResizableHeaderCell({
 }) {
   return (
     <DataTableHeaderCell
-      className="relative !py-2 !pl-1.5 !pr-3"
+      className="group relative !py-2 !pl-1.5 !pr-3"
       style={getColumnStyle(width)}
     >
       <span className="block truncate">{label}</span>
@@ -282,11 +303,13 @@ export function TeacherAssignmentStudentTable({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <KeyboardNavigableTable
+        ariaLabel="Assignment students"
         ref={tableRef}
         rowKeys={rows.map((student) => student.student_id)}
         selectedKey={selectedStudentId}
         onSelectKey={onSelectStudent}
         onDeselect={onDeselectStudent}
+        getRowId={getAssignmentStudentRowId}
       >
         <TableCard chrome="flush">
           {loading ? (
@@ -388,6 +411,9 @@ export function TeacherAssignmentStudentTable({
                     return (
                       <DataTableRow
                         key={student.student_id}
+                        id={getAssignmentStudentRowId(student.student_id)}
+                        aria-selected={isSelected}
+                        tabIndex={-1}
                         className={getRowClassName(isSelected)}
                         onClick={() => onSelectStudent(student.student_id)}
                       >

@@ -477,6 +477,19 @@ describe('assignment utilities', () => {
       expect(isAssignmentLive(assignment, now)).toBe(false)
     })
 
+    it('uses the current time when release helpers omit the comparison date', () => {
+      vi.setSystemTime(now)
+      const assignment = {
+        is_draft: false,
+        released_at: '2026-03-01T13:00:01.000Z',
+      }
+
+      expect(getAssignmentReleaseState(assignment)).toBe('scheduled')
+      expect(isAssignmentVisibleToStudents(assignment)).toBe(false)
+      expect(isAssignmentScheduledForFuture(assignment)).toBe(true)
+      expect(isAssignmentLive(assignment)).toBe(false)
+    })
+
     it('falls back to current time when the comparison date is malformed', () => {
       vi.setSystemTime(now)
       const assignment = {
@@ -838,12 +851,30 @@ describe('assignment utilities', () => {
       })).toBe(true)
     })
 
-    it('blocks unsubmit after a teacher return, including resubmitted work', () => {
+    it('allows unsubmit after a student resubmits returned work', () => {
       expect(canUnsubmitAssignmentDoc({
         is_submitted: true,
         submitted_at: '2026-04-21T12:00:00.000Z',
         returned_at: '2026-04-20T13:00:00.000Z',
         teacher_cleared_at: '2026-04-20T13:00:00.000Z',
+      })).toBe(true)
+    })
+
+    it('blocks unsubmit when the teacher return is newer than the submission', () => {
+      expect(canUnsubmitAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2026-04-20T12:00:00.000Z',
+        returned_at: '2026-04-20T13:00:00.000Z',
+        teacher_cleared_at: null,
+      })).toBe(false)
+    })
+
+    it('blocks unsubmit when returned work has no submission timestamp', () => {
+      expect(canUnsubmitAssignmentDoc({
+        is_submitted: true,
+        submitted_at: null,
+        returned_at: '2026-04-20T13:00:00.000Z',
+        teacher_cleared_at: null,
       })).toBe(false)
     })
   })

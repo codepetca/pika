@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { PageStack } from '@/components/PageLayout'
-import { cn } from '@/ui/utils'
+import { cn } from '@/ui'
 
 interface TeacherWorkItemListProps {
   children: ReactNode

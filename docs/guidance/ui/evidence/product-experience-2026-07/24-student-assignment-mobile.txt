@@ -1,0 +1,46 @@
+- alert
+- banner:
+  - button "Open classroom navigation":
+  - link "Home":
+    - /url: /classrooms
+    - img "Pika"
+  - generic: Test Classroom
+  - button "Enter fullscreen":
+  - button "User menu":
+    - generic: S
+  - menu:
+    - generic: S
+    - paragraph: Student1 Test
+    - paragraph: student1@example.com
+    - paragraph: student
+    - menuitem:
+      - text: Light mode
+    - menuitem:
+      - text: Send Feedback
+    - menuitem:
+      - text: Logout
+- main:
+  - main:
+    - button "Instructions"
+    - button "Submit"
+    - generic: Persuasive Letter
+    - generic: In progress
+    - generic: Unsaved
+    - button "Hide history" [expanded]:
+    - toolbar "toolbar":
+      - button "Bold":
+      - button "Italic":
+      - button "Underline":
+      - button "Link":
+      - button "Add image":
+      - button "Format text as heading":
+      - button "List options":
+      - button "Block formatting":
+      - button "Text marks":
+      - button "Text alignment":
+      - generic: "267"
+    - generic "Main content area, start typing to enter text.":
+      - paragraph: Working draft for the community letter.
+      - paragraph: "Primary repo: https://github.com/codepetca/pika. Reference repo: https://github.com/vercel/next.js/tree/canary. Preview: https://example.com/class-project. Screenshot: https://images.unsplash.com/photo-1500530855697-b586d89ba3ee"
+    - generic "View History (17)":
+      - generic: View History (17)

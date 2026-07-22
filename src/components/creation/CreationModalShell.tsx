@@ -3,7 +3,7 @@
 import { useId, type ReactNode, type Ref } from 'react'
 import { X } from 'lucide-react'
 import { Button, DialogPanel, FormField, Input } from '@/ui'
-import { cn } from '@/ui/utils'
+import { cn } from '@/ui'
 
 interface CreationModalShellProps {
   isOpen: boolean

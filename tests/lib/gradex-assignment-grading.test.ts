@@ -510,7 +510,7 @@ function buildSupabase() {
     aiGradeCalls,
     client: {
       rpc: vi.fn(async (fn: string, args: Record<string, unknown>) => {
-        if (fn !== 'finalize_assignment_ai_grading_item_atomic') {
+        if (fn !== 'finalize_assignment_ai_grading_item_with_provenance_atomic') {
           throw new Error(`Unexpected RPC: ${fn}`)
         }
         aiGradeCalls.push(args)
