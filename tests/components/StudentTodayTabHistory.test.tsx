@@ -9,6 +9,18 @@ import type { Classroom, Entry } from '@/types'
 const getTodayInTorontoMock = vi.hoisted(() => vi.fn(() => '2025-12-16'))
 const invalidateStudentEntriesForClassroomMock = vi.hoisted(() => vi.fn())
 const redirectToLoginForReauthMock = vi.hoisted(() => vi.fn())
+const classDaysContextMock = vi.hoisted(() => ({
+  classDays: [
+    { id: 'd1', classroom_id: 'c1', date: '2025-12-16', prompt_text: null, is_class_day: true },
+    { id: 'd2', classroom_id: 'c1', date: '2025-05-06', prompt_text: null, is_class_day: true },
+    { id: 'd3', classroom_id: 'c1', date: '2025-05-11', prompt_text: null, is_class_day: true },
+  ],
+  error: null as string | null,
+  hasLoadedSnapshot: true,
+  isLoading: false,
+  refresh: vi.fn(),
+}))
+const defaultClassDays = [...classDaysContextMock.classDays]
 
 vi.mock('@/lib/timezone', () => ({
   getTodayInToronto: getTodayInTorontoMock,
@@ -74,15 +86,7 @@ vi.mock('@/ui', async (importOriginal) => {
 })
 
 vi.mock('@/hooks/useClassDays', () => ({
-  useClassDaysContext: () => ({
-    classDays: [
-      { id: 'd1', classroom_id: 'c1', date: '2025-12-16', prompt_text: null, is_class_day: true },
-      { id: 'd2', classroom_id: 'c1', date: '2025-05-06', prompt_text: null, is_class_day: true },
-      { id: 'd3', classroom_id: 'c1', date: '2025-05-11', prompt_text: null, is_class_day: true },
-    ],
-    isLoading: false,
-    refresh: vi.fn(),
-  }),
+  useClassDaysContext: () => classDaysContextMock,
 }))
 
 const classroom: Classroom = {
@@ -164,6 +168,11 @@ describe('StudentTodayTab history section', () => {
     invalidateCachedJSONMatching('student-entries:')
     invalidateCachedJSONMatching('student-lesson-plans:')
     getTodayInTorontoMock.mockReturnValue('2025-12-16')
+    classDaysContextMock.classDays = defaultClassDays
+    classDaysContextMock.error = null
+    classDaysContextMock.hasLoadedSnapshot = true
+    classDaysContextMock.isLoading = false
+    classDaysContextMock.refresh.mockReset()
     window.sessionStorage.clear()
     document.cookie = 'pika_student_today_history=; Max-Age=0; Path=/'
   })
@@ -236,6 +245,116 @@ describe('StudentTodayTab history section', () => {
 
     expect(await screen.findByText('No past logs yet')).toBeInTheDocument()
     expect(screen.queryByText('Tue Dec 16')).not.toBeInTheDocument()
+  })
+
+  it('shows a retryable entry error instead of an empty saved editor after the initial read fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let entriesRequests = 0
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+        entriesRequests += 1
+        return entriesRequests === 1
+          ? mockJson({ error: 'Entries unavailable' }, false)
+          : mockJson({ entries })
+      }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lessonPlans: [] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Daily log unavailable')
+    expect(screen.queryByLabelText('Write something...')).not.toBeInTheDocument()
+    expect(screen.queryByText('No past logs yet')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByDisplayValue(entries[0].text)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(entriesRequests).toBe(2)
+    consoleError.mockRestore()
+  })
+
+  it('shows a retryable schedule error instead of reporting no class after class-days failure', async () => {
+    classDaysContextMock.classDays = []
+    classDaysContextMock.error = 'The class schedule could not be loaded.'
+    classDaysContextMock.hasLoadedSnapshot = false
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+        return mockJson({ entries })
+      }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lessonPlans: [] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Class schedule unavailable')
+    expect(screen.queryByText('No class today')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(classDaysContextMock.refresh).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the daily workspace visible when a schedule refresh fails', async () => {
+    classDaysContextMock.error = 'The class schedule could not be loaded.'
+    classDaysContextMock.hasLoadedSnapshot = true
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+        return mockJson({ entries })
+      }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lessonPlans: [] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The latest class schedule could not be loaded.'
+    )
+    expect(screen.getByDisplayValue(entries[0].text)).toBeInTheDocument()
+    expect(screen.getByText(entries[1].text)).toBeInTheDocument()
+    expect(screen.queryByText('Class schedule unavailable')).not.toBeInTheDocument()
+  })
+
+  it('does not paint the previous classroom log while the next classroom loads', async () => {
+    const secondEntriesRequest = deferred<any>()
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=12`)) {
+        return mockJson({ entries })
+      }
+      if (url.startsWith(`/api/student/entries?classroom_id=${secondClassroom.id}&limit=12`)) {
+        return secondEntriesRequest.promise
+      }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lessonPlans: [] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const view = render(<StudentTodayTab classroom={classroom} />)
+    expect(await screen.findByDisplayValue(entries[0].text)).toBeInTheDocument()
+
+    view.rerender(<StudentTodayTab classroom={secondClassroom} />)
+
+    expect(screen.queryByDisplayValue(entries[0].text)).not.toBeInTheDocument()
+
+    secondEntriesRequest.resolve(await mockJson({ entries: [] }))
+    expect(await screen.findByText('No past logs yet')).toBeInTheDocument()
   })
 
   it('ignores stale entry and lesson-plan responses after classroom changes', async () => {
@@ -347,7 +466,10 @@ describe('StudentTodayTab history section', () => {
     render(<StudentTodayTab classroom={classroom} />)
 
     const editor = await screen.findByLabelText('Write something...')
-    expect(screen.getByText('Saved')).toBeInTheDocument()
+    const saveStatus = screen.getByText('Saved')
+    expect(saveStatus).toHaveAttribute('role', 'status')
+    expect(saveStatus).toHaveAttribute('aria-live', 'polite')
+    expect(saveStatus).toHaveAttribute('aria-atomic', 'true')
 
     fireEvent.change(editor, { target: { value: '' } })
 
@@ -397,6 +519,82 @@ describe('StudentTodayTab history section', () => {
 
     expect(await screen.findByText('Refreshed log from the server.')).toBeInTheDocument()
     expect(window.sessionStorage.getItem(cacheKey)).toContain('Refreshed log from the server.')
+  })
+
+  it('keeps cached entries available when a background refresh fails and retries', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 12 })
+    window.sessionStorage.setItem(cacheKey, JSON.stringify(entries))
+    let entriesRequests = 0
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?`)) {
+        entriesRequests += 1
+        return entriesRequests === 1
+          ? mockJson({ error: 'Entries unavailable' }, false)
+          : mockJson({ entries })
+      }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lesson_plans: [] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The latest daily log could not be loaded.'
+    )
+    expect(screen.getByDisplayValue(entries[0].text)).toBeInTheDocument()
+    expect(screen.getByText(entries[1].text)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+    expect(entriesRequests).toBe(2)
+    expect(screen.getByDisplayValue(entries[0].text)).toBeInTheDocument()
+    consoleError.mockRestore()
+  })
+
+  it('retains the session snapshot when a background retry also fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 12 })
+    window.sessionStorage.setItem(cacheKey, JSON.stringify(entries))
+    let entriesRequests = 0
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?`)) {
+        entriesRequests += 1
+        return mockJson({ error: 'Entries unavailable' }, false)
+      }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lesson_plans: [] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const view = render(<StudentTodayTab classroom={classroom} />)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The latest daily log could not be loaded.'
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(entriesRequests).toBe(2))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The latest daily log could not be loaded.'
+    )
+    expect(window.sessionStorage.getItem(cacheKey)).toContain(entries[0].text)
+
+    view.unmount()
+    render(<StudentTodayTab classroom={classroom} />)
+
+    expect(await screen.findByDisplayValue(entries[0].text)).toBeInTheDocument()
+    expect(window.sessionStorage.getItem(cacheKey)).toContain(entries[0].text)
+    consoleError.mockRestore()
   })
 
   it('does not overwrite local edits when the background refresh completes', async () => {

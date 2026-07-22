@@ -29,11 +29,13 @@ function deferred<T>() {
 }
 
 function ContextProbe({ label = 'probe' }: { label?: string }) {
-  const { classDays, isLoading, refresh } = useClassDaysContext()
+  const { classDays, error, hasLoadedSnapshot, isLoading, refresh } = useClassDaysContext()
   return (
     <div>
       <div data-testid={`${label}-loading`}>{String(isLoading)}</div>
       <div data-testid={`${label}-dates`}>{classDays.map((day) => day.date).join(',')}</div>
+      <div data-testid={`${label}-error`}>{error ?? ''}</div>
+      <div data-testid={`${label}-snapshot`}>{String(hasLoadedSnapshot)}</div>
       <button type="button" onClick={() => void refresh()}>
         Refresh {label}
       </button>
@@ -122,6 +124,42 @@ describe('ClassDaysProvider', () => {
 
     await screen.findByText('2026-05-02')
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('retains the last successful snapshot when a refresh fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const fetchMock = vi.mocked(fetch)
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ class_days: [classDay('2026-05-01')] }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Class days unavailable' }),
+      } as Response)
+
+    render(
+      <ClassDaysProvider classroomId="classroom-1">
+        <ContextProbe />
+      </ClassDaysProvider>,
+    )
+
+    await screen.findByText('2026-05-01')
+    expect(screen.getByTestId('probe-snapshot')).toHaveTextContent('true')
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Refresh probe' }).click()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('probe-error')).toHaveTextContent(
+        'The class schedule could not be loaded.',
+      )
+    })
+    expect(screen.getByTestId('probe-dates')).toHaveTextContent('2026-05-01')
+    expect(screen.getByTestId('probe-snapshot')).toHaveTextContent('true')
+    expect(consoleError).toHaveBeenCalledWith('Error loading class days:', expect.any(Error))
   })
 
   it('ignores stale class-days responses that resolve after a forced refresh', async () => {
@@ -247,12 +285,17 @@ describe('ClassDaysProvider', () => {
       expect(screen.getByTestId('probe-loading')).toHaveTextContent('false')
     })
     expect(screen.getByTestId('probe-dates')).toHaveTextContent('')
+    expect(screen.getByTestId('probe-snapshot')).toHaveTextContent('false')
+    expect(screen.getByTestId('probe-error')).toHaveTextContent(
+      'The class schedule could not be loaded.',
+    )
 
     await act(async () => {
       screen.getByRole('button', { name: 'Refresh probe' }).click()
     })
 
     await screen.findByText('2026-05-04')
+    expect(screen.getByTestId('probe-error')).toHaveTextContent('')
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(consoleError).toHaveBeenCalledWith('Error loading class days:', expect.any(Error))
   })

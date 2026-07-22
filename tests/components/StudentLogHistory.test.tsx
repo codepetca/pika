@@ -228,6 +228,34 @@ describe('StudentLogHistory', () => {
     expect(screen.queryByText(/Selected date/)).not.toBeInTheDocument()
   })
 
+  it('shows a retryable error instead of an empty history after the read fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const recoveredEntry = entry({
+      id: 'recovered-history-entry',
+      student_id: 'student-retry',
+      classroom_id: 'classroom-retry',
+      text: 'Recovered history.',
+    })
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(await mockJson({ error: 'History unavailable' }, false))
+      .mockResolvedValueOnce(await mockJson({ entries: [recoveredEntry] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <StudentLogHistory studentId="student-retry" classroomId="classroom-retry" />
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('History unavailable')
+    expect(screen.queryByText('No entries.')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText('Recovered history.')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    consoleError.mockRestore()
+  })
+
   it('reuses cached exact history when a student is selected again', async () => {
     const exactEntry = entry({
       id: 'cached-entry',
@@ -296,5 +324,63 @@ describe('StudentLogHistory', () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(2)
     })
+  })
+
+  it('ignores an older load-more response after the selected student changes', async () => {
+    const studentALatest = Array.from({ length: 10 }, (_, index) =>
+      entry({
+        id: `student-a-latest-${index}`,
+        student_id: 'student-a',
+        classroom_id: 'classroom-race',
+        date: `2026-03-${String(20 - index).padStart(2, '0')}`,
+        text: `Student A history ${index + 1}.`,
+      })
+    )
+    const studentBOwnEntry = entry({
+      id: 'student-b-entry',
+      student_id: 'student-b',
+      classroom_id: 'classroom-race',
+      text: 'Student B history.',
+    })
+    const studentAOlderEntry = entry({
+      id: 'student-a-older',
+      student_id: 'student-a',
+      classroom_id: 'classroom-race',
+      date: '2026-03-01',
+      text: 'Student A older history must not leak.',
+    })
+    const olderRequest = deferred<any>()
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('student_id=student-a') && url.includes('before_date=')) {
+        return olderRequest.promise
+      }
+      if (url.includes('student_id=student-a')) {
+        return mockJson({ entries: studentALatest })
+      }
+      if (url.includes('student_id=student-b')) {
+        return mockJson({ entries: [studentBOwnEntry] })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const view = render(
+      <StudentLogHistory studentId="student-a" classroomId="classroom-race" />
+    )
+    await screen.findByText('Student A history 10.')
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
+
+    view.rerender(
+      <StudentLogHistory studentId="student-b" classroomId="classroom-race" />
+    )
+    expect(await screen.findByText('Student B history.')).toBeInTheDocument()
+
+    olderRequest.resolve(await mockJson({ entries: [studentAOlderEntry] }))
+
+    await waitFor(() => {
+      expect(screen.queryByText('Student A older history must not leak.')).not.toBeInTheDocument()
+    })
+    expect(screen.getByText('Student B history.')).toBeInTheDocument()
   })
 })

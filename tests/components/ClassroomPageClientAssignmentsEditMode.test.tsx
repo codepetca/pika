@@ -154,6 +154,8 @@ vi.mock('@/hooks/useClassDays', () => ({
   ClassDaysProvider: ({ children }: any) => <>{children}</>,
   useClassDaysContext: () => ({
     classDays: mockClassDays,
+    error: null,
+    hasLoadedSnapshot: true,
     isLoading: false,
     refresh: vi.fn(),
   }),

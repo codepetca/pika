@@ -177,6 +177,13 @@ Assignment progress:
 - Accessible assignment save announcements and restore-dialog semantics were completed in #891. The visible save state is a polite atomic live region, and restore confirmation uses the shared modal-layer contract for focus containment, dismissal, background isolation, scroll locking, and focus return.
 - Remaining assignment work is limited to the deferred mobile workspace modes and the separately owned Gradex status boundary.
 
+Daily and attendance progress:
+
+- Cold class-schedule, student-entry, teacher-attendance, and selected-student history reads now render explicit retryable failures instead of false non-class-day or empty states.
+- Failed background schedule and student-entry refreshes preserve the last valid table, editor, and history snapshots with non-blocking retry warnings. Cross-classroom and cross-student stale response guards prevent another classroom's or student's log data from painting in the active workspace.
+- Student Daily save status is a polite atomic live region and save failures are announced. Existing Toronto midnight, DST, quick-jump, stale-mounted-save, and API timing tests remain the timestamp evidence.
+- Remaining Daily/Attendance work is limited to the deferred mobile history/table workspace modes.
+
 1. Assignments: save/submit integrity, error states, mobile workspace modes, Gradex status boundary.
 2. Tests: list errors, authoring/grading mode separation, standalone preview authorization/framing, mobile navigation, accessible flags/save status.
 3. Daily and attendance: explicit failures, mobile history/table modes, Toronto timestamp verification.
