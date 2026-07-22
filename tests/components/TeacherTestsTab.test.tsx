@@ -749,7 +749,7 @@ describe('TeacherTestsTab', () => {
     renderTab()
 
     await openEditModalFromSelectedTest()
-    expect(screen.getByRole('button', { name: 'Open All' })).toBeEnabled()
+    expect(screen.getByLabelText('Open All')).toBeEnabled()
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
@@ -759,7 +759,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mark pending markdown' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Open All' })).toBeDisabled()
+      expect(screen.getByLabelText('Open All')).toBeDisabled()
       expect(
         screen.getByText('Apply or undo markdown changes before previewing or changing the test status.')
       ).toBeInTheDocument()
@@ -769,7 +769,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear pending markdown' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Open All' })).toBeEnabled()
+      expect(screen.getByLabelText('Open All')).toBeEnabled()
       expect(screen.getByRole('button', { name: 'Preview' })).toBeEnabled()
     })
 
@@ -814,7 +814,7 @@ describe('TeacherTestsTab', () => {
     renderTab({ onSelectTest })
 
     await openEditModalFromSelectedTest()
-    expect(screen.getByRole('button', { name: 'Open All' })).toBeEnabled()
+    expect(screen.getByLabelText('Open All')).toBeEnabled()
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
@@ -823,7 +823,7 @@ describe('TeacherTestsTab', () => {
 
     await waitFor(() => {
       expect(onSelectTest).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Unit Test Draft' }))
-      expect(screen.getByRole('button', { name: 'Open All' })).toBeDisabled()
+      expect(screen.getByLabelText('Open All')).toBeDisabled()
     })
 
     expect(screen.getByTestId('mock-test-detail')).toBeInTheDocument()
@@ -837,7 +837,7 @@ describe('TeacherTestsTab', () => {
     renderTab({ onSelectTest })
 
     await openEditModalFromSelectedTest()
-    expect(screen.getByRole('button', { name: 'Open All' })).toBeEnabled()
+    expect(screen.getByLabelText('Open All')).toBeEnabled()
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
@@ -847,7 +847,7 @@ describe('TeacherTestsTab', () => {
     await waitFor(() => {
       expect(screen.getByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test Updated')
       expect(onSelectTest).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Unit Test Updated' }))
-      expect(screen.getByRole('button', { name: 'Open All' })).toBeDisabled()
+      expect(screen.getByLabelText('Open All')).toBeDisabled()
     })
 
     expect(screen.getByTestId('mock-test-detail')).toBeInTheDocument()
@@ -1452,6 +1452,10 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
 
     const studentScrollPane = await screen.findByTestId('test-grading-student-scroll-pane')
+    expect(screen.getByRole('region', { name: 'Test grading students' })).toHaveAttribute(
+      'aria-keyshortcuts',
+      'ArrowUp ArrowDown Home End Escape',
+    )
     const table = within(studentScrollPane).getByRole('table')
     expect(table).toHaveClass('table-fixed')
     expect(table).toHaveClass('lg:table-auto')
@@ -1482,6 +1486,13 @@ describe('TeacherTestsTab', () => {
     await waitFor(() => {
       expect(screen.getByTestId('mock-test-grading-panel')).toBeInTheDocument()
     })
+    const selectedRow = screen.getByTestId('test-grading-student-row-student-1')
+    expect(selectedRow).toHaveAttribute('id', 'test-grading-student-row-student-1')
+    expect(selectedRow).toHaveAttribute('tabindex', '-1')
+    expect(selectedRow).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
 
     fireEvent.keyDown(window, { key: 'Escape' })
 

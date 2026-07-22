@@ -1,5 +1,6 @@
 import { formatInTimeZone } from 'date-fns-tz'
 import { classifyAmbiguousRepoReviewChanges } from '@/lib/repo-review-ai'
+import { PIKA_REPO_REVIEW_CLASSIFICATION_PROMPT_VERSION } from '@/lib/grading/profiles/pika-repo-review'
 import { parseGitHubRepoReference } from '@/lib/github-repos'
 import type { AiSanitizationContext } from '@/lib/ai-sanitization'
 import type {
@@ -21,7 +22,7 @@ const MAX_EVIDENCE_ITEMS = 10
 const TORONTO_TIMEZONE = 'America/Toronto'
 
 export const REPO_REVIEW_METRICS_VERSION = 'v1'
-export const REPO_REVIEW_PROMPT_VERSION = 'v1'
+export const REPO_REVIEW_PROMPT_VERSION = PIKA_REPO_REVIEW_CLASSIFICATION_PROMPT_VERSION
 
 export const REPO_REVIEW_SEMANTIC_WEIGHTS: Record<RepoReviewSemanticCategory, number> = {
   feature: 1.0,

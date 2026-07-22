@@ -1457,7 +1457,7 @@ function ClassroomPageContent({
                 type="button"
                 onClick={calendarSidebarState.onSave}
                 disabled={calendarSidebarState.bulkSaving}
-                className="px-2 py-1 text-xs rounded bg-primary text-text-inverse hover:bg-primary-hover disabled:opacity-50"
+                className="px-2 py-1 text-xs rounded bg-primary-solid text-text-inverse hover:bg-primary-solid-hover disabled:opacity-50"
               >
                 {calendarSidebarState.bulkSaving ? 'Saving...' : 'Save'}
               </button>

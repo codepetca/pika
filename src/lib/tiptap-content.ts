@@ -30,7 +30,42 @@ export function parseContentField(content: unknown): TiptapContent {
 export function isValidTiptapContent(content: any): content is TiptapContent {
   if (!content || typeof content !== 'object') return false
   if (content.type !== 'doc') return false
-  if (content.content && !Array.isArray(content.content)) return false
+  if (content.content !== undefined && !Array.isArray(content.content)) return false
+
+  const stack: Array<{ node: unknown; depth: number }> = (content.content ?? [])
+    .map((node: unknown) => ({ node, depth: 1 }))
+  let nodeCount = 0
+
+  while (stack.length > 0) {
+    const current = stack.pop()!
+    if (current.depth > 100 || ++nodeCount > 10_000) return false
+    if (!current.node || typeof current.node !== 'object' || Array.isArray(current.node)) return false
+
+    const node = current.node as Record<string, unknown>
+    if (typeof node.type !== 'string' || node.type.length === 0 || node.type.length > 100) return false
+    if (node.text !== undefined && typeof node.text !== 'string') return false
+    if (typeof node.text === 'string' && node.text.length > 1_000_000) return false
+    if (node.attrs !== undefined && (
+      !node.attrs || typeof node.attrs !== 'object' || Array.isArray(node.attrs)
+    )) return false
+    if (node.marks !== undefined) {
+      if (!Array.isArray(node.marks) || node.marks.length > 100) return false
+      for (const mark of node.marks) {
+        if (!mark || typeof mark !== 'object' || Array.isArray(mark)) return false
+        const markRecord = mark as Record<string, unknown>
+        if (typeof markRecord.type !== 'string' || markRecord.type.length === 0) return false
+        if (markRecord.attrs !== undefined && (
+          !markRecord.attrs || typeof markRecord.attrs !== 'object' || Array.isArray(markRecord.attrs)
+        )) return false
+      }
+    }
+    if (node.content !== undefined) {
+      if (!Array.isArray(node.content) || node.content.length > 10_000) return false
+      for (const child of node.content) {
+        stack.push({ node: child, depth: current.depth + 1 })
+      }
+    }
+  }
   return true
 }
 

@@ -36,14 +36,24 @@ export async function fetchTeacherDashboardAttendance(classroomId: string): Prom
   }
 }
 
-export async function fetchTeacherDashboardEntries(classroomId: string): Promise<Entry[]> {
-  const response = await fetch(`/api/student/entries?classroom_id=${classroomId}`)
+export async function fetchTeacherDashboardEntry(
+  classroomId: string,
+  studentId: string,
+  date: string,
+): Promise<Entry | null> {
+  const searchParams = new URLSearchParams({
+    classroom_id: classroomId,
+    student_id: studentId,
+    date,
+    limit: '1',
+  })
+  const response = await fetch(`/api/teacher/student-history?${searchParams}`)
   const data = await response.json().catch(() => ({ entries: [] }))
   if (!response.ok) {
-    const message = typeof data.error === 'string' ? data.error : 'Failed to load entries'
+    const message = typeof data.error === 'string' ? data.error : 'Failed to load entry'
     throw new Error(message)
   }
-  return data.entries || []
+  return data.entries?.[0] || null
 }
 
 export function invalidateTeacherDashboardAttendance(classroomId: string) {

@@ -191,6 +191,7 @@ async function handleImageFile(
 }
 
 export interface RichTextEditorProps {
+  id?: string
   content: TiptapContent
   onChange: (content: TiptapContent) => void
   onBlur?: () => void
@@ -205,6 +206,12 @@ export interface RichTextEditorProps {
   enableImageUpload?: boolean
   /** Callback when image upload fails */
   onImageUploadError?: (message: string) => void
+  required?: boolean
+  'aria-required'?: boolean | 'true' | 'false'
+  'aria-invalid'?: boolean | 'true' | 'false' | 'grammar' | 'spelling'
+  'aria-describedby'?: string
+  'aria-errormessage'?: string
+  'aria-labelledby'?: string
 }
 
 const MainToolbarContent = ({
@@ -274,6 +281,7 @@ const MobileToolbarContent = ({
 )
 
 export function RichTextEditor({
+  id,
   content,
   onChange,
   onBlur,
@@ -286,6 +294,12 @@ export function RichTextEditor({
   className = '',
   enableImageUpload = false,
   onImageUploadError,
+  required,
+  'aria-required': ariaRequired,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
+  'aria-errormessage': ariaErrorMessage,
+  'aria-labelledby': ariaLabelledBy,
 }: RichTextEditorProps) {
   const canEdit = editable && !disabled
   const isMobile = useIsBreakpoint()
@@ -293,6 +307,28 @@ export function RichTextEditor({
   const [mobileView, setMobileView] = useState<'main' | 'link'>('main')
   const toolbarRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  const editorAttributes = useMemo(() => {
+    const attributes: Record<string, string> = {
+      autocomplete: 'off',
+      autocorrect: 'off',
+      autocapitalize: 'off',
+      role: 'textbox',
+      'aria-multiline': 'true',
+      class: 'simple-editor',
+    }
+    const requiredState = ariaRequired ?? required
+
+    if (id) attributes.id = id
+    if (ariaLabelledBy) attributes['aria-labelledby'] = ariaLabelledBy
+    else attributes['aria-label'] = 'Main content area, start typing to enter text.'
+    if (requiredState !== undefined) attributes['aria-required'] = String(requiredState)
+    if (ariaInvalid !== undefined) attributes['aria-invalid'] = String(ariaInvalid)
+    if (ariaDescribedBy) attributes['aria-describedby'] = ariaDescribedBy
+    if (ariaErrorMessage) attributes['aria-errormessage'] = ariaErrorMessage
+
+    return attributes
+  }, [ariaDescribedBy, ariaErrorMessage, ariaInvalid, ariaLabelledBy, ariaRequired, id, required])
 
   // Build extensions array based on props (memoized to avoid recreating on every render)
   const extensions = useMemo(() => [
@@ -356,13 +392,7 @@ export function RichTextEditor({
     immediatelyRender: false,
     editable: canEdit,
     editorProps: {
-      attributes: {
-        autocomplete: 'off',
-        autocorrect: 'off',
-        autocapitalize: 'off',
-        'aria-label': 'Main content area, start typing to enter text.',
-        class: 'simple-editor',
-      },
+      attributes: editorAttributes,
       handleDOMEvents: {
         paste: (_view, event) => {
           // Track text paste for authenticity
@@ -430,6 +460,16 @@ export function RichTextEditor({
       editor.setEditable(canEdit)
     }
   }, [canEdit, editor])
+
+  useEffect(() => {
+    if (!editor) return
+    editor.setOptions({
+      editorProps: {
+        ...editor.options.editorProps,
+        attributes: editorAttributes,
+      },
+    })
+  }, [editor, editorAttributes])
 
   // Reset mobile view when switching to desktop
   useEffect(() => {

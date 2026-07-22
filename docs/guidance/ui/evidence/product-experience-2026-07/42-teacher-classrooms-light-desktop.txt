@@ -1,0 +1,28 @@
+- banner:
+  - link "Home":
+    - /url: /classrooms
+    - img "Pika"
+  - heading "Classrooms" [level=1]
+  - button "Enter fullscreen":
+  - generic: Thu Jul 16
+  - generic: 9:21 AM
+  - button "User menu" [active]:
+    - generic: T
+  - menu:
+    - generic: T
+    - paragraph: teacher@example.com
+    - paragraph: teacher
+    - menuitem:
+      - text: Dark mode
+    - menuitem:
+      - text: Send Feedback
+    - menuitem:
+      - text: Logout
+- main:
+  - 'button "Test Classroom Custom 2026-07-01 to 2026-11-12 Code: TEST01"':
+    - generic: Test Classroom
+    - generic: Custom 2026-07-01 to 2026-11-12
+    - generic: "Code: TEST01"
+  - status
+  - button "Organize classrooms":
+- alert

@@ -5,16 +5,16 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from './utils'
 
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 rounded-control border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+  'inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-control border font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50',
   {
     variants: {
       variant: {
-        primary: 'border-transparent bg-primary text-text-inverse hover:bg-primary-hover',
+        primary: 'border-transparent bg-primary-solid text-text-inverse hover:bg-primary-solid-hover',
         secondary: 'border-border bg-surface-2 hover:bg-surface-hover text-text-default',
         surface: 'border-border bg-surface hover:bg-surface-hover text-text-default',
         subtle: 'border-primary bg-info-bg hover:bg-info-bg-hover text-text-default',
-        danger: 'border-transparent bg-danger hover:bg-danger-hover text-text-inverse',
-        success: 'border-transparent bg-success hover:bg-success-hover text-text-inverse',
+        danger: 'border-transparent bg-danger-solid hover:bg-danger-solid-hover text-text-inverse',
+        success: 'border-transparent bg-success-solid hover:bg-success-solid-hover text-text-inverse',
         ghost: 'border-transparent bg-transparent text-text-muted hover:bg-surface-hover hover:text-text-default',
       },
       size: {
@@ -57,12 +57,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       className={cn(buttonVariants({ variant, size, fullWidth }), className)}
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
       {...props}
     >
       {loading ? (
         <>
           <svg
             className="animate-spin -ml-1 mr-2 h-4 w-4"
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"

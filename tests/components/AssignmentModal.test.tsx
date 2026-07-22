@@ -124,7 +124,7 @@ describe('AssignmentModal', () => {
       expect(within(previewDialog).queryByText('Original title')).not.toBeInTheDocument()
       expect(within(previewDialog).queryByText('Close')).not.toBeInTheDocument()
 
-      fireEvent.keyDown(window, { key: 'Escape' })
+      fireEvent.keyDown(document, { key: 'Escape' })
 
       await waitFor(() => {
         expect(screen.queryByRole('dialog', { name: 'Instructions' })).not.toBeInTheDocument()

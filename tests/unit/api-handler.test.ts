@@ -165,6 +165,41 @@ describe('withErrorHandler', () => {
     expect(console.error).not.toHaveBeenCalled()
   })
 
+  it('maps malformed request JSON to 400 without route-local handling', async () => {
+    const handler = withErrorHandler('TestRoute', async (request) => {
+      await request.json()
+      return NextResponse.json({})
+    })
+    const request = new NextRequest('http://localhost/api/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"broken":',
+    })
+
+    const result = await handler(request, { params: Promise.resolve({}) })
+
+    expect(result.status).toBe(400)
+    await expect(result.json()).resolves.toEqual({ error: 'Malformed JSON body' })
+    expect(console.error).not.toHaveBeenCalled()
+  })
+
+  it('does not misclassify unrelated SyntaxErrors as malformed request JSON', async () => {
+    const error = new SyntaxError('application parser failed')
+    const handler = withErrorHandler('TestRoute', async () => {
+      throw error
+    })
+    const request = new NextRequest('http://localhost/api/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+
+    const result = await handler(request, { params: Promise.resolve({}) })
+
+    expect(result.status).toBe(500)
+    expect(console.error).toHaveBeenCalledWith('TestRoute error:', error)
+  })
+
   it('forwards request and params to the inner handler', async () => {
     const innerHandler = vi.fn(async (_request: NextRequest, context: any) => {
       const params = await context.params

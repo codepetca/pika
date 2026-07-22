@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspaceShell'
 import { useWindowSize } from '@/hooks/use-window-size'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
-import { cn } from '@/ui/utils'
+import { cn } from '@/ui'
 
 const DEFAULT_MIN_INSPECTOR_PX = 320
 const DEFAULT_MIN_PRIMARY_PX = 320

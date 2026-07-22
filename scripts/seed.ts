@@ -18,6 +18,7 @@ import { hashPassword } from '../src/lib/crypto'
 import { getTodayInToronto } from '../src/lib/timezone'
 import { seedAssignmentReviewFixtures } from './seed-assignment-review-fixtures'
 import { seedSampleTests } from './seed-tests'
+import { splitAssignmentHistoryAtSubmission } from './lib/assignment-history-seed'
 import { config } from 'dotenv'
 import { addDays, format, parse, subDays } from 'date-fns'
 import { resolve } from 'path'
@@ -502,7 +503,7 @@ async function seed() {
     const letter = createdAssignments[1]!
 
     const assignmentDocs = [
-      // Student 1 submitted the narrative essay
+      // Submitted documents start editable so their pre-submit history can be seeded first.
       {
         assignment_id: narrative.id,
         student_id: students[0]!.id,
@@ -514,10 +515,10 @@ async function seed() {
             { type: 'paragraph', content: [{ type: 'text', text: 'Now, whenever I bake bread, I think of her. The recipe is more than flour and water — it\'s a connection to my family\'s history. That summer taught me that the most important things are passed down not through books, but through hands and hearts.' }] },
           ],
         },
-        is_submitted: true,
-        submitted_at: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+        is_submitted: false,
+        submitted_at: null,
       },
-      // Student 2 submitted the narrative essay (late, shorter)
+      // Student 2's narrative is finalized after its writing history is inserted.
       {
         assignment_id: narrative.id,
         student_id: students[1]!.id,
@@ -528,8 +529,8 @@ async function seed() {
             { type: 'paragraph', content: [{ type: 'text', text: 'By the end of the season I scored my first goal. It felt amazing. I learned that trying new things is worth it even when it\'s scary at first.' }] },
           ],
         },
-        is_submitted: true,
-        submitted_at: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(), // late
+        is_submitted: false,
+        submitted_at: null,
       },
       // Student 1 started the persuasive letter but hasn't submitted
       {
@@ -614,6 +615,27 @@ async function seed() {
         paste_word_count: number | null
         keystroke_count: number | null
       }[] = []
+      const submissions: {
+        assignmentDocId: string
+        submittedAt: string
+      }[] = []
+
+      function addHistorySteps(docId: string, baseDateMs: number, steps: HistoryStep[]) {
+        const entries = steps.map(step => ({
+          assignment_doc_id: docId,
+          patch: null as null,
+          snapshot: step.snapshot,
+          word_count: step.wordCount,
+          char_count: step.charCount,
+          trigger: step.trigger,
+          created_at: torontoTime(baseDateMs, step.day, step.hour, step.min, step.sec),
+          paste_word_count: step.paste,
+          keystroke_count: step.keys,
+        }))
+        const prepared = splitAssignmentHistoryAtSubmission(entries)
+        historyEntries.push(...prepared.historyEntries)
+        if (prepared.submission) submissions.push(prepared.submission)
+      }
 
       // ── Student 1 narrative essay — 10 days of realistic writing ──
       // Scenarios tested:
@@ -631,8 +653,8 @@ async function seed() {
         d => d.student_id === students[0]!.id && d.assignment_id === narrative.id
       )
       if (s1NarrativeDoc) {
-        // Base: 10 days ago at midnight Toronto time
-        const baseDateMs = new Date(now.getTime() - 10 * 86400000).setUTCHours(0, 0, 0, 0)
+        // Base: 13 days ago so the Day 9 submission remains 4 days ago.
+        const baseDateMs = new Date(now.getTime() - 13 * 86400000).setUTCHours(0, 0, 0, 0)
 
         const steps: HistoryStep[] = [
           // ── Day 0: Afternoon start (3:00–3:16 PM) — 4 entries ──
@@ -788,19 +810,7 @@ async function seed() {
           { charCount: 680, wordCount: 126, trigger: 'submit',   day: 9, hour: 15, min: 20, paste: null, keys: 6,
             snapshot: tiptapDoc(['The summer I turned twelve, my grandmother taught me how to bake bread. I remember the warm kitchen, the smell of yeast rising, and her flour-dusted hands guiding mine as I kneaded the dough. "Feel the dough," she said. "It will tell you when it\'s ready."', 'That afternoon we sat on the porch waiting for the bread to rise. She told me stories about her childhood in Portugal, about olive groves and fishing boats. I listened carefully, trying to memorize every detail. The bread came out golden and perfect.', 'Now, whenever I bake bread, I think of her. The recipe is more than flour and water — it\'s a connection to my family\'s history. That summer taught me that the most important things are passed down not through books, but through hands and hearts.']) },
         ]
-        for (const step of steps) {
-          historyEntries.push({
-            assignment_doc_id: s1NarrativeDoc.id,
-            patch: null,
-            snapshot: step.snapshot,
-            word_count: step.wordCount,
-            char_count: step.charCount,
-            trigger: step.trigger,
-            created_at: torontoTime(baseDateMs, step.day, step.hour, step.min, step.sec),
-            paste_word_count: step.paste,
-            keystroke_count: step.keys,
-          })
-        }
+        addHistorySteps(s1NarrativeDoc.id, baseDateMs, steps)
       }
 
       // ── Student 2 narrative essay — paste-heavy with huge paste + huge delete ──
@@ -813,7 +823,7 @@ async function seed() {
         d => d.student_id === students[1]!.id && d.assignment_id === narrative.id
       )
       if (s2NarrativeDoc) {
-        const baseDateMs = new Date(now.getTime() - 5 * 86400000).setUTCHours(0, 0, 0, 0)
+        const baseDateMs = new Date(now.getTime() - 6 * 86400000).setUTCHours(0, 0, 0, 0)
 
         const steps: HistoryStep[] = [
           // Day 0: Slow start (4:00–4:10 PM)
@@ -866,19 +876,7 @@ async function seed() {
           { charCount: 380, wordCount: 70,  trigger: 'submit',   day: 4, hour: 8,  min: 10, paste: null, keys: 14,
             snapshot: tiptapDoc(['Last year I joined the soccer team even though I was scared. The first practice was really hard and I wanted to quit. But my coach said to give it one more week.', 'By the end of the season I scored my first goal. It felt amazing. I learned that trying new things is worth it even when it\'s scary at first.']) },
         ]
-        for (const step of steps) {
-          historyEntries.push({
-            assignment_doc_id: s2NarrativeDoc.id,
-            patch: null,
-            snapshot: step.snapshot,
-            word_count: step.wordCount,
-            char_count: step.charCount,
-            trigger: step.trigger,
-            created_at: torontoTime(baseDateMs, step.day, step.hour, step.min, step.sec),
-            paste_word_count: step.paste,
-            keystroke_count: step.keys,
-          })
-        }
+        addHistorySteps(s2NarrativeDoc.id, baseDateMs, steps)
       }
 
       // ── Student 1 persuasive letter — in-progress, 3 days ──
@@ -931,19 +929,7 @@ async function seed() {
           { charCount: 325, wordCount: 60, trigger: 'blur',     day: 2, hour: 15, min: 10, paste: null, keys: 14,
             snapshot: null },
         ]
-        for (const step of steps) {
-          historyEntries.push({
-            assignment_doc_id: s1LetterDoc.id,
-            patch: null,
-            snapshot: step.snapshot,
-            word_count: step.wordCount,
-            char_count: step.charCount,
-            trigger: step.trigger,
-            created_at: torontoTime(baseDateMs, step.day, step.hour, step.min, step.sec),
-            paste_word_count: step.paste,
-            keystroke_count: step.keys,
-          })
-        }
+        addHistorySteps(s1LetterDoc.id, baseDateMs, steps)
       }
 
       if (historyEntries.length > 0) {
@@ -951,8 +937,23 @@ async function seed() {
           await supabase.from('assignment_doc_history').insert(historyEntries),
           'Insert assignment_doc_history'
         )
-        console.log(`✓ Created ${historyEntries.length} history entries across 10 days\n`)
       }
+
+      for (const submission of submissions) {
+        ensureOk(
+          await supabase
+            .from('assignment_docs')
+            .update({
+              is_submitted: true,
+              submitted_at: submission.submittedAt,
+            })
+            .eq('id', submission.assignmentDocId),
+          'Finalize submitted assignment_doc'
+        )
+      }
+      console.log(
+        `✓ Created ${historyEntries.length + submissions.length} history entries across realistic writing timelines\n`
+      )
 
       await seedAssignmentReviewFixtures({
         supabase,
@@ -967,6 +968,9 @@ async function seed() {
           letter,
         },
         now,
+        narrativeStudent1SubmittedAt: submissions.find(
+          submission => submission.assignmentDocId === s1NarrativeDoc?.id
+        )?.submittedAt,
       })
       console.log('✓ Added repo artifact, repo review, and feedback-return fixtures\n')
     }

@@ -1,0 +1,311 @@
+- navigation:
+  - link "Pika":
+    - /url: /classrooms
+    - img "Pika"
+  - link "Classrooms":
+    - /url: /classrooms
+  - link "History":
+    - /url: /student/history
+  - generic: student1@example.com
+  - link "Logout":
+    - /url: /logout
+- main:
+  - heading "My Classes" [level=3]
+  - button "+ Join"
+  - button "Test Classroom TEST01":
+    - generic: Test Classroom
+    - generic: TEST01
+  - heading "Test Classroom" [level=2]
+  - paragraph: Attendance History
+  - text: 🟢
+  - generic: "11"
+  - generic: Present
+  - text: 🔴
+  - generic: "1"
+  - generic: Absent
+  - generic: ⚪
+  - generic: Thu Nov 12
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Nov 10
+  - generic: Pending
+  - generic: ⚪
+  - generic: Mon Nov 9
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Nov 6
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Nov 5
+  - generic: Pending
+  - generic: ⚪
+  - generic: Wed Nov 4
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Nov 3
+  - generic: Pending
+  - generic: ⚪
+  - generic: Mon Nov 2
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Oct 30
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Oct 29
+  - generic: Pending
+  - generic: ⚪
+  - generic: Wed Oct 28
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Oct 27
+  - generic: Pending
+  - generic: ⚪
+  - generic: Mon Oct 26
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Oct 23
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Oct 22
+  - generic: Pending
+  - generic: ⚪
+  - generic: Wed Oct 21
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Oct 20
+  - generic: Pending
+  - generic: ⚪
+  - generic: Mon Oct 19
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Oct 16
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Oct 15
+  - generic: Pending
+  - generic: ⚪
+  - generic: Wed Oct 14
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Oct 13
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Oct 9
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Oct 8
+  - generic: Pending
+  - generic: ⚪
+  - generic: Wed Oct 7
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Oct 6
+  - generic: Pending
+  - generic: ⚪
+  - generic: Mon Oct 5
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Oct 2
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Oct 1
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Sep 29
+  - generic: Pending
+  - generic: ⚪
+  - generic: Mon Sep 28
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Sep 25
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Sep 24
+  - generic: Pending
+  - generic: ⚪
+  - generic: Wed Sep 23
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Sep 22
+  - generic: Pending
+  - generic: ⚪
+  - generic: Mon Sep 21
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Sep 18
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Sep 17
+  - generic: Pending
+  - generic: ⚪
+  - generic: Wed Sep 16
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Sep 15
+  - generic: Pending
+  - generic: ⚪
+  - generic: Mon Sep 14
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Sep 11
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Sep 10
+  - generic: Pending
+  - generic: ⚪
+  - generic: Wed Sep 9
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Sep 8
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Sep 4
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Sep 3
+  - generic: Pending
+  - generic: ⚪
+  - generic: Wed Sep 2
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Sep 1
+  - generic: Pending
+  - generic: ⚪
+  - generic: Mon Aug 31
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Aug 28
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Aug 27
+  - generic: Pending
+  - generic: ⚪
+  - generic: Wed Aug 26
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Aug 25
+  - generic: Pending
+  - generic: ⚪
+  - generic: Mon Aug 24
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Aug 21
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Aug 20
+  - generic: Pending
+  - generic: ⚪
+  - generic: Wed Aug 19
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Aug 18
+  - generic: Pending
+  - generic: ⚪
+  - generic: Mon Aug 17
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Aug 14
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Aug 13
+  - generic: Pending
+  - generic: ⚪
+  - generic: Wed Aug 12
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Aug 11
+  - generic: Pending
+  - generic: ⚪
+  - generic: Mon Aug 10
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Aug 7
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Aug 6
+  - generic: Pending
+  - generic: ⚪
+  - generic: Wed Aug 5
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Aug 4
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Jul 31
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Jul 30
+  - generic: Pending
+  - generic: ⚪
+  - generic: Wed Jul 29
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Jul 28
+  - generic: Pending
+  - generic: ⚪
+  - generic: Mon Jul 27
+  - generic: Pending
+  - generic: ⚪
+  - generic: Fri Jul 24
+  - generic: Pending
+  - generic: ⚪
+  - generic: Thu Jul 23
+  - generic: Pending
+  - generic: ⚪
+  - generic: Wed Jul 22
+  - generic: Pending
+  - generic: ⚪
+  - generic: Tue Jul 21
+  - generic: Pending
+  - generic: ⚪
+  - generic: Mon Jul 20
+  - generic: Pending
+  - generic: 🟢
+  - generic: Fri Jul 17
+  - generic: Present
+  - button "View Entry →"
+  - generic: 🟢
+  - generic: Thu Jul 16
+  - generic: Present
+  - button "View Entry →"
+  - generic: 🔴
+  - generic: Wed Jul 15
+  - generic: Absent
+  - button "View Entry →"
+  - generic: 🟢
+  - generic: Tue Jul 14
+  - generic: Present
+  - button "View Entry →"
+  - generic: 🟢
+  - generic: Mon Jul 13
+  - generic: Present
+  - button "View Entry →"
+  - generic: 🟢
+  - generic: Fri Jul 10
+  - generic: Present
+  - button "View Entry →"
+  - generic: 🟢
+  - generic: Thu Jul 9
+  - generic: Present
+  - button "View Entry →"
+  - generic: 🟢
+  - generic: Wed Jul 8
+  - generic: Present
+  - button "View Entry →"
+  - generic: 🟢
+  - generic: Tue Jul 7
+  - generic: Present
+  - button "View Entry →"
+  - generic: 🟢
+  - generic: Mon Jul 6
+  - generic: Present
+  - button "View Entry →"
+  - generic: 🟢
+  - generic: Fri Jul 3
+  - generic: Present
+  - button "View Entry →"
+  - generic: 🟢
+  - generic: Thu Jul 2
+  - generic: Present
+  - button "View Entry →"
+- alert

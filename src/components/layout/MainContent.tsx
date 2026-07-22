@@ -3,8 +3,8 @@
 import { type ReactNode } from 'react'
 import { useThreePanel } from './ThreePanelProvider'
 import { MAIN_CONTENT_MAX_WIDTHS } from '@/lib/layout-config'
-import type { PageDensity } from '@/components/PageLayout'
-import { cn } from '@/ui/utils'
+import type { PageDensity } from '@/ui'
+import { cn } from '@/ui'
 
 export interface MainContentProps {
   children: ReactNode

@@ -2,18 +2,17 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, ConfirmDialog, AlertDialog, Tooltip } from '@/ui'
+import { AlertDialog, Button, PageState } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { useAlertDialog } from '@/hooks/useAlertDialog'
-import { useDeleteClassroom } from '@/hooks/useDeleteClassroom'
 import type { Classroom, AttendanceRecord, Entry } from '@/types'
 import { getAttendanceIcon } from '@/lib/attendance'
 import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
 import {
   fetchTeacherDashboardAttendance,
-  fetchTeacherDashboardEntries,
+  fetchTeacherDashboardEntry,
   invalidateTeacherDashboardAttendance,
 } from '@/lib/teacher-dashboard-client'
 import { fetchTeacherClassrooms, invalidateTeacherClassrooms } from '@/lib/teacher-classrooms-client'
@@ -23,66 +22,61 @@ export default function TeacherDashboardPage() {
   const [classrooms, setClassrooms] = useState<Classroom[]>([])
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
   const [dates, setDates] = useState<string[]>([])
+  const [attendanceClassroomId, setAttendanceClassroomId] = useState<string | null>(null)
   const [loadingAttendance, setLoadingAttendance] = useState(false)
+  const [attendanceError, setAttendanceError] = useState('')
+  const [attendanceAttempt, setAttendanceAttempt] = useState(0)
   const [selectedEntry, setSelectedEntry] = useState<Entry & { student_email: string } | null>(null)
   const [loadingEntry, setLoadingEntry] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const attendanceRequestIdRef = useRef(0)
+  const entryRequestIdRef = useRef(0)
+  const pageRegionRef = useRef<HTMLDivElement>(null)
   const selectedClassroomIdRef = useRef<string | null>(null)
   selectedClassroomIdRef.current = selectedClassroom?.id ?? null
 
-  const { alertState, showSuccess, showError, closeAlert } = useAlertDialog()
+  const { alertState, showSuccess, closeAlert } = useAlertDialog()
 
-  const handleDeleteSuccess = useCallback((deletedId: string) => {
-    invalidateTeacherClassrooms()
-    invalidateTeacherDashboardAttendance(deletedId)
-    const updatedClassrooms = classrooms.filter(c => c.id !== deletedId)
-    setClassrooms(updatedClassrooms)
-    setSelectedClassroom(updatedClassrooms.length > 0 ? updatedClassrooms[0] : null)
-    showSuccess('Deleted', 'Classroom deleted successfully')
-  }, [classrooms, showSuccess])
-
-  const handleDeleteError = useCallback((message: string) => {
-    showError('Error', message)
-  }, [showError])
-
-  const { requestDelete, confirmDialogProps } = useDeleteClassroom({
-    onSuccess: handleDeleteSuccess,
-    onError: handleDeleteError,
-  })
-
-  // Load classrooms
-  useEffect(() => {
-    async function loadClassrooms() {
-      try {
-        const nextClassrooms = await fetchTeacherClassrooms()
-        setClassrooms(nextClassrooms)
-
-        // Auto-select first classroom
-        if (nextClassrooms.length > 0) {
-          setSelectedClassroom(nextClassrooms[0])
-        }
-      } catch (err) {
-        console.error('Error loading classrooms:', err)
-      } finally {
-        setLoading(false)
-      }
+  const loadClassrooms = useCallback(async () => {
+    setLoading(true)
+    setLoadError('')
+    try {
+      const nextClassrooms = await fetchTeacherClassrooms()
+      setClassrooms(nextClassrooms)
+      setSelectedClassroom(nextClassrooms[0] ?? null)
+    } catch (err) {
+      console.error('Error loading classrooms:', err)
+      setLoadError(err instanceof Error ? err.message : 'Failed to load classrooms')
+    } finally {
+      setLoading(false)
     }
-
-    loadClassrooms()
   }, [])
+
+  useEffect(() => {
+    void loadClassrooms()
+  }, [loadClassrooms])
 
   // Load attendance when classroom selected
   useEffect(() => {
     if (!selectedClassroom) {
       attendanceRequestIdRef.current += 1
+      entryRequestIdRef.current += 1
       setAttendance([])
       setDates([])
+      setAttendanceClassroomId(null)
+      setAttendanceError('')
+      setSelectedEntry(null)
+      setLoadingEntry(false)
       return
     }
+
+    entryRequestIdRef.current += 1
+    setSelectedEntry(null)
+    setLoadingEntry(false)
 
     async function loadAttendance() {
       if (!selectedClassroom) return
@@ -91,15 +85,21 @@ export default function TeacherDashboardPage() {
       attendanceRequestIdRef.current = requestId
 
       setLoadingAttendance(true)
+      setAttendanceError('')
       try {
         const data = await fetchTeacherDashboardAttendance(classroomId)
 
         if (attendanceRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
         setAttendance(data.attendance || [])
         setDates(data.dates || [])
+        setAttendanceClassroomId(classroomId)
       } catch (err) {
         if (attendanceRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
         console.error('Error loading attendance:', err)
+        setAttendance([])
+        setDates([])
+        setAttendanceClassroomId(classroomId)
+        setAttendanceError('The attendance overview could not be retrieved.')
       } finally {
         if (attendanceRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
         setLoadingAttendance(false)
@@ -107,27 +107,35 @@ export default function TeacherDashboardPage() {
     }
 
     loadAttendance()
-  }, [selectedClassroom])
+  }, [attendanceAttempt, selectedClassroom])
 
   async function handleCellClick(studentId: string, studentEmail: string, date: string) {
     if (!selectedClassroom) return
+    const classroomId = selectedClassroom.id
+    const requestId = entryRequestIdRef.current + 1
+    entryRequestIdRef.current = requestId
 
     setLoadingEntry(true)
 
     try {
-      const entries = await fetchTeacherDashboardEntries(selectedClassroom.id)
+      const entry = await fetchTeacherDashboardEntry(classroomId, studentId, date)
 
-      const entry = entries.find(
-        (e: Entry) => e.student_id === studentId && e.date === date
-      )
-
-      if (entry) {
+      if (
+        entry
+        && entryRequestIdRef.current === requestId
+        && selectedClassroomIdRef.current === classroomId
+      ) {
         setSelectedEntry({ ...entry, student_email: studentEmail })
       }
     } catch (err) {
       console.error('Error loading entry:', err)
     } finally {
-      setLoadingEntry(false)
+      if (
+        entryRequestIdRef.current === requestId
+        && selectedClassroomIdRef.current === classroomId
+      ) {
+        setLoadingEntry(false)
+      }
     }
   }
 
@@ -156,15 +164,60 @@ export default function TeacherDashboardPage() {
     showSuccess('Code Copied', 'Class code copied to clipboard!')
   }
 
-  function handleDeleteClassroom() {
-    if (!selectedClassroom) return
-    requestDelete(selectedClassroom)
-  }
-
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
+      <div
+        ref={pageRegionRef}
+        role="region"
+        aria-label="Teacher dashboard"
+        tabIndex={-1}
+        className="focus:outline-none"
+      >
+        <PageLayout density="teacher" width="reading">
+          <PageContent>
+            <PageState
+              kind="loading"
+              headingLevel="h1"
+              title="Loading classrooms"
+              description="Getting the latest classroom overview."
+            />
+          </PageContent>
+        </PageLayout>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div
+        ref={pageRegionRef}
+        role="region"
+        aria-label="Teacher dashboard"
+        tabIndex={-1}
+        className="focus:outline-none"
+      >
+        <PageLayout density="teacher" width="reading">
+          <PageContent>
+            <PageState
+              kind="error"
+              headingLevel="h1"
+              title="Could not load classrooms"
+              description="The dashboard could not retrieve your classrooms."
+              action={
+                <Button
+                  type="button"
+                  onClick={() => {
+                    pageRegionRef.current?.focus()
+                    invalidateTeacherClassrooms()
+                    void loadClassrooms()
+                  }}
+                >
+                  Try again
+                </Button>
+              }
+            />
+          </PageContent>
+        </PageLayout>
       </div>
     )
   }
@@ -172,33 +225,53 @@ export default function TeacherDashboardPage() {
   // Empty state
   if (classrooms.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-text-default mb-2">No Classrooms Yet</h2>
-          <p className="text-text-muted mb-6">Create your first classroom to get started</p>
-          <div className="flex items-center justify-center gap-3">
-            <Button onClick={() => setShowCreateModal(true)}>
-              Create Classroom
-            </Button>
-            <Button variant="secondary" onClick={() => router.push('/teacher/blueprints')}>
-              Course Blueprints
-            </Button>
-          </div>
-        </div>
+      <div
+        ref={pageRegionRef}
+        role="region"
+        aria-label="Teacher dashboard"
+        tabIndex={-1}
+        className="focus:outline-none"
+      >
+        <PageLayout density="teacher" width="reading">
+          <PageContent>
+            <PageState
+              kind="empty"
+              headingLevel="h1"
+              title="No Classrooms Yet"
+              description="Create your first classroom or start from a course blueprint."
+              action={
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Button onClick={() => setShowCreateModal(true)}>
+                    Create Classroom
+                  </Button>
+                  <Button variant="secondary" onClick={() => router.push('/teacher/blueprints')}>
+                    Course Blueprints
+                  </Button>
+                </div>
+              }
+            />
+          </PageContent>
 
-        <CreateClassroomModal
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={handleClassroomCreated}
-        />
+          <CreateClassroomModal
+            isOpen={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={handleClassroomCreated}
+          />
+        </PageLayout>
       </div>
     )
   }
 
   return (
-    <div className="flex gap-6">
+    <div
+      ref={pageRegionRef}
+      role="region"
+      aria-label="Teacher dashboard"
+      tabIndex={-1}
+      className="flex flex-col gap-4 focus:outline-none md:flex-row md:gap-6"
+    >
       {/* Classroom List Sidebar */}
-      <div className="w-64 flex-shrink-0">
+      <div className="w-full flex-shrink-0 md:w-64">
         <div className="bg-surface rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-text-default">Classes</h3>
@@ -214,7 +287,7 @@ export default function TeacherDashboardPage() {
             {classrooms.map((classroom) => (
               <div
                 key={classroom.id}
-                className={`relative p-3 rounded transition border ${
+                className={`p-3 rounded transition border ${
                   selectedClassroom?.id === classroom.id
                     ? 'bg-info-bg border-primary'
                     : 'hover:bg-surface-hover border-transparent'
@@ -224,26 +297,13 @@ export default function TeacherDashboardPage() {
                   onClick={() => setSelectedClassroom(classroom)}
                   className="w-full text-left"
                 >
-                  <div className="font-medium text-text-default text-sm pr-6">
+                  <div className="font-medium text-text-default text-sm">
                     {classroom.title}
                   </div>
                   <div className="text-xs text-text-muted mt-1">
                     {classroom.class_code}
                   </div>
                 </button>
-                <Tooltip content="Delete classroom">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      requestDelete(classroom)
-                    }}
-                    className="absolute top-2 right-2 p-1 text-text-muted hover:text-danger hover:bg-danger-bg rounded transition"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </Tooltip>
               </div>
             ))}
           </div>
@@ -251,7 +311,7 @@ export default function TeacherDashboardPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         {selectedClassroom ? (
           <PageLayout>
             <PageActionBar
@@ -298,22 +358,36 @@ export default function TeacherDashboardPage() {
                     label: 'Export CSV',
                     onSelect: handleExportCSV,
                   },
-                  {
-                    id: 'delete-classroom',
-                    label: 'Delete',
-                    onSelect: handleDeleteClassroom,
-                    destructive: true,
-                  },
                 ] satisfies ActionBarItem[]
               }
             />
 
             <PageContent>
               {/* Attendance Dashboard */}
-              {loadingAttendance ? (
+              {loadingAttendance || attendanceClassroomId !== selectedClassroom.id ? (
                 <div className="flex justify-center py-12">
                   <Spinner size="lg" />
                 </div>
+              ) : attendanceError ? (
+                <PageState
+                  kind="error"
+                  compact
+                  title="Could not load attendance"
+                  description={attendanceError}
+                  action={
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        pageRegionRef.current?.focus()
+                        invalidateTeacherDashboardAttendance(selectedClassroom.id)
+                        setAttendanceClassroomId(null)
+                        setAttendanceAttempt((attempt) => attempt + 1)
+                      }}
+                    >
+                      Try again
+                    </Button>
+                  }
+                />
               ) : attendance.length === 0 ? (
                 <div className="bg-surface rounded-lg shadow-sm p-8 text-center text-text-muted">
                   No students enrolled yet
@@ -456,27 +530,13 @@ export default function TeacherDashboardPage() {
           isOpen={showUploadModal}
           onClose={() => setShowUploadModal(false)}
           classroomId={selectedClassroom.id}
-          onSuccess={async () => {
-            const classroomId = selectedClassroom.id
-            const requestId = attendanceRequestIdRef.current + 1
-            attendanceRequestIdRef.current = requestId
-            invalidateTeacherDashboardAttendance(classroomId)
-            setLoadingAttendance(true)
-            try {
-              const data = await fetchTeacherDashboardAttendance(classroomId)
-              if (attendanceRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
-              setAttendance(data.attendance)
-              setDates(data.dates)
-            } finally {
-              if (attendanceRequestIdRef.current === requestId && selectedClassroomIdRef.current === classroomId) {
-                setLoadingAttendance(false)
-              }
-            }
+          onSuccess={() => {
+            invalidateTeacherDashboardAttendance(selectedClassroom.id)
+            setAttendanceClassroomId(null)
+            setAttendanceAttempt((attempt) => attempt + 1)
           }}
         />
       )}
-
-      <ConfirmDialog {...confirmDialogProps} />
 
       <AlertDialog {...alertState} onClose={closeAlert} />
     </div>

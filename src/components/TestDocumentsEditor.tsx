@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ExternalLink, Pencil, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
-import { Button, DialogPanel, Input } from '@/ui'
+import { Button, DialogPanel, Input, TabPanel, Tabs } from '@/ui'
 import {
   MAX_TEST_DOCUMENT_TEXT_LENGTH,
   TEST_DOCUMENT_ACCEPT,
@@ -31,9 +31,11 @@ interface Props {
 
 type AddDocumentTab = 'link' | 'upload' | 'text'
 
+const EMPTY_TEST_DOCUMENTS: TestDocument[] = []
+
 export function TestDocumentsEditor({
   testId,
-  documents = [],
+  documents = EMPTY_TEST_DOCUMENTS,
   apiBasePath = '/api/teacher/tests',
   isEditable,
   onDocumentsChange,
@@ -61,6 +63,9 @@ export function TestDocumentsEditor({
   const [error, setError] = useState('')
   const [nowMs, setNowMs] = useState(() => Date.now())
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const addDocumentTabsId = useId()
+  const addDocumentTabId = (tab: AddDocumentTab) => `${addDocumentTabsId}-${tab}-tab`
+  const addDocumentPanelId = (tab: AddDocumentTab) => `${addDocumentTabsId}-${tab}-panel`
 
   useEffect(() => {
     const normalized = normalizeTestDocuments(documents)
@@ -507,29 +512,23 @@ export function TestDocumentsEditor({
           Add Document
         </h4>
         <div className="mt-4">
-          <div role="tablist" aria-label="Document type" className="flex gap-2 border-b border-border">
-            {(['link', 'upload', 'text'] as const).map((tab) => {
-              const isActive = activeAddTab === tab
-              const label = tab === 'upload' ? 'PDF' : tab === 'link' ? 'Link' : 'Text'
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => setActiveAddTab(tab)}
-                  className={[
-                    'border-b-2 px-3 py-2 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-text-muted hover:text-text-default',
-                  ].join(' ')}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
+          <Tabs
+            ariaLabel="Document type"
+            items={[
+              { value: 'link', label: 'Link' },
+              { value: 'upload', label: 'PDF' },
+              { value: 'text', label: 'Text' },
+            ]}
+            value={activeAddTab}
+            onValueChange={setActiveAddTab}
+            getTabId={addDocumentTabId}
+            getPanelId={addDocumentPanelId}
+          />
+
+          <TabPanel
+            id={addDocumentPanelId(activeAddTab)}
+            labelledBy={addDocumentTabId(activeAddTab)}
+          >
 
           {activeAddTab === 'link' ? (
             <div className="mt-4 space-y-3">
@@ -608,6 +607,7 @@ export function TestDocumentsEditor({
               </p>
             </div>
           ) : null}
+          </TabPanel>
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <Button

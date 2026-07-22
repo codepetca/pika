@@ -48,7 +48,7 @@ describe('suggestTestOpenResponseGrade', () => {
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(suggestion).toEqual({
+    expect(suggestion).toMatchObject({
       score: 4,
       feedback: 'Good start. Add one more key detail.',
       model: 'gpt-5-nano',
@@ -323,10 +323,11 @@ describe('suggestTestOpenResponseGrade', () => {
       ok: true,
       json: async () => ({
         output_parsed: { score: 4, feedback: 'Clear explanation with one missing detail.' },
+        usage: { input_tokens: 120, output_tokens: 20, total_tokens: 140 },
       }),
     })
 
-    await suggestTestOpenResponseGrade({
+    const suggestion = await suggestTestOpenResponseGrade({
       testTitle: 'Unit 1 Test',
       questionText: 'Explain osmosis.',
       responseText: 'Water moves across the membrane.',
@@ -344,6 +345,20 @@ describe('suggestTestOpenResponseGrade', () => {
       type: 'json_schema',
       name: 'test_single_grade',
       strict: true,
+    })
+    expect(suggestion.provenance).toMatchObject({
+      schemaVersion: 'test-grading-provenance-v1',
+      gradingRequestId: expect.any(String),
+      provider: 'openai',
+      model: 'gpt-5-nano',
+      policyVersion: 'pika-test-open-response-policy-v1',
+      promptVersion: 'pika-test-open-response-manual-prompt-v1',
+      gradingProfileVersion: 'pika-test-open-response-v1',
+      rubricVersion: 'pika-test-open-response-rubric-v1',
+      operation: 'single',
+      batchSize: 1,
+      providerRequestCount: 1,
+      tokenUsage: { inputTokens: 120, outputTokens: 20, totalTokens: 140 },
     })
   })
 
@@ -390,6 +405,7 @@ describe('suggestTestOpenResponseGrade', () => {
         json: async () => ({
           status: 'incomplete',
           incomplete_details: { reason: 'max_output_tokens' },
+          usage: { input_tokens: 100, output_tokens: 30, total_tokens: 130 },
         }),
       })
       .mockResolvedValueOnce({
@@ -404,6 +420,7 @@ describe('suggestTestOpenResponseGrade', () => {
               },
             ],
           },
+          usage: { input_tokens: 110, output_tokens: 40, total_tokens: 150 },
         }),
       })
 
@@ -432,6 +449,12 @@ describe('suggestTestOpenResponseGrade', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}')).max_output_tokens).toBe(600)
     expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body ?? '{}')).max_output_tokens).toBe(900)
+    expect(suggestions[0].provenance).toMatchObject({
+      operation: 'batch',
+      batchSize: 1,
+      providerRequestCount: 2,
+      tokenUsage: { inputTokens: 210, outputTokens: 70, totalTokens: 280 },
+    })
   })
 
   it('returns available batch suggestions when the model omits one requested response', async () => {
@@ -774,6 +797,29 @@ describe('suggestTestOpenResponseGradesBatch', () => {
         ],
       }),
     ).rejects.toThrow('AI batch grade suggestion returned unknown response response_99')
+  })
+
+  it('rejects duplicate provider refs in batch output', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_text:
+          '{"results":[{"response_id":"response_1","score":5,"feedback":"Excellent."},{"response_id":"response_1","score":3,"feedback":"Add detail."}]}',
+      }),
+    })
+
+    await expect(
+      suggestTestOpenResponseGradesBatch({
+        testTitle: 'Unit 3 Test',
+        questionText: 'Explain what a method does.',
+        maxPoints: 5,
+        answerKey: 'A method groups reusable instructions.',
+        responses: [
+          { responseId: 'response-1', responseText: 'A method is reusable code.' },
+        ],
+      }),
+    ).rejects.toThrow('AI batch grade suggestion returned duplicate response response_1')
   })
 })
 

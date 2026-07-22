@@ -19,6 +19,13 @@ import type {
 } from '@/types'
 import {
   Button,
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderCell,
+  DataTableRow,
+  EmptyStateRow,
   Input,
   Tooltip,
   useAppMessage,
@@ -36,15 +43,6 @@ import {
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
-import {
-  DataTable,
-  DataTableBody,
-  DataTableCell,
-  DataTableHead,
-  DataTableHeaderCell,
-  DataTableRow,
-  EmptyStateRow,
-} from '@/components/DataTable'
 import {
   fetchJSONWithCache,
   invalidateCachedJSONMatching,
@@ -640,7 +638,7 @@ function ResizableIdentityHeaderCell({
         aria-valuemin={columnBounds.minWidth}
         aria-valuemax={columnBounds.maxWidth}
         aria-valuenow={columnWidth}
-        className="absolute inset-y-0 right-0 z-10 flex w-2 translate-x-1/2 cursor-col-resize touch-none items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className="absolute right-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 translate-x-1/2 cursor-col-resize touch-none items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary"
         onPointerDown={handleResizeStart}
         onKeyDown={handleResizeKeyDown}
       >
@@ -746,7 +744,7 @@ function ResizableFinalHeaderCell({
         aria-valuemin={FINAL_COLUMN_MIN_WIDTH}
         aria-valuemax={FINAL_COLUMN_MAX_WIDTH}
         aria-valuenow={finalColumnWidth}
-        className="absolute inset-y-0 left-0 z-10 flex w-2 -translate-x-1/2 cursor-col-resize touch-none items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className="absolute left-0 top-1/2 z-10 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 cursor-col-resize touch-none items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-primary"
         onPointerDown={handleResizeStart}
         onKeyDown={handleResizeKeyDown}
       >
@@ -1099,7 +1097,9 @@ function AssessmentMatrixTable({
                   className={[
                     'group transition-colors',
                     isSelectable ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary' : '',
-                    isSelected ? 'bg-surface-selected hover:bg-surface-selected' : 'hover:bg-surface-hover',
+                    isSelected
+                      ? 'border-l-2 border-l-primary bg-surface-selected hover:bg-surface-selected'
+                      : 'hover:bg-surface-hover',
                   ].join(' ')}
                   onClick={(event) => {
                     if (!isSelectable) return

@@ -40,7 +40,7 @@ export default function JoinPage() {
 
           <button
             type="submit"
-            className="w-full px-4 py-2 rounded-md bg-primary text-text-inverse text-sm hover:bg-primary-hover disabled:opacity-50"
+            className="w-full px-4 py-2 rounded-md bg-primary-solid text-text-inverse text-sm hover:bg-primary-solid-hover disabled:opacity-50"
             disabled={!code.trim()}
           >
             Join
@@ -50,4 +50,3 @@ export default function JoinPage() {
     </div>
   )
 }
-

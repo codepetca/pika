@@ -245,8 +245,8 @@ Bob Lee bob@example.com 789012 counselor@school.com`}
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting || !preview || preview.students.length === 0}
-            className="flex-1 px-4 py-2 bg-primary hover:bg-primary-hover
-                       text-white font-medium rounded-md
+            className="flex-1 px-4 py-2 bg-primary-solid hover:bg-primary-solid-hover
+                       text-text-inverse font-medium rounded-md
                        disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isSubmitting ? 'Adding...' : `Add ${validCount} Student${validCount !== 1 ? 's' : ''}`}

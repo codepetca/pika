@@ -530,7 +530,7 @@ export default function TeacherBlueprintsPage() {
   }
 
   return (
-    <PageLayout className="mx-auto max-w-7xl">
+    <PageLayout width="wide">
       <PageActionBar
         primary={
           <div>
@@ -672,7 +672,7 @@ export default function TeacherBlueprintsPage() {
                       onClick={() => setActiveTab(tab)}
                       className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                         activeTab === tab
-                          ? 'bg-primary text-text-inverse'
+                          ? 'bg-primary-solid text-text-inverse'
                           : 'bg-surface-2 text-text-default hover:bg-surface-hover'
                       }`}
                     >

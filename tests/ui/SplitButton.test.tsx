@@ -48,6 +48,24 @@ describe('SplitButton', () => {
     await waitFor(() => expect(toggle).toHaveFocus())
   })
 
+  it('keeps menu options touch-sized with visible keyboard focus', () => {
+    render(
+      <SplitButton
+        label="Post"
+        onPrimaryClick={vi.fn()}
+        options={[{ id: 'schedule', label: 'Schedule', onSelect: vi.fn() }]}
+        toggleAriaLabel="Choose action"
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose action' }))
+    expect(screen.getByRole('menuitem', { name: 'Schedule' })).toHaveClass(
+      'min-h-11',
+      'focus-visible:ring-2',
+      'focus-visible:ring-inset',
+    )
+  })
+
   it('can use the primary button to open the menu', () => {
     const onPrimaryClick = vi.fn()
 

@@ -3,7 +3,7 @@ import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { forwardRef, useEffect, useImperativeHandle } from 'react'
 import { StudentAssignmentsTab } from '@/app/classrooms/[classroomId]/StudentAssignmentsTab'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
-import type { Classroom, AssignmentWithStatus, ClassworkMaterial } from '@/types'
+import type { Classroom, AssignmentWithStatus, ClassworkMaterial, StudentSurveyView } from '@/types'
 
 // --- Mocks ---
 
@@ -102,6 +102,24 @@ function makeMaterial(overrides: Partial<ClassworkMaterial> = {}): ClassworkMate
   }
 }
 
+function makeSurvey(overrides: Partial<StudentSurveyView> = {}): StudentSurveyView {
+  return {
+    id: 'survey-1',
+    classroom_id: classroom.id,
+    title: 'Class survey',
+    status: 'active',
+    opens_at: null,
+    show_results: true,
+    dynamic_responses: false,
+    position: 0,
+    created_by: 'teacher-1',
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+    student_status: 'not_started',
+    ...overrides,
+  }
+}
+
 function mockFetchClasswork(assignments: AssignmentWithStatus[], materials: ClassworkMaterial[] = []) {
   ;(global.fetch as ReturnType<typeof vi.fn>)
     .mockResolvedValueOnce({
@@ -111,6 +129,10 @@ function mockFetchClasswork(assignments: AssignmentWithStatus[], materials: Clas
     .mockResolvedValueOnce({
       ok: true,
       json: async () => ({ materials }),
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ surveys: [] }),
     })
 }
 
@@ -126,6 +148,9 @@ function mockJSONResponse(body: unknown) {
 describe('StudentAssignmentsTab', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
+    invalidateCachedJSONMatching('student-assignments:')
+    invalidateCachedJSONMatching('student-materials:')
+    invalidateCachedJSONMatching('student-surveys:')
     searchParamsMap = new Map()
     mockEditorState = {
       isSubmitted: false,
@@ -139,6 +164,152 @@ describe('StudentAssignmentsTab', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('shows a classwork error and restores the list after retry', async () => {
+    const retryClassroom = { ...classroom, id: 'cls-classwork-retry' }
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let assignmentsShouldFail = true
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/api/student/assignments')) {
+          if (assignmentsShouldFail) {
+            return {
+              ok: false,
+              json: async () => ({ error: 'Assignments unavailable' }),
+            }
+          }
+          return mockJSONResponse({
+            assignments: [
+              makeAssignment({
+                classroom_id: retryClassroom.id,
+                title: 'Restored assignment',
+              }),
+            ],
+          })
+        }
+        if (url.includes('/materials')) {
+          return mockJSONResponse({ materials: [] })
+        }
+        if (url.includes('/api/student/surveys')) {
+          return mockJSONResponse({ surveys: [] })
+        }
+        throw new Error(`Unexpected request: ${url}`)
+      }),
+    )
+
+    render(<StudentAssignmentsTab classroom={retryClassroom} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+    expect(screen.queryByText('No classwork yet')).not.toBeInTheDocument()
+
+    assignmentsShouldFail = false
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('Restored assignment')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(consoleError).toHaveBeenCalledWith('Error loading assignments:', expect.any(Error))
+  })
+
+  it('treats a survey list failure as a retryable classwork failure', async () => {
+    const retryClassroom = { ...classroom, id: 'cls-survey-retry' }
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let surveysShouldFail = true
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/api/student/assignments')) return mockJSONResponse({ assignments: [] })
+        if (url.includes('/materials')) return mockJSONResponse({ materials: [] })
+        if (url.includes('/api/student/surveys')) {
+          if (surveysShouldFail) {
+            return {
+              ok: false,
+              json: async () => ({ error: 'Surveys unavailable' }),
+            }
+          }
+          return mockJSONResponse({
+            surveys: [makeSurvey({ classroom_id: retryClassroom.id, title: 'Recovered survey' })],
+          })
+        }
+        throw new Error(`Unexpected request: ${url}`)
+      }),
+    )
+
+    render(<StudentAssignmentsTab classroom={retryClassroom} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+    expect(screen.queryByText('No classwork yet')).not.toBeInTheDocument()
+
+    surveysShouldFail = false
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('Recovered survey')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('keeps failed classwork in a blocking state while reactivating the tab', async () => {
+    const retryClassroom = { ...classroom, id: 'cls-classwork-reactivation' }
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let assignmentAttempts = 0
+    let resolveReactivation: ((response: ReturnType<typeof mockJSONResponse>) => void) | null = null
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/api/student/assignments')) {
+          assignmentAttempts += 1
+          if (assignmentAttempts === 1) {
+            return {
+              ok: false,
+              json: async () => ({ error: 'Assignments unavailable' }),
+            }
+          }
+          if (assignmentAttempts === 2) {
+            return await new Promise<ReturnType<typeof mockJSONResponse>>((resolve) => {
+              resolveReactivation = resolve
+            })
+          }
+          return mockJSONResponse({
+            assignments: [
+              makeAssignment({
+                classroom_id: retryClassroom.id,
+                title: 'Recovered after reactivation',
+              }),
+            ],
+          })
+        }
+        if (url.includes('/materials')) return mockJSONResponse({ materials: [] })
+        if (url.includes('/api/student/surveys')) return mockJSONResponse({ surveys: [] })
+        throw new Error(`Unexpected request: ${url}`)
+      }),
+    )
+
+    const view = render(<StudentAssignmentsTab classroom={retryClassroom} isActive />)
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+
+    view.rerender(<StudentAssignmentsTab classroom={retryClassroom} isActive={false} />)
+    view.rerender(<StudentAssignmentsTab classroom={retryClassroom} isActive />)
+
+    expect(await screen.findByRole('heading', { name: 'Loading classwork' })).toBeInTheDocument()
+    expect(screen.queryByText('No classwork yet')).not.toBeInTheDocument()
+    await waitFor(() => expect(resolveReactivation).toEqual(expect.any(Function)))
+
+    await act(async () => {
+      resolveReactivation?.({
+        ok: false,
+        json: async () => ({ error: 'Assignments still unavailable' }),
+      })
+    })
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByText('Recovered after reactivation')).toBeInTheDocument()
   })
 
   it('first-time view: auto-shows instructions modal', async () => {
@@ -187,7 +358,7 @@ describe('StudentAssignmentsTab', () => {
 
     // Wait for the Instructions button to appear
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Instructions' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Instructions', hidden: true })).toBeInTheDocument()
     })
 
     // Click the Instructions button

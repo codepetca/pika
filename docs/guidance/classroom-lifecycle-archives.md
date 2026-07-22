@@ -78,11 +78,13 @@ The three artifacts solve different problems and must not be substituted for eac
 | Classroom archive | Recover the complete classroom | Yes | Yes | Private `classroom-archives` bucket |
 | Gradex extract | Improve and evaluate grading behavior | Deidentified subset | No | Private `gradex-analytics-extracts` bucket |
 
-The existing `.course-package.tar` manifest remains version 2. It includes teacher-authored course
-content, assignment and assessment templates, lesson templates, grading configuration, submission
-requirement templates, and planned-site configuration. It excludes rosters, students, submissions,
-grades, attendance, journals, telemetry, join credentials, runtime publication state, and storage
-objects. A course package is never evidence that classroom data is recoverable.
+The canonical `.course-package.tar` export manifest is version 3. Import accepts versions 2 and 3;
+legacy version 2 `quizzes.md` content is intentionally ignored because quizzes are no longer a product
+surface. The package includes teacher-authored course content, assignment and test templates, lesson
+templates, grading configuration, submission requirement templates, and planned-site configuration.
+It excludes rosters, students, submissions, grades, attendance, journals, telemetry, join credentials,
+runtime publication state, and storage objects. A course package is never evidence that classroom data
+is recoverable.
 
 ## Lifecycle States
 
@@ -301,8 +303,9 @@ Source and Gradex cleanup remain disabled.
 The teacher Archived view combines two representations without pretending they have the same access
 semantics:
 
-- `archived_hot` classrooms remain ordinary classroom rows and retain the existing open, restore,
-  and delete controls.
+- `archived_hot` classrooms remain ordinary classroom rows and retain open and restore controls.
+  Permanent removal is not available through the classroom route or teacher UI; future hot-data
+  removal must run only through the verified compaction state machine.
 - `archived_cold` classrooms are listed from teacher-scoped `classroom_cold_tombstones` metadata as
   **Stored archive** rows. Their submissions, grades, and files are not queryable through the normal
   classroom routes until the archive is restored to `archived_hot`.

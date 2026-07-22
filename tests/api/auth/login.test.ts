@@ -326,7 +326,7 @@ describe('POST /api/auth/login', () => {
       expect(data.error).toBe('Invalid email or password')
     })
 
-    it('should return 500 when JSON parsing fails', async () => {
+    it('should return 400 when JSON parsing fails', async () => {
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
         body: 'invalid json',
@@ -336,8 +336,8 @@ describe('POST /api/auth/login', () => {
       const response = await POST(request)
       const data = await response.json()
 
-      expect(response.status).toBe(500)
-      expect(data.error).toBe('Internal server error')
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Malformed JSON body')
     })
   })
 })

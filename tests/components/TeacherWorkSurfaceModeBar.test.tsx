@@ -26,6 +26,10 @@ describe('TeacherWorkSurfaceModeBar', () => {
     expect(screen.getByRole('tab', { name: 'Class' })).toHaveAttribute('aria-controls', 'mode-overview-panel')
     expect(screen.getByRole('tab', { name: 'Individual' })).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByRole('tab', { name: 'Individual' })).toHaveAttribute('aria-controls', 'mode-details-panel')
+    expect(screen.getByRole('tab', { name: 'Class' })).toHaveClass(
+      'min-h-11',
+      'focus-visible:ring-2',
+    )
     expect(screen.getByRole('button', { name: 'AI Grade' })).toBeInTheDocument()
     expect(screen.getByText('Updating')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Edit assignment' })).toBeInTheDocument()

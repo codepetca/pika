@@ -364,7 +364,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                   e.stopPropagation()
                   onAssignmentClick?.(assignment)
                 }}
-                className={`w-full min-w-0 rounded bg-primary text-white font-medium hover:bg-primary-hover text-center truncate ${
+                className={`w-full min-w-0 rounded bg-primary-solid text-text-inverse font-medium hover:bg-primary-solid-hover text-center truncate ${
                   compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
                 } ${assignment.is_draft ? 'opacity-50' : ''}`}
               >

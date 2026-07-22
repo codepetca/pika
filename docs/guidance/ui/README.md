@@ -64,6 +64,8 @@ When a task touches UI/UX, the implementation plan or issue note should declare:
 
 ## Related Files
 
+- [`product-experience-audit-2026-07.md`](./product-experience-audit-2026-07.md)
+- [`product-experience-evidence-2026-07.md`](./product-experience-evidence-2026-07.md)
 - [`audit-v1.md`](/docs/guidance/ui/audit-v1.md)
 - [`stable.md`](/docs/guidance/ui/stable.md)
 - [`teacher-work-surfaces.md`](/docs/guidance/ui/teacher-work-surfaces.md)

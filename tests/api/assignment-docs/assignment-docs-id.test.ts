@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, PATCH } from '@/app/api/assignment-docs/[id]/route'
 import { NextRequest } from 'next/server'
 import * as auth from '@/lib/auth'
+import { saveAssignmentDocAtomic } from '@/lib/server/assignment-doc-submissions'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({
@@ -17,6 +18,9 @@ vi.mock('@/lib/server/classrooms', () => ({
     ok: true,
     classroom: { id: 'class-1', archived_at: null },
   })),
+}))
+vi.mock('@/lib/server/assignment-doc-submissions', () => ({
+  saveAssignmentDocAtomic: vi.fn(),
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
@@ -109,8 +113,16 @@ describe('GET /api/assignment-docs/[id]', () => {
   })
 
   it('refreshes viewed_at when returned feedback is newer than the last view', async () => {
+    const refreshedRevision = '2026-01-03T00:00:00.000Z'
     const viewedUpdate = vi.fn(() => ({
-      eq: vi.fn().mockResolvedValue({ error: null }),
+      eq: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: { updated_at: refreshedRevision },
+            error: null,
+          }),
+        })),
+      })),
     }))
     const existingDoc = {
       id: 'doc-1',
@@ -161,6 +173,7 @@ describe('GET /api/assignment-docs/[id]', () => {
 
     expect(response.status).toBe(200)
     expect(data.wasFirstView).toBe(true)
+    expect(data.doc.updated_at).toBe(refreshedRevision)
     expect(viewedUpdate).toHaveBeenCalledWith({
       viewed_at: expect.stringMatching(/^20/),
     })
@@ -414,42 +427,20 @@ describe('PATCH /api/assignment-docs/[id]', () => {
 
     const request = new NextRequest('http://localhost:3000/api/assignment-docs/doc-1', {
       method: 'PATCH',
-      body: JSON.stringify({ content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'new content' }] }] } }),
+      body: JSON.stringify({
+        content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'new content' }] }] },
+        expected_updated_at: '2025-01-01T00:00:00.000Z',
+        save_session_id: '10000000-0000-4000-8000-000000000001',
+        save_sequence: 1,
+        metric_session_id: '10000000-0000-4000-8000-000000000002',
+      }),
     })
 
     const response = await PATCH(request, { params: { id: 'doc-1' } })
     expect(response.status).toBe(403)
   })
 
-  it('updates last history entry when rate-limited', async () => {
-    const now = new Date('2025-01-01T00:00:05Z').getTime()
-    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now)
-
-    const historyUpdate = vi.fn(() => ({
-      eq: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: {
-              id: 'history-1',
-              assignment_doc_id: 'doc-1',
-              patch: null,
-              snapshot: null,
-              word_count: 3,
-              char_count: 3,
-              trigger: 'autosave',
-              created_at: new Date(now).toISOString(),
-            },
-            error: null,
-          }),
-        })),
-      })),
-    }))
-    const historyInsert = vi.fn(() => ({
-      select: vi.fn(() => ({
-        single: vi.fn().mockResolvedValue({ data: null, error: null }),
-      })),
-    }))
-
+  it('saves content and history through the atomic assignment operation', async () => {
     const beforeContent = {
       type: 'doc',
       content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Old' }] }],
@@ -458,6 +449,29 @@ describe('PATCH /api/assignment-docs/[id]', () => {
       type: 'doc',
       content: [{ type: 'paragraph', content: [{ type: 'text', text: 'New' }] }],
     }
+    const savedRevision = '2025-01-01T00:00:00.000Z'
+    const historyEntry = {
+      id: 'history-1',
+      assignment_doc_id: 'doc-1',
+      patch: null,
+      snapshot: newContent,
+      word_count: 1,
+      char_count: 3,
+      trigger: 'autosave',
+      created_at: '2025-01-01T00:00:05.000Z',
+    }
+    vi.mocked(saveAssignmentDocAtomic).mockResolvedValueOnce({
+      ok: true,
+      doc: {
+        id: 'doc-1',
+        content: newContent,
+        updated_at: '2025-01-01T00:00:05.000Z',
+        teacher_feedback_draft: 'Private teacher draft',
+        ai_feedback_suggestion: 'Private AI suggestion',
+        authenticity_score: 91,
+      } as any,
+      historyEntry: historyEntry as any,
+    })
 
     const mockFrom = vi.fn((table: string) => {
       if (table === 'assignments') {
@@ -489,33 +503,6 @@ describe('PATCH /api/assignment-docs/[id]', () => {
               error: null,
             }),
           })),
-          update: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              select: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'doc-1', content: newContent },
-                  error: null,
-                }),
-              })),
-            })),
-          })),
-        }
-      }
-      if (table === 'assignment_doc_history') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            order: vi.fn(() => ({
-              limit: vi.fn(() => ({
-                maybeSingle: vi.fn().mockResolvedValue({
-                  data: { id: 'history-1', created_at: new Date(now - 5000).toISOString(), snapshot: null },
-                  error: null,
-                }),
-              })),
-            })),
-          })),
-          update: historyUpdate,
-          insert: historyInsert,
         }
       }
     })
@@ -523,14 +510,156 @@ describe('PATCH /api/assignment-docs/[id]', () => {
 
     const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-1', {
       method: 'PATCH',
-      body: JSON.stringify({ content: newContent }),
+      body: JSON.stringify({
+        content: newContent,
+        expected_updated_at: savedRevision,
+        save_session_id: '10000000-0000-4000-8000-000000000001',
+        save_sequence: 1,
+        metric_session_id: '10000000-0000-4000-8000-000000000002',
+      }),
     })
 
     const response = await PATCH(request, { params: { id: 'assign-1' } })
+    const data = await response.json()
     expect(response.status).toBe(200)
-    expect(historyUpdate).toHaveBeenCalled()
-    expect(historyInsert).not.toHaveBeenCalled()
-    dateSpy.mockRestore()
+    expect(data.historyEntry).toEqual(historyEntry)
+    expect(data.doc).toEqual(expect.objectContaining({
+      teacher_feedback_draft: null,
+      ai_feedback_suggestion: null,
+      authenticity_score: null,
+    }))
+    expect(saveAssignmentDocAtomic).toHaveBeenCalledWith(expect.objectContaining({
+      assignmentId: 'assign-1',
+      studentId: 'student-1',
+      previousContent: beforeContent,
+      content: newContent,
+      expectedUpdatedAt: savedRevision,
+    }))
+  })
+
+  it('does not overwrite a document submitted while its save was in flight', async () => {
+    vi.mocked(saveAssignmentDocAtomic).mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      error: 'This draft changed elsewhere before the save completed. Reload and review the latest version.',
+      errorCode: 'assignment_doc_revision_conflict',
+    })
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'assign-1', classroom_id: 'class-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: 'doc-1',
+                student_id: 'student-1',
+                is_submitted: false,
+                content: { type: 'doc', content: [] },
+              },
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/assignment-docs/assign-1', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          content: {
+            type: 'doc',
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Late save' }] }],
+          },
+          expected_updated_at: '2025-01-01T00:00:00.000Z',
+          save_session_id: '10000000-0000-4000-8000-000000000001',
+          save_sequence: 1,
+          metric_session_id: '10000000-0000-4000-8000-000000000002',
+        }),
+      }),
+      { params: { id: 'assign-1' } },
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(409)
+    expect(data.error).toBe(
+      'This draft changed elsewhere before the save completed. Reload and review the latest version.',
+    )
+    expect(data.error_code).toBe('assignment_doc_revision_conflict')
+    expect(saveAssignmentDocAtomic).toHaveBeenCalledOnce()
+  })
+
+  it('adapts a strict legacy save payload during the rollout window', async () => {
+    const revision = '2025-01-01T00:00:00.000Z'
+    const content = { type: 'doc', content: [] }
+    vi.mocked(saveAssignmentDocAtomic).mockResolvedValueOnce({
+      ok: true,
+      doc: { id: 'doc-1', content, updated_at: revision } as any,
+      historyEntry: null,
+    })
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'assign-1', classroom_id: 'class-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: 'doc-1',
+                student_id: 'student-1',
+                is_submitted: false,
+                content,
+                updated_at: revision,
+              },
+              error: null,
+            }),
+          })),
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/assignment-docs/assign-1', {
+        method: 'PATCH',
+        body: JSON.stringify({ content }),
+      }),
+      { params: { id: 'assign-1' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(saveAssignmentDocAtomic).toHaveBeenCalledWith(expect.objectContaining({
+      expectedUpdatedAt: revision,
+      saveSessionId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      saveSequence: 1,
+    }))
   })
 
   it('keeps assignment doc content updates student-only', async () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { AlertDialog, ConfirmDialog, ContentDialog, DialogPanel } from '@/ui'
 
@@ -47,13 +47,13 @@ describe('AlertDialog', () => {
 
   it('calls onClose on Escape', () => {
     render(<AlertDialog {...defaultProps} />)
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })
     expect(defaultProps.onClose).toHaveBeenCalledOnce()
   })
 
   it('calls onClose on Enter', () => {
     render(<AlertDialog {...defaultProps} />)
-    fireEvent.keyDown(window, { key: 'Enter' })
+    fireEvent.keyDown(document, { key: 'Enter' })
     expect(defaultProps.onClose).toHaveBeenCalledOnce()
   })
 
@@ -131,7 +131,7 @@ describe('ConfirmDialog', () => {
 
   it('calls onCancel on Escape', () => {
     render(<ConfirmDialog {...defaultProps} />)
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })
     expect(defaultProps.onCancel).toHaveBeenCalledOnce()
   })
 
@@ -151,7 +151,7 @@ describe('ConfirmDialog', () => {
     render(<ConfirmDialog {...defaultProps} isCancelDisabled />)
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
     // Escape should not call onCancel
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })
     expect(defaultProps.onCancel).not.toHaveBeenCalled()
   })
 
@@ -166,6 +166,35 @@ describe('ConfirmDialog', () => {
     expect(dialog).toHaveAttribute('aria-modal', 'true')
     expect(dialog).toHaveAttribute('aria-labelledby')
     expect(dialog).toHaveAttribute('aria-describedby')
+  })
+
+  it('keeps focus inside while an async confirmation disables dismissal', async () => {
+    function BusyConfirmation() {
+      const [isOpen, setIsOpen] = useState(false)
+      const [isBusy, setIsBusy] = useState(false)
+      return (
+        <>
+          <button type="button" onClick={() => setIsOpen(true)}>Open confirmation</button>
+          <ConfirmDialog
+            isOpen={isOpen}
+            title="Publish changes?"
+            isCancelDisabled={isBusy}
+            isConfirmDisabled={isBusy}
+            onCancel={() => setIsOpen(false)}
+            onConfirm={() => setIsBusy(true)}
+          />
+        </>
+      )
+    }
+
+    render(<BusyConfirmation />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open confirmation' }))
+    const dialog = screen.getByRole('dialog', { name: 'Publish changes?' })
+    const confirm = screen.getByRole('button', { name: 'Confirm' })
+    fireEvent.click(confirm)
+
+    await waitFor(() => expect(confirm).toBeDisabled())
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
   })
 })
 
@@ -199,7 +228,7 @@ describe('ContentDialog', () => {
 
   it('calls onClose on Escape', () => {
     render(<ContentDialog {...defaultProps} />)
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })
     expect(defaultProps.onClose).toHaveBeenCalledOnce()
   })
 
@@ -298,4 +327,5 @@ describe('DialogPanel', () => {
     const input = screen.getByRole('textbox', { name: 'Classroom name' })
     await waitFor(() => expect(input).toHaveFocus())
   })
+
 })

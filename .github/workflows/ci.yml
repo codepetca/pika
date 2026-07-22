@@ -42,6 +42,12 @@ jobs:
       - name: Verify atomic assignment feedback returns
         run: bash scripts/check-atomic-assignment-feedback-returns.sh
 
+      - name: Verify atomic assignment draft and submission integrity
+        run: bash scripts/check-atomic-assignment-submissions.sh
+
+      - name: Verify assignment submission concurrency
+        run: bash scripts/check-assignment-submission-concurrency.sh
+
       - name: Verify atomic student test submission
         run: bash scripts/check-atomic-test-submit.sh
 
@@ -139,3 +145,71 @@ jobs:
           name: coverage-report
           path: coverage/
           retention-days: 7
+
+  browser-experience-matrix:
+    name: Browser Experience Matrix
+    runs-on: ubuntu-latest
+    env:
+      E2E_BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      SESSION_SECRET: ci-browser-session-secret-with-at-least-32-characters
+      ENABLE_MOCK_EMAIL: "true"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.103.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.25.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start ephemeral Supabase and replay migrations
+        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
+
+      - name: Export local Supabase environment
+        shell: bash
+        run: |
+          eval "$(supabase status -o env \
+            --override-name api.url=NEXT_PUBLIC_SUPABASE_URL \
+            --override-name auth.anon_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY \
+            --override-name auth.service_role_key=SUPABASE_SECRET_KEY)"
+          echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" >> "$GITHUB_ENV"
+          echo "SUPABASE_SECRET_KEY=$SUPABASE_SECRET_KEY" >> "$GITHUB_ENV"
+
+      - name: Seed browser fixtures
+        run: pnpm seed
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run teacher and student browser matrix
+        run: pnpm e2e:matrix
+
+      - name: Upload browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-experience-matrix
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+      - name: Stop ephemeral database
+        if: always()
+        run: supabase stop --no-backup

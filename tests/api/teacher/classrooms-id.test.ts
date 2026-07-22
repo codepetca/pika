@@ -1,9 +1,10 @@
 /**
- * API tests for GET/PATCH/DELETE /api/teacher/classrooms/[id]
+ * API tests for GET/PATCH /api/teacher/classrooms/[id]
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { GET, PATCH, DELETE } from '@/app/api/teacher/classrooms/[id]/route'
+import { GET, PATCH } from '@/app/api/teacher/classrooms/[id]/route'
+import * as classroomRoute from '@/app/api/teacher/classrooms/[id]/route'
 import { getNextTeacherClassroomPosition } from '@/lib/server/classroom-order'
 import { NextRequest } from 'next/server'
 
@@ -263,37 +264,8 @@ describe('PATCH /api/teacher/classrooms/[id]', () => {
   })
 })
 
-describe('DELETE /api/teacher/classrooms/[id]', () => {
-  beforeEach(() => { vi.clearAllMocks() })
-
-  it('should return 403 when not owner', async () => {
-    const { assertTeacherOwnsClassroom } = await import('@/lib/server/classrooms')
-    ;(assertTeacherOwnsClassroom as any).mockResolvedValueOnce({
-      ok: false,
-      status: 403,
-      error: 'Forbidden',
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1', {
-      method: 'DELETE',
-    })
-
-    const response = await DELETE(request, { params: { id: 'c-1' } })
-    expect(response.status).toBe(403)
-  })
-
-  it('should return 400 when classroom is not archived', async () => {
-    const { assertTeacherOwnsClassroom } = await import('@/lib/server/classrooms')
-    ;(assertTeacherOwnsClassroom as any).mockResolvedValueOnce({
-      ok: true,
-      classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1', {
-      method: 'DELETE',
-    })
-
-    const response = await DELETE(request, { params: { id: 'c-1' } })
-    expect(response.status).toBe(400)
+describe('retired DELETE /api/teacher/classrooms/[id]', () => {
+  it('does not export a classroom deletion handler', () => {
+    expect('DELETE' in classroomRoute).toBe(false)
   })
 })

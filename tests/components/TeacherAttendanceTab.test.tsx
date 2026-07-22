@@ -194,6 +194,10 @@ describe('TeacherAttendanceTab', () => {
     const logText = await screen.findByText(longLogText)
 
     expect(screen.getByRole('columnheader', { name: 'Log' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Attendance students' })).toHaveAttribute(
+      'aria-keyshortcuts',
+      'ArrowUp ArrowDown Home End Escape',
+    )
     expect(logText).toHaveClass('truncate')
     expect(logText).toHaveAttribute('title', longLogText)
     expect(screen.getByText('Class Log Summary')).toBeInTheDocument()
@@ -202,6 +206,72 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.queryByRole('button', { name: 'Show class log summary' })).not.toBeInTheDocument()
     expect(screen.getByRole('separator', { name: 'Resize class log summary' })).toBeInTheDocument()
     expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
+
+    const tableRegion = screen.getByRole('region', { name: 'Attendance students' })
+    tableRegion.focus()
+    fireEvent.keyDown(tableRegion, { key: 'ArrowDown' })
+    const selectedRow = screen.getByRole('row', { name: /Student1 Test/ })
+    expect(selectedRow).toHaveAttribute('id', 'attendance-student-row-student-1')
+    expect(selectedRow).toHaveAttribute('aria-selected', 'true')
+    await waitFor(() => {
+      expect(selectedRow).toHaveFocus()
+    })
+  })
+
+  it('shows a retryable error instead of prior-date or empty-roster data after a failed read', async () => {
+    classDaysMock.classDays = [
+      ...classDaysMock.defaultClassDays,
+      {
+        id: 'day-2',
+        classroom_id: 'classroom-1',
+        date: '2026-05-06',
+        prompt_text: null,
+        is_class_day: true,
+      },
+    ]
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const retryRequest = deferred<any>()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(await mockJson({
+        logs: [{
+          student_id: 'student-1',
+          student_email: 'student1@example.com',
+          student_first_name: 'Student1',
+          student_last_name: 'Test',
+          entry: entry({ text: longLogText }),
+          history_preview: [],
+        }],
+      }))
+      .mockResolvedValueOnce(await mockJson({ error: 'Attendance unavailable' }, false))
+      .mockImplementationOnce(() => retryRequest.promise)
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<TeacherAttendanceTab classroom={classroom} />)
+
+    expect(await screen.findByText(longLogText)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Go to today' }))
+
+    await waitFor(() => {
+      expect(screen.queryByText(longLogText)).not.toBeInTheDocument()
+    })
+    expect(screen.queryByText('Student1')).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Attendance unavailable')
+    expect(screen.queryByText('No students enrolled')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+    })
+    expect(screen.queryByText('No students enrolled')).not.toBeInTheDocument()
+
+    await act(async () => {
+      retryRequest.resolve(await mockJson({ logs: [] }))
+    })
+
+    expect(await screen.findByText('No students enrolled')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    consoleError.mockRestore()
   })
 
   it('moves quickly between today and the last class day from the date picker cluster', async () => {
@@ -419,6 +489,7 @@ describe('TeacherAttendanceTab', () => {
       expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
     })
     expect(screen.getByRole('columnheader', { name: 'Log' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Attendance students' })).toHaveFocus()
   })
 
   it('deselects the selected student when clicking outside the selected workspace', async () => {

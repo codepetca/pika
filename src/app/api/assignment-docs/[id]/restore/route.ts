@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server'
+import { randomUUID } from 'node:crypto'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
-import { countCharacters, countWords } from '@/lib/tiptap-content'
+import { parseContentField } from '@/lib/tiptap-content'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import type { AssignmentDocHistoryEntry } from '@/types'
 import { withErrorHandler } from '@/lib/api-handler'
+import { sanitizeDocForStudent } from '@/lib/assignments'
+import { saveAssignmentDocAtomic } from '@/lib/server/assignment-doc-submissions'
+import { assignmentDocRestoreRequestSchema } from '@/lib/validations/assignment-doc-submissions'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -14,15 +18,7 @@ export const revalidate = 0
 export const POST = withErrorHandler('PostRestoreAssignmentDoc', async (request, context) => {
   const user = await requireRole('student')
   const { id: assignmentId } = await context.params
-  const body = await request.json()
-  const { history_id: historyId } = body as { history_id?: string }
-
-  if (!historyId) {
-    return NextResponse.json(
-      { error: 'history_id is required' },
-      { status: 400 }
-    )
-  }
+  const { history_id: historyId } = assignmentDocRestoreRequestSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
 
@@ -56,7 +52,7 @@ export const POST = withErrorHandler('PostRestoreAssignmentDoc', async (request,
 
   const { data: doc, error: docError } = await supabase
     .from('assignment_docs')
-    .select('id, is_submitted')
+    .select('id, is_submitted, content, updated_at')
     .eq('assignment_id', assignmentId)
     .eq('student_id', user.id)
     .single()
@@ -115,33 +111,28 @@ export const POST = withErrorHandler('PostRestoreAssignmentDoc', async (request,
     )
   }
 
-  const { data: updatedDoc, error: updateError } = await supabase
-    .from('assignment_docs')
-    .update({ content: restoredContent })
-    .eq('id', doc.id)
-    .select()
-    .single()
+  const saveSessionId = randomUUID()
+  const restoreResult = await saveAssignmentDocAtomic({
+    supabase,
+    assignmentId,
+    studentId: user.id,
+    previousContent: parseContentField(doc.content),
+    content: restoredContent,
+    expectedUpdatedAt: doc.updated_at,
+    trigger: 'restore',
+    pasteWordCount: 0,
+    keystrokeCount: 0,
+    saveSessionId,
+    saveSequence: 1,
+    metricSessionId: saveSessionId,
+  })
 
-  if (updateError) {
-    console.error('Error restoring assignment doc:', updateError)
+  if (!restoreResult.ok) {
     return NextResponse.json(
-      { error: 'Failed to restore document' },
-      { status: 500 }
+      { error: restoreResult.error },
+      { status: restoreResult.status }
     )
   }
 
-  try {
-    await supabase.from('assignment_doc_history').insert({
-      assignment_doc_id: doc.id,
-      patch: null,
-      snapshot: restoredContent,
-      word_count: countWords(restoredContent),
-      char_count: countCharacters(restoredContent),
-      trigger: 'restore',
-    })
-  } catch (historyError) {
-    console.error('Error saving assignment doc history:', historyError)
-  }
-
-  return NextResponse.json({ doc: updatedDoc })
+  return NextResponse.json({ doc: sanitizeDocForStudent(restoreResult.doc) })
 })

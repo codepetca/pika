@@ -1,0 +1,139 @@
+- alert
+- banner:
+  - button "Open classroom navigation":
+  - link "Home":
+    - /url: /classrooms
+    - img "Pika"
+  - generic: Test Classroom
+  - button "Enter fullscreen":
+  - button "User menu":
+    - generic: T
+  - menu:
+    - generic: T
+    - paragraph: teacher@example.com
+    - paragraph: teacher
+    - menuitem:
+      - text: Light mode
+    - menuitem:
+      - text: Send Feedback
+    - menuitem:
+      - text: Logout
+- main:
+  - main:
+    - 'button "Change assignment layout: Students + grading"':
+    - button "AI Grade" [disabled]:
+      - generic: AI Grade
+    - button "More assignment actions":
+    - button "Edit Assignment":
+    - table:
+      - rowgroup:
+        - row "Select all students First Resize First column Last Resize Last column Status Resize Status column Grade Resize Grade column Artifacts":
+          - columnheader "Select all students":
+            - checkbox "Select all students"
+          - columnheader "First Resize First column":
+            - button "First":
+              - generic: First
+            - separator "Resize First column"
+          - columnheader "Last Resize Last column":
+            - button "Last":
+              - generic: Last
+            - separator "Resize Last column"
+          - columnheader "Status Resize Status column":
+            - button "Status":
+              - generic: Status
+            - separator "Resize Status column"
+          - columnheader "Grade Resize Grade column":
+            - generic: Grade
+            - separator "Resize Grade column"
+          - columnheader "Artifacts":
+            - generic: Artifacts
+      - rowgroup:
+        - row "Select Student1 Test Student1 Test Returned 83 -":
+          - cell "Select Student1 Test":
+            - checkbox "Select Student1 Test"
+          - cell "Student1":
+            - generic: Student1
+          - cell "Test":
+            - generic: Test
+          - cell "Returned":
+            - img "Returned":
+          - cell "83"
+          - cell "-"
+        - row "Select Student2 Test Student2 Test Returned (late) 63 -":
+          - cell "Select Student2 Test":
+            - checkbox "Select Student2 Test"
+          - cell "Student2":
+            - generic: Student2
+          - cell "Test":
+            - generic: Test
+          - cell "Returned (late)":
+            - img "Returned (late)":
+          - cell "63"
+          - cell "-"
+    - button "History":
+      - generic: History
+      - generic: Authenticity —
+    - button "Grade" [expanded]:
+      - generic: Grade
+      - generic: 83%
+    - generic: Completion
+    - button "Set Completion score to 0"
+    - button "Set Completion score to 1"
+    - button "Set Completion score to 2"
+    - button "Set Completion score to 3"
+    - button "Set Completion score to 4"
+    - button "Set Completion score to 5"
+    - button "Set Completion score to 6"
+    - button "Set Completion score to 7"
+    - button "Set Completion score to 8" [pressed]
+    - button "Set Completion score to 9"
+    - button "Set Completion score to 10"
+    - spinbutton "Completion score": "8"
+    - generic: "10"
+    - generic: Thinking
+    - button "Set Thinking score to 0"
+    - button "Set Thinking score to 1"
+    - button "Set Thinking score to 2"
+    - button "Set Thinking score to 3"
+    - button "Set Thinking score to 4"
+    - button "Set Thinking score to 5"
+    - button "Set Thinking score to 6"
+    - button "Set Thinking score to 7"
+    - button "Set Thinking score to 8"
+    - button "Set Thinking score to 9" [pressed]
+    - button "Set Thinking score to 10"
+    - spinbutton "Thinking score": "9"
+    - generic: "10"
+    - generic: Workflow
+    - button "Set Workflow score to 0"
+    - button "Set Workflow score to 1"
+    - button "Set Workflow score to 2"
+    - button "Set Workflow score to 3"
+    - button "Set Workflow score to 4"
+    - button "Set Workflow score to 5"
+    - button "Set Workflow score to 6"
+    - button "Set Workflow score to 7"
+    - button "Set Workflow score to 8" [pressed]
+    - button "Set Workflow score to 9"
+    - button "Set Workflow score to 10"
+    - spinbutton "Workflow score": "8"
+    - generic: "10"
+    - generic: Total
+    - generic: "25"
+    - generic: "30"
+    - generic: Graded Jul 13, 11:21 PM
+    - group "Grade save mode":
+      - button "Draft":
+        - generic: Draft
+      - button "Final" [pressed]:
+        - generic: Final
+    - button "Comments" [expanded]:
+      - generic: Comments
+    - textbox "Teacher comment draft": Strong descriptive writing and clear structure. Keep tightening the ending so it lands a little more sharply.
+    - button "Send comment":
+      - generic: Send comment
+    - generic: Comments Sent
+    - generic: Jul 11
+    - generic: Your first draft had a strong voice. Revise the ending so it reflects more directly on what you learned.
+    - generic: Jul 13
+    - generic: Strong descriptive writing and clear structure. Keep tightening the ending so it lands a little more sharply.

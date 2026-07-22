@@ -1509,4 +1509,436 @@ if [[ "$AI_FIRST_STATE" != "2:4.00:AI first winner:completed" ]]; then
   exit 1
 fi
 
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+do $provenance_contract$
+declare
+  v_result jsonb;
+  v_provenance_a jsonb := jsonb_build_object(
+    'schemaVersion', 'test-grading-provenance-v1',
+    'gradingRequestId', 'a9000000-0000-4000-8000-000000000601',
+    'provider', 'openai',
+    'model', 'contract-model',
+    'policyVersion', 'pika-test-open-response-policy-v1',
+    'promptVersion', 'pika-test-open-response-manual-prompt-v1',
+    'gradingProfileVersion', 'pika-test-open-response-v1',
+    'rubricVersion', 'pika-test-open-response-rubric-v1',
+    'operation', 'single',
+    'batchSize', 1,
+    'providerRequestCount', 1,
+    'tokenUsage', jsonb_build_object('inputTokens', 100, 'outputTokens', 20, 'totalTokens', 120)
+  );
+  v_provenance_b jsonb := jsonb_build_object(
+    'schemaVersion', 'test-grading-provenance-v1',
+    'gradingRequestId', 'a9000000-0000-4000-8000-000000000602',
+    'provider', 'openai',
+    'model', 'contract-model',
+    'policyVersion', 'pika-test-open-response-policy-v1',
+    'promptVersion', 'pika-test-open-response-bulk-prompt-v1',
+    'gradingProfileVersion', 'pika-test-open-response-v1',
+    'rubricVersion', 'pika-test-open-response-rubric-v1',
+    'operation', 'batch',
+    'batchSize', 2,
+    'providerRequestCount', 1,
+    'tokenUsage', jsonb_build_object('inputTokens', 180, 'outputTokens', 40, 'totalTokens', 220)
+  );
+  v_provenance_c jsonb := jsonb_build_object(
+    'schemaVersion', 'test-grading-provenance-v1',
+    'gradingRequestId', 'a9000000-0000-4000-8000-000000000603',
+    'provider', 'openai',
+    'model', 'contract-model',
+    'policyVersion', 'pika-test-open-response-policy-v1',
+    'promptVersion', 'pika-test-open-response-bulk-prompt-v1',
+    'gradingProfileVersion', 'pika-test-open-response-v1',
+    'rubricVersion', 'pika-test-open-response-rubric-v1',
+    'operation', 'batch',
+    'batchSize', 2,
+    'providerRequestCount', 2,
+    'tokenUsage', jsonb_build_object('inputTokens', 360, 'outputTokens', 80, 'totalTokens', 440)
+  );
+  v_revision bigint;
+  v_request_id text;
+  v_review jsonb;
+  v_rejected boolean := false;
+begin
+  if has_function_privilege(
+    'anon',
+    'public.save_test_response_grades_with_provenance_atomic(uuid,uuid,uuid,jsonb,timestamp with time zone)',
+    'execute'
+  ) or has_function_privilege(
+    'authenticated',
+    'public.save_test_response_grades_with_provenance_atomic(uuid,uuid,uuid,jsonb,timestamp with time zone)',
+    'execute'
+  ) or not has_function_privilege(
+    'service_role',
+    'public.save_test_response_grades_with_provenance_atomic(uuid,uuid,uuid,jsonb,timestamp with time zone)',
+    'execute'
+  ) then
+    raise exception 'Manual test provenance RPC privileges are invalid';
+  end if;
+
+  if has_function_privilege(
+    'anon',
+    'public.finalize_test_ai_grading_item_with_provenance_atomic(uuid,uuid,uuid,numeric,text,text,jsonb,text,jsonb,integer,timestamp with time zone)',
+    'execute'
+  ) or has_function_privilege(
+    'authenticated',
+    'public.finalize_test_ai_grading_item_with_provenance_atomic(uuid,uuid,uuid,numeric,text,text,jsonb,text,jsonb,integer,timestamp with time zone)',
+    'execute'
+  ) or not has_function_privilege(
+    'service_role',
+    'public.finalize_test_ai_grading_item_with_provenance_atomic(uuid,uuid,uuid,numeric,text,text,jsonb,text,jsonb,integer,timestamp with time zone)',
+    'execute'
+  ) then
+    raise exception 'Durable test provenance RPC privileges are invalid';
+  end if;
+
+  insert into public.tests (id, classroom_id, title, status, points_possible, created_by)
+  values (
+    'a9000000-0000-4000-8000-000000000028',
+    'a9000000-0000-4000-8000-000000000010',
+    'AI provenance contract',
+    'closed',
+    5,
+    'a9000000-0000-4000-8000-000000000001'
+  );
+  insert into public.test_questions (
+    id, test_id, question_type, question_text, options, correct_option, points,
+    response_max_chars, position, answer_key
+  ) values (
+    'a9000000-0000-4000-8000-000000000121',
+    'a9000000-0000-4000-8000-000000000028',
+    'open_response',
+    'Explain the provenance contract.',
+    '[]',
+    null,
+    5,
+    5000,
+    0,
+    'Explain atomic persistence.'
+  );
+  insert into public.test_responses (
+    id, test_id, question_id, student_id, response_text, submitted_at
+  ) values (
+    'a9000000-0000-4000-8000-000000000219',
+    'a9000000-0000-4000-8000-000000000028',
+    'a9000000-0000-4000-8000-000000000121',
+    'a9000000-0000-4000-8000-000000000002',
+    'The write and audit commit together.',
+    now()
+  );
+  insert into public.test_attempts (
+    id, test_id, student_id, responses, is_submitted, submitted_at,
+    closed_for_grading_at, closed_for_grading_by
+  ) values (
+    'a9000000-0000-4000-8000-000000000707',
+    'a9000000-0000-4000-8000-000000000028',
+    'a9000000-0000-4000-8000-000000000002',
+    '{}'::jsonb,
+    true,
+    now(),
+    now(),
+    'a9000000-0000-4000-8000-000000000001'
+  );
+
+  v_result := public.save_test_response_grades_with_provenance_atomic(
+    'a9000000-0000-4000-8000-000000000028',
+    'a9000000-0000-4000-8000-000000000002',
+    'a9000000-0000-4000-8000-000000000001',
+    jsonb_build_array(jsonb_build_object(
+      'response_id', 'a9000000-0000-4000-8000-000000000219',
+      'question_id', 'a9000000-0000-4000-8000-000000000121',
+      'expected_response_revision', 1,
+      'clear_grade', false,
+      'score', 4,
+      'feedback', 'Manual AI suggestion',
+      'ai_grading_basis', 'teacher_key',
+      'ai_reference_answers', null,
+      'ai_model', 'contract-model',
+      'question_grading_snapshot', jsonb_build_object(
+        'test_title', 'AI provenance contract',
+        'question_text', 'Explain the provenance contract.',
+        'points', 5,
+        'response_monospace', false,
+        'answer_key', 'Explain atomic persistence.',
+        'sample_solution', null
+      ),
+      'ai_suggested_score', 4,
+      'ai_suggested_feedback', 'Manual AI suggestion',
+      'ai_grading_provenance', v_provenance_a
+    )),
+    '2026-07-21T18:00:00Z'
+  );
+  select revision, ai_grading_provenance->>'gradingRequestId'
+  into v_revision, v_request_id
+  from public.test_responses
+  where id = 'a9000000-0000-4000-8000-000000000219';
+  if v_revision <> 2
+    or v_request_id <> 'a9000000-0000-4000-8000-000000000601'
+    or (v_result->'responses'->0->>'revision')::bigint <> 2
+  then
+    raise exception 'Manual test AI provenance did not persist atomically: % / % / %',
+      v_result, v_revision, v_request_id;
+  end if;
+  select ai_grading_review into v_review
+  from public.test_responses
+  where id = 'a9000000-0000-4000-8000-000000000219';
+  if v_review->>'reviewStatus' <> 'pending'
+    or v_review->>'assessmentKind' <> 'test'
+    or (v_review->'criteria'->0->>'suggestedScore')::numeric <> 4
+    or (v_review->'criteria'->0->>'finalScore')::numeric <> 4
+    or v_review->>'feedbackDisposition' <> 'unchanged'
+    or v_review ?| array[
+      'studentId', 'testId', 'submissionText', 'suggestedFeedback', 'finalFeedback'
+    ]
+  then
+    raise exception 'Test grading review did not capture a private-safe suggestion: %', v_review;
+  end if;
+
+  perform public.save_test_response_grades_with_provenance_atomic(
+    'a9000000-0000-4000-8000-000000000028',
+    'a9000000-0000-4000-8000-000000000002',
+    'a9000000-0000-4000-8000-000000000001',
+    jsonb_build_array(jsonb_build_object(
+      'response_id', 'a9000000-0000-4000-8000-000000000219',
+      'question_id', 'a9000000-0000-4000-8000-000000000121',
+      'expected_response_revision', 2,
+      'clear_grade', false,
+      'score', 3,
+      'feedback', 'Teacher edited the suggestion'
+    )),
+    '2026-07-21T18:01:00Z'
+  );
+  select revision, ai_grading_provenance->>'gradingRequestId'
+  into v_revision, v_request_id
+  from public.test_responses
+  where id = 'a9000000-0000-4000-8000-000000000219';
+  if v_revision <> 3 or v_request_id <> 'a9000000-0000-4000-8000-000000000601' then
+    raise exception 'Teacher correction erased test AI provenance: % / %', v_revision, v_request_id;
+  end if;
+  select ai_grading_review into v_review
+  from public.test_responses
+  where id = 'a9000000-0000-4000-8000-000000000219';
+  if (v_review->'criteria'->0->>'suggestedScore')::numeric <> 4
+    or (v_review->'criteria'->0->>'finalScore')::numeric <> 3
+    or v_review->>'feedbackDisposition' <> 'edited'
+  then
+    raise exception 'Test teacher correction was not captured: %', v_review;
+  end if;
+
+  perform public.return_test_attempts_atomic(
+    'a9000000-0000-4000-8000-000000000028',
+    array['a9000000-0000-4000-8000-000000000002']::uuid[],
+    'a9000000-0000-4000-8000-000000000001',
+    '{}'::jsonb
+  );
+  select revision, ai_grading_review into v_revision, v_review
+  from public.test_responses
+  where id = 'a9000000-0000-4000-8000-000000000219';
+  if v_revision <> 3 then
+    raise exception 'Test grading review changed the response revision: %', v_revision;
+  end if;
+  if v_review->>'reviewStatus' <> 'reviewed' or v_review->>'reviewedAt' is null then
+    raise exception 'Test grading review was not finalized on return: %', v_review;
+  end if;
+
+  perform public.save_test_response_grades_atomic(
+    'a9000000-0000-4000-8000-000000000028',
+    'a9000000-0000-4000-8000-000000000002',
+    'a9000000-0000-4000-8000-000000000001',
+    jsonb_build_array(jsonb_build_object(
+      'response_id', 'a9000000-0000-4000-8000-000000000219',
+      'question_id', 'a9000000-0000-4000-8000-000000000121',
+      'expected_response_revision', 3,
+      'clear_grade', false,
+      'score', 2,
+      'feedback', 'Legacy replacement',
+      'ai_grading_basis', 'teacher_key',
+      'ai_reference_answers', null,
+      'ai_model', 'legacy-model',
+      'question_grading_snapshot', jsonb_build_object(
+        'test_title', 'AI provenance contract',
+        'question_text', 'Explain the provenance contract.',
+        'points', 5,
+        'response_monospace', false,
+        'answer_key', 'Explain atomic persistence.',
+        'sample_solution', null
+      ),
+      'ai_suggested_score', 2,
+      'ai_suggested_feedback', 'Legacy replacement'
+    )),
+    '2026-07-21T18:02:00Z'
+  );
+  if exists (
+    select 1 from public.test_responses
+    where id = 'a9000000-0000-4000-8000-000000000219'
+      and ai_grading_provenance is not null
+  ) then
+    raise exception 'legacy test grade write left stale AI provenance';
+  end if;
+  if exists (
+    select 1 from public.test_responses
+    where id = 'a9000000-0000-4000-8000-000000000219'
+      and ai_grading_review is not null
+  ) then
+    raise exception 'Legacy test grade write left a stale grading review';
+  end if;
+
+  insert into public.test_ai_grading_runs (
+    id, test_id, status, triggered_by, model, selection_hash, requested_count,
+    eligible_student_count, queued_response_count, lease_token, lease_expires_at, started_at
+  ) values (
+    'a9000000-0000-4000-8000-000000000309',
+    'a9000000-0000-4000-8000-000000000028',
+    'running',
+    'a9000000-0000-4000-8000-000000000001',
+    'contract-model',
+    'provenance',
+    1,
+    1,
+    1,
+    'a9000000-0000-4000-8000-000000000509',
+    now() + interval '10 minutes',
+    now()
+  );
+  insert into public.test_ai_grading_run_items (
+    id, run_id, test_id, student_id, question_id, response_id, queue_position,
+    question_grading_snapshot
+  ) values (
+    'a9000000-0000-4000-8000-000000000408',
+    'a9000000-0000-4000-8000-000000000309',
+    'a9000000-0000-4000-8000-000000000028',
+    'a9000000-0000-4000-8000-000000000002',
+    'a9000000-0000-4000-8000-000000000121',
+    'a9000000-0000-4000-8000-000000000219',
+    0,
+    jsonb_build_object(
+      'test_title', 'AI provenance contract',
+      'question_text', 'Explain the provenance contract.',
+      'points', 5,
+      'response_monospace', false,
+      'answer_key', 'Explain atomic persistence.',
+      'sample_solution', null
+    )
+  );
+
+  v_result := public.finalize_test_ai_grading_item_with_provenance_atomic(
+    'a9000000-0000-4000-8000-000000000408',
+    'a9000000-0000-4000-8000-000000000001',
+    'a9000000-0000-4000-8000-000000000509',
+    5,
+    'Durable AI grade',
+    'teacher_key',
+    null,
+    'contract-model',
+    v_provenance_b,
+    1,
+    '2026-07-21T18:03:00Z'
+  );
+  select revision, ai_grading_provenance->>'gradingRequestId'
+  into v_revision, v_request_id
+  from public.test_responses
+  where id = 'a9000000-0000-4000-8000-000000000219';
+  if v_result->>'outcome' <> 'saved'
+    or v_revision <> 5
+    or v_request_id <> 'a9000000-0000-4000-8000-000000000602'
+  then
+    raise exception 'Durable test AI provenance did not persist atomically: % / % / %',
+      v_result, v_revision, v_request_id;
+  end if;
+
+  v_result := public.finalize_test_ai_grading_item_with_provenance_atomic(
+    'a9000000-0000-4000-8000-000000000408',
+    'a9000000-0000-4000-8000-000000000001',
+    'a9000000-0000-4000-8000-000000000509',
+    1,
+    'Replay must not replace',
+    'teacher_key',
+    null,
+    'contract-model',
+    v_provenance_c,
+    2,
+    '2026-07-21T18:04:00Z'
+  );
+  select ai_grading_provenance->>'gradingRequestId'
+  into v_request_id
+  from public.test_responses
+  where id = 'a9000000-0000-4000-8000-000000000219';
+  if v_result->>'outcome' <> 'replayed'
+    or v_request_id <> 'a9000000-0000-4000-8000-000000000602'
+  then
+    raise exception 'test AI provenance replay overwrote the original audit: % / %',
+      v_result, v_request_id;
+  end if;
+
+  perform public.clear_test_open_response_grades_atomic(
+    'a9000000-0000-4000-8000-000000000028',
+    'a9000000-0000-4000-8000-000000000001',
+    array['a9000000-0000-4000-8000-000000000002'::uuid],
+    jsonb_build_array(jsonb_build_object(
+      'response_id', 'a9000000-0000-4000-8000-000000000219',
+      'expected_response_revision', 5
+    )),
+    '2026-07-21T18:05:00Z'
+  );
+  if exists (
+    select 1 from public.test_responses
+    where id = 'a9000000-0000-4000-8000-000000000219'
+      and ai_grading_provenance is not null
+  ) then
+    raise exception 'Legacy test grade clear left stale AI provenance';
+  end if;
+  select revision, ai_grading_review into v_revision, v_review
+  from public.test_responses
+  where id = 'a9000000-0000-4000-8000-000000000219';
+  if v_revision <> 6
+    or v_review->>'reviewStatus' <> 'dismissed'
+    or v_review->'criteria'->0->'finalScore' <> 'null'::jsonb
+  then
+    raise exception 'Test grading review dismissal was not captured: % / %',
+      v_revision, v_review;
+  end if;
+
+  begin
+    perform public.save_test_response_grades_with_provenance_atomic(
+      'a9000000-0000-4000-8000-000000000028',
+      'a9000000-0000-4000-8000-000000000002',
+      'a9000000-0000-4000-8000-000000000001',
+      jsonb_build_array(jsonb_build_object(
+        'response_id', 'a9000000-0000-4000-8000-000000000219',
+        'question_id', 'a9000000-0000-4000-8000-000000000121',
+        'expected_response_revision', 6,
+        'clear_grade', false,
+        'score', 4,
+        'feedback', 'Invalid provenance must roll back',
+        'ai_grading_basis', 'teacher_key',
+        'ai_reference_answers', null,
+        'ai_model', 'contract-model',
+        'question_grading_snapshot', jsonb_build_object(
+          'test_title', 'AI provenance contract',
+          'question_text', 'Explain the provenance contract.',
+          'points', 5,
+          'response_monospace', false,
+          'answer_key', 'Explain atomic persistence.',
+          'sample_solution', null
+        ),
+        'ai_suggested_score', 4,
+        'ai_suggested_feedback', 'Invalid provenance must roll back',
+        'ai_grading_provenance', v_provenance_a - 'provider'
+      )),
+      '2026-07-21T18:06:00Z'
+    );
+  exception when check_violation then
+    v_rejected := true;
+  end;
+  select revision into v_revision
+  from public.test_responses
+  where id = 'a9000000-0000-4000-8000-000000000219';
+  if not v_rejected or v_revision <> 6 then
+    raise exception 'Invalid test AI provenance was not transactionally rejected: % / %',
+      v_rejected, v_revision;
+  end if;
+end;
+$provenance_contract$;
+SQL
+
 echo "Atomic test grading database checks passed."

@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, Menu, X } from 'lucide-react'
 import { useLeftSidebar, useMobileDrawer } from './ThreePanelProvider'
-import { Tooltip } from '@/ui'
+import { ModalLayer, Tooltip } from '@/ui'
 
 export interface LeftSidebarProps {
   children: ReactNode
@@ -19,30 +19,6 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
   const { isExpanded, toggle } = useLeftSidebar()
   const { isLeftOpen, close } = useMobileDrawer()
   const firstFocusableRef = useRef<HTMLButtonElement | null>(null)
-
-  // Escape key to close mobile drawer
-  useEffect(() => {
-    if (!isLeftOpen) return
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close()
-    }
-
-    document.addEventListener('keydown', onKeyDown)
-    document.body.style.overflow = 'hidden'
-
-    return () => {
-      document.removeEventListener('keydown', onKeyDown)
-      document.body.style.overflow = ''
-    }
-  }, [isLeftOpen, close])
-
-  // Focus first element when mobile drawer opens
-  useEffect(() => {
-    if (isLeftOpen) {
-      firstFocusableRef.current?.focus()
-    }
-  }, [isLeftOpen])
 
   return (
     <>
@@ -104,51 +80,42 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
       </aside>
 
       {/* Mobile drawer */}
-      {isLeftOpen && (
-        <div className="lg:hidden fixed inset-0 z-50">
-          {/* Backdrop */}
-          <button
-            type="button"
-            aria-label="Close navigation"
-            className="absolute inset-0 bg-black/40"
-            onClick={close}
-          />
-
-          {/* Drawer panel */}
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Navigation menu"
-            className={[
-              'absolute inset-y-0 left-0 w-72',
-              'bg-surface',
-              'border-r border-border',
-              'shadow-xl',
-              'flex flex-col',
-            ].join(' ')}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between p-3 border-b border-border">
-              <div className="flex items-center gap-2 text-sm font-semibold text-text-default">
-                <Menu className="h-6 w-6 text-text-muted" aria-hidden="true" />
-                <span>Navigation</span>
-              </div>
-              <button
-                ref={firstFocusableRef}
-                type="button"
-                onClick={close}
-                className="p-2 rounded-md text-text-muted hover:bg-surface-hover"
-                aria-label="Close navigation"
-              >
-                <X className="h-6 w-6" aria-hidden="true" />
-              </button>
-            </div>
-
-            {/* Nav content */}
-            <div className="flex-1 overflow-y-auto p-3">{children}</div>
+      <ModalLayer
+        isOpen={isLeftOpen}
+        onClose={close}
+        ariaLabel="Navigation menu"
+        initialFocusRef={firstFocusableRef}
+        backdropLabel="Close navigation"
+        rootClassName="lg:hidden"
+        backdropClassName="bg-black/40"
+        panelClassName={[
+          'absolute inset-y-0 left-0 w-72',
+          'bg-surface',
+          'border-r border-border',
+          'shadow-xl',
+          'flex flex-col',
+        ].join(' ')}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-3 border-b border-border">
+          <div className="flex items-center gap-2 text-sm font-semibold text-text-default">
+            <Menu className="h-6 w-6 text-text-muted" aria-hidden="true" />
+            <span>Navigation</span>
           </div>
+          <button
+            ref={firstFocusableRef}
+            type="button"
+            onClick={close}
+            className="p-2 rounded-md text-text-muted hover:bg-surface-hover"
+            aria-label="Close navigation"
+          >
+            <X className="h-6 w-6" aria-hidden="true" />
+          </button>
         </div>
-      )}
+
+        {/* Nav content */}
+        <div className="flex-1 overflow-y-auto p-3">{children}</div>
+      </ModalLayer>
     </>
   )
 }

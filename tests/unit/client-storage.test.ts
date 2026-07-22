@@ -1,5 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
+  safeLocalGetJson,
+  safeLocalRemove,
+  safeLocalSetJson,
   readCookieValue,
   safeSessionGetJson,
   safeSessionSetJson,
@@ -8,6 +11,7 @@ import {
 describe('client-storage', () => {
   beforeEach(() => {
     window.sessionStorage.clear()
+    window.localStorage.clear()
   })
 
   describe('readCookieValue', () => {
@@ -31,5 +35,23 @@ describe('client-storage', () => {
       expect(safeSessionGetJson('k')).toBeNull()
     })
   })
-})
 
+  describe('durable JSON helpers', () => {
+    it('round-trips and removes local recovery data', () => {
+      expect(safeLocalSetJson('draft', { content: 'work' })).toBe(true)
+      expect(safeLocalGetJson('draft')).toEqual({ content: 'work' })
+      safeLocalRemove('draft')
+      expect(safeLocalGetJson('draft')).toBeNull()
+    })
+
+    it('reports unavailable browser storage', () => {
+      const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('Quota exceeded', 'QuotaExceededError')
+      })
+
+      expect(safeLocalSetJson('draft', { content: 'work' })).toBe(false)
+      expect(safeSessionSetJson('draft', { content: 'work' })).toBe(false)
+      setItem.mockRestore()
+    })
+  })
+})

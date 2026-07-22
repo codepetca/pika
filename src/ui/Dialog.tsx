@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { cva } from 'class-variance-authority'
 import { Button } from './Button'
+import { ModalLayer } from './ModalLayer'
 
 // Dialog panel styles with CVA
 const dialogPanelStyles = cva([
@@ -12,7 +13,6 @@ const dialogPanelStyles = cva([
   'border-border',
 ])
 
-const dialogBackdropStyles = 'absolute inset-0 bg-black/50 dark:bg-black/70'
 const dialogTitleStyles = 'text-base font-semibold text-text-default'
 const dialogDescriptionStyles = 'mt-2 text-sm text-text-muted whitespace-pre-line'
 
@@ -76,20 +76,6 @@ export function AlertDialog({
   const descriptionId = useId()
   const buttonRef = useRef<HTMLButtonElement | null>(null)
 
-  useEffect(() => {
-    if (!isOpen) return
-    buttonRef.current?.focus()
-  }, [isOpen])
-
-  useEffect(() => {
-    if (!isOpen) return
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' || e.key === 'Enter') onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, onClose])
-
   // Auto-dismiss for success messages
   useEffect(() => {
     if (!isOpen || !autoDismiss) return
@@ -97,26 +83,21 @@ export function AlertDialog({
     return () => clearTimeout(timer)
   }, [isOpen, autoDismiss, onClose])
 
-  if (!isOpen) return null
-
   const buttonVariant = variant === 'error' ? 'danger' : 'primary'
   const icon = variant === 'success' ? <SuccessIcon /> : variant === 'error' ? <ErrorIcon /> : null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        className={dialogBackdropStyles}
-        aria-label="Close dialog"
-        onClick={onClose}
-      />
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={description ? descriptionId : undefined}
-        className={`${dialogPanelStyles()} max-w-sm`}
-      >
+    <ModalLayer
+      isOpen={isOpen}
+      onClose={onClose}
+      role="alertdialog"
+      onEnter={onClose}
+      ariaLabelledBy={titleId}
+      ariaDescribedBy={description ? descriptionId : undefined}
+      initialFocusRef={buttonRef}
+      panelClassName={`${dialogPanelStyles()} max-w-sm`}
+    >
+      <>
         <div className="flex items-center gap-3">
           {icon}
           <div id={titleId} className={dialogTitleStyles}>{title}</div>
@@ -137,8 +118,8 @@ export function AlertDialog({
             {buttonLabel}
           </Button>
         </div>
-      </div>
-    </div>
+      </>
+    </ModalLayer>
   )
 }
 
@@ -191,40 +172,20 @@ export function ConfirmDialog({
   const descriptionId = useId()
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null)
 
-  useEffect(() => {
-    if (!isOpen) return
-    cancelButtonRef.current?.focus()
-  }, [isOpen])
-
-  useEffect(() => {
-    if (!isOpen) return
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !isCancelDisabled) onCancel()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, isCancelDisabled, onCancel])
-
-  if (!isOpen) return null
-
   const confirmButtonVariant = confirmVariant === 'danger' ? 'danger' : 'primary'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        className={dialogBackdropStyles}
-        aria-label="Close dialog"
-        disabled={isCancelDisabled}
-        onClick={onCancel}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={description ? descriptionId : undefined}
-        className={`${dialogPanelStyles()} max-w-sm`}
-      >
+    <ModalLayer
+      isOpen={isOpen}
+      onClose={onCancel}
+      ariaLabelledBy={titleId}
+      ariaDescribedBy={description ? descriptionId : undefined}
+      initialFocusRef={cancelButtonRef}
+      closeOnEscape={!isCancelDisabled}
+      closeOnBackdrop={!isCancelDisabled}
+      panelClassName={`${dialogPanelStyles()} max-w-sm`}
+    >
+      <>
         <div id={titleId} className={dialogTitleStyles}>{title}</div>
         {description && (
           <div id={descriptionId} className={dialogDescriptionStyles}>
@@ -252,8 +213,8 @@ export function ConfirmDialog({
             {confirmLabel}
           </Button>
         </div>
-      </div>
-    </div>
+      </>
+    </ModalLayer>
   )
 }
 
@@ -301,46 +262,16 @@ export function DialogPanel({
   ariaLabelledBy,
   children,
 }: DialogPanelProps) {
-  const panelRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    if (!isOpen) return
-    const panel = panelRef.current
-    if (!panel) return
-    if (document.activeElement && panel.contains(document.activeElement)) return
-    panel.focus()
-  }, [isOpen])
-
-  useEffect(() => {
-    if (!isOpen) return
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, onClose])
-
-  if (!isOpen) return null
-
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center ${viewportPaddingClassName}`}>
-      <button
-        type="button"
-        className={dialogBackdropStyles}
-        aria-label="Close dialog"
-        onClick={onClose}
-      />
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={ariaLabelledBy}
-        tabIndex={-1}
-        className={`${dialogPanelStyles()} ${maxWidth} max-w-[90vw] max-h-[85vh] flex flex-col focus:outline-none ${className ?? ''}`}
-      >
-        {children}
-      </div>
-    </div>
+    <ModalLayer
+      isOpen={isOpen}
+      onClose={onClose}
+      ariaLabelledBy={ariaLabelledBy}
+      rootClassName={`flex items-center justify-center ${viewportPaddingClassName}`}
+      panelClassName={`${dialogPanelStyles()} ${maxWidth} max-w-[90vw] max-h-[85vh] flex flex-col ${className ?? ''}`}
+    >
+      {children}
+    </ModalLayer>
   )
 }
 
@@ -390,40 +321,14 @@ export function ContentDialog({
   const titleId = useId()
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
 
-  // Focus the close button when the dialog opens
-  useEffect(() => {
-    if (!isOpen) return
-    if (showHeaderClose) {
-      closeButtonRef.current?.focus()
-    }
-  }, [isOpen, showHeaderClose])
-
-  // Escape key closes the dialog
-  useEffect(() => {
-    if (!isOpen) return
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, onClose])
-
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        className={dialogBackdropStyles}
-        aria-label="Close dialog"
-        onClick={onClose}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className={`${dialogPanelStyles()} ${maxWidth} max-w-[90vw] max-h-[85vh] flex flex-col`}
-      >
+    <ModalLayer
+      isOpen={isOpen}
+      onClose={onClose}
+      ariaLabelledBy={titleId}
+      initialFocusRef={showHeaderClose ? closeButtonRef : undefined}
+      panelClassName={`${dialogPanelStyles()} ${maxWidth} max-w-[90vw] max-h-[85vh] flex flex-col`}
+    >
         <div className="flex items-start justify-between gap-3 flex-shrink-0">
           <div className="min-w-0">
             <h3 id={titleId} className={dialogTitleStyles}>{title}</h3>
@@ -449,7 +354,6 @@ export function ContentDialog({
             </Button>
           </div>
         )}
-      </div>
-    </div>
+    </ModalLayer>
   )
 }

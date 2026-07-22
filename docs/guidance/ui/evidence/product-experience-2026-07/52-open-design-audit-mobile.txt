@@ -1,0 +1,644 @@
+- link "Skip to audit":
+  - /url: "#main"
+- banner:
+  - generic: P
+  - strong: Pika Product Experience Audit
+  - generic: Evidence board · read-only review
+  - navigation "Audit sections":
+    - link "Shells":
+      - /url: "#shells"
+    - link "Findings":
+      - /url: "#findings"
+    - link "Evidence":
+      - /url: "#evidence"
+    - link "Workflows":
+      - /url: "#workflows"
+    - link "Backlog":
+      - /url: "#backlog"
+    - link "Limits":
+      - /url: "#limits"
+- main:
+  - region "What is the safest incremental sequence to make Pika coherent across shells and breakpoints?":
+    - article:
+      - generic: "Confidence: medium"
+      - generic: "Audience: Pika maintainers"
+      - generic: "Updated: Jul 16, 2026"
+      - heading "What is the safest incremental sequence to make Pika coherent across shells and breakpoints?" [level=1]
+      - paragraph: Start with irreversible-risk and layout containment, then strengthen shared interaction foundations, and only then converge shell and workflow patterns. This is an audit of the current product—not a redesign proposal.
+      - generic "Audit facts":
+        - generic: "3"
+        - generic: Distinct shell regimes visible in the supplied evidence.
+        - generic: "22"
+        - generic: Committed product evidence captures across desktop, mobile, dark, and light states.
+        - generic: 4980px
+        - generic: Captured legacy dashboard width from a 1440px desktop state.
+    - complementary "Executive recommendation":
+      - text: Recommended move
+      - paragraph: "Run a safeguard-first sequence: archive destruction, dashboard containment, focus architecture, and error-state truthfulness before broader shell convergence."
+      - generic: Immediate trust risk
+      - text: Archived classroom cards expose a direct “Delete” action beside “Restore” with no visible data-scope context.
+      - generic: What could be wrong
+      - text: The confirmation dialog may provide stronger safeguards than the screenshots reveal; the audit did not execute deletion.
+      - generic: Measure next
+      - text: Keyboard walkthroughs, localized overflow checks, error-state captures, and moderated teacher grading sessions.
+      - generic: Reversible next step
+      - text: Disable the legacy Delete route and UI. Any future hot-data removal must use only the verified compaction state machine.
+  - region "Three shell regimes":
+    - heading "Three shell regimes" [level=2]
+    - paragraph: The same Pika product currently changes navigation ownership, density, and mobile behavior depending on entry point.
+    - tablist "Shell regimes":
+      - tab "01 · Classroom work shell" [selected]
+      - tab "02 · Teacher utility routes"
+      - tab "03 · Student utility routes"
+    - tabpanel "01 · Classroom work shell":
+      - generic: Current foundation
+      - heading "Shared classroom shell" [level=3]
+      - paragraph: Teacher and student work use a top app bar, role-specific left navigation, and selected workspaces that can earn split-pane complexity.
+      - term: Desktop
+      - definition: Stable left navigation and bounded work area.
+      - term: Mobile
+      - definition: Navigation becomes a drawer; workspaces stack vertically.
+      - term: Primary risk
+      - definition: Dense grading modes become long documents instead of task-focused mobile states.
+      - button "Teacher Daily classroom shell on desktop S-02 · teacher desktop":
+        - img "Teacher Daily classroom shell on desktop"
+        - generic: S-02 · teacher desktop
+      - button "Teacher assignment grading stacked on mobile S-30 · grading mobile":
+        - img "Teacher assignment grading stacked on mobile"
+        - generic: S-30 · grading mobile
+  - region "Highest-impact findings":
+    - heading "Highest-impact findings" [level=2]
+    - paragraph: Observed evidence and recommendations are deliberately separated. Architecture covers ownership and state contracts; consistency covers visible execution.
+    - generic "Finding type filters":
+      - button "All"
+      - button "Architecture"
+      - button "Visual consistency"
+    - article:
+      - heading "1. Permanent deletion is too close to recovery" [level=3]
+      - generic: Critical
+      - paragraph:
+        - text: Observed · S-40, S-41
+        - text: “Restore” and “Delete” sit together on an archived classroom card on desktop and mobile. The visible state does not explain hot vs stored archive semantics or the scope of permanent data removal.
+      - paragraph: "Recommendation: Disable the legacy permanent Delete route and UI. Keep restore as the teacher action; any future hot-data removal must run only through verified compaction."
+    - article:
+      - heading "2. Legacy dashboard owns document width" [level=3]
+      - generic: Critical
+      - paragraph:
+        - text: Observed · S-12, S-36
+        - text: The attendance matrix creates 4980px and 4907px captures instead of containing overflow within the table region.
+      - paragraph: "Recommendation: Contain horizontal scroll inside the matrix, keep identity/summary columns sticky, and use a mobile summary-to-detail view without replacing the data model."
+    - article:
+      - heading "3. Mobile grading becomes a long dense document" [level=3]
+      - generic: High
+      - paragraph:
+        - text: Observed · S-30, S-32
+        - text: Assignment grading stacks student table, rubric, comments, and history; test grading stacks the roster and every question. Both preserve desktop control density.
+      - paragraph: "Recommendation: Keep the same workflow states but expose one active student and one active grading region at a time on mobile, with persistent context and explicit next/previous controls."
+    - article:
+      - heading "4. Dialog focus is managed, not contained" [level=3]
+      - generic: High
+      - paragraph:
+        - text: Observed · UI primitive review
+        - text: Dialogs receive initial focus and Escape handling, but the shared primitives do not show a focus trap, inert background, or focus return contract. Screenshot evidence cannot verify keyboard behavior.
+      - paragraph: "Recommendation: Make one dialog primitive own focus entry, containment, Escape, background inertness, and trigger restoration; verify representative dialogs with keyboard and screen reader tests."
+    - article:
+      - heading "5. Dark borders are below non-text contrast" [level=3]
+      - generic: High
+      - paragraph:
+        - text: Observed · tokens.css
+        - text: "Dark default border #374151 against surface #111827 calculates to 1.72:1. This can make input, card, and pane boundaries difficult to perceive when the border is the only affordance."
+      - paragraph: "Recommendation: Audit component boundaries by role. Use the stronger border token or an additional shape/state cue where WCAG non-text contrast applies."
+    - article:
+      - heading "6. Load failures can coexist with empty-state copy" [level=3]
+      - generic: High
+      - paragraph:
+        - text: Observed · TeacherClassroomsIndex
+        - text: An archived-list request failure sets an error, then the empty-state branch can still render “No archived classrooms.” That makes a system failure look like valid absence.
+      - paragraph: "Recommendation: Make loading, error, empty, and loaded mutually exclusive states and keep retry attached to the error state."
+    - article:
+      - heading "7. Blueprint entry exposes structure before value" [level=3]
+      - generic: High
+      - paragraph:
+        - text: Observed · S-13, S-37A, S-38
+        - text: The empty list and passive inspector are both visible; mobile hides core actions behind a menu; creation opens a form before the resulting package workflow is demonstrated.
+      - paragraph: "Recommendation: Keep the current feature, but tighten the empty→create→selected-package ladder and remove the passive inspector until a blueprint exists."
+    - article:
+      - heading "8. Archive and Gradex infrastructure outpace product surfaces" [level=3]
+      - generic: High
+      - paragraph:
+        - text: Observed · lifecycle canon
+        - text: Hot restore and a gated cold-restore control exist, but archive export, verification, retention, quota, and purge lack teacher lifecycle states. Assignment Gradex sits under AI Grade with global gating; archive-derived extract generation has no product caller.
+      - paragraph: "Recommendation: Treat productization as a gated lifecycle project: operation status, permissions, retention, recovery evidence, deidentification, ingestion, and auditability before broad enablement."
+    - article:
+      - heading "9. Teacher utility Delete commands cannot succeed" [level=3]
+      - generic: High
+      - paragraph:
+        - text: Observed · S-43 + route review
+        - text: Dashboard and top-level calendar offer Delete for active classrooms, while the shared endpoint requires the classroom to be archived first.
+      - paragraph: "Recommendation: Remove the invalid commands or replace them with the governed archive workflow and regression tests."
+    - article:
+      - heading "10. Blueprint transfer contracts disagree on version" [level=3]
+      - generic: High
+      - paragraph:
+        - text: Observed · package contract review
+        - text: Runtime and package guidance use v3, while
+        - code: COURSE_BLUEPRINT_TRANSFER_CONTRACT
+        - text: and lifecycle guidance still declare v2.
+      - paragraph: "Recommendation: Publish one version contract with compatibility fixtures before expanding import/export and rollover."
+  - region "Evidence ledger":
+    - heading "Evidence ledger" [level=2]
+    - paragraph: Screenshot observations are primary. Code and canon notes explain architecture but are not substitutes for user research.
+    - generic "Evidence source filters":
+      - button "All"
+      - button "Screenshots"
+      - button "Code + canon"
+    - article:
+      - generic: E-01
+      - generic: usability
+      - generic: strong
+      - heading "Archived classroom cards place Restore and Delete together on desktop and mobile." [level=3]
+      - generic: Segment
+      - text: teacher
+      - generic: Quote or metric
+      - text: "Interface labels: “Restore” and “Delete”."
+      - generic: Limitations
+      - text: The confirmation step was not opened or tested.
+      - button "View linked screenshot"
+    - article:
+      - generic: E-02
+      - generic: usability
+      - generic: strong
+      - heading "The legacy attendance dashboard expands the captured document far beyond the viewport." [level=3]
+      - generic: Segment
+      - text: teacher
+      - generic: Quote or metric
+      - text: 4980px desktop capture; 4907px mobile capture.
+      - generic: Limitations
+      - text: Capture width proves overflow, not the intended scroll-owner implementation.
+      - button "View linked screenshot"
+    - article:
+      - generic: E-03
+      - generic: usability
+      - generic: strong
+      - heading "Assignment grading stacks roster, rubric, comments, and history into one mobile document." [level=3]
+      - generic: Segment
+      - text: teacher
+      - generic: Quote or metric
+      - text: 375×1033 supplied mobile capture.
+      - generic: Limitations
+      - text: No timed grading task or teacher feedback was provided.
+      - button "View linked screenshot"
+    - article:
+      - generic: E-04
+      - generic: usability
+      - generic: strong
+      - heading "Test grading retains roster controls and all question grading content on mobile." [level=3]
+      - generic: Segment
+      - text: teacher
+      - generic: Quote or metric
+      - text: 375×1315 supplied mobile capture.
+      - generic: Limitations
+      - text: The capture does not show the complete end of the grading document.
+      - button "View linked screenshot"
+    - article:
+      - generic: E-05
+      - generic: usability
+      - generic: strong
+      - 'heading "Pika exposes three role/shell regimes: classroom work, teacher utility routes, and student utility routes." [level=3]'
+      - generic: Segment
+      - text: teacher + student
+      - generic: Quote or metric
+      - text: Three regimes confirmed by route ownership and desktop/mobile evidence.
+      - generic: Limitations
+      - text: Shared mechanics still need implementation-level consolidation decisions.
+      - button "View linked screenshot"
+    - article:
+      - generic: E-06
+      - generic: usability
+      - generic: strong
+      - heading "Blueprint entry shows an empty list and passive detail area before selection; mobile moves actions into overflow." [level=3]
+      - generic: Segment
+      - text: teacher
+      - generic: Quote or metric
+      - text: "Interface copy: “No course blueprints yet” and “Select a course blueprint…”"
+      - generic: Limitations
+      - text: No successful create/import/export flow was captured.
+      - button "View linked screenshot"
+    - article:
+      - generic: E-07
+      - generic: usability
+      - generic: medium
+      - heading "Student Today prioritizes journal and past logs on mobile while the desktop plan pane disappears." [level=3]
+      - generic: Segment
+      - text: student
+      - generic: Quote or metric
+      - text: not provided
+      - generic: Limitations
+      - text: The mobile path for opening the plan was not captured.
+      - button "View linked screenshot"
+    - article:
+      - generic: E-08
+      - generic: usability
+      - generic: medium
+      - heading "The mobile assignment keeps Submit prominent but long content competes with the fixed editor toolbar." [level=3]
+      - generic: Segment
+      - text: student
+      - generic: Quote or metric
+      - text: "Interface labels: “Submit”, “In progress”, “Unsaved”."
+      - generic: Limitations
+      - text: No typing, autosave delay, validation, or submission failure was observed.
+      - button "View linked screenshot"
+    - article:
+      - generic: E-09
+      - generic: field-note
+      - generic: medium
+      - heading "Archived-list load errors can render alongside an empty-state branch." [level=3]
+      - generic: Segment
+      - text: teacher
+      - generic: Quote or metric
+      - text: "Interface copy: “No archived classrooms”."
+      - generic: Limitations
+      - text: Code-path evidence; no failed network screenshot was supplied.
+    - article:
+      - generic: E-10
+      - generic: field-note
+      - generic: medium
+      - heading "Shared dialogs initialize focus and handle Escape but do not show a complete containment and focus-return contract." [level=3]
+      - generic: Segment
+      - text: all keyboard users
+      - generic: Quote or metric
+      - text: not provided
+      - generic: Limitations
+      - text: Static code review only; runtime keyboard and assistive-technology behavior remain unverified.
+    - article:
+      - generic: E-11
+      - generic: field-note
+      - generic: strong
+      - heading "The dark default border token has low contrast against the primary dark surface." [level=3]
+      - generic: Segment
+      - text: low-vision users
+      - generic: Quote or metric
+      - text: "#374151 on #111827 = 1.72:1."
+      - generic: Limitations
+      - text: Applicability depends on whether the border is required to identify a control or state.
+    - article:
+      - generic: E-12
+      - generic: field-note
+      - generic: medium
+      - heading "Archive/Gradex operational contracts are detailed, while corresponding teacher-facing lifecycle surfaces remain partial or gated." [level=3]
+      - generic: Segment
+      - text: teacher + operators
+      - generic: Quote or metric
+      - text: The archive-derived Gradex extract route has no UI or scheduled caller.
+      - generic: Limitations
+      - text: Product intent and rollout timing were not provided.
+      - button "View linked screenshot"
+    - article:
+      - generic: E-13
+      - generic: usability
+      - generic: medium
+      - heading "Summary-to-workspace progression is clearer than the legacy surfaces and should remain the baseline." [level=3]
+      - generic: Segment
+      - text: teacher + student
+      - generic: Quote or metric
+      - text: not provided
+      - generic: Limitations
+      - text: The summary screenshots were inspected, but no end-to-end task was executed.
+      - button "View linked screenshot"
+  - region "Theme map":
+    - heading "Theme map" [level=2]
+    - paragraph: Confidence reflects the supplied visual/code evidence, not product outcomes or frequency in the user population.
+    - article:
+      - generic: High confidence
+      - heading "Recovery and destruction share one action plane" [level=3]
+      - paragraph: Teachers must distinguish reversible archive states from permanent deletion without enough visible lifecycle context.
+      - generic: E-01
+      - generic: E-12
+    - article:
+      - generic: High confidence
+      - heading "Desktop workstations collapse into mobile documents" [level=3]
+      - paragraph: Tables, inspectors, rubrics, and long-form grading remain present but lose task focus when stacked.
+      - generic: E-02
+      - generic: E-03
+      - generic: E-04
+    - article:
+      - generic: High confidence
+      - heading "Role shells duplicate navigation and responsive ownership" [level=3]
+      - paragraph: Navigation, page states, and mobile behavior are governed differently in the classroom work shell, teacher utility layout, and student utility layout.
+      - generic: E-05
+      - generic: E-06
+    - article:
+      - generic: Medium confidence
+      - heading "System failure can look like valid absence" [level=3]
+      - paragraph: Error and empty state ownership is not always exclusive, weakening trust in “nothing here” messages.
+      - generic: E-06
+      - generic: E-09
+    - article:
+      - generic: Medium confidence
+      - heading "Accessibility intent lacks complete shared contracts" [level=3]
+      - paragraph: The canon is explicit, yet border contrast and dialog focus behavior still need primitive-level enforcement.
+      - generic: E-10
+      - generic: E-11
+  - region "Core workflow maps":
+    - heading "Core workflow maps" [level=2]
+    - paragraph: Health reflects the captured step—not full task success. Each step points to visible evidence or a named verification gap.
+    - article:
+      - heading "Teacher · classroom to feedback" [level=3]
+      - generic: "1"
+      - heading "Choose classroom" [level=4]
+      - paragraph: Compact card entry with organize mode nearby.
+      - generic: Mostly clear · S-01
+      - generic: "2"
+      - heading "Browse summary" [level=4]
+      - paragraph: Classwork/tests use the intended calm summary state.
+      - generic: Healthy · E-13
+      - generic: "3"
+      - heading "Open selected workspace" [level=4]
+      - paragraph: Desktop complexity is earned after selection.
+      - generic: Healthy desktop · S-04/S-06
+      - generic: "4"
+      - heading "Grade and comment" [level=4]
+      - paragraph: Mobile stacks roster, grading controls, comments, and history.
+      - generic: At risk mobile · S-30/S-32
+      - generic: "5"
+      - heading "Archive or recover" [level=4]
+      - paragraph: Restore and permanent delete share the row action plane.
+      - generic: Unsafe · S-40/S-41
+    - article:
+      - heading "Student · classroom to submission" [level=3]
+      - generic: "1"
+      - heading "Join or choose classroom" [level=4]
+      - paragraph: Desktop action is direct; mobile moves join into overflow.
+      - generic: Clear with drift · S-14/S-26
+      - generic: "2"
+      - heading "Review Today" [level=4]
+      - paragraph: Desktop has journal plus plan; mobile prioritizes journal and logs.
+      - generic: Responsive priority · S-15/S-22
+      - generic: "3"
+      - heading "Select classwork/test" [level=4]
+      - paragraph: Status and due-state language are visible in summary cards.
+      - generic: Healthy · E-13
+      - generic: "4"
+      - heading "Edit and submit" [level=4]
+      - paragraph: Submit remains prominent; the mobile editor competes with a fixed toolbar and long content.
+      - generic: Usable, dense · S-24
+      - generic: "5"
+      - heading "Recover or interpret failure" [level=4]
+      - paragraph: No captured failed submission or restore path.
+      - generic: Not verified
+    - article:
+      - heading "Shared · authentication and routing" [level=3]
+      - generic: "1"
+      - heading "Login or signup" [level=4]
+      - paragraph: Verification-code signup is captured; fixture-only login evidence must be recaptured without preset credentials.
+      - generic: Partial visual · S-49
+      - generic: "2"
+      - heading "Verify or reset" [level=4]
+      - paragraph: Code verification/password creation are tested; reset entry is captured.
+      - generic: Partial visual · S-50
+      - generic: "3"
+      - heading "Route by role" [level=4]
+      - paragraph: Teacher and student layouts own separate post-auth navigation.
+      - generic: Contract tested
+      - generic: "4"
+      - heading "Recover session expiry" [level=4]
+      - paragraph: No shared route-level recovery or focus announcement is visually proven.
+      - generic: Not verified
+    - article:
+      - heading "Utility routes · calendar and history" [level=3]
+      - generic: "1"
+      - heading "Select classroom" [level=4]
+      - paragraph: Both utility routes duplicate classroom selection beside the main work area.
+      - generic: Visible · S-43/S-47
+      - generic: "2"
+      - heading "Inspect long-range data" [level=4]
+      - paragraph: Calendar and attendance history expose a full-term data surface.
+      - generic: Desktop usable
+      - generic: "3"
+      - heading "Use on mobile" [level=4]
+      - paragraph: Both routes retain desktop columns and overflow the viewport.
+      - generic: Broken · S-44/S-46
+      - generic: "4"
+      - heading "Migrate or retire" [level=4]
+      - paragraph: Caller and compatibility evidence must decide whether these routes converge or retire.
+      - generic: Decision pending
+  - region "Accepted screenshot set":
+    - heading "Accepted screenshot set" [level=2]
+    - paragraph: Every image below was inspected from the supplied local artifact set. Activate any image for a larger view.
+    - button "Teacher classrooms · desktop S-01 · Teacher classrooms · desktop":
+      - img "Teacher classrooms · desktop"
+      - generic: S-01 · Teacher classrooms · desktop
+    - button "Teacher Daily · desktop S-02 · Teacher Daily · desktop":
+      - img "Teacher Daily · desktop"
+      - generic: S-02 · Teacher Daily · desktop
+    - button "Assignment grading · desktop S-04 · Assignment grading · desktop":
+      - img "Assignment grading · desktop"
+      - generic: S-04 · Assignment grading · desktop
+    - button "Test grading · desktop S-06 · Test grading · desktop":
+      - img "Test grading · desktop"
+      - generic: S-06 · Test grading · desktop
+    - button "Teacher dashboard · desktop S-12 · Teacher dashboard · desktop":
+      - img "Teacher dashboard · desktop"
+      - generic: S-12 · Teacher dashboard · desktop
+    - button "Blueprints · desktop S-13 · Blueprints · desktop":
+      - img "Blueprints · desktop"
+      - generic: S-13 · Blueprints · desktop
+    - button "Student classrooms · desktop S-14 · Student classrooms · desktop":
+      - img "Student classrooms · desktop"
+      - generic: S-14 · Student classrooms · desktop
+    - button "Student Today · desktop S-15 · Student Today · desktop":
+      - img "Student Today · desktop"
+      - generic: S-15 · Student Today · desktop
+    - button "Student Today · mobile S-22 · Student Today · mobile":
+      - img "Student Today · mobile"
+      - generic: S-22 · Student Today · mobile
+    - button "Student assignment · mobile S-24 · Student assignment · mobile":
+      - img "Student assignment · mobile"
+      - generic: S-24 · Student assignment · mobile
+    - button "Assignment grading · mobile S-30 · Assignment grading · mobile":
+      - img "Assignment grading · mobile"
+      - generic: S-30 · Assignment grading · mobile
+    - button "Test grading · mobile S-32 · Test grading · mobile":
+      - img "Test grading · mobile"
+      - generic: S-32 · Test grading · mobile
+    - button "Teacher dashboard · mobile S-36 · Teacher dashboard · mobile":
+      - img "Teacher dashboard · mobile"
+      - generic: S-36 · Teacher dashboard · mobile
+    - button "Archived classroom · mobile S-40 · Archived classroom · mobile":
+      - img "Archived classroom · mobile"
+      - generic: S-40 · Archived classroom · mobile
+    - button "Archived classroom · desktop S-41 · Archived classroom · desktop":
+      - img "Archived classroom · desktop"
+      - generic: S-41 · Archived classroom · desktop
+    - button "Teacher utility calendar · light desktop S-43 · Teacher utility calendar · light desktop":
+      - img "Teacher utility calendar · light desktop"
+      - generic: S-43 · Teacher utility calendar · light desktop
+    - button "Teacher utility calendar · light mobile S-44 · Teacher utility calendar · light mobile":
+      - img "Teacher utility calendar · light mobile"
+      - generic: S-44 · Teacher utility calendar · light mobile
+    - button "Student history · light mobile S-46 · Student history · light mobile":
+      - img "Student history · light mobile"
+      - generic: S-46 · Student history · light mobile
+    - button "Student history · light desktop S-47 · Student history · light desktop":
+      - img "Student history · light desktop"
+      - generic: S-47 · Student history · light desktop
+    - button "Signup · light desktop S-49 · Signup · light desktop":
+      - img "Signup · light desktop"
+      - generic: S-49 · Signup · light desktop
+    - button "Password reset · light desktop S-50 · Password reset · light desktop":
+      - img "Password reset · light desktop"
+      - generic: S-50 · Password reset · light desktop
+  - region "Opportunity matrix":
+    - heading "Opportunity matrix" [level=2]
+    - paragraph: 1–5 scores prioritize contained incremental work. “Low risk” scores reversibility and delivery confidence, not technical simplicity alone.
+    - article:
+      - heading "Guard archive destruction · 19" [level=3]
+      - term: Evidence strength
+      - definition: 5/5
+      - term: User pain
+      - definition: 5/5
+      - term: Business leverage
+      - definition: 5/5
+      - term: Implementation risk (5 = low)
+      - definition: 4/5
+    - article:
+      - heading "Contain dashboard overflow · 18" [level=3]
+      - term: Evidence strength
+      - definition: 5/5
+      - term: User pain
+      - definition: 5/5
+      - term: Business leverage
+      - definition: 4/5
+      - term: Implementation risk (5 = low)
+      - definition: 4/5
+    - article:
+      - heading "Complete dialog focus contract · 17" [level=3]
+      - term: Evidence strength
+      - definition: 4/5
+      - term: User pain
+      - definition: 5/5
+      - term: Business leverage
+      - definition: 4/5
+      - term: Implementation risk (5 = low)
+      - definition: 4/5
+    - article:
+      - heading "Progressively disclose mobile grading · 16" [level=3]
+      - term: Evidence strength
+      - definition: 5/5
+      - term: User pain
+      - definition: 4/5
+      - term: Business leverage
+      - definition: 4/5
+      - term: Implementation risk (5 = low)
+      - definition: 3/5
+    - article:
+      - heading "Productize lifecycle surfaces · 14" [level=3]
+      - term: Evidence strength
+      - definition: 4/5
+      - term: User pain
+      - definition: 4/5
+      - term: Business leverage
+      - definition: 4/5
+      - term: Implementation risk (5 = low)
+      - definition: 2/5
+  - region "Ranked phased backlog":
+    - heading "Ranked phased backlog" [level=2]
+    - paragraph: "Incremental by design: contain risk, harden shared foundations, then converge product structure."
+    - article:
+      - generic: Phase 1
+      - heading "Audit and prioritize" [level=3]
+      - list:
+        - listitem: Merge the workflow map and durable evidence manifest.
+        - listitem: Resolve review findings and select the first safety PR.
+    - article:
+      - generic: Phase 2
+      - heading "Shared foundation" [level=3]
+      - list:
+        - listitem: Contrast, target size, form semantics, and modal focus.
+        - listitem: Page states, tables, menus, tabs, shell ownership, and mobile CI.
+    - article:
+      - generic: Phase 3
+      - heading "Vertical workflows" [level=3]
+      - list:
+        - listitem: Assignments, tests, Daily, dashboard, and roster first.
+        - listitem: Then surveys, calendar, announcements, gradebook, syllabus, auth, and history.
+    - article:
+      - generic: Phase 4
+      - heading "Gradex integration" [level=3]
+      - list:
+        - listitem: Scoped durable runs and teacher status/retry controls.
+        - listitem: PII rejection, authenticated idempotent ingestion, retention, and named canaries.
+    - article:
+      - generic: Phase 5
+      - heading "Blueprints and archives" [level=3]
+      - list:
+        - listitem: End-of-course rollover, version/date/release review, and idempotency.
+        - listitem: Hot-to-cold eligibility, operation status, restore equality, quota, retention, and separately approved cleanup.
+    - article:
+      - generic: Phase 6
+      - heading "Verify and retire" [level=3]
+      - list:
+        - listitem: Rerun product, accessibility, architecture, database, recovery, and authorized production checks.
+        - listitem: Retire duplicates only with caller, compatibility, redirect, and recovery evidence.
+  - region "Decision memo":
+    - article:
+      - heading "Decision memo" [level=2]
+      - list:
+        - listitem: "Recommended move: run the safeguard-first sequence before shell convergence."
+        - listitem: "Why now: the evidence contains catastrophic action risk and reproducible cross-breakpoint overflow."
+        - listitem: "Evidence: E-01 through E-04, E-09 through E-12."
+        - listitem: "What could be wrong: confirmations and live keyboard behavior were not exercised; screenshots may overstate some mobile task friction."
+        - listitem: "Measure next: destructive-action retirement, localized overflow, keyboard dialog completion, and grading task completion."
+        - listitem: "Reversible step: disable the legacy route and UI without changing the compaction data model."
+    - article:
+      - heading "Architecture vs polish" [level=2]
+      - list:
+        - listitem: "Architecture: lifecycle states, shell ownership, responsive workspace state, focus management, error-state exclusivity."
+        - listitem: "Consistency: action hierarchy, border contrast, card density, mobile information priority, passive empty panes."
+        - listitem: Do not solve architecture failures with local CSS or one-off card variants.
+  - region "Verification queue":
+    - heading "Verification queue" [level=2]
+    - paragraph: Thresholds are acceptance criteria for the next increment, not invented product metrics.
+    - article:
+      - generic: "01"
+      - heading "Archive deletion retirement" [level=3]
+      - paragraph: Remove the legacy Delete route and UI; keep removal exclusive to verified compaction.
+      - term: Owner
+      - definition: Product + engineering
+      - term: Metric
+      - definition: Legacy destructive entry points
+      - term: Threshold
+      - definition: Zero route or UI paths bypass the compaction state machine
+      - term: Learning
+      - definition: Do lifecycle controls now match the archive recovery contract?
+    - article:
+      - generic: "02"
+      - heading "Dashboard containment pass" [level=3]
+      - paragraph: Keep the current matrix but move width ownership into its scroll region.
+      - term: Owner
+      - definition: Frontend
+      - term: Metric
+      - definition: Document-level horizontal overflow
+      - term: Threshold
+      - definition: None at 390, 768, 1366, and 1440px
+      - term: Learning
+      - definition: Can the legacy surface be stabilized without workflow replacement?
+    - article:
+      - generic: "03"
+      - heading "Dialog keyboard contract" [level=3]
+      - paragraph: Exercise representative confirm, content, and form dialogs.
+      - term: Owner
+      - definition: Design systems
+      - term: Metric
+      - definition: Open → cycle → Escape → return focus path
+      - term: Threshold
+      - definition: Passes for five representative dialogs with no background focus
+      - term: Learning
+      - definition: Which primitive gaps are systemic versus feature-local?
+  - region "Evidence limits":
+    - article:
+      - heading "Evidence limits" [level=2]
+      - paragraph: Sample size, user frequency, task success, production telemetry, and business impact were not provided. The audit used seeded local screenshots, DOM notes, tokens, UI primitives, and design canon. Representative light states were added, not a full duplicate of every dark state. No destructive production action was executed.
+    - article:
+      - heading "What remains unverified" [level=2]
+      - paragraph: Live keyboard and screen-reader behavior; failed-network visuals; zoom/reflow beyond captured widths; successful blueprint rollover; Gradex deidentification-to-ingestion production evidence; and archive cleanup, which remains disabled pending separate approval.

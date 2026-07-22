@@ -41,8 +41,8 @@ All agents operate from exactly one current repo checkout/worktree.
 
 ## End of Session (MANDATORY)
 
-1. Append a concise session entry to `.ai/SESSION-LOG.md`.
-2. Immediately run `node scripts/trim-session-log.mjs` in the same change. CI caps the log at 60; default trim keeps 40. Use `node scripts/trim-session-log.mjs --check` to verify the cap.
+1. Append a concise session entry to `.ai/SESSION-LOG.md` with a valid ISO-date heading (`## YYYY-MM-DD ...`).
+2. Immediately run `node scripts/trim-session-log.mjs` in the same change. CI caps the log at 60; default trim keeps 40. Use `node scripts/trim-session-log.mjs --check` to verify heading dates, chronological order, and the cap.
 3. Update `.ai/features.json` if anything changed:
    ```bash
    node scripts/features.mjs pass <feature-id>

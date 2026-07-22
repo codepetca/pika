@@ -3,6 +3,10 @@ import {
   testQuestionGradingSnapshotSchema,
   type TestQuestionGradingSnapshot,
 } from '@/lib/test-grading-context'
+import {
+  testGradingProvenanceSchema,
+  type TestGradingProvenance,
+} from '@/lib/grading/contracts'
 
 type ParsedGrade = {
   score: number | null
@@ -15,6 +19,7 @@ type ParsedGrade = {
   ai_provenance_token: string | null | undefined
   ai_suggested_score: number | null | undefined
   ai_suggested_feedback: string | null | undefined
+  ai_grading_provenance: TestGradingProvenance | null | undefined
 }
 
 function invalidGrade(context: z.RefinementCtx): never {
@@ -45,6 +50,7 @@ function parseGrade(raw: unknown, context: z.RefinementCtx): ParsedGrade | never
       ai_provenance_token: null,
       ai_suggested_score: null,
       ai_suggested_feedback: null,
+      ai_grading_provenance: null,
     }
   }
 
@@ -162,6 +168,17 @@ function parseGrade(raw: unknown, context: z.RefinementCtx): ParsedGrade | never
     }
   }
 
+  let aiGradingProvenance: TestGradingProvenance | null | undefined
+  if (record.ai_grading_provenance !== undefined) {
+    if (record.ai_grading_provenance === null) {
+      aiGradingProvenance = null
+    } else {
+      const parsed = testGradingProvenanceSchema.safeParse(record.ai_grading_provenance)
+      if (!parsed.success) return invalidGrade(context)
+      aiGradingProvenance = parsed.data
+    }
+  }
+
   if (aiGradingBasis === null) {
     aiReferenceAnswers = null
     aiModel = null
@@ -169,6 +186,7 @@ function parseGrade(raw: unknown, context: z.RefinementCtx): ParsedGrade | never
     aiProvenanceToken = null
     aiSuggestedScore = null
     aiSuggestedFeedback = null
+    aiGradingProvenance = null
   } else {
     if (aiGradingBasis === undefined && Array.isArray(aiReferenceAnswers)) {
       aiGradingBasis = 'generated_reference'
@@ -179,6 +197,7 @@ function parseGrade(raw: unknown, context: z.RefinementCtx): ParsedGrade | never
       (aiGradingBasis === undefined && aiProvenanceToken !== undefined) ||
       (aiGradingBasis === undefined && aiSuggestedScore !== undefined) ||
       (aiGradingBasis === undefined && aiSuggestedFeedback !== undefined) ||
+      (aiGradingBasis === undefined && aiGradingProvenance !== undefined) ||
       (aiGradingBasis !== undefined && aiGradingBasis !== null && !aiModel) ||
       (aiGradingBasis !== undefined && aiGradingBasis !== null && !questionGradingSnapshot) ||
       (aiGradingBasis !== undefined && aiGradingBasis !== null && !aiProvenanceToken) ||
@@ -204,6 +223,7 @@ function parseGrade(raw: unknown, context: z.RefinementCtx): ParsedGrade | never
     ai_provenance_token: aiProvenanceToken,
     ai_suggested_score: aiSuggestedScore,
     ai_suggested_feedback: aiSuggestedFeedback,
+    ai_grading_provenance: aiGradingProvenance,
   }
 }
 

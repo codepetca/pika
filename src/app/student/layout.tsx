@@ -1,8 +1,12 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
-import Link from 'next/link'
-import { PikaLogo } from '@/components/PikaLogo'
-import { AuthSessionWatcher } from '@/components/AuthSessionWatcher'
+import { AppNavigation, type AppNavigationItem } from '@/components/AppNavigation'
+import { AppShell } from '@/components/AppShell'
+
+const studentNavigationItems: AppNavigationItem[] = [
+  { href: '/classrooms', label: 'Classrooms' },
+  { href: '/student/history', label: 'History', match: 'prefix' },
+]
 
 export default async function StudentLayout({
   children,
@@ -20,43 +24,18 @@ export default async function StudentLayout({
   }
 
   return (
-    <div className="min-h-screen bg-page">
-      <AuthSessionWatcher expectedRole="student" />
-      <nav className="bg-surface shadow-sm border-b border-border">
-        <div className="mx-auto max-w-4xl px-4 py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-              <Link href="/classrooms" className="flex items-center">
-                <PikaLogo className="h-10 w-10" />
-              </Link>
-              <Link
-                href="/classrooms"
-                className="text-text-muted hover:text-text-default"
-              >
-                Classrooms
-              </Link>
-              <Link
-                href="/student/history"
-                className="text-text-muted hover:text-text-default"
-              >
-                History
-              </Link>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:justify-end">
-              <span className="hidden text-sm text-text-muted sm:inline">{user.email}</span>
-              <Link
-                href="/logout"
-                className="text-sm text-danger"
-              >
-                Logout
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        {children}
-      </main>
-    </div>
+    <AppShell
+      user={{ email: user.email, role: user.role }}
+      mainClassName="max-w-4xl mx-auto px-4 py-8"
+      navigation={
+        <AppNavigation
+          label="Student tools"
+          items={studentNavigationItems}
+          width="reading"
+        />
+      }
+    >
+      {children}
+    </AppShell>
   )
 }

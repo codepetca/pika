@@ -1,0 +1,932 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "file": "src/app/classrooms/[classroomId]/ClassroomPageClient.tsx",
+      "reviewBy": "phase-3-dashboard-roster",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/LogSummary.tsx",
+      "reviewBy": "phase-3-daily-attendance",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx",
+      "reviewBy": "phase-3-assignments",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 3,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/StudentTestsTab.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 3,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/StudentTodayTab.tsx",
+      "reviewBy": "phase-3-daily-attendance",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherAnnouncementsSection.tsx",
+      "reviewBy": "phase-3-calendar-announcements",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 6,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "textarea",
+          "count": 2,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx",
+      "reviewBy": "phase-3-daily-attendance",
+      "controls": [
+        {
+          "kind": "input:date",
+          "count": 1,
+          "reason": "native-input-capability"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherCalendarTab.tsx",
+      "reviewBy": "phase-3-calendar-announcements",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 2,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "input:date",
+          "count": 2,
+          "reason": "native-input-capability"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherClassroomView.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 4,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "textarea",
+          "count": 1,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherGradebookTab.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 2,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "input:checkbox",
+          "count": 4,
+          "reason": "native-input-capability"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx",
+      "reviewBy": "phase-3-calendar-announcements",
+      "controls": [
+        {
+          "kind": "textarea",
+          "count": 1,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherRosterTab.tsx",
+      "reviewBy": "phase-3-dashboard-roster",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 3,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "input:checkbox",
+          "count": 2,
+          "reason": "native-input-capability"
+        },
+        {
+          "kind": "input:email",
+          "count": 1,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherSettingsTab.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 2,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "textarea",
+          "count": 1,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/[classroomId]/TeacherTestsTab.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 5,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "input:checkbox",
+          "count": 2,
+          "reason": "native-input-capability"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/StudentClassroomsIndex.tsx",
+      "reviewBy": "phase-3-dashboard-roster",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/classrooms/TeacherClassroomsIndex.tsx",
+      "reviewBy": "phase-3-dashboard-roster",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/forgot-password/page.tsx",
+      "reviewBy": "phase-6-auth-verification",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/join/page.tsx",
+      "reviewBy": "phase-6-auth-verification",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "input:text",
+          "count": 1,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/login/LoginClient.tsx",
+      "reviewBy": "phase-6-auth-verification",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 5,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/reset-password/page.tsx",
+      "reviewBy": "phase-6-auth-verification",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 2,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/signup/page.tsx",
+      "reviewBy": "phase-6-auth-verification",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/snapshots-gallery/SnapshotGallery.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 4,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/student/history/page.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 4,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/teacher/blueprints/page.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 2,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "input:checkbox",
+          "count": 3,
+          "reason": "native-input-capability"
+        },
+        {
+          "kind": "input:file",
+          "count": 1,
+          "reason": "native-input-capability"
+        },
+        {
+          "kind": "select",
+          "count": 2,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "textarea",
+          "count": 3,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/app/teacher/calendar/page.tsx",
+      "reviewBy": "phase-3-calendar-announcements",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 6,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "input:number",
+          "count": 2,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "select",
+          "count": 2,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/teacher/dashboard/page.tsx",
+      "reviewBy": "phase-3-dashboard-roster",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 3,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/app/verify-signup/page.tsx",
+      "reviewBy": "phase-6-auth-verification",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/components/AddStudentsModal.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 3,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "textarea",
+          "count": 1,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/components/AppHeader.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 2,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/components/assessment/AssessmentSetupForm.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "input:checkbox",
+          "count": 1,
+          "reason": "native-input-capability"
+        }
+      ]
+    },
+    {
+      "file": "src/components/assessment/EditableAssessmentTitle.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "composite-widget"
+        }
+      ]
+    },
+    {
+      "file": "src/components/assignment-workspace/TeacherAssignmentStudentTable.tsx",
+      "reviewBy": "phase-3-assignments",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "composite-widget"
+        },
+        {
+          "kind": "input:checkbox",
+          "count": 2,
+          "reason": "native-input-capability"
+        }
+      ]
+    },
+    {
+      "file": "src/components/assignment-workspace/TeacherWorkInspector.tsx",
+      "reviewBy": "phase-3-assignments",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "input:checkbox",
+          "count": 1,
+          "reason": "native-input-capability"
+        },
+        {
+          "kind": "input:number",
+          "count": 1,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "textarea",
+          "count": 1,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/components/AssignmentArtifactsCell.tsx",
+      "reviewBy": "phase-3-assignments",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/components/AssignmentForm.tsx",
+      "reviewBy": "phase-3-assignments",
+      "controls": [
+        {
+          "kind": "textarea",
+          "count": 1,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/components/AssignmentSubmissionRequirementsEditor.tsx",
+      "reviewBy": "phase-3-assignments",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "input:checkbox",
+          "count": 1,
+          "reason": "native-input-capability"
+        }
+      ]
+    },
+    {
+      "file": "src/components/CalendarActionBar.tsx",
+      "reviewBy": "phase-3-calendar-announcements",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "composite-widget"
+        }
+      ]
+    },
+    {
+      "file": "src/components/ClassroomDropdown.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 2,
+          "reason": "composite-widget"
+        }
+      ]
+    },
+    {
+      "file": "src/components/CreateClassroomModal.tsx",
+      "reviewBy": "phase-3-dashboard-roster",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 3,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "input:file",
+          "count": 1,
+          "reason": "native-input-capability"
+        },
+        {
+          "kind": "input:number",
+          "count": 2,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "select",
+          "count": 3,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/components/DateActionBar.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "composite-widget"
+        },
+        {
+          "kind": "input:date",
+          "count": 1,
+          "reason": "native-input-capability"
+        }
+      ]
+    },
+    {
+      "file": "src/components/FeedbackDialog.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "textarea",
+          "count": 1,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/components/layout/LeftSidebar.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 2,
+          "reason": "composite-widget"
+        }
+      ]
+    },
+    {
+      "file": "src/components/layout/RightSidebar.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 4,
+          "reason": "composite-widget"
+        }
+      ]
+    },
+    {
+      "file": "src/components/LessonCalendar.tsx",
+      "reviewBy": "phase-3-calendar-announcements",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 7,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/components/LessonDayCell.tsx",
+      "reviewBy": "phase-3-calendar-announcements",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 5,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "textarea",
+          "count": 1,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/components/ScheduleDateTimePicker.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "input:date",
+          "count": 1,
+          "reason": "native-input-capability"
+        },
+        {
+          "kind": "input:time",
+          "count": 1,
+          "reason": "native-input-capability"
+        }
+      ]
+    },
+    {
+      "file": "src/components/SortableAssignmentCard.tsx",
+      "reviewBy": "phase-3-assignments",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 2,
+          "reason": "composite-widget"
+        }
+      ]
+    },
+    {
+      "file": "src/components/SortableClassroomRow.tsx",
+      "reviewBy": "phase-3-dashboard-roster",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 3,
+          "reason": "composite-widget"
+        }
+      ]
+    },
+    {
+      "file": "src/components/StudentAssignmentEditor.tsx",
+      "reviewBy": "phase-3-assignments",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 4,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/components/StudentAssignmentSubmissionChecklist.tsx",
+      "reviewBy": "phase-3-assignments",
+      "controls": [
+        {
+          "kind": "input:file",
+          "count": 1,
+          "reason": "native-input-capability"
+        }
+      ]
+    },
+    {
+      "file": "src/components/StudentLogHistory.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/components/StudentTestForm.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "input:radio",
+          "count": 1,
+          "reason": "native-input-capability"
+        },
+        {
+          "kind": "textarea",
+          "count": 1,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/components/surveys/SortableSurveyCard.tsx",
+      "reviewBy": "phase-3-surveys",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 2,
+          "reason": "composite-widget"
+        }
+      ]
+    },
+    {
+      "file": "src/components/surveys/StudentSurveyPanel.tsx",
+      "reviewBy": "phase-3-surveys",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "textarea",
+          "count": 1,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/components/surveys/TeacherSurveyWorkspace.tsx",
+      "reviewBy": "phase-3-surveys",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "textarea",
+          "count": 3,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/components/teacher-work-surface/TeacherWorkSurfaceActionCluster.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TeacherStudentWorkModal.tsx",
+      "reviewBy": "phase-2-shared-foundation-debt",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 6,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TeacherTestCard.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 2,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TeacherTestPreviewPage.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TestDetailPanel.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "input:radio",
+          "count": 1,
+          "reason": "native-input-capability"
+        },
+        {
+          "kind": "textarea",
+          "count": 2,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TestDocumentsEditor.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "input:file",
+          "count": 1,
+          "reason": "native-input-capability"
+        },
+        {
+          "kind": "textarea",
+          "count": 2,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TestIndividualResponses.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 1,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "textarea",
+          "count": 1,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TestMultipleChoiceQuestionEditor.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 4,
+          "reason": "legacy-form-control"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TestQuestionEditor.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 4,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "input:checkbox",
+          "count": 2,
+          "reason": "native-input-capability"
+        },
+        {
+          "kind": "input:radio",
+          "count": 1,
+          "reason": "native-input-capability"
+        },
+        {
+          "kind": "textarea",
+          "count": 7,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TestStudentGradingPanel.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "input:number",
+          "count": 1,
+          "reason": "legacy-form-control"
+        },
+        {
+          "kind": "textarea",
+          "count": 1,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/components/UploadRosterModal.tsx",
+      "reviewBy": "phase-3-dashboard-roster",
+      "controls": [
+        {
+          "kind": "input:file",
+          "count": 1,
+          "reason": "native-input-capability"
+        }
+      ]
+    },
+    {
+      "file": "src/components/UserMenu.tsx",
+      "reviewBy": "phase-6-auth-verification",
+      "controls": [
+        {
+          "kind": "button",
+          "count": 3,
+          "reason": "composite-widget"
+        }
+      ]
+    }
+  ]
+}

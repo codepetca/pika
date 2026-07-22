@@ -3,8 +3,16 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LoaderCircle } from 'lucide-react'
-import { Button, Card, EmptyState } from '@/ui'
-import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
+import {
+  Button,
+  Card,
+  EmptyState,
+  PageActionBar,
+  PageContent,
+  PageHeading,
+  PageLayout,
+  type ActionBarItem,
+} from '@/ui'
 import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
 import type { Classroom } from '@/types'
 
@@ -27,11 +35,9 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
   }, [router])
 
   return (
-    <PageLayout className="mx-auto max-w-6xl">
+    <PageLayout density="student" width="reading">
       <PageActionBar
-        primary={
-          <h1 className="text-3xl font-bold text-text-default">Classrooms</h1>
-        }
+        primary={<PageHeading title="Classrooms" />}
         actions={
           [
             {

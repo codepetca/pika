@@ -2,13 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireAuth, requireRole } from '@/lib/auth'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
-import { countCharacters, countWords, isValidTiptapContent, parseContentField } from '@/lib/tiptap-content'
+import { parseContentField } from '@/lib/tiptap-content'
 import { sanitizeDocForStudent } from '@/lib/assignments'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
-import {
-  insertVersionedBaselineHistory,
-  persistVersionedHistory,
-} from '@/lib/server/versioned-history'
+import { saveAssignmentDocAtomic } from '@/lib/server/assignment-doc-submissions'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import { withErrorHandler } from '@/lib/api-handler'
 import { loadAssignmentFeedbackEntries } from '@/lib/server/assignment-feedback'
@@ -17,27 +14,10 @@ import {
   loadAssignmentSubmissionRequirements,
   loadUserGitHubIdentity,
 } from '@/lib/server/assignment-submission-artifacts'
-import type { AssignmentDocHistoryEntry, AssignmentDocHistoryTrigger, TiptapContent } from '@/types'
+import { assignmentDocSaveRequestSchema } from '@/lib/validations/assignment-doc-submissions'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-const HISTORY_MIN_INTERVAL_MS = 10_000
-const HISTORY_SELECT_FIELDS =
-  'id, assignment_doc_id, patch, snapshot, word_count, char_count, paste_word_count, keystroke_count, trigger, created_at'
-
-function buildHistoryMetrics(
-  content: TiptapContent,
-  pasteWordCount: number,
-  keystrokeCount: number
-) {
-  return {
-    word_count: countWords(content),
-    char_count: countCharacters(content),
-    paste_word_count: pasteWordCount,
-    keystroke_count: keystrokeCount,
-  }
-}
-
 function parseTimestamp(value: unknown) {
   if (typeof value !== 'string' || value.length === 0) return null
   const time = new Date(value).getTime()
@@ -248,7 +228,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
           ...assignment,
           instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
         },
-        doc: created,
+        doc: sanitizeDocForStudent(created),
         feedback_entries: [],
         ...submissionContext,
         wasFirstView: true,
@@ -284,16 +264,19 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
   // Mark as viewed if this request clears a first-view or returned-feedback notification.
   if (existingDoc && shouldRefreshViewedAt(existingDoc)) {
     const viewedAt = new Date().toISOString()
-    const { error: viewedError } = await supabase
+    const { data: viewedDoc, error: viewedError } = await supabase
       .from('assignment_docs')
       .update({ viewed_at: viewedAt })
       .eq('id', existingDoc.id)
+      .select('updated_at')
+      .single()
 
     if (viewedError) {
       console.error('Error updating assignment viewed_at:', viewedError)
       // Non-fatal: continue with response, but don't clear local notification count.
     } else {
       existingDoc.viewed_at = viewedAt
+      existingDoc.updated_at = viewedDoc.updated_at
       wasFirstView = true
     }
   }
@@ -317,39 +300,13 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
 export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, context) => {
   const user = await requireRole('student')
   const { id: assignmentId } = await context.params
-  const body = await request.json()
-  const { content, trigger } = body as {
-    content: TiptapContent
-    trigger?: AssignmentDocHistoryTrigger
-  }
-  // Clamp client-reported tracking values to non-negative integers
-  const paste_word_count = Math.max(0, Math.round(Number(body.paste_word_count) || 0))
-  const keystroke_count = Math.max(0, Math.round(Number(body.keystroke_count) || 0))
-
-  if (content === undefined) {
-    return NextResponse.json(
-      { error: 'Content is required' },
-      { status: 400 }
-    )
-  }
-
-  if (trigger && trigger !== 'autosave' && trigger !== 'blur') {
-    return NextResponse.json(
-      { error: 'Invalid trigger' },
-      { status: 400 }
-    )
-  }
-
-  if (!isValidTiptapContent(content)) {
-    return NextResponse.json(
-      { error: 'Invalid content format' },
-      { status: 400 }
-    )
-  }
+  const body = assignmentDocSaveRequestSchema.parse(await request.json())
+  const { content, trigger } = body
+  const isLegacySave = !('save_session_id' in body)
+  const paste_word_count = body.paste_word_count ?? 0
+  const keystroke_count = body.keystroke_count ?? 0
 
   const supabase = getServiceRoleClient()
-  let historyEntry: AssignmentDocHistoryEntry | null = null
-
   // Get assignment and verify enrollment
   const { data: assignment, error: assignmentError } = await supabase
     .from('assignments')
@@ -382,53 +339,12 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
   // Fetch doc to enforce ownership and submission rules
   const { data: existingDoc, error: docFetchError } = await supabase
     .from('assignment_docs')
-    .select('id, student_id, is_submitted, content')
+    .select('id, student_id, is_submitted, content, updated_at')
     .eq('assignment_id', assignmentId)
     .eq('student_id', user.id)
     .single()
 
-  if (docFetchError) {
-    if (docFetchError.code === 'PGRST116') {
-      const { data: created, error: createError } = await supabase
-        .from('assignment_docs')
-        .insert({
-          assignment_id: assignmentId,
-          student_id: user.id,
-          content,
-          repo_url: null,
-          github_username: null,
-          is_submitted: false,
-          submitted_at: null,
-        })
-        .select()
-        .single()
-
-      if (createError || !created) {
-        console.error('Error creating assignment doc:', createError)
-        return NextResponse.json(
-          { error: 'Failed to save' },
-          { status: 500 }
-        )
-      }
-
-      try {
-        historyEntry = await insertVersionedBaselineHistory<TiptapContent>({
-          supabase,
-          table: 'assignment_doc_history',
-          ownerColumn: 'assignment_doc_id',
-          ownerId: created.id,
-          content,
-          selectFields: HISTORY_SELECT_FIELDS,
-          trigger: 'baseline',
-          buildMetrics: (currentContent: TiptapContent) =>
-            buildHistoryMetrics(currentContent, paste_word_count, keystroke_count),
-        })
-      } catch (historyError) {
-        console.error('Error saving assignment doc history:', historyError)
-      }
-
-      return NextResponse.json({ doc: created, historyEntry })
-    }
+  if (docFetchError && docFetchError.code !== 'PGRST116') {
     console.error('Error fetching assignment doc:', docFetchError)
     return NextResponse.json(
       { error: 'Failed to fetch assignment doc' },
@@ -436,54 +352,47 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
     )
   }
 
-  if (existingDoc.is_submitted) {
+  if (existingDoc?.is_submitted) {
     return NextResponse.json(
       { error: 'Cannot edit a submitted document' },
       { status: 403 }
     )
   }
 
-  const beforeContent = parseContentField(existingDoc.content)
+  const saveSessionId = isLegacySave ? crypto.randomUUID() : body.save_session_id
+  const saveResult = await saveAssignmentDocAtomic({
+    supabase,
+    assignmentId,
+    studentId: user.id,
+    previousContent: existingDoc
+      ? parseContentField(existingDoc.content)
+      : { type: 'doc', content: [] },
+    content,
+    expectedUpdatedAt: isLegacySave ? existingDoc?.updated_at ?? null : body.expected_updated_at,
+    trigger: trigger ?? 'autosave',
+    pasteWordCount: paste_word_count,
+    keystrokeCount: keystroke_count,
+    saveSessionId,
+    saveSequence: isLegacySave ? 1 : body.save_sequence,
+    metricSessionId: isLegacySave ? saveSessionId : body.metric_session_id,
+  })
 
-  const { data: doc, error } = await supabase
-    .from('assignment_docs')
-    .update({
-      content,
-    })
-    .eq('id', existingDoc.id)
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Error saving assignment doc:', error)
+  if (!saveResult.ok) {
     return NextResponse.json(
-      { error: 'Failed to save' },
-      { status: 500 }
+      { error: saveResult.error, error_code: saveResult.errorCode },
+      { status: saveResult.status }
     )
   }
+
+  const doc = saveResult.doc
 
   // Parse content if it's a string (for backwards compatibility)
   if (doc) {
     doc.content = parseContentField(doc.content)
   }
 
-  try {
-    historyEntry = await persistVersionedHistory<TiptapContent>({
-      supabase,
-      table: 'assignment_doc_history',
-      ownerColumn: 'assignment_doc_id',
-      ownerId: existingDoc.id,
-      previousContent: beforeContent,
-      nextContent: content,
-      selectFields: HISTORY_SELECT_FIELDS,
-      trigger: trigger ?? 'autosave',
-      historyMinIntervalMs: HISTORY_MIN_INTERVAL_MS,
-      buildMetrics: (currentContent: TiptapContent) =>
-        buildHistoryMetrics(currentContent, paste_word_count, keystroke_count),
-    })
-  } catch (historyError) {
-    console.error('Error saving assignment doc history:', historyError)
-  }
-
-  return NextResponse.json({ doc, historyEntry })
+  return NextResponse.json({
+    doc: sanitizeDocForStudent(doc),
+    historyEntry: saveResult.historyEntry,
+  })
 })
