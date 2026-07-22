@@ -48,3 +48,8 @@ application version that calls the provenance-aware wrappers. It:
 
 Migration `102` does not enable remote Gradex processing and does not change the
 teacher grading workflow.
+
+Before deployment, require the CI architecture/database-contract job to replay
+migrations `001` through `102`, confirm generated database types have no drift,
+and pass `scripts/check-atomic-test-grading.sh`. A TypeScript-only or mocked RPC
+test is not sufficient evidence for this migration.
