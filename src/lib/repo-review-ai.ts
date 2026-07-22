@@ -1,4 +1,3 @@
-import { z } from 'zod'
 import {
   createProviderRefMap,
   mapProviderRefToLocalId,
@@ -6,54 +5,39 @@ import {
   sanitizeAiText,
   type AiSanitizationContext,
 } from '@/lib/ai-sanitization'
+import {
+  gradingProvenanceSchema,
+  type GradingProvenance,
+} from '@/lib/grading/contracts'
+import { executeStructuredOutput, type GradingExecutionMetadata } from '@/lib/grading/engine'
+import {
+  buildPikaRepoReviewClassificationPrompt,
+  buildPikaRepoReviewFeedbackPrompt,
+  parsePikaRepoReviewClassificationOutput,
+  parsePikaRepoReviewFeedbackOutput,
+  PIKA_REPO_REVIEW_CLASSIFICATION_BATCH_SIZE,
+  PIKA_REPO_REVIEW_CLASSIFICATION_OUTPUT,
+  PIKA_REPO_REVIEW_CLASSIFICATION_POLICY_VERSION,
+  PIKA_REPO_REVIEW_FEEDBACK_OUTPUT,
+  PIKA_REPO_REVIEW_FEEDBACK_POLICY_VERSION,
+  PIKA_REPO_REVIEW_FEEDBACK_PROFILE_VERSION,
+  PIKA_REPO_REVIEW_FEEDBACK_PROMPT_VERSION,
+  PIKA_REPO_REVIEW_FEEDBACK_RUBRIC_VERSION,
+  PIKA_REPO_REVIEW_HEURISTIC_MODEL,
+  PIKA_REPO_REVIEW_LOCAL_PROVIDER,
+} from '@/lib/grading/profiles/pika-repo-review'
+import { createOpenAiResponsesProvider } from '@/lib/grading/providers/openai-responses'
 import type { RepoReviewEvidenceItem, RepoReviewSemanticBreakdown } from '@/types'
 
 const DEFAULT_MODEL = 'gpt-5-nano'
+const REPO_REVIEW_REASONING_EFFORT = 'minimal'
+const REPO_REVIEW_REQUEST_TIMEOUT_MS = 25_000
 
 function getOpenAIKey(): string | null {
   const key = process.env.OPENAI_API_KEY
   if (!key) return null
   return key.trim() || null
 }
-
-function extractResponseOutputText(payload: any): string | null {
-  if (typeof payload?.output_text === 'string' && payload.output_text.trim()) {
-    return payload.output_text.trim()
-  }
-
-  const output = payload?.output
-  if (!Array.isArray(output)) return null
-
-  for (const item of output) {
-    const content = item?.content
-    if (!Array.isArray(content)) continue
-    for (const c of content) {
-      if (c?.type === 'output_text' && typeof c?.text === 'string' && c.text.trim()) {
-        return c.text.trim()
-      }
-    }
-  }
-
-  return null
-}
-
-const feedbackSchema = z.object({
-  score_completion: z.number().int().min(0).max(10),
-  score_thinking: z.number().int().min(0).max(10),
-  score_workflow: z.number().int().min(0).max(10),
-  summary: z.string().min(1),
-  strengths: z.array(z.string()).default([]),
-  concerns: z.array(z.string()).default([]),
-  feedback: z.string().min(1),
-  confidence: z.number().min(0).max(1),
-})
-
-const classificationSchema = z.object({
-  items: z.array(z.object({
-    id: z.string(),
-    category: z.enum(['feature', 'bugfix', 'test', 'refactor', 'docs', 'styling', 'config', 'generated']),
-  })),
-})
 
 export interface RepoReviewFeedbackResult {
   score_completion: number
@@ -65,6 +49,7 @@ export interface RepoReviewFeedbackResult {
   feedback: string
   confidence: number
   model: string
+  provenance: GradingProvenance
 }
 
 export interface RepoReviewFeedbackInput {
@@ -97,17 +82,6 @@ type SanitizedRepoReviewValue =
   | SanitizedRepoReviewValue[]
   | { [key: string]: SanitizedRepoReviewValue }
 
-function parseJsonResponse<T>(outputText: string, schema: z.ZodSchema<T>): T {
-  let jsonText = outputText
-  const codeBlockMatch = outputText.match(/```(?:json)?\s*([\s\S]*?)```/)
-  if (codeBlockMatch) {
-    jsonText = codeBlockMatch[1].trim()
-  }
-
-  const parsed = JSON.parse(jsonText)
-  return schema.parse(parsed)
-}
-
 function scoreFromUnit(value: number): number {
   return Math.max(0, Math.min(10, Math.round(value * 10)))
 }
@@ -120,6 +94,34 @@ function formatStrengths(strengths: string[]): string {
 function formatConcerns(concerns: string[]): string {
   if (!concerns.length) return ''
   return `Concerns: ${concerns.join('; ')}`
+}
+
+function buildRepoReviewProvenance(execution: GradingExecutionMetadata): GradingProvenance {
+  return gradingProvenanceSchema.parse({
+    schemaVersion: 'assignment-grading-provenance-v1',
+    provider: execution.provider,
+    model: execution.model,
+    policyVersion: execution.policyVersion,
+    promptVersion: PIKA_REPO_REVIEW_FEEDBACK_PROMPT_VERSION,
+    gradingProfileVersion: PIKA_REPO_REVIEW_FEEDBACK_PROFILE_VERSION,
+    rubricVersion: PIKA_REPO_REVIEW_FEEDBACK_RUBRIC_VERSION,
+    providerRequestCount: execution.providerRequestCount,
+    tokenUsage: execution.tokenUsage,
+  })
+}
+
+function buildHeuristicRepoReviewProvenance(): GradingProvenance {
+  return gradingProvenanceSchema.parse({
+    schemaVersion: 'assignment-grading-provenance-v1',
+    provider: PIKA_REPO_REVIEW_LOCAL_PROVIDER,
+    model: PIKA_REPO_REVIEW_HEURISTIC_MODEL,
+    policyVersion: PIKA_REPO_REVIEW_FEEDBACK_POLICY_VERSION,
+    promptVersion: PIKA_REPO_REVIEW_FEEDBACK_PROMPT_VERSION,
+    gradingProfileVersion: PIKA_REPO_REVIEW_FEEDBACK_PROFILE_VERSION,
+    rubricVersion: PIKA_REPO_REVIEW_FEEDBACK_RUBRIC_VERSION,
+    providerRequestCount: 0,
+    tokenUsage: { inputTokens: null, outputTokens: null, totalTokens: null },
+  })
 }
 
 export function buildHeuristicRepoReviewFeedback(input: RepoReviewFeedbackInput): RepoReviewFeedbackResult {
@@ -182,7 +184,8 @@ export function buildHeuristicRepoReviewFeedback(input: RepoReviewFeedbackInput)
     concerns,
     feedback: parts.join(' '),
     confidence: input.confidence,
-    model: 'heuristic',
+    model: PIKA_REPO_REVIEW_HEURISTIC_MODEL,
+    provenance: buildHeuristicRepoReviewProvenance(),
   }
 }
 
@@ -230,56 +233,31 @@ export async function classifyAmbiguousRepoReviewChanges(
     'change',
   )
   const providerRefToLocalId = mapProviderRefToLocalId(providerItems)
-  const systemPrompt = `You classify software change summaries into one category.
+  const provider = createOpenAiResponsesProvider({ apiKey })
+  const classifications: Array<[string, string]> = []
 
-Allowed categories:
-- feature
-- bugfix
-- test
-- refactor
-- docs
-- styling
-- config
-- generated
+  for (let index = 0; index < providerItems.length; index += PIKA_REPO_REVIEW_CLASSIFICATION_BATCH_SIZE) {
+    const batch = providerItems.slice(index, index + PIKA_REPO_REVIEW_CLASSIFICATION_BATCH_SIZE)
+    const result = await executeStructuredOutput({
+      provider,
+      policy: {
+        version: PIKA_REPO_REVIEW_CLASSIFICATION_POLICY_VERSION,
+        model,
+        requestTimeoutMs: REPO_REVIEW_REQUEST_TIMEOUT_MS,
+        reasoningEffort: REPO_REVIEW_REASONING_EFFORT,
+      },
+      prompt: buildPikaRepoReviewClassificationPrompt(batch),
+      output: PIKA_REPO_REVIEW_CLASSIFICATION_OUTPUT,
+      parseOutput: parsePikaRepoReviewClassificationOutput,
+    })
 
-Respond with JSON only:
-{"items":[{"id":"...","category":"feature"}]}`
-
-  const userPrompt = providerItems
-    .map((item) => `- ${item.providerRef}: ${item.summary}`)
-    .join('\n')
-
-  const res = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      store: false,
-      input: [
-        { role: 'system', content: [{ type: 'input_text', text: systemPrompt }] },
-        { role: 'user', content: [{ type: 'input_text', text: userPrompt }] },
-      ],
-    }),
-  })
-
-  if (!res.ok) {
-    return {}
+    for (const item of result.output.items) {
+      const localId = providerRefToLocalId.get(item.id)
+      if (localId) classifications.push([localId, item.category])
+    }
   }
 
-  const payload = await res.json()
-  const outputText = extractResponseOutputText(payload)
-  if (!outputText) return {}
-
-  const parsed = parseJsonResponse(outputText, classificationSchema)
-  return Object.fromEntries(
-    parsed.items.flatMap((item) => {
-      const localId = providerRefToLocalId.get(item.id)
-      return localId ? [[localId, item.category]] : []
-    }),
-  )
+  return Object.fromEntries(classifications)
 }
 
 export async function gradeRepoReviewFeedback(input: RepoReviewFeedbackInput): Promise<RepoReviewFeedbackResult> {
@@ -292,29 +270,9 @@ export async function gradeRepoReviewFeedback(input: RepoReviewFeedbackInput): P
   }
 
   const model = process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
-  const systemPrompt = `You are grading repository contribution evidence for a teacher.
-
-Use these rubric definitions:
-- Completion (0-10): meaningful implementation ownership, task coverage, tests/refinement
-- Thinking (0-10): complexity, debugging/refactoring evidence, review/problem-solving quality
-- Workflow (0-10): consistency over time, iteration, commit hygiene, responsiveness to feedback
-
-Rules:
-- Use only the supplied evidence.
-- Do not infer hidden work.
-- Low confidence or incomplete evidence should lower confidence and lead to cautious scoring.
-- Distinguish contribution size from workflow quality.
-- Feedback must be 3-5 sentences total.
-- If workflow is weak, include one sentence starting with "Improve:" and give a concrete workflow improvement.
-
-Respond with JSON only:
-{"score_completion":0,"score_thinking":0,"score_workflow":0,"summary":"","strengths":[""],"concerns":[""],"feedback":"","confidence":0.0}`
-
   const sanitizationContext = input.sanitizationContext
-  const userPrompt = JSON.stringify({
-    assignment_title: sanitizeAiText(input.assignmentTitle, sanitizationContext),
-    repo_ref: 'repo_1',
-    student_ref: 'student_1',
+  const prompt = buildPikaRepoReviewFeedbackPrompt({
+    assignmentTitle: sanitizeAiText(input.assignmentTitle, sanitizationContext),
     metrics: {
       commit_count: input.commitCount,
       active_days: input.activeDays,
@@ -334,39 +292,19 @@ Respond with JSON only:
   })
 
   try {
-    const res = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    const result = await executeStructuredOutput({
+      provider: createOpenAiResponsesProvider({ apiKey }),
+      policy: {
+        version: PIKA_REPO_REVIEW_FEEDBACK_POLICY_VERSION,
         model,
-        store: false,
-        input: [
-          { role: 'system', content: [{ type: 'input_text', text: systemPrompt }] },
-          { role: 'user', content: [{ type: 'input_text', text: userPrompt }] },
-        ],
-      }),
+        requestTimeoutMs: REPO_REVIEW_REQUEST_TIMEOUT_MS,
+        reasoningEffort: REPO_REVIEW_REASONING_EFFORT,
+      },
+      prompt,
+      output: PIKA_REPO_REVIEW_FEEDBACK_OUTPUT,
+      parseOutput: parsePikaRepoReviewFeedbackOutput,
     })
-
-    if (!res.ok) {
-      return sanitizeRepoReviewFeedbackResult(
-        buildHeuristicRepoReviewFeedback(input),
-        input.sanitizationContext,
-      )
-    }
-
-    const payload = await res.json()
-    const outputText = extractResponseOutputText(payload)
-    if (!outputText) {
-      return sanitizeRepoReviewFeedbackResult(
-        buildHeuristicRepoReviewFeedback(input),
-        input.sanitizationContext,
-      )
-    }
-
-    const parsed = parseJsonResponse(outputText, feedbackSchema)
+    const parsed = result.output
     const formattedFeedback = [
       parsed.summary,
       formatStrengths(parsed.strengths),
@@ -381,6 +319,7 @@ Respond with JSON only:
       concerns: parsed.concerns.map(sanitizeAiOutputText),
       feedback: sanitizeAiOutputText(formattedFeedback),
       model,
+      provenance: buildRepoReviewProvenance(result.execution),
     }
   } catch {
     return sanitizeRepoReviewFeedbackResult(

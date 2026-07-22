@@ -60,7 +60,9 @@ insert into public.assignments (id, classroom_id, title, due_at, created_by) val
   ('d0000000-0000-4000-8000-000000000018', 'd0000000-0000-4000-8000-000000000010', 'Roster serialization', now() + interval '1 day', 'd0000000-0000-4000-8000-000000000001'),
   ('d0000000-0000-4000-8000-000000000019', 'd0000000-0000-4000-8000-000000000010', 'AI item finalization', now() + interval '1 day', 'd0000000-0000-4000-8000-000000000001'),
   ('d0000000-0000-4000-8000-000000000020', 'd0000000-0000-4000-8000-000000000010', 'Repo review completion', now() + interval '1 day', 'd0000000-0000-4000-8000-000000000001'),
-  ('d0000000-0000-4000-8000-000000000021', 'd0000000-0000-4000-8000-000000000010', 'Repo review rollback', now() + interval '1 day', 'd0000000-0000-4000-8000-000000000001');
+  ('d0000000-0000-4000-8000-000000000021', 'd0000000-0000-4000-8000-000000000010', 'Repo review rollback', now() + interval '1 day', 'd0000000-0000-4000-8000-000000000001'),
+  ('d0000000-0000-4000-8000-000000000023', 'd0000000-0000-4000-8000-000000000010', 'Repo review provenance', now() + interval '1 day', 'd0000000-0000-4000-8000-000000000001'),
+  ('d0000000-0000-4000-8000-000000000024', 'd0000000-0000-4000-8000-000000000010', 'Repo review provenance rollback', now() + interval '1 day', 'd0000000-0000-4000-8000-000000000001');
 
 insert into public.assignment_docs (
   assignment_id,
@@ -85,7 +87,9 @@ insert into public.assignment_docs (
   ('d0000000-0000-4000-8000-000000000019', 'd0000000-0000-4000-8000-000000000002', '{"type":"doc","content":[]}', true, now(), 1, 1, 1, null),
   ('d0000000-0000-4000-8000-000000000020', 'd0000000-0000-4000-8000-000000000003', '{"type":"doc","content":[]}', true, now(), 2, 2, 2, null),
   ('d0000000-0000-4000-8000-000000000021', 'd0000000-0000-4000-8000-000000000004', '{"type":"doc","content":[]}', true, now(), 3, 3, 3, null),
-  ('d0000000-0000-4000-8000-000000000021', 'd0000000-0000-4000-8000-000000000005', '{"type":"doc","content":[]}', true, now(), 4, 4, 4, null);
+  ('d0000000-0000-4000-8000-000000000021', 'd0000000-0000-4000-8000-000000000005', '{"type":"doc","content":[]}', true, now(), 4, 4, 4, null),
+  ('d0000000-0000-4000-8000-000000000023', 'd0000000-0000-4000-8000-000000000006', '{"type":"doc","content":[]}', true, now(), 4, 4, 4, null),
+  ('d0000000-0000-4000-8000-000000000024', 'd0000000-0000-4000-8000-000000000002', '{"type":"doc","content":[]}', true, now(), 5, 5, 5, null);
 
 commit;
 
@@ -605,7 +609,8 @@ fi
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
   "update public.assignment_docs
-   set ai_grading_provenance = '{\"schemaVersion\":\"assignment-grading-provenance-v1\",\"provider\":\"openai\",\"model\":\"old-model\",\"policyVersion\":\"old-policy\",\"promptVersion\":\"old-prompt\",\"gradingProfileVersion\":\"old-profile\",\"rubricVersion\":\"old-rubric\",\"providerRequestCount\":1,\"tokenUsage\":{\"inputTokens\":10,\"outputTokens\":5,\"totalTokens\":15}}'::jsonb
+   set ai_feedback_model = 'old-model',
+       ai_grading_provenance = '{\"schemaVersion\":\"assignment-grading-provenance-v1\",\"provider\":\"openai\",\"model\":\"old-model\",\"policyVersion\":\"old-policy\",\"promptVersion\":\"old-prompt\",\"gradingProfileVersion\":\"old-profile\",\"rubricVersion\":\"old-rubric\",\"providerRequestCount\":1,\"tokenUsage\":{\"inputTokens\":10,\"outputTokens\":5,\"totalTokens\":15}}'::jsonb
    where assignment_id = 'd0000000-0000-4000-8000-000000000016'
      and student_id = 'd0000000-0000-4000-8000-000000000005';" >/dev/null
 
@@ -823,7 +828,8 @@ begin
   end if;
 
   update public.assignment_docs
-  set ai_grading_provenance = '{"schemaVersion":"assignment-grading-provenance-v1","provider":"openai","model":"old-model","policyVersion":"old-policy","promptVersion":"old-prompt","gradingProfileVersion":"old-profile","rubricVersion":"old-rubric","providerRequestCount":1,"tokenUsage":{"inputTokens":10,"outputTokens":5,"totalTokens":15}}'::jsonb
+  set ai_feedback_model = 'old-model',
+      ai_grading_provenance = '{"schemaVersion":"assignment-grading-provenance-v1","provider":"openai","model":"old-model","policyVersion":"old-policy","promptVersion":"old-prompt","gradingProfileVersion":"old-profile","rubricVersion":"old-rubric","providerRequestCount":1,"tokenUsage":{"inputTokens":10,"outputTokens":5,"totalTokens":15}}'::jsonb
   where assignment_id = 'd0000000-0000-4000-8000-000000000017'
     and student_id = 'd0000000-0000-4000-8000-000000000002';
   select updated_at into v_expected
@@ -962,7 +968,8 @@ begin
   end if;
 
   update public.assignment_docs
-  set ai_grading_provenance = '{"schemaVersion":"assignment-grading-provenance-v1","provider":"openai","model":"old-model","policyVersion":"old-policy","promptVersion":"old-prompt","gradingProfileVersion":"old-profile","rubricVersion":"old-rubric","providerRequestCount":1,"tokenUsage":{"inputTokens":10,"outputTokens":5,"totalTokens":15}}'::jsonb
+  set ai_feedback_model = 'old-model',
+      ai_grading_provenance = '{"schemaVersion":"assignment-grading-provenance-v1","provider":"openai","model":"old-model","policyVersion":"old-policy","promptVersion":"old-prompt","gradingProfileVersion":"old-profile","rubricVersion":"old-rubric","providerRequestCount":1,"tokenUsage":{"inputTokens":10,"outputTokens":5,"totalTokens":15}}'::jsonb
   where assignment_id = 'd0000000-0000-4000-8000-000000000012'
     and student_id = 'd0000000-0000-4000-8000-000000000003';
   perform public.create_assignment_ai_grading_run_atomic(
@@ -1105,6 +1112,180 @@ begin
     and student_id = 'd0000000-0000-4000-8000-000000000004';
   if v_status <> 'running' or v_result_count <> 0 or v_score <> 3 then
     raise exception 'Repo review conflict partially committed';
+  end if;
+end;
+$contract$;
+SQL
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+do $contract$
+declare
+  v_run_id uuid;
+  v_invalid_run_id uuid;
+  v_expected timestamptz;
+  v_status text;
+  v_result_count integer;
+  v_score integer;
+  v_model text;
+  v_doc_provenance jsonb;
+  v_result_provenance jsonb;
+  v_provenance constant jsonb := '{"schemaVersion":"assignment-grading-provenance-v1","provider":"pika-local","model":"repo-review-heuristic-v1","policyVersion":"pika-repo-review-feedback-policy-v1","promptVersion":"pika-repo-review-feedback-prompt-v1","gradingProfileVersion":"pika-repo-review-feedback-v1","rubricVersion":"pika-repo-review-rubric-v1","providerRequestCount":0,"tokenUsage":{"inputTokens":null,"outputTokens":null,"totalTokens":null}}'::jsonb;
+  v_invalid_provenance constant jsonb := '{"schemaVersion":"assignment-grading-provenance-v1","provider":"pika-local","model":"repo-review-heuristic-v1","policyVersion":"pika-repo-review-feedback-policy-v1","promptVersion":"pika-repo-review-feedback-prompt-v1","gradingProfileVersion":"pika-repo-review-feedback-v1","rubricVersion":"pika-repo-review-rubric-v1","providerRequestCount":11,"tokenUsage":{"inputTokens":null,"outputTokens":null,"totalTokens":null}}'::jsonb;
+begin
+  if has_function_privilege(
+    'anon',
+    'public.complete_assignment_repo_review_run_with_provenance_atomic(uuid,uuid,jsonb,jsonb,text,text,jsonb,timestamp with time zone)',
+    'execute'
+  ) or has_function_privilege(
+    'authenticated',
+    'public.complete_assignment_repo_review_run_with_provenance_atomic(uuid,uuid,jsonb,jsonb,text,text,jsonb,timestamp with time zone)',
+    'execute'
+  ) or not has_function_privilege(
+    'service_role',
+    'public.complete_assignment_repo_review_run_with_provenance_atomic(uuid,uuid,jsonb,jsonb,text,text,jsonb,timestamp with time zone)',
+    'execute'
+  ) then
+    raise exception 'Unexpected repo-review provenance RPC privileges';
+  end if;
+
+  insert into public.assignment_repo_review_runs (
+    assignment_id, status, triggered_by, metrics_version, prompt_version
+  ) values (
+    'd0000000-0000-4000-8000-000000000023', 'running',
+    'd0000000-0000-4000-8000-000000000001', 'metrics-v1', 'prompt-v1'
+  ) returning id into v_run_id;
+
+  select updated_at into v_expected
+  from public.assignment_docs
+  where assignment_id = 'd0000000-0000-4000-8000-000000000023'
+    and student_id = 'd0000000-0000-4000-8000-000000000006';
+
+  perform public.complete_assignment_repo_review_run_with_provenance_atomic(
+    v_run_id,
+    'd0000000-0000-4000-8000-000000000001',
+    jsonb_build_array(jsonb_build_object(
+      'student_id', 'd0000000-0000-4000-8000-000000000006',
+      'github_login', 'student-5',
+      'commit_count', 3, 'active_days', 2, 'session_count', 2,
+      'burst_ratio', 0.2, 'weighted_contribution', 3.5,
+      'relative_contribution_share', 1, 'spread_score', 0.8,
+      'iteration_score', 0.7, 'semantic_breakdown_json', '{}'::jsonb,
+      'timeline_json', '[]'::jsonb, 'evidence_json', '[]'::jsonb,
+      'draft_score_completion', 8, 'draft_score_thinking', 7,
+      'draft_score_workflow', 9, 'draft_feedback', 'Audited repo feedback',
+      'confidence', 0.9, 'grading_model', 'repo-review-heuristic-v1',
+      'grading_provenance', v_provenance
+    )),
+    jsonb_build_array(jsonb_build_object(
+      'student_id', 'd0000000-0000-4000-8000-000000000006',
+      'expected_doc_updated_at', v_expected,
+      'score_completion', 8, 'score_thinking', 7, 'score_workflow', 9,
+      'feedback', 'Audited repo feedback', 'apply_teacher_feedback_draft', false,
+      'mark_graded', false, 'ai_feedback_suggestion', 'Audited repo feedback',
+      'ai_feedback_model', 'repo-review-heuristic-v1',
+      'ai_grading_provenance', v_provenance
+    )),
+    'main', 'repo-review-heuristic-v1', '[]'::jsonb, now()
+  );
+
+  select run.status, count(result.id), doc.score_completion, doc.ai_feedback_model,
+         doc.ai_grading_provenance, result.grading_provenance
+  into v_status, v_result_count, v_score, v_model, v_doc_provenance, v_result_provenance
+  from public.assignment_repo_review_runs run
+  left join public.assignment_repo_review_results result on result.run_id = run.id
+  join public.assignment_docs doc
+    on doc.assignment_id = run.assignment_id
+   and doc.student_id = 'd0000000-0000-4000-8000-000000000006'
+  where run.id = v_run_id
+  group by run.status, doc.score_completion, doc.ai_feedback_model,
+           doc.ai_grading_provenance, result.grading_provenance;
+
+  if v_status <> 'completed' or v_result_count <> 1 or v_score <> 8
+    or v_model <> 'repo-review-heuristic-v1'
+    or v_doc_provenance is distinct from v_provenance
+    or v_result_provenance is distinct from v_provenance
+  then
+    raise exception 'Repo-review provenance did not commit atomically';
+  end if;
+
+  perform public.complete_assignment_repo_review_run_with_provenance_atomic(
+    v_run_id,
+    'd0000000-0000-4000-8000-000000000001',
+    '[]'::jsonb,
+    '[]'::jsonb,
+    'replay-must-not-overwrite',
+    'replay-must-not-overwrite',
+    '[]'::jsonb,
+    now()
+  );
+
+  select grading_provenance into v_result_provenance
+  from public.assignment_repo_review_results
+  where run_id = v_run_id;
+  if v_result_provenance is distinct from v_provenance then
+    raise exception 'Repo-review replay overwrote provenance';
+  end if;
+
+  insert into public.assignment_repo_review_runs (
+    assignment_id, status, triggered_by, metrics_version, prompt_version
+  ) values (
+    'd0000000-0000-4000-8000-000000000024', 'running',
+    'd0000000-0000-4000-8000-000000000001', 'metrics-v1', 'prompt-v1'
+  ) returning id into v_invalid_run_id;
+
+  select updated_at into v_expected
+  from public.assignment_docs
+  where assignment_id = 'd0000000-0000-4000-8000-000000000024'
+    and student_id = 'd0000000-0000-4000-8000-000000000002';
+
+  begin
+    perform public.complete_assignment_repo_review_run_with_provenance_atomic(
+      v_invalid_run_id,
+      'd0000000-0000-4000-8000-000000000001',
+      jsonb_build_array(jsonb_build_object(
+        'student_id', 'd0000000-0000-4000-8000-000000000002',
+        'commit_count', 1, 'active_days', 1, 'session_count', 1,
+        'burst_ratio', 0, 'weighted_contribution', 1,
+        'relative_contribution_share', 1, 'spread_score', 0.5,
+        'iteration_score', 0.5, 'semantic_breakdown_json', '{}'::jsonb,
+        'timeline_json', '[]'::jsonb, 'evidence_json', '[]'::jsonb,
+        'draft_score_completion', 9, 'draft_score_thinking', 9,
+        'draft_score_workflow', 9, 'draft_feedback', 'Invalid audit',
+        'confidence', 0.8, 'grading_model', 'repo-review-heuristic-v1',
+        'grading_provenance', v_invalid_provenance
+      )),
+      jsonb_build_array(jsonb_build_object(
+        'student_id', 'd0000000-0000-4000-8000-000000000002',
+        'expected_doc_updated_at', v_expected,
+        'score_completion', 9, 'score_thinking', 9, 'score_workflow', 9,
+        'feedback', 'Invalid audit', 'apply_teacher_feedback_draft', false,
+        'mark_graded', false, 'ai_feedback_suggestion', 'Invalid audit',
+        'ai_feedback_model', 'repo-review-heuristic-v1',
+        'ai_grading_provenance', v_invalid_provenance
+      )),
+      'main', 'repo-review-heuristic-v1', '[]'::jsonb, now()
+    );
+    raise exception 'Repo-review completion accepted invalid provenance';
+  exception
+    when check_violation then null;
+  end;
+
+  select status into v_status
+  from public.assignment_repo_review_runs
+  where id = v_invalid_run_id;
+  select count(*) into v_result_count
+  from public.assignment_repo_review_results
+  where run_id = v_invalid_run_id;
+  select score_completion, ai_feedback_model, ai_grading_provenance
+  into v_score, v_model, v_doc_provenance
+  from public.assignment_docs
+  where assignment_id = 'd0000000-0000-4000-8000-000000000024'
+    and student_id = 'd0000000-0000-4000-8000-000000000002';
+
+  if v_status <> 'running' or v_result_count <> 0 or v_score <> 5
+    or v_model is not null or v_doc_provenance is not null
+  then
+    raise exception 'Invalid repo-review provenance partially committed';
   end if;
 end;
 $contract$;

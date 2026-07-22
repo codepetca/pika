@@ -50,7 +50,7 @@ export const gradingProvenanceSchema = z.object({
   promptVersion: z.string().min(1).max(120),
   gradingProfileVersion: z.string().min(1).max(120),
   rubricVersion: z.string().min(1).max(120),
-  providerRequestCount: z.number().int().positive().max(10),
+  providerRequestCount: z.number().int().nonnegative().max(10),
   tokenUsage: gradingTokenUsageSchema,
 }).strict()
 

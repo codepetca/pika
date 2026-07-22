@@ -14166,3 +14166,42 @@
 - `pnpm build`
 - Pika pre-commit audit
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:0984d2c766435de4d10db5116a67abeb768de1089c0c5fe7caa0bb5dea2a5d3e -->
+## 2026-07-14 — Archive stack consolidation CI fix
+
+**Completed:**
+- Fast-forward merged reviewed archive PRs 852–866 into the final stack base without changing commit history.
+- Fixed the consolidated recovery drill after CI exposed a stale duplicate of the restore object-path algorithm; the drill now calls the production canonical path helper.
+- Kept PR 851 unmerged from `main` until its refreshed required checks pass. No production state was accessed or modified.
+
+**Validation:**
+- Local full archive recovery drill passed twice, including row equality, object equality, and idempotent replays
+- Focused restore unit suite (1 file / 9 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+
+## 2026-07-14 — Read-only production classroom archive inventory
+
+**Risk profile:** runtime-platform
+
+**Model recommendation:** GPT-5 Codex - production verification crosses Supabase target safety, archive graph consistency, privacy-safe reporting, and fail-closed storage evidence.
+
+**Completed:**
+- Added a target-bound, read-only inventory command that requires the exact hosted Supabase project ref, validates deployed archive and Gradex contract rows, audits exposed PostgREST relationship metadata, and traverses the canonical 42-resource graph with exact-count pagination.
+- Bound the separately required direct PostgreSQL catalog audit to the same expected project ref for direct or Supabase pooler DSNs and required TLS.
+- Hardened the catalog runner against libpq DSN overrides and credential disclosure by allowlisting one TLS parameter, passing validated fields through `PG*` environment variables, sanitizing failures, and requiring either a hosted project ref or explicit loopback-only local mode.
+- Bracketed each hot archived classroom read with archive revisions, resolved managed objects through exact Storage metadata reads, and emitted only aggregate labels, counts, and byte sizes; missing referenced objects fail the command.
+- Ran the inventory against production after migrations 080-086 were applied: three hot archives, 44,813 relational rows, 42.2 MiB canonical relational payload, 165 referenced objects / 25.9 MiB, and zero missing objects or archive/restore/Gradex/cleanup operation rows.
+- Kept the archive epic unfinished. PostgREST metadata cannot prove hidden or stale catalog relationships, so the direct read-only PostgreSQL catalog audit remains required; no export, restore, Gradex, compaction, cleanup, row mutation, or Storage mutation was performed.
+
+**Validation:**
+- Final production read-only inventory passed after all review fixes
+- Full Vitest suite (345 files / 3,080 tests)
+- Focused inventory, catalog-runner, and service-client suites (35 tests)
+- Local read-only PostgreSQL catalog audit (117 foreign-key relationships)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture`
+- `pnpm build`
+- `git diff --check`

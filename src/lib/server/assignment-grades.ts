@@ -277,7 +277,7 @@ export async function completeAssignmentRepoReviewRunAtomic(opts: {
   now?: string
 }) {
   const now = opts.now ?? new Date().toISOString()
-  const { data, error } = await opts.supabase.rpc('complete_assignment_repo_review_run_atomic', {
+  const { data, error } = await opts.supabase.rpc('complete_assignment_repo_review_run_with_provenance_atomic', {
     p_run_id: opts.runId,
     p_teacher_id: opts.teacherId,
     p_result_rows: toJson(opts.results),
@@ -292,6 +292,7 @@ export async function completeAssignmentRepoReviewRunAtomic(opts: {
       mark_graded: grade.markGraded ?? true,
       ai_feedback_suggestion: grade.aiFeedbackSuggestion,
       ai_feedback_model: grade.aiFeedbackModel,
+      ai_grading_provenance: grade.aiGradingProvenance ?? null,
       graded_by: grade.gradedBy ?? null,
     })),
     p_source_ref: opts.sourceRef,
