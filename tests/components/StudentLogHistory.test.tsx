@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
@@ -33,6 +34,40 @@ function deferred<T>() {
     reject = promiseReject
   })
   return { promise, resolve, reject }
+}
+
+function StudentHistoryCommitProbe({
+  studentId,
+  classroomId,
+  initialEntries,
+  selectedEntry,
+  onCommit,
+}: {
+  studentId: string
+  classroomId: string
+  initialEntries: Entry[]
+  selectedEntry: Entry
+  onCommit: (observation: { studentId: string; text: string }) => void
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null)
+
+  useLayoutEffect(() => {
+    onCommit({
+      studentId,
+      text: containerRef.current?.textContent ?? '',
+    })
+  }, [onCommit, studentId])
+
+  return (
+    <div ref={containerRef}>
+      <StudentLogHistory
+        studentId={studentId}
+        classroomId={classroomId}
+        initialEntries={initialEntries}
+        selectedEntry={selectedEntry}
+      />
+    </div>
+  )
 }
 
 describe('StudentLogHistory', () => {
@@ -382,5 +417,55 @@ describe('StudentLogHistory', () => {
       expect(screen.queryByText('Student A older history must not leak.')).not.toBeInTheDocument()
     })
     expect(screen.getByText('Student B history.')).toBeInTheDocument()
+  })
+
+  it('never commits the previous student history under the next student scope', () => {
+    const studentAEntry = entry({
+      id: 'student-a-commit-entry',
+      student_id: 'student-a',
+      classroom_id: 'classroom-commit',
+      text: 'Student A private history.',
+    })
+    const studentBEntry = entry({
+      id: 'student-b-commit-entry',
+      student_id: 'student-b',
+      classroom_id: 'classroom-commit',
+      text: 'Student B current history.',
+    })
+    const requests = new Map<string, ReturnType<typeof deferred<any>>>()
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const studentId = new URL(String(input), 'http://localhost').searchParams.get('student_id') ?? ''
+      const request = deferred<any>()
+      requests.set(studentId, request)
+      return request.promise
+    }))
+    const observations: Array<{ studentId: string; text: string }> = []
+    const onCommit = vi.fn((observation) => observations.push(observation))
+
+    const view = render(
+      <StudentHistoryCommitProbe
+        studentId="student-a"
+        classroomId="classroom-commit"
+        initialEntries={[studentAEntry]}
+        selectedEntry={studentAEntry}
+        onCommit={onCommit}
+      />
+    )
+
+    view.rerender(
+      <StudentHistoryCommitProbe
+        studentId="student-b"
+        classroomId="classroom-commit"
+        initialEntries={[studentBEntry]}
+        selectedEntry={studentBEntry}
+        onCommit={onCommit}
+      />
+    )
+
+    const studentBCommit = observations.find((observation) => observation.studentId === 'student-b')
+    expect(studentBCommit?.text).toContain('Student B current history.')
+    expect(studentBCommit?.text).not.toContain('Student A private history.')
+    expect(requests.has('student-a')).toBe(true)
+    expect(requests.has('student-b')).toBe(true)
   })
 })

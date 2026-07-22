@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-07-15 — Gradebook workflow boundary
-
-**Completed:**
-- Reduced the gradebook API route from 1,127 lines to a transport-only handler backed by a feature-owned server workflow and Zod request contracts.
-- Preserved roster paging, 50-ID chunking, 1,000-row pagination, legacy-column fallbacks, assessment ordering, status calculation, summaries, and response shape while reusing the shared query-chunks infrastructure.
-- Moved `ApiError` into a framework-neutral module so server workflows do not depend on Next transport types; `api-handler` re-exports the same class for compatibility.
-- Tightened assessment weight input to string IDs and integer/decimal-digit weights, retained the intentional legacy-category `410`, and removed the route from the API Zod baseline.
-- Narrowed missing-table detection so partial migrations fail visibly instead of silently hiding tests; added route, validation, migration-compatibility, and architecture regressions.
-- Completed independent behavior/authorization and API/Zod review-fix rounds with no remaining findings. No UI, migration, dependency, or production changes.
-
-**Validation:**
-- Focused gradebook/API/error/architecture suites (5 files / 75 tests)
-- `pnpm check:architecture` (602 modules / 0 allowances)
-- `pnpm exec tsc --noEmit`
-- `pnpm lint`
-- `pnpm vitest run` (361 files / 3,322 tests)
-- `pnpm build`
-- `git diff --check`
-
 ## 2026-07-15 — Legacy quiz gradebook and archive compatibility decision
 
 **Completed:**
@@ -982,3 +963,27 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Remaining:**
 - Require exact-head PR CI and repository approval before merge.
 - Defer Daily/Attendance mobile history/table modes until the later mobile UX phase; continue Phase 3 with Tests desktop/accessibility while Gradex remains separately owned.
+
+## 2026-07-22 — Scoped Daily history across student switches
+
+**Risk profile:** none
+
+**Model recommendation:** GPT-5.6 Terra (high) - the fix is narrow, but correctness depends on React commit and effect ordering across student identity changes.
+
+**Completed:**
+- Remounted only the selected-student history state when the classroom/student scope changes, preventing the prior student's entries from committing beneath the next student's inspector heading.
+- Initialized each scoped history view from that student's preview so the privacy fix does not introduce a false empty-state flash.
+- Added a layout-effect regression test that observes the transition commit before passive effects run.
+- Preserved the existing teacher Daily table and inspector UI; no student, mobile, schema, migration, or production behavior changed.
+
+**Validation:**
+- `pnpm test` (407 files / 3,672 tests)
+- Focused Daily history and attendance suites (2 files / 25 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (623 modules / 0 allowances)
+- Pika changed-file audit
+- Teacher Daily desktop screenshots after sequential student selection in light and dark themes; no horizontal overflow
+
+**Remaining:**
+- Require independent rereview and exact-head PR CI before merge.

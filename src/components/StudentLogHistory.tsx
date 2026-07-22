@@ -23,27 +23,33 @@ const HISTORY_LIMIT = 10
 const HISTORY_CACHE_TTL_MS = 60_000
 const EMPTY_ENTRIES: Entry[] = []
 
-export function StudentLogHistory({
+export function StudentLogHistory(props: Props) {
+  const scope = `${props.classroomId}:${props.studentId}`
+
+  return <StudentLogHistoryState key={scope} {...props} />
+}
+
+function StudentLogHistoryState({
   studentId,
   classroomId,
   selectedDate = null,
   selectedEntry = null,
   initialEntries = EMPTY_ENTRIES,
 }: Props) {
-  const [entries, setEntries] = useState<Entry[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
-  const [requestVersion, setRequestVersion] = useState(0)
-  const [hasMore, setHasMore] = useState(false)
-  const selectedBlockRef = useRef<HTMLDivElement | null>(null)
-  const activeScopeRef = useRef(`${classroomId}:${studentId}`)
-  const loadMoreRequestIdRef = useRef(0)
-  activeScopeRef.current = `${classroomId}:${studentId}`
   const previewEntries = useMemo(
     () => normalizeEntries(initialEntries),
     [initialEntries]
   )
+  const [entries, setEntries] = useState<Entry[]>(previewEntries)
+  const [loading, setLoading] = useState(previewEntries.length === 0)
+  const [error, setError] = useState<string | null>(null)
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
+  const [requestVersion, setRequestVersion] = useState(0)
+  const [hasMore, setHasMore] = useState(previewEntries.length === HISTORY_LIMIT)
+  const selectedBlockRef = useRef<HTMLDivElement | null>(null)
+  const activeScopeRef = useRef(`${classroomId}:${studentId}`)
+  const loadMoreRequestIdRef = useRef(0)
+  activeScopeRef.current = `${classroomId}:${studentId}`
   const selectedDisplayEntry = selectedEntry && entryHasContent(selectedEntry)
     ? selectedEntry
     : null
