@@ -1,5 +1,6 @@
 import ts from 'typescript'
 import { z } from 'zod'
+import { posix } from 'node:path'
 
 export const nativeControlKinds = [
   'button',
@@ -55,18 +56,18 @@ const nativeControlExceptionSchema = z.object({
   kind: z.enum(nativeControlKinds),
   count: z.number().int().positive(),
   reason: z.enum(nativeControlReasons),
-})
+}).strict()
 
 const nativeControlExceptionEntrySchema = z.object({
   file: z.string().regex(/^src\/(app|components)\/.*\.tsx$/),
   reviewBy: z.enum(nativeControlReviewOwners),
   controls: z.array(nativeControlExceptionSchema).min(1),
-})
+}).strict()
 
 const uiControlExceptionRegistrySchema = z.object({
   version: z.literal(1),
   entries: z.array(nativeControlExceptionEntrySchema),
-})
+}).strict()
 
 export type UiControlExceptionRegistry = z.infer<typeof uiControlExceptionRegistrySchema>
 
@@ -83,6 +84,14 @@ const bannedLegacyImports = new Map([
   ['@/components/AlertDialog', '@/ui'],
   ['@/components/ConfirmDialog', '@/ui'],
   ['@/components/Tooltip', '@/ui'],
+])
+
+const bannedLegacySourcePaths = new Map([
+  ['src/components/Button', '@/ui'],
+  ['src/components/Input', '@/ui'],
+  ['src/components/AlertDialog', '@/ui'],
+  ['src/components/ConfirmDialog', '@/ui'],
+  ['src/components/Tooltip', '@/ui'],
 ])
 
 const nativeInputCapabilityKinds = new Set<NativeControlKind>([
@@ -215,6 +224,51 @@ function getReactCreateElementBindings(sourceFile: ts.SourceFile): ReactCreateEl
           }
         }
       }
+      continue
+    }
+
+    if (
+      ts.isImportEqualsDeclaration(statement)
+      && ts.isExternalModuleReference(statement.moduleReference)
+      && statement.moduleReference.expression
+      && ts.isStringLiteral(statement.moduleReference.expression)
+      && statement.moduleReference.expression.text === 'react'
+    ) {
+      bindings.namespaces.add(statement.name.text)
+      continue
+    }
+
+    if (ts.isVariableStatement(statement)) {
+      for (const declaration of statement.declarationList.declarations) {
+        const initializer = declaration.initializer
+        if (
+          !initializer
+          || !ts.isCallExpression(initializer)
+          || !ts.isIdentifier(initializer.expression)
+          || initializer.expression.text !== 'require'
+          || initializer.arguments.length !== 1
+          || !ts.isStringLiteral(initializer.arguments[0])
+          || initializer.arguments[0].text !== 'react'
+        ) {
+          continue
+        }
+
+        if (ts.isIdentifier(declaration.name)) {
+          bindings.namespaces.add(declaration.name.text)
+          continue
+        }
+
+        if (ts.isObjectBindingPattern(declaration.name)) {
+          for (const element of declaration.name.elements) {
+            if (
+              ts.isIdentifier(element.name)
+              && (element.propertyName ?? element.name).getText(sourceFile) === 'createElement'
+            ) {
+              bindings.factories.add(element.name.text)
+            }
+          }
+        }
+      }
     }
   }
 
@@ -228,6 +282,10 @@ function getCreateElementInputKind(properties: ts.Expression | undefined): Nativ
   let kind: NativeControlKind = 'input:text'
   for (const property of properties.properties) {
     if (ts.isSpreadAssignment(property)) {
+      kind = 'input:dynamic'
+      continue
+    }
+    if (ts.isShorthandPropertyAssignment(property) && property.name.text === 'type') {
       kind = 'input:dynamic'
       continue
     }
@@ -349,6 +407,27 @@ function auditImports(sourceFiles: SourceFiles): UiPolicyViolation[] {
         violations.push({
           file,
           message: `Legacy import ${modulePath} is forbidden; import from ${replacement}.`,
+        })
+      }
+
+      if (!modulePath.startsWith('.') || file.startsWith('src/ui/')) return
+
+      const resolvedPath = posix
+        .normalize(posix.join(posix.dirname(file), modulePath))
+        .replace(/\.(?:[cm]?[jt]sx?)$/, '')
+
+      if (resolvedPath === 'src/ui' || resolvedPath.startsWith('src/ui/')) {
+        violations.push({
+          file,
+          message: `Import ${modulePath} through the canonical @/ui barrel.`,
+        })
+      }
+
+      const relativeReplacement = bannedLegacySourcePaths.get(resolvedPath)
+      if (relativeReplacement) {
+        violations.push({
+          file,
+          message: `Legacy import ${modulePath} is forbidden; import from ${relativeReplacement}.`,
         })
       }
     }

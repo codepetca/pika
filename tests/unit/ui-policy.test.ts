@@ -126,6 +126,30 @@ describe('UI policy', () => {
     })
   })
 
+  it('inventories CommonJS and import-equals React factories and dynamic shorthand props', () => {
+    const inventory = inventoryNativeControls({
+      'src/components/CommonJsFactories.tsx': `
+        import ReactImportEquals = require('react')
+        const ReactCommonJs = require('react')
+        const { createElement: h } = require('react')
+        export function Factories({ type }: { type: string }) {
+          return ReactCommonJs.createElement('div', null,
+            ReactCommonJs.createElement('button'),
+            ReactImportEquals.createElement('select'),
+            h('input', { type }),
+          )
+        }
+      `,
+    })
+
+    expect(Object.fromEntries(inventory.get('src/components/CommonJsFactories.tsx') ?? []))
+      .toEqual({
+        button: 1,
+        'input:dynamic': 1,
+        select: 1,
+      })
+  })
+
   it('rejects UI subpath and legacy component imports', () => {
     const violations = auditUiPolicy({
       'src/components/BadImports.tsx': `
@@ -166,6 +190,26 @@ describe('UI policy', () => {
     ])
   })
 
+  it('rejects relative imports that reach UI subpaths or legacy primitive files', () => {
+    const violations = auditUiPolicy({
+      'src/components/forms/BadRelativeImports.tsx': `
+        import { Button } from '../../ui/Button'
+        import { Input } from '../Input.tsx'
+      `,
+    }, registry([]))
+
+    expect(violations).toEqual([
+      {
+        file: 'src/components/forms/BadRelativeImports.tsx',
+        message: 'Import ../../ui/Button through the canonical @/ui barrel.',
+      },
+      {
+        file: 'src/components/forms/BadRelativeImports.tsx',
+        message: 'Legacy import ../Input.tsx is forbidden; import from @/ui.',
+      },
+    ])
+  })
+
   it('rejects duplicate registry files and kinds', () => {
     const entry = {
       file: 'src/components/Picker.tsx',
@@ -176,6 +220,14 @@ describe('UI policy', () => {
     expect(() => registry([entry, entry])).toThrow('Duplicate native-control registry file')
     expect(() => registry([{ ...entry, controls: [...entry.controls, ...entry.controls] }]))
       .toThrow('Duplicate native-control kind')
+  })
+
+  it('rejects unknown registry metadata instead of silently stripping it', () => {
+    expect(() => parseUiControlExceptionRegistry({
+      version: 1,
+      entries: [],
+      unsupportedMetadata: true,
+    })).toThrow()
   })
 
   it('rejects reasons that do not match the native control semantics', () => {
