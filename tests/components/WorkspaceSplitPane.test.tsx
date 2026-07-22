@@ -54,6 +54,7 @@ describe('WorkspaceSplitPane', () => {
 
     const separator = screen.getByRole('separator', { name: 'Resize panes' })
     expect(separator).toHaveAttribute('tabindex', '0')
+    expect(separator).toHaveAttribute('aria-orientation', 'vertical')
     expect(separator).toHaveAttribute('aria-valuemin', '20')
     expect(separator).toHaveAttribute('aria-valuemax', '80')
     expect(separator).toHaveAttribute('aria-valuenow', '45')

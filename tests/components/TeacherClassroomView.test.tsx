@@ -59,115 +59,119 @@ vi.mock('@dnd-kit/utilities', () => ({
   },
 }))
 
-vi.mock('@/ui', () => ({
-  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  ConfirmDialog: ({ isOpen, title, description, confirmLabel, cancelLabel, onConfirm, onCancel, isConfirmDisabled, isCancelDisabled }: any) => (
-    isOpen ? (
+vi.mock('@/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/ui')>()
+  return {
+    ...actual,
+    Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+    ConfirmDialog: ({ isOpen, title, description, confirmLabel, cancelLabel, onConfirm, onCancel, isConfirmDisabled, isCancelDisabled }: any) => (
+      isOpen ? (
+        <div>
+          <div>{title}</div>
+          {description ? <div>{description}</div> : null}
+          <button type="button" onClick={onCancel} disabled={isCancelDisabled}>{cancelLabel}</button>
+          <button type="button" onClick={onConfirm} disabled={isConfirmDisabled}>{confirmLabel}</button>
+        </div>
+      ) : null
+    ),
+    ContentDialog: ({ isOpen, title, subtitle, children }: any) => (
+      isOpen ? (
+        <div role="dialog" aria-label={title}>
+          <div>{title}</div>
+          {subtitle ? <div>{subtitle}</div> : null}
+          {children}
+        </div>
+      ) : null
+    ),
+    DialogPanel: ({ isOpen, children }: any) => (
+      isOpen ? (
+        <div role="dialog">
+          {children}
+        </div>
+      ) : null
+    ),
+    FormField: ({ label, children }: any) => (
+      <label>
+        <span>{label}</span>
+        {children}
+      </label>
+    ),
+    Input: (props: any) => <input {...props} />,
+    Select: ({ options = [], ...props }: any) => (
+      <select {...props}>
+        {options.map((option: any) => (
+          <option key={option.value} value={option.value} disabled={option.disabled}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    ),
+    SplitButton: ({ label, onPrimaryClick, disabled, primaryButtonProps, options = [] }: any) => (
       <div>
-        <div>{title}</div>
-        {description ? <div>{description}</div> : null}
-        <button type="button" onClick={onCancel} disabled={isCancelDisabled}>{cancelLabel}</button>
-        <button type="button" onClick={onConfirm} disabled={isConfirmDisabled}>{confirmLabel}</button>
-      </div>
-    ) : null
-  ),
-  ContentDialog: ({ isOpen, title, subtitle, children }: any) => (
-    isOpen ? (
-      <div role="dialog" aria-label={title}>
-        <div>{title}</div>
-        {subtitle ? <div>{subtitle}</div> : null}
-        {children}
-      </div>
-    ) : null
-  ),
-  DialogPanel: ({ isOpen, children }: any) => (
-    isOpen ? (
-      <div role="dialog">
-        {children}
-      </div>
-    ) : null
-  ),
-  FormField: ({ label, children }: any) => (
-    <label>
-      <span>{label}</span>
-      {children}
-    </label>
-  ),
-  Input: (props: any) => <input {...props} />,
-  Select: ({ options = [], ...props }: any) => (
-    <select {...props}>
-      {options.map((option: any) => (
-        <option key={option.value} value={option.value} disabled={option.disabled}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  ),
-  SplitButton: ({ label, onPrimaryClick, disabled, primaryButtonProps, options = [] }: any) => (
-    <div>
-      <button
-        type="button"
-        onClick={onPrimaryClick}
-        disabled={disabled}
-        {...primaryButtonProps}
-      >
-        {label}
-      </button>
-      {options.map((option: any) => (
         <button
-          key={option.id}
           type="button"
-          onClick={option.onSelect}
-          disabled={option.disabled}
-          aria-pressed={option.checked}
-          onMouseEnter={() => option.onHoverChange?.(true)}
-          onMouseLeave={() => option.onHoverChange?.(false)}
-          onFocus={() => option.onHoverChange?.(true)}
-          onBlur={() => option.onHoverChange?.(false)}
+          onClick={onPrimaryClick}
+          disabled={disabled}
+          {...primaryButtonProps}
         >
-          {option.label}
+          {label}
         </button>
-      ))}
-    </div>
-  ),
-  SegmentedControl: ({ ariaLabel, value, options, onChange }: any) => (
-    <div role="group" aria-label={ariaLabel}>
-      {options.map((option: any) => (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => onChange(option.value)}
-          disabled={option.disabled}
-          aria-pressed={option.value === value}
-          aria-label={option.label}
-        >
-          {option.icon}
-          {option.label}
-        </button>
-      ))}
-    </div>
-  ),
-  DataTable: ({ children }: any) => <table><tbody>{children}</tbody></table>,
-  DataTableBody: ({ children }: any) => <>{children}</>,
-  DataTableCell: ({ children }: any) => <td>{children}</td>,
-  DataTableHead: ({ children }: any) => <>{children}</>,
-  DataTableHeaderCell: ({ children }: any) => <th>{children}</th>,
-  DataTableRow: ({ children, ...props }: any) => <tr {...props}>{children}</tr>,
-  EmptyStateRow: ({ message }: any) => <tr><td>{message}</td></tr>,
-  KeyboardNavigableTable: forwardRef<HTMLDivElement, any>(function KeyboardNavigableTableMock(
-    { children },
-    ref,
-  ) {
-    return <div ref={ref}>{children}</div>
-  }),
-  SortableHeaderCell: ({ label, onClick }: any) => <button type="button" onClick={onClick}>{label}</button>,
-  TableCard: ({ children }: any) => <div>{children}</div>,
-  Tooltip: ({ children, content }: any) => (
-    <span data-tooltip={typeof content === 'string' ? content : undefined}>{children}</span>
-  ),
-  useAppMessage: () => ({ showMessage: mockShowMessage, clearMessage: vi.fn() }),
-  useOverlayMessage: (...args: any[]) => mockUseOverlayMessage(...args),
-}))
+        {options.map((option: any) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={option.onSelect}
+            disabled={option.disabled}
+            aria-pressed={option.checked}
+            onMouseEnter={() => option.onHoverChange?.(true)}
+            onMouseLeave={() => option.onHoverChange?.(false)}
+            onFocus={() => option.onHoverChange?.(true)}
+            onBlur={() => option.onHoverChange?.(false)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    ),
+    SegmentedControl: ({ ariaLabel, value, options, onChange }: any) => (
+      <div role="group" aria-label={ariaLabel}>
+        {options.map((option: any) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            disabled={option.disabled}
+            aria-pressed={option.value === value}
+            aria-label={option.label}
+          >
+            {option.icon}
+            {option.label}
+          </button>
+        ))}
+      </div>
+    ),
+    DataTable: ({ children }: any) => <table><tbody>{children}</tbody></table>,
+    DataTableBody: ({ children }: any) => <>{children}</>,
+    DataTableCell: ({ children }: any) => <td>{children}</td>,
+    DataTableHead: ({ children }: any) => <>{children}</>,
+    DataTableHeaderCell: ({ children }: any) => <th>{children}</th>,
+    DataTableRow: ({ children, ...props }: any) => <tr {...props}>{children}</tr>,
+    EmptyStateRow: ({ message }: any) => <tr><td>{message}</td></tr>,
+    KeyboardNavigableTable: forwardRef<HTMLDivElement, any>(function KeyboardNavigableTableMock(
+      { children },
+      ref,
+    ) {
+      return <div ref={ref}>{children}</div>
+    }),
+    SortableHeaderCell: ({ label, onClick }: any) => <button type="button" onClick={onClick}>{label}</button>,
+    TableCard: ({ children }: any) => <div>{children}</div>,
+    Tooltip: ({ children, content }: any) => (
+      <span data-tooltip={typeof content === 'string' ? content : undefined}>{children}</span>
+    ),
+    useAppMessage: () => ({ showMessage: mockShowMessage, clearMessage: vi.fn() }),
+    useOverlayMessage: (...args: any[]) => mockUseOverlayMessage(...args),
+  }
+})
 
 vi.mock('@/hooks/useDelayedBusy', () => ({
   useDelayedBusy: (value: boolean) => value,

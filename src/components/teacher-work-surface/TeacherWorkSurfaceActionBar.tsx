@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { FloatingActionCluster } from '@/components/FloatingActionCluster'
-import { cn } from '@/ui/utils'
+import { cn } from '@/ui'
 
 interface TeacherWorkSurfaceActionBarProps {
   label?: ReactNode

@@ -149,10 +149,15 @@ describe('announcement markdown rendering', () => {
     await screen.findByRole('link', { name: 'course outline' })
 
     expect(screen.getByRole('button', { name: 'New announcement' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Announcement actions' }))
+    const actionsTrigger = screen.getByRole('button', { name: 'Announcement actions' })
+    expect(actionsTrigger).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(actionsTrigger)
 
     const menu = screen.getByRole('menu', { name: 'Announcement actions' })
+    const expandedTrigger = screen.getByRole('button', { name: 'Announcement actions' })
     expect(menu).toBeInTheDocument()
+    expect(expandedTrigger).toHaveAttribute('aria-expanded', 'true')
+    expect(expandedTrigger).toHaveAttribute('aria-controls', menu.id)
     expect(screen.getByRole('menuitem', { name: 'Announcement' })).toBeInTheDocument()
   })
 

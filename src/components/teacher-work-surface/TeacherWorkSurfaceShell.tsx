@@ -7,7 +7,7 @@ import {
   PageLayout,
   type ActionBarItem,
 } from '@/components/PageLayout'
-import { cn } from '@/ui/utils'
+import { cn } from '@/ui'
 
 export type TeacherWorkSurfaceState = 'summary' | 'workspace'
 export type TeacherWorkSurfaceWorkspaceFrame = 'attachedTabs' | 'standalone'

@@ -39,8 +39,14 @@ describe('TeacherWorkSurfaceActionCluster', () => {
       </TeacherWorkSurfaceActionCluster>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'New Classwork' }))
-    expect(screen.getByRole('menu', { name: 'New classwork' })).toBeInTheDocument()
+    const menuTrigger = screen.getByRole('button', { name: 'New Classwork' })
+    expect(menuTrigger).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(menuTrigger)
+    const menu = screen.getByRole('menu', { name: 'New classwork' })
+    const expandedMenuTrigger = screen.getByRole('button', { name: 'New Classwork' })
+    expect(menu).toBeInTheDocument()
+    expect(expandedMenuTrigger).toHaveAttribute('aria-expanded', 'true')
+    expect(expandedMenuTrigger).toHaveAttribute('aria-controls', menu.id)
     expect(screen.getByRole('menuitem', { name: 'Assignment' })).toBeInTheDocument()
     expect(screen.queryByText('Work students complete')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('menuitem', { name: /Assignment/ }))

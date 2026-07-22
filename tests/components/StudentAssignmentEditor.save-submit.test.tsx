@@ -73,26 +73,30 @@ vi.mock('@/components/editor', () => ({
   RichTextViewer: () => <div data-testid="rich-text-viewer" />,
 }))
 
-vi.mock('@/ui', () => ({
-  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  ConfirmDialog: ({
-    isOpen,
-    title,
-    description,
-    confirmLabel,
-    isCancelDisabled,
-    isConfirmDisabled,
-    onCancel,
-    onConfirm,
-  }: any) => isOpen ? (
-    <div role="dialog" aria-modal="true" aria-label={title}>
-      <p>{description}</p>
-      <button type="button" disabled={isCancelDisabled} onClick={onCancel}>Cancel</button>
-      <button type="button" disabled={isConfirmDisabled} onClick={onConfirm}>{confirmLabel}</button>
-    </div>
-  ) : null,
-  Tooltip: ({ children }: any) => <>{children}</>,
-}))
+vi.mock('@/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/ui')>()
+  return {
+    ...actual,
+    Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+    ConfirmDialog: ({
+      isOpen,
+      title,
+      description,
+      confirmLabel,
+      isCancelDisabled,
+      isConfirmDisabled,
+      onCancel,
+      onConfirm,
+    }: any) => isOpen ? (
+      <div role="dialog" aria-modal="true" aria-label={title}>
+        <p>{description}</p>
+        <button type="button" disabled={isCancelDisabled} onClick={onCancel}>Cancel</button>
+        <button type="button" disabled={isConfirmDisabled} onClick={onConfirm}>{confirmLabel}</button>
+      </div>
+    ) : null,
+    Tooltip: ({ children }: any) => <>{children}</>,
+  }
+})
 
 function makeAssignment() {
   return {

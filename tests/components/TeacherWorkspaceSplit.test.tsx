@@ -17,7 +17,10 @@ describe('TeacherWorkspaceSplit', () => {
 
     expect(screen.getByText('Student table')).toBeInTheDocument()
     expect(screen.getByText('Inspector pane')).toBeInTheDocument()
-    expect(screen.getByRole('separator', { name: 'Resize table and grading panes' })).toBeInTheDocument()
+    const separator = screen.getByRole('separator', { name: 'Resize table and grading panes' })
+    expect(separator).toBeInTheDocument()
+    expect(separator).toHaveAttribute('aria-orientation', 'vertical')
+    expect(separator).toHaveAttribute('aria-valuenow', '42')
   })
 
   it('hides the inspector and divider while preserving the primary pane when collapsed', () => {

@@ -7,7 +7,7 @@ import { Spinner } from '@/components/Spinner'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import type { Announcement, Classroom } from '@/types'
 import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
-import { cn } from '@/ui/utils'
+import { cn } from '@/ui'
 import { normalizeAnnouncementTitle, sortAnnouncementsNewestFirst } from '@/lib/announcements'
 
 interface Props {

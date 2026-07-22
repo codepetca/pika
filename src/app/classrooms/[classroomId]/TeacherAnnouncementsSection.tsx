@@ -14,7 +14,7 @@ import {
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import type { Announcement, Classroom } from '@/types'
 import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
-import { cn } from '@/ui/utils'
+import { cn } from '@/ui'
 import {
   ANNOUNCEMENT_TITLE_MAX_LENGTH,
   normalizeAnnouncementTitle,

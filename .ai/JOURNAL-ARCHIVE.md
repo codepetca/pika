@@ -14065,3 +14065,22 @@
 - Pika pre-commit audit
 - Local-only Playwright matrix with no overflow; intentional restore failure reused the same idempotency key on retry
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:84335729f92865f7e6cca37d5e8ae7eb1b3c103a0053d91894ebabc5de1a9af8 -->
+## 2026-07-13 — Archive recovery PR review consistency fix
+
+**Completed:**
+- Re-reviewed the local full-stack recovery drill and teacher cold-archive recovery PRs before merge; the drill had no findings.
+- Fixed the teacher archive read model so independent PostgREST snapshots cannot combine a pre-transition hot row with a post-transition tombstone, or omit both sides during restore.
+- Added a bounded stable-read protocol that brackets the hot query with validated tombstone snapshots, retries the complete read once on lifecycle movement, and returns `503` if state does not stabilize.
+- Preserved the missing-migration hot-only fallback, teacher scoping, restore gates, and existing client response contract. No production database, migration, row, object, environment, or schedule was read or modified.
+
+**Validation:**
+- Focused archived-state server/API suites (2 files / 20 tests)
+- Full Vitest suite (338 files / 3,015 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika pre-commit audit
+- `git diff --check`
+- CI pending after push

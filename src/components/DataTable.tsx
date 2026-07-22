@@ -11,4 +11,4 @@ export {
   TableCard,
   type DataTableDensity,
   type SortDirection,
-} from '@/ui/DataTable'
+} from '@/ui'
