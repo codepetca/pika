@@ -924,6 +924,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Corrected seven full `@/ui` test mocks to preserve unmocked barrel exports after the full suite exposed their hidden coupling.
 - Added direct semantic coverage for calendar navigation, creation dialogs, multiple-choice review states, announcement menus, edit toggles, split panes, and teacher action menus.
 - No runtime UI behavior, schema, migration, API contract, production state, or data changed; visual verification is not required for this import/tooling-only slice.
+- Opened PR #905 for independent review.
 
 **Validation:**
 - `pnpm test --run` (full repository suite)
