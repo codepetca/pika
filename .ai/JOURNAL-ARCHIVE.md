@@ -14066,7 +14066,7 @@
 - Local-only Playwright matrix with no overflow; intentional restore failure reused the same idempotency key on retry
 - `git diff --check`
 
-<!-- pika-session-log-archive-batch:84335729f92865f7e6cca37d5e8ae7eb1b3c103a0053d91894ebabc5de1a9af8 -->
+<!-- pika-session-log-archive-batch:4ef93c8a4da35c4311cd071aa42407a65fb7136c1df09b5802fcb552e0ab0c31 -->
 ## 2026-07-13 — Archive recovery PR review consistency fix
 
 **Completed:**

@@ -23,6 +23,7 @@ describe('gradeStudentWork prompt rules', () => {
       json: async () => ({
         output_text:
           '{"score_completion":8,"score_thinking":7,"score_workflow":8,"feedback":"Strength: Clear structure and complete sections. Next Step: tighten evidence-to-claim links. Improve: Add one concrete example in your analysis paragraph."}',
+        usage: { input_tokens: 120, output_tokens: 40, total_tokens: 160 },
       }),
     })
 
@@ -45,6 +46,16 @@ describe('gradeStudentWork prompt rules', () => {
     expect(result.score_workflow).toBe(8)
     expect(result.feedback).toContain('Strength:')
     expect(result.feedback).toContain('Next Step:')
+    expect(result.grading_profile_version).toBe('pika-assignment-v1')
+    expect(result.rubric_version).toBe('pika-essay-ctw-v1')
+    expect(result.prompt_version).toBe('pika-assignment-prompt-v1')
+    expect(result.policy_version).toBe('pika-grading-policy-v1')
+    expect(result.provider).toBe('openai')
+    expect(result.token_usage).toEqual({
+      input_tokens: 120,
+      output_tokens: 40,
+      total_tokens: 160,
+    })
 
     const gradingRequest = fetchMock.mock.calls[0]?.[1]
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
@@ -277,6 +288,7 @@ describe('gradeStudentWork prompt rules', () => {
           status: 'incomplete',
           incomplete_details: { reason: 'max_output_tokens' },
           output: [{ type: 'reasoning', summary: [] }],
+          usage: { input_tokens: 100, output_tokens: 20, total_tokens: 120 },
         }),
       })
       .mockResolvedValueOnce({
@@ -296,6 +308,7 @@ describe('gradeStudentWork prompt rules', () => {
               ],
             },
           ],
+          usage: { input_tokens: 110, output_tokens: 30, total_tokens: 140 },
         }),
       })
 
@@ -322,6 +335,59 @@ describe('gradeStudentWork prompt rules', () => {
     expect(secondBody.max_output_tokens).toBe(420)
     expect(firstBody.reasoning).toEqual({ effort: 'minimal' })
     expect(secondBody.reasoning).toEqual({ effort: 'minimal' })
+    expect(result.provider_request_count).toBe(2)
+    expect(result.token_usage).toEqual({
+      input_tokens: 210,
+      output_tokens: 50,
+      total_tokens: 260,
+    })
+  })
+
+  it('keeps rate-limit failures retryable through the compatibility boundary', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      text: async () => 'rate limited',
+    })
+
+    await expect(gradeStudentWork({
+      assignmentTitle: 'Reflection',
+      instructions: 'Write a reflection.',
+      studentWork: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'My response.' }] }],
+      },
+    })).rejects.toMatchObject({
+      name: 'AssignmentAiGradingError',
+      kind: 'rate_limit',
+      retryable: true,
+      statusCode: 429,
+    })
+  })
+
+  it('classifies schema-invalid provider output as non-retryable invalid output', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_text:
+          '{"score_completion":12,"score_thinking":7,"score_workflow":8,"feedback":"Feedback"}',
+      }),
+    })
+
+    await expect(gradeStudentWork({
+      assignmentTitle: 'Reflection',
+      instructions: 'Write a reflection.',
+      studentWork: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'My response.' }] }],
+      },
+    })).rejects.toMatchObject({
+      name: 'AssignmentAiGradingError',
+      kind: 'invalid_output',
+      retryable: false,
+    })
   })
 })
 
