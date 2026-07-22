@@ -97,7 +97,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   onDateChange,
   isActive = true,
 }: Props, ref) {
-  const { classDays, isLoading: classDaysLoading } = useClassDaysContext()
+  const {
+    classDays,
+    error: classDaysError,
+    hasLoadedSnapshot: hasClassDaysSnapshot,
+    isLoading: classDaysLoading,
+    refresh: refreshClassDays,
+  } = useClassDaysContext()
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -159,11 +165,11 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
   // Set initial date once class days are loaded from context
   useEffect(() => {
-    if (classDaysLoading) return
+    if (classDaysLoading || (classDaysError && !hasClassDaysSnapshot)) return
     if (selectedDate) return // Already initialized
     setSelectedDate(lastClassDate || addDaysToDateString(today, -1))
     // Do NOT setLoading(false) here — the logs fetch (Effect 3) handles it
-  }, [classDaysLoading, lastClassDate, selectedDate, today])
+  }, [classDaysError, classDaysLoading, hasClassDaysSnapshot, lastClassDate, selectedDate, today])
 
   useEffect(() => {
     function handleVisibilityChange() {
@@ -749,7 +755,19 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     </div>
   )
 
-  const workspace = loading ? (
+  const workspaceContent = classDaysError && !hasClassDaysSnapshot ? (
+    <PageState
+      kind="error"
+      title="Class schedule unavailable"
+      description={classDaysError}
+      compact
+      action={(
+        <Button type="button" onClick={() => void refreshClassDays()}>
+          Try again
+        </Button>
+      )}
+    />
+  ) : loading ? (
     showBlockingSpinner ? (
       <div className="flex justify-center py-12">
         <Spinner size="lg" />
@@ -880,6 +898,18 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       </div>
     )
   )
+
+  const workspace = classDaysError && hasClassDaysSnapshot ? (
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-4 py-3">
+        <p className="text-sm text-danger">The latest class schedule could not be loaded.</p>
+        <Button type="button" size="sm" variant="secondary" onClick={() => void refreshClassDays()}>
+          Try again
+        </Button>
+      </div>
+      {workspaceContent}
+    </div>
+  ) : workspaceContent
 
   return (
     <TeacherWorkSurfaceShell

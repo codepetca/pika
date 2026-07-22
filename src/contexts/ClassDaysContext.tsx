@@ -10,6 +10,8 @@ import {
 
 interface ClassDaysContextValue {
   classDays: ClassDay[]
+  error: string | null
+  hasLoadedSnapshot: boolean
   isLoading: boolean
   refresh: () => Promise<void>
 }
@@ -26,13 +28,28 @@ interface ClassDaysProviderProps {
  * Centralizes fetching and event listening to avoid multiple listeners.
  */
 export function ClassDaysProvider({ classroomId, children }: ClassDaysProviderProps) {
+  return (
+    <ClassDaysProviderState key={classroomId} classroomId={classroomId}>
+      {children}
+    </ClassDaysProviderState>
+  )
+}
+
+function ClassDaysProviderState({ classroomId, children }: ClassDaysProviderProps) {
   const [classDays, setClassDays] = useState<ClassDay[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [hasLoadedSnapshot, setHasLoadedSnapshot] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const loadSequenceRef = useRef(0)
+  const hasLoadedDataRef = useRef(false)
 
   const loadClassDays = useCallback(async (options?: { force?: boolean }) => {
     const loadSequence = loadSequenceRef.current + 1
     loadSequenceRef.current = loadSequence
+    setError(null)
+    if (!hasLoadedDataRef.current) {
+      setIsLoading(true)
+    }
 
     try {
       if (options?.force) {
@@ -40,11 +57,15 @@ export function ClassDaysProvider({ classroomId, children }: ClassDaysProviderPr
       }
       const nextClassDays = await fetchClassDaysForClassroom(classroomId)
       if (loadSequenceRef.current === loadSequence) {
+        hasLoadedDataRef.current = true
+        setHasLoadedSnapshot(true)
         setClassDays(nextClassDays)
+        setError(null)
       }
     } catch (err) {
       if (loadSequenceRef.current === loadSequence) {
         console.error('Error loading class days:', err)
+        setError('The class schedule could not be loaded.')
       }
     } finally {
       if (loadSequenceRef.current === loadSequence) {
@@ -56,7 +77,10 @@ export function ClassDaysProvider({ classroomId, children }: ClassDaysProviderPr
   // Initial load
   useEffect(() => {
     loadSequenceRef.current += 1
+    hasLoadedDataRef.current = false
     setClassDays([])
+    setError(null)
+    setHasLoadedSnapshot(false)
     setIsLoading(true)
     loadClassDays()
   }, [loadClassDays])
@@ -76,7 +100,13 @@ export function ClassDaysProvider({ classroomId, children }: ClassDaysProviderPr
   }, [classroomId, loadClassDays])
 
   return (
-    <ClassDaysContext.Provider value={{ classDays, isLoading, refresh: () => loadClassDays({ force: true }) }}>
+    <ClassDaysContext.Provider value={{
+      classDays,
+      error,
+      hasLoadedSnapshot,
+      isLoading,
+      refresh: () => loadClassDays({ force: true }),
+    }}>
       {children}
     </ClassDaysContext.Provider>
   )

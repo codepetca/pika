@@ -31,13 +31,18 @@ const classDaysMock = vi.hoisted(() => ({
       is_class_day: true,
     },
   ],
+  error: null as string | null,
+  hasLoadedSnapshot: true,
+  isLoading: false,
   refresh: vi.fn(),
 }))
 
 vi.mock('@/hooks/useClassDays', () => ({
   useClassDaysContext: () => ({
     classDays: classDaysMock.classDays,
-    isLoading: false,
+    error: classDaysMock.error,
+    hasLoadedSnapshot: classDaysMock.hasLoadedSnapshot,
+    isLoading: classDaysMock.isLoading,
     refresh: classDaysMock.refresh,
   }),
 }))
@@ -182,6 +187,9 @@ describe('TeacherAttendanceTab', () => {
     cleanup()
     todayMock.today = '2026-05-06'
     classDaysMock.classDays = [...classDaysMock.defaultClassDays]
+    classDaysMock.error = null
+    classDaysMock.hasLoadedSnapshot = true
+    classDaysMock.isLoading = false
     classDaysMock.refresh.mockReset()
     vi.unstubAllGlobals()
   })
@@ -272,6 +280,41 @@ describe('TeacherAttendanceTab', () => {
     expect(await screen.findByText('No students enrolled')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     consoleError.mockRestore()
+  })
+
+  it('shows a retryable schedule error instead of treating failed class days as a non-class day', async () => {
+    classDaysMock.classDays = []
+    classDaysMock.error = 'The class schedule could not be loaded.'
+    classDaysMock.hasLoadedSnapshot = false
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<TeacherAttendanceTab classroom={classroom} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Class schedule unavailable')
+    expect(screen.queryByText('Not a class day')).not.toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(classDaysMock.refresh).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the attendance table visible when a schedule refresh fails', async () => {
+    const fetchMock = mockLogsFetch()
+    const view = render(<TeacherAttendanceTab classroom={classroom} />)
+
+    expect(await screen.findByText(longLogText)).toBeInTheDocument()
+
+    classDaysMock.error = 'The class schedule could not be loaded.'
+    classDaysMock.hasLoadedSnapshot = true
+    view.rerender(<TeacherAttendanceTab classroom={classroom} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The latest class schedule could not be loaded.'
+    )
+    expect(screen.getByText(longLogText)).toBeInTheDocument()
+    expect(screen.queryByText('Class schedule unavailable')).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('moves quickly between today and the last class day from the date picker cluster', async () => {

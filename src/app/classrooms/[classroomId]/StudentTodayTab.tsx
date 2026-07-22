@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Button } from '@/ui'
+import { Button, PageState } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
 import { PageContent, PageLayout, PageStack } from '@/components/PageLayout'
@@ -67,7 +67,13 @@ interface StudentTodayTabProps {
 
 export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }: StudentTodayTabProps) {
   const notifications = useStudentNotifications()
-  const { classDays } = useClassDaysContext()
+  const {
+    classDays,
+    error: classDaysError,
+    hasLoadedSnapshot: hasClassDaysSnapshot,
+    isLoading: classDaysLoading,
+    refresh: refreshClassDays,
+  } = useClassDaysContext()
 
   // Constants
   const historyLimit = 12
@@ -77,6 +83,9 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
 
   // State
   const [loading, setLoading] = useState(true)
+  const [entriesError, setEntriesError] = useState<string | null>(null)
+  const [entriesRequestVersion, setEntriesRequestVersion] = useState(0)
+  const [entriesSnapshotClassroomId, setEntriesSnapshotClassroomId] = useState<string | null>(null)
   const [today, setToday] = useState('')
   const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
   const [historyEntries, setHistoryEntries] = useState<Entry[]>([])
@@ -99,6 +108,7 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
   const hasLocalEditSinceLoadRef = useRef(false)
   const loadRequestIdRef = useRef(0)
   const currentClassroomIdRef = useRef(classroom.id)
+  const entriesSnapshotClassroomIdRef = useRef<string | null>(null)
   currentClassroomIdRef.current = classroom.id
 
   useEffect(() => {
@@ -106,12 +116,18 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
       const requestId = loadRequestIdRef.current + 1
       loadRequestIdRef.current = requestId
       const requestedClassroomId = classroom.id
+      const hasCurrentSnapshot = entriesSnapshotClassroomIdRef.current === requestedClassroomId
       const isCurrentLoad = () => (
         loadRequestIdRef.current === requestId &&
         currentClassroomIdRef.current === requestedClassroomId
       )
 
-      setLoading(true)
+      setEntriesError(null)
+      if (!hasCurrentSnapshot) {
+        setLoading(true)
+        setHistoryEntries([])
+        setEntriesSnapshotClassroomId(null)
+      }
       try {
         const todayDate = getTodayInToronto()
         todayRef.current = todayDate
@@ -192,12 +208,16 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
           setHistoryEntries(cached)
           const todayEntry = cached.find((e: Entry) => e.date === todayDate) || null
           applyEntryState(todayEntry)
+          entriesSnapshotClassroomIdRef.current = requestedClassroomId
+          setEntriesSnapshotClassroomId(requestedClassroomId)
           setLoading(false)
         }
 
         const entriesPromise = fetchStudentEntriesForClassroom(requestedClassroomId, { limit: historyLimit })
           .then(entries => {
             if (!isCurrentLoad()) return
+            entriesSnapshotClassroomIdRef.current = requestedClassroomId
+            setEntriesSnapshotClassroomId(requestedClassroomId)
             if (hasLocalEditSinceLoadRef.current) {
               setHistoryEntries(prev => {
                 if (!isCurrentLoad()) return prev
@@ -218,7 +238,9 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
 
         await Promise.all([entriesPromise, lessonPlanPromise])
       } catch (err) {
+        if (!isCurrentLoad()) return
         console.error('Error loading today tab:', err)
+        setEntriesError('The daily log could not be loaded.')
       } finally {
         if (loadRequestIdRef.current === requestId && currentClassroomIdRef.current === requestedClassroomId) {
           setLoading(false)
@@ -237,7 +259,16 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
         clearTimeout(throttledSaveTimeoutRef.current)
       }
     }
-  }, [classroom.id, historyLimit, onLessonPlanLoad])
+  }, [classroom.id, entriesRequestVersion, historyLimit, onLessonPlanLoad])
+
+  const retryEntries = useCallback(() => {
+    invalidateStudentEntriesForClassroom(classroom.id)
+    setEntriesError(null)
+    if (entriesSnapshotClassroomIdRef.current !== classroom.id) {
+      setLoading(true)
+    }
+    setEntriesRequestVersion((version) => version + 1)
+  }, [classroom.id])
 
   const updateHistoryEntries = useCallback((entry: Entry) => {
     setHistoryEntries(prev => {
@@ -544,12 +575,46 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
   }, [conflictEntry, content, saveContent])
 
   const isClassDay = today ? isClassDayOnDate(classDays, today) : true
+  const hasCurrentEntriesSnapshot = entriesSnapshotClassroomId === classroom.id
 
-  if (loading) {
+  const blockingState = classDaysError && !hasClassDaysSnapshot ? (
+    <PageState
+      kind="error"
+      title="Class schedule unavailable"
+      description={classDaysError}
+      compact
+      action={(
+        <Button type="button" onClick={() => void refreshClassDays()}>
+          Try again
+        </Button>
+      )}
+    />
+  ) : entriesError && !hasCurrentEntriesSnapshot ? (
+    <PageState
+      kind="error"
+      title="Daily log unavailable"
+      description={entriesError}
+      compact
+      action={(
+        <Button type="button" onClick={retryEntries}>
+          Try again
+        </Button>
+      )}
+    />
+  ) : loading || classDaysLoading || !hasCurrentEntriesSnapshot ? (
+    <div className="flex justify-center py-12">
+      <Spinner size="lg" />
+    </div>
+  ) : null
+
+  if (blockingState) {
+    if (layout === 'pane') {
+      return <div className="h-full min-h-0 overflow-y-auto">{blockingState}</div>
+    }
     return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
+      <PageLayout>
+        <PageContent>{blockingState}</PageContent>
+      </PageLayout>
     )
   }
 
@@ -569,6 +634,22 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
 
   const todayContent = (
     <PageStack>
+      {classDaysError && hasClassDaysSnapshot && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-4 py-3">
+          <p className="text-sm text-danger">The latest class schedule could not be loaded.</p>
+          <Button type="button" size="sm" variant="secondary" onClick={() => void refreshClassDays()}>
+            Try again
+          </Button>
+        </div>
+      )}
+      {entriesError && hasCurrentEntriesSnapshot && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-4 py-3">
+          <p className="text-sm text-danger">The latest daily log could not be loaded.</p>
+          <Button type="button" size="sm" variant="secondary" onClick={retryEntries}>
+            Try again
+          </Button>
+        </div>
+      )}
       <div className="bg-surface rounded-lg border border-border p-6">
         {!isClassDay ? (
           <div className="bg-page border border-border rounded-lg p-4 text-center">
@@ -581,6 +662,9 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
                 What did you do today?
               </label>
               <span
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
                 className={
                   'text-sm ' +
                   (saveStatus === 'saved'
@@ -605,7 +689,7 @@ export function StudentTodayTab({ classroom, layout = 'page', onLessonPlanLoad }
 
             {saveError && (
               <div className="space-y-2">
-                <p className="text-sm text-danger">{saveError}</p>
+                <p role="alert" className="text-sm text-danger">{saveError}</p>
                 {conflictEntry && (
                   <div className="flex flex-wrap gap-2">
                     <Button type="button" size="sm" variant="secondary" onClick={resolveConflict}>
