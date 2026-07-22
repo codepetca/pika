@@ -1,5 +1,6 @@
 import type { Operation } from 'fast-json-patch'
 import type { ClassroomThemeColor } from '@/lib/classroom-theme'
+import type { GradingProvenance } from '@/lib/grading/contracts'
 
 export type UserRole = 'student' | 'teacher'
 
@@ -279,6 +280,7 @@ export interface AssignmentDoc {
   ai_feedback_suggestion: string | null
   ai_feedback_suggested_at: string | null
   ai_feedback_model: string | null
+  ai_grading_provenance?: GradingProvenance | null
   teacher_cleared_at: string | null
   graded_at: string | null
   graded_by: string | null

@@ -133,6 +133,34 @@ begin
 
   if has_function_privilege(
     'anon',
+    'public.save_assignment_ai_grade_with_provenance_atomic(uuid,uuid,uuid,timestamp with time zone,integer,integer,integer,text,boolean,boolean,text,text,jsonb,text,timestamp with time zone)',
+    'execute'
+  ) or has_function_privilege(
+    'authenticated',
+    'public.save_assignment_ai_grade_with_provenance_atomic(uuid,uuid,uuid,timestamp with time zone,integer,integer,integer,text,boolean,boolean,text,text,jsonb,text,timestamp with time zone)',
+    'execute'
+  ) or not has_function_privilege(
+    'service_role',
+    'public.save_assignment_ai_grade_with_provenance_atomic(uuid,uuid,uuid,timestamp with time zone,integer,integer,integer,text,boolean,boolean,text,text,jsonb,text,timestamp with time zone)',
+    'execute'
+  ) or has_function_privilege(
+    'anon',
+    'public.finalize_assignment_ai_grading_item_with_provenance_atomic(uuid,uuid,integer,integer,integer,text,boolean,boolean,text,text,jsonb,text,integer,text,text,timestamp with time zone)',
+    'execute'
+  ) or has_function_privilege(
+    'authenticated',
+    'public.finalize_assignment_ai_grading_item_with_provenance_atomic(uuid,uuid,integer,integer,integer,text,boolean,boolean,text,text,jsonb,text,integer,text,text,timestamp with time zone)',
+    'execute'
+  ) or not has_function_privilege(
+    'service_role',
+    'public.finalize_assignment_ai_grading_item_with_provenance_atomic(uuid,uuid,integer,integer,integer,text,boolean,boolean,text,text,jsonb,text,integer,text,text,timestamp with time zone)',
+    'execute'
+  ) then
+    raise exception 'Unexpected assignment AI provenance RPC privileges';
+  end if;
+
+  if has_function_privilege(
+    'anon',
     'public.save_assignment_ai_grades_atomic(uuid,uuid,jsonb,timestamp with time zone)',
     'execute'
   ) or has_function_privilege(
@@ -576,6 +604,12 @@ if [[ "$AI_RUN_COUNT" != "0" ]]; then
 fi
 
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
+  "update public.assignment_docs
+   set ai_grading_provenance = '{\"schemaVersion\":\"assignment-grading-provenance-v1\",\"provider\":\"openai\",\"model\":\"old-model\",\"policyVersion\":\"old-policy\",\"promptVersion\":\"old-prompt\",\"gradingProfileVersion\":\"old-profile\",\"rubricVersion\":\"old-rubric\",\"providerRequestCount\":1,\"tokenUsage\":{\"inputTokens\":10,\"outputTokens\":5,\"totalTokens\":15}}'::jsonb
+   where assignment_id = 'd0000000-0000-4000-8000-000000000016'
+     and student_id = 'd0000000-0000-4000-8000-000000000005';" >/dev/null
+
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 -Atc \
   "select public.create_assignment_ai_grading_run_atomic(
     'd0000000-0000-4000-8000-000000000016',
     'd0000000-0000-4000-8000-000000000001',
@@ -668,8 +702,54 @@ declare
   v_score integer;
   v_run_id uuid;
   v_item_id uuid;
+  v_legacy_item_id uuid;
   v_item_status text;
+  v_provenance jsonb;
 begin
+  select updated_at into v_expected
+  from public.assignment_docs
+  where assignment_id = 'd0000000-0000-4000-8000-000000000017'
+    and student_id = 'd0000000-0000-4000-8000-000000000003';
+
+  perform public.save_assignment_ai_grade_with_provenance_atomic(
+    'd0000000-0000-4000-8000-000000000017',
+    'd0000000-0000-4000-8000-000000000003',
+    'd0000000-0000-4000-8000-000000000001',
+    v_expected,
+    8, 7, 9, 'Direct provenance grade', true, true,
+    'Direct provenance grade', 'test-model',
+    '{"schemaVersion":"assignment-grading-provenance-v1","provider":"openai","model":"test-model","policyVersion":"policy-v1","promptVersion":"prompt-v1","gradingProfileVersion":"profile-v1","rubricVersion":"rubric-v1","providerRequestCount":1,"tokenUsage":{"inputTokens":10,"outputTokens":5,"totalTokens":15}}'::jsonb,
+    'teacher', now()
+  );
+
+  select ai_grading_provenance into v_provenance
+  from public.assignment_docs
+  where assignment_id = 'd0000000-0000-4000-8000-000000000017'
+    and student_id = 'd0000000-0000-4000-8000-000000000003';
+  if v_provenance->>'gradingProfileVersion' <> 'profile-v1' then
+    raise exception 'Direct AI grading provenance did not survive persistence: %', v_provenance;
+  end if;
+
+  select updated_at into v_expected
+  from public.assignment_docs
+  where assignment_id = 'd0000000-0000-4000-8000-000000000017'
+    and student_id = 'd0000000-0000-4000-8000-000000000003';
+  perform public.save_assignment_ai_grade_atomic(
+    'd0000000-0000-4000-8000-000000000017',
+    'd0000000-0000-4000-8000-000000000003',
+    'd0000000-0000-4000-8000-000000000001',
+    v_expected,
+    7, 7, 7, 'Old direct writer', true, true,
+    'Old direct writer', 'old-model', 'teacher', now()
+  );
+  select ai_grading_provenance into v_provenance
+  from public.assignment_docs
+  where assignment_id = 'd0000000-0000-4000-8000-000000000017'
+    and student_id = 'd0000000-0000-4000-8000-000000000003';
+  if v_provenance is not null then
+    raise exception 'Old direct AI writer retained stale provenance: %', v_provenance;
+  end if;
+
   select updated_at, score_completion into v_expected, v_score
   from public.assignment_docs
   where assignment_id = 'd0000000-0000-4000-8000-000000000017'
@@ -742,6 +822,60 @@ begin
     raise exception 'Null-score rejection mutated the assignment grade';
   end if;
 
+  update public.assignment_docs
+  set ai_grading_provenance = '{"schemaVersion":"assignment-grading-provenance-v1","provider":"openai","model":"old-model","policyVersion":"old-policy","promptVersion":"old-prompt","gradingProfileVersion":"old-profile","rubricVersion":"old-rubric","providerRequestCount":1,"tokenUsage":{"inputTokens":10,"outputTokens":5,"totalTokens":15}}'::jsonb
+  where assignment_id = 'd0000000-0000-4000-8000-000000000017'
+    and student_id = 'd0000000-0000-4000-8000-000000000002';
+  select updated_at into v_expected
+  from public.assignment_docs
+  where assignment_id = 'd0000000-0000-4000-8000-000000000017'
+    and student_id = 'd0000000-0000-4000-8000-000000000002';
+  perform public.save_assignment_ai_grades_atomic(
+    'd0000000-0000-4000-8000-000000000017',
+    'd0000000-0000-4000-8000-000000000001',
+    jsonb_build_array(jsonb_build_object(
+      'student_id', 'd0000000-0000-4000-8000-000000000002',
+      'expected_doc_updated_at', v_expected,
+      'score_completion', 6,
+      'score_thinking', 6,
+      'score_workflow', 6,
+      'feedback', 'Old batch writer',
+      'apply_teacher_feedback_draft', true,
+      'mark_graded', true,
+      'ai_feedback_suggestion', 'Old batch writer',
+      'ai_feedback_model', 'old-model',
+      'graded_by', 'teacher'
+    )),
+    now()
+  );
+  select ai_grading_provenance into v_provenance
+  from public.assignment_docs
+  where assignment_id = 'd0000000-0000-4000-8000-000000000017'
+    and student_id = 'd0000000-0000-4000-8000-000000000002';
+  if v_provenance is not null then
+    raise exception 'Old batch AI writer retained stale provenance: %', v_provenance;
+  end if;
+
+  select item.id into v_legacy_item_id
+  from public.assignment_ai_grading_run_items item
+  where item.assignment_id = 'd0000000-0000-4000-8000-000000000016';
+  update public.assignment_ai_grading_run_items
+  set status = 'processing'
+  where id = v_legacy_item_id;
+  perform public.finalize_assignment_ai_grading_item_atomic(
+    v_legacy_item_id,
+    'd0000000-0000-4000-8000-000000000001',
+    6, 7, 8, 'Old durable writer', true, true,
+    'Old durable writer', 'old-model', 'teacher', 1, 'completed', null, now()
+  );
+  select doc.ai_grading_provenance into v_provenance
+  from public.assignment_ai_grading_run_items item
+  join public.assignment_docs doc on doc.id = item.assignment_doc_id
+  where item.id = v_legacy_item_id;
+  if v_provenance is not null then
+    raise exception 'Old durable AI writer retained stale provenance: %', v_provenance;
+  end if;
+
   select id into v_run_id
   from public.create_assignment_ai_grading_run_atomic(
     'd0000000-0000-4000-8000-000000000019',
@@ -797,27 +931,68 @@ begin
     raise exception 'Failed AI item finalization changed item state';
   end if;
 
-  perform public.finalize_assignment_ai_grading_item_atomic(
+  perform public.finalize_assignment_ai_grading_item_with_provenance_atomic(
     v_item_id,
     'd0000000-0000-4000-8000-000000000001',
     8, 7, 9, 'Atomic item grade', true, true,
-    'Atomic item grade', 'test-model', 'teacher', 1, 'completed', null, now()
+    'Atomic item grade', 'test-model',
+    '{"schemaVersion":"assignment-grading-provenance-v1","provider":"openai","model":"test-model","policyVersion":"policy-v1","promptVersion":"prompt-v1","gradingProfileVersion":"profile-v1","rubricVersion":"rubric-v1","providerRequestCount":1,"tokenUsage":{"inputTokens":10,"outputTokens":5,"totalTokens":15}}'::jsonb,
+    'teacher', 1, 'completed', null, now()
   );
 
-  perform public.finalize_assignment_ai_grading_item_atomic(
+  perform public.finalize_assignment_ai_grading_item_with_provenance_atomic(
     v_item_id,
     'd0000000-0000-4000-8000-000000000001',
     2, 2, 2, 'Replay must not overwrite', true, true,
-    'Replay must not overwrite', 'test-model', 'teacher', 2, 'completed', null, now()
+    'Replay must not overwrite', 'test-model',
+    '{"schemaVersion":"assignment-grading-provenance-v1","provider":"openai","model":"test-model","policyVersion":"policy-v2","promptVersion":"prompt-v2","gradingProfileVersion":"profile-v2","rubricVersion":"rubric-v2","providerRequestCount":2,"tokenUsage":{"inputTokens":20,"outputTokens":10,"totalTokens":30}}'::jsonb,
+    'teacher', 2, 'completed', null, now()
   );
 
-  select item.status, doc.score_completion
-  into v_item_status, v_score
+  select item.status, doc.score_completion, doc.ai_grading_provenance
+  into v_item_status, v_score, v_provenance
   from public.assignment_ai_grading_run_items item
   join public.assignment_docs doc on doc.id = item.assignment_doc_id
   where item.id = v_item_id;
   if v_item_status <> 'completed' or v_score <> 8 then
     raise exception 'AI item finalization was not atomic and replay-safe';
+  end if;
+  if v_provenance->>'gradingProfileVersion' <> 'profile-v1' then
+    raise exception 'AI item provenance replay overwrote the original audit: %', v_provenance;
+  end if;
+
+  update public.assignment_docs
+  set ai_grading_provenance = '{"schemaVersion":"assignment-grading-provenance-v1","provider":"openai","model":"old-model","policyVersion":"old-policy","promptVersion":"old-prompt","gradingProfileVersion":"old-profile","rubricVersion":"old-rubric","providerRequestCount":1,"tokenUsage":{"inputTokens":10,"outputTokens":5,"totalTokens":15}}'::jsonb
+  where assignment_id = 'd0000000-0000-4000-8000-000000000012'
+    and student_id = 'd0000000-0000-4000-8000-000000000003';
+  perform public.create_assignment_ai_grading_run_atomic(
+    'd0000000-0000-4000-8000-000000000012',
+    'd0000000-0000-4000-8000-000000000001',
+    'old-model',
+    array['d0000000-0000-4000-8000-000000000003']::uuid[],
+    'missing-provenance-clear',
+    0, 0, 1,
+    jsonb_build_array(jsonb_build_object(
+      'student_id', 'd0000000-0000-4000-8000-000000000003',
+      'assignment_doc_id', (
+        select id from public.assignment_docs
+        where assignment_id = 'd0000000-0000-4000-8000-000000000012'
+          and student_id = 'd0000000-0000-4000-8000-000000000003'
+      ),
+      'queue_position', 0,
+      'status', 'skipped',
+      'skip_reason', 'empty_doc',
+      'attempt_count', 0,
+      'completed_at', now()
+    )),
+    now()
+  );
+  select ai_grading_provenance into v_provenance
+  from public.assignment_docs
+  where assignment_id = 'd0000000-0000-4000-8000-000000000012'
+    and student_id = 'd0000000-0000-4000-8000-000000000003';
+  if v_provenance is not null then
+    raise exception 'Missing-work writer retained stale provenance: %', v_provenance;
   end if;
 end;
 $contract$;

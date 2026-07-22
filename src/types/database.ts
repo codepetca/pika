@@ -2,6 +2,7 @@ import type {
   AssignmentSubmissionRequirementDraft,
   AssignmentSubmissionValidationPolicyJson,
 } from '@/lib/assignment-submission-requirements'
+import type { GradingProvenance } from '@/lib/grading/contracts'
 import type { Database as GeneratedDatabase, Json } from '@/types/database.generated'
 import type {
   ActualCourseSiteConfig,
@@ -107,8 +108,16 @@ type TableOverrides = {
   >
   assignment_docs: TableContract<
     'assignment_docs',
-    { authenticity_flags: AuthenticityFlag[] | null; content: TiptapContent },
-    { authenticity_flags?: AuthenticityFlag[] | null; content?: TiptapContent }
+    {
+      ai_grading_provenance: GradingProvenance | null
+      authenticity_flags: AuthenticityFlag[] | null
+      content: TiptapContent
+    },
+    {
+      ai_grading_provenance?: GradingProvenance | null
+      authenticity_flags?: AuthenticityFlag[] | null
+      content?: TiptapContent
+    }
   >
   assignment_repo_review_results: TableContract<
     'assignment_repo_review_results',
@@ -328,6 +337,17 @@ type FunctionOverrides = {
       p_skip_reason: string | null
     }>
   >
+  finalize_assignment_ai_grading_item_with_provenance_atomic: FunctionContract<
+    'finalize_assignment_ai_grading_item_with_provenance_atomic',
+    Json,
+    Replace<GeneratedFunctions['finalize_assignment_ai_grading_item_with_provenance_atomic']['Args'], {
+      p_ai_feedback_model: string | null
+      p_ai_feedback_suggestion: string | null
+      p_ai_grading_provenance: GradingProvenance | null
+      p_graded_by: string | null
+      p_skip_reason: string | null
+    }>
+  >
   finalize_test_ai_grading_item_atomic: FunctionContract<
     'finalize_test_ai_grading_item_atomic',
     Json,
@@ -382,6 +402,17 @@ type FunctionOverrides = {
     Replace<GeneratedFunctions['save_assignment_ai_grade_atomic']['Args'], {
       p_ai_feedback_model: string | null
       p_ai_feedback_suggestion: string | null
+      p_expected_doc_updated_at: string | null
+      p_graded_by: string | null
+    }>
+  >
+  save_assignment_ai_grade_with_provenance_atomic: FunctionContract<
+    'save_assignment_ai_grade_with_provenance_atomic',
+    Json,
+    Replace<GeneratedFunctions['save_assignment_ai_grade_with_provenance_atomic']['Args'], {
+      p_ai_feedback_model: string | null
+      p_ai_feedback_suggestion: string | null
+      p_ai_grading_provenance: GradingProvenance | null
       p_expected_doc_updated_at: string | null
       p_graded_by: string | null
     }>

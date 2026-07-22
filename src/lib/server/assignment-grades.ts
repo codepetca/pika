@@ -2,6 +2,7 @@ import { ApiError, apiErrors } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { ParsedAssignmentGradePayload } from '@/lib/validations/assignment-grading'
 import { assignmentGradeSaveResultSchema } from '@/lib/validations/assignment-grading'
+import type { GradingProvenance } from '@/lib/grading/contracts'
 import type { Json } from '@/types/database.generated'
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
@@ -38,6 +39,7 @@ export interface AssignmentAiGradeInput {
   markGraded?: boolean
   aiFeedbackSuggestion: string | null
   aiFeedbackModel: string | null
+  aiGradingProvenance?: GradingProvenance | null
   gradedBy?: string | null
 }
 
@@ -131,10 +133,11 @@ export async function saveAssignmentAiGradeAtomic(opts: {
   markGraded?: boolean
   aiFeedbackSuggestion: string | null
   aiFeedbackModel: string | null
+  aiGradingProvenance?: GradingProvenance | null
   gradedBy?: string | null
   now?: string
 }) {
-  const { data, error } = await opts.supabase.rpc('save_assignment_ai_grade_atomic', {
+  const { data, error } = await opts.supabase.rpc('save_assignment_ai_grade_with_provenance_atomic', {
     p_assignment_id: opts.assignmentId,
     p_student_id: opts.studentId,
     p_teacher_id: opts.teacherId,
@@ -147,6 +150,7 @@ export async function saveAssignmentAiGradeAtomic(opts: {
     p_mark_graded: opts.markGraded ?? true,
     p_ai_feedback_suggestion: opts.aiFeedbackSuggestion,
     p_ai_feedback_model: opts.aiFeedbackModel,
+    p_ai_grading_provenance: opts.aiGradingProvenance ?? null,
     p_graded_by: opts.gradedBy ?? null,
     p_now: opts.now ?? new Date().toISOString(),
   })
@@ -182,7 +186,7 @@ export async function finalizeAssignmentAiGradingItemAtomic(opts: {
   skipReason?: 'missing_doc' | 'empty_doc' | null
   now?: string
 }) {
-  const { data, error } = await opts.supabase.rpc('finalize_assignment_ai_grading_item_atomic', {
+  const { data, error } = await opts.supabase.rpc('finalize_assignment_ai_grading_item_with_provenance_atomic', {
     p_item_id: opts.itemId,
     p_teacher_id: opts.teacherId,
     p_score_completion: opts.grade.scoreCompletion,
@@ -193,6 +197,7 @@ export async function finalizeAssignmentAiGradingItemAtomic(opts: {
     p_mark_graded: opts.grade.markGraded ?? true,
     p_ai_feedback_suggestion: opts.grade.aiFeedbackSuggestion,
     p_ai_feedback_model: opts.grade.aiFeedbackModel,
+    p_ai_grading_provenance: opts.grade.aiGradingProvenance ?? null,
     p_graded_by: opts.grade.gradedBy ?? null,
     p_attempt_count: opts.attemptCount,
     p_item_status: opts.itemStatus,
