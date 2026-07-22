@@ -35,7 +35,7 @@ export interface StructuredOutputRequest {
   jsonSchema: Record<string, unknown>
   initialMaxOutputTokens: number
   fallbackMaxOutputTokens: number
-  requestTimeoutMs: number
+  requestTimeoutMs?: number
   reasoningEffort: 'minimal' | 'low' | 'medium' | 'high'
 }
 

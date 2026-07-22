@@ -261,7 +261,7 @@ export async function gradeStudentWork(opts: {
       policy: {
         version: PIKA_ASSIGNMENT_POLICY_VERSION,
         model: request.model,
-        requestTimeoutMs: opts.requestTimeoutMs ?? 25_000,
+        requestTimeoutMs: opts.requestTimeoutMs,
         reasoningEffort: 'minimal',
       },
     })

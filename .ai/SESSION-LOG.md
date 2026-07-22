@@ -978,3 +978,29 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Remaining:**
 - Add fully fenced assignment lease mutation contracts and durable grading audit/suggested-score persistence through the authorized schema workflow.
 - Migrate test and repository-review profiles to the shared core, then add teacher-correction evaluation datasets and metrics.
+
+## 2026-07-21 — Internal grading core review remediation
+
+**Risk profile:** async-grading
+
+**Completed:**
+- Opened PR #906 and completed the initial independent review wave for the assignment grading core.
+- Preserved the legacy direct-grading behavior by creating an abort signal only when the caller supplies a timeout; durable background runs continue to supply their existing 25-second timeout.
+- Classified response-body `AbortError` and `TimeoutError` failures, including browser-style `DOMException` aborts, as retryable provider timeouts.
+- Kept aggregate token usage unknown when either request in the output-cap fallback sequence omits usage, avoiding silently incomplete cost telemetry.
+- Added a provider-to-run regression proving a response-body timeout requeues the assignment item with a future retry and leaves the batch running rather than failing it closed.
+- No migration was applied, no live provider call was made, and no production state changed.
+
+**Validation:**
+- `pnpm test` (396 files / 3,597 tests)
+- Focused grading, provider, and durable assignment-run suites (3 files / 27 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (619 modules / 0 allowances)
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `git diff --check`
+
+**Remaining:**
+- Complete targeted remediation and final cumulative reviews for PR #906, then obtain the required external approval before merge.
+- Continue the active internal grading subsystem goal with assignment audit persistence, followed by test and repository-review profiles.

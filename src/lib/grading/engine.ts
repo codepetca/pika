@@ -16,7 +16,7 @@ export class GradingOutputError extends Error {
 export interface GradingPolicy {
   version: string
   model: string
-  requestTimeoutMs: number
+  requestTimeoutMs?: number
   reasoningEffort: 'minimal' | 'low' | 'medium' | 'high'
 }
 

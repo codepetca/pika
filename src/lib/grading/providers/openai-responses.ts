@@ -9,6 +9,12 @@ import {
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses'
 const RETRYABLE_STATUS_CODES = new Set([408, 409, 429, 500, 502, 503, 504])
 
+function isTimeoutError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const name = (error as { name?: unknown }).name
+  return name === 'AbortError' || name === 'TimeoutError'
+}
+
 export function createOpenAiResponsesProvider(opts: {
   apiKey: string
   fetchImpl?: typeof fetch
@@ -82,12 +88,12 @@ async function fetchPayload(
           },
         },
       }),
-      signal: request.requestTimeoutMs > 0
+      signal: request.requestTimeoutMs && request.requestTimeoutMs > 0
         ? AbortSignal.timeout(request.requestTimeoutMs)
         : undefined,
     })
   } catch (error) {
-    const timedOut = error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')
+    const timedOut = isTimeoutError(error)
     throw new GradingProviderError({
       kind: timedOut ? 'timeout' : 'network',
       message: timedOut
@@ -114,7 +120,18 @@ async function fetchPayload(
     })
   }
 
-  return response.json()
+  try {
+    return await response.json()
+  } catch (error) {
+    const timedOut = isTimeoutError(error)
+    throw new GradingProviderError({
+      kind: timedOut ? 'timeout' : 'bad_response',
+      message: timedOut
+        ? 'OpenAI grading response timed out'
+        : error instanceof Error ? error.message : 'OpenAI response body could not be parsed',
+      retryable: timedOut,
+    })
+  }
 }
 
 function extractOutputText(payload: unknown): string | null {
@@ -172,7 +189,6 @@ function finiteInteger(value: unknown): number | null {
 }
 
 function addNullable(left: number | null, right: number | null): number | null {
-  if (left === null) return right
-  if (right === null) return left
+  if (left === null || right === null) return null
   return left + right
 }

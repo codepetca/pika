@@ -80,6 +80,7 @@ describe('gradeStudentWork prompt rules', () => {
         additionalProperties: false,
       }),
     )
+    expect(gradingRequest?.signal).toBeUndefined()
   })
 
   it('includes extracted artifacts in the grading prompt', async () => {
@@ -340,6 +341,88 @@ describe('gradeStudentWork prompt rules', () => {
       input_tokens: 210,
       output_tokens: 50,
       total_tokens: 260,
+    })
+  })
+
+  it('uses an abort signal only when the caller supplies a timeout', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_text:
+          '{"score_completion":8,"score_thinking":7,"score_workflow":8,"feedback":"Strength: Complete work. Next Step: Add evidence. Improve: Include one more example."}',
+      }),
+    })
+
+    await gradeStudentWork({
+      assignmentTitle: 'Reflection',
+      instructions: 'Write a reflection.',
+      studentWork: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'My response.' }] }],
+      },
+      requestTimeoutMs: 25_000,
+    })
+
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('keeps aggregate usage unknown when either provider request omits usage', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: 'incomplete',
+          incomplete_details: { reason: 'max_output_tokens' },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          output_text:
+            '{"score_completion":8,"score_thinking":7,"score_workflow":8,"feedback":"Strength: Complete work. Next Step: Add evidence. Improve: Include one more example."}',
+          usage: { input_tokens: 110, output_tokens: 30, total_tokens: 140 },
+        }),
+      })
+
+    const result = await gradeStudentWork({
+      assignmentTitle: 'Reflection',
+      instructions: 'Write a reflection.',
+      studentWork: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'My response.' }] }],
+      },
+    })
+
+    expect(result.provider_request_count).toBe(2)
+    expect(result.token_usage).toEqual({
+      input_tokens: null,
+      output_tokens: null,
+      total_tokens: null,
+    })
+  })
+
+  it('keeps response-body timeouts retryable through the compatibility boundary', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const timeoutError = new Error('body timed out')
+    timeoutError.name = 'AbortError'
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => { throw timeoutError },
+    })
+
+    await expect(gradeStudentWork({
+      assignmentTitle: 'Reflection',
+      instructions: 'Write a reflection.',
+      studentWork: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'My response.' }] }],
+      },
+    })).rejects.toMatchObject({
+      name: 'AssignmentAiGradingError',
+      kind: 'timeout',
+      retryable: true,
     })
   })
 

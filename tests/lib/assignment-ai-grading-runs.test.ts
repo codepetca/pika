@@ -111,7 +111,7 @@ function buildRunItemsTable(items: unknown[] = []) {
 }
 
 function buildTickHarness(opts: {
-  skipReason: 'missing_doc' | 'empty_doc'
+  skipReason: 'missing_doc' | 'empty_doc' | null
   model?: string
   assignmentDoc: {
     id: string
@@ -281,6 +281,14 @@ function buildTickHarness(opts: {
           })),
         })),
         upsert: vi.fn(async () => ({ error: opts.upsertError })),
+      }
+    }
+
+    if (table === 'assignment_submission_artifacts') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(async () => ({ data: [], error: null })),
+        })),
       }
     }
 
@@ -750,5 +758,67 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       last_error_code: 'save_missing_grade_failed',
       last_error_message: 'Failed to finalize AI assignment grade',
     }))
+  })
+
+  it('requeues an item when the provider response body times out', async () => {
+    const originalApiKey = process.env.OPENAI_API_KEY
+    process.env.OPENAI_API_KEY = 'test-key'
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockRejectedValue(new DOMException('The operation was aborted', 'AbortError')),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    try {
+      const harness = buildTickHarness({
+        skipReason: null,
+        assignmentDoc: {
+          id: 'doc-1',
+          student_id: 'student-1',
+          content: JSON.stringify({
+            type: 'doc',
+            content: [
+              {
+                type: 'paragraph',
+                content: [{ type: 'text', text: 'Final submission' }],
+              },
+            ],
+          }),
+          feedback: null,
+          authenticity_score: null,
+          updated_at: '2026-04-21T12:00:00.000Z',
+        },
+        upsertError: null,
+      })
+
+      const result = await tickAssignmentAiGradingRun({
+        assignmentId: 'assignment-1',
+        runId: 'run-1',
+      })
+
+      expect(result.claimed).toBe(true)
+      expect(result.run).toEqual(expect.objectContaining({
+        status: 'running',
+        processed_count: 0,
+        failed_count: 0,
+        next_retry_at: harness.items[0]!.next_retry_at,
+      }))
+      expect(harness.items[0]).toEqual(expect.objectContaining({
+        status: 'queued',
+        attempt_count: 1,
+        last_error_code: 'timeout',
+        last_error_message: 'OpenAI grading response timed out',
+        completed_at: null,
+      }))
+      expect(new Date(harness.items[0]!.next_retry_at!).getTime()).toBeGreaterThan(Date.now())
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://api.openai.com/v1/responses',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      )
+    } finally {
+      process.env.OPENAI_API_KEY = originalApiKey
+      vi.unstubAllGlobals()
+    }
   })
 })
