@@ -954,10 +954,10 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (isActive && !wasActiveRef.current && hasLoadedOnce) {
-      loadAssignments({ preserveContent: true })
+      loadAssignments({ preserveContent: !classworkLoadError })
     }
     wasActiveRef.current = isActive
-  }, [hasLoadedOnce, isActive, loadAssignments])
+  }, [classworkLoadError, hasLoadedOnce, isActive, loadAssignments])
 
   useEffect(() => {
     const node = workspaceContainerRef.current

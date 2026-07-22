@@ -189,6 +189,66 @@ describe('StudentAssignmentsTab', () => {
     expect(consoleError).toHaveBeenCalledWith('Error loading assignments:', expect.any(Error))
   })
 
+  it('keeps failed classwork in a blocking state while reactivating the tab', async () => {
+    const retryClassroom = { ...classroom, id: 'cls-classwork-reactivation' }
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let assignmentAttempts = 0
+    let resolveReactivation: ((response: ReturnType<typeof mockJSONResponse>) => void) | null = null
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/api/student/assignments')) {
+          assignmentAttempts += 1
+          if (assignmentAttempts === 1) {
+            return {
+              ok: false,
+              json: async () => ({ error: 'Assignments unavailable' }),
+            }
+          }
+          if (assignmentAttempts === 2) {
+            return await new Promise<ReturnType<typeof mockJSONResponse>>((resolve) => {
+              resolveReactivation = resolve
+            })
+          }
+          return mockJSONResponse({
+            assignments: [
+              makeAssignment({
+                classroom_id: retryClassroom.id,
+                title: 'Recovered after reactivation',
+              }),
+            ],
+          })
+        }
+        if (url.includes('/materials')) return mockJSONResponse({ materials: [] })
+        if (url.includes('/api/student/surveys')) return mockJSONResponse({ surveys: [] })
+        throw new Error(`Unexpected request: ${url}`)
+      }),
+    )
+
+    const view = render(<StudentAssignmentsTab classroom={retryClassroom} isActive />)
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+
+    view.rerender(<StudentAssignmentsTab classroom={retryClassroom} isActive={false} />)
+    view.rerender(<StudentAssignmentsTab classroom={retryClassroom} isActive />)
+
+    expect(await screen.findByRole('heading', { name: 'Loading classwork' })).toBeInTheDocument()
+    expect(screen.queryByText('No classwork yet')).not.toBeInTheDocument()
+    await waitFor(() => expect(resolveReactivation).toEqual(expect.any(Function)))
+
+    await act(async () => {
+      resolveReactivation?.({
+        ok: false,
+        json: async () => ({ error: 'Assignments still unavailable' }),
+      })
+    })
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByText('Recovered after reactivation')).toBeInTheDocument()
+  })
+
   it('first-time view: auto-shows instructions modal', async () => {
     const unviewed = makeAssignment({ doc: null })
     searchParamsMap.set('assignmentId', 'asgn-1')

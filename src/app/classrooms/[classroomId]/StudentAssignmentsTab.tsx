@@ -152,10 +152,10 @@ export function StudentAssignmentsTab({
       return
     }
     if (isActive && !wasActiveRef.current && hasLoaded) {
-      loadAssignments({ preserveContent: true })
+      loadAssignments({ preserveContent: !classworkLoadError })
     }
     wasActiveRef.current = isActive
-  }, [hasLoaded, isActive, loadAssignments])
+  }, [classworkLoadError, hasLoaded, isActive, loadAssignments])
 
   const retryLoadAssignments = useCallback(() => {
     invalidateCachedJSON(`student-assignments:${classroom.id}`)

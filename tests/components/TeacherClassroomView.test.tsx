@@ -730,6 +730,55 @@ describe('TeacherClassroomView', () => {
     expect(consoleError).toHaveBeenCalledWith('Error loading assignments:', expect.any(Error))
   })
 
+  it('keeps failed classwork in a blocking state while reactivating the tab', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let assignmentAttempts = 0
+    let rejectReactivation: ((reason: Error) => void) | null = null
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        assignmentAttempts += 1
+        if (assignmentAttempts === 1) {
+          return Promise.reject(new Error('Assignments unavailable'))
+        }
+        if (assignmentAttempts === 2) {
+          return new Promise((_resolve, reject) => {
+            rejectReactivation = reject
+          })
+        }
+        return Promise.resolve({
+          assignments: [makeAssignmentSummary('assignment-recovered', 'Recovered after reactivation')],
+        })
+      }
+      if (key === `teacher-materials:${classroom.id}`) return Promise.resolve({ materials: [] })
+      if (key === `teacher-surveys:${classroom.id}`) return Promise.resolve({ surveys: [] })
+      return fetcher()
+    })
+
+    const view = render(
+      <TeacherClassroomView classroom={classroom} selectedAssignmentId={null} isActive />
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+
+    view.rerender(
+      <TeacherClassroomView classroom={classroom} selectedAssignmentId={null} isActive={false} />
+    )
+    view.rerender(
+      <TeacherClassroomView classroom={classroom} selectedAssignmentId={null} isActive />
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Loading classwork' })).toBeInTheDocument()
+    expect(screen.queryByText('No classwork yet')).not.toBeInTheDocument()
+    await waitFor(() => expect(rejectReactivation).toEqual(expect.any(Function)))
+
+    await act(async () => {
+      rejectReactivation?.(new Error('Assignments still unavailable'))
+    })
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByRole('button', { name: 'Recovered after reactivation' })).toBeInTheDocument()
+  })
+
   it('does not reopen a stale assignment cookie when URL selection is on summary', async () => {
     document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
 
