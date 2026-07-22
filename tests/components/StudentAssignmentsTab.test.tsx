@@ -148,6 +148,9 @@ function mockJSONResponse(body: unknown) {
 describe('StudentAssignmentsTab', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
+    invalidateCachedJSONMatching('student-assignments:')
+    invalidateCachedJSONMatching('student-materials:')
+    invalidateCachedJSONMatching('student-surveys:')
     searchParamsMap = new Map()
     mockEditorState = {
       isSubmitted: false,
@@ -356,13 +359,6 @@ describe('StudentAssignmentsTab', () => {
     // Wait for the Instructions button to appear
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Instructions', hidden: true })).toBeInTheDocument()
-    })
-
-    // Modal can be opened by default; close it first.
-    const closeButton = screen.getByRole('button', { name: 'Close' })
-    fireEvent.click(closeButton)
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Instructions' })).not.toBeInTheDocument()
     })
 
     // Click the Instructions button
