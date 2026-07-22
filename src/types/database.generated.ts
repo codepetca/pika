@@ -656,6 +656,8 @@ export type Database = {
           draft_score_workflow: number | null
           evidence_json: Json
           github_login: string | null
+          grading_model: string | null
+          grading_provenance: Json | null
           id: string
           iteration_score: number
           relative_contribution_share: number
@@ -680,6 +682,8 @@ export type Database = {
           draft_score_workflow?: number | null
           evidence_json?: Json
           github_login?: string | null
+          grading_model?: string | null
+          grading_provenance?: Json | null
           id?: string
           iteration_score?: number
           relative_contribution_share?: number
@@ -704,6 +708,8 @@ export type Database = {
           draft_score_workflow?: number | null
           evidence_json?: Json
           github_login?: string | null
+          grading_model?: string | null
+          grading_provenance?: Json | null
           id?: string
           iteration_score?: number
           relative_contribution_share?: number
@@ -4243,6 +4249,19 @@ export type Database = {
         Returns: boolean
       }
       complete_assignment_repo_review_run_atomic: {
+        Args: {
+          p_grade_rows: Json
+          p_model: string
+          p_now: string
+          p_result_rows: Json
+          p_run_id: string
+          p_source_ref: string
+          p_teacher_id: string
+          p_warnings: Json
+        }
+        Returns: Json
+      }
+      complete_assignment_repo_review_run_with_provenance_atomic: {
         Args: {
           p_grade_rows: Json
           p_model: string

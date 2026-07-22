@@ -298,18 +298,21 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
             draft_score_workflow: feedback.score_workflow,
             draft_feedback: feedback.feedback,
             confidence: Math.min(1, Math.max(0, (feedback.confidence + analysis.confidence) / 2)),
+            grading_model: feedback.model,
+            grading_provenance: feedback.provenance,
           }
         })
       )
 
       const gradeSavedAt = new Date().toISOString()
+      const gradingModels = [...new Set(results.map((result) => result.grading_model))]
       await completeAssignmentRepoReviewRunAtomic({
         supabase,
         runId: run.id,
         teacherId: user.id,
         results,
         sourceRef: analysis.sourceRef || group.defaultBranch,
-        model: 'repo-review-v2',
+        model: gradingModels.length === 1 ? gradingModels[0] : 'mixed',
         warnings: analysis.warnings,
         now: gradeSavedAt,
         grades: results.map((result) => {
@@ -324,7 +327,8 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
             applyTeacherFeedbackDraft: false,
             markGraded: false,
             aiFeedbackSuggestion: result.draft_feedback,
-            aiFeedbackModel: 'repo-review-v2',
+            aiFeedbackModel: result.grading_model,
+            aiGradingProvenance: result.grading_provenance,
             gradedBy: null,
           }
         }),
