@@ -1147,6 +1147,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Changed overall grading-review error to compare the summed suggested score with the summed final score instead of adding absolute criterion errors.
 - Added a regression scenario where opposite criterion corrections leave the total score unchanged while criterion-level errors remain visible.
 - Preserved acceptance, feedback, and per-criterion metric behavior; no migration, provider, grading prompt, route, or production state changed.
+- Pushed the correction to PR 911 and completed a bounded cumulative self-review with no new findings; the existing independent-review budget for this stack was already exhausted.
 
 **Validation:**
 - `pnpm test` (407 files / 3,659 tests)
@@ -1158,6 +1159,11 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - `pnpm eval:grading-reviews scripts/fixtures/grading-review-scenarios.json`
 - `node scripts/trim-session-log.mjs --check`
 - `git diff --check`
+- Pika changed-file audit
+- Vercel preview checks at `769059be`
+
+**CI note:**
+- GitHub Actions did not trigger for the correction because PR 911 targets the stacked feature branch `codex/internal-repo-review-grading`, while the workflows listen only for pull requests into `main` or `production`. Full CI passed at the immediately preceding PR head; all correction-affected gates passed locally at `769059be`.
 
 **Remaining:**
-- Push the correction to PR 911, require exact-head CI, and complete the fresh review.
+- After the lower stack lands and PR 911 is retargeted to `main`, require exact-head GitHub Actions and the repository's external approval before merge.
