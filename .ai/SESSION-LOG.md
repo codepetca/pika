@@ -1136,3 +1136,28 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 **Remaining:**
 - Run the full repository gates and exact-head PR CI, then obtain the required external code-owner approval before merging the grading stack.
 - Apply migrations 100-104 only with explicit target permission, deploy with remote Gradex disabled, and collect 10-20 teacher-reviewed outcomes before adding paid replay comparisons.
+
+## 2026-07-22 — Corrected total-score grading eval error
+
+**Risk profile:** none
+
+**Model recommendation:** Current coding model - the correction is a small deterministic TypeScript aggregation change with focused regression coverage.
+
+**Completed:**
+- Changed overall grading-review error to compare the summed suggested score with the summed final score instead of adding absolute criterion errors.
+- Added a regression scenario where opposite criterion corrections leave the total score unchanged while criterion-level errors remain visible.
+- Preserved acceptance, feedback, and per-criterion metric behavior; no migration, provider, grading prompt, route, or production state changed.
+
+**Validation:**
+- `pnpm test` (407 files / 3,659 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (623 modules / 0 allowances)
+- `pnpm build`
+- Focused teacher-correction eval suite (1 file / 6 tests)
+- `pnpm eval:grading-reviews scripts/fixtures/grading-review-scenarios.json`
+- `node scripts/trim-session-log.mjs --check`
+- `git diff --check`
+
+**Remaining:**
+- Push the correction to PR 911, require exact-head CI, and complete the fresh review.

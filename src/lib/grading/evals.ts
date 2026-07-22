@@ -158,7 +158,8 @@ export function summarizeGradingReviews(
 
   for (const review of reviewed) {
     let scoreChanged = false
-    let overallDiff = 0
+    let suggestedTotal = 0
+    let finalTotal = 0
     for (const criterion of review.criteria) {
       const finalScore = criterion.finalScore!
       const diff = Math.abs(criterion.suggestedScore - finalScore)
@@ -166,10 +167,11 @@ export function summarizeGradingReviews(
       const diffs = criterionDiffs.get(key) ?? []
       diffs.push(diff)
       criterionDiffs.set(key, diffs)
-      overallDiff += diff
+      suggestedTotal += criterion.suggestedScore
+      finalTotal += finalScore
       scoreChanged ||= diff !== 0
     }
-    overallDiffs.push(overallDiff)
+    overallDiffs.push(Math.abs(suggestedTotal - finalTotal))
 
     if (review.feedbackDisposition === 'unchanged') feedbackUnchangedCount += 1
     if (review.feedbackDisposition === 'edited') feedbackEditedCount += 1

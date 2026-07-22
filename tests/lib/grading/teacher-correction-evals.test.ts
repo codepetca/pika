@@ -182,4 +182,25 @@ describe('summarizeGradingReviews', () => {
       comparedCount: 0,
     })
   })
+
+  it('measures total-score error after offsetting criterion corrections', () => {
+    const summary = summarizeGradingReviews([
+      review({
+        criteria: [
+          { criterionId: 'completion', suggestedScore: 8, finalScore: 7, maxScore: 10 },
+          { criterionId: 'thinking', suggestedScore: 7, finalScore: 8, maxScore: 10 },
+          { criterionId: 'workflow', suggestedScore: 9, finalScore: 9, maxScore: 10 },
+        ],
+        feedbackDisposition: 'edited',
+      }),
+    ], { generatedAt: '2026-07-22T13:00:00.000Z' })
+
+    expect(summary.criteria['assignment.completion'].meanAbsoluteError).toBe(1)
+    expect(summary.criteria['assignment.thinking'].meanAbsoluteError).toBe(1)
+    expect(summary.overall).toEqual({
+      meanAbsoluteError: 0,
+      withinThreeTotalRate: 1,
+      comparedCount: 1,
+    })
+  })
 })

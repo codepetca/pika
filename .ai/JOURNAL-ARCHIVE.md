@@ -14283,3 +14283,27 @@
 - Pika pre-commit audit
 - `bash scripts/verify-env.sh`
 - `git diff --check`
+
+<!-- pika-session-log-archive-batch:a98793923af4c52e399ba1901ef885f33f2f9ac451e2e23369deeb33c61f30e0 -->
+## 2026-07-14 — Manual test grading workflow boundary
+
+**Risk profile:** async-grading
+
+**Model recommendation:** GPT-5 Codex - grading request compatibility and persistence extraction require exact cross-layer behavior analysis.
+
+**Completed:**
+- Replaced the handwritten manual test-grade decoder with a feature-owned Zod contract while preserving score coercion, rounding, trim behavior, clear semantics, AI audit metadata, and duplicate rejection.
+- Extracted teacher access, enrollment/question validation, existing-response preservation, grade row construction, and the legacy AI-column retry into `@/lib/server/test-grades`.
+- Kept the existing non-transactional persistence sequence unchanged for this behavior-preserving expand slice; atomic test grading remains a separately reviewed follow-up.
+- Made malformed JSON and JSON `null` fail deterministically with 400 responses instead of accidental internal errors.
+- Removed the route from the deletion-only API Zod baseline and added regressions for access arguments, archive protection, query failures, question scope, score caps, clear fields, timestamps, and failed compatibility retries.
+- Completed two independent review/fix rounds with no remaining findings. No UI, database schema, migration, dependency, or production changes.
+
+**Validation:**
+- Focused grading contract, route, and API architecture suites (3 files / 33 tests)
+- `pnpm test` (351 files / 3,186 tests)
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm lint`
+- `pnpm check:architecture` (594 modules / 0 allowances)
+- Pika pre-commit audit
+- `git diff --check`
