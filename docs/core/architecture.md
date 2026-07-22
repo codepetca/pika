@@ -196,7 +196,8 @@ Before changing remaining `quiz` / `quizzes` names, load
 - **Draft validation**: browser-safe draft contracts live in `@/lib/validations/assessment-drafts`
 - **Draft persistence**: unified `assessment_drafts` table + JSON Patch via `@/lib/server/assessment-drafts`
 - **Scheduling**: `combineScheduleDateTimeToIso()` / `isScheduleIsoInFuture()` from `@/lib/scheduling`
-- **AI grading** (tests only): `src/lib/ai-test-grading.ts` — reference answer SHA-256 cached per question
+- **AI grading core**: `src/lib/grading/*` owns versioned assignment/test profiles, structured-output execution, provider adapters, and bounded provenance contracts.
+- **Test grading compatibility adapter**: `src/lib/ai-test-grading.ts` owns roster-aware sanitization, reference-answer SHA-256 caching, score buckets, and pseudonymous batch mapping before invoking the internal core.
 
 ### Content Fields
 Assignment docs, test questions, and lesson plans store content as Tiptap JSON.

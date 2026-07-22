@@ -30,6 +30,7 @@ import type {
   TestAiGradingRunSummary,
 } from '@/types'
 import type { Json } from '@/types/database.generated'
+import type { TestGradingProvenance } from '@/lib/grading/contracts'
 import {
   buildTestQuestionGradingSnapshot,
   hasPersistedTestResponseGrade,
@@ -559,6 +560,7 @@ async function persistSuggestionForResponse(opts: {
     model: string
     grading_basis: 'teacher_key' | 'generated_reference'
     reference_answers: string[]
+    provenance: TestGradingProvenance
   }
 }): Promise<void> {
   const result = await finalizeTestAiGradingItem({
@@ -573,6 +575,7 @@ async function persistSuggestionForResponse(opts: {
       opts.suggestion.grading_basis === 'generated_reference'
         ? opts.suggestion.reference_answers
         : null,
+    aiGradingProvenance: opts.suggestion.provenance,
     attemptCount: opts.attemptCount,
   })
   if (result.outcome === 'stale') return

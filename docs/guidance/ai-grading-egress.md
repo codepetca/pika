@@ -34,6 +34,11 @@ that sanitized copy to the provider.
   feedback.
 - Test batch grading sends pseudonymous response refs and maps them back locally
   after the provider response.
+- Assignment and test provider calls run through the database-independent
+  `src/lib/grading/*` core. Pika-specific adapters sanitize first, while
+  versioned profiles own prompt and output contracts.
+- The remote Gradex worker remains disabled during the internal grading pilot;
+  no normal grading path sends classroom data to Gradex.
 
 ## GradeX Adapter Guidance
 

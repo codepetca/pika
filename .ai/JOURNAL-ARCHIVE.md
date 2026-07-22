@@ -14148,3 +14148,21 @@
 - `pnpm vitest run` (359 files, 3,287 tests)
 - `pnpm build`
 - `git diff --check`
+
+## 2026-07-14 — Archive stack review findings fixed
+
+**Completed:**
+- Ran repeated independent SQL, runtime, Gradex, and cross-layer review loops and fixed every actionable finding.
+- Hardened export/restore upload cleanup, exact restore object descriptors, actor-role reconciliation, transactional compaction dry runs, canonical paths, expiry/retry state transitions, and fail-closed source cleanup.
+- Tightened Gradex v2 with strict per-table Zod contracts, required relationships and projected fields, safe analytic enum preservation, Unicode-aware identifier scanning, pseudonymized unknown tokens, exact cleanup canaries, and retention fences.
+- Updated database contract drills, lifecycle guidance, cron integration, and environment documentation. No production database, migration, row, object, environment, deployment, or schedule was read or modified.
+
+**Validation:**
+- Fresh local Supabase reset through migrations 001–086
+- Archive export, restore, compaction, and Gradex database contract scripts
+- Full Vitest suite (339 files / 3,037 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+- Pika pre-commit audit
+- `git diff --check`

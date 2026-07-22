@@ -3640,6 +3640,7 @@ export type Database = {
       test_responses: {
         Row: {
           ai_grading_basis: string | null
+          ai_grading_provenance: Json | null
           ai_model: string | null
           ai_reference_answers: Json | null
           ai_suggested_feedback: string | null
@@ -3659,6 +3660,7 @@ export type Database = {
         }
         Insert: {
           ai_grading_basis?: string | null
+          ai_grading_provenance?: Json | null
           ai_model?: string | null
           ai_reference_answers?: Json | null
           ai_suggested_feedback?: string | null
@@ -3678,6 +3680,7 @@ export type Database = {
         }
         Update: {
           ai_grading_basis?: string | null
+          ai_grading_provenance?: Json | null
           ai_model?: string | null
           ai_reference_answers?: Json | null
           ai_suggested_feedback?: string | null
@@ -4544,6 +4547,22 @@ export type Database = {
         }
         Returns: Json
       }
+      finalize_test_ai_grading_item_with_provenance_atomic: {
+        Args: {
+          p_ai_grading_basis: string
+          p_ai_grading_provenance: Json
+          p_ai_model: string
+          p_ai_reference_answers: Json
+          p_attempt_count: number
+          p_feedback: string
+          p_item_id: string
+          p_lease_token: string
+          p_now: string
+          p_score: number
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       finalize_test_attempts_for_grading_atomic: {
         Args: {
           p_closed_by: string
@@ -4799,6 +4818,16 @@ export type Database = {
         Returns: Json
       }
       save_test_response_grades_atomic: {
+        Args: {
+          p_grade_rows: Json
+          p_now: string
+          p_student_id: string
+          p_teacher_id: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
+      save_test_response_grades_with_provenance_atomic: {
         Args: {
           p_grade_rows: Json
           p_now: string

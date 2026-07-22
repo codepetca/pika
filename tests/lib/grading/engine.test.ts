@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { executeGrading } from '@/lib/grading/engine'
+import { executeGrading, executeStructuredOutput } from '@/lib/grading/engine'
 import type { GradingProfile } from '@/lib/grading/profiles/types'
 import type { StructuredOutputProvider } from '@/lib/grading/providers/types'
 
@@ -111,5 +111,55 @@ describe('executeGrading', () => {
         reasoningEffort: 'minimal',
       },
     })).rejects.toThrow('Unknown grading criterion: invented')
+  })
+})
+
+describe('executeStructuredOutput', () => {
+  it('returns parsed output with provider execution metadata', async () => {
+    const provider = providerReturning('{"completion":8,"feedback":"Useful feedback."}')
+
+    const result = await executeStructuredOutput({
+      provider,
+      policy: {
+        version: 'policy-v1',
+        model: 'model-v1',
+        requestTimeoutMs: 25_000,
+        reasoningEffort: 'minimal',
+      },
+      prompt: {
+        systemPrompt: 'Grade this response.',
+        userPrompt: 'Student response',
+      },
+      output: profile.output,
+      parseOutput: profile.parseOutput,
+    })
+
+    expect(result).toEqual({
+      output: { completion: 8, feedback: 'Useful feedback.' },
+      execution: {
+        provider: 'fake',
+        model: 'model-v1',
+        policyVersion: 'policy-v1',
+        providerRequestCount: 1,
+        tokenUsage: { inputTokens: 20, outputTokens: 10, totalTokens: 30 },
+      },
+    })
+  })
+
+  it('normalizes parser failures into grading output errors', async () => {
+    await expect(executeStructuredOutput({
+      provider: providerReturning('not-json'),
+      policy: {
+        version: 'policy-v1',
+        model: 'model-v1',
+        reasoningEffort: 'minimal',
+      },
+      prompt: {
+        systemPrompt: 'Grade this response.',
+        userPrompt: 'Student response',
+      },
+      output: profile.output,
+      parseOutput: profile.parseOutput,
+    })).rejects.toMatchObject({ name: 'GradingOutputError' })
   })
 })

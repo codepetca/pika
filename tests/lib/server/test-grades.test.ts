@@ -20,6 +20,21 @@ const questionGradingSnapshot = {
   sample_solution: null,
 }
 
+const gradingProvenance = {
+  schemaVersion: 'test-grading-provenance-v1' as const,
+  gradingRequestId: '10000000-0000-4000-8000-000000000001',
+  provider: 'openai',
+  model: 'gpt-5-nano',
+  policyVersion: 'pika-test-open-response-policy-v1',
+  promptVersion: 'pika-test-open-response-manual-prompt-v1',
+  gradingProfileVersion: 'pika-test-open-response-v1',
+  rubricVersion: 'pika-test-open-response-rubric-v1',
+  operation: 'single' as const,
+  batchSize: 1,
+  providerRequestCount: 1,
+  tokenUsage: { inputTokens: 100, outputTokens: 20, totalTokens: 120 },
+}
+
 const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }))
 
 vi.mock('@/lib/supabase', () => ({
@@ -66,7 +81,7 @@ describe('test grade server workflows', () => {
       responses: [{ id: 'response-1', revision: 3, score: 4, feedback: 'Good work' }],
     })
 
-    expect(rpc).toHaveBeenCalledWith('save_test_response_grades_atomic', {
+    expect(rpc).toHaveBeenCalledWith('save_test_response_grades_with_provenance_atomic', {
       p_grade_rows: [{
         ...grade,
       }],
@@ -103,7 +118,7 @@ describe('test grade server workflows', () => {
       now: '2026-07-14T23:00:00.000Z',
     })).resolves.toEqual({ id: 'response-1', revision: 4, score: null, feedback: null })
 
-    expect(rpc).toHaveBeenCalledWith('save_test_response_grades_atomic', expect.objectContaining({
+    expect(rpc).toHaveBeenCalledWith('save_test_response_grades_with_provenance_atomic', expect.objectContaining({
       p_student_id: null,
       p_grade_rows: [expect.objectContaining({ response_id: 'response-1' })],
     }))
@@ -130,9 +145,11 @@ describe('test grade server workflows', () => {
         suggestedScore: 4,
         suggestedFeedback: 'Original AI feedback',
         questionGradingSnapshot,
+        gradingProvenance,
       }),
       ai_suggested_score: 4,
       ai_suggested_feedback: 'Original AI feedback',
+      ai_grading_provenance: gradingProvenance,
     }
     rpc.mockResolvedValueOnce({
       data: {
@@ -150,12 +167,13 @@ describe('test grade server workflows', () => {
       grade: aiGrade,
     })).resolves.toEqual(expect.objectContaining({ revision: 4 }))
 
-    expect(rpc).toHaveBeenCalledWith('save_test_response_grades_atomic', expect.objectContaining({
+    expect(rpc).toHaveBeenCalledWith('save_test_response_grades_with_provenance_atomic', expect.objectContaining({
       p_grade_rows: [expect.objectContaining({
         score: 3.5,
         feedback: 'Teacher-edited feedback',
         ai_suggested_score: 4,
         ai_suggested_feedback: 'Original AI feedback',
+        ai_grading_provenance: gradingProvenance,
       })],
     }))
 
@@ -163,6 +181,10 @@ describe('test grade server workflows', () => {
       { ...aiGrade, ai_model: 'forged-model' },
       { ...aiGrade, ai_suggested_score: 3 },
       { ...aiGrade, ai_suggested_feedback: 'Forged original feedback' },
+      {
+        ...aiGrade,
+        ai_grading_provenance: { ...gradingProvenance, providerRequestCount: 2 },
+      },
     ]) {
       await expect(saveTestResponseGrade({
         teacherId: 'teacher-1',
@@ -246,12 +268,14 @@ describe('test grade server workflows', () => {
       aiGradingBasis: 'teacher_key',
       aiReferenceAnswers: null,
       aiModel: 'gpt-5-nano',
+      aiGradingProvenance: gradingProvenance,
       attemptCount: 1,
       now: '2026-07-14T23:00:00.000Z',
     })).resolves.toEqual(expect.objectContaining({ outcome: 'saved' }))
 
-    expect(rpc).toHaveBeenCalledWith('finalize_test_ai_grading_item_atomic', {
+    expect(rpc).toHaveBeenCalledWith('finalize_test_ai_grading_item_with_provenance_atomic', {
       p_ai_grading_basis: 'teacher_key',
+      p_ai_grading_provenance: gradingProvenance,
       p_ai_model: 'gpt-5-nano',
       p_ai_reference_answers: null,
       p_attempt_count: 1,
@@ -269,7 +293,7 @@ describe('test grade server workflows', () => {
     await expect(finalizeTestAiGradingItem({
       itemId: 'item-1', teacherId: 'teacher-1', leaseToken: 'lease-1', score: 4,
       feedback: 'Good work', aiGradingBasis: 'teacher_key', aiReferenceAnswers: null,
-      aiModel: 'gpt-5-nano', attemptCount: 1,
+      aiModel: 'gpt-5-nano', aiGradingProvenance: gradingProvenance, attemptCount: 1,
     })).resolves.toEqual({ outcome: 'stale', response: null })
   })
 

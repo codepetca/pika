@@ -1,14 +1,7 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import type { TestAiGradingBasis } from '@/types'
 import {
-  BULK_GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE,
-  BULK_TEST_AI_PROMPT_GUIDELINE,
-  DEFAULT_TEST_AI_PROMPT_GUIDELINE,
-  GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE,
-} from '@/lib/test-ai-prompt-guideline'
-import {
   estimatePromptMetrics,
-  extractOpenAIResponseUsage,
   logAiPromptTelemetry,
   type AiPromptMetrics,
   type OpenAIResponseUsage,
@@ -20,82 +13,44 @@ import {
   sanitizeAiText,
   type AiSanitizationContext,
 } from '@/lib/ai-sanitization'
+import {
+  testGradingProvenanceSchema,
+  type TestGradingProvenance,
+} from '@/lib/grading/contracts'
+import {
+  executeStructuredOutput,
+  GradingOutputError,
+  type GradingExecutionMetadata,
+  type StructuredOutputSpec,
+} from '@/lib/grading/engine'
+import {
+  buildPikaTestBatchSystemPrompt,
+  buildPikaTestBatchUserPrompt,
+  buildPikaTestOpenResponsePrompt,
+  buildPikaTestReferencePrompt,
+  buildPikaTestSingleUserPrompt,
+  getPikaTestPromptVersion,
+  parsePikaTestBatchGradeOutput,
+  parsePikaTestReferenceOutput,
+  parsePikaTestSingleGradeOutput,
+  PIKA_TEST_BATCH_GRADE_OUTPUT,
+  PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION,
+  PIKA_TEST_OPEN_RESPONSE_PROFILE_VERSION,
+  PIKA_TEST_OPEN_RESPONSE_RUBRIC_VERSION,
+  PIKA_TEST_REFERENCE_OUTPUT,
+  PIKA_TEST_SINGLE_GRADE_OUTPUT,
+  resolvePikaTestPromptGuideline,
+} from '@/lib/grading/profiles/pika-test-open-response'
+import { createOpenAiResponsesProvider } from '@/lib/grading/providers/openai-responses'
+import { GradingProviderError } from '@/lib/grading/providers/types'
 
 const DEFAULT_MODEL = 'gpt-5-nano'
 const MAX_REFERENCE_ANSWERS = 3
-const RETRYABLE_STATUS_CODES = new Set([408, 409, 429, 500, 502, 503, 504])
 const TEST_AI_REASONING_EFFORT = 'minimal'
 const TEST_AI_REQUEST_TIMEOUT_MS = 25_000
-const TEST_AI_REFERENCE_MAX_OUTPUT_TOKENS = 220
-const TEST_AI_REFERENCE_FALLBACK_MAX_OUTPUT_TOKENS = 420
-const TEST_AI_SINGLE_MAX_OUTPUT_TOKENS = 220
-const TEST_AI_SINGLE_FALLBACK_MAX_OUTPUT_TOKENS = 420
-const TEST_AI_BATCH_MAX_OUTPUT_TOKENS = 600
-const TEST_AI_BATCH_FALLBACK_MAX_OUTPUT_TOKENS = 900
 
 export type TestOpenResponsePromptProfile = 'manual' | 'bulk'
 type ReferenceAnswerSource = 'teacher_key' | 'provided' | 'generated'
-
-const TEST_REFERENCE_ANSWERS_JSON_SCHEMA = {
-  type: 'object',
-  properties: {
-    reference_answers: {
-      type: 'array',
-      items: {
-        type: 'string',
-        minLength: 1,
-      },
-      minItems: 1,
-      maxItems: MAX_REFERENCE_ANSWERS,
-    },
-  },
-  required: ['reference_answers'],
-  additionalProperties: false,
-} as const
-
-const TEST_SINGLE_GRADE_JSON_SCHEMA = {
-  type: 'object',
-  properties: {
-    score: {
-      type: 'number',
-    },
-    feedback: {
-      type: 'string',
-      minLength: 1,
-    },
-  },
-  required: ['score', 'feedback'],
-  additionalProperties: false,
-} as const
-
-const TEST_BATCH_GRADE_JSON_SCHEMA = {
-  type: 'object',
-  properties: {
-    results: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          response_id: {
-            type: 'string',
-            minLength: 1,
-          },
-          score: {
-            type: 'number',
-          },
-          feedback: {
-            type: 'string',
-            minLength: 1,
-          },
-        },
-        required: ['response_id', 'score', 'feedback'],
-        additionalProperties: false,
-      },
-    },
-  },
-  required: ['results'],
-  additionalProperties: false,
-} as const
 
 export type TestAiErrorKind =
   | 'config'
@@ -168,6 +123,7 @@ export interface TestOpenResponseSuggestion {
   model: string
   grading_basis: TestAiGradingBasis
   reference_answers: string[]
+  provenance: TestGradingProvenance
 }
 
 export interface TestOpenResponseReferences {
@@ -195,218 +151,26 @@ export function getTestOpenResponseGradingModel(): string {
   return process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
 }
 
-function summarizeResponseBody(bodyText: string): string {
-  const normalized = bodyText.replace(/\s+/g, ' ').trim()
-  if (!normalized) return ''
-  if (normalized.length <= 240) return normalized
-  return `${normalized.slice(0, 237)}...`
-}
-
-function buildInvalidJsonErrorMessage(res: Response, bodyText: string): string {
-  const contentType = res.headers.get('content-type')?.trim() || 'unknown content-type'
-  const summary = summarizeResponseBody(bodyText)
-  return summary
-    ? `OpenAI returned invalid JSON (status ${res.status}, ${contentType}): ${summary}`
-    : `OpenAI returned invalid JSON (status ${res.status}, ${contentType})`
-}
-
-function extractOutputText(payload: any): string | null {
-  if (typeof payload?.output_text === 'string' && payload.output_text.trim()) {
-    return payload.output_text.trim()
-  }
-
-  if (payload?.output_parsed && typeof payload.output_parsed === 'object') {
-    return JSON.stringify(payload.output_parsed)
-  }
-
-  const output = payload?.output
-  if (!Array.isArray(output)) return null
-
-  for (const item of output) {
-    const content = item?.content
-    if (!Array.isArray(content)) continue
-    for (const block of content) {
-      if (block?.type === 'output_text' && typeof block?.text === 'string' && block.text.trim()) {
-        return block.text.trim()
-      }
-      if (block?.parsed && typeof block.parsed === 'object') {
-        return JSON.stringify(block.parsed)
-      }
-      if (block?.json && typeof block.json === 'object') {
-        return JSON.stringify(block.json)
-      }
-    }
-  }
-
-  return null
-}
-
-function parseJsonFromOutputText(outputText: string, parseErrorMessage: string): any {
-  let jsonText = outputText
-  const codeBlockMatch = outputText.match(/```(?:json)?\s*([\s\S]*?)```/)
-  if (codeBlockMatch) {
-    jsonText = codeBlockMatch[1].trim()
-  }
-
-  try {
-    return JSON.parse(jsonText)
-  } catch {
-    throw new Error(parseErrorMessage)
-  }
-}
-
-function extractParsedOutput(payload: any): any | null {
-  if (payload?.output_parsed && typeof payload.output_parsed === 'object') {
-    return payload.output_parsed
-  }
-
-  const output = payload?.output
-  if (!Array.isArray(output)) return null
-
-  for (const item of output) {
-    const content = item?.content
-    if (!Array.isArray(content)) continue
-    for (const block of content) {
-      if (block?.parsed && typeof block.parsed === 'object') {
-        return block.parsed
-      }
-      if (block?.json && typeof block.json === 'object') {
-        return block.json
-      }
-    }
-  }
-
-  return null
-}
-
-function isMaxOutputIncomplete(payload: any): boolean {
-  return (
-    payload?.status === 'incomplete' &&
-    payload?.incomplete_details?.reason === 'max_output_tokens'
-  )
-}
-
-function buildOpenAIJsonBody(opts: {
-  model: string
-  systemPrompt: string
-  userPrompt: string
-  schemaName: string
-  schema: Record<string, unknown>
-  maxOutputTokens: number
-}) {
-  return {
-    model: opts.model,
-    store: false,
-    input: [
-      {
-        role: 'system',
-        content: [{ type: 'input_text', text: opts.systemPrompt }],
-      },
-      {
-        role: 'user',
-        content: [{ type: 'input_text', text: opts.userPrompt }],
-      },
-    ],
-    reasoning: {
-      effort: TEST_AI_REASONING_EFFORT,
-    },
-    max_output_tokens: opts.maxOutputTokens,
-    text: {
-      format: {
-        type: 'json_schema',
-        name: opts.schemaName,
-        strict: true,
-        schema: opts.schema,
-      },
-    },
-  }
-}
-
-async function fetchOpenAIJsonPayload(opts: {
-  apiKey: string
-  model: string
-  systemPrompt: string
-  userPrompt: string
-  schemaName: string
-  schema: Record<string, unknown>
-  maxOutputTokens: number
-  requestTimeoutMs?: number
-}): Promise<any> {
-  let res: Response
-  try {
-    res = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${opts.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(buildOpenAIJsonBody(opts)),
-      signal:
-        opts.requestTimeoutMs && opts.requestTimeoutMs > 0
-          ? AbortSignal.timeout(opts.requestTimeoutMs)
-          : undefined,
-    })
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      (error.name === 'AbortError' || error.name === 'TimeoutError')
-    ) {
-      throw new TestAiGradingError({
-        kind: 'timeout',
-        message: 'OpenAI grading request timed out',
-        retryable: true,
-      })
-    }
-
-    throw new TestAiGradingError({
-      kind: 'network',
-      message: error instanceof Error ? error.message : 'OpenAI request failed',
-      retryable: true,
-    })
-  }
-
-  if (!res.ok) {
-    const bodyText = await res.text().catch(() => '')
-    const statusCode = res.status
-    const retryable = RETRYABLE_STATUS_CODES.has(statusCode)
-    const kind: TestAiErrorKind =
-      statusCode === 429
-        ? 'rate_limit'
-        : retryable
-          ? 'server'
-          : statusCode === 401 || statusCode === 403
-            ? 'config'
-            : 'bad_response'
-
-    throw new TestAiGradingError({
-      kind,
-      message: `OpenAI request failed (${statusCode}): ${bodyText}`,
-      retryable,
-      statusCode,
-    })
-  }
-
-  const fallbackBodyTextPromise =
-    typeof res.clone === 'function'
-      ? res.clone().text().catch(() => '')
-      : Promise.resolve('')
-
-  try {
-    return await res.json()
-  } catch {
-    const bodyText = await fallbackBodyTextPromise
-    throw new TestAiGradingError({
-      kind: 'bad_response',
-      message: buildInvalidJsonErrorMessage(res, bodyText),
-      retryable: false,
-      statusCode: res.status,
-    })
-  }
-}
-
 function toTestAiGradingError(error: unknown): TestAiGradingError {
   if (error instanceof TestAiGradingError) {
     return error
+  }
+
+  if (error instanceof GradingProviderError) {
+    return new TestAiGradingError({
+      kind: error.kind,
+      message: error.message,
+      retryable: error.retryable,
+      statusCode: error.statusCode,
+    })
+  }
+
+  if (error instanceof GradingOutputError) {
+    return new TestAiGradingError({
+      kind: 'invalid_output',
+      message: error.message,
+      retryable: false,
+    })
   }
 
   if (
@@ -440,70 +204,60 @@ async function callOpenAIForJson(opts: {
   model: string
   systemPrompt: string
   userPrompt: string
-  parseErrorMessage: string
-  schemaName: string
-  schema: Record<string, unknown>
-  maxOutputTokens: number
-  fallbackMaxOutputTokens: number
+  output: StructuredOutputSpec
+  parseOutput(outputText: string): unknown
   requestTimeoutMs?: number
-}): Promise<{ parsed: any; usage: OpenAIResponseUsage }> {
+}): Promise<{
+  parsed: any
+  usage: OpenAIResponseUsage
+  execution: GradingExecutionMetadata
+}> {
   try {
-    let payload = await fetchOpenAIJsonPayload({
-      apiKey: opts.apiKey,
-      model: opts.model,
-      systemPrompt: opts.systemPrompt,
-      userPrompt: opts.userPrompt,
-      schemaName: opts.schemaName,
-      schema: opts.schema,
-      maxOutputTokens: opts.maxOutputTokens,
-      requestTimeoutMs: opts.requestTimeoutMs ?? TEST_AI_REQUEST_TIMEOUT_MS,
-    })
-
-    if (isMaxOutputIncomplete(payload)) {
-      payload = await fetchOpenAIJsonPayload({
-        apiKey: opts.apiKey,
+    const result = await executeStructuredOutput({
+      provider: createOpenAiResponsesProvider({ apiKey: opts.apiKey }),
+      policy: {
+        version: PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION,
         model: opts.model,
+        requestTimeoutMs: opts.requestTimeoutMs ?? TEST_AI_REQUEST_TIMEOUT_MS,
+        reasoningEffort: TEST_AI_REASONING_EFFORT,
+      },
+      prompt: {
         systemPrompt: opts.systemPrompt,
         userPrompt: opts.userPrompt,
-        schemaName: opts.schemaName,
-        schema: opts.schema,
-        maxOutputTokens: opts.fallbackMaxOutputTokens,
-        requestTimeoutMs: opts.requestTimeoutMs ?? TEST_AI_REQUEST_TIMEOUT_MS,
-      })
-    }
-
-    if (isMaxOutputIncomplete(payload)) {
-      throw new TestAiGradingError({
-        kind: 'bad_response',
-        message: 'OpenAI response incomplete: max_output_tokens',
-        retryable: false,
-      })
-    }
-
-    const parsedOutput = extractParsedOutput(payload)
-    if (parsedOutput && typeof parsedOutput === 'object') {
-      return {
-        parsed: parsedOutput,
-        usage: extractOpenAIResponseUsage(payload),
-      }
-    }
-
-    const outputText = extractOutputText(payload)
-    if (!outputText) {
-      throw new TestAiGradingError({
-        kind: 'bad_response',
-        message: 'OpenAI response missing structured output',
-        retryable: false,
-      })
-    }
-
+      },
+      output: opts.output,
+      parseOutput: opts.parseOutput,
+    })
     return {
-      parsed: parseJsonFromOutputText(outputText, opts.parseErrorMessage),
-      usage: extractOpenAIResponseUsage(payload),
+      parsed: result.output,
+      usage: result.execution.tokenUsage,
+      execution: result.execution,
     }
   } catch (error) {
     throw toTestAiGradingError(error)
   }
+}
+
+function buildTestGradingProvenance(input: {
+  execution: GradingExecutionMetadata
+  promptProfile: TestOpenResponsePromptProfile
+  operation: 'single' | 'batch'
+  batchSize: number
+}): TestGradingProvenance {
+  return testGradingProvenanceSchema.parse({
+    schemaVersion: 'test-grading-provenance-v1',
+    gradingRequestId: randomUUID(),
+    provider: input.execution.provider,
+    model: input.execution.model,
+    policyVersion: input.execution.policyVersion,
+    promptVersion: getPikaTestPromptVersion(input.promptProfile),
+    gradingProfileVersion: PIKA_TEST_OPEN_RESPONSE_PROFILE_VERSION,
+    rubricVersion: PIKA_TEST_OPEN_RESPONSE_RUBRIC_VERSION,
+    operation: input.operation,
+    batchSize: input.batchSize,
+    providerRequestCount: input.execution.providerRequestCount,
+    tokenUsage: input.execution.tokenUsage,
+  })
 }
 
 function normalizeAnswerKey(raw: string | null | undefined): string | null {
@@ -587,105 +341,6 @@ function scoreToNearestBucket(score: number, buckets: number[]): number {
   }
 
   return nearest
-}
-
-function getCodingReadabilityDeductionCap(maxPoints: number): number {
-  return Math.max(0, Math.floor(maxPoints * 0.2))
-}
-
-function getDefaultPromptGuideline(
-  isCodingQuestion: boolean,
-  promptProfile: TestOpenResponsePromptProfile
-): string {
-  if (isCodingQuestion) {
-    return promptProfile === 'bulk'
-      ? BULK_GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE
-      : GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE
-  }
-
-  return promptProfile === 'bulk'
-    ? BULK_TEST_AI_PROMPT_GUIDELINE
-    : DEFAULT_TEST_AI_PROMPT_GUIDELINE
-}
-
-function sanitizePromptGuidelineForJsonOutput(raw: string): string {
-  const trimmed = raw.trim()
-  if (!trimmed) return ''
-
-  return trimmed.replace(/\n*Output format[\s\S]*$/i, '').trim()
-}
-
-function resolvePromptGuideline(
-  raw: string | null | undefined,
-  isCodingQuestion: boolean,
-  promptProfile: TestOpenResponsePromptProfile
-): string {
-  const baseGuideline = getDefaultPromptGuideline(isCodingQuestion, promptProfile)
-  if (raw == null) return sanitizePromptGuidelineForJsonOutput(baseGuideline)
-
-  const sanitizedExtraGuideline = sanitizePromptGuidelineForJsonOutput(raw)
-  if (!sanitizedExtraGuideline) {
-    return sanitizePromptGuidelineForJsonOutput(baseGuideline)
-  }
-
-  return `${sanitizePromptGuidelineForJsonOutput(baseGuideline)}
-
-Additional teacher instructions:
-${sanitizedExtraGuideline}`
-}
-
-function buildReadabilityDeductionGuidance(
-  maxPoints: number,
-  promptProfile: TestOpenResponsePromptProfile
-): string {
-  const readabilityDeductionCap = getCodingReadabilityDeductionCap(maxPoints)
-
-  if (readabilityDeductionCap <= 0) {
-    return `- Because this question is worth ${maxPoints} point${maxPoints === 1 ? '' : 's'}, do not apply a separate readability/style deduction here; keep grading focused on correctness and required structure.`
-  }
-
-  if (promptProfile === 'bulk') {
-    return `- Apply at most one readability/style deduction, and only when formatting materially hurts readability.
-- Cap any readability/style deduction at ${readabilityDeductionCap} point${readabilityDeductionCap === 1 ? '' : 's'} for this question.
-- Do not deduct for minor style issues when the code is still readable.`
-  }
-
-  return `- You may apply one readability/style deduction only after scoring correctness and required structure first.
-- Forgive one small formatting/style issue.
-- Apply the readability deduction only when formatting materially hurts readability, such as two or more minor formatting issues or one major formatting issue.
-- Minor issues include slightly uneven spacing, one missed indent level, or small brace-placement inconsistencies.
-- Major issues include most code written on one line, indentation missing across nested blocks, or formatting that makes control flow hard to follow.
-- Never stack style deductions per infraction; apply at most one readability deduction total.
-- Cap any readability/style deduction at ${readabilityDeductionCap} point${readabilityDeductionCap === 1 ? '' : 's'} for this question.
-- If readability is still acceptable overall, do not deduct for style.`
-}
-
-function buildCodingRubric(
-  isCodingQuestion: boolean,
-  maxPoints: number,
-  promptProfile: TestOpenResponsePromptProfile
-): string {
-  if (!isCodingQuestion) return ''
-
-  const readabilityGuidance = buildReadabilityDeductionGuidance(maxPoints, promptProfile)
-
-  if (promptProfile === 'bulk') {
-    return `
-- This is a coding response. Prioritize algorithmic correctness and logical reasoning over minor syntax/runtime mistakes.
-- Award strong partial credit when the core approach is correct, even if the implementation is rough.
-- Treat CodeHS Java helpers (for example: ConsoleProgram, readInt/readLine, println, Randomizer) as valid.
-- Accept alternate valid solutions unless the prompt explicitly requires a specific structure.
-${readabilityGuidance}`
-  }
-
-  return `
-- This is a coding response. Prioritize algorithmic correctness and logical reasoning over minor syntax/runtime mistakes.
-- If the approach is logically sound and clearly communicated but has minor implementation issues, award high partial credit (typically 80-95% of max points).
-- Formatting/readability can affect the score only through the capped readability deduction below.
-- For Java/CodeHS classroom contexts, treat platform helper APIs (for example: ConsoleProgram, readInt/readLine, println, Randomizer) as valid and do not penalize solely for using them.
-- If language is unspecified, infer likely language from prompt/context/response. If still ambiguous, evaluate logic language-agnostically and do not penalize language choice alone.
-- Avoid nitpicking minor stylistic preferences when clarity and logic are strong.
-${readabilityGuidance}`
 }
 
 function getCacheStatus(prepared: TestOpenResponsePreparedContext): 'hit' | 'miss' | 'not_applicable' {
@@ -797,26 +452,12 @@ async function generateReferenceAnswers(opts: {
   sanitizationContext?: AiSanitizationContext | null
 }): Promise<string[]> {
   const sanitizeOptions = opts.sanitizationContext ?? undefined
-  const codingGuidance = opts.isCodingQuestion
-    ? `
-- Treat this as a coding question. Provide reference answers as clear code-oriented solution outlines, including algorithm steps and expected structure.
-- For Java/CodeHS contexts, include platform helper APIs when appropriate (for example: ConsoleProgram, readInt/readLine, println, Randomizer).
-- If the language is not explicitly stated, infer likely language from the question/response context; if uncertain, keep references language-agnostic and focus on logic.`
-    : ''
-
-  const systemPrompt = `You generate reference answers for grading open-response test questions.
-Return ONLY valid JSON:
-{"reference_answers":["answer 1","answer 2"]}
-
-Rules:
-- Provide 1-${MAX_REFERENCE_ANSWERS} concise, high-quality reference answers.
-- Each answer should describe acceptable content, not just keywords.
-- Do not include markdown code fences.${codingGuidance}`
-  const userPrompt = `Test: ${sanitizeAiText(opts.testTitle, sanitizeOptions)}
-Question:
-${sanitizeAiText(opts.questionText, sanitizeOptions)}
-
-Max points: ${opts.maxPoints}`
+  const { systemPrompt, userPrompt } = buildPikaTestReferencePrompt({
+    testTitle: sanitizeAiText(opts.testTitle, sanitizeOptions),
+    questionText: sanitizeAiText(opts.questionText, sanitizeOptions),
+    maxPoints: opts.maxPoints,
+    isCodingQuestion: opts.isCodingQuestion,
+  })
 
   const promptMetrics = estimatePromptMetrics(systemPrompt, userPrompt)
   const { parsed, usage } = await callOpenAIForJson({
@@ -824,11 +465,8 @@ Max points: ${opts.maxPoints}`
     model: opts.model,
     systemPrompt,
     userPrompt,
-    parseErrorMessage: 'Failed to parse AI reference answers',
-    schemaName: 'test_reference_answers',
-    schema: TEST_REFERENCE_ANSWERS_JSON_SCHEMA,
-    maxOutputTokens: TEST_AI_REFERENCE_MAX_OUTPUT_TOKENS,
-    fallbackMaxOutputTokens: TEST_AI_REFERENCE_FALLBACK_MAX_OUTPUT_TOKENS,
+    output: PIKA_TEST_REFERENCE_OUTPUT,
+    parseOutput: parsePikaTestReferenceOutput,
     requestTimeoutMs: opts.requestTimeoutMs,
   })
 
@@ -880,13 +518,13 @@ export function buildTestOpenResponsePreparedContext(input: {
   const sanitizeOptions = sanitizationContext ?? undefined
   const testTitle = sanitizeAiText(input.testTitle, sanitizeOptions)
   const questionText = sanitizeAiText(input.questionText, sanitizeOptions)
-  const promptGuideline = resolvePromptGuideline(
-    input.promptGuidelineOverride
+  const promptGuideline = resolvePikaTestPromptGuideline({
+    override: input.promptGuidelineOverride
       ? sanitizeAiText(input.promptGuidelineOverride, sanitizeOptions)
       : input.promptGuidelineOverride,
     isCodingQuestion,
-    promptProfile
-  )
+    promptProfile,
+  })
   const scoreBuckets = normalizeScoreBuckets(input.scoreBuckets, maxPoints)
   const answerKey = normalizeAnswerKey(
     input.answerKey ? sanitizeAiText(input.answerKey, sanitizeOptions) : input.answerKey,
@@ -914,52 +552,20 @@ export function buildTestOpenResponsePreparedContext(input: {
       ? answerKey == null && sampleSolution != null
       : sampleSolution != null
 
-  const promptGuidelineContext = promptGuideline
-    ? `Teacher grading guideline:
-${promptGuideline}`
-    : 'Teacher grading guideline: none provided.'
-
-  const codingRubric = buildCodingRubric(isCodingQuestion, maxPoints, promptProfile)
-  const systemPrompt = `You grade open-response test answers.
-Return ONLY valid JSON with this shape:
-{"score": number, "feedback": "string"}
-
-Rules:
-- score must be between 0 and ${maxPoints}
-- grade for correctness and completeness, not just writing style
-- if the score is less than ${maxPoints}, feedback should include one concrete improvement needed for full marks
-
-${promptGuidelineContext}${codingRubric}`
-
-  const gradingContext =
-    gradingBasis === 'teacher_key'
-      ? `Teacher answer key:
-${answerKey}`
-      : `Reference answers:
-${normalizedReferenceAnswers.map((answer, index) => `${index + 1}. ${answer}`).join('\n')}
-
-Students may use different correct wording. Award credit for equivalent ideas.`
-
-  const sampleSolutionContext = sampleSolutionIncluded
-    ? `
-
-Sample solution (one valid approach, not a required exact match):
-${sampleSolution}`
-    : ''
-
-  const scoreBucketContext = scoreBuckets && scoreBuckets.length > 0
-    ? `Score buckets: ${scoreBuckets.join(', ')}
-Choose the nearest bucket for the score.`
-    : 'No explicit score buckets were provided.'
-
-  const userPromptPrefix = `Test: ${testTitle}
-Question:
-${questionText}
-
-${gradingContext}
-${sampleSolutionContext}
-
-${scoreBucketContext}`
+  const { systemPrompt, userPromptPrefix } = buildPikaTestOpenResponsePrompt({
+    testTitle,
+    questionText,
+    maxPoints,
+    promptGuideline,
+    promptProfile,
+    isCodingQuestion,
+    gradingBasis,
+    answerKey,
+    referenceAnswers: normalizedReferenceAnswers,
+    sampleSolution,
+    sampleSolutionIncluded,
+    scoreBuckets,
+  })
 
   return {
     model,
@@ -984,36 +590,32 @@ export function buildTestOpenResponseSingleUserPrompt(
   prepared: TestOpenResponsePreparedContext,
   responseText: string
 ): string {
-  return `${prepared.userPromptPrefix}
-
-Student response:
-${sanitizeAiText(responseText, prepared.sanitizationContext ?? undefined)}`
+  return buildPikaTestSingleUserPrompt(
+    prepared.userPromptPrefix,
+    sanitizeAiText(responseText, prepared.sanitizationContext ?? undefined),
+  )
 }
 
 export function buildTestOpenResponseBatchSystemPrompt(
   prepared: TestOpenResponsePreparedContext
 ): string {
-  return `${prepared.systemPrompt}
-
-Grade each response independently. Do not compare students against each other.
-Return ONLY valid JSON with this shape:
-{"results":[{"response_id":"string","score":number,"feedback":"string"}]}`
+  return buildPikaTestBatchSystemPrompt(prepared.systemPrompt)
 }
 
 export function buildTestOpenResponseBatchUserPrompt(
   prepared: TestOpenResponsePreparedContext,
   responses: TestOpenResponseBatchRequest[]
 ): string {
-  return `${prepared.userPromptPrefix}
-
-Student responses:
-${responses
-  .map(
-    (response, index) =>
-      `${index + 1}. response_id=${sanitizeAiText(response.responseId)}
-${sanitizeAiText(response.responseText, prepared.sanitizationContext ?? undefined)}`
+  return buildPikaTestBatchUserPrompt(
+    prepared.userPromptPrefix,
+    responses.map((response) => ({
+      responseId: sanitizeAiText(response.responseId),
+      responseText: sanitizeAiText(
+        response.responseText,
+        prepared.sanitizationContext ?? undefined,
+      ),
+    })),
   )
-  .join('\n\n')}`
 }
 
 export async function generateTestOpenResponseReferences(input: {
@@ -1178,16 +780,13 @@ export async function suggestTestOpenResponseGradeWithContext(
 
   const userPrompt = buildTestOpenResponseSingleUserPrompt(prepared, responseText)
   const promptMetrics = estimatePromptMetrics(prepared.systemPrompt, userPrompt)
-  const { parsed, usage } = await callOpenAIForJson({
+  const { parsed, usage, execution } = await callOpenAIForJson({
     apiKey,
     model: prepared.model,
     systemPrompt: prepared.systemPrompt,
     userPrompt,
-    parseErrorMessage: 'Failed to parse AI grade suggestion',
-    schemaName: 'test_single_grade',
-    schema: TEST_SINGLE_GRADE_JSON_SCHEMA,
-    maxOutputTokens: TEST_AI_SINGLE_MAX_OUTPUT_TOKENS,
-    fallbackMaxOutputTokens: TEST_AI_SINGLE_FALLBACK_MAX_OUTPUT_TOKENS,
+    output: PIKA_TEST_SINGLE_GRADE_OUTPUT,
+    parseOutput: parsePikaTestSingleGradeOutput,
     requestTimeoutMs,
   })
 
@@ -1219,6 +818,12 @@ export async function suggestTestOpenResponseGradeWithContext(
     model: prepared.model,
     grading_basis: prepared.grading_basis,
     reference_answers: prepared.reference_answers,
+    provenance: buildTestGradingProvenance({
+      execution,
+      promptProfile: prepared.promptProfile,
+      operation: 'single',
+      batchSize: 1,
+    }),
   }
 }
 
@@ -1251,16 +856,13 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
     })),
   )
   const promptMetrics = estimatePromptMetrics(systemPrompt, userPrompt)
-  const { parsed, usage } = await callOpenAIForJson({
+  const { parsed, usage, execution } = await callOpenAIForJson({
     apiKey,
     model: prepared.model,
     systemPrompt,
     userPrompt,
-    parseErrorMessage: 'Failed to parse AI batch grade suggestions',
-    schemaName: 'test_batch_grade',
-    schema: TEST_BATCH_GRADE_JSON_SCHEMA,
-    maxOutputTokens: TEST_AI_BATCH_MAX_OUTPUT_TOKENS,
-    fallbackMaxOutputTokens: TEST_AI_BATCH_FALLBACK_MAX_OUTPUT_TOKENS,
+    output: PIKA_TEST_BATCH_GRADE_OUTPUT,
+    parseOutput: parsePikaTestBatchGradeOutput,
     requestTimeoutMs,
   })
 
@@ -1293,6 +895,9 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
     if (!localResponseId) {
       throw new Error(`AI batch grade suggestion returned unknown response ${responseId}`)
     }
+    if (resultsById.has(localResponseId)) {
+      throw new Error(`AI batch grade suggestion returned duplicate response ${responseId}`)
+    }
 
     resultsById.set(localResponseId, {
       score: normalizeSuggestedScore(rawScore, prepared.maxPoints, prepared.scoreBuckets),
@@ -1301,6 +906,12 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
   }
 
   const suggestions: TestOpenResponseBatchSuggestion[] = []
+  const provenance = buildTestGradingProvenance({
+    execution,
+    promptProfile: prepared.promptProfile,
+    operation: 'batch',
+    batchSize: responses.length,
+  })
   for (const response of responses) {
     const result = resultsById.get(response.responseId)
     if (!result) {
@@ -1314,6 +925,7 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
       model: prepared.model,
       grading_basis: prepared.grading_basis,
       reference_answers: prepared.reference_answers,
+      provenance,
     })
   }
 

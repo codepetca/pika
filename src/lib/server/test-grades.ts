@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { ApiError, apiErrors } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { Json } from '@/types/database.generated'
+import type { TestGradingProvenance } from '@/lib/grading/contracts'
 import { verifyManualTestAiProvenanceToken } from '@/lib/server/test-ai-provenance'
 import type {
   SaveStudentTestGradesInput,
@@ -63,6 +64,7 @@ function toRpcGrade(
         ai_model: grade.ai_model ?? null,
         ai_suggested_score: grade.ai_suggested_score ?? null,
         ai_suggested_feedback: grade.ai_suggested_feedback ?? null,
+        ai_grading_provenance: grade.ai_grading_provenance ?? null,
         question_grading_snapshot: grade.question_grading_snapshot ?? null,
       }
   return {
@@ -106,6 +108,7 @@ function assertManualAiProvenance(input: {
         suggestedScore: grade.ai_suggested_score,
         suggestedFeedback: grade.ai_suggested_feedback,
         questionGradingSnapshot: grade.question_grading_snapshot,
+        gradingProvenance: grade.ai_grading_provenance ?? null,
       },
     })
   ) {
@@ -121,7 +124,7 @@ async function saveGrades(opts: {
   now?: string
 }) {
   const supabase = getServiceRoleClient()
-  const { data, error } = await supabase.rpc('save_test_response_grades_atomic', {
+  const { data, error } = await supabase.rpc('save_test_response_grades_with_provenance_atomic', {
     p_test_id: opts.testId,
     p_student_id: opts.studentId,
     p_teacher_id: opts.teacherId,
@@ -277,11 +280,12 @@ export async function finalizeTestAiGradingItem(input: {
   aiGradingBasis: 'teacher_key' | 'generated_reference'
   aiReferenceAnswers: string[] | null
   aiModel: string
+  aiGradingProvenance: TestGradingProvenance
   attemptCount: number
   now?: string
 }) {
   const supabase = getServiceRoleClient()
-  const { data, error } = await supabase.rpc('finalize_test_ai_grading_item_atomic', {
+  const { data, error } = await supabase.rpc('finalize_test_ai_grading_item_with_provenance_atomic', {
     p_item_id: input.itemId,
     p_teacher_id: input.teacherId,
     p_lease_token: input.leaseToken,
@@ -290,6 +294,7 @@ export async function finalizeTestAiGradingItem(input: {
     p_ai_grading_basis: input.aiGradingBasis,
     p_ai_reference_answers: input.aiReferenceAnswers,
     p_ai_model: input.aiModel,
+    p_ai_grading_provenance: input.aiGradingProvenance,
     p_attempt_count: input.attemptCount,
     p_now: input.now ?? new Date().toISOString(),
   })
