@@ -1005,3 +1005,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 **Remaining:**
 - Complete the final cross-repository review and required PR checks. Deploy Gradex before enabling an explicitly authorized Pika pilot.
+
+## 2026-07-21 - Malformed Gradex Poll Remediation
+
+**Completed:**
+- Classified invalid JSON and schema-invalid successful Gradex responses as retryable response failures.
+- Kept malformed run and item polling responses in reconciliation without consuming grading attempts before the deadline, while preserving unhealthy deadline behavior afterward.
+- Added before/after-deadline regressions for truncated run responses and malformed item responses, plus an exact assertion for the GitHub Actions repository-variable gate.
+- No scheduler, provider call, migration, secret, or production setting was enabled.
+
+**Validation:**
+- `pnpm test` (390 files / 3,585 tests)
+- `pnpm exec tsc --noEmit`
+- `pnpm lint`
+- `pnpm check:architecture` (612 modules / 0 allowances)
+- `pnpm build`
+- `git diff --check`
+
+**Remaining:**
+- Complete full validation and cross-repository review. Deploy Gradex migration 0009 before enabling an explicitly authorized Pika pilot.

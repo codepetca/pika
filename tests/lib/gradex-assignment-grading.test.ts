@@ -151,7 +151,7 @@ describe('Gradex assignment grading processor', () => {
     ])
   })
 
-  it('rejects a malformed successful submission response before storing metadata', async () => {
+  it('retries a malformed successful submission response before storing metadata', async () => {
     const supabase = buildSupabase()
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () =>
       jsonResponse(202, {
@@ -165,15 +165,26 @@ describe('Gradex assignment grading processor', () => {
       })
     ))
 
-    await expect(submitOrPollGradexAssignmentRun({
+    await submitOrPollGradexAssignmentRun({
       supabase: supabase.client,
       assignment: assignment(),
       run: run({ gradex_run_id: null }),
       items: [item()],
-    })).rejects.toThrow()
+    })
 
     expect(supabase.runUpdates).toEqual([])
     expect(supabase.aiGradeCalls).toEqual([])
+    expect(supabase.itemUpdates).toEqual([
+      expect.objectContaining({ payload: expect.objectContaining({ status: 'processing' }) }),
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          status: 'queued',
+          attempt_count: 1,
+          last_error_code: 'gradex_invalid_response',
+          next_retry_at: expect.any(String),
+        }),
+      }),
+    ])
   })
 
   it('polls a completed Gradex run and maps results into Pika grade fields', async () => {
@@ -435,6 +446,85 @@ describe('Gradex assignment grading processor', () => {
     ])
   })
 
+  it.each(['run', 'item'] as const)(
+    'reconciles a malformed successful %s poll response without consuming grading attempts',
+    async (responseTarget) => {
+      const supabase = buildSupabase()
+      vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+        const url = String(input)
+        if (responseTarget === 'run') {
+          return new Response('{', { status: 200, headers: { 'Content-Type': 'application/json' } })
+        }
+        if (url.endsWith('/items/gradex-item-1')) {
+          return jsonResponse(200, { status: 'completed' })
+        }
+        return jsonResponse(200, completedGradexRunResponse())
+      }))
+
+      await submitOrPollGradexAssignmentRun({
+        supabase: supabase.client,
+        assignment: assignment(),
+        run: run({ gradex_run_id: 'gradex-run-1' }),
+        items: [item({ status: 'processing', attempt_count: 2 })],
+      })
+
+      expect(supabase.itemUpdates).toEqual([
+        expect.objectContaining({
+          id: 'item-1',
+          payload: expect.objectContaining({
+            status: 'processing',
+            next_retry_at: expect.any(String),
+            last_error_code: 'gradex_invalid_response',
+            completed_at: null,
+          }),
+        }),
+      ])
+      expect(supabase.itemUpdates[0]?.payload.attempt_count).toBeUndefined()
+      expect(supabase.aiGradeCalls).toEqual([])
+    },
+  )
+
+  it.each(['run', 'item'] as const)(
+    'fails a malformed successful %s poll response after the reconciliation deadline',
+    async (responseTarget) => {
+      const supabase = buildSupabase()
+      vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+        const url = String(input)
+        if (responseTarget === 'run') {
+          return new Response('{', { status: 200, headers: { 'Content-Type': 'application/json' } })
+        }
+        if (url.endsWith('/items/gradex-item-1')) {
+          return jsonResponse(200, { status: 'completed' })
+        }
+        return jsonResponse(200, completedGradexRunResponse())
+      }))
+
+      await submitOrPollGradexAssignmentRun({
+        supabase: supabase.client,
+        assignment: assignment(),
+        run: run({
+          gradex_run_id: 'gradex-run-1',
+          gradex_submitted_at: '2026-06-01T10:00:00.000Z',
+        }),
+        items: [item({ status: 'processing', attempt_count: 2 })],
+      })
+
+      expect(supabase.itemUpdates).toEqual([
+        expect.objectContaining({
+          id: 'item-1',
+          payload: expect.objectContaining({
+            status: 'failed',
+            attempt_count: 2,
+            next_retry_at: null,
+            last_error_code: 'gradex_reconciliation_deadline_exceeded',
+            completed_at: expect.any(String),
+          }),
+        }),
+      ])
+      expect(supabase.aiGradeCalls).toEqual([])
+    },
+  )
+
   it('does not poll before a processing Gradex item retry is due', async () => {
     const supabase = buildSupabase()
     const fetchImpl = vi.fn<typeof fetch>()
@@ -676,4 +766,24 @@ function jsonResponse(status: number, body: unknown): Response {
     status,
     headers: { 'Content-Type': 'application/json' },
   })
+}
+
+function completedGradexRunResponse() {
+  return {
+    id: 'gradex-run-1',
+    status: 'completed',
+    counts: { requested: 1, processed: 1, completed: 1, failed: 0, skipped: 0, pending: 0 },
+    provider: 'openai',
+    model: 'gpt-5-nano',
+    tier: 'tier_1',
+    policy_version: 'gradex-routing-policy-v1',
+    prompt_version: 'gradex-essay-rubric-v1',
+    items: [{
+      id: 'gradex-item-1',
+      status: 'completed',
+      external_submission_id: 'pika-submission-safe',
+      external_student_id: 'pika-student-safe',
+      error: null,
+    }],
+  }
 }

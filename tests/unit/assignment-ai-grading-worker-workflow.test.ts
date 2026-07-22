@@ -9,6 +9,7 @@ describe('assignment AI grading worker workflow', () => {
     )
 
     expect(workflow).toContain('WORKER_URL: https://pika.codepet.ca')
+    expect(workflow).toContain("if: ${{ vars.PIKA_ASSIGNMENT_AI_GRADING_WORKER_ENABLED == 'true' }}")
     expect(workflow).toContain('PIKA_ASSIGNMENT_AI_GRADING_WORKER_SECRET')
     expect(workflow).not.toContain('PIKA_ASSIGNMENT_AI_GRADING_WORKER_URL')
     expect(workflow).not.toContain('CRON_SECRET')

@@ -178,14 +178,34 @@ async function requestGradexJson<T>(
     clearTimeout(timeout)
   }
 
-  const body = await response.json().catch(() => null)
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch {
+    if (response.ok && response.status === opts.expectedStatus) {
+      throw new GradexRetryableRequestError(
+        'Gradex returned an invalid JSON response',
+        'gradex_invalid_response',
+        response.status,
+      )
+    }
+    body = null
+  }
   if (!response.ok || response.status !== opts.expectedStatus) {
     if (RETRYABLE_GRADEX_STATUS_CODES.has(response.status)) {
       throw new GradexRetryableRequestError(formatGradexError(body, response.status), 'gradex_retryable_http_error', response.status)
     }
     throw new Error(formatGradexError(body, response.status))
   }
-  return opts.schema.parse(body)
+  const parsed = opts.schema.safeParse(body)
+  if (!parsed.success) {
+    throw new GradexRetryableRequestError(
+      'Gradex returned a response that did not match the expected contract',
+      'gradex_invalid_response',
+      response.status,
+    )
+  }
+  return parsed.data
 }
 
 function isGradexRetryableRequestError(error: unknown): error is GradexRetryableRequestError {

@@ -58,3 +58,8 @@ attempts. Pika keeps the local items in `processing`, polls at a bounded cadence
 remote terminal result for up to one hour. Crossing that deadline produces
 `gradex_reconciliation_deadline_exceeded`, completes the local run with errors, and makes the worker
 invocation unhealthy for scheduler alerting.
+
+Invalid JSON and successful responses that do not match the expected Gradex run or item contract
+follow this same reconciliation path. They preserve grading attempts before the deadline and become
+an unhealthy deadline failure afterward; a temporary malformed response cannot immediately make
+the local run terminal.
