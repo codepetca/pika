@@ -1013,20 +1013,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Consolidated student Test form submissions and returned results on current structured Test payloads.
 - Removed the orphaned `TestIndividualResponses` and `TestMultipleChoiceQuestionEditor` modules and their isolated compatibility coverage.
 - Simplified Test detail draft saves on the already-current full Markdown snapshot path and retained stale-request guards by test, classroom, and API scope.
+- Preserved authoring-preview freshness with uncached reads and a request-generation guard so a late stale response cannot replace a newer refresh.
+- Updated the governed native-control registry for the removed controls and modules.
 - Added architecture ratchets for retired modules, props, helpers, test ids, and rendering branches.
 - Updated the cleanup guide so the next pass is archive/schema migration design and production evidence, not cosmetic naming.
 - Preserved schema, migrations, persisted `quiz_id`, legacy archive resources, gradebook tombstones, course-package compatibility, and the `tab=quizzes` URL tombstone.
 
 **Validation:**
-- Focused component and architecture suites (6 files / 117 tests)
-- Full repository suite (406 files / 3,661 tests)
+- Focused component and architecture suites (7 files / 118 tests)
+- Full repository suite (407 files / 3,662 tests)
 - `pnpm exec tsc --noEmit`
 - `pnpm lint`
 - `pnpm check:architecture` (621 modules / 0 allowances)
+- `pnpm run check:ui-policy` (207 registered native controls / 65 files)
 - `pnpm build`
 - Pika changed-file audit
 - Teacher/student Test visual verification across desktop/mobile and light/dark, including teacher authoring and the student form
 - `git diff --check`
+- Independent review found one blocking in-flight preview freshness regression; fixed with a request-generation guard and deferred-response regression coverage.
 
 **Remaining:**
 - Require independent PR review and exact-head CI before merge.

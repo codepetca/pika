@@ -7,7 +7,7 @@ import { Spinner } from '@/components/Spinner'
 import { StudentTestForm } from '@/components/StudentTestForm'
 import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
-import { fetchCachedJSON } from '@/lib/request-cache'
+import { fetchJSON } from '@/lib/request-cache'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
 import { readTestFromPayload } from '@/lib/test-api-contract'
 import type { TestAssessmentQuestion, TestDocument } from '@/types'
@@ -94,6 +94,7 @@ export function TeacherTestPreviewPage({
   const [activeDoc, setActiveDoc] = useState<AllowedDocItem | null>(null)
   const fullscreenActiveRef = useRef(false)
   const autoSyncAttemptedRef = useRef<Set<string>>(new Set())
+  const loadRequestIdRef = useRef(0)
 
   const allowedDocs = useMemo(() => {
     const teacherManagedDocs = normalizeTestDocuments(documents).map((doc) => ({
@@ -218,27 +219,31 @@ export function TeacherTestPreviewPage({
   }, [])
 
   const loadPreviewData = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
     setLoading(true)
     setError('')
     try {
-      const data = await fetchCachedJSON<TestPreviewPayload>(
-        `teacher-test-preview:${testId}`,
+      const data = await fetchJSON<TestPreviewPayload>(
         `/api/teacher/tests/${testId}`,
         {
-          ttlMs: 0,
           init: { cache: 'no-store' },
           errorMessage: 'Failed to load preview',
         },
       )
+      if (requestId !== loadRequestIdRef.current) return
 
       const responseTest = readTestFromPayload<{ title?: string; documents?: unknown }>(data)
       setTitle(responseTest?.title || 'Test Preview')
       setQuestions(data.questions || [])
       setDocuments(normalizeTestDocuments(responseTest?.documents))
     } catch (err: any) {
+      if (requestId !== loadRequestIdRef.current) return
       setError(err?.message || 'Failed to load preview')
     } finally {
-      setLoading(false)
+      if (requestId === loadRequestIdRef.current) {
+        setLoading(false)
+      }
     }
   }, [testId])
 

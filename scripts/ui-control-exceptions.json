@@ -810,13 +810,8 @@
           "reason": "legacy-form-control"
         },
         {
-          "kind": "input:radio",
-          "count": 1,
-          "reason": "native-input-capability"
-        },
-        {
           "kind": "textarea",
-          "count": 2,
+          "count": 1,
           "reason": "native-textarea"
         }
       ]
@@ -834,33 +829,6 @@
           "kind": "textarea",
           "count": 2,
           "reason": "native-textarea"
-        }
-      ]
-    },
-    {
-      "file": "src/components/TestIndividualResponses.tsx",
-      "reviewBy": "phase-3-tests",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 1,
-          "reason": "legacy-form-control"
-        },
-        {
-          "kind": "textarea",
-          "count": 1,
-          "reason": "native-textarea"
-        }
-      ]
-    },
-    {
-      "file": "src/components/TestMultipleChoiceQuestionEditor.tsx",
-      "reviewBy": "phase-3-tests",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 4,
-          "reason": "legacy-form-control"
         }
       ]
     },
