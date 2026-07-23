@@ -6,6 +6,7 @@ import {
   LEGACY_QUIZ_RETIRED_SOURCE_CONTRACT,
   RETIRED_ASSESSMENT_CHECKSUM_ALGORITHM,
   retiredAssessmentPayloadChecksum,
+  validateRetiredAssessmentEnvelopeGraph,
 } from '@/lib/server/classroom-retired-assessment-contract'
 
 const CLASSROOM_ID = '00000000-0000-4000-8000-000000000001'
@@ -17,6 +18,13 @@ const RESPONSE_ID = '10000000-0000-4000-8000-000000000003'
 const SCORE_ID = '10000000-0000-4000-8000-000000000004'
 const QUIZ_DRAFT_ID = '10000000-0000-4000-8000-000000000005'
 const TEST_DRAFT_ID = '10000000-0000-4000-8000-000000000006'
+const REQUIRED_SOURCE_ACTOR_FIELDS = [
+  { sourceResource: 'quizzes', sourceColumn: 'created_by' },
+  { sourceResource: 'quiz_responses', sourceColumn: 'student_id' },
+  { sourceResource: 'quiz_student_scores', sourceColumn: 'student_id' },
+  { sourceResource: 'assessment_drafts', sourceColumn: 'created_by' },
+  { sourceResource: 'assessment_drafts', sourceColumn: 'updated_by' },
+] as const
 
 function resources() {
   return {
@@ -194,6 +202,7 @@ describe('legacy Quiz archive retirement adapter', () => {
       id: '90000000-0000-4000-8000-000000000001',
       classroom_id: CLASSROOM_ID,
       title: 'Prior quiz',
+      created_by: TEACHER_ID,
     }
     const existing = {
       id: '90000000-0000-4000-8000-000000000002',
@@ -210,8 +219,14 @@ describe('legacy Quiz archive retirement adapter', () => {
       source_created_at: null,
       source_updated_at: null,
     }
+    const existingActor = {
+      id: '90000000-0000-4000-8000-000000000003',
+      record_id: existing.id,
+      actor_id: TEACHER_ID,
+      source_column: 'created_by',
+    }
     source.classroom_retired_assessment_records = [existing]
-    source.classroom_retired_assessment_record_actors = []
+    source.classroom_retired_assessment_record_actors = [existingActor]
 
     const adapted = adaptLegacyQuizArchiveResources({
       classroomId: CLASSROOM_ID,
@@ -220,8 +235,52 @@ describe('legacy Quiz archive retirement adapter', () => {
     })
 
     expect(adapted.records).toContainEqual(existing)
+    expect(adapted.actors).toContainEqual(existingActor)
     expect(adapted.records).toHaveLength(6)
   })
+
+  it.each(REQUIRED_SOURCE_ACTOR_FIELDS)(
+    'rejects a v2 $sourceResource envelope without required $sourceColumn',
+    ({ sourceResource, sourceColumn }) => {
+      const adapted = adaptLegacyQuizArchiveResources({
+        classroomId: CLASSROOM_ID,
+        resources: resources(),
+        actors: archiveActors,
+      })
+      const records = structuredClone(adapted.records)
+      const record = records.find((candidate) =>
+        candidate.source_resource === sourceResource
+      )
+      if (!record) throw new Error(`Missing fixture record: ${sourceResource}`)
+      delete record.payload[sourceColumn]
+      record.payload_sha256 = retiredAssessmentPayloadChecksum(record.payload)
+      const recordActors = adapted.actors.filter((actor) =>
+        actor.record_id !== record.id || actor.source_column !== sourceColumn
+      )
+
+      expect(() => validateRetiredAssessmentEnvelopeGraph({
+        classroomId: CLASSROOM_ID,
+        records,
+        recordActors,
+        archiveActorIds: archiveActors.map((actor) => actor.id),
+      })).toThrow(`payload UUID is invalid: ${record.id}/${sourceColumn}`)
+    },
+  )
+
+  it.each(REQUIRED_SOURCE_ACTOR_FIELDS)(
+    'rejects a v1 $sourceResource row without required $sourceColumn',
+    ({ sourceResource, sourceColumn }) => {
+      const source = resources()
+      const sourceRows = source[sourceResource] as Array<Record<string, unknown>>
+      delete sourceRows[0][sourceColumn]
+
+      expect(() => adaptLegacyQuizArchiveResources({
+        classroomId: CLASSROOM_ID,
+        resources: source,
+        actors: archiveActors,
+      })).toThrow(`payload UUID is invalid`)
+    },
+  )
 
   it('fails closed on missing or inconsistent Quiz parents', () => {
     const missingQuestion = resources()

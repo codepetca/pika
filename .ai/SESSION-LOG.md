@@ -1068,8 +1068,8 @@ future persistence shape without enabling unapproved schema behavior.
 - Restricted inactive-v2 envelopes to the declared legacy Quiz source contract
   and added a resource registry that enforces payload identity, required
   parent/FK shape, classroom binding, cross-parent Quiz identity, actor-to-
-  payload equality, and credential-key rejection including client secrets,
-  private keys, and token variants.
+  payload equality, required actor fields/references, and credential-key
+  rejection including client secrets, private keys, and token variants.
 - Updated the retirement plan and cleanup guide to distinguish the completed
   application foundation from the approval-gated database/v2 activation work.
 - Created no migration and performed no production write.

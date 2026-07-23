@@ -372,9 +372,7 @@ export function validateRetiredAssessmentEnvelopeGraph(args: {
   for (const record of records) {
     const contract = sourceResourceContract(record)
     for (const sourceColumn of contract.actorColumns) {
-      const actorId = record.payload[sourceColumn]
-      if (actorId === null || actorId === undefined) continue
-      const parsedActorId = uuidSchema.parse(actorId)
+      const parsedActorId = payloadUuid(record, sourceColumn)
       if (!logicalActorRefs.has(`${record.id}\0${sourceColumn}\0${parsedActorId}`)) {
         throw new Error(
           `Retired Quiz actor reference is missing: ${record.id}/${sourceColumn}`,
